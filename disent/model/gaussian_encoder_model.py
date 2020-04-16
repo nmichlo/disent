@@ -1,6 +1,5 @@
 import torch
 from torch import Tensor
-import abc
 
 
 # ========================================================================= #
@@ -8,7 +7,7 @@ import abc
 # ========================================================================= #
 
 
-class GaussianEncoderModel(torch.nn.Module, metaclass=abc.ABCMeta):
+class GaussianEncoderModel(torch.nn.Module):
 
     def __init__(self, gaussian_encoder: torch.nn.Module, decoder: torch.nn.Module):
         super().__init__()
@@ -24,10 +23,10 @@ class GaussianEncoderModel(torch.nn.Module, metaclass=abc.ABCMeta):
           -> x_recon | no final activation
         """
         # encode
-        z_mean, z_logvar = self.gaussian_encode(x.view(-1, self.x_dim))
+        z_mean, z_logvar = self.encode_gaussian(x) # .view(-1, self.x_dim)
         z = self.sample_from_latent_distribution(z_mean, z_logvar)
         # decode
-        x_recon = self.decode(z).view(x.size())
+        x_recon = self.decode(z) #.view(x.size())
         return x_recon, z_mean, z_logvar, z
 
     @staticmethod
@@ -42,13 +41,21 @@ class GaussianEncoderModel(torch.nn.Module, metaclass=abc.ABCMeta):
         eps = torch.randn_like(std)      # N(0, 1)
         return z_mean + (std * eps)      # mu + dot(std, eps)
 
-    def gaussian_encode(self, x: Tensor) -> (Tensor, Tensor):
+    def encode_gaussian(self, x: Tensor) -> (Tensor, Tensor):
         """
         Compute the mean and logvar parametrisation for the gaussian
         normal distribution with diagonal covariance ie. the parametrisation for p(z|x).
         """
         z_mean, z_logvar = self.gaussian_encoder(x)
         return z_mean, z_logvar
+
+    # def encode_deterministic(self, x):
+    #     z_mean, z_logvar = self.encode_gaussian(x)
+    #     return z_mean
+
+    # def encode_stochastic(self, x):
+    #     z_mean, z_logvar = self.encode_gaussian(x)
+    #     return self.sample_from_latent_distribution(z_mean, z_logvar)
 
     def decode(self, z: Tensor) -> Tensor:
         """
@@ -60,14 +67,12 @@ class GaussianEncoderModel(torch.nn.Module, metaclass=abc.ABCMeta):
         x_recon = self.decoder(z)
         return x_recon
 
-    def reconstruct(self, z: Tensor) -> Tensor:
-        """
-        Compute the full reconstruction of the input from a latent vector.
-
-        Like decode but performs a final sigmoid activation.
-        """
-
-        return torch.sigmoid(self.decode(z))
+    # def reconstruct(self, z: Tensor) -> Tensor:
+    #     """
+    #     Compute the full reconstruction of the input from a latent vector.
+    #     Like decode but performs a final sigmoid activation.
+    #     """
+    #     return torch.sigmoid(self.decode(z))
 
 
 # ========================================================================= #

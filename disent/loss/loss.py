@@ -15,7 +15,7 @@ def _lerp(a, b, t):
     # precise method, guarantees v==b when t==1 | simplifies to: a + t*(b-a)
     return (1-t)*a + t*b
 
-def _lerp_step(a, b, step, max_steps):
+def _anneal_step(a, b, step, max_steps):
     """Linear interpolation based on a step count."""
     if max_steps <= 0:
         return b

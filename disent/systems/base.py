@@ -1,7 +1,7 @@
 import pytorch_lightning as pl
 import torch.utils.data
-from dataset import make_datasets
 from pytorch_lightning import Trainer
+from disent.factory import make_optimizer, make_datasets
 
 
 # ========================================================================= #
@@ -38,17 +38,7 @@ class BaseLightningModule(pl.LightningModule):
         }
 
     def configure_optimizers(self):
-        if self.optimizer == 'sgd':
-            import torch.optim
-            return torch.optim.SGD(self.parameters(), lr=self.lr)
-        elif self.optimizer == 'adam':
-            import torch.optim
-            return torch.optim.Adam(self.parameters(), lr=self.lr)
-        elif self.optimizer == 'radam':
-            import torch_optimizer
-            return torch_optimizer.RAdam(self.parameters(), lr=self.lr)
-        else:
-            raise KeyError(f'Unsupported Optimizer: {self.optimizer}')
+        return make_optimizer(self.model.parameters(), self.optimizer, lr=self.lr)
 
     def _make_dataset(self, train):
         if self.dataset == 'mnist':

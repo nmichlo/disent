@@ -2,21 +2,6 @@ import torch.nn as nn
 
 
 # ========================================================================= #
-# Mish Activation Function TODO: move out                                   #
-# ========================================================================= #
-
-
-# @torch.jit.script
-# def mish(input):
-#     """
-#     Mish Activation Function:
-#     https://github.com/lessw2020/mish/blob/master/mish.py
-#     https://github.com/digantamisra98/Mish/blob/master/Mish/Torch/functional.py
-#     """
-#     return input * torch.tanh(F.softplus(input))
-
-
-# ========================================================================= #
 # HELPER                                                                    #
 # ========================================================================= #
 
@@ -52,6 +37,7 @@ class EncoderSimpleFC(nn.Module):
     def __init__(self, x_dim=28*28, h_dim1=512, h_dim2=256, z_dim=2):
         super().__init__()
         self.model = nn.Sequential(
+            Flatten3D(),
             nn.Linear(x_dim, h_dim1),
             nn.ReLU(True),
             nn.Linear(h_dim1, h_dim2),
@@ -141,51 +127,6 @@ class DecoderSimpleConv64(nn.Module):
 
     def forward(self, x):
         return self.model(x)
-
-
-# ========================================================================= #
-# xy network - TODO: DEPRECATED!                                            #
-# ========================================================================= #
-
-
-# class XYNet(nn.Module):
-#     def __init__(self, size=8, arch='decoder'):
-#         super().__init__()
-#         assert arch in {'encoder', 'decoder', 'full'}
-#         self.size = size
-#         self.arch = arch
-#         if arch != 'decoder':  # encoder
-#             self.enc1 = nn.Linear(size ** 2, size ** 2)
-#             self.enc2 = nn.Linear(size ** 2, size ** 2)
-#             self.enc3 = nn.Linear(size ** 2, size ** 2)
-#             self.enc4 = nn.Linear(size ** 2, 2)
-#         if arch != 'encoder':  # decoder
-#             self.dec1 = nn.Linear(2, size ** 2)
-#             self.dec2 = nn.Linear(size ** 2, size ** 2)
-#             self.dec3 = nn.Linear(size ** 2, size ** 2)
-#             self.dec4 = nn.Linear(size ** 2, size ** 2)
-#
-#     def encode(self, x):
-#         x = x.view((-1, self.size ** 2))
-#         x = F.relu(self.enc1(x))
-#         x = F.relu(self.enc2(x))
-#         x = F.relu(self.enc3(x))
-#         x = torch.tanh(self.enc4(x))
-#         return x
-#
-#     def decode(self, x):
-#         x = F.relu(self.dec1(x))
-#         x = F.relu(self.dec2(x))
-#         x = F.relu(self.dec3(x))
-#         x = torch.sigmoid(self.dec4(x))
-#         return x.view(-1, self.size * self.size)
-#
-#     def forward(self, x):
-#         if self.arch != 'decoder':  # encoder
-#             x = self.encode(x)
-#         if self.arch != 'encoder':  # decoder
-#             x = self.decode(x)
-#         return x
 
 
 # ========================================================================= #
