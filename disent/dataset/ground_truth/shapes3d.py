@@ -10,94 +10,7 @@ import numpy as np
 # ========================================================================= #
 # shapes3d                                                                  #
 # ========================================================================= #
-
-
-class Shapes3D(object):
-    """
-    Shapes3D dataset.
-    The data set was originally introduced in "Disentangling by Factorising".
-    The ground-truth factors of variation are:
-    0 - floor color (10 different values)
-    1 - wall color (10 different values)
-    2 - object color (10 different values)
-    3 - object size (8 different values)
-    4 - object type (4 different values)
-    5 - azimuth (15 different values)
-
-    https://github.com/google-research/disentanglement_lib/blob/adb2772b599ea55c60d58fd4b47dff700ef9233b/disentanglement_lib/data/ground_truth/shapes3d.py
-    """
-
-    def __init__(self):
-        # with tf.gfile.GFile(SHAPES3D_PATH, "rb") as f:
-        #     Data was saved originally using python2, so we need to set the encoding.
-            # data = np.load(f, encoding="latin1")
-
-        # images = data["images"]
-        # labels = data["labels"]
-        # n_samples = np.prod(images.shape[0:6])
-        # self.images = (images.reshape([n_samples, 64, 64, 3]).astype(np.float32) / 255.)
-        # features = labels.reshape([n_samples, 6])
-
-        # self.factor_indices = list(range(6))
-        # self.state_space = SplitDiscreteStateSpace(self.factor_dimensions, self.factor_indices)
-
-        # self.num_total_factors = features.shape[1]
-        self.factor_bases = np.prod(self.factor_dimensions) // np.cumprod(self.factor_dimensions)
-
-    @property
-    def num_factors(self):
-        return len(self.factor_dimensions)
-
-    @property
-    def factor_dimensions(self):
-        return 10, 10, 10, 8, 4, 15
-
-    @property
-    def observation_shape(self):
-        return 64, 64, 3
-
-    def sample_factors(self, num):
-        """Sample a batch of factors Y."""
-        return self.state_space.sample_latent_factors(num)
-
-    def sample_observations_from_factors(self, factors):
-        all_factors = self.state_space.sample_all_factors(factors)
-        indices = np.array(np.dot(all_factors, self.factor_bases), dtype=np.int64)
-        return self.images[indices]
-
-
-
-
-class GroundTruthDataset(Dataset, metaclass=ABCMeta):
-
-    def __init__(self):
-        assert len(self.FACTOR_NAMES) == len(self.FACTOR_DIMS), 'Dimensionality mismatch of FACTOR_NAMES and FACTOR_DIMS'
-        self._num_samples = np.product(self.FACTOR_DIMS)
-
-    @property
-    def num_factors(self):
-        return len(self.FACTOR_NAMES)
-
-    @property
-    def __len__(self):
-        return self._num_samples
-
-    @property
-    @abstractmethod
-    def FACTOR_NAMES(self) -> Tuple[str, ...]: pass
-
-    @property
-    @abstractmethod
-    def FACTOR_DIMS(self) -> Tuple[int, ...]: pass
-
-    @property
-    @abstractmethod
-    def OBSERVATION_SHAPE(self) -> Tuple[int, ...]: pass
-
-    @abstractmethod
-    def __getitem__(self, idx):
-        pass
-
+from disent.dataset.index import MultiDimIndex
 
 class Shapes3dDataset(GroundTruthDataset):
     """
@@ -117,7 +30,9 @@ class Shapes3dDataset(GroundTruthDataset):
         """
         super().__init__()
         self.transform, self.target_transform = transform, target_transform
+
         dataset = h5py.File(shapes_file, 'r')
+
         self.images = dataset['images']      # array shape [480000,64,64,3], uint8 in range(256)
         self.labels = dataset['labels']      # array shape [480000,6], float64
 
