@@ -1,26 +1,6 @@
-# from torch import nn
 import torch
 from torch import Tensor
 import abc
-
-
-# ========================================================================= #
-# utility                                                                   #
-# ========================================================================= #
-
-
-# class View(torch.nn.Module):
-#     """
-#     Torch view/reshape layer
-#     https://github.com/1Konny/Beta-VAE/blob/master/model.py
-#     """
-#
-#     def __init__(self, size):
-#         super(View, self).__init__()
-#         self.size = size
-#
-#     def forward(self, tensor):
-#         return tensor.view(self.size)
 
 
 # ========================================================================= #

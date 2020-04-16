@@ -1,6 +1,4 @@
-import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 
 # ========================================================================= #
@@ -46,12 +44,12 @@ class Flatten3D(nn.Module):
 
 
 # ========================================================================= #
-# VAE                                                                       #
+# simple 28x28 fully connected models                                       #
 # ========================================================================= #
 
 
 class EncoderSimpleFC(nn.Module):
-    def __init__(self, x_dim, h_dim1, h_dim2, z_dim):
+    def __init__(self, x_dim=28*28, h_dim1=512, h_dim2=256, z_dim=2):
         super().__init__()
         self.model = nn.Sequential(
             nn.Linear(x_dim, h_dim1),
@@ -63,11 +61,13 @@ class EncoderSimpleFC(nn.Module):
         self.enc3logvar = nn.Linear(h_dim2, z_dim)
 
     def forward(self, x):
+        # encoder | p(z|x)
         x = self.model(x)
         return self.enc3mean(x), self.enc3logvar(x)
 
 class DecoderSimpleFC(nn.Module):
-    def __init__(self):
+    def __init__(self, x_dim=28*28, h_dim1=512, h_dim2=256, z_dim=2):
+        super().__init__()
         self.model = nn.Sequential(
             nn.Linear(z_dim, h_dim2),
             nn.ReLU(True),
@@ -75,69 +75,10 @@ class DecoderSimpleFC(nn.Module):
             nn.ReLU(True),
             nn.Linear(h_dim1, x_dim),
         )
+
     def forward(self, z):
-        return self.model(z)
-
-
-
-
-
-
-class VAE(nn.Module):
-    # TODO: self.encoder = nn.Sequential()
-    # TODO: self.decoder = nn.Sequential()
-    # TODO: distributions = self.encoder(x) | z_mean, z_logvar = distributions[:, :self.z_dim], distributions[:, self.z_dim:]
-
-    def __init__(self, x_dim, h_dim1, h_dim2, z_dim):
-        super(VAE, self).__init__()
-
-        self.x_dim = x_dim
-        self.z_dim = z_dim
-
-        # encoder | p(z|x)
-        self.enc1 = nn.Linear(x_dim, h_dim1)
-        self.enc2 = nn.Linear(h_dim1, h_dim2)
-        self.enc3mu = nn.Linear(h_dim2, z_dim)
-        self.enc3var = nn.Linear(h_dim2, z_dim)
-
         # decoder | p(x|z)
-        self.dec1 = nn.Linear(z_dim, h_dim2)
-        self.dec2 = nn.Linear(h_dim2, h_dim1)
-        self.dec3 = nn.Linear(h_dim1, x_dim)
-
-    def sample_from_latent_distribution(self, z_mean, z_logvar):
-        # sample | z ~ p(z|x)           | Gaussian Encoder Model Distribution - pg. 25 in Variational Auto Encoders
-        std = torch.exp(0.5 * z_logvar)  # var^0.5 == std
-        eps = torch.randn_like(std)  # N(0, 1)
-        return z_mean + (std * eps)  # mu + dot(std, eps)
-
-    def forward(self, x):
-        # encode
-        z_mean, z_logvar = self.encoder(x.view(-1, self.x_dim))
-        z = self.sample_from_latent_distribution(z_mean, z_logvar)
-        # decode
-        x_recon = self.decoder(z).view(x.size())
-        return x_recon, z_mean, z_logvar
-
-    def encoder(self, x):
-        x = F.relu(self.enc1(x))
-        x = F.relu(self.enc2(x))
-        z_mean, z_logvar = self.enc3mu(x), self.enc3var(x)
-        return z_mean, z_logvar
-
-    def decoder(self, z):
-        z = F.relu(self.dec1(z))
-        z = F.relu(self.dec2(z))
-        # we compute the final sigmoid activation as part of the loss to improve numerical stability
-        x_recon = self.dec3(z)  #  torch.sigmoid(self.dec3(z))
-        return x_recon
-
-
-# ========================================================================= #
-# simple 28x28 fully connected models                                       #
-# ========================================================================= #
-
-
+        return self.model(z)
 
 
 # ========================================================================= #
