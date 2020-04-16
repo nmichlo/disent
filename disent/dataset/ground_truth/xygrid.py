@@ -9,6 +9,10 @@ import numpy as np
 
 class XYDataset(Dataset):
 
+    """
+    Dataset that generates all possible permutations of a point placed on a square grid.
+    """
+
     def __init__(self, size=8, arch='full', transform=None, target_transform=None):
         self.size = size
         self.arch = arch

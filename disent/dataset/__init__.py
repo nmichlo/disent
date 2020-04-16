@@ -1,7 +1,7 @@
 
 # Make datasets directly accessible
-from .shapes3d import Shapes3dDataset
-from .xygrid import XYDataset
+from .ground_truth.shapes3d import Shapes3dDataset
+from .ground_truth.xygrid import XYDataset
 
 
 # ========================================================================= #

@@ -4,7 +4,7 @@
 # ========================================================================= #
 
 
-def make_optimizer(parameters, optimizer, lr=0.001):
+def make_optimizer(optimizer, parameters, lr=0.001):
     # SGD
     if optimizer == 'sgd':
         import torch.optim

@@ -1,76 +1,33 @@
 import torch
 import torch.nn.functional as F
-from abc import ABC, abstractmethod
-import numpy as np
-
-# ========================================================================= #
-# Interpolate                                                               #
-# ========================================================================= #
-
-
-def _lerp(a, b, t):
-    """Linear interpolation between parameters, respects bounds when t is out of bounds [0, 1]"""
-    assert a < b
-    t = max(0, min(t, 1))
-    # precise method, guarantees v==b when t==1 | simplifies to: a + t*(b-a)
-    return (1-t)*a + t*b
-
-def _anneal_step(a, b, step, max_steps):
-    """Linear interpolation based on a step count."""
-    if max_steps <= 0:
-        return b
-    return _lerp(a, b, step / max_steps)
-
-
-# ========================================================================= #
-# Base Loss                                                                 #
-# ========================================================================= #
-
-
-class BaseLoss(ABC):
-    def __call__(self, x, x_recon, z_mean, z_logvar, is_train=True):
-        return self.compute_loss(x, x_recon, z_mean, z_logvar, is_train)
-
-    @abstractmethod
-    def compute_loss(self, x, x_recon, z_mean, z_logvar, is_train):
-        pass
+from disent.math import anneal_step
 
 
 # ========================================================================= #
 # Vae Loss                                                                  #
 # ========================================================================= #
 
-def _bce_loss_with_logits(x, x_recon, activation='sigmoid'):
+
+def _bce_loss_with_logits(x, x_recon):
     """
-    Computes the Bernoulli loss.
+    Computes the Bernoulli loss for the sigmoid activation function
     FROM: https://github.com/google-research/disentanglement_lib/blob/76f41e39cdeff8517f7fba9d57b09f35703efca9/disentanglement_lib/methods/shared/losses.py
     """
-    x_recon = x_recon.view(x.shape[0], -1)
-    x = x.view(x.shape[0], -1)
+    x, x_recon = x.view(x.shape[0], -1), x_recon.view(x.shape[0], -1)
+    per_sample_loss = F.binary_cross_entropy_with_logits(x_recon, x, reduction='none').sum(axis=1)  # tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=x_recon, labels=x), axis=1)
+    reconstruction_loss = per_sample_loss.mean()                                                    # tf.reduce_mean(per_sample_loss)
+    return reconstruction_loss  # F.binary_cross_entropy_with_logits(x_recon, x, reduction='sum') / x.shape[0]
 
-    if activation == 'sigmoid':
-        per_sample_loss = F.binary_cross_entropy_with_logits(x_recon, x, reduction='none').sum(axis=1)  # tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=x_recon, labels=x), axis=1)
-        reconstruction_loss = per_sample_loss.mean()                                                    # tf.reduce_mean(per_sample_loss)
-        # SIMPLIFIED: reconstruction_loss = F.binary_cross_entropy_with_logits(x_recon, x, reduction='sum') / x.shape[0]
-        # SIMPLIFIED: reconstruction_loss = F.binary_cross_entropy(x_recon, x, reduction='sum') / x.shape[0]
-    else:
-        raise KeyError(f'Unknown activation: {activation}')
+def _bce_loss(x, x_recon):
+    """Computes the Bernoulli loss"""
+    return F.binary_cross_entropy(x_recon, x, reduction='none').sum(axis=1).mean()
 
-    return reconstruction_loss
 
 def _kl_normal_loss(mu, logvar):
     """
     Calculates the KL divergence between a normal distribution with
     diagonal covariance and a unit normal distribution.
-    https://github.com/Schlumberger/joint-vae/blob/master/jointvae/training.py
-
-    Parameters
-    ----------
-    mu : torch.Tensor
-        Mean of the normal distribution. Shape (N, D) where D is dimension
-        of distribution.
-    logvar : torch.Tensor
-        Diagonal log variance of the normal distribution. Shape (N, D)
+    FROM: https://github.com/Schlumberger/joint-vae/blob/master/jointvae/training.py
     """
     # Calculate KL divergence
     kl_values = -0.5 * (1 + logvar - mu.pow(2) - logvar.exp())
@@ -78,94 +35,34 @@ def _kl_normal_loss(mu, logvar):
     kl_means = torch.mean(kl_values, dim=0)
     # KL loss is sum of mean KL of each latent variable
     kl_loss = torch.sum(kl_means)
-
     return kl_loss
 
+class VaeLoss(object):
 
-class VaeLoss(BaseLoss):
-    def compute_loss(self, x, x_recon, z_mean, z_logvar, is_train):
-        # reconstruction error & KL divergence losses
-        recon_loss = _bce_loss_with_logits(x, x_recon) # E[log p(x|z)]
+    def __call__(self, x, x_recon, z_mean, z_logvar, z_sampled):
+        return self.compute_loss(x, x_recon, z_mean, z_logvar, z_sampled)
+
+    def compute_loss(self, x, x_recon, z_mean, z_logvar, z_sampled):
+        """
+        Compute the varous VAE loss components.
+        Based on: https://github.com/google-research/disentanglement_lib/blob/a64b8b9994a28fafd47ccd866b0318fa30a3c76c/disentanglement_lib/methods/unsupervised/vae.py#L153
+        """
+        # reconstruction loss
+        recon_loss = _bce_loss_with_logits(x, x_recon)   # E[log p(x|z)]
+
+        # regularizer
         kl_loss = _kl_normal_loss(z_mean, z_logvar)      # D_kl(q(z|x) || p(z|x))
-        # compute combined loss
-        return recon_loss + kl_loss
+        regularizer = self.regularizer(kl_loss, z_mean, z_logvar, z_sampled)
 
-        # DISENTANGLEMENT LIB:
-        # per_sample_loss = losses.make_reconstruction_loss(features, reconstructions) # [bernoulli_loss with GIN config]
-        # reconstruction_loss = tf.reduce_mean(per_sample_loss)
+        return {
+            'reconstruction_loss': recon_loss,
+            'kl_loss': kl_loss,
+            'loss': recon_loss + regularizer,
+            'elbo': -(recon_loss + kl_loss),
+        }
 
-        # kl_loss = compute_gaussian_kl(z_mean, z_logvar)
-        # regularizer = self.regularizer(kl_loss, z_mean, z_logvar, z_sampled)
-
-        # loss = tf.add(reconstruction_loss, regularizer, name="loss")
-        # elbo = tf.add(reconstruction_loss, kl_loss, name="elbo")
-
-
-
-
-# https://github.com/google-research/disentanglement_lib/blob/a64b8b9994a28fafd47ccd866b0318fa30a3c76c/disentanglement_lib/methods/unsupervised/vae.py#L153
-# class BaseVAE(gaussian_encoder_model.GaussianEncoderModel):
-#   """Abstract base class of a basic Gaussian encoder model."""
-#
-#   def model_fn(self, features, labels, mode, params):
-#     """TPUEstimator compatible model function."""
-#     del labels
-#     is_training = (mode == tf.estimator.ModeKeys.TRAIN)
-#     data_shape = features.get_shape().as_list()[1:]
-#     z_mean, z_logvar = self.gaussian_encoder(features, is_training=is_training)
-#     z_sampled = self.sample_from_latent_distribution(z_mean, z_logvar)
-#     reconstructions = self.decode(z_sampled, data_shape, is_training)
-#     per_sample_loss = losses.make_reconstruction_loss(features, reconstructions)
-#     reconstruction_loss = tf.reduce_mean(per_sample_loss)
-#     kl_loss = compute_gaussian_kl(z_mean, z_logvar)
-#     regularizer = self.regularizer(kl_loss, z_mean, z_logvar, z_sampled)
-#     loss = tf.add(reconstruction_loss, regularizer, name="loss")
-#     elbo = tf.add(reconstruction_loss, kl_loss, name="elbo")
-#     if mode == tf.estimator.ModeKeys.TRAIN:
-#       optimizer = optimizers.make_vae_optimizer()
-#       update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-#       train_op = optimizer.minimize(
-#           loss=loss, global_step=tf.train.get_global_step())
-#       train_op = tf.group([train_op, update_ops])
-#       tf.summary.scalar("reconstruction_loss", reconstruction_loss)
-#       tf.summary.scalar("elbo", -elbo)
-#
-#       logging_hook = tf.train.LoggingTensorHook({
-#           "loss": loss,
-#           "reconstruction_loss": reconstruction_loss,
-#           "elbo": -elbo
-#       },
-#                                                 every_n_iter=100)
-#       return tf.contrib.tpu.TPUEstimatorSpec(
-#           mode=mode,
-#           loss=loss,
-#           train_op=train_op,
-#           training_hooks=[logging_hook])
-#     elif mode == tf.estimator.ModeKeys.EVAL:
-#       return tf.contrib.tpu.TPUEstimatorSpec(
-#           mode=mode,
-#           loss=loss,
-#           eval_metrics=(make_metric_fn("reconstruction_loss", "elbo",
-#                                        "regularizer", "kl_loss"),
-#                         [reconstruction_loss, -elbo, regularizer, kl_loss]))
-#     else:
-#       raise NotImplementedError("Eval mode not supported.")
-#
-#   def gaussian_encoder(self, input_tensor, is_training):
-#     """Applies the Gaussian encoder to images.
-#     Args:
-#       input_tensor: Tensor with the observations to be encoded.
-#       is_training: Boolean indicating whether in training mode.
-#     Returns:
-#       Tuple of tensors with the mean and log variance of the Gaussian encoder.
-#     """
-#     return architectures.make_gaussian_encoder(
-#         input_tensor, is_training=is_training)
-#
-#   def decode(self, latent_tensor, observation_shape, is_training):
-#     """Decodes the latent_tensor to an observation."""
-#     return architectures.make_decoder(
-#         latent_tensor, observation_shape, is_training=is_training)
+    def regularizer(self, kl_loss, z_mean, z_logvar, z_sampled):
+        return kl_loss
 
 
 # ========================================================================= #
@@ -176,35 +73,27 @@ class BetaVaeLoss(VaeLoss):
     def __init__(self, beta=4):
         self.beta = beta
 
-    def compute_loss(self, x, x_recon, z_mean, z_logvar, is_train):
-        # reconstruction error & KL divergence losses
-        recon_loss = _bce_loss_with_logits(x, x_recon)  # E[log p(x|z)]
-        kl_loss = _kl_normal_loss(z_mean, z_logvar)       # D_kl(q(z|x) || p(z|x))
-        # compute combined loss
-        return recon_loss + self.beta * kl_loss
+    def regularizer(self, kl_loss, z_mean, z_logvar, z_sampled):
+        return self.beta * kl_loss
 
 
-# class BetaVaeHLoss(BetaVaeLoss):
-#     """
-#     Compute the Beta-VAE loss as in [1]
-#
-#     [1] Higgins, Irina, et al. "beta-vae: Learning basic visual concepts with
-#     a constrained variational framework." (2016).
-#     """
-#
-#     def __init__(self, beta=4, anneal_end_steps=None):
-#         super().__init__(beta)
-#         self.n_train_steps = 0
-#         self.anneal_end_steps = anneal_end_steps  # TODO
-#
-#     def compute_loss(self, x, x_recon, z_mean, z_logvar, is_train):
-#         # reconstruction error & KL divergence losses
-#         recon_loss = _bce_loss(x, x_recon)  # E[log p(x|z)]
-#         kl_loss = _kl_normal_loss(z_mean, z_logvar)  # D_kl(q(z|x) || p(z|x))
-#         # increase beta over time
-#         anneal_reg = _lerp_step(0, 1, self.n_train_steps, self.anneal_end_steps) if is_train else 1
-#         # compute combined loss
-#         return recon_loss + (anneal_reg * self.beta) * kl_loss
+class BetaVaeHLoss(BetaVaeLoss):
+    """
+    Compute the Beta-VAE loss as in [1]
+
+    [1] Higgins, Irina, et al. "beta-vae: Learning basic visual concepts with
+    a constrained variational framework." (2016).
+    """
+
+    def __init__(self, beta=4, anneal_end_steps=None):
+        super().__init__(beta)
+        self.n_train_steps = 0
+        self.anneal_end_steps = anneal_end_steps  # TODO
+
+    def regularizer(self, kl_loss, z_mean, z_logvar, z_sampled):
+        print('WARNING: training steps not updated')
+        anneal_reg = anneal_step(0, 1, self.n_train_steps, self.anneal_end_steps) # if is_train else 1
+        return (anneal_reg * self.beta) * kl_loss
 
 
 # ========================================================================= #

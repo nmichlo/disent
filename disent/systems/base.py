@@ -10,6 +10,11 @@ from disent.factory import make_optimizer, make_datasets
 
 
 class BaseLightningModule(pl.LightningModule):
+    """
+    Base system that wraps a model. Includes factories for datasets, optimizers and loss.
+    """
+
+
     def __init__(self, model, loss, optimizer='radam', dataset='mnist', lr=0.001, batch_size=64, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # model
@@ -21,7 +26,7 @@ class BaseLightningModule(pl.LightningModule):
         self.loss = loss
         # dataset
         self.batch_size = batch_size
-        self.dataset_train, self.dataset_test = make_datasets(dataset)
+        self.dataset_train, self.dataset_test = make_datasets(dataset) if isinstance(dataset, str) else dataset
 
     def forward(self, x):
         return self.model.forward(x)
@@ -38,11 +43,10 @@ class BaseLightningModule(pl.LightningModule):
         }
 
     def configure_optimizers(self):
-        return make_optimizer(self.model.parameters(), self.optimizer, lr=self.lr)
-
-    def _make_dataset(self, train):
-        if self.dataset == 'mnist':
-            return
+        if isinstance(self.optimizer, str):
+            return make_optimizer(self.optimizer, self.parameters(), lr=self.lr)
+        else:
+            return self.optimizer(self.parameters(), lr=self.lr)
 
     @pl.data_loader
     def train_dataloader(self):
