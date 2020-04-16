@@ -1,6 +1,6 @@
+from disent.dataset.data_index import UsedMultiDimIndex
 from typing import Optional, Tuple
 from torch.utils.data import Dataset
-from disent.dataset.index import MultiDimIndex
 import numpy as np
 
 
@@ -14,7 +14,7 @@ class GroundTruthDataset(Dataset):
     def __init__(self):
         assert len(self.FACTOR_NAMES) == len(
             self.FACTOR_DIMS), 'Dimensionality mismatch of FACTOR_NAMES and FACTOR_DIMS'
-        self._index = MultiDimIndex(
+        self._index = UsedMultiDimIndex(
             dimension_sizes=self.FACTOR_DIMS,
             used_dimensions=self.USED_DIMS,
         )
@@ -47,7 +47,7 @@ class GroundTruthDataset(Dataset):
 
     def sample_factors(self, num_samples):
         """return a number of sampled factors"""
-        return self._index.pos_sample(num_samples)
+        return self._index.sample(num_samples)
 
     def sample_observations(self, num_samples):
         """Sample a batch of observations X."""
@@ -62,35 +62,6 @@ class GroundTruthDataset(Dataset):
 
     def __getitem__(self, idx):
         raise NotImplementedError()
-
-    #     def sample_factors(self, num):
-    #         """Sample a batch of factors Y."""
-    #         raise NotImplementedError()
-    #     def sample_observations_from_factors(self, factors):
-    #         """Sample a batch of observations X given a batch of factors Y."""
-    #         raise NotImplementedError()
-
-    # def sample(self, num_samples):
-    #     """return a number of sampled observations"""
-    #     return self.observations_from_factors(self._index.idx_sample(num_samples))
-
-    # def sample_factors_from_factors(self, fixed_dimensions, fixed_factors):
-    #     """return a number of sampled observations, based on the fixed factors components only"""
-    #     return self._index.pos_sample_fixed(fixed_dimensions, fixed_factors)
-    # def sample_observations_from_factors(self, fixed_dimensions, fixed_factors):
-    #     """return a number of sampled observations, based on the fixed factors components only"""
-    #     return self.observations_from_factors(self._index.idx_sample_fixed(fixed_dimensions, fixed_factors))
-    #
-    # def resample_factors(self, fixed_dimensions, factors):
-    #     """return a number of sampled observations, based on full prior factors"""
-    #     return self._index.pos_resample(fixed_dimensions, factors)
-    # def resample(self, fixed_dimensions, factors):
-    #     """return a number of sampled observations, based on full prior factors"""
-    #     return self.observations_from_factors(self._index.pos_resample(fixed_dimensions, factors))
-    #
-    # def observations_from_factors(self, factors):
-    #     indices = self._index.pos_to_idx(factors)
-    #     return self.DATASET[indices]
 
 
 # """
