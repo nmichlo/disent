@@ -1,4 +1,3 @@
-from disent.dataset.data_index import UsedMultiDimIndex
 from typing import Optional, Tuple
 from torch.utils.data import Dataset
 import numpy as np
@@ -7,61 +6,71 @@ import numpy as np
 # ========================================================================= #
 # ground truth dataset                                                      #
 # ========================================================================= #
+from disent.dataset.util import SplitDiscreteStateSpace
 
 
 class GroundTruthDataset(Dataset):
 
     def __init__(self):
-        assert len(self.FACTOR_NAMES) == len(
-            self.FACTOR_DIMS), 'Dimensionality mismatch of FACTOR_NAMES and FACTOR_DIMS'
-        self._index = UsedMultiDimIndex(
-            dimension_sizes=self.FACTOR_DIMS,
-            used_dimensions=self.USED_DIMS,
+        assert len(self.factor_names) == len(
+            self.factor_sizes), 'Dimensionality mismatch of FACTOR_NAMES and FACTOR_DIMS'
+        self._state_space = SplitDiscreteStateSpace(
+            factor_sizes=self.factor_sizes,
+            latent_factor_indices=self.used_factors,
         )
+
+    def __len__(self):
+        return self._state_space.latent_size
 
     @property
     def num_factors(self):
-        return self._index.num_dimensions
+        return self._state_space.num_factors
 
     @property
-    def __len__(self):
-        return self._index.size
+    def factor_names(self) -> Tuple[str, ...]:
+        raise NotImplementedError()
 
     @property
-    def FACTOR_NAMES(self) -> Tuple[str, ...]:
+    def factor_sizes(self) -> Tuple[int, ...]:
         raise NotImplementedError()
+
     @property
-    def FACTOR_DIMS(self) -> Tuple[int, ...]:
+    def used_factors(self) -> Optional[Tuple[int, ...]]:
         raise NotImplementedError()
+
     @property
-    def USED_DIMS(self) -> Optional[Tuple[int, ...]]:
+    def observation_shape(self) -> Tuple[int, ...]:
         raise NotImplementedError()
-    @property
-    def OBSERVATION_SHAPE(self) -> Tuple[int, ...]:
-        raise NotImplementedError()
+
+
 
     def sample(self, num_samples):
         """Sample a batch of factors Y and observations X."""
         factors = self.sample_factors(num_samples)
         return factors, self.sample_observations_from_factors(factors)
 
-    def sample_factors(self, num_samples):
-        """return a number of sampled factors"""
-        return self._index.sample(num_samples)
-
     def sample_observations(self, num_samples):
         """Sample a batch of observations X."""
         factors, observations = self.sample(num_samples)
         return observations
 
+    def sample_factors(self, num_samples):
+        """Sample a batch of factors Y."""
+        return self._state_space.sample_latent_factors(num_samples)
+
     def sample_observations_from_factors(self, factors):
-        return self.get_observations_from_factors(self._index)
+        """Sample a batch of observations X given a batch of factors Y."""
+        all_factors = self._state_space.sample_all_factors(factors)
+        indices = self._state_space.factor_to_idx(all_factors)
+        return self.get_observations_from_indices(indices)
 
-    def get_observations_from_factors(self, factors):
-        raise NotImplementedError()
+    def get_observations_from_indices(self):
 
-    def __getitem__(self, idx):
-        raise NotImplementedError()
+    # def get_observations_from_factors(self, factors):
+    #     raise NotImplementedError()
+    #
+    # def __getitem__(self, idx):
+    #     raise NotImplementedError()
 
 
 # """
