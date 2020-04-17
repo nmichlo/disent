@@ -4,7 +4,6 @@ import h5py
 import torch
 from PIL import Image
 from torch.utils.data import Dataset
-
 from disent.dataset.ground_truth.ground_truth import GroundTruthData
 
 # ========================================================================= #
@@ -12,7 +11,7 @@ from disent.dataset.ground_truth.ground_truth import GroundTruthData
 # ========================================================================= #
 
 
-class Shapes3dData(GroundTruthData, Dataset):
+class Shapes3dDataset(GroundTruthData, Dataset):
     """
     3D Shapes Dataset:
     https://github.com/deepmind/3d-shapes
@@ -45,15 +44,10 @@ class Shapes3dData(GroundTruthData, Dataset):
             idx = idx.tolist()
 
         # https://github.com/pytorch/vision/blob/master/torchvision/datasets/mnist.py
-        # doing this so that it is consistent with all other datasets
-        # to return a PIL Image
+        # PIL Image so that this is consistent with other datasets
         image = Image.fromarray(self.images[idx])
         if self.transform:
             image = self.transform(image)
-
-        # label = self.labels[idx]
-        # if self.target_transform:
-        #     label = self.target_transform(label)
 
         return image
 

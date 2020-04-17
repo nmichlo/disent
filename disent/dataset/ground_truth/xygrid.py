@@ -1,5 +1,7 @@
+from typing import Tuple
 from torch.utils.data import Dataset
 import numpy as np
+from disent.dataset.ground_truth.ground_truth import GroundTruthData
 
 
 # ========================================================================= #
@@ -7,38 +9,42 @@ import numpy as np
 # ========================================================================= #
 
 
-class XYDataset(Dataset):
+class XYDataset(Dataset, GroundTruthData):
 
     """
     Dataset that generates all possible permutations of a point placed on a square grid.
     """
 
-    def __init__(self, size=8, arch='full', transform=None, target_transform=None):
-        self.size = size
-        self.arch = arch
+    factor_names = ('x', 'y')
+    used_factors = None
 
+    @property
+    def factor_sizes(self) -> Tuple[int, ...]:
+        return self.width, self.width
+
+    @property
+    def observation_shape(self) -> Tuple[int, ...]:
+        return self.width, self.width
+
+    def __init__(self, width=8, transform=None, target_transform=None):
+        super().__init__()
+        self.width = width
+        self.data = np.array([XYDataset.generate_item(self.width, i)[0] for i in range(self.width**2)])
         self.transform = transform
         self.target_transform = target_transform
+
+    def get_observations_from_indices(self, indices):
+        return self.data[indices]
 
     def __len__(self):
         return self.size*self.size
 
     def __getitem__(self, idx):
-        encoding, decoding = XYDataset.gen_pair(self.size, idx)
-        if self.arch == 'encoder':
-            x, y = decoding, encoding
-        elif self.arch == 'decoder':
-            x, y = encoding, idx
-        elif self.arch == 'full':
-            x, y = decoding, idx
-        else:
-            raise KeyError('Invalid arch')
-
+        x, y = self.data[idx]
         if self.transform:
             x = self.transform(x)
         if self.target_transform:
             y = self.target_transform(y)
-
         return x, y
 
     @staticmethod
@@ -65,6 +71,19 @@ class XYDataset(Dataset):
         decoded = np.zeros([size, size], dtype=np.float32)  # decoding | range [0, 1]
         decoded[pos[0], pos[1]] = 1
         return encoded, decoded
+
+    @staticmethod
+    def generate_item(size, idx, arch='full'):
+        encoding, decoding = XYDataset.gen_pair(size, idx)
+        if arch == 'encoder':
+            x, y = decoding, encoding
+        elif arch == 'decoder':
+            x, y = encoding, idx
+        elif arch == 'full':
+            x, y = decoding, idx
+        else:
+            raise KeyError('Invalid arch')
+        return x, y
 
 
 # ========================================================================= #
