@@ -51,7 +51,7 @@ def make_datasets(dataset):
     elif dataset == 'xygrid':
         from disent.dataset import XYDataset
         train_dataset, test_dataset = split_dataset(
-            dataset=XYDataset(size=28, arch='full', transform=torchvision.transforms.ToTensor()),
+            dataset=XYDataset(width=28, transform=torchvision.transforms.ToTensor()),
             train_ratio=0.8
         )
     # UNKNOWN

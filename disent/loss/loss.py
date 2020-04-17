@@ -18,9 +18,9 @@ def _bce_loss_with_logits(x, x_recon):
     reconstruction_loss = per_sample_loss.mean()                                                    # tf.reduce_mean(per_sample_loss)
     return reconstruction_loss  # F.binary_cross_entropy_with_logits(x_recon, x, reduction='sum') / x.shape[0]
 
-def _bce_loss(x, x_recon):
-    """Computes the Bernoulli loss"""
-    return F.binary_cross_entropy(x_recon, x, reduction='none').sum(axis=1).mean()
+# def _bce_loss(x, x_recon):
+#     """Computes the Bernoulli loss"""
+#     return F.binary_cross_entropy(x_recon, x, reduction='none').sum(axis=1).mean()
 
 
 def _kl_normal_loss(mu, logvar):
@@ -39,10 +39,10 @@ def _kl_normal_loss(mu, logvar):
 
 class VaeLoss(object):
 
-    def __call__(self, x, x_recon, z_mean, z_logvar, z_sampled):
-        return self.compute_loss(x, x_recon, z_mean, z_logvar, z_sampled)
+    def __call__(self, x, x_recon, z_mean, z_logvar, z_sampled, *args, **kwargs):
+        return self.compute_loss(x, x_recon, z_mean, z_logvar, z_sampled, *args, **kwargs)
 
-    def compute_loss(self, x, x_recon, z_mean, z_logvar, z_sampled):
+    def compute_loss(self, x, x_recon, z_mean, z_logvar, z_sampled, *args, **kwargs):
         """
         Compute the varous VAE loss components.
         Based on: https://github.com/google-research/disentanglement_lib/blob/a64b8b9994a28fafd47ccd866b0318fa30a3c76c/disentanglement_lib/methods/unsupervised/vae.py#L153
@@ -118,15 +118,17 @@ def _estimate_kl_threshold(kl_deltas):
 
 class AdaGVaeLoss(BetaVaeLoss):
 
-    def __init__(self, vae, sampler, beta=4):
+    def __init__(self, beta=4):
         super().__init__(beta)
-        self.sampler = sampler
-        self.vae = vae
+        # self.sampler = sampler
+        # self.vae = vae
 
-    def compute_loss(self, x, x_recon, z_mean, z_logvar, is_train):
+    def compute_loss(self, x, x_recon, z_mean, z_logvar, z_sampled, *args, **kwargs):
+        x2, x2_recon, z2_mean, z2_logvar, z2_sampled = args
+
         # generate new pair
-        x2 = self.sampler()
-        x2_recon, z2_mean, z2_logvar = self.vae(x2)
+        # x2 = self.sampler()
+        # x2_recon, z2_mean, z2_logvar = self.vae(x2)
         # TODO: this is a batch, not a single item
         # TODO: calculate threshold per pair not over entire batch
 
@@ -147,8 +149,8 @@ class AdaGVaeLoss(BetaVaeLoss):
 
         # TODO: x_recon and x2_recon need to use updated/averaged z
         # reconstruction error & KL divergence losses
-        recon_loss = _bce_loss(x, x_recon)            # E[log p(x|z)]
-        recon2_loss = _bce_loss(x2, x2_recon)         # E[log p(x|z)]
+        recon_loss = _bce_loss_with_logits(x, x_recon)            # E[log p(x|z)]
+        recon2_loss = _bce_loss_with_logits(x2, x2_recon)         # E[log p(x|z)]
         kl_loss = _kl_normal_loss(z_mean, z_logvar)     # D_kl(q(z|x) || p(z|x))
         kl2_loss = _kl_normal_loss(z2_mean, z2_logvar)  # D_kl(q(z|x) || p(z|x))
 

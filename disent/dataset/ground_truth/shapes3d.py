@@ -1,10 +1,10 @@
 from typing import Optional, Tuple
-
+import numpy as np
 import h5py
 import torch
 from PIL import Image
 from torch.utils.data import Dataset
-from disent.dataset.ground_truth.ground_truth import GroundTruthData
+from disent.dataset.util import GroundTruthData
 
 # ========================================================================= #
 # shapes3d                                                                  #
@@ -22,16 +22,18 @@ class Shapes3dDataset(GroundTruthData, Dataset):
     observation_shape = (64, 64, 3)
     used_factors = None
 
-    def __init__(self, shapes_file='3dshapes.h5', transform=None):
+    def __init__(self, shapes_file='data/3dshapes.h5', transform=None):
         super().__init__()
         self.transform = transform
 
-        dataset = h5py.File(shapes_file, 'r')
+        self.hdf5file = shapes_file
 
-        self.images = dataset['images']      # array shape [480000,64,64,3], uint8 in range(256)
-        self.labels = dataset['labels']      # array shape [480000,6], float64
-        assert self.images.shape == (480000, 64, 64, 3)
-        assert self.labels.shape == (480000, 6)
+        # dataset = h5py.File(shapes_file, 'r')
+
+        # self.images = dataset['images']      # array shape [480000,64,64,3], uint8 in range(256)
+        # self.labels = dataset['labels']      # array shape [480000,6], float64
+        # assert self.images.shape == (480000, 64, 64, 3)
+        # assert self.labels.shape == (480000, 6)
 
     def get_observations_from_indices(self, indices):
         return self.images[indices]
@@ -43,9 +45,12 @@ class Shapes3dDataset(GroundTruthData, Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
+        with h5py.File(self.hdf5file, 'r') as db:
+            image = db['images'][idx]
+
         # https://github.com/pytorch/vision/blob/master/torchvision/datasets/mnist.py
         # PIL Image so that this is consistent with other datasets
-        image = Image.fromarray(self.images[idx])
+        image = Image.fromarray(image)
         if self.transform:
             image = self.transform(image)
 

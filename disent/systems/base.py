@@ -51,7 +51,7 @@ class BaseLightningModule(pl.LightningModule):
     @pl.data_loader
     def train_dataloader(self):
         # Sample of data used to fit the model.
-        return torch.utils.data.DataLoader(self.dataset_train, batch_size=self.batch_size)
+        return torch.utils.data.DataLoader(self.dataset_train, batch_size=self.batch_size, num_workers=8)
 
     # @pl.data_loader
     # def val_dataloader(self):

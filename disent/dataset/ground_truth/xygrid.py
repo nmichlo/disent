@@ -1,7 +1,7 @@
 from typing import Tuple
 from torch.utils.data import Dataset
 import numpy as np
-from disent.dataset.ground_truth.ground_truth import GroundTruthData
+from disent.dataset.util import GroundTruthData
 
 
 # ========================================================================= #
