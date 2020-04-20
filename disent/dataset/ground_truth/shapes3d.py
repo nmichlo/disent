@@ -1,5 +1,3 @@
-from typing import Optional, Tuple
-import numpy as np
 import h5py
 import torch
 from PIL import Image
@@ -60,3 +58,19 @@ class Shapes3dDataset(GroundTruthData, Dataset):
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
+
+
+if __name__ == '__main__':
+    from torch.utils.data import DataLoader, Dataset
+    from torchvision.transforms import ToTensor
+    from tqdm import tqdm
+
+    dataset = Shapes3dDataset(transform=ToTensor())
+
+    for i in range(1, 16+1):
+        dataloader = DataLoader(dataset, batch_size=16, num_workers=i)
+        count = 8*i
+        for batch in tqdm(dataloader):
+            count -= 1
+            if count < 0:
+                break
