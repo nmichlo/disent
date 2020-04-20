@@ -98,38 +98,6 @@ class DiscreteStateSpace(object):
 
 
 # ========================================================================= #
-# split state space                                                         #
-# ========================================================================= #
-
-
-# class SplitDiscreteStateSpace(object):
-#
-#     def __init__(self, factor_sizes, latent_factor_indices):
-#         self._latent_factor_indices = latent_factor_indices
-#         # conversion between factors and indexes
-#         self.factors = DiscreteStateSpace(factor_sizes)
-#         self.latent_factors = DiscreteStateSpace(self.factors._factor_sizes[self._latent_factor_indices])
-#
-#     def sample_latent_factors(self, num_samples):
-#         """
-#         Sample a batch of the latent factors.
-#         ie. only returns factors from used dimensions.
-#         """
-#         return self.factors.sample_factors(num_samples, factor_indices=self._latent_factor_indices)
-#
-#     def sample_all_factors(self, latent_factors):
-#         """
-#         Samples the remaining factors based on the latent factors.
-#         ie. fills in the missing factors around latent_factors by sampling from the unused dimensions.
-#         """
-#         return self.factors.sample_missing_factors(latent_factors, self._latent_factor_indices)
-#
-#     def resample_all_factors(self, factors):
-#         """Resample across all the factors, keeping latent factors constant."""
-#         return self.factors.resampled_factors(factors, self._latent_factor_indices)
-
-
-# ========================================================================= #
 # ground truth data                                                         #
 # ========================================================================= #
 
