@@ -1,5 +1,5 @@
-from typing import Optional, Tuple
-from torch.utils.data.dataset import Dataset, IterableDataset
+from typing import Tuple
+from torch.utils.data.dataset import Dataset
 import numpy as np
 
 
@@ -102,7 +102,7 @@ class DiscreteStateSpace(object):
 # ========================================================================= #
 
 
-class GroundTruthData(DiscreteStateSpace, Dataset):
+class GroundTruthDataset(DiscreteStateSpace, Dataset):
 
     def __init__(self):
         assert len(self.factor_names) == len(self.factor_sizes), 'Dimensionality mismatch of FACTOR_NAMES and FACTOR_DIMS'
@@ -113,13 +113,6 @@ class GroundTruthData(DiscreteStateSpace, Dataset):
         factors = self.sample_factors(num_samples)
         indices = self.pos_to_idx(factors)
         return self[indices]
-
-    def __getitem__(self, indices):
-        """
-        should return a single observation if an integer index, or
-        an array of observations if indices is an array.
-        """
-        raise NotImplementedError()
 
     @property
     def factor_names(self) -> Tuple[str, ...]:
@@ -133,45 +126,44 @@ class GroundTruthData(DiscreteStateSpace, Dataset):
     def observation_shape(self) -> Tuple[int, ...]:
         raise NotImplementedError()
 
+    def __getitem__(self, indices):
+        """
+        should return a single observation if an integer index, or
+        an array of observations if indices is an array.
+        """
+        raise NotImplementedError()
+
 
 # ========================================================================= #
 # paired factor of variation dataset                                        #
 # ========================================================================= #
 
-# """
-# TODO:
-# Excerpt from Weakly-Supervised Disentanglement Without Compromises:
-# [section 5. Experimental results]
-#
-# CREATE DATA SETS: with weak supervision from the existing
-# disentanglement data sets:
-# 1. we first sample from the discrete z according to the ground-truth generative model (1)–(2).
-# 2. Then, we sample k factors of variation that should not be shared by the two images and re-sample those coordinates to obtain z˜.
-#    This ensures that each image pair differs in at most k factors of variation.
-#
-# For k we consider the range from 1 to d − 1.
-# This last setting corresponds to the case where all but one factor of variation are re-sampled.
-#
-# We study both the case where k is constant across all pairs in the data set and where k is sampled uniformly in the range [d − 1] for every training pair (k = Rnd in the following).
-# Unless specified otherwise, we aggregate the results for all values of k.
-# """
 
 class PairedVariationDataset(Dataset):
 
-    def __init__(self, dataset, k=None, latent_factor_indices=None):
-        assert isinstance(dataset, GroundTruthData), 'passed object is not an instance of both GroundTruthData and Dataset'
+    def __init__(self, dataset: GroundTruthDataset, k=None, variation_factor_indices=None):
+        """
+        Dataset that pairs together samples with at most k differing factors of variation.
+
+        dataset: A dataset that extends GroundTruthDataset
+        k: An integer (k), None (k=d-1), or "uniform" (random k in range 1 to d-1)
+        variation_factor_indices: The indices of the factors of variation that are samples between pairs, if None (all factors are sampled)
+        """
+
+        assert isinstance(dataset, GroundTruthDataset), 'passed object is not an instance of both GroundTruthData and Dataset'
         # wrapped dataset
-        self._dataset: GroundTruthData = dataset
+        self._dataset: GroundTruthDataset = dataset
         # possible fixed dimensions between pairs
-        self._latent_factor_indices = np.arange(self._dataset.num_factors) if (latent_factor_indices is None) else np.array(latent_factor_indices)
-        self._latent_space = DiscreteStateSpace(self._latent_factor_indices)
+        self._variation_factor_indices = np.arange(self._dataset.num_factors) if (variation_factor_indices is None) else np.array(variation_factor_indices)
+        # d
+        self._num_variation_factors = len(self._variation_factor_indices)
         # number of varied factors between pairs
-        self._k = k
+        self._k = self._num_variation_factors - 1 if (k is None) else k
         # verify k
-        assert isinstance(k, str) or isinstance(k, int), 'k must be "uniform" or an integer'
+        assert isinstance(k, str) or isinstance(k, int), f'k must be "uniform" or an integer 1 <= k <= d-1, d={self._num_variation_factors}'
         if isinstance(k, int):
             assert 1 <= k, 'k cannot be less than 1'
-            assert k < self._latent_space.num_factors, f'all factors cannot be varied for each pair, k must be less than {self._latent_space.num_factors}'
+            assert k < self._num_variation_factors, f'all factors cannot be varied for each pair, k must be less than {self._num_variation_factors}'
 
     def __len__(self):
         # TODO: is dataset as big as the latent space OR as big as the orig.
@@ -179,22 +171,38 @@ class PairedVariationDataset(Dataset):
         return self._dataset.size
 
     def __getitem__(self, idx):
-        orig_factors, paired_factors = self._sample_idx_pair(idx)
+        orig_factors, paired_factors = self.sample_pair_factors(idx)
         return self._dataset[[orig_factors, paired_factors]]
 
-    def _sample_idx_pair(self, idx):
+    def sample_pair_factors(self, idx):
+        """
+        Excerpt from Weakly-Supervised Disentanglement Without Compromises:
+        [section 5. Experimental results]
+
+        CREATE DATA SETS: with weak supervision from the existing
+        disentanglement data sets:
+        1. we first sample from the discrete z according to the ground-truth generative model (1)–(2).
+        2. Then, we sample k factors of variation that should not be shared by the two images and re-sample those coordinates to obtain z˜.
+           This ensures that each image pair differs in at most k factors of variation.
+
+        For k we consider the range from 1 to d − 1.
+        This last setting corresponds to the case where all but one factor of variation are re-sampled.
+
+        We study both the case where k is constant across all pairs in the data set and where k is sampled uniformly in the range [d − 1] for every training pair (k = Rnd in the following).
+        Unless specified otherwise, we aggregate the results for all values of k.
+        """
+
         # get factors corresponding to index
         orig_factors = self._dataset.idx_to_pos(idx)
         # get fixed or random k
         k = np.random.randint(1, self._dataset.num_factors) if self._k == 'uniform' else self._k
         # make k random indices not shared
-        num_shared = self._latent_space.num_factors - k
-        shared_indices = np.random.choice(self._latent_factor_indices, size=num_shared, replace=False)
-        # resample paired item
-        # TODO: this could generate the same factors due to randomness
-        paired_factors = self._dataset.resampled_factors([orig_factors], shared_indices)
+        num_shared = self._num_variation_factors - k
+        shared_indices = np.random.choice(self._variation_factor_indices, size=num_shared, replace=False)
+        # resample paired item, differs by at most k factors of variation
+        paired_factors = self._dataset.resampled_factors(orig_factors[np.newaxis, :], shared_indices)
         # return observations
-        return orig_factors, paired_factors
+        return orig_factors, paired_factors[0]
 
 
 # ========================================================================= #
