@@ -8,26 +8,93 @@ import numpy as np
 # ========================================================================= #
 
 
-class MultiDimIndex(object):
+class DiscreteStateSpace(object):
+    """
+    State space where an index corresponds to coordinates in the factor space.
+    ie. State space with multiple factors of variation, where each factor can be a different size.
+    Heavily modified FROM: https://github.com/google-research/disentanglement_lib/blob/adb2772b599ea55c60d58fd4b47dff700ef9233b/disentanglement_lib/data/ground_truth/util.py
+    """
 
-    def __init__(self, dimension_sizes):
+    def __init__(self, factor_sizes):
+        super().__init__()
         # dimension
-        self._dimension_sizes = dimension_sizes
-        self._size = np.prod(dimension_sizes)
+        self._factor_sizes = np.array(factor_sizes)
+        self._size = np.prod(factor_sizes)
+        # dimension sampling
+        self._factor_indices_set = set(range(self.num_factors))
         # helper data for conversion between factors and indexes
-        bases = np.prod(self._dimension_sizes) // np.cumprod([1, *self._dimension_sizes])
-        self._pos_divisors = bases[1:]
-        self._pos_modulus = bases[:-1]
+        bases = np.prod(self._factor_sizes) // np.cumprod([1, *self._factor_sizes])
+        self._factor_divisors = bases[1:]
+        self._factor_modulus = bases[:-1]
+
+    def __len__(self):
+        return self.size
+
+    def __getitem__(self, idx):
+        return self.idx_to_pos(idx)
 
     @property
     def size(self):
         return self._size
 
+    @property
+    def num_factors(self):
+        return len(self._factor_sizes)
+
     def pos_to_idx(self, pos):
-        return np.dot(pos, self._pos_divisors)
+        return np.dot(pos, self._factor_divisors)
 
     def idx_to_pos(self, idx):
-        return (idx % self._pos_modulus) // self._pos_divisors
+        return (idx % self._factor_modulus) // self._factor_divisors
+
+    def sample_factors(self, num_samples, factor_indices=None):
+        """
+        sample randomly from all factors, otherwise the given factor_indices.
+        returned values appear in the same order as factor_indices.
+        """
+        return np.random.randint(
+            self._factor_sizes if (factor_indices is None) else self._factor_sizes[factor_indices],
+            size=(num_samples, len(factor_indices))
+        )
+
+    # def sample_indices(self, num_samples):
+    #     """Like sample_factors but returns indices."""
+    #     return self.pos_to_idx(self.sample_factors(num_samples))
+
+    def sample_missing_factors(self, values, factor_indices):
+        """
+        Samples the remaining factors not given in the dimension_indices.
+        ie. fills in the missing values by sampling from the unused dimensions.
+        returned values are ordered by increasing factor index and not factor_indices.
+        """
+        num_samples, num_dims = values.shape
+        used_indices_set = set(factor_indices)
+        # assertions
+        assert num_dims == len(factor_indices), 'dimension count mismatch'
+        assert len(used_indices_set) == len(factor_indices), 'dimension indices are duplicated'
+        # set used dimensions
+        all_values = np.zeros(shape=(num_samples, self.num_factors), dtype=np.int64)
+        all_values[:, factor_indices] = values
+        # sample for missing
+        missing_indices = list(self._factor_indices_set - used_indices_set)
+        all_values[:, missing_indices] = self.sample_factors(num_samples=num_samples, factor_indices=missing_indices)
+        # return
+        return all_values
+
+    # def sample_missing_indices(self, values, factor_indices):
+    #     """Like sample_missing_factors but returns indices."""
+    #     return self.pos_to_idx(self.sample_missing_factors(values, factor_indices))
+
+    def resampled_factors(self, values, factors_indices):
+        """
+        Resample across all the factors, keeping factor_indices constant.
+        returned values are ordered by increasing factor index and not factor_indices.
+        """
+        return self.sample_missing_factors(values[:, factors_indices], factors_indices)
+
+    # def resampled_indices(self, values, factors_indices):
+    #     """Like resampled_factors but returns indices."""
+    #     return self.pos_to_idx(self.resampled_factors(values, factors_indices))
 
 
 # ========================================================================= #
@@ -35,80 +102,31 @@ class MultiDimIndex(object):
 # ========================================================================= #
 
 
-class SplitDiscreteStateSpace(object):
-    """
-    State space with factors split between latent variable and observations.
-    ie. multi dimensional index which samples from unused dimensions.
-    MODIFIED FROM: https://github.com/google-research/disentanglement_lib/blob/adb2772b599ea55c60d58fd4b47dff700ef9233b/disentanglement_lib/data/ground_truth/util.py
-    """
-
-    def __init__(self, factor_sizes, latent_factor_indices=None):
-        # dimension sizes
-        self._factor_sizes = np.array(factor_sizes)
-        # indices of used dimensions
-        self._latent_factor_indices = latent_factor_indices if latent_factor_indices else list(range(self.num_factors))
-        # indices of unused dimensions
-        self._observation_factor_indices = [i for i in range(self.num_factors) if i not in self._latent_factor_indices]
-        # conversion between factors and indexes
-        self._factor_index = MultiDimIndex(self._factor_sizes)
-        self._latent_factor_index = MultiDimIndex(self._factor_sizes[self._latent_factor_indices])
-
-    @property
-    def num_factors(self):
-        return len(self._factor_sizes)
-
-    @property
-    def num_latent_factors(self):
-        return len(self._latent_factor_indices)
-
-    @property
-    def size(self):
-        return self._factor_index.size
-
-    @property
-    def latent_size(self):
-        return self._latent_factor_index.size
-
-    def factor_to_idx(self, factor): return self._factor_index.pos_to_idx(factor)
-    def idx_to_factor(self, idx): return self._factor_index.idx_to_pos(idx)
-
-    def latent_factor_to_latent_idx(self, factor): return self._latent_factor_index.pos_to_idx(factor)
-    def latent_idx_to_latent_factor(self, idx): return self._latent_factor_index.idx_to_pos(idx)
-
-    def sample_latent_factors(self, num_samples):
-        """
-        Sample a batch of the latent factors.
-        ie. only returns factors from used dimensions.
-        """
-        # factors = np.zeros(shape=(num, self.num_latent_factors), dtype=np.int64)
-        # for i, idx in enumerate(self._latent_factor_indices):
-        #     factors[:, i] = self._sample_factor(idx, num)
-        # return factors
-        return self._sample_factors(self._latent_factor_indices, num_samples)
-
-    def sample_all_factors(self, latent_factors):
-        """
-        Samples the remaining factors based on the latent factors.
-        ie. fills in the missing factors around latent_factors by sampling from the unused dimensions.
-        """
-        # set used factors
-        num_samples = latent_factors.shape[0]
-        all_factors = np.zeros(shape=(num_samples, self.num_factors), dtype=np.int64)
-        all_factors[:, self._latent_factor_indices] = latent_factors
-        # sample for unused factors
-        all_factors[:, self._observation_factor_indices] = self._sample_factors(self._observation_factor_indices, num_samples)
-        return all_factors
-
-    def resample_all_factors(self, factors):
-        """Resample across all the factors, keeping latent factors constant."""
-        return self.sample_all_factors(factors[:, self._latent_factor_indices])
-
-    def _sample_factors(self, factor_indices, num_samples):
-        """return the specified number of position samples based on a list of dimension sizes."""
-        return np.random.randint(
-            self._factor_sizes[factor_indices],
-            size=(num_samples, len(factor_indices))
-        )
+# class SplitDiscreteStateSpace(object):
+#
+#     def __init__(self, factor_sizes, latent_factor_indices):
+#         self._latent_factor_indices = latent_factor_indices
+#         # conversion between factors and indexes
+#         self.factors = DiscreteStateSpace(factor_sizes)
+#         self.latent_factors = DiscreteStateSpace(self.factors._factor_sizes[self._latent_factor_indices])
+#
+#     def sample_latent_factors(self, num_samples):
+#         """
+#         Sample a batch of the latent factors.
+#         ie. only returns factors from used dimensions.
+#         """
+#         return self.factors.sample_factors(num_samples, factor_indices=self._latent_factor_indices)
+#
+#     def sample_all_factors(self, latent_factors):
+#         """
+#         Samples the remaining factors based on the latent factors.
+#         ie. fills in the missing factors around latent_factors by sampling from the unused dimensions.
+#         """
+#         return self.factors.sample_missing_factors(latent_factors, self._latent_factor_indices)
+#
+#     def resample_all_factors(self, factors):
+#         """Resample across all the factors, keeping latent factors constant."""
+#         return self.factors.resampled_factors(factors, self._latent_factor_indices)
 
 
 # ========================================================================= #
@@ -116,31 +134,24 @@ class SplitDiscreteStateSpace(object):
 # ========================================================================= #
 
 
-class GroundTruthData(object):
+class GroundTruthData(DiscreteStateSpace, Dataset):
 
     def __init__(self):
-        assert len(self.factor_names) == len(
-            self.factor_sizes), 'Dimensionality mismatch of FACTOR_NAMES and FACTOR_DIMS'
-        self._state_space = SplitDiscreteStateSpace(
-            factor_sizes=self.factor_sizes,
-            latent_factor_indices=self.used_factors,
-        )
+        assert len(self.factor_names) == len(self.factor_sizes), 'Dimensionality mismatch of FACTOR_NAMES and FACTOR_DIMS'
+        super().__init__(self.factor_sizes)
 
-    @property
-    def size(self):
-        return self._state_space.size
+    def sample_observations(self, num_samples):
+        """Sample a batch of observations X."""
+        factors = self.sample_factors(num_samples)
+        indices = self.pos_to_idx(factors)
+        return self[indices]
 
-    @property
-    def latent_size(self):
-        return self._state_space.latent_size
-
-    @property
-    def num_factors(self):
-        return self._state_space.num_factors
-
-    @property
-    def num_latent_factors(self):
-        return self._state_space.num_latent_factors
+    def __getitem__(self, indices):
+        """
+        should return a single observation if an integer index, or
+        an array of observations if indices is an array.
+        """
+        raise NotImplementedError()
 
     @property
     def factor_names(self) -> Tuple[str, ...]:
@@ -151,38 +162,7 @@ class GroundTruthData(object):
         raise NotImplementedError()
 
     @property
-    def used_factors(self) -> Optional[Tuple[int, ...]]:
-        raise NotImplementedError()
-
-    @property
     def observation_shape(self) -> Tuple[int, ...]:
-        raise NotImplementedError()
-
-    def sample(self, num_samples):
-        """Sample a batch of factors Y and observations X."""
-        latent_factors = self.sample_latent_factors(num_samples)
-        return latent_factors, self.sample_observations_from_factors(latent_factors)
-
-    def sample_observations(self, num_samples):
-        """Sample a batch of observations X."""
-        factors, observations = self.sample(num_samples)
-        return observations
-
-    def sample_latent_factors(self, num_samples):
-        """Sample a batch of factors Y."""
-        latent_factors = self._state_space.sample_latent_factors(num_samples)
-        return latent_factors
-
-    def sample_indices_from_factors(self, latent_factors):
-        all_factors = self._state_space.sample_all_factors(latent_factors)
-        return self._state_space.factor_to_idx(all_factors)
-
-    def sample_observations_from_factors(self, latent_factors):
-        """Sample a batch of observations X given a batch of factors Y."""
-        indices = self.sample_indices_from_factors(latent_factors)
-        return self.get_observations_from_indices(indices)
-
-    def get_observations_from_indices(self, indices):
         raise NotImplementedError()
 
 
@@ -208,34 +188,45 @@ class GroundTruthData(object):
 # Unless specified otherwise, we aggregate the results for all values of k.
 # """
 
-class PairedVariationDataset(IterableDataset):
+class PairedVariationDataset(Dataset):
 
-    def __init__(self, dataset, k):
-        assert isinstance(dataset, GroundTruthData) and isinstance(dataset, Dataset), 'passed object is not an instance of both GroundTruthData and Dataset'
-        self._dataset = dataset
+    def __init__(self, dataset, k=None, latent_factor_indices=None):
+        assert isinstance(dataset, GroundTruthData), 'passed object is not an instance of both GroundTruthData and Dataset'
+        # wrapped dataset
+        self._dataset: GroundTruthData = dataset
+        # possible fixed dimensions between pairs
+        self._latent_factor_indices = np.arange(self._dataset.num_factors) if (latent_factor_indices is None) else np.array(latent_factor_indices)
+        self._latent_space = DiscreteStateSpace(self._latent_factor_indices)
+        # number of varied factors between pairs
         self._k = k
+        # verify k
+        assert isinstance(k, str) or isinstance(k, int), 'k must be "uniform" or an integer'
+        if isinstance(k, int):
+            assert 1 <= k, 'k cannot be less than 1'
+            assert k < self._latent_space.num_factors, f'all factors cannot be varied for each pair, k must be less than {self._latent_space.num_factors}'
 
-    def __iter__(self):
-        for i in range(len(self._dataset)):
-            # get fixed or random k
-            k = np.random.randint(1, self._dataset.num_factors) if self._k == 'uniform' else self._k
-            # make k random indices not shared
-            shared_indices = np.random.choice(self._dataset.num_latent_factors, size=self._dataset.num_latent_factors - k, replace=False)
-            # get shared factors d - k
-            shared_factors = self._dataset.sample_latent_factors(1)[0]
-            # TODO: make use of this:
-            # shared_factors = shared_factors[0, shared_indices]
-            # resample not shared factors
-            # TODO: this could generate the same factors due to randomness
-            # TODO: this isnt actually sampling the right thing
-            idx1, idx2 = self._dataset.sample_indices_from_factors(
-                np.array([shared_factors, shared_factors])
-            )
-            x1, x2 = self._dataset.__getitem__(idx1), self._dataset.__getitem__(idx2)
-            yield x1, x2
+    def __len__(self):
+        # TODO: is dataset as big as the latent space OR as big as the orig.
+        # return self._latent_space.size
+        return self._dataset.size
 
+    def __getitem__(self, idx):
+        orig_factors, paired_factors = self._sample_idx_pair(idx)
+        return self._dataset[[orig_factors, paired_factors]]
 
-
+    def _sample_idx_pair(self, idx):
+        # get factors corresponding to index
+        orig_factors = self._dataset.idx_to_pos(idx)
+        # get fixed or random k
+        k = np.random.randint(1, self._dataset.num_factors) if self._k == 'uniform' else self._k
+        # make k random indices not shared
+        num_shared = self._latent_space.num_factors - k
+        shared_indices = np.random.choice(self._latent_factor_indices, size=num_shared, replace=False)
+        # resample paired item
+        # TODO: this could generate the same factors due to randomness
+        paired_factors = self._dataset.resampled_factors([orig_factors], shared_indices)
+        # return observations
+        return orig_factors, paired_factors
 
 
 # ========================================================================= #

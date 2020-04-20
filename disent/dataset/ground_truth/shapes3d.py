@@ -2,14 +2,12 @@ import h5py
 import torch
 from PIL import Image
 from torch.utils.data import Dataset
-from disent.dataset.util import GroundTruthData
-
 # ========================================================================= #
 # shapes3d                                                                  #
 # ========================================================================= #
 
 
-class Shapes3dDataset(GroundTruthData, Dataset):
+class Shapes3dDataset(Dataset):
     """
     3D Shapes Dataset:
     https://github.com/deepmind/3d-shapes
