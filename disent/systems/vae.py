@@ -1,5 +1,6 @@
 import torchvision
 
+from disent.dataset.ground_truth.xygrid import XYDataset
 from disent.dataset.util import PairedVariationDataset
 from disent.loss.loss import AdaGVaeLoss, BetaVaeLoss
 from disent.model.encoders_decoders import DecoderSimpleFC, EncoderSimpleFC
@@ -27,13 +28,17 @@ class VaeSystem(BaseLightningModule):
             batch_size=8
         )
 
+        # from disent.dataset.ground_truth.shapes3d import Shapes3dDataset
+        #         # transform = torchvision.transforms.Compose([
+        #         #     torchvision.transforms.Resize(28),
+        #         #     torchvision.transforms.Grayscale(),
+        #         #     torchvision.transforms.ToTensor(),
+        #         # ])
+        #         # self.dataset_train = Shapes3dDataset(transform=transform)
+        #         # self.dataset_train = PairedVariationDataset(self.dataset_train, k='uniform')
+
         from disent.dataset.ground_truth.shapes3d import Shapes3dDataset
-        transform = torchvision.transforms.Compose([
-            torchvision.transforms.Resize(28),
-            torchvision.transforms.Grayscale(),
-            torchvision.transforms.ToTensor(),
-        ])
-        self.dataset_train = Shapes3dDataset(transform=transform)
+        self.dataset_train = XYDataset(width=28, transform=torchvision.transforms.ToTensor())
         self.dataset_train = PairedVariationDataset(self.dataset_train, k='uniform')
 
     def training_step(self, batch, batch_idx):

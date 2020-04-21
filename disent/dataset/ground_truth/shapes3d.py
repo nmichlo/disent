@@ -19,7 +19,9 @@ class Shapes3dDataset(GroundTruthDataset):
     factor_sizes = (10, 10, 10, 8, 4, 15)
     observation_shape = (64, 64, 3)
 
-    def __init__(self, shapes_file='data/3dshapes.h5', transform=None):
+    def __init__(self, shapes_file='data/processed/3dshapes_gzip4_32-64-3_4096__4700.43eps.h5', transform=None):
+        # TODO: add automatic conversion on first run
+
         super().__init__()
         self.transform = transform
         self.hdf5file = shapes_file
@@ -32,7 +34,7 @@ class Shapes3dDataset(GroundTruthDataset):
 
     def __getitem__(self, indices):
         if torch.is_tensor(indices):
-            idx = indices.tolist()
+            indices = indices.tolist()
 
         with h5py.File(self.hdf5file, 'r') as db:
             image = db['images'][indices]

@@ -173,7 +173,7 @@ class PairedVariationDataset(Dataset):
     def __getitem__(self, idx):
         orig_factors, paired_factors = self.sample_pair_factors(idx)
         indices = self._dataset.pos_to_idx([orig_factors, paired_factors])
-        return self._dataset[indices]
+        return [self._dataset[idx] for idx in indices]
 
     def sample_pair_factors(self, idx):
         """
