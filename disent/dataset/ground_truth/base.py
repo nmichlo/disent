@@ -1,6 +1,8 @@
+import os
 from typing import Tuple
 from torch.utils.data.dataset import Dataset
 import numpy as np
+from disent.dataset.util.io import basename_from_url, download_file, ensure_dir_exists
 
 
 # ========================================================================= #
@@ -132,6 +134,94 @@ class GroundTruthDataset(DiscreteStateSpace, Dataset):
         an array of observations if indices is an array.
         """
         raise NotImplementedError()
+
+
+# ========================================================================= #
+# paired factor of variation dataset                                        #
+# ========================================================================= #
+
+
+class DownloadableGroundTruthDataset(GroundTruthDataset):
+
+    def __init__(self, data_dir='data', force_download=False):
+        super().__init__()
+        # paths
+        self._data_dir = ensure_dir_exists(data_dir)
+        self._data_path = os.path.join(self._data_dir, basename_from_url(self.dataset_url))
+        # meta
+        self._force_download = force_download
+        # DOWNLOAD
+        self._do_download_dataset()
+
+    def _do_download_dataset(self):
+        no_data = not os.path.exists(self._data_path)
+        # download dataset
+        if self._force_download or no_data:
+            download_file(self.dataset_url, self._data_path)
+
+    @property
+    def dataset_path(self):
+        '''path that the dataset should be loaded from in the child class'''
+        return self._data_path
+
+    @property
+    def dataset_url(self) -> str:
+        raise NotImplementedError()
+
+
+class PreprocessedDownloadableGroundTruthDataset(DownloadableGroundTruthDataset):
+
+    def __init__(self, data_dir='data', force_download=False, force_preprocess=False):
+        super().__init__(data_dir=data_dir, force_download=force_download)
+        # paths
+        self._proc_path = f'{self._data_path}.processed'
+        self._force_preprocess = force_preprocess
+        # PROCESS
+        self._do_download_and_process_dataset()
+
+    def _do_download_dataset(self):
+        # we skip this in favour of our new method,
+        # so that we can lazily download the dataset.
+        pass
+
+    def _do_download_and_process_dataset(self):
+        no_data = not os.path.exists(self._data_path)
+        no_proc = not os.path.exists(self._proc_path)
+
+        # preprocess only if required
+        do_proc = self._force_preprocess or no_proc
+        # lazily download if required for preprocessing
+        do_data = self._force_download or (no_data and do_proc)
+
+        if do_data:
+            download_file(self.dataset_url, self._data_path)
+
+        if do_proc:
+            # TODO: also used in io save file, convert to with syntax.
+            # save to a temporary location in case there is an error, we then know one occured.
+            path_dir, path_base = os.path.split(self._proc_path)
+            ensure_dir_exists(path_dir)
+            temp_proc_path = os.path.join(path_dir, f'.{path_base}.temp')
+
+            # process stuff
+            self._preprocess_dataset(path_src=self._data_path, path_dst=temp_proc_path)
+
+            # delete existing file if needed
+            if os.path.isfile(self._proc_path):
+                os.remove(self._proc_path)
+            # move processed file to correct place
+            os.rename(temp_proc_path, self._proc_path)
+
+            assert os.path.exists(self._proc_path), f'Overridden _preprocess_dataset method did not initialise the required dataset file: dataset_path="{self._proc_path}"'
+
+    @property
+    def dataset_path(self):
+        '''path that the dataset should be loaded from in the child class'''
+        return self._proc_path
+
+    def _preprocess_dataset(self, path_src, path_dst):
+        raise NotImplementedError()
+
 
 
 # ========================================================================= #

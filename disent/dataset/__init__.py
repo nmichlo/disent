@@ -1,7 +1,8 @@
 
 # Make datasets directly accessible
-from .ground_truth.shapes3d import Shapes3dDataset
-from .ground_truth.xygrid import XYDataset
+from .ground_truth.dataset_shapes3d import Shapes3dDataset
+from .ground_truth.dataset_xygrid import XYDataset
+from .ground_truth.dataset_mpi3d import Mpi3dDataset
 
 
 # ========================================================================= #
