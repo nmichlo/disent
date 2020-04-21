@@ -52,20 +52,7 @@ class Shapes3dDataset(GroundTruthDataset):
 
 
 if __name__ == '__main__':
-    # from torch.utils.data import DataLoader, Dataset
-    # from torchvision.transforms import ToTensor
-    # from tqdm import tqdm
     import numpy as np
-    #
-    # dataset = Shapes3dDataset(transform=ToTensor())
-    #
-    # for i in range(1, 16+1):
-    #     dataloader = DataLoader(dataset, batch_size=16, num_workers=i)
-    #     count = 8*i
-    #     for batch in tqdm(dataloader):
-    #         count -= 1
-    #         if count < 0:
-    #             break
 
     dataset = Shapes3dDataset()
     pair_dataset = PairedVariationDataset(dataset, k='uniform')
@@ -73,4 +60,7 @@ if __name__ == '__main__':
     for i in range(10):
         idx = np.random.randint(len(dataset))
         a, b = pair_dataset.sample_pair_factors(idx)
+        print(all(dataset.idx_to_pos(idx) == a), '|', a, '&', b, ':', [int(v) for v in (a == b)])
+        a, b = dataset.pos_to_idx([a, b])
         print(a, b)
+        dataset[a], dataset[b]
