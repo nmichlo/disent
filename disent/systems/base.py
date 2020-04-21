@@ -14,7 +14,6 @@ class BaseLightningModule(pl.LightningModule):
     Base system that wraps a model. Includes factories for datasets, optimizers and loss.
     """
 
-
     def __init__(self, model, loss, optimizer='radam', dataset='mnist', lr=0.001, batch_size=64, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # model

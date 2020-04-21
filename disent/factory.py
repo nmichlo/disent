@@ -44,7 +44,7 @@ def make_datasets(dataset):
             torchvision.transforms.ToTensor(),
         ])
         train_dataset, test_dataset = split_dataset(
-            dataset=Shapes3dDataset('data/3dshapes.h5', transform=shapes_transform),
+            dataset=Shapes3dDataset(transform=shapes_transform),
             train_ratio=0.8
         )
     # XYGRID

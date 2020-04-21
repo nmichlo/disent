@@ -1,5 +1,10 @@
 from typing import Tuple
-from disent.dataset.util import GroundTruthDataset
+
+import torchvision
+from torch.utils.data import DataLoader
+from tqdm import tqdm
+
+from disent.dataset.util import GroundTruthDataset, PairedVariationDataset
 import numpy as np
 
 
@@ -46,5 +51,17 @@ class XYDataset(GroundTruthDataset):
 
 
 if __name__ == '__main__':
-    dataset = XYDataset(8)
-    print(dataset[dataset.pos_to_idx([2, 1])])
+    # dataset = XYDataset(8)
+    # print(dataset[dataset.pos_to_idx([2, 1])])
+
+    dataset = XYDataset(width=28, transform=torchvision.transforms.ToTensor())
+    loader = DataLoader(dataset, batch_size=1, shuffle=False)
+
+    for i in tqdm(dataset):
+        pass
+
+    paired_dataset = PairedVariationDataset(dataset, k='uniform')
+    paired_loader = DataLoader(paired_dataset, batch_size=1, shuffle=False)
+
+    for i in tqdm(paired_loader):
+        pass

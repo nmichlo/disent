@@ -23,10 +23,10 @@ class GaussianEncoderModel(torch.nn.Module):
           -> x_recon | no final activation
         """
         # encode
-        z_mean, z_logvar = self.encode_gaussian(x) # .view(-1, self.x_dim)
+        z_mean, z_logvar = self.encode_gaussian(x)  # .view(-1, self.x_dim)
         z = self.sample_from_latent_distribution(z_mean, z_logvar)
         # decode
-        x_recon = self.decode(z) #.view(x.size())
+        x_recon = self.decode(z).view(x.size())
         return x_recon, z_mean, z_logvar, z
 
     @staticmethod
@@ -49,13 +49,13 @@ class GaussianEncoderModel(torch.nn.Module):
         z_mean, z_logvar = self.gaussian_encoder(x)
         return z_mean, z_logvar
 
-    # def encode_deterministic(self, x):
-    #     z_mean, z_logvar = self.encode_gaussian(x)
-    #     return z_mean
-
     # def encode_stochastic(self, x):
     #     z_mean, z_logvar = self.encode_gaussian(x)
     #     return self.sample_from_latent_distribution(z_mean, z_logvar)
+    #
+    # def encode_deterministic(self, x):
+    #     z_mean, z_logvar = self.encode_gaussian(x)
+    #     return z_mean
 
     def decode(self, z: Tensor) -> Tensor:
         """
@@ -64,7 +64,7 @@ class GaussianEncoderModel(torch.nn.Module):
         The final activation should not be included. This will always be sigmoid
         and is computed as part of the loss to improve numerical stability.
         """
-        x_recon = self.decoder(z)
+        x_recon = torch.sigmoid(self.decoder(z))
         return x_recon
 
     # def reconstruct(self, z: Tensor) -> Tensor:
