@@ -27,16 +27,18 @@ def seed(long=777):
 # ========================================================================= #
 
 
-def plt_show_grid(images):
+def plt_make_subplots_grid(images, figsize=(8, 8), space=0):
     with torch.no_grad():
         # minimal square
         size = int(np.ceil(len(images) ** 0.5))
         # DISPLAY IMAGES
-        fig, axs = plt.subplots(size, size)
+        fig, axs = plt.subplots(size, size, figsize=figsize)
+        fig.subplots_adjust(wspace=space, hspace=space)
         axs = np.array(axs).reshape(-1)
         for ax, img in zip(axs, images):
             ax.imshow(img)
-        plt.show()
+            ax.axis('off')
+    return fig, axs
 
 
 # ========================================================================= #

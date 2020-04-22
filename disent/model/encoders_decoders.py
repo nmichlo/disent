@@ -106,11 +106,14 @@ class EncoderSimpleConv64(nn.Module):
             nn.Conv2d(256, 256, 4, 2, 1),
             nn.ReLU(True),
             Flatten3D(),
-            nn.Linear(256, latent_dim, bias=True)
         )
+        self.enc3mean = nn.Linear(256, self.z_dim)
+        self.enc3logvar = nn.Linear(256, self.z_dim)
 
     def forward(self, x):
-        return self.model(x)
+        # encoder | p(z|x)
+        x = self.model(x)
+        return self.enc3mean(x), self.enc3logvar(x)
 
 
 class DecoderSimpleConv64(nn.Module):
