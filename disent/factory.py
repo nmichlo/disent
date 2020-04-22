@@ -1,25 +1,48 @@
 
+
 # ========================================================================= #
 # make - optimizers                                                         #
 # ========================================================================= #
 
 
-def make_optimizer(optimizer, parameters, lr=0.001):
+def make_optimizer(name, parameters, lr=0.001):
     # SGD
-    if optimizer == 'sgd':
+    if 'sgd' == name:
         import torch.optim
         return torch.optim.SGD(parameters, lr=lr)
     # ADAM
-    elif optimizer == 'adam':
+    elif 'adam' == name:
         import torch.optim
         return torch.optim.Adam(parameters, lr=lr)
     # RADAM
-    elif optimizer == 'radam':
+    elif 'radam' == name:
         import torch_optimizer
         return torch_optimizer.RAdam(parameters, lr=lr)
     # UNKNOWN
     else:
-        raise KeyError(f'Unsupported Optimizer: {optimizer}')
+        raise KeyError(f'Unsupported Optimizer: {name}')
+
+
+# ========================================================================= #
+# make - models                                                             #
+# ========================================================================= #
+
+
+def make_model(name, z_dim=6, image_size=64, num_channels=3):
+    from disent.model.gaussian_encoder_model import GaussianEncoderModel
+
+    if 'simple-fc' == name:
+        from disent.model.encoders_decoders import EncoderSimpleFC, DecoderSimpleFC
+        encoder = EncoderSimpleFC(x_dim=(image_size**2)*num_channels, h_dim1=256, h_dim2=128, z_dim=z_dim)  # 3 mil params... yoh
+        decoder = DecoderSimpleFC(x_dim=(image_size**2)*num_channels, h_dim1=256, h_dim2=128, z_dim=z_dim)  # 3 mil params... yoh
+    elif 'simple-conv' == name:
+        from disent.model.encoders_decoders import EncoderSimpleConv64, DecoderSimpleConv64
+        encoder = EncoderSimpleConv64(latent_dim=z_dim, num_channels=3, image_size=64)
+        decoder = DecoderSimpleConv64(latent_dim=z_dim, num_channels=3, image_size=64)
+    else:
+        raise KeyError(f'Unsupported Model: {name}')
+
+    return GaussianEncoderModel(encoder, decoder)
 
 
 # ========================================================================= #
@@ -27,38 +50,77 @@ def make_optimizer(optimizer, parameters, lr=0.001):
 # ========================================================================= #
 
 
-def make_datasets(dataset):
-    import torchvision.transforms
-    from disent.dataset import split_dataset
+def make_ground_truth_dataset(name, data_dir='data'):
+    import torchvision
+    import torch
 
-    # MNIST
-    if dataset == 'mnist':
-        train_dataset = torchvision.datasets.MNIST(root='./data', train=True, transform=torchvision.transforms.ToTensor(), download=True)
-        test_dataset = torchvision.datasets.MNIST(root='./data', train=False, transform=torchvision.transforms.ToTensor(), download=False)
-    # 3D SHAPES
-    elif dataset == '3dshapes':
-        from disent.dataset import Shapes3dDataset
-        shapes_transform = torchvision.transforms.Compose([
-            torchvision.transforms.Resize(28),
-            torchvision.transforms.Grayscale(),
+    if '3dshapes' == name:
+        from disent.dataset.ground_truth.dataset_shapes3d import Shapes3dDataset
+        transforms = torchvision.transforms.Compose([
             torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
         ])
-        train_dataset, test_dataset = split_dataset(
-            dataset=Shapes3dDataset(transform=shapes_transform),
-            train_ratio=0.8
-        )
-    # XYGRID
-    elif dataset == 'xygrid':
-        from disent.dataset import XYDataset
-        train_dataset, test_dataset = split_dataset(
-            dataset=XYDataset(width=28, transform=torchvision.transforms.ToTensor()),
-            train_ratio=0.8
-        )
-    # UNKNOWN
+        return Shapes3dDataset(data_dir=data_dir, transform=transforms)
+    elif 'xygrid' == name:
+        from disent.dataset.ground_truth.dataset_xygrid import XYDataset
+        transforms = torchvision.transforms.Compose([
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize([0.5], [0.5]),
+            torchvision.transforms.Lambda(lambda x: torch.cat([x, x, x], dim=0))  # add extra channels
+        ])
+        return XYDataset(width=64, transform=transforms)
+    elif 'mnist' == name:
+        # this dataset is quite pointless, just compatible with the others...
+        from PIL import Image
+        transforms = torchvision.transforms.Compose([
+            torchvision.transforms.Resize(64, interpolation=Image.NEAREST),
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize([0.5], [0.5]),
+            torchvision.transforms.Lambda(lambda x: torch.cat([x, x, x], dim=0)),  # add extra channels
+        ])
+        # MNIST that only returns images, without labels
+        # torchvision.datasets.MNIST names data folder based off of class name
+        class MNIST(torchvision.datasets.MNIST):
+            def __getitem__(self, index):
+                return super().__getitem__(index)[0]
+        # return instance
+        return MNIST(root=data_dir, train=True, transform=transforms, download=True)
     else:
-        raise KeyError(f'Unknown dataset: {dataset}')
+        raise KeyError(f'Unsupported Ground Truth Dataset: {name}')
 
-    return train_dataset, test_dataset
+# def check_values(name):
+#     item = make_ground_truth_dataset(name)[0]
+#     print(name, item.min(), item.max())
+# [check(name) for name in ['3dshapes', 'xygrid', 'mnist']]
+
+def make_paired_dataset(name, k='uniform'):
+    from disent.dataset.ground_truth.base import PairedVariationDataset
+    dataset = make_ground_truth_dataset(name)
+    return PairedVariationDataset(dataset, k=k)
+
+
+# ========================================================================= #
+# make - loss                                                               #
+# ========================================================================= #
+
+
+def make_vae_loss(name):
+    if 'vae' == name:
+        from disent.loss.loss import VaeLoss
+        return VaeLoss()
+    elif 'beta-vae' == name:
+        from disent.loss.loss import BetaVaeLoss
+        return BetaVaeLoss(beta=4)
+    elif 'beta-vae-h' == name:
+        raise NotImplementedError('beta-vae-h loss is not yet implemented')
+    elif 'ada-gvae' == name:
+        from disent.loss.loss import AdaGVaeLoss
+        return AdaGVaeLoss(beta=4)
+    elif 'ada-ml-vae' == name:
+        from disent.loss.loss import AdaMlVaeLoss
+        return AdaMlVaeLoss(beta=4)
+    else:
+        raise KeyError(f'Unsupported Ground Truth Dataset: {name}')
 
 
 # ========================================================================= #

@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as F
 from disent.math import anneal_step
+import numpy as np
 
 
 # ========================================================================= #
@@ -45,6 +46,11 @@ class VaeLoss(object):
     def __call__(self, x, x_recon, z_mean, z_logvar, z_sampled, *args, **kwargs):
         return self.compute_loss(x, x_recon, z_mean, z_logvar, z_sampled, *args, **kwargs)
 
+    @property
+    def is_pair_loss(self):
+        """override in subclasses that need paired loss, indicates format of arguments needed for compute_loss"""
+        return False
+
     def compute_loss(self, x, x_recon, z_mean, z_logvar, z_sampled, *args, **kwargs):
         """
         Compute the varous VAE loss components.
@@ -58,14 +64,15 @@ class VaeLoss(object):
         regularizer = self.regularizer(kl_loss, z_mean, z_logvar, z_sampled)
 
         return {
-            'reconstruction_loss': recon_loss,
-            'kl_loss': kl_loss,
             'loss': recon_loss + regularizer,
-            'elbo': -(recon_loss + kl_loss),
+            # TODO: 'reconstruction_loss': recon_loss,
+            # TODO: 'kl_loss': kl_loss,
+            # TODO: 'elbo': -(recon_loss + kl_loss),
         }
 
     def regularizer(self, kl_loss, z_mean, z_logvar, z_sampled):
         return kl_loss
+
 
 
 # ========================================================================= #
@@ -88,10 +95,11 @@ class BetaVaeHLoss(BetaVaeLoss):
     a constrained variational framework." (2016).
     """
 
-    def __init__(self, beta=4, anneal_end_steps=None):
+    def __init__(self, anneal_end_steps, beta=4):
         super().__init__(beta)
         self.n_train_steps = 0
-        self.anneal_end_steps = anneal_end_steps  # TODO
+        self.anneal_end_steps = anneal_end_steps
+        raise NotImplementedError('n_train_steps is not yet implemented for BetaVaeHLoss, it will not yet work')
 
     def regularizer(self, kl_loss, z_mean, z_logvar, z_sampled):
         print('WARNING: training steps not updated')
@@ -114,10 +122,14 @@ def _kl_normal_loss_pair_elements(z_mean, z_logvar, z2_mean, z2_logvar):
 
 def _estimate_kl_threshold(kl_deltas):
     """
-    Compute the threshold for corresponding elements of the latent vectors that are unchanged between a sample pair.
+    Compute the threshold for each image pair in a batch of kl divergences of all elements of the latent distributions.
     It should be noted that for a perfectly trained model, this threshold is always correct.
     """
-    return 0.5 * (kl_deltas.max() + kl_deltas.min())
+
+    # Must return threshold for each image pair, not over entire batch.
+    # specifying the axis returns a tuple of values and indices... better way?
+    threshs = 0.5 * (kl_deltas.max(axis=1)[0] + kl_deltas.min(axis=1)[0])
+    return threshs[:, None]  # re-add the flattened dimension, shape=(batch_size, 1)
 
 class AdaGVaeLoss(BetaVaeLoss):
 
@@ -126,40 +138,86 @@ class AdaGVaeLoss(BetaVaeLoss):
         # self.sampler = sampler
         # self.vae = vae
 
+    @property
+    def is_pair_loss(self):
+        return True
+
     def compute_loss(self, x, x_recon, z_mean, z_logvar, z_sampled, *args, **kwargs):
         x2, x2_recon, z2_mean, z2_logvar, z2_sampled = args
 
-        # generate new pair
-        # x2 = self.sampler()
-        # x2_recon, z2_mean, z2_logvar = self.vae(x2)
-        # TODO: this is a batch, not a single item
-        # TODO: calculate threshold per pair not over entire batch
-
-        # shared elements that need to be averaged
+        # shared elements that need to be averaged, computed per pair in the batch.
         kl_deltas = _kl_normal_loss_pair_elements(z_mean, z_logvar, z2_mean, z2_logvar)  # [𝛿_i ...]
-        kl_thresh = _estimate_kl_threshold(kl_deltas)                                # threshold τ
-        ave_elements = kl_deltas < kl_thresh
-        # TODO: do you average distributions or do you average samples from distributions? I think the former.
+        kl_threshs = _estimate_kl_threshold(kl_deltas)                                    # threshold τ
+        ave_elements = kl_deltas < kl_threshs
+
         # compute average posteriors
-        # TODO: is this correct?
-        # TODO: is this AdaGVAE or AdaMLVae?
-        ave_mu, ave_logvar = (z_mean + z2_mean) * 0.5, (z_logvar + z2_logvar) * 0.5
+        ave_mu, ave_logvar = self.compute_average(z_mean, z_logvar, z2_mean, z2_logvar)
+
         # compute approximate posteriors
         # approx_z_mean, approx_z_logvar = z_mean.clone(), z_logvar.clone()
         # approx_z2_mean, approx_z2_logvar = z2_mean.clone(), z2_logvar.clone()
         z_mean[ave_elements], z_logvar[ave_elements] = ave_mu[ave_elements], ave_logvar[ave_elements]
         z2_mean[ave_elements], z2_logvar[ave_elements] = ave_mu[ave_elements], ave_logvar[ave_elements]
 
-        # TODO: x_recon and x2_recon need to use updated/averaged z
+        # TODO: x_recon and x2_recon need to use updated/averaged z?
+        # TODO: make use of regularizer() function
         # reconstruction error & KL divergence losses
-        recon_loss = _bce_loss(x, x_recon)            # E[log p(x|z)]
-        recon2_loss = _bce_loss(x2, x2_recon)         # E[log p(x|z)]
+        recon_loss = _bce_loss(x, x_recon)              # E[log p(x|z)]
+        recon2_loss = _bce_loss(x2, x2_recon)           # E[log p(x|z)]
         kl_loss = _kl_normal_loss(z_mean, z_logvar)     # D_kl(q(z|x) || p(z|x))
         kl2_loss = _kl_normal_loss(z2_mean, z2_logvar)  # D_kl(q(z|x) || p(z|x))
 
         # compute combined loss
-        return (recon_loss + recon2_loss) + self.beta * (kl_loss + kl2_loss)
+        loss = (recon_loss + recon2_loss) + self.beta * (kl_loss + kl2_loss)
 
+        return {
+            'loss': loss
+            # TODO: 'reconstruction_loss': recon_loss,
+            # TODO: 'kl_loss': kl_loss,
+            # TODO: 'elbo': -(recon_loss + kl_loss),
+        }
+
+    @staticmethod
+    def compute_average(z_mean, z_logvar, z2_mean, z2_logvar):
+        """
+        Compute the arithmetic mean for the mean and variance.
+        - Ada-GVAE Averaging function
+        """
+        # helper
+        z_var, z2_var = z_logvar.exp(), z2_logvar.exp()
+
+        # averages
+        ave_var = (z_var + z2_var) * 0.5
+        ave_mean = (z_mean + z2_mean) * 0.5
+
+        # mean, logvar
+        return ave_mean, ave_var.log()  # natural log
+
+
+class AdaMlVaeLoss(AdaGVaeLoss):
+
+    @staticmethod
+    def compute_average(z_mean, z_logvar, z2_mean, z2_logvar):
+        """
+        Compute the product of the encoder distributions.
+        - Ada-ML-VAE Averaging function
+        """
+        # helper
+        z_var, z2_var = z_logvar.exp(), z2_logvar.exp()
+
+        # Diagonal matrix inverse: E^-1 = 1 / E
+        # https://proofwiki.org/wiki/Inverse_of_Diagonal_Matrix
+        z_invvar, z2_invvar = z_var.reciprocal(), z2_var.reciprocal()
+
+        # average var: E^-1 = E1^-1 + E2^-1
+        ave_var = (z_invvar + z2_invvar).reciprocal()
+
+        # average mean: u^T = (u1^T E1^-1 + u2^T E2^-1) E
+        # u^T is horr vec (u is vert). E is square matrix
+        ave_mean = (z_mean*z_invvar + z2_mean*z2_invvar) * ave_var
+
+        # mean, logvar
+        return ave_mean, ave_var.log()  # natural log
 
 # ========================================================================= #
 # END                                                                       #

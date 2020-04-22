@@ -76,16 +76,18 @@ class Shapes3dDataset(PreprocessedDownloadableGroundTruthDataset):
 # ========================================================================= #
 
 
-# if __name__ == '__main__':
-#     import numpy as np
-#
-#     dataset = Shapes3dDataset()
-#     pair_dataset = PairedVariationDataset(dataset, k='uniform')
-#
-#     for i in range(10):
-#         idx = np.random.randint(len(dataset))
-#         a, b = pair_dataset.sample_pair_factors(idx)
-#         print(all(dataset.idx_to_pos(idx) == a), '|', a, '&', b, ':', [int(v) for v in (a == b)])
-#         a, b = dataset.pos_to_idx([a, b])
-#         print(a, b)
-#         dataset[a], dataset[b]
+if __name__ == '__main__':
+    import numpy as np
+    from disent.dataset.ground_truth.base import PairedVariationDataset
+
+    dataset = Shapes3dDataset()
+    pair_dataset = PairedVariationDataset(dataset, k='uniform')
+
+    # test that dimensions are resampled correctly, and only differ by a certain number of factors, not all.
+    for i in range(10):
+        idx = np.random.randint(len(dataset))
+        a, b = pair_dataset.sample_pair_factors(idx)
+        print(all(dataset.idx_to_pos(idx) == a), '|', a, '&', b, ':', [int(v) for v in (a == b)])
+        a, b = dataset.pos_to_idx([a, b])
+        print(a, b)
+        dataset[a], dataset[b]

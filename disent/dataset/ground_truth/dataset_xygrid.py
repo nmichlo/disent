@@ -51,17 +51,24 @@ class XYDataset(GroundTruthDataset):
 
 
 if __name__ == '__main__':
-    # dataset = XYDataset(8)
-    # print(dataset[dataset.pos_to_idx([2, 1])])
-
     dataset = XYDataset(width=28, transform=torchvision.transforms.ToTensor())
     loader = DataLoader(dataset, batch_size=1, shuffle=False)
 
+    # check access rate
     for i in tqdm(dataset):
         pass
 
     paired_dataset = PairedVariationDataset(dataset, k='uniform')
     paired_loader = DataLoader(paired_dataset, batch_size=1, shuffle=False)
 
+    # check access rate
     for i in tqdm(paired_loader):
         pass
+
+    # check random factor of variation
+    for A, B in tqdm(DataLoader(paired_dataset, batch_size=16, shuffle=True)):
+        for a, b in zip(A, B):
+            a_pos = dataset.idx_to_pos(a.detach().numpy().reshape(28, 28).argmax())
+            b_pos = dataset.idx_to_pos(b.detach().numpy().reshape(28, 28).argmax())
+            print(a_pos, b_pos)
+        break

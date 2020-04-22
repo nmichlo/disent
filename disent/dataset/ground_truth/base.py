@@ -223,7 +223,6 @@ class PreprocessedDownloadableGroundTruthDataset(DownloadableGroundTruthDataset)
         raise NotImplementedError()
 
 
-
 # ========================================================================= #
 # paired factor of variation dataset                                        #
 # ========================================================================= #
@@ -294,6 +293,19 @@ class PairedVariationDataset(Dataset):
         paired_factors = self._dataset.resampled_factors(orig_factors[np.newaxis, :], shared_indices)
         # return observations
         return orig_factors, paired_factors[0]
+
+
+class RandomPairDataset(Dataset):
+    def __init__(self, dataset: Dataset):
+        self.dataset = dataset
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+        rand_idx = np.random.randint(len(self.dataset))
+        return self.dataset[idx], self.dataset[rand_idx]
+
 
 
 # ========================================================================= #
