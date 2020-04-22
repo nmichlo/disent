@@ -5,14 +5,19 @@ from torch import Tensor
 # ========================================================================= #
 # gaussian encoder model                                                    #
 # ========================================================================= #
+from disent.model.encoders_decoders import DecoderSimpleConv64, EncoderSimpleConv64
 
 
 class GaussianEncoderModel(torch.nn.Module):
 
     def __init__(self, gaussian_encoder: torch.nn.Module, decoder: torch.nn.Module):
+        assert hasattr(gaussian_encoder, 'z_dim'), 'encoder does not define z_dim'
+        assert hasattr(decoder, 'z_dim'), 'decoder does not define z_dim'
+        assert gaussian_encoder.z_dim == decoder.z_dim, 'z_dim mismatch'
         super().__init__()
         self.gaussian_encoder = gaussian_encoder
         self.decoder = decoder
+        self.z_dim = self.gaussian_encoder.z_dim
 
     def forward(self, x: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
         """
@@ -67,13 +72,22 @@ class GaussianEncoderModel(torch.nn.Module):
         x_recon = torch.sigmoid(self.decoder(z))
         return x_recon
 
+    def decode_from_gaussian_samples(self, num_samples):
+        """
+        Return a number of randomly generated reconstructions sampled from a gaussian normal input.
+        """
+        z = torch.randn(num_samples, self.z_dim)
+        if torch.cuda.is_available(): # TODO: this is not gauranteed
+            z = z.cuda()
+        samples = self.decode(z)
+        return samples
+
     # def reconstruct(self, z: Tensor) -> Tensor:
     #     """
     #     Compute the full reconstruction of the input from a latent vector.
     #     Like decode but performs a final sigmoid activation.
     #     """
     #     return torch.sigmoid(self.decode(z))
-
 
 # ========================================================================= #
 # END                                                                       #

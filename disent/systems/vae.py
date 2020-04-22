@@ -21,24 +21,29 @@ class VaeSystem(pl.LightningModule):
     def __init__(
             self,
             model='simple-fc',
-            loss='ada-gvae',
+            loss='vae',
             optimizer='radam',
-            dataset_train='mnist',
+            dataset_train='3dshapes',
             hparams=None
     ):
         super().__init__()
 
-        # default hparams
-        if hparams is None:
-            hparams = SimpleNamespace(lr=0.001, batch_size=64, num_workers=4, k='uniform')
-        if isinstance(hparams, dict):
-            hparams = SimpleNamespace(**hparams)
-
-        # vars
-        self.hparams = hparams
+        # parameters
+        self.hparams = SimpleNamespace(**{
+            # defaults
+            **dict(
+                lr=0.001,
+                batch_size=64,
+                num_workers=4,
+                k='uniform',
+                z_dim=6,
+            ),
+            # custom values
+            **(hparams if hparams else {})
+        })
 
         # make
-        self.model = make_model(model, z_dim=10) if isinstance(model, str) else model
+        self.model = make_model(model, z_dim=self.hparams.z_dim) if isinstance(model, str) else model
         self.loss = make_vae_loss(loss) if isinstance(loss, str) else loss
         self.optimizer = optimizer
         self.dataset_train: Dataset = make_ground_truth_dataset(dataset_train) if isinstance(dataset_train, str) else dataset_train
@@ -46,7 +51,7 @@ class VaeSystem(pl.LightningModule):
         # convert dataset for paired loss
         if self.loss.is_pair_loss:
             if isinstance(self.dataset_train, GroundTruthDataset):
-                self.dataset_train = PairedVariationDataset(self.dataset_train, k=hparams.k)
+                self.dataset_train = PairedVariationDataset(self.dataset_train, k=self.hparams.k)
             else:
                 self.dataset_train = RandomPairDataset(self.dataset_train)
 
@@ -66,9 +71,9 @@ class VaeSystem(pl.LightningModule):
 
         return {
             'loss': losses['loss'],
-            'log': {
-                'train_loss': losses['loss']
-            }
+            # 'log': {
+            #     'train_loss': losses['loss']
+            # }
         }
 
     def configure_optimizers(self):
@@ -80,11 +85,19 @@ class VaeSystem(pl.LightningModule):
         return torch.utils.data.DataLoader(
             self.dataset_train,
             batch_size=self.hparams.batch_size,
-            num_workers=self.hparams.num_workers
+            num_workers=self.hparams.num_workers,
+            shuffle=True
         )
 
     def quick_train(self, epochs=10, show_progress=True, *args, **kwargs) -> Trainer:
-        trainer = Trainer(max_epochs=epochs, show_progress_bar=show_progress, *args, **kwargs)
+        # warn if GPUS are not avaiable
+        if torch.cuda.is_available():
+            gpus = 1
+        else:
+            gpus = None
+            print('[\033[93mWARNING\033[0m]: cuda is not available!')
+        # train
+        trainer = Trainer(max_epochs=epochs, gpus=gpus, show_progress_bar=show_progress, *args, **kwargs)
         trainer.fit(self)
         return trainer
 

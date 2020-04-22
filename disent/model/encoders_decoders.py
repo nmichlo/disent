@@ -28,6 +28,16 @@ class Flatten3D(nn.Module):
         return x
 
 
+
+class BaseModule(nn.Module):
+    @property
+    def z_dim(self):
+        raise NotImplementedError
+    @property
+    def x_dim(self):
+        raise NotImplementedError
+
+
 # ========================================================================= #
 # simple 28x28 fully connected models                                       #
 # ========================================================================= #
@@ -36,6 +46,7 @@ class Flatten3D(nn.Module):
 class EncoderSimpleFC(nn.Module):
     def __init__(self, x_dim=28*28, h_dim1=512, h_dim2=256, z_dim=2):
         super().__init__()
+        self.z_dim = z_dim  # REQUIRED
         self.model = nn.Sequential(
             Flatten3D(),
             nn.Linear(x_dim, h_dim1),
@@ -54,6 +65,7 @@ class EncoderSimpleFC(nn.Module):
 class DecoderSimpleFC(nn.Module):
     def __init__(self, x_dim=28*28, h_dim1=512, h_dim2=256, z_dim=2):
         super().__init__()
+        self.z_dim = z_dim # REQUIRED
         self.model = nn.Sequential(
             nn.Linear(z_dim, h_dim2),
             nn.ReLU(True),
@@ -78,6 +90,7 @@ class EncoderSimpleConv64(nn.Module):
     def __init__(self, latent_dim, num_channels, image_size):
         super().__init__()
         assert image_size == 64, 'This model only works with image size 64x64.'
+        self.z_dim = latent_dim  # REQUIRED
 
         self.model = nn.Sequential(
             nn.Conv2d(num_channels, 32, 4, 2, 1),
@@ -106,6 +119,7 @@ class DecoderSimpleConv64(nn.Module):
     def __init__(self, latent_dim, num_channels, image_size):
         super().__init__()
         assert image_size == 64, 'This model only works with image size 64x64.'
+        self.z_dim = latent_dim  # REQUIRED
 
         self.model = nn.Sequential(
             Unsqueeze3D(),

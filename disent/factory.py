@@ -54,18 +54,19 @@ def make_ground_truth_dataset(name, data_dir='data'):
     import torchvision
     import torch
 
+    # all datasets are in the range [0, 1] to correspond
+    # to the sigmoid activation function.
+
     if '3dshapes' == name:
         from disent.dataset.ground_truth.dataset_shapes3d import Shapes3dDataset
         transforms = torchvision.transforms.Compose([
             torchvision.transforms.ToTensor(),
-            torchvision.transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
         ])
         return Shapes3dDataset(data_dir=data_dir, transform=transforms)
     elif 'xygrid' == name:
         from disent.dataset.ground_truth.dataset_xygrid import XYDataset
         transforms = torchvision.transforms.Compose([
             torchvision.transforms.ToTensor(),
-            torchvision.transforms.Normalize([0.5], [0.5]),
             torchvision.transforms.Lambda(lambda x: torch.cat([x, x, x], dim=0))  # add extra channels
         ])
         return XYDataset(width=64, transform=transforms)
@@ -75,7 +76,6 @@ def make_ground_truth_dataset(name, data_dir='data'):
         transforms = torchvision.transforms.Compose([
             torchvision.transforms.Resize(64, interpolation=Image.NEAREST),
             torchvision.transforms.ToTensor(),
-            torchvision.transforms.Normalize([0.5], [0.5]),
             torchvision.transforms.Lambda(lambda x: torch.cat([x, x, x], dim=0)),  # add extra channels
         ])
         # MNIST that only returns images, without labels

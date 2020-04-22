@@ -30,7 +30,7 @@ def seed(long=777):
 def plt_show_grid(images):
     with torch.no_grad():
         # minimal square
-        size = np.ceil(len(images))
+        size = int(np.ceil(len(images) ** 0.5))
         # DISPLAY IMAGES
         fig, axs = plt.subplots(size, size)
         axs = np.array(axs).reshape(-1)
@@ -63,6 +63,8 @@ def atomic_save(obj, path):
     os.rename(path + '.tmp', path)
     print(f'SAVED: {path}')
 
+def save_model(model, path):
+    atomic_save(model.state_dict(), path)
 
 def load_model(model, path, cuda=True, skip_if_missing=False):
     """
