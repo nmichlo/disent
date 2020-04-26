@@ -1,7 +1,7 @@
 import h5py
 import torch
 from PIL import Image
-from disent.dataset.ground_truth.base import PreprocessedDownloadableGroundTruthDataset
+from disent.dataset.ground_truth.base import Hdf5PreprocessedGroundTruthDataset
 
 
 # ========================================================================= #
@@ -9,7 +9,7 @@ from disent.dataset.ground_truth.base import PreprocessedDownloadableGroundTruth
 # ========================================================================= #
 
 
-class Shapes3dDataset(PreprocessedDownloadableGroundTruthDataset):
+class Shapes3dDataset(Hdf5PreprocessedGroundTruthDataset):
     """
     3D Shapes Dataset:
     - https://github.com/deepmind/3d-shapes

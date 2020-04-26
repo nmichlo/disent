@@ -31,29 +31,6 @@ class DSpritesDataset(Hdf5PreprocessedGroundTruthDataset):
     hdf5_chunk_size = (64, 32, 32)  # TODO: test optimal size, currently using same as shapes3d
 
 
-class DSpritesMemoryDataset(DownloadableGroundTruthDataset):
-    """
-    Same as DSpritesDataset but load all data into memory.
-    Requires approx 2.5+ GB, but an order of magnitude faster.
-
-    TODO: combine into single class but make flag.
-    """
-
-    factor_names = ('shape', 'scale', 'orientation', 'position_x', 'position_y')
-    factor_sizes = (3, 6, 40, 32, 32)
-    observation_shape = (64, 64, 1)  # TODO: reference implementation has colour variants
-
-    dataset_url = 'https://raw.githubusercontent.com/deepmind/dsprites-dataset/master/dsprites_ndarray_co1sh3sc6or40x32y32_64x64.npz'
-
-    def __init__(self, data_dir='data', transform=None, force_download=False):
-        super().__init__(data_dir=data_dir, transform=transform, force_download=force_download)
-        import numpy as np
-        self._data = np.load(self.dataset_path)['imgs']
-
-    def _get_observation(self, indices):
-        return self._data[indices]
-
-
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
@@ -62,5 +39,5 @@ class DSpritesMemoryDataset(DownloadableGroundTruthDataset):
 if __name__ == '__main__':
     from tqdm import tqdm
 
-    for dat in tqdm(DSpritesMemoryDataset()):
+    for dat in tqdm(DSpritesDataset(in_memory=True)):
         pass

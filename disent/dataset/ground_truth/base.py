@@ -1,6 +1,6 @@
 import os
 from typing import Tuple
-
+import h5py
 import torch
 from PIL import Image
 from torch.utils.data.dataset import Dataset
@@ -190,8 +190,8 @@ class DownloadableGroundTruthDataset(GroundTruthDataset):
 
 class PreprocessedDownloadableGroundTruthDataset(DownloadableGroundTruthDataset):
 
-    def __init__(self, data_dir='data', force_download=False, force_preprocess=False):
-        super().__init__(data_dir=data_dir, force_download=force_download)
+    def __init__(self, data_dir='data', transform=None, force_download=False, force_preprocess=False):
+        super().__init__(data_dir=data_dir, transform=transform, force_download=force_download)
         # paths
         self._proc_path = f'{self._data_path}.processed'
         self._force_preprocess = force_preprocess
@@ -248,20 +248,28 @@ class Hdf5PreprocessedGroundTruthDataset(PreprocessedDownloadableGroundTruthData
     TODO: Only supports one dataset from the hdf5 file itself, labels etc need a custom implementation.
     """
 
-    def __init__(self, data_dir='data', transform=None, force_download=False, force_preprocess=False):
+    def __init__(self, data_dir='data', transform=None, in_memory=False, force_download=False, force_preprocess=False):
         super().__init__(data_dir=data_dir, force_download=force_download, force_preprocess=force_preprocess)
         self.transform = transform
+        self._in_memory = in_memory
+
+        # Load the entire dataset into memory if required
+        if self._in_memory:
+            print('[DATASET]: Loading...', end=' ')
+            with h5py.File(self.dataset_path, 'r') as db:
+                self._data = np.array(db[self.hdf5_name])
+            print('Loaded!')
 
     def _get_observation(self, idx):
-        import h5py
-
-        # open here for better multithreading support, saw this somewhere? check if correct.
-        with h5py.File(self.dataset_path, 'r') as db:
-            return db[self.hdf5_name][idx]
+        if self._in_memory:
+            return self._data[idx]
+        else:
+            # open here for better multithreading support, saw this somewhere? check if correct.
+            with h5py.File(self.dataset_path, 'r') as db:
+                return db[self.hdf5_name][idx]
 
     def _preprocess_dataset(self, path_src, path_dst):
         import os
-        import h5py
         from disent.dataset.util.hdf5 import hdf5_resave_dataset, hdf5_test_entries_per_second, bytes_to_human
 
         # resave datasets

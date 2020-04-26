@@ -62,8 +62,8 @@ def make_ground_truth_dataset(name, data_dir='data', try_in_memory=True):
         return Shapes3dDataset(data_dir=data_dir, transform=torchvision.transforms.ToTensor())
 
     elif 'dsprites' == name:
-        from disent.dataset.ground_truth.dataset_dsprites import DSpritesDataset, DSpritesMemoryDataset
-        return (DSpritesMemoryDataset if try_in_memory else DSpritesDataset)(data_dir=data_dir, transform=torchvision.transforms.ToTensor())
+        from disent.dataset.ground_truth.dataset_dsprites import DSpritesDataset
+        return DSpritesDataset(data_dir=data_dir, transform=torchvision.transforms.ToTensor(), in_memory=try_in_memory)
 
     elif 'xygrid' == name:
         from disent.dataset.ground_truth.dataset_xygrid import XYDataset
