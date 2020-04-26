@@ -1,5 +1,8 @@
 import os
 from typing import Tuple
+
+import torch
+from PIL import Image
 from torch.utils.data.dataset import Dataset
 import numpy as np
 from disent.dataset.util.io import basename_from_url, download_file, ensure_dir_exists
@@ -106,9 +109,11 @@ class DiscreteStateSpace(object):
 
 class GroundTruthDataset(DiscreteStateSpace, Dataset):
 
-    def __init__(self):
+    def __init__(self, transform=None):
         assert len(self.factor_names) == len(self.factor_sizes), 'Dimensionality mismatch of FACTOR_NAMES and FACTOR_DIMS'
         super().__init__(self.factor_sizes)
+        # transform observation
+        self.transform = transform
 
     def sample_observations(self, num_samples):
         """Sample a batch of observations X."""
@@ -133,7 +138,21 @@ class GroundTruthDataset(DiscreteStateSpace, Dataset):
         should return a single observation if an integer index, or
         an array of observations if indices is an array.
         """
-        raise NotImplementedError()
+        if torch.is_tensor(indices):
+            indices = indices.tolist()
+
+        image = self._get_observation(indices)
+
+        # https://github.com/pytorch/vision/blob/master/torchvision/datasets/mnist.py
+        # PIL Image so that this is consistent with other datasets
+        image = Image.fromarray(image)
+        if self.transform:
+            image = self.transform(image)
+
+        return image
+
+    def _get_observation(self, indices):
+        raise NotImplementedError
 
 
 # ========================================================================= #
@@ -143,8 +162,8 @@ class GroundTruthDataset(DiscreteStateSpace, Dataset):
 
 class DownloadableGroundTruthDataset(GroundTruthDataset):
 
-    def __init__(self, data_dir='data', force_download=False):
-        super().__init__()
+    def __init__(self, data_dir='data', transform=None, force_download=False):
+        super().__init__(transform=transform)
         # paths
         self._data_dir = ensure_dir_exists(data_dir)
         self._data_path = os.path.join(self._data_dir, basename_from_url(self.dataset_url))
@@ -220,6 +239,56 @@ class PreprocessedDownloadableGroundTruthDataset(DownloadableGroundTruthDataset)
         return self._proc_path
 
     def _preprocess_dataset(self, path_src, path_dst):
+        raise NotImplementedError()
+
+
+class Hdf5PreprocessedGroundTruthDataset(PreprocessedDownloadableGroundTruthDataset):
+    """
+    Automatically download and pre-process an hdf5 dataset into the specific chunk sizes.
+    TODO: Only supports one dataset from the hdf5 file itself, labels etc need a custom implementation.
+    """
+
+    def __init__(self, data_dir='data', transform=None, force_download=False, force_preprocess=False):
+        super().__init__(data_dir=data_dir, force_download=force_download, force_preprocess=force_preprocess)
+        self.transform = transform
+
+    def _get_observation(self, idx):
+        import h5py
+
+        # open here for better multithreading support, saw this somewhere? check if correct.
+        with h5py.File(self.dataset_path, 'r') as db:
+            return db[self.hdf5_name][idx]
+
+    def _preprocess_dataset(self, path_src, path_dst):
+        import os
+        import h5py
+        from disent.dataset.util.hdf5 import hdf5_resave_dataset, hdf5_test_entries_per_second, bytes_to_human
+
+        # resave datasets
+        with h5py.File(path_src, 'r') as inp_data:
+            with h5py.File(path_dst, 'w') as out_data:
+                hdf5_resave_dataset(inp_data, out_data, self.hdf5_name, self.hdf5_chunk_size, self.hdf5_compression, self.hdf5_compression_lvl)
+                # File Size:
+                print(f'[FILE SIZES] IN: {bytes_to_human(os.path.getsize(path_src))} OUT: {bytes_to_human(os.path.getsize(path_dst))}\n')
+                # Test Speed:
+                print('[TESTING] Access Speed...', end=' ')
+                print(f'Random Accesses Per Second: {hdf5_test_entries_per_second(out_data, self.hdf5_name, access_method="random"):.3f}')
+
+    @property
+    def hdf5_compression(self) -> 'str':
+        return 'gzip'
+
+    @property
+    def hdf5_compression_lvl(self) -> int:
+        return 4
+
+    @property
+    def hdf5_name(self) -> str:
+        raise NotImplementedError()
+
+    @property
+    def hdf5_chunk_size(self) -> Tuple[int]:
+        # dramatically affects access speed, but also compression ratio.
         raise NotImplementedError()
 
 

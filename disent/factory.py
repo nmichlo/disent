@@ -50,7 +50,7 @@ def make_model(name, z_dim=6, image_size=64, num_channels=3):
 # ========================================================================= #
 
 
-def make_ground_truth_dataset(name, data_dir='data'):
+def make_ground_truth_dataset(name, data_dir='data', try_in_memory=True):
     import torchvision
     import torch
 
@@ -59,10 +59,12 @@ def make_ground_truth_dataset(name, data_dir='data'):
 
     if '3dshapes' == name:
         from disent.dataset.ground_truth.dataset_shapes3d import Shapes3dDataset
-        transforms = torchvision.transforms.Compose([
-            torchvision.transforms.ToTensor(),
-        ])
-        return Shapes3dDataset(data_dir=data_dir, transform=transforms)
+        return Shapes3dDataset(data_dir=data_dir, transform=torchvision.transforms.ToTensor())
+
+    elif 'dsprites' == name:
+        from disent.dataset.ground_truth.dataset_dsprites import DSpritesDataset, DSpritesMemoryDataset
+        return (DSpritesMemoryDataset if try_in_memory else DSpritesDataset)(data_dir=data_dir, transform=torchvision.transforms.ToTensor())
+
     elif 'xygrid' == name:
         from disent.dataset.ground_truth.dataset_xygrid import XYDataset
         transforms = torchvision.transforms.Compose([
@@ -70,6 +72,7 @@ def make_ground_truth_dataset(name, data_dir='data'):
             torchvision.transforms.Lambda(lambda x: torch.cat([x, x, x], dim=0))  # add extra channels
         ])
         return XYDataset(width=64, transform=transforms)
+
     elif 'mnist' == name:
         # this dataset is quite pointless, just compatible with the others...
         from PIL import Image
@@ -85,6 +88,7 @@ def make_ground_truth_dataset(name, data_dir='data'):
                 return super().__getitem__(index)[0]
         # return instance
         return MNIST(root=data_dir, train=True, transform=transforms, download=True)
+
     else:
         raise KeyError(f'Unsupported Ground Truth Dataset: {name}')
 

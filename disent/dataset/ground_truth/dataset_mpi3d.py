@@ -1,10 +1,10 @@
-from disent.dataset.ground_truth.base import GroundTruthDataset
+from disent.dataset.ground_truth.base import DownloadableGroundTruthDataset
 
 # ========================================================================= #
 # mpi3d                                                                   #
 # ========================================================================= #
 
-class Mpi3dDataset(GroundTruthDataset):
+class Mpi3dDataset(DownloadableGroundTruthDataset):
     """
     MPI3D Dataset
     - https://github.com/rr-learning/disentanglement_dataset
@@ -14,15 +14,23 @@ class Mpi3dDataset(GroundTruthDataset):
         - realistic: https://storage.googleapis.com/disentanglement_dataset/Final_Dataset/mpi3d_realistic.npz
         - real:      https://storage.googleapis.com/disentanglement_dataset/Final_Dataset/mpi3d_real.npz
 
-        https://storage.googleapis.com/3d-shapes/3dshapes.h5
+    reference implementation: https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/data/ground_truth/mpi3d.py
     """
 
-    factor_names = ()
-    factor_sizes = ()
-    observation_shape = ()
+    factor_names = ("object_color", "object_shape", "object_size", "camera_height", "background_color", "first_dof", "second_dof")
+    factor_sizes = (4, 4, 2, 3, 3, 40, 40)
+    observation_shape = (64, 64, 3)
 
-    def __getitem__(self, indices):
-        pass
+    dataset_url = None
+
+    def __init__(self):
+        super().__init__()
+        raise NotImplementedError
+
+    def _get_observation(self, indices):
+        raise NotImplementedError
+
+
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
