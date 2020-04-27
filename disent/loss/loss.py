@@ -86,7 +86,7 @@ class BetaVaeLoss(VaeLoss):
         return self.beta * kl_loss
 
 
-def _lerp(a, b, t):
+def lerp(a, b, t):
     """Linear interpolation between parameters, respects bounds when t is out of bounds [0, 1]"""
     assert a < b
     t = max(0, min(t, 1))
@@ -94,11 +94,11 @@ def _lerp(a, b, t):
     return (1-t)*a + t*b
 
 
-def _anneal_step(a, b, step, max_steps):
+def anneal_step(a, b, step, max_steps):
     """Linear interpolation based on a step count."""
     if max_steps <= 0:
         return b
-    return _lerp(a, b, step / max_steps)
+    return lerp(a, b, step / max_steps)
 
 
 class BetaVaeHLoss(BetaVaeLoss):
@@ -117,7 +117,7 @@ class BetaVaeHLoss(BetaVaeLoss):
 
     def regularizer(self, kl_loss, z_mean, z_logvar, z_sampled):
         print('WARNING: training steps not updated')
-        anneal_reg = _anneal_step(0, 1, self.n_train_steps, self.anneal_end_steps) # if is_train else 1
+        anneal_reg = anneal_step(0, 1, self.n_train_steps, self.anneal_end_steps) # if is_train else 1
         return (anneal_reg * self.beta) * kl_loss
 
 

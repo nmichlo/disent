@@ -19,6 +19,7 @@ from typing import Union
 
 from disent.dataset import make_ground_truth_data
 from disent.dataset.ground_truth.base import GroundTruthData
+from disent.loss.loss import anneal_step, lerp
 from disent.visualize import visualize_util
 import numpy as np
 from six.moves import range
@@ -36,11 +37,11 @@ def _get_data(data: Union[str, GroundTruthData]) -> GroundTruthData:
     return data
 
 
-def visualise_get_still_images(data: Union[str, GroundTruthData], num_samples=16, mode='spread'):
+def visualise_get_still_images(data: Union[str, GroundTruthData], num_samples=16, mode='lerp'):
     data = _get_data(data)
     # Create still images per factor of variation
     factor_images = []
-    for i in range(data.num_factors):
+    for i, size in enumerate(data.factor_sizes):
         factors = data.sample_factors(num_samples)
         # only allow the current index to vary, copy the first to all others
         indices = [j for j in range(data.num_factors) if i != j]
@@ -51,17 +52,17 @@ def visualise_get_still_images(data: Union[str, GroundTruthData], num_samples=16
         elif mode == 'sample_ordered':
             # like sample, but ordered
             factors[:, i] = sorted(factors[:, i])
+        elif mode == 'lerp':
+            # like spread but much better
+            factors[:, i] = [round(anneal_step(0, size-1, j, num_samples-1)) for j in range(num_samples)]
         elif mode == 'spread':
             # 1, 3, 5, 7, 9 (like sequential below, but use larger step size if size bigger than samples)
-            n = int(np.ceil(num_samples / data.factor_sizes[i]))
-            indices = np.array(list(range(data.factor_sizes[i])) * n)
-            step_size = max(1, data.factor_sizes[i] // num_samples)
-            factors[:, i] = sorted(indices[::step_size])[:num_samples]
+            indices = np.tile(np.arange(size), (num_samples + size - 1) // size)
+            factors[:, i] = np.sort(indices[::max(1, size//num_samples)][:num_samples])
         elif mode == 'sequential':
             # 1, 2, 3, 4, 5 (repeat if not size is not as big as number of samples)
-            n = int(np.ceil(num_samples / data.factor_sizes[i]))
-            indices = np.array(list(range(data.factor_sizes[i])) * n)
-            factors[:, i] = sorted(indices[:num_samples])
+            indices = np.tile(np.arange(size), (num_samples + size - 1) // size)
+            factors[:, i] = np.sort(indices[:num_samples])
         else:
             raise KeyError(f'Unsupported mode: {mode}')
 
@@ -87,7 +88,7 @@ def visualise_get_animations(data: Union[str, GroundTruthData], num_animations=5
     return np.array(animations)
 
 
-def visualize_dataset(data, output_path=None, num_animations=5, num_frames=20, fps=10, mode='spread'):
+def visualize_dataset(data, output_path=None, num_animations=5, num_frames=20, fps=10, mode='lerp'):
     """Visualizes the data set by saving images to output_path.
 
     For each latent factor, outputs 16 images where only that latent factor is
@@ -126,9 +127,10 @@ def visualize_dataset(data, output_path=None, num_animations=5, num_frames=20, f
 
 
 if __name__ == '__main__':
-    # visualise_get_still_images('xygrid', num_samples=5, mode='sample')
-    # visualise_get_still_images('xygrid', num_samples=5, mode='sample_ordered')
-    # visualise_get_still_images('xygrid', num_samples=5, mode='sequential')
+    visualise_get_still_images('xygrid', num_samples=5, mode='sample')
+    visualise_get_still_images('xygrid', num_samples=5, mode='sample_ordered')
+    visualise_get_still_images('xygrid', num_samples=5, mode='sequential')
     visualise_get_still_images('xygrid', num_samples=5, mode='spread')
+    visualise_get_still_images('xygrid', num_samples=5, mode='lerp')
 
     # visualize_dataset('3dshapes', 'data/output')
