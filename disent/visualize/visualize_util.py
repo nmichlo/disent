@@ -12,15 +12,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
+# ========================================================================
+#
+# ADAPTED FROM Google's disentanglement_lib:
+# https://github.com/google-research/disentanglement_lib
+#
+# Modified for pytorch and disent by Nathan Michlo
 
 """
 Utility functions for the visualization code.
 """
+
 import math
 import numpy as np
 from PIL import Image
 import scipy
-from six.moves import range
 import imageio
 
 
@@ -162,7 +169,10 @@ def save_animation(list_of_animated_images, image_path, fps):
 
 
 def cycle_factor(starting_index, num_indices, num_frames):
-    """Cycles through the state space in a single cycle."""
+    """Cycles through the state space in a single cycle.
+    eg. starting_index=4, num_indices=5, num_frames=8 returns: [4, 3, 2, 1, 0, 1, 2, 3]
+    eg. starting_index=2, num_indices=5, num_frames=8 returns: [2, 4, 4, 3, 2, 0, 0, 1]
+    """
     grid = np.linspace(starting_index, starting_index + 2 * num_indices, num=num_frames, endpoint=False)
     grid = np.array(np.ceil(grid), dtype=np.int64)
     grid -= np.maximum(0, 2 * grid - 2 * num_indices + 1)

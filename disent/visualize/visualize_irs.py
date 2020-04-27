@@ -12,6 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
+# ========================================================================
+#
+# ADAPTED FROM Google's disentanglement_lib:
+# https://github.com/google-research/disentanglement_lib
+#
+# Modified for pytorch and disent by Nathan Michlo
 
 """
 Visualization code for Interventional Robustness Score.
@@ -21,9 +28,11 @@ Based on the paper https://arxiv.org/abs/1811.00007.
 
 import os
 
-from disent.evaluation.metrics.irs import scalable_disentanglement_score
+# from disent.evaluation.metrics.irs import scalable_disentanglement_score
 import matplotlib.pyplot as plt  # pylint: disable=g-import-not-at-top
 import numpy as np
+
+from disent.dataset.util.io import ensure_dir_exists
 
 
 def vis_all_interventional_effects(gen_factors, latents, output_dir):
@@ -39,27 +48,21 @@ def vis_all_interventional_effects(gen_factors, latents, output_dir):
         gen_factors.shape[1],
         figsize=(fig_width_inches, fig_height_inches),
         sharex="col",
-        sharey="row")
+        sharey="row"
+    )
 
     for j in range(gen_factors.shape[1]):  # Iterate over generative factors.
         for l in range(latents.shape[1]):
             ax = axes[l, j]
             if parents[l] != j:
-                _visualize_interventional_effect(
-                    gen_factors, latents, l, parents[l], j, ax=ax, plot_legend=False
-                )
+                _visualize_interventional_effect(gen_factors, latents, l, parents[l], j, ax=ax, plot_legend=False)
                 ax.set_title("")
             else:
-                _visualize_interventional_effect(
-                    gen_factors, latents, l, parents[l], j, no_conditioning=True, ax=ax)
+                _visualize_interventional_effect(gen_factors, latents, l, parents[l], j, no_conditioning=True, ax=ax)
                 ax.set_title(f"Parent={parents[l]}, IRS = {scores[l]:1.2}")
 
     fig.tight_layout()
-    if not tf.gfile.IsDirectory(output_dir):
-        tf.gfile.MakeDirs(output_dir)
-    output_path = os.path.join(output_dir, "interventional_effect.png")
-    with tf.gfile.Open(output_path, "wb") as path:
-        fig.savefig(path)
+    fig.savefig(os.path.join(ensure_dir_exists(output_dir), "interventional_effect.png"))
 
 
 def _visualize_interventional_effect(
@@ -145,5 +148,6 @@ def _visualize_interventional_effect(
         ax.set_xlabel(f"int. g_{intervened_factor_idx}")
         ax.set_ylabel(f"E[z_{latent_dim}|g_{const_factor_idx}, g_{intervened_factor_idx}]")
         ax.set_title("Interventional Effect (keeping parent fixed)")
+
         if plot_legend:
             ax.legend()

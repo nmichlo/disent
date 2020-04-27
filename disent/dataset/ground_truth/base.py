@@ -185,7 +185,7 @@ class GroundTruthData(DiscreteStateSpace):
 
 
 # ========================================================================= #
-# paired factor of variation dataset                                        #
+# paired factor of variation data                                        #
 # ========================================================================= #
 
 
@@ -203,13 +203,13 @@ class DownloadableGroundTruthData(GroundTruthData):
 
     def _do_download_dataset(self):
         no_data = not os.path.exists(self._data_path)
-        # download dataset
+        # download data
         if self._force_download or no_data:
             download_file(self.dataset_url, self._data_path)
 
     @property
     def dataset_path(self):
-        '''path that the dataset should be loaded from in the child class'''
+        '''path that the data should be loaded from in the child class'''
         return self._data_path
 
     @property
@@ -229,7 +229,7 @@ class PreprocessedDownloadableGroundTruthData(DownloadableGroundTruthData):
 
     def _do_download_dataset(self):
         # we skip this in favour of our new method,
-        # so that we can lazily download the dataset.
+        # so that we can lazily download the data.
         pass
 
     def _do_download_and_process_dataset(self):

@@ -94,7 +94,7 @@ def lerp(a, b, t):
     return (1-t)*a + t*b
 
 
-def anneal_step(a, b, step, max_steps):
+def lerp_step(a, b, step, max_steps):
     """Linear interpolation based on a step count."""
     if max_steps <= 0:
         return b
@@ -117,7 +117,7 @@ class BetaVaeHLoss(BetaVaeLoss):
 
     def regularizer(self, kl_loss, z_mean, z_logvar, z_sampled):
         print('WARNING: training steps not updated')
-        anneal_reg = anneal_step(0, 1, self.n_train_steps, self.anneal_end_steps) # if is_train else 1
+        anneal_reg = lerp_step(0, 1, self.n_train_steps, self.anneal_end_steps) # if is_train else 1
         return (anneal_reg * self.beta) * kl_loss
 
 

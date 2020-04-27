@@ -1,8 +1,18 @@
-import torch
+from typing import Union
+
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
+
+from disent.dataset import make_ground_truth_data
+from disent.dataset.ground_truth.base import GroundTruthData
 from disent.util import to_numpy
+
+
+def get_data(data: Union[str, GroundTruthData]) -> GroundTruthData:
+    if isinstance(data, str):
+        data = make_ground_truth_data(data, try_in_memory=False)
+    return data
 
 
 # ========================================================================= #

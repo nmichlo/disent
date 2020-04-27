@@ -12,6 +12,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
+# ========================================================================
+#
+# ADAPTED FROM Google's disentanglement_lib:
+# https://github.com/google-research/disentanglement_lib
+#
+# Modified for pytorch and disent by Nathan Michlo
+
 
 """Methods to visualize latent factors in the data sets."""
 import os
@@ -19,26 +27,21 @@ from typing import Union
 
 from disent.dataset import make_ground_truth_data
 from disent.dataset.ground_truth.base import GroundTruthData
-from disent.loss.loss import anneal_step, lerp
+from disent.loss.loss import lerp_step
 from disent.visualize import visualize_util
 import numpy as np
-from six.moves import range
 
 from disent.dataset.util.io import ensure_dir_exists
+from disent.visualize.util import get_data
 
 
 # ========================================================================= #
 # Visualise Ground Truth Datasets                                           #
 # ========================================================================= #
 
-def _get_data(data: Union[str, GroundTruthData]) -> GroundTruthData:
-    if isinstance(data, str):
-        data = make_ground_truth_data(data, try_in_memory=False)
-    return data
-
 
 def visualise_get_still_images(data: Union[str, GroundTruthData], num_samples=16, mode='spread'):
-    data = _get_data(data)
+    data = get_data(data)
     # Create still images per factor of variation
     factor_images = []
     for i, size in enumerate(data.factor_sizes):
@@ -46,55 +49,55 @@ def visualise_get_still_images(data: Union[str, GroundTruthData], num_samples=16
         # only allow the current index to vary, copy the first to all others
         indices = [j for j in range(data.num_factors) if i != j]
         factors[:, indices] = factors[0, indices]
-
-        if mode == 'sample':
+        # get values for current factor of variation
+        if mode == 'sample_unordered':
             pass
-        elif mode == 'sample_ordered':
-            # like sample, but ordered
+        elif mode == 'sample':
             factors[:, i] = sorted(factors[:, i])
         elif mode == 'spread':
             # spread all available factors over all samples with linear interpolation.
             # if num_samples == factor_size then values == 0, 1, 2, 3, 4, 5, ...
-            factors[:, i] = [round(anneal_step(0, size-1, j, num_samples-1)) for j in range(num_samples)]
+            factors[:, i] = [round(lerp_step(0, size - 1, j, num_samples - 1)) for j in range(num_samples)]
         else:
-            raise KeyError(f'Unsupported mode: {mode}')
-
-        # sample new observations
+            raise KeyError(f'Unsupported mode: {repr(mode)} not in {{\'sample\', \'sample_unordered\', \'spread\'}}')
+        # get and store observations
         images = data.sample_observations_from_factors(factors)
         factor_images.append(images)
+
     # return all
     return np.array(factor_images)
 
 def visualise_get_animations(data: Union[str, GroundTruthData], num_animations=5, num_frames=20):
-    data = _get_data(data)
+    data = get_data(data)
     # Create animations.
     animations = []
-    for i in range(num_animations):
+    for animation_num in range(num_animations):
         base_factor = data.sample_factors(1)
         images = []
-        for j, factor_size in enumerate(data.factor_sizes):
+        for i, factor_size in enumerate(data.factor_sizes):
             factors = np.repeat(base_factor, num_frames, axis=0)
-            factors[:, j] = visualize_util.cycle_factor(base_factor[0, j], factor_size, num_frames)
+            factors[:, i] = visualize_util.cycle_factor(base_factor[0, i], factor_size, num_frames)
             images.append(data.sample_observations_from_factors(factors))
         animations.append(images)
     # return all
     return np.array(animations)
 
 
-def visualize_dataset(data, output_path=None, num_animations=5, num_frames=20, fps=10, mode='spread'):
+def visualize_dataset(data: Union[str, GroundTruthData], output_path=None, num_animations=5, num_frames=20, fps=10, mode='spread'):
     """Visualizes the data set by saving images to output_path.
 
     For each latent factor, outputs 16 images where only that latent factor is
     varied while all others are kept constant.
 
     Args:
-      dataset_name: String with name of dataset as defined in named_data.py.
+      data: String with name of data as defined in named_data.py.
       output_path: String with path in which to create the visualizations.
       num_animations: Integer with number of distinct animations to create.
       num_frames: Integer with number of frames in each animation.
       fps: Integer with frame rate for the animation.
+      mode: still image mode, see function visualise_get_still_images
     """
-    data = _get_data(data)
+    data = get_data(data)
 
     # Create output folder if necessary.
     path = ensure_dir_exists(output_path, data.__class__.__name__[:-4].lower())
@@ -120,8 +123,4 @@ def visualize_dataset(data, output_path=None, num_animations=5, num_frames=20, f
 
 
 if __name__ == '__main__':
-    visualise_get_still_images('xygrid', num_samples=5, mode='sample')
-    visualise_get_still_images('xygrid', num_samples=5, mode='sample_ordered')
-    visualise_get_still_images('xygrid', num_samples=5, mode='spread')
-
     visualize_dataset('3dshapes', 'data/output')
