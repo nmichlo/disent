@@ -118,10 +118,19 @@ class GroundTruthDataset(DiscreteStateSpace, Dataset):
 
     def sample_observations(self, num_samples) -> list:
         """Sample a batch of observations X."""
-        factors = self.sample_factors(num_samples)
+        return self.sample(num_samples)[1]
+
+    def sample_observations_from_factors(self, factors):
+        """Sample a batch of observations X given a batch of factors Y."""
         indices = self.pos_to_idx(factors)
-        # TODO: not efficient, not correct data type
-        return [self[idx] for idx in indices]
+        observations = [self[idx] for idx in indices]
+        return observations
+
+    def sample(self, num_samples):
+        """Sample a batch of factors Y and observations X."""
+        factors = self.sample_factors(num_samples)
+        observations = self.sample_observations_from_factors(factors)
+        return factors, observations
 
     @property
     def factor_names(self) -> Tuple[str, ...]:

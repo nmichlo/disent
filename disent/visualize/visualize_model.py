@@ -13,32 +13,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Visualization module for disentangled representations."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+"""
+Visualization module for disentangled representations.
+"""
+
 import numbers
 import os
-from disentanglement_lib.data.ground_truth import named_data
-from disentanglement_lib.utils import results
-from disentanglement_lib.visualize import visualize_util
-from disentanglement_lib.visualize.visualize_irs import vis_all_interventional_effects
+# from disent.data.ground_truth import named_data
+# from disent.utils import results
+from disent.visualize import visualize_util
+from disent.visualize.visualize_irs import vis_all_interventional_effects
 import numpy as np
 from scipy import stats
 from six.moves import range
-import tensorflow as tf
-from tensorflow import gfile
-import tensorflow_hub as hub
-import gin.tf
 
 
-def visualize(model_dir,
-              output_dir,
-              overwrite=False,
-              num_animations=5,
-              num_frames=20,
-              fps=10,
-              num_points_irs=10000):
+def visualize(
+        model_dir,
+        output_dir,
+        overwrite=False,
+        num_animations=5,
+        num_frames=20,
+        fps=10,
+        num_points_irs=10000
+):
     """Takes trained model from model_dir and visualizes it in output_dir.
 
     Args:
@@ -66,8 +64,7 @@ def visualize(model_dir,
     # Obtain the dataset name from the gin config of the previous step.
     gin_config_file = os.path.join(model_dir, "results", "gin", "train.gin")
     gin_dict = results.gin_dict(gin_config_file)
-    gin.bind_parameter("dataset.name", gin_dict["dataset.name"].replace(
-        "'", ""))
+    gin.bind_parameter("dataset.name", gin_dict["dataset.name"].replace("'", ""))
 
     # Automatically infer the activation function from gin config.
     activation_str = gin_dict["reconstruction_loss.activation"]
@@ -88,22 +85,23 @@ def visualize(model_dir,
         real_pics = dataset.sample_observations(num_pics, random_state)
         raw_pics = f(
             dict(images=real_pics), signature="reconstructions",
-            as_dict=True)["images"]
+            as_dict=True
+        )["images"]
         pics = activation(raw_pics)
         paired_pics = np.concatenate((real_pics, pics), axis=2)
         paired_pics = [paired_pics[i, :, :, :] for i in range(paired_pics.shape[0])]
         results_dir = os.path.join(output_dir, "reconstructions")
         if not gfile.IsDirectory(results_dir):
             gfile.MakeDirs(results_dir)
-        visualize_util.grid_save_images(
-            paired_pics, os.path.join(results_dir, "reconstructions.jpg"))
+        visualize_util.grid_save_images(paired_pics, os.path.join(results_dir, "reconstructions.jpg"))
 
         # Save samples.
         def _decoder(latent_vectors):
             return f(
                 dict(latent_vectors=latent_vectors),
                 signature="decoder",
-                as_dict=True)["images"]
+                as_dict=True
+            )["images"]
 
         num_latent = int(gin_dict["encoder.num_latent"])
         num_pics = 64
@@ -112,14 +110,14 @@ def visualize(model_dir,
         results_dir = os.path.join(output_dir, "sampled")
         if not gfile.IsDirectory(results_dir):
             gfile.MakeDirs(results_dir)
-        visualize_util.grid_save_images(pics,
-                                        os.path.join(results_dir, "samples.jpg"))
+        visualize_util.grid_save_images(pics, os.path.join(results_dir, "samples.jpg"))
 
         # Save latent traversals.
         result = f(
             dict(images=dataset.sample_observations(num_pics, random_state)),
             signature="gaussian_encoder",
-            as_dict=True)
+            as_dict=True
+        )
         means = result["mean"]
         logvars = result["logvar"]
         results_dir = os.path.join(output_dir, "traversals")
@@ -189,9 +187,9 @@ def visualize(model_dir,
             images = []
             for j in range(base_code.shape[0]):
                 code = np.repeat(np.expand_dims(base_code, 0), num_frames, axis=0)
-                code[:, j] = visualize_util.cycle_interval(base_code[j], num_frames,
-                                                           np.min(means[:, j]),
-                                                           np.max(means[:, j]))
+                code[:, j] = visualize_util.cycle_interval(
+                    base_code[j], num_frames, np.min(means[:, j]), np.max(means[:, j])
+                )
                 images.append(np.array(activation(_decoder(code))))
             filename = os.path.join(results_dir, "minmax_interval_cycle%d.gif" % i)
             visualize_util.save_animation(np.array(images), filename, fps)
@@ -200,7 +198,8 @@ def visualize(model_dir,
         factors = dataset.sample_factors(num_points_irs, random_state)
         obs = dataset.sample_observations_from_factors(factors, random_state)
         latents = f(
-            dict(images=obs), signature="gaussian_encoder", as_dict=True)["mean"]
+            dict(images=obs), signature="gaussian_encoder", as_dict=True
+        )["mean"]
         results_dir = os.path.join(output_dir, "interventional_effects")
         vis_all_interventional_effects(factors, latents, results_dir)
 
@@ -208,11 +207,13 @@ def visualize(model_dir,
     gin.clear_config()
 
 
-def latent_traversal_1d_multi_dim(generator_fn,
-                                  latent_vector,
-                                  dimensions=None,
-                                  values=None,
-                                  transpose=False):
+def latent_traversal_1d_multi_dim(
+        generator_fn,
+        latent_vector,
+        dimensions=None,
+        values=None,
+        transpose=False
+):
     """Creates latent traversals for a latent vector along multiple dimensions.
 
     Creates a 2d grid image where each grid image is generated by passing a

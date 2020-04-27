@@ -13,16 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Visualization code for Interventional Robustness Score.
+"""
+Visualization code for Interventional Robustness Score.
 
 Based on the paper https://arxiv.org/abs/1811.00007.
 """
+
 import os
 
-from disentanglement_lib.evaluation.metrics.irs import scalable_disentanglement_score
+from disent.evaluation.metrics.irs import scalable_disentanglement_score
 import matplotlib.pyplot as plt  # pylint: disable=g-import-not-at-top
 import numpy as np
-import tensorflow as tf
 
 
 def vis_all_interventional_effects(gen_factors, latents, output_dir):
@@ -45,12 +46,13 @@ def vis_all_interventional_effects(gen_factors, latents, output_dir):
             ax = axes[l, j]
             if parents[l] != j:
                 _visualize_interventional_effect(
-                    gen_factors, latents, l, parents[l], j, ax=ax, plot_legend=False)
+                    gen_factors, latents, l, parents[l], j, ax=ax, plot_legend=False
+                )
                 ax.set_title("")
             else:
                 _visualize_interventional_effect(
                     gen_factors, latents, l, parents[l], j, no_conditioning=True, ax=ax)
-                ax.set_title("Parent={}, IRS = {:1.2}".format(parents[l], scores[l]))
+                ax.set_title(f"Parent={parents[l]}, IRS = {scores[l]:1.2}")
 
     fig.tight_layout()
     if not tf.gfile.IsDirectory(output_dir):
@@ -60,15 +62,17 @@ def vis_all_interventional_effects(gen_factors, latents, output_dir):
         fig.savefig(path)
 
 
-def _visualize_interventional_effect(gen_factors,
-                                     latents,
-                                     latent_dim,
-                                     const_factor_idx,
-                                     intervened_factor_idx,
-                                     no_conditioning=False,
-                                     ax=None,
-                                     plot_legend=True,
-                                     plot_scatter=False):
+def _visualize_interventional_effect(
+        gen_factors,
+        latents,
+        latent_dim,
+        const_factor_idx,
+        intervened_factor_idx,
+        no_conditioning=False,
+        ax=None,
+        plot_legend=True,
+        plot_scatter=False
+):
     """Visualize single cell of interventional effects.
 
     Args:
@@ -99,7 +103,8 @@ def _visualize_interventional_effect(gen_factors,
     # Plot all points, color indicates constant factor.
     if plot_scatter:
         ax.scatter(
-            gen_factors[:, intervened_factor_idx], latents[:, latent_dim], c=cols)
+            gen_factors[:, intervened_factor_idx], latents[:, latent_dim], c=cols
+        )
 
     # Compute possible g_i and g_j.
     if no_conditioning:
@@ -115,8 +120,8 @@ def _visualize_interventional_effect(gen_factors,
         ax.plot(g_js, median_for_j, linewidth=2, markersize=12, label="median")
         ax.plot(g_js, e_for_j + stdev_for_j, linestyle="--", c="b", linewidth=1)
         ax.plot(g_js, e_for_j - stdev_for_j, linestyle="--", c="b", linewidth=1)
-        ax.set_ylabel("E[z_{}|g_{}]".format(latent_dim, intervened_factor_idx))
-        ax.set_xlabel("g_{}".format(intervened_factor_idx))
+        ax.set_ylabel(f"E[z_{latent_dim}|g_{intervened_factor_idx}]")
+        ax.set_xlabel(f"g_{intervened_factor_idx}")
         ax.legend()
     else:
         # Compute E[Z_l | g_i, g_j] as a function of g_j for each g_i.
@@ -134,11 +139,11 @@ def _visualize_interventional_effect(gen_factors,
                 c=colors[i_idx % len(colors)],
                 label="g_{}=={}".format(const_factor_idx, g_is[i_idx]),
                 linewidth=1.5,
-                markersize=3)
+                markersize=3
+            )
 
-        ax.set_xlabel("int. g_{}".format(intervened_factor_idx))
-        ax.set_ylabel("E[z_{}|g_{}, g_{}]".format(latent_dim, const_factor_idx,
-                                                  intervened_factor_idx))
+        ax.set_xlabel(f"int. g_{intervened_factor_idx}")
+        ax.set_ylabel(f"E[z_{latent_dim}|g_{const_factor_idx}, g_{intervened_factor_idx}]")
         ax.set_title("Interventional Effect (keeping parent fixed)")
         if plot_legend:
             ax.legend()

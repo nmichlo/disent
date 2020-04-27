@@ -14,19 +14,22 @@
 # limitations under the License.
 
 """Methods to visualize latent factors in the data sets."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 import os
-from disentanglement_lib.data.ground_truth import named_data
-from disentanglement_lib.visualize import visualize_util
+
+from disent.dataset import make_ground_truth_dataset
+from disent.visualize import visualize_util
 import numpy as np
 from six.moves import range
-from tensorflow import gfile
+
+from disent.dataset.util.io import ensure_dir_exists
 
 
-def visualize_dataset(dataset_name, output_path, num_animations=5,
-                      num_frames=20, fps=10):
+# ========================================================================= #
+# Visualise Ground Truth Datasets                                           #
+# ========================================================================= #
+
+
+def visualize_dataset(dataset_name, output_path, num_animations=5, num_frames=20, fps=10):
     """Visualizes the data set by saving images to output_path.
 
     For each latent factor, outputs 16 images where only that latent factor is
@@ -39,33 +42,39 @@ def visualize_dataset(dataset_name, output_path, num_animations=5,
       num_frames: Integer with number of frames in each animation.
       fps: Integer with frame rate for the animation.
     """
-    data = named_data.get_named_ground_truth_data(dataset_name)
-    random_state = np.random.RandomState(0)
+    data = make_ground_truth_dataset(dataset_name, try_in_memory=False)
 
     # Create output folder if necessary.
-    path = os.path.join(output_path, dataset_name)
-    if not gfile.IsDirectory(path):
-        gfile.MakeDirs(path)
+    path = ensure_dir_exists(output_path, dataset_name)
 
     # Create still images.
     for i in range(data.num_factors):
-        factors = data.sample_factors(16, random_state)
+        factors = data.sample_factors(16)
         indices = [j for j in range(data.num_factors) if i != j]
         factors[:, indices] = factors[0, indices]
-        images = data.sample_observations_from_factors(factors, random_state)
-        visualize_util.grid_save_images(
-            images, os.path.join(path, "variations_of_factor%s.png" % i))
+        images = data.sample_observations_from_factors(factors)
+        visualize_util.grid_save_images(images, os.path.join(path, "variations_of_factor%s.png" % i))
 
     # Create animations.
     for i in range(num_animations):
-        base_factor = data.sample_factors(1, random_state)
+        base_factor = data.sample_factors(1)
         images = []
-        for j, num_atoms in enumerate(data.factors_num_values):
+        for j, factor_size in enumerate(data.factor_sizes):
             factors = np.repeat(base_factor, num_frames, axis=0)
-            factors[:, j] = visualize_util.cycle_factor(base_factor[0, j], num_atoms,
-                                                        num_frames)
-            images.append(data.sample_observations_from_factors(factors,
-                                                                random_state))
-        visualize_util.save_animation(np.array(images),
-                                      os.path.join(path, "animation%d.gif" % i),
-                                      fps)
+            factors[:, j] = visualize_util.cycle_factor(base_factor[0, j], factor_size, num_frames)
+            images.append(data.sample_observations_from_factors(factors))
+
+        visualize_util.save_animation(
+            np.array(images),
+            os.path.join(path, "animation%d.gif" % i),
+            fps=fps
+        )
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #
+
+
+if __name__ == '__main__':
+    visualize_dataset('dsprites', 'data/output')

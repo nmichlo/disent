@@ -4,11 +4,11 @@
 # ========================================================================= #
 
 
-def ensure_dir_exists(path):
+def ensure_dir_exists(*path):
     import os
     # join path if not a string
-    # if not isinstance(path, str):
-    #     path = os.path.join(*path)
+    if not isinstance(path, str):
+        path = os.path.join(*path)
     # remove file part of directory
     if os.path.isfile(path):
         path = os.path.dirname(path)

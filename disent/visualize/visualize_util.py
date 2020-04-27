@@ -13,17 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Utility functions for the visualization code."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+"""
+Utility functions for the visualization code.
+"""
 import math
-from disentanglement_lib.utils import resources
 import numpy as np
 from PIL import Image
 import scipy
 from six.moves import range
-import tensorflow as tf
 import imageio
 
 
@@ -37,10 +34,12 @@ def save_image(image, image_path):
     # Copy the single channel if we are provided a grayscale image.
     if image.shape[2] == 1:
         image = np.repeat(image, 3, axis=2)
+
     image = np.ascontiguousarray(image)
     image *= 255.
     image = image.astype("uint8")
-    with tf.gfile.Open(image_path, "wb") as path:
+
+    with open(image_path, "wb") as path:
         img = Image.fromarray(image, mode="RGB")
         img.save(path)
 
@@ -53,10 +52,11 @@ def grid_save_images(images, image_path):
         [0, 1].
       image_path: String with path to output image.
     """
+    # minimum square size
     side_length = int(math.floor(math.sqrt(len(images))))
+    # joi
     image_rows = [
-        np.concatenate(
-            images[side_length * i:side_length * i + side_length], axis=0)
+        np.concatenate(images[side_length*i:side_length*(i+1)], axis=0)
         for i in range(side_length)
     ]
     tiled_image = np.concatenate(image_rows, axis=1)
@@ -77,8 +77,7 @@ def padded_grid(images, num_rows=None, padding_px=10, value=None):
     all_images = images + [np.ones_like(images[0])] * num_missing
 
     # Create the final grid.
-    rows = [padded_stack(all_images[i * num_cols:(i + 1) * num_cols], padding_px,
-                         1, value=value) for i in range(num_rows)]
+    rows = [padded_stack(all_images[i * num_cols:(i + 1) * num_cols], padding_px, 1, value=value) for i in range(num_rows)]
     return padded_stack(rows, padding_px, axis=0, value=value)
 
 
@@ -131,37 +130,40 @@ def pad_around(image, padding_px=10, axis=None, value=None):
     return np.concatenate([padding_arr, image, padding_arr], axis=axis)
 
 
-def add_below(image, padding_px=10, value=None):
-    """Adds a footer below."""
-    if len(image.shape) == 2:
-        image = np.expand_dims(image, -1)
-    if image.shape[2] == 1:
-        image = np.repeat(image, 3, 2)
-    if image.shape[2] != 3:
-        raise ValueError("Could not convert image to have three channels.")
-    with tf.gfile.Open(resources.get_file("disentanglement_lib.png"), "rb") as f:
-        footer = np.array(Image.open(f).convert("RGB")) * 1.0 / 255.
-    missing_px = image.shape[1] - footer.shape[1]
-    if missing_px < 0:
-        return image
-    if missing_px > 0:
-        padding_arr = padding_array(footer, missing_px, axis=1, value=value)
-        footer = np.concatenate([padding_arr, footer], axis=1)
-    return padded_stack([image, footer], padding_px, axis=0, value=value)
-
+# def add_below(image, padding_px=10, value=None):
+#     """Adds a footer below."""
+#     if len(image.shape) == 2:
+#         image = np.expand_dims(image, -1)
+#     if image.shape[2] == 1:
+#         image = np.repeat(image, 3, 2)
+#     if image.shape[2] != 3:
+#         raise ValueError("Could not convert image to have three channels.")
+#
+#     with tf.gfile.Open(resources.get_file("disentanglement_lib.png"), "rb") as f:
+#         footer = np.array(Image.open(f).convert("RGB")) * 1.0 / 255.
+#
+#     missing_px = image.shape[1] - footer.shape[1]
+#     if missing_px < 0:
+#         return image
+#     if missing_px > 0:
+#         padding_arr = padding_array(footer, missing_px, axis=1, value=value)
+#         footer = np.concatenate([padding_arr, footer], axis=1)
+#
+#     return padded_stack([image, footer], padding_px, axis=0, value=value)
 
 def save_animation(list_of_animated_images, image_path, fps):
     full_size_images = []
     for single_images in zip(*list_of_animated_images):
         full_size_images.append(
-            pad_around(add_below(padded_grid(list(single_images)))))
+            pad_around(padded_grid(list(single_images)))
+            # pad_around(add_below(padded_grid(list(single_images)))))
+        )
     imageio.mimwrite(image_path, full_size_images, fps=fps)
 
 
 def cycle_factor(starting_index, num_indices, num_frames):
     """Cycles through the state space in a single cycle."""
-    grid = np.linspace(starting_index, starting_index + 2 * num_indices,
-                       num=num_frames, endpoint=False)
+    grid = np.linspace(starting_index, starting_index + 2 * num_indices, num=num_frames, endpoint=False)
     grid = np.array(np.ceil(grid), dtype=np.int64)
     grid -= np.maximum(0, 2 * grid - 2 * num_indices + 1)
     grid += np.maximum(0, -2 * grid - 1)
@@ -171,8 +173,7 @@ def cycle_factor(starting_index, num_indices, num_frames):
 def cycle_gaussian(starting_value, num_frames, loc=0., scale=1.):
     """Cycles through the quantiles of a Gaussian in a single cycle."""
     starting_prob = scipy.stats.norm.cdf(starting_value, loc=loc, scale=scale)
-    grid = np.linspace(starting_prob, starting_prob + 2.,
-                       num=num_frames, endpoint=False)
+    grid = np.linspace(starting_prob, starting_prob + 2., num=num_frames, endpoint=False)
     grid -= np.maximum(0, 2 * grid - 2)
     grid += np.maximum(0, -2 * grid)
     grid = np.minimum(grid, 0.999)
@@ -183,8 +184,7 @@ def cycle_gaussian(starting_value, num_frames, loc=0., scale=1.):
 def cycle_interval(starting_value, num_frames, min_val, max_val):
     """Cycles through the state space in a single cycle."""
     starting_in_01 = (starting_value - min_val) / (max_val - min_val)
-    grid = np.linspace(starting_in_01, starting_in_01 + 2.,
-                       num=num_frames, endpoint=False)
+    grid = np.linspace(starting_in_01, starting_in_01 + 2., num=num_frames, endpoint=False)
     grid -= np.maximum(0, 2 * grid - 2)
     grid += np.maximum(0, -2 * grid)
     return grid * (max_val - min_val) + min_val
