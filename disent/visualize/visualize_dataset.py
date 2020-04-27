@@ -37,7 +37,7 @@ def _get_data(data: Union[str, GroundTruthData]) -> GroundTruthData:
     return data
 
 
-def visualise_get_still_images(data: Union[str, GroundTruthData], num_samples=16, mode='lerp'):
+def visualise_get_still_images(data: Union[str, GroundTruthData], num_samples=16, mode='spread'):
     data = _get_data(data)
     # Create still images per factor of variation
     factor_images = []
@@ -52,17 +52,10 @@ def visualise_get_still_images(data: Union[str, GroundTruthData], num_samples=16
         elif mode == 'sample_ordered':
             # like sample, but ordered
             factors[:, i] = sorted(factors[:, i])
-        elif mode == 'lerp':
-            # like spread but much better
-            factors[:, i] = [round(anneal_step(0, size-1, j, num_samples-1)) for j in range(num_samples)]
         elif mode == 'spread':
-            # 1, 3, 5, 7, 9 (like sequential below, but use larger step size if size bigger than samples)
-            indices = np.tile(np.arange(size), (num_samples + size - 1) // size)
-            factors[:, i] = np.sort(indices[::max(1, size//num_samples)][:num_samples])
-        elif mode == 'sequential':
-            # 1, 2, 3, 4, 5 (repeat if not size is not as big as number of samples)
-            indices = np.tile(np.arange(size), (num_samples + size - 1) // size)
-            factors[:, i] = np.sort(indices[:num_samples])
+            # spread all available factors over all samples with linear interpolation.
+            # if num_samples == factor_size then values == 0, 1, 2, 3, 4, 5, ...
+            factors[:, i] = [round(anneal_step(0, size-1, j, num_samples-1)) for j in range(num_samples)]
         else:
             raise KeyError(f'Unsupported mode: {mode}')
 
@@ -88,7 +81,7 @@ def visualise_get_animations(data: Union[str, GroundTruthData], num_animations=5
     return np.array(animations)
 
 
-def visualize_dataset(data, output_path=None, num_animations=5, num_frames=20, fps=10, mode='lerp'):
+def visualize_dataset(data, output_path=None, num_animations=5, num_frames=20, fps=10, mode='spread'):
     """Visualizes the data set by saving images to output_path.
 
     For each latent factor, outputs 16 images where only that latent factor is
@@ -129,8 +122,6 @@ def visualize_dataset(data, output_path=None, num_animations=5, num_frames=20, f
 if __name__ == '__main__':
     visualise_get_still_images('xygrid', num_samples=5, mode='sample')
     visualise_get_still_images('xygrid', num_samples=5, mode='sample_ordered')
-    visualise_get_still_images('xygrid', num_samples=5, mode='sequential')
     visualise_get_still_images('xygrid', num_samples=5, mode='spread')
-    visualise_get_still_images('xygrid', num_samples=5, mode='lerp')
 
-    # visualize_dataset('3dshapes', 'data/output')
+    visualize_dataset('3dshapes', 'data/output')
