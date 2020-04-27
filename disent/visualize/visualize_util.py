@@ -36,7 +36,7 @@ def save_image(image, image_path):
         image = np.repeat(image, 3, axis=2)
 
     image = np.ascontiguousarray(image)
-    image *= 255.
+    image *= 255
     image = image.astype("uint8")
 
     with open(image_path, "wb") as path:

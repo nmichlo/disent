@@ -1,4 +1,4 @@
-from disent.dataset.ground_truth.base import DownloadableGroundTruthDataset
+from disent.dataset.ground_truth.base import DownloadableGroundTruthData
 
 
 # ========================================================================= #
@@ -6,7 +6,7 @@ from disent.dataset.ground_truth.base import DownloadableGroundTruthDataset
 # ========================================================================= #
 
 
-class Cars3dDataset(DownloadableGroundTruthDataset):
+class Cars3dData(DownloadableGroundTruthData):
     """
     Cars3D Dataset
     - Deep Visual Analogy-Making (https://papers.nips.cc/paper/5845-deep-visual-analogy-making)
@@ -28,9 +28,8 @@ class Cars3dDataset(DownloadableGroundTruthDataset):
         super().__init__()
         raise NotImplementedError
 
-    def _get_observation(self, indices):
+    def __getitem__(self, indices):
         raise NotImplementedError
-
 
 
 # ========================================================================= #

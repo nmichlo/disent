@@ -1,4 +1,4 @@
-from disent.dataset.ground_truth.base import DownloadableGroundTruthDataset
+from disent.dataset.ground_truth.base import DownloadableGroundTruthData
 
 
 # ========================================================================= #
@@ -6,7 +6,7 @@ from disent.dataset.ground_truth.base import DownloadableGroundTruthDataset
 # ========================================================================= #
 
 
-class SmallNorbDataset(DownloadableGroundTruthDataset):
+class SmallNorbData(DownloadableGroundTruthData):
     """
     Small NORB Dataset
     - https://cs.nyu.edu/~ylclab/data/norb-v1.0-small/
@@ -29,7 +29,7 @@ class SmallNorbDataset(DownloadableGroundTruthDataset):
         super().__init__()
         raise NotImplementedError
 
-    def _get_observation(self, indices):
+    def __getitem__(self, indices):
         raise NotImplementedError
 
 

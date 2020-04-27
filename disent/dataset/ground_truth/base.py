@@ -1,5 +1,5 @@
 import os
-from typing import Tuple
+from typing import Tuple, Union
 import h5py
 import torch
 from PIL import Image
@@ -32,11 +32,11 @@ class DiscreteStateSpace(object):
         self._factor_divisors = bases[1:]
         self._factor_modulus = bases[:-1]
 
-    def __len__(self):
-        return self.size
-
-    def __getitem__(self, idx):
-        return self.idx_to_pos(idx)
+    # def __len__(self):
+    #     return self.size
+    #
+    # def __getitem__(self, idx):
+    #     return self.idx_to_pos(idx)
 
     @property
     def size(self):
@@ -104,17 +104,53 @@ class DiscreteStateSpace(object):
 
 
 # ========================================================================= #
+# Convert ground truth data to a dataset                                    #
+# ========================================================================= #
+
+
+class GroundTruthDataset(Dataset):
+    """
+    Converts ground truth data into a dataset
+    """
+
+    def __init__(self, ground_truth_data, transform=None):
+        self.data = ground_truth_data
+        # transform observation
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, indices):
+        """
+        should return a single observation if an integer index, or
+        an array of observations if indices is an array.
+        """
+        if torch.is_tensor(indices):
+            indices = indices.tolist()
+
+        image = self.data[indices]
+
+        # https://github.com/pytorch/vision/blob/master/torchvision/datasets/mnist.py
+        # PIL Image so that this is consistent with other datasets
+        image = Image.fromarray(image)
+
+        if self.transform:
+            image = self.transform(image)
+
+        return image
+
+
+# ========================================================================= #
 # ground truth data                                                         #
 # ========================================================================= #
 
 
-class GroundTruthDataset(DiscreteStateSpace, Dataset):
+class GroundTruthData(DiscreteStateSpace):
 
-    def __init__(self, transform=None):
+    def __init__(self):
         assert len(self.factor_names) == len(self.factor_sizes), 'Dimensionality mismatch of FACTOR_NAMES and FACTOR_DIMS'
         super().__init__(self.factor_sizes)
-        # transform observation
-        self.transform = transform
 
     def sample_observations(self, num_samples) -> list:
         """Sample a batch of observations X."""
@@ -145,25 +181,6 @@ class GroundTruthDataset(DiscreteStateSpace, Dataset):
         raise NotImplementedError()
 
     def __getitem__(self, indices):
-        """
-        should return a single observation if an integer index, or
-        an array of observations if indices is an array.
-        """
-        if torch.is_tensor(indices):
-            indices = indices.tolist()
-
-        image = self._get_observation(indices)
-
-        # https://github.com/pytorch/vision/blob/master/torchvision/datasets/mnist.py
-        # PIL Image so that this is consistent with other datasets
-        image = Image.fromarray(image)
-
-        if self.transform:
-            image = self.transform(image)
-
-        return image
-
-    def _get_observation(self, indices):
         raise NotImplementedError
 
 
@@ -172,10 +189,10 @@ class GroundTruthDataset(DiscreteStateSpace, Dataset):
 # ========================================================================= #
 
 
-class DownloadableGroundTruthDataset(GroundTruthDataset):
+class DownloadableGroundTruthData(GroundTruthData):
 
-    def __init__(self, data_dir='data', transform=None, force_download=False):
-        super().__init__(transform=transform)
+    def __init__(self, data_dir='data', force_download=False):
+        super().__init__()
         # paths
         self._data_dir = ensure_dir_exists(data_dir)
         self._data_path = os.path.join(self._data_dir, basename_from_url(self.dataset_url))
@@ -200,10 +217,10 @@ class DownloadableGroundTruthDataset(GroundTruthDataset):
         raise NotImplementedError()
 
 
-class PreprocessedDownloadableGroundTruthDataset(DownloadableGroundTruthDataset):
+class PreprocessedDownloadableGroundTruthData(DownloadableGroundTruthData):
 
-    def __init__(self, data_dir='data', transform=None, force_download=False, force_preprocess=False):
-        super().__init__(data_dir=data_dir, transform=transform, force_download=force_download)
+    def __init__(self, data_dir='data', force_download=False, force_preprocess=False):
+        super().__init__(data_dir=data_dir, force_download=force_download)
         # paths
         self._proc_path = f'{self._data_path}.processed'
         self._force_preprocess = force_preprocess
@@ -254,15 +271,14 @@ class PreprocessedDownloadableGroundTruthDataset(DownloadableGroundTruthDataset)
         raise NotImplementedError()
 
 
-class Hdf5PreprocessedGroundTruthDataset(PreprocessedDownloadableGroundTruthDataset):
+class Hdf5PreprocessedGroundTruthData(PreprocessedDownloadableGroundTruthData):
     """
     Automatically download and pre-process an hdf5 dataset into the specific chunk sizes.
     TODO: Only supports one dataset from the hdf5 file itself, labels etc need a custom implementation.
     """
 
-    def __init__(self, data_dir='data', transform=None, in_memory=False, force_download=False, force_preprocess=False):
+    def __init__(self, data_dir='data', in_memory=False, force_download=False, force_preprocess=False):
         super().__init__(data_dir=data_dir, force_download=force_download, force_preprocess=force_preprocess)
-        self.transform = transform
         self._in_memory = in_memory
 
         # Load the entire dataset into memory if required
@@ -275,7 +291,7 @@ class Hdf5PreprocessedGroundTruthDataset(PreprocessedDownloadableGroundTruthData
                     self.__class__._DATA = np.array(db[self.hdf5_name])
                 print('Loaded!')
 
-    def _get_observation(self, idx):
+    def __getitem__(self, idx):
         if self._in_memory:
             return self.__class__._DATA[idx]
         else:
@@ -322,20 +338,22 @@ class Hdf5PreprocessedGroundTruthDataset(PreprocessedDownloadableGroundTruthData
 
 class PairedVariationDataset(Dataset):
 
-    def __init__(self, dataset: GroundTruthDataset, k=None, variation_factor_indices=None):
+    def __init__(self, dataset: Union[GroundTruthData, GroundTruthDataset], k=None, variation_factor_indices=None):
         """
         Dataset that pairs together samples with at most k differing factors of variation.
 
-        dataset: A dataset that extends GroundTruthDataset
+        dataset: A dataset that extends GroundTruthData
         k: An integer (k), None (k=d-1), or "uniform" (random k in range 1 to d-1)
         variation_factor_indices: The indices of the factors of variation that are samples between pairs, if None (all factors are sampled)
         """
+        if isinstance(dataset, GroundTruthData):
+            dataset = GroundTruthDataset(dataset)
 
         assert isinstance(dataset, GroundTruthDataset), 'passed object is not an instance of both GroundTruthData and Dataset'
         # wrapped dataset
         self._dataset: GroundTruthDataset = dataset
         # possible fixed dimensions between pairs
-        self._variation_factor_indices = np.arange(self._dataset.num_factors) if (variation_factor_indices is None) else np.array(variation_factor_indices)
+        self._variation_factor_indices = np.arange(self._dataset.data.num_factors) if (variation_factor_indices is None) else np.array(variation_factor_indices)
         # d
         self._num_variation_factors = len(self._variation_factor_indices)
         # number of varied factors between pairs
@@ -349,11 +367,11 @@ class PairedVariationDataset(Dataset):
     def __len__(self):
         # TODO: is dataset as big as the latent space OR as big as the orig.
         # return self._latent_space.size
-        return self._dataset.size
+        return self._dataset.data.size
 
     def __getitem__(self, idx):
         orig_factors, paired_factors = self.sample_pair_factors(idx)
-        indices = self._dataset.pos_to_idx([orig_factors, paired_factors])
+        indices = self._dataset.data.pos_to_idx([orig_factors, paired_factors])
         return [self._dataset[idx] for idx in indices]
 
     def sample_pair_factors(self, idx):
@@ -375,14 +393,14 @@ class PairedVariationDataset(Dataset):
         """
 
         # get factors corresponding to index
-        orig_factors = self._dataset.idx_to_pos(idx)
+        orig_factors = self._dataset.data.idx_to_pos(idx)
         # get fixed or random k
-        k = np.random.randint(1, self._dataset.num_factors) if self._k == 'uniform' else self._k
+        k = np.random.randint(1, self._dataset.data.num_factors) if self._k == 'uniform' else self._k
         # make k random indices not shared
         num_shared = self._num_variation_factors - k
         shared_indices = np.random.choice(self._variation_factor_indices, size=num_shared, replace=False)
         # resample paired item, differs by at most k factors of variation
-        paired_factors = self._dataset.resampled_factors(orig_factors[np.newaxis, :], shared_indices)
+        paired_factors = self._dataset.data.resampled_factors(orig_factors[np.newaxis, :], shared_indices)
         # return observations
         return orig_factors, paired_factors[0]
 

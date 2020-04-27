@@ -15,8 +15,10 @@
 
 """Methods to visualize latent factors in the data sets."""
 import os
+from typing import Union
 
-from disent.dataset import make_ground_truth_dataset
+from disent.dataset import make_ground_truth_data
+from disent.dataset.ground_truth.base import GroundTruthData
 from disent.visualize import visualize_util
 import numpy as np
 from six.moves import range
@@ -28,8 +30,64 @@ from disent.dataset.util.io import ensure_dir_exists
 # Visualise Ground Truth Datasets                                           #
 # ========================================================================= #
 
+def _get_data(data: Union[str, GroundTruthData]) -> GroundTruthData:
+    if isinstance(data, str):
+        data = make_ground_truth_data(data, try_in_memory=False)
+    return data
 
-def visualize_dataset(dataset_name, output_path, num_animations=5, num_frames=20, fps=10):
+
+def visualise_get_still_images(data: Union[str, GroundTruthData], num_samples=16, mode='spread'):
+    data = _get_data(data)
+    # Create still images per factor of variation
+    factor_images = []
+    for i in range(data.num_factors):
+        factors = data.sample_factors(num_samples)
+        # only allow the current index to vary, copy the first to all others
+        indices = [j for j in range(data.num_factors) if i != j]
+        factors[:, indices] = factors[0, indices]
+
+        if mode == 'sample':
+            pass
+        elif mode == 'sample_ordered':
+            # like sample, but ordered
+            factors[:, i] = sorted(factors[:, i])
+        elif mode == 'spread':
+            # 1, 3, 5, 7, 9 (like sequential below, but use larger step size if size bigger than samples)
+            n = int(np.ceil(num_samples / data.factor_sizes[i]))
+            indices = np.array(list(range(data.factor_sizes[i])) * n)
+            step_size = max(1, data.factor_sizes[i] // num_samples)
+            factors[:, i] = sorted(indices[::step_size])[:num_samples]
+        elif mode == 'sequential':
+            # 1, 2, 3, 4, 5 (repeat if not size is not as big as number of samples)
+            n = int(np.ceil(num_samples / data.factor_sizes[i]))
+            indices = np.array(list(range(data.factor_sizes[i])) * n)
+            factors[:, i] = sorted(indices[:num_samples])
+        else:
+            raise KeyError(f'Unsupported mode: {mode}')
+
+        # sample new observations
+        images = data.sample_observations_from_factors(factors)
+        factor_images.append(images)
+    # return all
+    return np.array(factor_images)
+
+def visualise_get_animations(data: Union[str, GroundTruthData], num_animations=5, num_frames=20):
+    data = _get_data(data)
+    # Create animations.
+    animations = []
+    for i in range(num_animations):
+        base_factor = data.sample_factors(1)
+        images = []
+        for j, factor_size in enumerate(data.factor_sizes):
+            factors = np.repeat(base_factor, num_frames, axis=0)
+            factors[:, j] = visualize_util.cycle_factor(base_factor[0, j], factor_size, num_frames)
+            images.append(data.sample_observations_from_factors(factors))
+        animations.append(images)
+    # return all
+    return np.array(animations)
+
+
+def visualize_dataset(data, output_path=None, num_animations=5, num_frames=20, fps=10, mode='spread'):
     """Visualizes the data set by saving images to output_path.
 
     For each latent factor, outputs 16 images where only that latent factor is
@@ -42,31 +100,22 @@ def visualize_dataset(dataset_name, output_path, num_animations=5, num_frames=20
       num_frames: Integer with number of frames in each animation.
       fps: Integer with frame rate for the animation.
     """
-    data = make_ground_truth_dataset(dataset_name, try_in_memory=False)
+    data = _get_data(data)
 
     # Create output folder if necessary.
-    path = ensure_dir_exists(output_path, dataset_name)
+    path = ensure_dir_exists(output_path, data.__class__.__name__[:-4].lower())
 
-    # Create still images.
-    for i in range(data.num_factors):
-        factors = data.sample_factors(16)
-        indices = [j for j in range(data.num_factors) if i != j]
-        factors[:, indices] = factors[0, indices]
-        images = data.sample_observations_from_factors(factors)
-        visualize_util.grid_save_images(images, os.path.join(path, "variations_of_factor%s.png" % i))
+    print(f'[VISUALISE] saving to: {path}')
 
-    # Create animations.
-    for i in range(num_animations):
-        base_factor = data.sample_factors(1)
-        images = []
-        for j, factor_size in enumerate(data.factor_sizes):
-            factors = np.repeat(base_factor, num_frames, axis=0)
-            factors[:, j] = visualize_util.cycle_factor(base_factor[0, j], factor_size, num_frames)
-            images.append(data.sample_observations_from_factors(factors))
+    # Save still images.
+    for i, images in enumerate(visualise_get_still_images(data, num_samples=16, mode=mode)):
+        visualize_util.grid_save_images(images, os.path.join(path, f"variations_of_factor_{i}.png"))
 
+    # Save animations.
+    for i, images in enumerate(visualise_get_animations(data, num_animations=num_animations, num_frames=num_frames)):
         visualize_util.save_animation(
             np.array(images),
-            os.path.join(path, "animation%d.gif" % i),
+            os.path.join(path, f"animation_{i}.gif"),
             fps=fps
         )
 
@@ -77,4 +126,9 @@ def visualize_dataset(dataset_name, output_path, num_animations=5, num_frames=20
 
 
 if __name__ == '__main__':
-    visualize_dataset('dsprites', 'data/output')
+    # visualise_get_still_images('xygrid', num_samples=5, mode='sample')
+    # visualise_get_still_images('xygrid', num_samples=5, mode='sample_ordered')
+    # visualise_get_still_images('xygrid', num_samples=5, mode='sequential')
+    visualise_get_still_images('xygrid', num_samples=5, mode='spread')
+
+    # visualize_dataset('3dshapes', 'data/output')

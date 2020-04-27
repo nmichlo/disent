@@ -1,4 +1,4 @@
-from disent.dataset.ground_truth.base import Hdf5PreprocessedGroundTruthDataset, DownloadableGroundTruthDataset
+from disent.dataset.ground_truth.base import Hdf5PreprocessedGroundTruthData, DownloadableGroundTruthData
 
 
 # ========================================================================= #
@@ -6,7 +6,7 @@ from disent.dataset.ground_truth.base import Hdf5PreprocessedGroundTruthDataset,
 # ========================================================================= #
 
 
-class DSpritesDataset(Hdf5PreprocessedGroundTruthDataset):
+class DSpritesData(Hdf5PreprocessedGroundTruthData):
     """
     DSprites Dataset
     - beta-VAE: Learning Basic Visual Concepts with a Constrained Variational Framework
@@ -30,8 +30,8 @@ class DSpritesDataset(Hdf5PreprocessedGroundTruthDataset):
     hdf5_name = 'imgs'
     hdf5_chunk_size = (64, 32, 32)  # TODO: test optimal size, currently using same as shapes3d
 
-    def _get_observation(self, idx):
-        return super()._get_observation(idx) * 255  # for some reason uint8 is used as datatype, but only in range 0-1
+    def __getitem__(self, idx):
+        return super().__getitem__(idx) * 255  # for some reason uint8 is used as datatype, but only in range 0-1
 
 
 # ========================================================================= #
@@ -42,5 +42,5 @@ class DSpritesDataset(Hdf5PreprocessedGroundTruthDataset):
 if __name__ == '__main__':
     from tqdm import tqdm
 
-    for dat in tqdm(DSpritesDataset(in_memory=True, force_preprocess=True)):
+    for dat in tqdm(DSpritesData(in_memory=True, force_preprocess=True)):
         pass

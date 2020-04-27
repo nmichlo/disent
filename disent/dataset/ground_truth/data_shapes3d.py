@@ -1,7 +1,7 @@
 import h5py
 import torch
 from PIL import Image
-from disent.dataset.ground_truth.base import Hdf5PreprocessedGroundTruthDataset
+from disent.dataset.ground_truth.base import Hdf5PreprocessedGroundTruthData
 
 
 # ========================================================================= #
@@ -9,7 +9,7 @@ from disent.dataset.ground_truth.base import Hdf5PreprocessedGroundTruthDataset
 # ========================================================================= #
 
 
-class Shapes3dDataset(Hdf5PreprocessedGroundTruthDataset):
+class Shapes3dData(Hdf5PreprocessedGroundTruthData):
     """
     3D Shapes Dataset:
     - https://github.com/deepmind/3d-shapes
@@ -57,7 +57,7 @@ if __name__ == '__main__':
     import numpy as np
     from disent.dataset.ground_truth.base import PairedVariationDataset
 
-    dataset = Shapes3dDataset()
+    dataset = Shapes3dData()
     pair_dataset = PairedVariationDataset(dataset, k='uniform')
 
     # test that dimensions are resampled correctly, and only differ by a certain number of factors, not all.

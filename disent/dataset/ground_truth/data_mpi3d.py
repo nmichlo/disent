@@ -1,10 +1,10 @@
-from disent.dataset.ground_truth.base import DownloadableGroundTruthDataset
+from disent.dataset.ground_truth.base import DownloadableGroundTruthData
 
 # ========================================================================= #
 # mpi3d                                                                   #
 # ========================================================================= #
 
-class Mpi3dDataset(DownloadableGroundTruthDataset):
+class Mpi3dData(DownloadableGroundTruthData):
     """
     MPI3D Dataset
     - https://github.com/rr-learning/disentanglement_dataset
@@ -27,7 +27,7 @@ class Mpi3dDataset(DownloadableGroundTruthDataset):
         super().__init__()
         raise NotImplementedError
 
-    def _get_observation(self, indices):
+    def __getitem__(self, indices):
         raise NotImplementedError
 
 
