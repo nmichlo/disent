@@ -1,6 +1,6 @@
 import torch
-import matplotlib.pyplot as plt
 import numpy as np
+import time
 
 """
 helpful functions that do not fit nicely into any other file.
@@ -23,22 +23,22 @@ def seed(long=777):
 
 
 # ========================================================================= #
-# display                                                                   #
+# IO                                                                        #
 # ========================================================================= #
 
 
-def plt_make_subplots_grid(images, figsize=(8, 8), space=0):
-    with torch.no_grad():
-        # minimal square
-        size = int(np.ceil(len(images) ** 0.5))
-        # DISPLAY IMAGES
-        fig, axs = plt.subplots(size, size, figsize=figsize)
-        fig.subplots_adjust(wspace=space, hspace=space)
-        axs = np.array(axs).reshape(-1)
-        for ax, img in zip(axs, images):
-            ax.imshow(img)
-            ax.axis('off')
-    return fig, axs
+def to_numpy(array):
+    """
+    Handles converting any array like object to a numpy array.
+    specifically with support for a tensor
+    """
+    if torch.is_tensor(array):
+        return array.cpu().detach().numpy()
+    # TODO: is this really necessary? recursion?
+    # elif isinstance(array, (list, tuple)):
+    #     return np.array([to_numpy(elem for elem in array)])
+    else:
+        return np.array(array)
 
 
 # ========================================================================= #
@@ -63,10 +63,10 @@ def atomic_save(obj, path):
         os.makedirs(os.path.dirname(path), exist_ok=True)
     torch.save(obj, path + '.tmp')
     os.rename(path + '.tmp', path)
-    print(f'SAVED: {path}')
 
 def save_model(model, path):
     atomic_save(model.state_dict(), path)
+    print(f'[MODEL]: saved {path}')
 
 def load_model(model, path, cuda=True, skip_if_missing=False):
     """
@@ -139,59 +139,56 @@ def print_box(text, header=None, width=100):
 # ========================================================================= #
 
 
-import time
-
-
-class Measure:
-    """
-    This class is intended to measure the runtime of a section of code, using the 'with' statement.
-    eg.
-
-    with Measure("My Timer"):
-        print("I am being timed")
-
-    TODO: change so that this averages all the iterations within one level of the call stack.
-
-    FROM: my obstacle_tower project
-    """
-
-    _call_stack = []
-    _default_printer = print
-
-    def __init__(self, name, printer=_default_printer, verbose=False):
-        assert name and printer
-        self.start = None
-        self.end = None
-        self.name = name
-        self.printer = printer
-        self._verbose = verbose
-
-    def _print(self, *text):
-        name = '/'.join(Measure._call_stack)
-        text = ''.join(str(t) for t in text)
-        self.printer(f"[\033[93m{name}\033[0m] {text}")
-
-    def __enter__(self):
-        Measure._call_stack.append(self.name)
-        if self._verbose:
-            self._print("\033[92m", "Started", "\033[0m")
-        self.start = time.time()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.end = time.time()
-        if self._verbose:
-            self._print("\033[91m", "Finished", "\033[0m", ": ", self.duration(), "ms")
-        else:
-            self._print("\033[91m", "Done", "\033[0m", ": ", self.duration(), "ms")
-        Measure._call_stack.pop()
-
-    def duration(self):
-        return round((self.end - self.start) * 1000 * 1000) / 1000
-
-    @staticmethod
-    def timer_builder(printer=_default_printer):
-        return lambda name: Measure(name, printer=printer)
+# class Measure:
+#     """
+#     This class is intended to measure the runtime of a section of code, using the 'with' statement.
+#     eg.
+#
+#     with Measure("My Timer"):
+#         print("I am being timed")
+#
+#     TODO: change so that this averages all the iterations within one level of the call stack.
+#
+#     FROM: my obstacle_tower project
+#     """
+#
+#     _call_stack = []
+#     _default_printer = print
+#
+#     def __init__(self, name, printer=_default_printer, verbose=False):
+#         assert name and printer
+#         self.start = None
+#         self.end = None
+#         self.name = name
+#         self.printer = printer
+#         self._verbose = verbose
+#
+#     def _print(self, *text):
+#         name = '/'.join(Measure._call_stack)
+#         text = ''.join(str(t) for t in text)
+#         self.printer(f"[\033[93m{name}\033[0m] {text}")
+#
+#     def __enter__(self):
+#         Measure._call_stack.append(self.name)
+#         if self._verbose:
+#             self._print("\033[92m", "Started", "\033[0m")
+#         self.start = time.time()
+#         return self
+#
+#     def __exit__(self, exc_type, exc_val, exc_tb):
+#         self.end = time.time()
+#         if self._verbose:
+#             self._print("\033[91m", "Finished", "\033[0m", ": ", self.duration(), "ms")
+#         else:
+#             self._print("\033[91m", "Done", "\033[0m", ": ", self.duration(), "ms")
+#         Measure._call_stack.pop()
+#
+#     def duration(self):
+#         return round((self.end - self.start) * 1000 * 1000) / 1000
+#
+#     @staticmethod
+#     def timer_builder(printer=_default_printer):
+#         return lambda name: Measure(name, printer=printer)
 
 
 # ========================================================================= #
@@ -199,50 +196,50 @@ class Measure:
 # ========================================================================= #
 
 
-def config_file(config_path, default=None):
-    """
-    Decorator that converts a class to a named tuple,
-    setting or replacing defaults from a config file.
-    TODO: Maybe i should remove this....
-
-    FROM: my obstacle_tower project
-    """
-
-    def wrapper(cls):
-        from typing import get_type_hints
-        from collections import namedtuple
-        import toml
-        import os
-        # load fields
-        fields = get_type_hints(cls)
-        field_defaults = {k: getattr(cls, k) for k in fields if hasattr(cls, k)}
-        field_values = field_defaults
-        # load config if file is spcified
-        if os.path.isfile(config_path):
-            config_values = toml.load(config_path)
-            if default:
-                assert default in config_values, f'Config defaults "{default}" does not exist for "{cls.__name__}" in "{config_path}"'
-                config_values = config_values[default]
-            field_values = {**field_values, **config_values}
-        # verify
-        extra = set(field_values) - set(fields)
-        uninitialised = set(fields) - set(field_values)
-        if extra or uninitialised:
-            print(
-                f'Config: {cls.__name__} fields mismatch\n'
-                f' - Invalid fields: {extra}\n'
-                f' - Uninitialised fields: {uninitialised}\n'
-            )
-            raise KeyError('Fields mismatch')
-        # check types
-        for k, t in fields.items():
-            try:
-                field_values[k] = t(field_values[k])
-            except:
-                assert False, f'"{k}" on "{cls.__name__}" cannot be cast to: {t}'
-        # Return named tuple instance
-        return namedtuple(cls.__name__, list(fields))(**field_values)
-    return wrapper
+# def config_file(config_path, default=None):
+#     """
+#     Decorator that converts a class to a named tuple,
+#     setting or replacing defaults from a config file.
+#     TODO: Maybe i should remove this....
+#
+#     FROM: my obstacle_tower project
+#     """
+#
+#     def wrapper(cls):
+#         from typing import get_type_hints
+#         from collections import namedtuple
+#         import toml
+#         import os
+#         # load fields
+#         fields = get_type_hints(cls)
+#         field_defaults = {k: getattr(cls, k) for k in fields if hasattr(cls, k)}
+#         field_values = field_defaults
+#         # load config if file is spcified
+#         if os.path.isfile(config_path):
+#             config_values = toml.load(config_path)
+#             if default:
+#                 assert default in config_values, f'Config defaults "{default}" does not exist for "{cls.__name__}" in "{config_path}"'
+#                 config_values = config_values[default]
+#             field_values = {**field_values, **config_values}
+#         # verify
+#         extra = set(field_values) - set(fields)
+#         uninitialised = set(fields) - set(field_values)
+#         if extra or uninitialised:
+#             print(
+#                 f'Config: {cls.__name__} fields mismatch\n'
+#                 f' - Invalid fields: {extra}\n'
+#                 f' - Uninitialised fields: {uninitialised}\n'
+#             )
+#             raise KeyError('Fields mismatch')
+#         # check types
+#         for k, t in fields.items():
+#             try:
+#                 field_values[k] = t(field_values[k])
+#             except:
+#                 assert False, f'"{k}" on "{cls.__name__}" cannot be cast to: {t}'
+#         # Return named tuple instance
+#         return namedtuple(cls.__name__, list(fields))(**field_values)
+#     return wrapper
 
 
 # ========================================================================= #

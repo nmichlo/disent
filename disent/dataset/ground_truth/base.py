@@ -57,9 +57,10 @@ class DiscreteStateSpace(object):
         sample randomly from all factors, otherwise the given factor_indices.
         returned values appear in the same order as factor_indices.
         """
+        sizes = self._factor_sizes if (factor_indices is None) else self._factor_sizes[factor_indices]
         return np.random.randint(
-            self._factor_sizes if (factor_indices is None) else self._factor_sizes[factor_indices],
-            size=(num_samples, len(factor_indices))
+            sizes,
+            size=(num_samples, len(sizes))
         )
 
     # def sample_indices(self, num_samples):
@@ -115,11 +116,12 @@ class GroundTruthDataset(DiscreteStateSpace, Dataset):
         # transform observation
         self.transform = transform
 
-    def sample_observations(self, num_samples):
+    def sample_observations(self, num_samples) -> list:
         """Sample a batch of observations X."""
         factors = self.sample_factors(num_samples)
         indices = self.pos_to_idx(factors)
-        return self[indices]
+        # TODO: not efficient, not correct data type
+        return [self[idx] for idx in indices]
 
     @property
     def factor_names(self) -> Tuple[str, ...]:
@@ -146,6 +148,7 @@ class GroundTruthDataset(DiscreteStateSpace, Dataset):
         # https://github.com/pytorch/vision/blob/master/torchvision/datasets/mnist.py
         # PIL Image so that this is consistent with other datasets
         image = Image.fromarray(image)
+
         if self.transform:
             image = self.transform(image)
 
@@ -255,14 +258,17 @@ class Hdf5PreprocessedGroundTruthDataset(PreprocessedDownloadableGroundTruthData
 
         # Load the entire dataset into memory if required
         if self._in_memory:
-            print('[DATASET]: Loading...', end=' ')
-            with h5py.File(self.dataset_path, 'r') as db:
-                self._data = np.array(db[self.hdf5_name])
-            print('Loaded!')
+            # Only load the dataset once, no matter how many instances of the class are created.
+            # data is stored on the underlying class at the _DATA property.
+            if not hasattr(self.__class__, '_DATA'):
+                print(f'[DATASET: {self.__class__.__name__}]: Loading...', end=' ')
+                with h5py.File(self.dataset_path, 'r') as db:
+                    self.__class__._DATA = np.array(db[self.hdf5_name])
+                print('Loaded!')
 
     def _get_observation(self, idx):
         if self._in_memory:
-            return self._data[idx]
+            return self.__class__._DATA[idx]
         else:
             # open here for better multithreading support, saw this somewhere? check if correct.
             with h5py.File(self.dataset_path, 'r') as db:

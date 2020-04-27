@@ -30,6 +30,9 @@ class DSpritesDataset(Hdf5PreprocessedGroundTruthDataset):
     hdf5_name = 'imgs'
     hdf5_chunk_size = (64, 32, 32)  # TODO: test optimal size, currently using same as shapes3d
 
+    def _get_observation(self, idx):
+        return super()._get_observation(idx) * 255  # for some reason uint8 is used as datatype, but only in range 0-1
+
 
 # ========================================================================= #
 # END                                                                       #
@@ -39,5 +42,5 @@ class DSpritesDataset(Hdf5PreprocessedGroundTruthDataset):
 if __name__ == '__main__':
     from tqdm import tqdm
 
-    for dat in tqdm(DSpritesDataset(in_memory=True)):
+    for dat in tqdm(DSpritesDataset(in_memory=True, force_preprocess=True)):
         pass

@@ -48,7 +48,7 @@ def hdf5_print_entry_data_stats(data, dataset, label='STATISTICS', print_mode='a
         )
     elif print_mode == 'minimal':
         tqdm.write(
-            f'[{label:3s}] entry: {str(list(shape)):18s} \033[93m{bytes_to_human(data_per_entry)}\033[0m chunk: {str(list(chunks)):18s} \033[93m{bytes_to_human(data_per_chunk)}\033[0m chunks per entry: {str(list(chunks_per_dim)):18s} \033[93m{bytes_to_human(read_data_per_entry)}\033[0m (\033[91m{chunks_per_entry}\033[0m)'
+            f'[{label:3s}] entry: {str(list(shape)):18s} ({str(dtype):8s}) \033[93m{bytes_to_human(data_per_entry)}\033[0m chunk: {str(list(chunks)):18s} \033[93m{bytes_to_human(data_per_chunk)}\033[0m chunks per entry: {str(list(chunks_per_dim)):18s} \033[93m{bytes_to_human(read_data_per_entry)}\033[0m (\033[91m{chunks_per_entry}\033[0m)'
         )
 
 def hd5f_print_dataset_info(data, dataset, label='DATASET'):

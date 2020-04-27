@@ -4,6 +4,8 @@ import torchvision
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+from PIL import Image
+
 from disent.dataset.ground_truth.base import GroundTruthDataset, PairedVariationDataset
 import numpy as np
 
@@ -32,16 +34,12 @@ class XYDataset(GroundTruthDataset):
 
     def __init__(self, width=8, transform=None):
         self._width = width
-        self.transform = transform
-        super().__init__()
+        super().__init__(transform=transform)
 
-    def __getitem__(self, idx):
+    def _get_observation(self, idx):
         # GENERATE
         x = np.zeros(self.observation_shape, dtype=np.uint8)
         x[idx % self._width, idx // self._width] = 255  # x, y
-        # TRANSFORM
-        if self.transform:
-            x = self.transform(x)
         return x
 
 

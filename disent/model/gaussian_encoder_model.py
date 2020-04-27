@@ -34,6 +34,14 @@ class GaussianEncoderModel(torch.nn.Module):
         x_recon = self.decode(z).view(x.size())
         return x_recon, z_mean, z_logvar, z
 
+    def forward_deterministic(self, x: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
+        # encode
+        z_mean, z_logvar = self.encode_gaussian(x)  # .view(-1, self.x_dim)
+        z = z_mean
+        # decode
+        x_recon = self.decode(z).view(x.size())
+        return x_recon, z_mean, z_logvar, z
+
     @staticmethod
     def sample_from_latent_distribution(z_mean: Tensor, z_logvar: Tensor) -> Tensor:
         """
@@ -54,13 +62,13 @@ class GaussianEncoderModel(torch.nn.Module):
         z_mean, z_logvar = self.gaussian_encoder(x)
         return z_mean, z_logvar
 
-    # def encode_stochastic(self, x):
-    #     z_mean, z_logvar = self.encode_gaussian(x)
-    #     return self.sample_from_latent_distribution(z_mean, z_logvar)
-    #
-    # def encode_deterministic(self, x):
-    #     z_mean, z_logvar = self.encode_gaussian(x)
-    #     return z_mean
+    def encode_stochastic(self, x):
+        z_mean, z_logvar = self.encode_gaussian(x)
+        return self.sample_from_latent_distribution(z_mean, z_logvar)
+
+    def encode_deterministic(self, x):
+        z_mean, z_logvar = self.encode_gaussian(x)
+        return z_mean
 
     def decode(self, z: Tensor) -> Tensor:
         """
@@ -72,12 +80,12 @@ class GaussianEncoderModel(torch.nn.Module):
         x_recon = torch.sigmoid(self.decoder(z))
         return x_recon
 
-    def decode_from_gaussian_samples(self, num_samples):
+    def random_decoded_samples(self, num_samples):
         """
         Return a number of randomly generated reconstructions sampled from a gaussian normal input.
         """
         z = torch.randn(num_samples, self.z_dim)
-        if torch.cuda.is_available(): # TODO: this is not gauranteed
+        if torch.cuda.is_available():  # TODO: this is not gauranteed
             z = z.cuda()
         samples = self.decode(z)
         return samples
