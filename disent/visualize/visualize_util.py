@@ -38,6 +38,9 @@ def save_image(image, image_path):
       image: Numpy array of shape (height, width, {1,3}) with values in [0, 1].
       image_path: String with path to output image.
     """
+    assert 0 <= np.max(image) <= 1
+    assert 0 <= np.min(image) <= 1
+
     # Copy the single channel if we are provided a grayscale image.
     if image.shape[2] == 1:
         image = np.repeat(image, 3, axis=2)
@@ -51,14 +54,18 @@ def save_image(image, image_path):
         img.save(path)
 
 
-def grid_save_images(images, image_path):
+def minimal_square_save_images(images, image_path):
     """Saves images in list of [0,1]-valued np.arrays on a grid.
 
     Args:
       images: List of Numpy arrays of shape (height, width, {1,3}) with values in
         [0, 1].
       image_path: String with path to output image.
+
+    *NB* PREVIOUSLY in disentanglement_lib known as grid_save_images
     """
+    assert 0 <= np.max(images) <= 1
+    assert 0 <= np.min(images) <= 1
     # minimum square size
     side_length = int(math.floor(math.sqrt(len(images))))
     # joi
@@ -69,6 +76,12 @@ def grid_save_images(images, image_path):
     tiled_image = np.concatenate(image_rows, axis=1)
     save_image(tiled_image, image_path)
 
+def grid_save_images(image_grid, image_path):
+    assert 0 <= np.max(image_grid) <= 1
+    assert 0 <= np.min(image_grid) <= 1
+    image_rows = [np.concatenate(row, axis=0) for row in image_grid]
+    image = np.concatenate(image_rows, axis=1)
+    save_image(image, image_path)
 
 def padded_grid(images, num_rows=None, padding_px=10, value=None):
     """Creates a grid with padding in between images."""

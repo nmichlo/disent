@@ -82,16 +82,6 @@ class GaussianEncoderModel(BaseGaussianEncoderModule, BaseDecoderModule):
         x_recon = torch.sigmoid(self._decoder(z))
         return x_recon
 
-    # def random_decoded_samples(self, num_samples):
-    #     """
-    #     Return a number of randomly generated reconstructions sampled from a gaussian normal input.
-    #     """
-    #     z = torch.randn(num_samples, self.z_size)
-    #     if torch.cuda.is_available():  # TODO: this is not gauranteed
-    #         z = z.cuda()
-    #     samples = self.decode(z)
-    #     return samples
-
     # def reconstruct(self, z: Tensor) -> Tensor:
     #     """
     #     Compute the full reconstruction of the input from a latent vector.

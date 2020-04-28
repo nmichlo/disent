@@ -28,6 +28,7 @@ from typing import Union
 from disent.dataset import make_ground_truth_data
 from disent.dataset.ground_truth.base import GroundTruthData
 from disent.loss.loss import lerp_step
+from disent.util import to_numpy
 from disent.visualize import visualize_util
 import numpy as np
 
@@ -42,6 +43,7 @@ from disent.visualize.util import get_data
 
 def visualise_get_still_images(data: Union[str, GroundTruthData], num_samples=16, mode='spread'):
     data = get_data(data)
+
     # Create still images per factor of variation
     factor_images = []
     for i, size in enumerate(data.factor_sizes):
@@ -65,7 +67,7 @@ def visualise_get_still_images(data: Union[str, GroundTruthData], num_samples=16
         factor_images.append(images)
 
     # return all
-    return np.array(factor_images)
+    return to_numpy(factor_images)
 
 def visualise_get_animations(data: Union[str, GroundTruthData], num_animations=5, num_frames=20):
     data = get_data(data)
@@ -80,10 +82,10 @@ def visualise_get_animations(data: Union[str, GroundTruthData], num_animations=5
             images.append(data.sample_observations_from_factors(factors))
         animations.append(images)
     # return all
-    return np.array(animations)
+    return to_numpy(animations)
 
 
-def visualize_dataset(data: Union[str, GroundTruthData], output_path=None, num_animations=5, num_frames=20, fps=10, mode='spread'):
+def save_dataset_visualisations(data: Union[str, GroundTruthData], output_path=None, num_animations=5, num_frames=20, fps=10, mode='spread'):
     """Visualizes the data set by saving images to output_path.
 
     For each latent factor, outputs 16 images where only that latent factor is
@@ -106,12 +108,12 @@ def visualize_dataset(data: Union[str, GroundTruthData], output_path=None, num_a
 
     # Save still images.
     for i, images in enumerate(visualise_get_still_images(data, num_samples=16, mode=mode)):
-        visualize_util.grid_save_images(images, os.path.join(path, f"variations_of_factor_{i}.png"))
+        visualize_util.minimal_square_save_images(images, os.path.join(path, f"variations_of_factor_{i}.png"))
 
     # Save animations.
     for i, images in enumerate(visualise_get_animations(data, num_animations=num_animations, num_frames=num_frames)):
         visualize_util.save_animation(
-            np.array(images),
+            images,
             os.path.join(path, f"animation_{i}.gif"),
             fps=fps
         )
@@ -123,4 +125,4 @@ def visualize_dataset(data: Union[str, GroundTruthData], output_path=None, num_a
 
 
 if __name__ == '__main__':
-    visualize_dataset('3dshapes', 'data/output')
+    save_dataset_visualisations('3dshapes', 'data/output')

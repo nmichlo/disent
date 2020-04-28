@@ -35,6 +35,10 @@ import numpy as np
 from disent.dataset.util.io import ensure_dir_exists
 
 
+# TODO: FIX CODE
+raise NotImplementedError
+
+
 def vis_all_interventional_effects(gen_factors, latents, output_dir):
     """Compute Matrix of all interventional effects."""
     res = scalable_disentanglement_score(gen_factors, latents)

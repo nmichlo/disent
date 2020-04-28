@@ -30,159 +30,12 @@ import os
 # from disent.utils import results
 from disent.dataset.util.io import ensure_dir_exists
 from disent.visualize import util, visualize_util
-from disent.visualize.util import get_data, reconstructions_to_images
+from disent.visualize.util import (get_data, get_dataset, plt_images_grid, plt_images_minimal_square,
+                                   reconstructions_to_images)
 from disent.util import to_numpy
 # from disent.visualize.visualize_irs import vis_all_interventional_effects
 import numpy as np
 import torch
-
-
-# from scipy import stats
-#
-# def sigmoid(x):
-#     return stats.logistic.cdf(x)
-#
-# def tanh(x):
-#     return np.tanh(x) / 2. + .5
-
-
-def visualize(
-        model_dir,
-        output_dir,
-        data,
-        overwrite=False,
-        num_latent=6,
-        num_animations=5,
-        num_frames=20,
-        fps=10,
-        num_points_irs=10000
-):
-    """Takes trained model from model_dir and visualizes it in output_dir.
-
-    Args:
-      model_dir: Path to directory where the trained model is saved.
-      output_dir: Path to output directory.
-      overwrite: Boolean indicating whether to overwrite output directory.
-      num_animations: Integer with number of distinct animations to create.
-      num_frames: Integer with number of frames in each animation.
-      fps: Integer with frame rate for the animation.
-      num_points_irs: Number of points to be used for the IRS plots.
-    """
-    # Create the output directory if necessary.
-    if os.path.isdir(output_dir):
-        if overwrite:
-            import shutil
-            shutil.rmtree(output_dir)
-        else:
-            raise ValueError("Directory already exists and overwrite is False.")
-
-    # convert string to dataset if needed
-    data = get_data(data)
-
-    # get activation function TODO: add support throughout disent
-    # activation = dict(logits=sigmoid, tanh=tanh)['logits']
-
-    with hub.eval_function_for_module(os.path.join(model_dir, "tfhub")) as f:
-        num_pics = 64
-
-        def _save_reconstructions():
-            # Save reconstructions.
-            real_pics = data.sample_observations(num_pics)
-            raw_pics = f(dict(images=real_pics), signature="reconstructions", as_dict=True)["images"]
-            pics = activation(raw_pics)
-            paired_pics = np.concatenate((real_pics, pics), axis=2)
-            paired_pics = [paired_pics[i, :, :, :] for i in range(paired_pics.shape[0])]
-            results_dir = ensure_dir_exists(output_dir, "reconstructions")
-            visualize_util.grid_save_images(paired_pics, os.path.join(results_dir, "reconstructions.jpg"))
-
-        def _decoder(latent_vectors):
-            return f(dict(latent_vectors=latent_vectors), signature="decoder", as_dict=True)["images"]
-
-        def _save_samples():
-            # Save samples.
-            random_codes = np.random.normal(0, 1, [num_pics, num_latent])
-            pics = activation(_decoder(random_codes))
-            results_dir = ensure_dir_exists(output_dir, "sampled")
-            visualize_util.grid_save_images(pics, os.path.join(results_dir, "samples.jpg"))
-
-        def _save_latent_traversals():
-            # Save latent traversals.
-            result = f({'images': data.sample_observations(num_pics)}, signature="gaussian_encoder", as_dict=True)
-            means = result["mean"]
-            logvars = result["logvar"]
-            results_dir = ensure_dir_exists(output_dir, "traversals")
-            for i in range(means.shape[1]):
-                pics = activation(latent_traversal_1d_multi_dim(_decoder, means[i, :], None))
-                visualize_util.grid_save_images([pics], os.path.join(results_dir, f"traversals_{i}.jpg"))
-
-        # Save the latent traversal animations.
-        results_dir = ensure_dir_exists(output_dir, "animated_traversals")
-
-        _general_latent_cycle('std_gaussian_cycle')
-        _general_latent_cycle('fitted_gaussian_cycle')
-        _general_latent_cycle('fixed_interval_cycle')
-        _general_latent_cycle('conf_interval_cycle')
-        _general_latent_cycle('minmax_interval_cycle')
-
-        # Interventional effects visualization.
-        # factors = data.sample_factors(num_points_irs)
-        # obs = data.sample_observations_from_factors(factors)
-        # latents = f(dict(images=obs), signature="gaussian_encoder", as_dict=True)["mean"]
-        # results_dir = os.path.join(output_dir, "interventional_effects")
-        # vis_all_interventional_effects(factors, latents, results_dir)
-
-def _get_code_std_gaussian_cycle():
-    # Cycle through quantiles of a standard Gaussian.
-    code = np.repeat(np.expand_dims(base_code, 0), num_frames, axis=0)
-    code[:, j] = visualize_util.cycle_gaussian(base_code[j], num_frames)
-    return code
-
-def _get_code_fitted_gaussian_cycle():
-    # Cycle through quantiles of a fitted Gaussian.
-    code = np.repeat(np.expand_dims(base_code, 0), num_frames, axis=0)
-    loc = np.mean(means[:, j])
-    total_variance = np.mean(np.exp(logvars[:, j])) + np.var(means[:, j])
-    code[:, j] = visualize_util.cycle_gaussian(base_code[j], num_frames, loc=loc, scale=np.sqrt(total_variance))
-    return code
-
-def _get_code_fixed_interval_cycle():
-    # Cycle through [-2, 2] interval.
-    code = np.repeat(np.expand_dims(base_code, 0), num_frames, axis=0)
-    code[:, j] = visualize_util.cycle_interval(base_code[j], num_frames, -2., 2.)
-    return code
-
-def _get_code_conf_interval_cycle():
-    # Cycle linearly through +-2 std dev of a fitted Gaussian.
-    code = np.repeat(np.expand_dims(base_code, 0), num_frames, axis=0)
-    loc = np.mean(means[:, j])
-    total_variance = np.mean(np.exp(logvars[:, j])) + np.var(means[:, j])
-    scale = np.sqrt(total_variance)
-    code[:, j] = visualize_util.cycle_interval(base_code[j], num_frames, loc - 2. * scale, loc + 2. * scale)
-    return code
-
-def _get_code_minmax_interval_cycle():
-    # Cycle linearly through minmax of a fitted Gaussian.
-    code = np.repeat(np.expand_dims(base_code, 0), num_frames, axis=0)
-    code[:, j] = visualize_util.cycle_interval(base_code[j], num_frames, np.min(means[:, j]), np.max(means[:, j]))
-    return code
-
-_LATENT_CYCLE_MODES = {
-    'std_gaussian_cycle': _get_code_std_gaussian_cycle,
-    'fitted_gaussian_cycle': _get_code_fitted_gaussian_cycle,
-    'fixed_interval_cycle': _get_code_fixed_interval_cycle,
-    'conf_interval_cycle': _get_code_conf_interval_cycle,
-    'minmax_interval_cycle': _get_code_minmax_interval_cycle,
-}
-
-
-def _general_latent_cycle(mode=''):
-    z_gen_func = _LATENT_CYCLE_MODES[mode]
-    for i, base_code in enumerate(means[:num_animations]):
-        images = []
-        for j in range(base_code.shape[0]):
-            code = z_gen_func()
-            images.append(np.array(activation(_decoder(code))))
-        visualize_util.save_animation(np.array(images), os.path.join(results_dir, f"{mode}_{i}.gif"), fps=fps)
 
 
 # ========================================================================= #
@@ -191,7 +44,7 @@ def _general_latent_cycle(mode=''):
 
 
 def latent_traversal_1d_multi_dim(
-        generator_fn,
+        decoder_fn,
         latent_vector,
         dimensions=None,
         values=None
@@ -204,7 +57,7 @@ def latent_traversal_1d_multi_dim(
     modified dimension is replaced by a fixed value.
 
     Args:
-      generator_fn: Function that computes (fixed size) images from latent
+      decoder_fn: Function that computes (fixed size) images from latent
         representation. It should accept a single Numpy array argument of the same
         shape as latent_vector and return a Numpy array of images where the first
         dimension corresponds to the different vectors in latent_vectors.
@@ -223,6 +76,7 @@ def latent_traversal_1d_multi_dim(
     Returns:
       2d list of images that are outputs from the traversal.
     """
+    # TODO: EXTRACT
     # Make sure everything is a numpy array
     latent_vector = to_numpy(latent_vector)
 
@@ -259,13 +113,232 @@ def latent_traversal_1d_multi_dim(
         # Intervenes in the latent space.
         latent_traversal_vectors[:, dimension] = values
         # Generate the batch of images
-        # TODO: fix, not always going to be right
+        # TODO: cuda wont always be correct
         latent_traversal_vectors = torch.as_tensor(latent_traversal_vectors).cuda()
-        images = generator_fn(latent_traversal_vectors)
-        # TODO: better way to transfer this information, models should return output viewed as an image, not flat array
-        factor_images.append(reconstructions_to_images(images))
+        images = decoder_fn(latent_traversal_vectors)
+        images = reconstructions_to_images(images)
+        factor_images.append(images)
 
     return to_numpy(factor_images)
+
+
+# ========================================================================= #
+# Visualise Random Latent Samples                                           #
+# ========================================================================= #
+
+
+# ORIG
+# def plt_sampled_latent_space(system, num_samples=16, figsize_ratio=0.75):
+#     z = torch.randn(num_samples, system.model.z_size).cuda()
+#     images = system.model.decode(z)
+#     images = reconstructions_to_images(images)
+#     plt_images_minimal_square(images, figsize_ratio=0.75)
+
+def latent_random_samples(decoder_fn, z_size, num_samples=16):
+    # TODO: cuda wont always be correct
+    z = torch.randn(num_samples, z_size).cuda()
+    images = decoder_fn(z)
+    images = reconstructions_to_images(images)
+    return to_numpy(images)
+
+def plt_latent_random_samples(decoder_fn, z_size, num_samples=16, figsize_ratio=0.75):
+    images = latent_random_samples(decoder_fn, z_size, num_samples)
+    plt_images_minimal_square(images, figsize_ratio=figsize_ratio)
+
+
+# ========================================================================= #
+# Visualise Latent Traversals                                               #
+# ========================================================================= #
+
+
+# ORIG
+# def plt_traverse_latent_space(system, num_samples=16, values=11, dimensions=None, figsize_ratio=0.75):
+#     obs = torch.stack(system.dataset_train.sample_observations(num_samples)).cuda()
+#     z_mean, z_logvar = system.model.encode_gaussian(obs)
+#     for z_idx in range(num_samples):
+#         images = latent_traversal_1d_multi_dim(system.model.decode, z_mean[z_idx, :], dimensions=dimensions, values=values)
+#         plt_images_grid(images, figsize_ratio=figsize_ratio)
+
+def latent_traversals(gaussian_encoder_fn, decoder_fn, dataset, num_samples=4, dimensions=None, values=None):
+    # random encoded samples
+    # TODO: cuda wont always be correct
+    obs = torch.stack(dataset.sample_observations(num_samples)).cuda()
+    z_mean, z_logvar = gaussian_encoder_fn(obs)
+    # for each sample
+    traversals = []
+    for i in range(num_samples):
+        # TODO: add support for cycle methods from below? Is that actually useful?
+        grid = latent_traversal_1d_multi_dim(decoder_fn, z_mean[i, :], dimensions=dimensions, values=values)
+        traversals.append(grid)
+    # return
+    return to_numpy(traversals)
+
+def plt_traverse_latent_space(gaussian_encoder_fn, decoder_fn, dataset, num_samples=4, dimensions=None, values=None, figsize_ratio=0.75):
+    traversals = latent_traversals(gaussian_encoder_fn, decoder_fn, dataset, num_samples=num_samples, dimensions=dimensions, values=values)
+    for images_grid in traversals:
+        plt_images_grid(images_grid, figsize_ratio=figsize_ratio)
+
+
+# ========================================================================= #
+# Visualise Latent Cycles (for animations)                                  #
+# ========================================================================= #
+
+
+def _z_std_gaussian_cycle(base_z, z_means, z_logvars, z_idx, num_frames):
+    # Cycle through quantiles of a standard Gaussian.
+    zs = np.repeat(np.expand_dims(base_z, 0), num_frames, axis=0)
+    zs[:, z_idx] = visualize_util.cycle_gaussian(base_z[z_idx], num_frames, loc=0, scale=1)
+    return zs
+
+def _z_fitted_gaussian_cycle(base_z, z_means, z_logvars, z_idx, num_frames):
+    # Cycle through quantiles of a fitted Gaussian.
+    zs = np.repeat(np.expand_dims(base_z, 0), num_frames, axis=0)
+    loc = np.mean(z_means[:, z_idx])
+    total_variance = np.mean(np.exp(z_logvars[:, z_idx])) + np.var(z_means[:, z_idx])
+    zs[:, z_idx] = visualize_util.cycle_gaussian(base_z[z_idx], num_frames, loc=loc, scale=np.sqrt(total_variance))
+    return zs
+
+def _z_fixed_interval_cycle(base_z, z_means, z_logvars, z_idx, num_frames):
+    # Cycle through [-2, 2] interval.
+    zs = np.repeat(np.expand_dims(base_z, 0), num_frames, axis=0)
+    zs[:, z_idx] = visualize_util.cycle_interval(base_z[z_idx], num_frames, -2., 2.)
+    return zs
+
+def _z_conf_interval_cycle(base_z, z_means, z_logvars, z_idx, num_frames):
+    # Cycle linearly through +-2 std dev of a fitted Gaussian.
+    zs = np.repeat(np.expand_dims(base_z, 0), num_frames, axis=0)
+    loc = np.mean(z_means[:, z_idx])
+    total_variance = np.mean(np.exp(z_logvars[:, z_idx])) + np.var(z_means[:, z_idx])
+    scale = np.sqrt(total_variance)
+    zs[:, z_idx] = visualize_util.cycle_interval(base_z[z_idx], num_frames, loc - 2. * scale, loc + 2. * scale)
+    return zs
+
+def _z_minmax_interval_cycle(base_z, z_means, z_logvars, z_idx, num_frames):
+    # Cycle linearly through minmax of a fitted Gaussian.
+    zs = np.repeat(np.expand_dims(base_z, 0), num_frames, axis=0)
+    zs[:, z_idx] = visualize_util.cycle_interval(base_z[z_idx], num_frames, np.min(z_means[:, z_idx]), np.max(z_means[:, z_idx]))
+    return zs
+
+LATENT_CYCLE_MODES = {
+    'std_gaussian_cycle': _z_std_gaussian_cycle,
+    'fitted_gaussian_cycle': _z_fitted_gaussian_cycle,
+    'fixed_interval_cycle': _z_fixed_interval_cycle,
+    'conf_interval_cycle': _z_conf_interval_cycle,
+    'minmax_interval_cycle': _z_minmax_interval_cycle,
+}
+
+def latent_cycle(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', num_animations=4, num_frames=20):
+    z_gen_func = LATENT_CYCLE_MODES[mode]
+    animations = []
+    for i, base_z in enumerate(z_means[:num_animations]):
+        frames = []
+        for j in range(base_z.shape[0]):
+            z = z_gen_func(base_z, z_means, z_logvars, j, num_frames)
+            frames.append(reconstructions_to_images(decoder_func(z)))
+        animations.append(frames)
+    return to_numpy(animations)
+
+# ========================================================================= #
+# Visualise Reconstructions                                                 #
+# ========================================================================= #
+
+
+# ORIG
+# def _save_reconstructions():
+#     # Save reconstructions.
+#     real_pics = dataset.sample_observations(num_images)
+#     raw_pics = f(dict(images=real_pics), signature="reconstructions", as_dict=True)["images"]
+#     pics = activation(raw_pics)
+#     paired_pics = np.concatenate((real_pics, pics), axis=2)
+#     paired_pics = [paired_pics[i, :, :, :] for i in range(paired_pics.shape[0])]
+#     results_dir = ensure_dir_exists(output_dir, "reconstructions")
+#     visualize_util.grid_save_images(paired_pics, os.path.join(results_dir, "reconstructions.jpg"))
+
+def sample_observations_and_reconstruct(gaussian_encoder_fn, decoder_fn, dataset, num_samples=16):
+    obs = torch.stack(dataset.sample_observations(num_samples)).cuda()
+    # reconstruct
+    z_mean, z_logvar = gaussian_encoder_fn(obs)
+    x_recon = decoder_fn(z_mean)
+    # get images
+    obs, x_recon = reconstructions_to_images(obs), reconstructions_to_images(x_recon)
+    return to_numpy(obs), to_numpy(x_recon)
+
+def plt_sample_observations_and_reconstruct(gaussian_encoder_fn, decoder_fn, dataset, num_samples=16, figsize_ratio=0.75):
+    obs, x_recon = sample_observations_and_reconstruct(gaussian_encoder_fn, decoder_fn, dataset, num_samples=num_samples)
+    plt_images_minimal_square(obs, figsize_ratio=figsize_ratio)
+    plt_images_minimal_square(x_recon, figsize_ratio=figsize_ratio)
+
+
+# ========================================================================= #
+# Visualise Latent Traversals                                               #
+# ========================================================================= #
+
+
+def save_model_visualisations(
+        gaussian_encoder_fn, decoder_fn, dataset, z_size,
+        output_dir,
+        overwrite=False,
+        num_images=64,
+        num_animations=5,
+        num_frames=20,
+        fps=10
+):
+    """Takes trained model from model_dir and visualizes it in output_dir.
+
+    Args:
+      model_dir: Path to directory where the trained model is saved.
+      output_dir: Path to output directory.
+      overwrite: Boolean indicating whether to overwrite output directory.
+      num_animations: Integer with number of distinct animations to create.
+      num_frames: Integer with number of frames in each animation.
+      fps: Integer with frame rate for the animation.
+      num_points_irs: Number of points to be used for the IRS plots.
+    """
+    # Create the output directory if necessary.
+    if os.path.isdir(output_dir):
+        if overwrite:
+            import shutil
+            shutil.rmtree(output_dir)
+        else:
+            raise ValueError("Directory already exists and overwrite is False.")
+
+    # convert string to dataset if needed
+    dataset = get_dataset(dataset)
+
+    # TODO: get activation function | add support throughout disent
+    # activation = dict(logits=sigmoid, tanh=tanh)['logits']
+
+    # Save reconstructions.
+    obs, x_recon = sample_observations_and_reconstruct(gaussian_encoder_fn, decoder_fn, dataset, num_samples=num_images)
+    results_dir = ensure_dir_exists(output_dir, "reconstructions")
+    visualize_util.minimal_square_save_images(obs, os.path.join(results_dir, "reconstructions_input.jpg"))
+    visualize_util.minimal_square_save_images(x_recon, os.path.join(results_dir, "reconstructions_output.jpg"))
+    visualize_util.minimal_square_save_images(np.concatenate([obs, x_recon], axis=2), os.path.join(results_dir, "reconstructions.jpg"))
+
+    # Save samples.
+    results_dir = ensure_dir_exists(output_dir, "sampled")
+    images = latent_random_samples(decoder_fn, z_size, num_images)
+    visualize_util.minimal_square_save_images(images, os.path.join(results_dir, "samples.jpg"))
+
+    # Save latent traversals.
+    results_dir = ensure_dir_exists(output_dir, "traversals")
+    traversals = latent_traversals(gaussian_encoder_fn, decoder_fn, dataset, num_images)
+    for i, image_grid in enumerate(traversals):
+        visualize_util.grid_save_images(image_grid, os.path.join(results_dir, f"traversals_{i}.jpg"))
+
+    # Save the latent traversal animations.
+    results_dir = ensure_dir_exists(output_dir, "animated_traversals")
+    for mode in LATENT_CYCLE_MODES:
+        animations = latent_cycle(decoder_func=decoder_fn, z_means=z_means, z_logvars=z_logvars, num_animations=num_animations, mode=mode)
+        for i, animation in enumerate(animations):
+            visualize_util.save_animation(animation, os.path.join(results_dir, f"{mode}_{i}.gif"), fps=fps)
+
+    # TODO: Interventional effects visualization.
+    # factors = data.sample_factors(num_points_irs)
+    # obs = data.sample_observations_from_factors(factors)
+    # latents = f(dict(images=obs), signature="gaussian_encoder", as_dict=True)["mean"]
+    # results_dir = os.path.join(output_dir, "interventional_effects")
+    # vis_all_interventional_effects(factors, latents, results_dir)
 
 
 # ========================================================================= #
@@ -273,27 +346,42 @@ def latent_traversal_1d_multi_dim(
 # ========================================================================= #
 
 
-# if __name__ == '__main__':
-#
-#     from disent.systems.vae import VaeSystem
-#     from disent.util import load_model, to_numpy
-#     import torch
-#
-#     def make_system(load_path, loss='ada-gvae', dataset='dsprites', model='simple-fc', z_size=10, epochs=1, steps=None):
-#         system = VaeSystem(dataset_train=dataset, model=model, loss=loss, hparams=dict(lr=0.001, num_workers=8, batch_size=64, z_size=z_size))
-#         system = load_model(system, load_path, cuda=False)
-#         return system.cuda()
-#
-#     # CELL
-#
-#     system = make_system(loss='beta-vae', dataset='3dshapes', epochs=1, steps=None, model='simple-fc', load_path='data/trained-e1-3dshapes-simple-fc.ckpt')
-#
+if __name__ == '__main__':
+
+    from disent.systems.vae import VaeSystem
+    from disent.util import load_model, to_numpy
+    import matplotlib.pyplot as plt
+    import torch
+
+    # MAKE SYSTEM
+    def make_system(load_path, loss='ada-gvae', dataset='dsprites', model='simple-fc', z_size=6) -> VaeSystem:
+        system = VaeSystem(dataset_train=dataset, model=model, loss=loss, hparams=dict(lr=0.001, num_workers=8, batch_size=64, z_size=z_size))
+        system = load_model(system, load_path, cuda=True)
+        return system
+
+    # CELL
+    system = make_system(loss='beta-vae', dataset='3dshapes', model='simple-fc', load_path='data/trained-e1-3dshapes-simple-fc.ckpt')
+
+    save_model_visualisations(
+        system.model.encode_gaussian,
+        system.model.decode,
+        system.dataset_train,
+        system.model.z_size,
+        output_dir='data/output/model',
+        overwrite=True,
+        num_images=16,
+        num_animations=5,
+        num_frames=20,
+        fps=10,
+    )
+
 #     # get observations
 #     obs = torch.stack(system.dataset_train.sample_observations(16))
 #     z_mean, z_logvar = system.model.encode_gaussian(obs.cuda())
 #     z_mean = to_numpy(z_mean)
 #
-#     for i in range(z_mean.shape[1]):
-#         pics = latent_traversal_1d_multi_dim(system.model.decode, z_mean[i, :], None)
-#         util.plt_images_grid(pics)
-#         # visualize_util.grid_save_images([pics], os.path.join(results_dir, f"traversals_{i}.jpg"))
+#     for z_idx in range(z_mean.shape[1]):
+#         images = latent_traversal_1d_multi_dim(system.model.decode, z_mean[z_idx, :], None)
+#         util.plt_images_grid(images)
+#         plt.show()
+#         # visualize_util.grid_save_images([pics], os.path.join(results_dir, f"traversals_{z_idx}.jpg"))

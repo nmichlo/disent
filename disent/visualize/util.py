@@ -4,8 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
 
-from disent.dataset import make_ground_truth_data
-from disent.dataset.ground_truth.base import GroundTruthData
+from disent.dataset import make_ground_truth_data, make_ground_truth_dataset
+from disent.dataset.ground_truth.base import GroundTruthData, GroundTruthDataset
 from disent.util import to_numpy
 
 
@@ -14,32 +14,44 @@ def get_data(data: Union[str, GroundTruthData]) -> GroundTruthData:
         data = make_ground_truth_data(data, try_in_memory=False)
     return data
 
+def get_dataset(dataset: Union[str, GroundTruthDataset]):
+    if isinstance(dataset, str):
+        dataset = make_ground_truth_dataset(dataset, try_in_memory=False)
+    return dataset
 
 # ========================================================================= #
 # visualise_util                                                            #
 # ========================================================================= #
 
+def reconstruction_to_image(recon, mode='float'):
+    """
+    Convert a single reconstruction to an image
+    """
+    return reconstructions_to_images([recon], mode)[0]
 
-def reconstruction_to_image(recon):
+def reconstructions_to_images(recon, mode='float'):
     """
-    convert a single reconstruction to an image
+    Convert a batch of reconstructions to images.
+    NOTE: This function is not efficient for large amounts of data
     """
-    # recover images
-    img = np.moveaxis(to_numpy(recon), 0, -1)
-    img = np.uint8(img * 255)
-    # convert images
-    return Image.fromarray(img)
 
-def reconstructions_to_images(x_recon):
-    """
-    convert a batch reconstruction to images
-    """
-    # recover images
-    imgs = np.moveaxis(to_numpy(x_recon), 1, -1)
-    imgs = np.uint8(imgs * 255)
-    # convert images
-    return [Image.fromarray(img) for img in imgs]
-
+    img = to_numpy(recon)
+    # checks
+    assert img.ndim == 4
+    assert img.dtype in (np.float32, np.float64)
+    assert 0 <= np.min(img) <= 1
+    assert 0 <= np.max(img) <= 1
+    # move channels axis
+    img = np.moveaxis(img, 1, -1)
+    # convert
+    if mode == 'float':
+        return img
+    elif mode == 'int':
+        return np.uint8(img * 255)
+    elif mode == 'pil':
+        return [Image.fromarray(im) for im in np.uint8(img * 255)]
+    else:
+        raise KeyError(f'Invalid mode: {repr(mode)} not in { {"float", "int", "pil"} }')
 
 # ========================================================================= #
 # matplotlib                                                                #
