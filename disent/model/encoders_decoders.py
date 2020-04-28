@@ -1,18 +1,21 @@
 import torch.nn as nn
+import numpy as np
 
 
 # ========================================================================= #
 # HELPER                                                                    #
 # ========================================================================= #
+from torch import Tensor
 
 
 class View(nn.Module):
     """From: https://github.com/1Konny/Beta-VAE/blob/master/model.py"""
-    def __init__(self, size):
+    def __init__(self, *size):
         super().__init__()
         self.size = size
+
     def forward(self, tensor):
-        return tensor.view(self.size)
+        return tensor.view(*self.size)
 
 class Unsqueeze3D(nn.Module):
     """From: https://github.com/amir-abdi/disentanglement-pytorch"""
@@ -28,14 +31,93 @@ class Flatten3D(nn.Module):
         return x
 
 
-
 class BaseModule(nn.Module):
+    def __init__(self, x_shape=(3, 64, 64), z_size=6):
+        super().__init__()
+        self._x_shape = x_shape
+        self._x_size = int(np.prod(x_shape))
+        self._z_size = z_size
+
     @property
-    def z_dim(self):
-        raise NotImplementedError
+    def x_shape(self):
+        return self._x_shape
     @property
-    def x_dim(self):
+    def x_size(self):
+        return self._x_size
+    @property
+    def z_size(self):
+        return self._z_size
+
+    def assert_x_valid(self, x):
+        assert x.ndim == 4
+        assert x.shape[1:] == self.x_shape
+    def assert_z_valid(self, z):
+        assert z.ndim == 2
+        assert z.shape[1] == self.z_size
+    def assert_lengths(self, x, z):
+        assert len(x) == len(z)
+
+
+class BaseEncoderModule(BaseModule):
+    def forward(self, x) -> Tensor:
+        self.assert_x_valid(x)
+        # encode
+        z = self.encode(x)
+        # checks
+        self.assert_z_valid(z)
+        self.assert_lengths(x, z)
+        # return
+        return z
+
+    def encode(self, x) -> Tensor:
         raise NotImplementedError
+
+
+class BaseGaussianEncoderModule(BaseModule):
+    def forward(self, x) -> (Tensor, Tensor):
+        self.assert_x_valid(x)
+        # encode | p(z|x)
+        z_mean, z_logvar = self.encode_gaussian(x)
+        # checks
+        self.assert_z_valid(z_mean)
+        self.assert_z_valid(z_logvar)
+        self.assert_lengths(x, z_logvar)
+        self.assert_lengths(x, z_mean)
+        # return
+        return z_mean, z_logvar
+
+    def encode_gaussian(self, x) -> (Tensor, Tensor):
+        raise NotImplementedError
+
+
+class BaseDecoderModule(BaseModule):
+    def forward(self, z):
+        self.assert_z_valid(z)
+        # decode | p(x|z)
+        x_recon = self.decode(z)
+        # checks
+        self.assert_x_valid(x_recon)
+        self.assert_lengths(x_recon, z)
+        # return
+        return x_recon
+
+    def decode(self, z) -> Tensor:
+        raise NotImplementedError
+
+
+# class BaseAutoEncoderModule(BaseEncoderModule, BaseDecoderModule):
+#     def forward(self, x):
+#         self.assert_x_valid(x)
+#         # encode
+#         z = self.encode(x)
+#         self.assert_z_valid(z)
+#         assert len(x) == len(z)
+#         # decode
+#         x_recon = self.decode(z)
+#         self.assert_x_valid(x_recon)
+#         assert len(z) == len(x_recon)
+#         # return
+#         return x_recon
 
 
 # ========================================================================= #
@@ -43,39 +125,39 @@ class BaseModule(nn.Module):
 # ========================================================================= #
 
 
-class EncoderSimpleFC(nn.Module):
-    def __init__(self, x_dim=28*28, h_dim1=512, h_dim2=256, z_dim=2):
-        super().__init__()
-        self.z_dim = z_dim  # REQUIRED
+class EncoderSimpleFC(BaseGaussianEncoderModule):
+
+    def __init__(self, x_shape=(3, 64, 64), h_size1=128, h_size2=128, z_size=6):
+        super().__init__(x_shape=x_shape, z_size=z_size)
         self.model = nn.Sequential(
             Flatten3D(),
-            nn.Linear(x_dim, h_dim1),
+            nn.Linear(self.x_size, h_size1),
             nn.ReLU(True),
-            nn.Linear(h_dim1, h_dim2),
+            nn.Linear(h_size1, h_size2),
             nn.ReLU(True),
         )
-        self.enc3mean = nn.Linear(h_dim2, z_dim)
-        self.enc3logvar = nn.Linear(h_dim2, z_dim)
+        self.enc3mean = nn.Linear(h_size2, self.z_size)
+        self.enc3logvar = nn.Linear(h_size2, self.z_size)
 
-    def forward(self, x):
-        # encoder | p(z|x)
-        x = self.model(x)
-        return self.enc3mean(x), self.enc3logvar(x)
+    def encode_gaussian(self, x) -> (Tensor, Tensor):
+        pre_z = self.model(x)
+        return self.enc3mean(pre_z), self.enc3logvar(pre_z)
 
-class DecoderSimpleFC(nn.Module):
-    def __init__(self, x_dim=28*28, h_dim1=512, h_dim2=256, z_dim=2):
-        super().__init__()
-        self.z_dim = z_dim # REQUIRED
+
+class DecoderSimpleFC(BaseDecoderModule):
+
+    def __init__(self, x_shape=(3, 64, 64), h_size1=128, h_size2=128, z_size=6):
+        super().__init__(x_shape=x_shape, z_size=z_size)
         self.model = nn.Sequential(
-            nn.Linear(z_dim, h_dim2),
+            nn.Linear(self.z_size, h_size2),
             nn.ReLU(True),
-            nn.Linear(h_dim2, h_dim1),
+            nn.Linear(h_size2, h_size1),
             nn.ReLU(True),
-            nn.Linear(h_dim1, x_dim),
+            nn.Linear(h_size1, self.x_size),
+            View(-1, *self.x_shape),
         )
 
-    def forward(self, z):
-        # decoder | p(x|z)
+    def decode(self, z):
         return self.model(z)
 
 
@@ -84,16 +166,19 @@ class DecoderSimpleFC(nn.Module):
 # ========================================================================= #
 
 
-class EncoderSimpleConv64(nn.Module):
+class EncoderSimpleConv64(BaseGaussianEncoderModule):
     """From: https://github.com/amir-abdi/disentanglement-pytorch"""
 
-    def __init__(self, latent_dim, num_channels, image_size):
-        super().__init__()
-        assert image_size == 64, 'This model only works with image size 64x64.'
-        self.z_dim = latent_dim  # REQUIRED
-
+    def __init__(self, x_shape=(3, 64, 64), z_size=6):
+        # checks
+        assert len(x_shape) == 3
+        img_channels, image_h, image_w = x_shape
+        assert (image_h == 64) and (image_w == 64), 'This model only works with image size 64x64.'
+        # initialise
+        super().__init__(x_shape=x_shape, z_size=z_size)
+        #
         self.model = nn.Sequential(
-            nn.Conv2d(num_channels, 32, 4, 2, 1),
+            nn.Conv2d(img_channels, 32, 4, 2, 1),
             nn.ReLU(True),
             nn.Conv2d(32, 32, 4, 2, 1),
             nn.ReLU(True),
@@ -107,26 +192,28 @@ class EncoderSimpleConv64(nn.Module):
             nn.ReLU(True),
             Flatten3D(),
         )
-        self.enc3mean = nn.Linear(256, self.z_dim)
-        self.enc3logvar = nn.Linear(256, self.z_dim)
+        self.enc3mean = nn.Linear(256, self.z_size)
+        self.enc3logvar = nn.Linear(256, self.z_size)
 
     def forward(self, x):
-        # encoder | p(z|x)
         x = self.model(x)
         return self.enc3mean(x), self.enc3logvar(x)
 
 
-class DecoderSimpleConv64(nn.Module):
+class DecoderSimpleConv64(BaseDecoderModule):
     """From: https://github.com/amir-abdi/disentanglement-pytorch"""
 
-    def __init__(self, latent_dim, num_channels, image_size):
-        super().__init__()
-        assert image_size == 64, 'This model only works with image size 64x64.'
-        self.z_dim = latent_dim  # REQUIRED
+    def __init__(self, x_shape=(3, 64, 64), z_size=6):
+        # checks
+        assert len(x_shape) == 3
+        img_channels, image_h, image_w = x_shape
+        assert (image_h == 64) and (image_w == 64), 'This model only works with image size 64x64.'
+        # initialise
+        super().__init__(x_shape=x_shape, z_size=z_size)
 
         self.model = nn.Sequential(
             Unsqueeze3D(),
-            nn.Conv2d(latent_dim, 256, 1, 2),
+            nn.Conv2d(img_channels, 256, 1, 2),
             nn.ReLU(True),
             nn.ConvTranspose2d(256, 256, 4, 2, 1),
             nn.ReLU(True),
@@ -138,7 +225,7 @@ class DecoderSimpleConv64(nn.Module):
             nn.ReLU(True),
             nn.ConvTranspose2d(64, 64, 4, 2),
             nn.ReLU(True),
-            nn.ConvTranspose2d(64, num_channels, 3, 1)
+            nn.ConvTranspose2d(64, img_channels, 3, 1)
         )
         # output shape = bs x 3 x 64 x 64
 

@@ -1,46 +1,22 @@
 import torch
 from torch import Tensor
+from disent.model.encoders_decoders import (BaseDecoderModule, BaseGaussianEncoderModule)
 
 
 # ========================================================================= #
 # gaussian encoder model                                                    #
 # ========================================================================= #
-from disent.model.encoders_decoders import DecoderSimpleConv64, EncoderSimpleConv64
 
 
-class GaussianEncoderModel(torch.nn.Module):
+class GaussianEncoderModel(BaseGaussianEncoderModule, BaseDecoderModule):
 
-    def __init__(self, gaussian_encoder: torch.nn.Module, decoder: torch.nn.Module):
-        assert hasattr(gaussian_encoder, 'z_dim'), 'encoder does not define z_dim'
-        assert hasattr(decoder, 'z_dim'), 'decoder does not define z_dim'
-        assert gaussian_encoder.z_dim == decoder.z_dim, 'z_dim mismatch'
-        super().__init__()
-        self.gaussian_encoder = gaussian_encoder
-        self.decoder = decoder
-        self.z_dim = self.gaussian_encoder.z_dim
-
-    def forward(self, x: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
-        """
-        reconstruct the input:
-        x -> encode  | z_mean, z_var
-          -> z       | z ~ p(z|x)
-          -> decode  |
-          -> x_recon | no final activation
-        """
-        # encode
-        z_mean, z_logvar = self.encode_gaussian(x)  # .view(-1, self.x_dim)
-        z = self.sample_from_latent_distribution(z_mean, z_logvar)
-        # decode
-        x_recon = self.decode(z).view(x.size())
-        return x_recon, z_mean, z_logvar, z
-
-    def forward_deterministic(self, x: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
-        # encode
-        z_mean, z_logvar = self.encode_gaussian(x)  # .view(-1, self.x_dim)
-        z = z_mean
-        # decode
-        x_recon = self.decode(z).view(x.size())
-        return x_recon, z_mean, z_logvar, z
+    def __init__(self, gaussian_encoder: BaseGaussianEncoderModule, decoder: BaseDecoderModule):
+        assert gaussian_encoder.x_shape == decoder.x_shape, 'x_shape mismatch'
+        assert gaussian_encoder.x_size == decoder.x_size, 'x_size mismatch - this should never happen if x_shape matches'
+        assert gaussian_encoder.z_size == decoder.z_size, 'z_size mismatch'
+        super().__init__(x_shape=gaussian_encoder.x_shape, z_size=gaussian_encoder.z_size)
+        self._gaussian_encoder = gaussian_encoder
+        self._decoder = decoder
 
     @staticmethod
     def sample_from_latent_distribution(z_mean: Tensor, z_logvar: Tensor) -> Tensor:
@@ -54,41 +30,67 @@ class GaussianEncoderModel(torch.nn.Module):
         eps = torch.randn_like(std)      # N(0, 1)
         return z_mean + (std * eps)      # mu + dot(std, eps)
 
+    def forward(self, x: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
+        """
+        reconstruct the input:
+        x -> encode  | z_mean, z_var
+          -> z       | z ~ p(z|x)
+          -> decode  |
+          -> x_recon | no final activation
+        """
+        # encode
+        z_mean, z_logvar = self.encode_gaussian(x)
+        z = self.sample_from_latent_distribution(z_mean, z_logvar)
+        # decode
+        x_recon = self.decode(z)
+        return x_recon, z_mean, z_logvar, z
+
+    def forward_deterministic(self, x: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
+        # encode
+        z_mean, z_logvar = self.encode_gaussian(x)
+        z = z_mean
+        # decode
+        x_recon = self.decode(z)
+        return x_recon, z_mean, z_logvar, z
+
     def encode_gaussian(self, x: Tensor) -> (Tensor, Tensor):
         """
         Compute the mean and logvar parametrisation for the gaussian
         normal distribution with diagonal covariance ie. the parametrisation for p(z|x).
         """
-        z_mean, z_logvar = self.gaussian_encoder(x)
+        z_mean, z_logvar = self._gaussian_encoder(x)
         return z_mean, z_logvar
 
-    def encode_stochastic(self, x):
+    def encode_stochastic(self, x) -> Tensor:
         z_mean, z_logvar = self.encode_gaussian(x)
         return self.sample_from_latent_distribution(z_mean, z_logvar)
 
-    def encode_deterministic(self, x):
+    def encode_deterministic(self, x) -> Tensor:
         z_mean, z_logvar = self.encode_gaussian(x)
         return z_mean
 
     def decode(self, z: Tensor) -> Tensor:
         """
-        Compute the partial reconstruction of the input from a latent vector.
+        Compute the full reconstruction of the input from a latent vector, passing the
+        decoder through a final activation. This is not numerically stable and should be
+        removed in favour of activation in the loss functions
 
-        The final activation should not be included. This will always be sigmoid
-        and is computed as part of the loss to improve numerical stability.
+        TODO: Compute the partial reconstruction of the input from a latent vector.
+              The final activation should not be included. This will always be sigmoid
+              and is computed as part of the loss to improve numerical stability.
         """
-        x_recon = torch.sigmoid(self.decoder(z))
+        x_recon = torch.sigmoid(self._decoder(z))
         return x_recon
 
-    def random_decoded_samples(self, num_samples):
-        """
-        Return a number of randomly generated reconstructions sampled from a gaussian normal input.
-        """
-        z = torch.randn(num_samples, self.z_dim)
-        if torch.cuda.is_available():  # TODO: this is not gauranteed
-            z = z.cuda()
-        samples = self.decode(z)
-        return samples
+    # def random_decoded_samples(self, num_samples):
+    #     """
+    #     Return a number of randomly generated reconstructions sampled from a gaussian normal input.
+    #     """
+    #     z = torch.randn(num_samples, self.z_size)
+    #     if torch.cuda.is_available():  # TODO: this is not gauranteed
+    #         z = z.cuda()
+    #     samples = self.decode(z)
+    #     return samples
 
     # def reconstruct(self, z: Tensor) -> Tensor:
     #     """

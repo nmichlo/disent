@@ -4,21 +4,18 @@ import torch
 from torch.utils.data import Dataset
 
 import pytorch_lightning as pl
-from pytorch_lightning import loggers
 from pytorch_lightning import Trainer
 
 from disent.util import load_model, save_model
 from disent.loss import make_vae_loss
 from disent.model import make_model, make_optimizer
 from disent.dataset import make_ground_truth_dataset
-from disent.dataset.ground_truth.base import (GroundTruthData, GroundTruthDataset, PairedVariationDataset,
-                                              RandomPairDataset)
+from disent.dataset.ground_truth.base import (GroundTruthData, PairedVariationDataset, RandomPairDataset)
 
 
 # ========================================================================= #
 # xy system                                                                 #
 # ========================================================================= #
-from disent.visualize.util import get_data
 
 
 class VaeSystem(pl.LightningModule):
@@ -44,14 +41,14 @@ class VaeSystem(pl.LightningModule):
                 batch_size=64,
                 num_workers=4,
                 k='uniform',
-                z_dim=6,
+                z_size=6,
             ),
             # custom values
             **(hparams if hparams else {})
         })
 
         # make
-        self.model = make_model(model, z_dim=self.my_hparams.z_dim) if isinstance(model, str) else model
+        self.model = make_model(model, z_size=self.my_hparams.z_size) if isinstance(model, str) else model
         self.loss = make_vae_loss(loss) if isinstance(loss, str) else loss
         self.optimizer = optimizer
         self.dataset_train: Dataset = make_ground_truth_dataset(dataset_train)
@@ -123,7 +120,7 @@ class VaeSystem(pl.LightningModule):
 
 
 if __name__ == '__main__':
-    # system = VaeSystem(dataset_train='dsprites', model='simple-fc', loss='vae', hparams=dict(num_workers=8, batch_size=64, z_dim=6))
+    # system = VaeSystem(dataset_train='dsprites', model='simple-fc', loss='vae', hparams=dict(num_workers=8, batch_size=64, z_size=6))
     # print('Training')
     # trainer = system.quick_train(
     #     steps=16,
@@ -137,7 +134,7 @@ if __name__ == '__main__':
     # loaded_system = VaeSystem.load_from_checkpoint(
     #     checkpoint_path="temp.model",
     #     # constructor
-    #     dataset_train='dsprites', model='simple-fc', loss='vae', hparams=dict(num_workers=8, batch_size=64, z_dim=6)
+    #     dataset_train='dsprites', model='simple-fc', loss='vae', hparams=dict(num_workers=8, batch_size=64, z_size=6)
     # )
     #
     # # print('Done!')
@@ -147,10 +144,10 @@ if __name__ == '__main__':
     # print(params['state_dict']['model.gaussian_encoder.model.1.weight'])
 
 
-    # model = make_model('simple-fc', z_dim=6)
+    # model = make_model('simple-fc', z_size=6)
 
     system = VaeSystem(dataset_train='xygrid', model='simple-fc', loss='vae',
-                       hparams=dict(num_workers=8, batch_size=64, z_dim=6))
+                       hparams=dict(num_workers=8, batch_size=64, z_size=6))
     system.quick_train()
     save_model(system, 'temp.model')
     load_model(system, 'temp.model')
