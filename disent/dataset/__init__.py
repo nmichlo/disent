@@ -35,8 +35,7 @@ def make_ground_truth_data(name, data_dir='data', try_in_memory=True) -> GroundT
         raise KeyError(f'Unsupported Ground Truth Dataset: {name}')
     return data
 
-
-def make_ground_truth_dataset(name, data_dir='data', try_in_memory=True) -> GroundTruthDataset:
+def make_ground_truth_data_transform(name):
     import torchvision
     import torch
 
@@ -55,11 +54,15 @@ def make_ground_truth_dataset(name, data_dir='data', try_in_memory=True) -> Grou
     else:
         raise KeyError(f'Unsupported Ground Truth Dataset: {name}')
 
+    return transform
+
+
+def make_ground_truth_dataset(name, data_dir='data', try_in_memory=True) -> GroundTruthDataset:
     # all datasets are in the range [0, 1] to correspond
     # to the sigmoid activation function.
     return GroundTruthDataset(
         ground_truth_data=make_ground_truth_data(name, data_dir=data_dir, try_in_memory=try_in_memory),
-        transform=transform
+        transform=make_ground_truth_data_transform(name)
     )
 
 

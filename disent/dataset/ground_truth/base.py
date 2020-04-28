@@ -32,11 +32,11 @@ class DiscreteStateSpace(object):
         self._factor_divisors = bases[1:]
         self._factor_modulus = bases[:-1]
 
-    # def __len__(self):
-    #     return self.size
-    #
-    # def __getitem__(self, idx):
-    #     return self.idx_to_pos(idx)
+    def __len__(self):
+        return self.size
+
+    def __getitem__(self, idx):
+        return self.idx_to_pos(idx)
 
     @property
     def size(self):
@@ -104,44 +104,6 @@ class DiscreteStateSpace(object):
 
 
 # ========================================================================= #
-# Convert ground truth data to a dataset                                    #
-# ========================================================================= #
-
-
-class GroundTruthDataset(Dataset):
-    """
-    Converts ground truth data into a dataset
-    """
-
-    def __init__(self, ground_truth_data, transform=None):
-        self.data = ground_truth_data
-        # transform observation
-        self.transform = transform
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, indices):
-        """
-        should return a single observation if an integer index, or
-        an array of observations if indices is an array.
-        """
-        if torch.is_tensor(indices):
-            indices = indices.tolist()
-
-        image = self.data[indices]
-
-        # https://github.com/pytorch/vision/blob/master/torchvision/datasets/mnist.py
-        # PIL Image so that this is consistent with other datasets
-        image = Image.fromarray(image)
-
-        if self.transform:
-            image = self.transform(image)
-
-        return image
-
-
-# ========================================================================= #
 # ground truth data                                                         #
 # ========================================================================= #
 
@@ -183,6 +145,57 @@ class GroundTruthData(DiscreteStateSpace):
     def __getitem__(self, indices):
         raise NotImplementedError
 
+
+# ========================================================================= #
+# Convert ground truth data to a dataset                                    #
+# ========================================================================= #
+
+
+class GroundTruthDataset(Dataset, GroundTruthData):
+    """
+    Converts ground truth data into a dataset
+    """
+
+    def __init__(self, ground_truth_data, transform=None):
+        self.data = ground_truth_data
+        # transform observation
+        self.transform = transform
+        # initialise GroundTruthData
+        super().__init__()
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, indices):
+        """
+        should return a single observation if an integer index, or
+        an array of observations if indices is an array.
+        """
+        if torch.is_tensor(indices):
+            indices = indices.tolist()
+
+        image = self.data[indices]
+
+        # https://github.com/pytorch/vision/blob/master/torchvision/datasets/mnist.py
+        # PIL Image so that this is consistent with other datasets
+        image = Image.fromarray(image)
+
+        if self.transform:
+            image = self.transform(image)
+
+        return image
+
+    @property
+    def factor_names(self) -> Tuple[str, ...]:
+        return self.data.factor_names
+
+    @property
+    def factor_sizes(self) -> Tuple[int, ...]:
+        return self.data.factor_sizes
+
+    @property
+    def observation_shape(self) -> Tuple[int, ...]:
+        return self.data.observation_shape
 
 # ========================================================================= #
 # paired factor of variation data                                        #

@@ -29,11 +29,21 @@ import os
 # from disent.data.ground_truth import named_data
 # from disent.utils import results
 from disent.dataset.util.io import ensure_dir_exists
-from disent.visualize import visualize_util
-from disent.visualize.util import get_data
+from disent.visualize import util, visualize_util
+from disent.visualize.util import get_data, reconstructions_to_images
+from disent.util import to_numpy
 from disent.visualize.visualize_irs import vis_all_interventional_effects
 import numpy as np
-from scipy import stats
+import torch
+
+
+# from scipy import stats
+#
+# def sigmoid(x):
+#     return stats.logistic.cdf(x)
+#
+# def tanh(x):
+#     return np.tanh(x) / 2. + .5
 
 
 def visualize(
@@ -68,8 +78,9 @@ def visualize(
 
     # convert string to dataset if needed
     data = get_data(data)
+
     # get activation function TODO: add support throughout disent
-    activation = dict(logits=sigmoid, tanh=tanh)['logits']
+    # activation = dict(logits=sigmoid, tanh=tanh)['logits']
 
     with hub.eval_function_for_module(os.path.join(model_dir, "tfhub")) as f:
         num_pics = 64
@@ -171,8 +182,7 @@ def latent_traversal_1d_multi_dim(
         generator_fn,
         latent_vector,
         dimensions=None,
-        values=None,
-        transpose=False
+        values=None
 ):
     """Creates latent traversals for a latent vector along multiple dimensions.
 
@@ -199,55 +209,75 @@ def latent_traversal_1d_multi_dim(
         should be transposed.
 
     Returns:
-      Numpy array with image.
+      2d list of images that are outputs from the traversal.
     """
-    if latent_vector.ndim != 1:
-        raise ValueError("Latent vector needs to be 1-dimensional.")
+    # Make sure everything is a numpy array
+    latent_vector = to_numpy(latent_vector)
 
+    # Defualt values
     if dimensions is None:
-        # Default case, use all available dimensions.
-        dimensions = np.arange(latent_vector.shape[0])
-    elif isinstance(dimensions, numbers.Integral):
-        # Check that there are enough dimensions in latent_vector.
-        if dimensions > latent_vector.shape[0]:
-            raise ValueError("The number of dimensions of latent_vector is less than"
-                             " the number of dimensions requested in the arguments.")
-        if dimensions < 1:
-            raise ValueError("The number of dimensions has to be at least 1.")
-        dimensions = np.arange(dimensions)
-    if dimensions.ndim != 1:
-        raise ValueError("Dimensions vector needs to be 1-dimensional.")
-
+        dimensions = latent_vector.shape[0]  # Default case, use all available dimensions.
     if values is None:
-        # Default grid of values.
-        values = np.linspace(-1., 1., num=11)
-    elif isinstance(values, numbers.Integral):
-        if values <= 1:
-            raise ValueError("If an int is passed for values, it has to be >1.")
+        values = 11  # Default case, get 11 evenly spaced samples per factor
+
+    # Handle integers instead of arrays
+    if isinstance(dimensions, numbers.Integral):
+        assert dimensions <= latent_vector.shape[0], "The number of dimensions of latent_vector is less than the number of dimensions requested in the arguments."
+        assert dimensions >= 1, "The number of dimensions has to be at least 1."
+        dimensions = np.arange(dimensions)
+    if isinstance(values, numbers.Integral):
+        assert values > 1, "If an int is passed for values, it has to be >1."
         values = np.linspace(-1., 1., num=values)
-    if values.ndim != 1:
-        raise ValueError("Values vector needs to be 1-dimensional.")
+
+    # Make sure everything is a numpy array
+    dimensions = to_numpy(dimensions)
+    values = to_numpy(values)
+
+    assert latent_vector.ndim == 1, "Latent vector needs to be 1-dimensional."
+    assert dimensions.ndim == 1, "Dimensions vector needs to be 1-dimensional."
+    assert values.ndim == 1, "Values vector needs to be 1-dimensional."
 
     # We iteratively generate the rows/columns for each dimension as different
     # Numpy arrays. We do not preallocate a single final Numpy array as this code
     # is not performance critical and as it reduces code complexity.
-    num_values = len(values)
-    row_or_columns = []
+    factor_images = []
     for dimension in dimensions:
         # Creates num_values copy of the latent_vector along the first axis.
-        latent_traversal_vectors = np.tile(latent_vector, [num_values, 1])
+        latent_traversal_vectors = np.tile(latent_vector, [len(values), 1])
         # Intervenes in the latent space.
         latent_traversal_vectors[:, dimension] = values
         # Generate the batch of images
+        latent_traversal_vectors = torch.as_tensor(latent_traversal_vectors).cuda()
         images = generator_fn(latent_traversal_vectors)
-        # Adds images as a row or column depending whether transpose is True.
-        row_or_columns.append(np.concatenate(images, axis=(1 if transpose else 0)))
-    return np.concatenate(row_or_columns, axis=(0 if transpose else 1))
+        # TODO: better way to transfer this information, models should return output viewed as an image, not flat array
+        images = images.view(-1, 3, 64, 64)
+        factor_images.append(reconstructions_to_images(images))
+
+    return to_numpy(factor_images)
 
 
-def sigmoid(x):
-    return stats.logistic.cdf(x)
 
-
-def tanh(x):
-    return np.tanh(x) / 2. + .5
+# if __name__ == '__main__':
+#
+#     from disent.systems.vae import VaeSystem
+#     from disent.util import load_model, to_numpy
+#     import torch
+#
+#     def make_system(load_path, loss='ada-gvae', dataset='dsprites', model='simple-fc', z_dim=10, epochs=1, steps=None):
+#         system = VaeSystem(dataset_train=dataset, model=model, loss=loss, hparams=dict(lr=0.001, num_workers=8, batch_size=64, z_dim=z_dim))
+#         system = load_model(system, load_path, cuda=False)
+#         return system.cuda()
+#
+#     # CELL
+#
+#     system = make_system(loss='beta-vae', dataset='3dshapes', epochs=1, steps=None, model='simple-fc', load_path='data/trained-e1-3dshapes-simple-fc.ckpt')
+#
+#     # get observations
+#     obs = torch.stack(system.dataset_train.sample_observations(16))
+#     z_mean, z_logvar = system.model.encode_gaussian(obs.cuda())
+#     z_mean = to_numpy(z_mean)
+#
+#     for i in range(z_mean.shape[1]):
+#         pics = latent_traversal_1d_multi_dim(system.model.decode, z_mean[i, :], None)
+#         util.plt_images_grid(pics)
+#         # visualize_util.grid_save_images([pics], os.path.join(results_dir, f"traversals_{i}.jpg"))

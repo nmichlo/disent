@@ -34,9 +34,10 @@ def to_numpy(array):
     """
     if torch.is_tensor(array):
         return array.cpu().detach().numpy()
-    # TODO: is this really necessary? recursion?
-    # elif isinstance(array, (list, tuple)):
-    #     return np.array([to_numpy(elem for elem in array)])
+    # recursive conversion
+    # not super efficient but allows handling of PIL.Image and other nested data.
+    elif isinstance(array, (list, tuple)):
+        return np.array([to_numpy(elem) for elem in array])
     else:
         return np.array(array)
 

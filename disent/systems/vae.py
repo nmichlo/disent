@@ -11,12 +11,14 @@ from disent.util import load_model, save_model
 from disent.loss import make_vae_loss
 from disent.model import make_model, make_optimizer
 from disent.dataset import make_ground_truth_dataset
-from disent.dataset.ground_truth.base import GroundTruthData, PairedVariationDataset, RandomPairDataset
+from disent.dataset.ground_truth.base import (GroundTruthData, GroundTruthDataset, PairedVariationDataset,
+                                              RandomPairDataset)
 
 
 # ========================================================================= #
 # xy system                                                                 #
 # ========================================================================= #
+from disent.visualize.util import get_data
 
 
 class VaeSystem(pl.LightningModule):
@@ -52,7 +54,7 @@ class VaeSystem(pl.LightningModule):
         self.model = make_model(model, z_dim=self.my_hparams.z_dim) if isinstance(model, str) else model
         self.loss = make_vae_loss(loss) if isinstance(loss, str) else loss
         self.optimizer = optimizer
-        self.dataset_train: Dataset = make_ground_truth_dataset(dataset_train) if isinstance(dataset_train, str) else dataset_train
+        self.dataset_train: Dataset = make_ground_truth_dataset(dataset_train)
 
         # convert dataset for paired loss
         if self.loss.is_pair_loss:

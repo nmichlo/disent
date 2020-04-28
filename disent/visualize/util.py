@@ -48,13 +48,13 @@ def reconstructions_to_images(x_recon):
 
 def plt_subplots_grid(h, w, figsize_ratio=1, space=0):
     fig, axs = plt.subplots(h, w, figsize=(w*figsize_ratio, h*figsize_ratio))
-    fig.subplots_adjust(wspace=space*figsize_ratio, hspace=space*figsize_ratio)
+    axs = np.array(axs)
     # remove spacing
     fig.subplots_adjust(wspace=space*figsize_ratio, hspace=space*figsize_ratio)
     # remove axis
-    for ax in np.array(axs).flatten():
+    for ax in axs.flatten():
         ax.axis('off')
-    return fig, axs
+    return fig, axs.reshape(h, w)
 
 def plt_images_grid(image_grid, figsize_ratio=1, space=0, swap_xy=False):
     # swap x and y axis
@@ -74,7 +74,7 @@ def plt_images_minimal_square(image_list, figsize_ratio=1, space=0):
     # minimal square
     size = int(np.ceil(len(image_list) ** 0.5))
     # DISPLAY IMAGES
-    fig, axs = fig, axs = plt_subplots_grid(size, size, figsize_ratio, space)
+    fig, axs = plt_subplots_grid(size, size, figsize_ratio, space)
     for ax, img in zip(np.array(axs).flatten(), image_list):
         ax.imshow(img)
     return fig, axs
