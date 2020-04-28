@@ -32,7 +32,7 @@ from disent.dataset.util.io import ensure_dir_exists
 from disent.visualize import util, visualize_util
 from disent.visualize.util import get_data, reconstructions_to_images
 from disent.util import to_numpy
-from disent.visualize.visualize_irs import vis_all_interventional_effects
+# from disent.visualize.visualize_irs import vis_all_interventional_effects
 import numpy as np
 import torch
 
@@ -85,97 +85,109 @@ def visualize(
     with hub.eval_function_for_module(os.path.join(model_dir, "tfhub")) as f:
         num_pics = 64
 
-        # Save reconstructions.
-        real_pics = data.sample_observations(num_pics)
-        raw_pics = f(dict(images=real_pics), signature="reconstructions", as_dict=True)["images"]
-        pics = activation(raw_pics)
-        paired_pics = np.concatenate((real_pics, pics), axis=2)
-        paired_pics = [paired_pics[i, :, :, :] for i in range(paired_pics.shape[0])]
-        results_dir = ensure_dir_exists(output_dir, "reconstructions")
-        visualize_util.grid_save_images(paired_pics, os.path.join(results_dir, "reconstructions.jpg"))
+        def _save_reconstructions():
+            # Save reconstructions.
+            real_pics = data.sample_observations(num_pics)
+            raw_pics = f(dict(images=real_pics), signature="reconstructions", as_dict=True)["images"]
+            pics = activation(raw_pics)
+            paired_pics = np.concatenate((real_pics, pics), axis=2)
+            paired_pics = [paired_pics[i, :, :, :] for i in range(paired_pics.shape[0])]
+            results_dir = ensure_dir_exists(output_dir, "reconstructions")
+            visualize_util.grid_save_images(paired_pics, os.path.join(results_dir, "reconstructions.jpg"))
 
-        # Save samples.
         def _decoder(latent_vectors):
             return f(dict(latent_vectors=latent_vectors), signature="decoder", as_dict=True)["images"]
 
-        random_codes = np.random.normal(0, 1, [num_pics, num_latent])
-        pics = activation(_decoder(random_codes))
-        results_dir = ensure_dir_exists(output_dir, "sampled")
-        visualize_util.grid_save_images(pics, os.path.join(results_dir, "samples.jpg"))
+        def _save_samples():
+            # Save samples.
+            random_codes = np.random.normal(0, 1, [num_pics, num_latent])
+            pics = activation(_decoder(random_codes))
+            results_dir = ensure_dir_exists(output_dir, "sampled")
+            visualize_util.grid_save_images(pics, os.path.join(results_dir, "samples.jpg"))
 
-        # Save latent traversals.
-        result = f({'images': data.sample_observations(num_pics)}, signature="gaussian_encoder", as_dict=True)
-        means = result["mean"]
-        logvars = result["logvar"]
-        results_dir = ensure_dir_exists(output_dir, "traversals")
-        for i in range(means.shape[1]):
-            pics = activation(latent_traversal_1d_multi_dim(_decoder, means[i, :], None))
-            visualize_util.grid_save_images([pics], os.path.join(results_dir, f"traversals_{i}.jpg"))
+        def _save_latent_traversals():
+            # Save latent traversals.
+            result = f({'images': data.sample_observations(num_pics)}, signature="gaussian_encoder", as_dict=True)
+            means = result["mean"]
+            logvars = result["logvar"]
+            results_dir = ensure_dir_exists(output_dir, "traversals")
+            for i in range(means.shape[1]):
+                pics = activation(latent_traversal_1d_multi_dim(_decoder, means[i, :], None))
+                visualize_util.grid_save_images([pics], os.path.join(results_dir, f"traversals_{i}.jpg"))
 
         # Save the latent traversal animations.
         results_dir = ensure_dir_exists(output_dir, "animated_traversals")
 
-        # Cycle through quantiles of a standard Gaussian.
-        for i, base_code in enumerate(means[:num_animations]):
-            images = []
-            for j in range(base_code.shape[0]):
-                code = np.repeat(np.expand_dims(base_code, 0), num_frames, axis=0)
-                code[:, j] = visualize_util.cycle_gaussian(base_code[j], num_frames)
-                images.append(np.array(activation(_decoder(code))))
-            filename = os.path.join(results_dir, f"std_gaussian_cycle_{i}.gif")
-            visualize_util.save_animation(np.array(images), filename, fps)
-
-        # Cycle through quantiles of a fitted Gaussian.
-        for i, base_code in enumerate(means[:num_animations]):
-            images = []
-            for j in range(base_code.shape[0]):
-                code = np.repeat(np.expand_dims(base_code, 0), num_frames, axis=0)
-                loc = np.mean(means[:, j])
-                total_variance = np.mean(np.exp(logvars[:, j])) + np.var(means[:, j])
-                code[:, j] = visualize_util.cycle_gaussian(base_code[j], num_frames, loc=loc, scale=np.sqrt(total_variance))
-                images.append(np.array(activation(_decoder(code))))
-            filename = os.path.join(results_dir, f"fitted_gaussian_cycle_{i}.gif")
-            visualize_util.save_animation(np.array(images), filename, fps)
-
-        # Cycle through [-2, 2] interval.
-        for i, base_code in enumerate(means[:num_animations]):
-            images = []
-            for j in range(base_code.shape[0]):
-                code = np.repeat(np.expand_dims(base_code, 0), num_frames, axis=0)
-                code[:, j] = visualize_util.cycle_interval(base_code[j], num_frames, -2., 2.)
-                images.append(np.array(activation(_decoder(code))))
-            filename = os.path.join(results_dir, f"fixed_interval_cycle_{i}.gif")
-            visualize_util.save_animation(np.array(images), filename, fps)
-
-        # Cycle linearly through +-2 std dev of a fitted Gaussian.
-        for i, base_code in enumerate(means[:num_animations]):
-            images = []
-            for j in range(base_code.shape[0]):
-                code = np.repeat(np.expand_dims(base_code, 0), num_frames, axis=0)
-                loc = np.mean(means[:, j])
-                total_variance = np.mean(np.exp(logvars[:, j])) + np.var(means[:, j])
-                scale = np.sqrt(total_variance)
-                code[:, j] = visualize_util.cycle_interval(base_code[j], num_frames, loc - 2. * scale, loc + 2. * scale)
-                images.append(np.array(activation(_decoder(code))))
-            filename = os.path.join(results_dir, f"conf_interval_cycle_{i}.gif")
-            visualize_util.save_animation(np.array(images), filename, fps)
-
-        # Cycle linearly through minmax of a fitted Gaussian.
-        for i, base_code in enumerate(means[:num_animations]):
-            images = []
-            for j in range(base_code.shape[0]):
-                code = np.repeat(np.expand_dims(base_code, 0), num_frames, axis=0)
-                code[:, j] = visualize_util.cycle_interval(base_code[j], num_frames, np.min(means[:, j]), np.max(means[:, j]))
-                images.append(np.array(activation(_decoder(code))))
-            filename = os.path.join(results_dir, f"minmax_interval_cycle_{i}.gif")
-            visualize_util.save_animation(np.array(images), filename, fps)
+        _general_latent_cycle('std_gaussian_cycle')
+        _general_latent_cycle('fitted_gaussian_cycle')
+        _general_latent_cycle('fixed_interval_cycle')
+        _general_latent_cycle('conf_interval_cycle')
+        _general_latent_cycle('minmax_interval_cycle')
 
         # Interventional effects visualization.
-        factors = data.sample_factors(num_points_irs)
-        obs = data.sample_observations_from_factors(factors)
-        latents = f(dict(images=obs), signature="gaussian_encoder", as_dict=True)["mean"]
-        results_dir = os.path.join(output_dir, "interventional_effects")
-        vis_all_interventional_effects(factors, latents, results_dir)
+        # factors = data.sample_factors(num_points_irs)
+        # obs = data.sample_observations_from_factors(factors)
+        # latents = f(dict(images=obs), signature="gaussian_encoder", as_dict=True)["mean"]
+        # results_dir = os.path.join(output_dir, "interventional_effects")
+        # vis_all_interventional_effects(factors, latents, results_dir)
+
+def _get_code_std_gaussian_cycle():
+    # Cycle through quantiles of a standard Gaussian.
+    code = np.repeat(np.expand_dims(base_code, 0), num_frames, axis=0)
+    code[:, j] = visualize_util.cycle_gaussian(base_code[j], num_frames)
+    return code
+
+def _get_code_fitted_gaussian_cycle():
+    # Cycle through quantiles of a fitted Gaussian.
+    code = np.repeat(np.expand_dims(base_code, 0), num_frames, axis=0)
+    loc = np.mean(means[:, j])
+    total_variance = np.mean(np.exp(logvars[:, j])) + np.var(means[:, j])
+    code[:, j] = visualize_util.cycle_gaussian(base_code[j], num_frames, loc=loc, scale=np.sqrt(total_variance))
+    return code
+
+def _get_code_fixed_interval_cycle():
+    # Cycle through [-2, 2] interval.
+    code = np.repeat(np.expand_dims(base_code, 0), num_frames, axis=0)
+    code[:, j] = visualize_util.cycle_interval(base_code[j], num_frames, -2., 2.)
+    return code
+
+def _get_code_conf_interval_cycle():
+    # Cycle linearly through +-2 std dev of a fitted Gaussian.
+    code = np.repeat(np.expand_dims(base_code, 0), num_frames, axis=0)
+    loc = np.mean(means[:, j])
+    total_variance = np.mean(np.exp(logvars[:, j])) + np.var(means[:, j])
+    scale = np.sqrt(total_variance)
+    code[:, j] = visualize_util.cycle_interval(base_code[j], num_frames, loc - 2. * scale, loc + 2. * scale)
+    return code
+
+def _get_code_minmax_interval_cycle():
+    # Cycle linearly through minmax of a fitted Gaussian.
+    code = np.repeat(np.expand_dims(base_code, 0), num_frames, axis=0)
+    code[:, j] = visualize_util.cycle_interval(base_code[j], num_frames, np.min(means[:, j]), np.max(means[:, j]))
+    return code
+
+_LATENT_CYCLE_MODES = {
+    'std_gaussian_cycle': _get_code_std_gaussian_cycle,
+    'fitted_gaussian_cycle': _get_code_fitted_gaussian_cycle,
+    'fixed_interval_cycle': _get_code_fixed_interval_cycle,
+    'conf_interval_cycle': _get_code_conf_interval_cycle,
+    'minmax_interval_cycle': _get_code_minmax_interval_cycle,
+}
+
+
+def _general_latent_cycle(mode=''):
+    z_gen_func = _LATENT_CYCLE_MODES[mode]
+    for i, base_code in enumerate(means[:num_animations]):
+        images = []
+        for j in range(base_code.shape[0]):
+            code = z_gen_func()
+            images.append(np.array(activation(_decoder(code))))
+        visualize_util.save_animation(np.array(images), os.path.join(results_dir, f"{mode}_{i}.gif"), fps=fps)
+
+
+# ========================================================================= #
+# Visualise varying single factor for model                                 #
+# ========================================================================= #
 
 
 def latent_traversal_1d_multi_dim(
@@ -247,14 +259,18 @@ def latent_traversal_1d_multi_dim(
         # Intervenes in the latent space.
         latent_traversal_vectors[:, dimension] = values
         # Generate the batch of images
+        # TODO: fix, not always going to be right
         latent_traversal_vectors = torch.as_tensor(latent_traversal_vectors).cuda()
         images = generator_fn(latent_traversal_vectors)
         # TODO: better way to transfer this information, models should return output viewed as an image, not flat array
-        images = images.view(-1, 3, 64, 64)
         factor_images.append(reconstructions_to_images(images))
 
     return to_numpy(factor_images)
 
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #
 
 
 # if __name__ == '__main__':
@@ -263,8 +279,8 @@ def latent_traversal_1d_multi_dim(
 #     from disent.util import load_model, to_numpy
 #     import torch
 #
-#     def make_system(load_path, loss='ada-gvae', dataset='dsprites', model='simple-fc', z_dim=10, epochs=1, steps=None):
-#         system = VaeSystem(dataset_train=dataset, model=model, loss=loss, hparams=dict(lr=0.001, num_workers=8, batch_size=64, z_dim=z_dim))
+#     def make_system(load_path, loss='ada-gvae', dataset='dsprites', model='simple-fc', z_size=10, epochs=1, steps=None):
+#         system = VaeSystem(dataset_train=dataset, model=model, loss=loss, hparams=dict(lr=0.001, num_workers=8, batch_size=64, z_size=z_size))
 #         system = load_model(system, load_path, cuda=False)
 #         return system.cuda()
 #
