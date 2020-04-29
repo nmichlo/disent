@@ -112,7 +112,7 @@ def save_dataset_visualisations(data: Union[str, GroundTruthData], output_path=N
 
     # Save animations.
     for i, images in enumerate(visualise_get_animations(data, num_animations=num_animations, num_frames=num_frames)):
-        visualize_util.save_animation(
+        visualize_util.save_grid_animation(
             images,
             os.path.join(path, f"animation_{i}.gif"),
             fps=fps

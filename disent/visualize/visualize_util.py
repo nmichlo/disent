@@ -27,7 +27,7 @@ Utility functions for the visualization code.
 import math
 import numpy as np
 from PIL import Image
-import scipy
+import scipy.stats
 import imageio
 
 
@@ -171,7 +171,9 @@ def pad_around(image, padding_px=10, axis=None, value=None):
 #
 #     return padded_stack([image, footer], padding_px, axis=0, value=value)
 
-def save_animation(list_of_animated_images, image_path, fps):
+def save_grid_animation(list_of_animated_images, image_path, fps):
+    assert list_of_animated_images.dtype == np.uint8, f'{list_of_animated_images.dtype}'
+
     full_size_images = []
     for single_images in zip(*list_of_animated_images):
         full_size_images.append(

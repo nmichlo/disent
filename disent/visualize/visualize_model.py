@@ -18,7 +18,7 @@
 # ADAPTED FROM Google's disentanglement_lib:
 # https://github.com/google-research/disentanglement_lib
 #
-# Modified for pytorch and disent by Nathan Michlo
+# (Major) Modifications for pytorch and disent by Nathan Michlo
 
 """
 Visualization module for disentangled representations.
@@ -26,16 +26,14 @@ Visualization module for disentangled representations.
 
 import numbers
 import os
-# from disent.data.ground_truth import named_data
-# from disent.utils import results
 from disent.dataset.util.io import ensure_dir_exists
-from disent.visualize import util, visualize_util
-from disent.visualize.util import (get_data, get_dataset, plt_images_grid, plt_images_minimal_square,
-                                   reconstructions_to_images)
+from disent.visualize import visualize_util
+from disent.visualize.util import (get_dataset, plt_images_grid, plt_images_minimal_square, reconstructions_to_images)
 from disent.util import to_numpy
-# from disent.visualize.visualize_irs import vis_all_interventional_effects
 import numpy as np
 import torch
+
+
 
 
 # ========================================================================= #
@@ -159,22 +157,18 @@ def plt_latent_random_samples(decoder_fn, z_size, num_samples=16, figsize_ratio=
 #         images = latent_traversal_1d_multi_dim(system.model.decode, z_mean[z_idx, :], dimensions=dimensions, values=values)
 #         plt_images_grid(images, figsize_ratio=figsize_ratio)
 
-def latent_traversals(gaussian_encoder_fn, decoder_fn, dataset, num_samples=4, dimensions=None, values=None):
-    # random encoded samples
-    # TODO: cuda wont always be correct
-    obs = torch.stack(dataset.sample_observations(num_samples)).cuda()
-    z_mean, z_logvar = gaussian_encoder_fn(obs)
+def latent_traversals(z_mean, decoder_fn, dimensions=None, values=None):
     # for each sample
     traversals = []
-    for i in range(num_samples):
+    for i in range(len(z_mean)):
         # TODO: add support for cycle methods from below? Is that actually useful?
         grid = latent_traversal_1d_multi_dim(decoder_fn, z_mean[i, :], dimensions=dimensions, values=values)
         traversals.append(grid)
     # return
     return to_numpy(traversals)
 
-def plt_traverse_latent_space(gaussian_encoder_fn, decoder_fn, dataset, num_samples=4, dimensions=None, values=None, figsize_ratio=0.75):
-    traversals = latent_traversals(gaussian_encoder_fn, decoder_fn, dataset, num_samples=num_samples, dimensions=dimensions, values=values)
+def plt_traverse_latent_space(z_mean, decoder_fn, dimensions=None, values=None, figsize_ratio=0.75):
+    traversals = latent_traversals(z_mean, decoder_fn, dimensions=dimensions, values=values)
     for images_grid in traversals:
         plt_images_grid(images_grid, figsize_ratio=figsize_ratio)
 
@@ -228,15 +222,20 @@ LATENT_CYCLE_MODES = {
 }
 
 def latent_cycle(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', num_animations=4, num_frames=20):
+    # convert
+    z_means, z_logvars = to_numpy(z_means), to_numpy(z_logvars)
+    # get mode
     z_gen_func = LATENT_CYCLE_MODES[mode]
     animations = []
     for i, base_z in enumerate(z_means[:num_animations]):
         frames = []
         for j in range(base_z.shape[0]):
             z = z_gen_func(base_z, z_means, z_logvars, j, num_frames)
+            z = torch.as_tensor(z).cuda()  # TODO: wont always be cuda
             frames.append(reconstructions_to_images(decoder_func(z)))
         animations.append(frames)
     return to_numpy(animations)
+
 
 # ========================================================================= #
 # Visualise Reconstructions                                                 #
@@ -297,6 +296,7 @@ def save_model_visualisations(
     # Create the output directory if necessary.
     if os.path.isdir(output_dir):
         if overwrite:
+            print(f'[WARNING] Directory Exists... DELETING: {output_dir}')
             import shutil
             shutil.rmtree(output_dir)
         else:
@@ -308,12 +308,16 @@ def save_model_visualisations(
     # TODO: get activation function | add support throughout disent
     # activation = dict(logits=sigmoid, tanh=tanh)['logits']
 
+    # sample random observations & feed forward | used for visualisations
+    obs = torch.stack(dataset.sample_observations(num_images)).cuda()  # TODO: cuda wont always be right
+    z_means, z_logvars = gaussian_encoder_fn(obs)
+    x_recons = decoder_fn(z_means)
+
     # Save reconstructions.
-    obs, x_recon = sample_observations_and_reconstruct(gaussian_encoder_fn, decoder_fn, dataset, num_samples=num_images)
     results_dir = ensure_dir_exists(output_dir, "reconstructions")
-    visualize_util.minimal_square_save_images(obs, os.path.join(results_dir, "reconstructions_input.jpg"))
-    visualize_util.minimal_square_save_images(x_recon, os.path.join(results_dir, "reconstructions_output.jpg"))
-    visualize_util.minimal_square_save_images(np.concatenate([obs, x_recon], axis=2), os.path.join(results_dir, "reconstructions.jpg"))
+    visualize_util.minimal_square_save_images(reconstructions_to_images(obs), os.path.join(results_dir, "reconstructions_input.jpg"))
+    visualize_util.minimal_square_save_images(reconstructions_to_images(x_recons), os.path.join(results_dir, "reconstructions_output.jpg"))
+    visualize_util.minimal_square_save_images(np.concatenate([reconstructions_to_images(obs), reconstructions_to_images(x_recons)], axis=2), os.path.join(results_dir, "reconstructions.jpg"))
 
     # Save samples.
     results_dir = ensure_dir_exists(output_dir, "sampled")
@@ -322,18 +326,20 @@ def save_model_visualisations(
 
     # Save latent traversals.
     results_dir = ensure_dir_exists(output_dir, "traversals")
-    traversals = latent_traversals(gaussian_encoder_fn, decoder_fn, dataset, num_images)
+    traversals = latent_traversals(z_means, decoder_fn)
     for i, image_grid in enumerate(traversals):
         visualize_util.grid_save_images(image_grid, os.path.join(results_dir, f"traversals_{i}.jpg"))
 
     # Save the latent traversal animations.
     results_dir = ensure_dir_exists(output_dir, "animated_traversals")
     for mode in LATENT_CYCLE_MODES:
-        animations = latent_cycle(decoder_func=decoder_fn, z_means=z_means, z_logvars=z_logvars, num_animations=num_animations, mode=mode)
+        animations = latent_cycle(decoder_fn, z_means, z_logvars, num_animations=num_animations, mode=mode)
+        animations = reconstructions_to_images(animations, mode='int', moveaxis=False)  # axis already moved above
         for i, animation in enumerate(animations):
-            visualize_util.save_animation(animation, os.path.join(results_dir, f"{mode}_{i}.gif"), fps=fps)
+            visualize_util.save_grid_animation(animation, os.path.join(results_dir, f"{mode}_{i}.gif"), fps=fps)
 
     # TODO: Interventional effects visualization.
+    # from disent.visualize.visualize_irs import vis_all_interventional_effects
     # factors = data.sample_factors(num_points_irs)
     # obs = data.sample_observations_from_factors(factors)
     # latents = f(dict(images=obs), signature="gaussian_encoder", as_dict=True)["mean"]
@@ -348,13 +354,10 @@ def save_model_visualisations(
 
 if __name__ == '__main__':
 
-    from disent.systems.vae import VaeSystem
-    from disent.util import load_model, to_numpy
-    import matplotlib.pyplot as plt
-    import torch
-
     # MAKE SYSTEM
-    def make_system(load_path, loss='ada-gvae', dataset='dsprites', model='simple-fc', z_size=6) -> VaeSystem:
+    def make_system(load_path, loss='ada-gvae', dataset='dsprites', model='simple-fc', z_size=6) -> 'VaeSystem':
+        from disent.systems.vae import VaeSystem
+        from disent.util import load_model
         system = VaeSystem(dataset_train=dataset, model=model, loss=loss, hparams=dict(lr=0.001, num_workers=8, batch_size=64, z_size=z_size))
         system = load_model(system, load_path, cuda=True)
         return system
@@ -371,17 +374,17 @@ if __name__ == '__main__':
         overwrite=True,
         num_images=16,
         num_animations=5,
-        num_frames=20,
+        num_frames=30,
         fps=10,
     )
 
-#     # get observations
-#     obs = torch.stack(system.dataset_train.sample_observations(16))
-#     z_mean, z_logvar = system.model.encode_gaussian(obs.cuda())
-#     z_mean = to_numpy(z_mean)
-#
-#     for z_idx in range(z_mean.shape[1]):
-#         images = latent_traversal_1d_multi_dim(system.model.decode, z_mean[z_idx, :], None)
-#         util.plt_images_grid(images)
-#         plt.show()
-#         # visualize_util.grid_save_images([pics], os.path.join(results_dir, f"traversals_{z_idx}.jpg"))
+    # get observations
+    # obs = torch.stack(system.dataset_train.sample_observations(16))
+    # z_mean, z_logvar = system.model.encode_gaussian(obs.cuda())
+    # z_mean = to_numpy(z_mean)
+    #
+    # for z_idx in range(z_mean.shape[1]):
+    #     images = latent_traversal_1d_multi_dim(system.model.decode, z_mean[z_idx, :], None)
+    #     util.plt_images_grid(images)
+    #     plt.show()
+    #     # visualize_util.grid_save_images([pics], os.path.join(results_dir, f"traversals_{z_idx}.jpg"))

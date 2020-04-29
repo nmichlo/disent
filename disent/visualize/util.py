@@ -23,33 +23,36 @@ def get_dataset(dataset: Union[str, GroundTruthDataset]):
 # visualise_util                                                            #
 # ========================================================================= #
 
-def reconstruction_to_image(recon, mode='float'):
-    """
-    Convert a single reconstruction to an image
-    """
-    return reconstructions_to_images([recon], mode)[0]
-
-def reconstructions_to_images(recon, mode='float'):
+def reconstructions_to_images(recon, mode='float', moveaxis=True):
     """
     Convert a batch of reconstructions to images.
-    NOTE: This function is not efficient for large amounts of data
-    """
+    A batch in this case consists of an arbitrary number of dimensions of an array,
+    with the last 3 dimensions making up the actual image. For example: (..., channels, size, size)
 
+    NOTE: This function might not be efficient for large amounts of
+          data due to assertions and initial recursive conversions to a numpy array.
+    """
     img = to_numpy(recon)
     # checks
-    assert img.ndim == 4
+    assert img.ndim >= 3
     assert img.dtype in (np.float32, np.float64)
     assert 0 <= np.min(img) <= 1
     assert 0 <= np.max(img) <= 1
     # move channels axis
-    img = np.moveaxis(img, 1, -1)
+    if moveaxis:
+        img = np.moveaxis(img, -3, -1)
     # convert
     if mode == 'float':
         return img
     elif mode == 'int':
         return np.uint8(img * 255)
     elif mode == 'pil':
-        return [Image.fromarray(im) for im in np.uint8(img * 255)]
+        img = np.uint8(img * 255)
+        # WOW! I did not expect that to work for
+        # all the cases (ndim == 3)... bravo numpy, bravo!
+        images = [Image.fromarray(img[idx]) for idx in np.ndindex(img.shape[:-3])]
+        images = np.array(images, dtype=object).reshape(img.shape[:-3])
+        return images
     else:
         raise KeyError(f'Invalid mode: {repr(mode)} not in { {"float", "int", "pil"} }')
 
@@ -90,6 +93,27 @@ def plt_images_minimal_square(image_list, figsize_ratio=1, space=0):
     for ax, img in zip(np.array(axs).flatten(), image_list):
         ax.imshow(img)
     return fig, axs
+
+
+# ========================================================================= #
+# notebook                                                                  #
+# ========================================================================= #
+
+
+def notebook_display_animation(frames):
+    """
+    Display an animation within an IPython notebook.
+    - Internally converts the list of frames into bytes
+      representing a gif images and then displays them.
+    """
+    from IPython.core.interactiveshell import InteractiveShell
+    InteractiveShell.ast_node_interactivity = "all"
+    from IPython import display
+    from imageio import mimwrite
+    # convert to gif and get bytes | https://imageio.readthedocs.io/en/stable/userapi.html
+    data = mimwrite('<bytes>', to_numpy(frames), format='gif')
+    # diplay gif image in notebook | https://github.com/ipython/ipython/issues/10045#issuecomment-522697219
+    display.Image(data=data, format='gif')
 
 
 # ========================================================================= #
