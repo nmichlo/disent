@@ -4,11 +4,10 @@ import torch
 
 from disent.systems.vae import VaeSystem
 from disent.util import to_numpy
-from disent.visualize.util import reconstructions_to_images
 from disent.visualize.visualize_dataset import sample_dataset_animations, sample_dataset_still_images
 from disent.visualize.visualize_model import (LATENT_CYCLE_MODES, latent_random_samples, latent_traversals,
                                               sample_observations_and_reconstruct, latent_cycle)
-from disent.visualize.visualize_util import gridify_animation
+from disent.visualize.visualize_util import gridify_animation, reconstructions_to_images
 
 
 # ========================================================================= #

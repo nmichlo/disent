@@ -28,7 +28,8 @@ import numbers
 import os
 from disent.dataset.util.io import ensure_dir_exists
 from disent.visualize import visualize_util
-from disent.visualize.util import (get_dataset, reconstructions_to_images)
+from disent.dataset import as_dataset
+from disent.visualize.visualize_util import reconstructions_to_images
 from disent.util import to_numpy
 import numpy as np
 import torch
@@ -266,7 +267,7 @@ def save_model_visualisations(
             raise ValueError("Directory already exists and overwrite is False.")
 
     # convert string to dataset if needed
-    dataset = get_dataset(dataset)
+    dataset = as_dataset(dataset)
 
     # TODO: get activation function | add support throughout disent
     # activation = dict(logits=sigmoid, tanh=tanh)['logits']

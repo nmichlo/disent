@@ -15,6 +15,8 @@ def seed(long=777):
     """
     https://pytorch.org/docs/stable/notes/randomness.html
     """
+    # TODO: this is automatically handled by the sacred experiment manager if we transition to that.
+    #       just check... except for torch.backends?
     torch.manual_seed(long)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
@@ -95,7 +97,7 @@ def load_model(model, path, cuda=True, skip_if_missing=False):
 # STRINGS                                                                   #
 # ========================================================================= #
 
-
+# TODO: make this return a string not actually print out so it can be used with logging
 def print_separator(text, header=None, width=100, char_v='#', char_h='=', char_corners=None):
     """
     function wraps text between two lines or inside a box with lines on either side.
@@ -140,6 +142,7 @@ def print_box(text, header=None, width=100):
 # ========================================================================= #
 
 
+# TODO: this is replaced with pytorch lightning profiling
 # class Measure:
 #     """
 #     This class is intended to measure the runtime of a section of code, using the 'with' statement.
@@ -149,7 +152,6 @@ def print_box(text, header=None, width=100):
 #         print("I am being timed")
 #
 #     TODO: change so that this averages all the iterations within one level of the call stack.
-#
 #     FROM: my obstacle_tower project
 #     """
 #
@@ -196,12 +198,11 @@ def print_box(text, header=None, width=100):
 # Config Files                                                              #
 # ========================================================================= #
 
-
+# TODO: use sacred/gin (experiment/config managers) instead
 # def config_file(config_path, default=None):
 #     """
 #     Decorator that converts a class to a named tuple,
 #     setting or replacing defaults from a config file.
-#     TODO: Maybe i should remove this....
 #
 #     FROM: my obstacle_tower project
 #     """

@@ -33,6 +33,11 @@ import imageio
 from disent.util import to_numpy
 
 
+# ========================================================================= #
+# Saving Images/Animations | FROM: disentanglement_lib                      #
+# ========================================================================= #
+
+
 def save_image(image, image_path):
     """Saves an image in the [0,1]-valued Numpy array to image_path.
 
@@ -78,12 +83,25 @@ def minimal_square_save_images(images, image_path):
     tiled_image = np.concatenate(image_rows, axis=1)
     save_image(tiled_image, image_path)
 
+
 def grid_save_images(image_grid, image_path):
     assert 0 <= np.max(image_grid) <= 1
     assert 0 <= np.min(image_grid) <= 1
     image_rows = [np.concatenate(row, axis=0) for row in image_grid]
     image = np.concatenate(image_rows, axis=1)
     save_image(image, image_path)
+
+
+def save_gridified_animation(list_of_animated_images, image_path, fps):
+    assert list_of_animated_images.dtype == np.uint8, f'{list_of_animated_images.dtype}'
+    full_size_images = gridify_animation(list_of_animated_images)
+    imageio.mimwrite(image_path, full_size_images, fps=fps)
+
+
+# ========================================================================= #
+# operations on Images/Animations | FROM: disentanglement_lib               #
+# ========================================================================= #
+
 
 def padded_grid(images, num_rows=None, padding_px=10, value=None):
     """Creates a grid with padding in between images."""
@@ -124,24 +142,6 @@ def padding_array(image, padding_px, axis, value=None):
         shape[-1] = 1
         return np.tile(value, shape)
 
-
-def best_num_rows(num_elements, max_ratio=4):
-    """Automatically selects a smart number of rows."""
-    best_remainder = num_elements
-    best_i = None
-    i = int(np.sqrt(num_elements))
-    while True:
-        if num_elements > max_ratio * i * i:
-            return best_i
-        remainder = (i - num_elements % i) % i
-        if remainder == 0:
-            return i
-        if remainder < best_remainder:
-            best_remainder = remainder
-            best_i = i
-        i -= 1
-
-
 def pad_around(image, padding_px=10, axis=None, value=None):
     """Adds a padding around each image."""
     # If axis is None, pad both the first and the second axis.
@@ -150,6 +150,13 @@ def pad_around(image, padding_px=10, axis=None, value=None):
         axis = 1
     padding_arr = padding_array(image, padding_px, axis, value=value)
     return np.concatenate([padding_arr, image, padding_arr], axis=axis)
+
+
+def gridify_animation(list_of_animated_images):
+    full_size_images = []
+    for single_images in zip(*list_of_animated_images):
+        full_size_images.append(pad_around(padded_grid(list(single_images))))
+    return to_numpy(full_size_images)
 
 
 # def add_below(image, padding_px=10, value=None):
@@ -173,16 +180,33 @@ def pad_around(image, padding_px=10, axis=None, value=None):
 #
 #     return padded_stack([image, footer], padding_px, axis=0, value=value)
 
-def gridify_animation(list_of_animated_images):
-    full_size_images = []
-    for single_images in zip(*list_of_animated_images):
-        full_size_images.append(pad_around(padded_grid(list(single_images))))
-    return to_numpy(full_size_images)
 
-def save_gridified_animation(list_of_animated_images, image_path, fps):
-    assert list_of_animated_images.dtype == np.uint8, f'{list_of_animated_images.dtype}'
-    full_size_images = gridify_animation(list_of_animated_images)
-    imageio.mimwrite(image_path, full_size_images, fps=fps)
+# ========================================================================= #
+# Calculations/Heuristics | FROM: disentanglement_lib                       #
+# ========================================================================= #
+
+
+def best_num_rows(num_elements, max_ratio=4):
+    """Automatically selects a smart number of rows."""
+    best_remainder = num_elements
+    best_i = None
+    i = int(np.sqrt(num_elements))
+    while True:
+        if num_elements > max_ratio * i * i:
+            return best_i
+        remainder = (i - num_elements % i) % i
+        if remainder == 0:
+            return i
+        if remainder < best_remainder:
+            best_remainder = remainder
+            best_i = i
+        i -= 1
+
+
+# ========================================================================= #
+# Index Cycle Generators | FROM: disentanglement_lib                        #
+# ========================================================================= #
+
 
 def cycle_factor(starting_index, num_indices, num_frames):
     """Cycles through the state space in a single cycle.
@@ -215,3 +239,76 @@ def cycle_interval(starting_value, num_frames, min_val, max_val):
     grid -= np.maximum(0, 2 * grid - 2)
     grid += np.maximum(0, -2 * grid)
     return grid * (max_val - min_val) + min_val
+
+
+# ========================================================================= #
+# Conversion/Util                                                           #
+# ========================================================================= #
+
+
+def reconstructions_to_images(recon, mode='float', moveaxis=True):
+    """
+    Convert a batch of reconstructions to images.
+    A batch in this case consists of an arbitrary number of dimensions of an array,
+    with the last 3 dimensions making up the actual image. For example: (..., channels, size, size)
+
+    NOTE: This function might not be efficient for large amounts of
+          data due to assertions and initial recursive conversions to a numpy array.
+    """
+    img = to_numpy(recon)
+    # checks
+    assert img.ndim >= 3
+    assert img.dtype in (np.float32, np.float64)
+    assert 0 <= np.min(img) <= 1
+    assert 0 <= np.max(img) <= 1
+    # move channels axis
+    if moveaxis:
+        # TODO: automatically detect
+        img = np.moveaxis(img, -3, -1)
+    # convert
+    if mode == 'float':
+        return img
+    elif mode == 'int':
+        return np.uint8(img * 255)
+    elif mode == 'pil':
+        img = np.uint8(img * 255)
+        # WOW! I did not expect that to work for
+        # all the cases (ndim == 3)... bravo numpy, bravo!
+        images = [Image.fromarray(img[idx]) for idx in np.ndindex(img.shape[:-3])]
+        images = np.array(images, dtype=object).reshape(img.shape[:-3])
+        return images
+    else:
+        raise KeyError(f'Invalid mode: {repr(mode)} not in { {"float", "int", "pil"} }')
+
+
+# ========================================================================= #
+# numpy operations                                                          #
+# TODO: replace disentanglement_lib methods                                 #
+# ========================================================================= #
+
+
+# def make_image_grid(images, pad=0):
+#     # variables
+#     grid_width = int(np.ceil(len(images) ** 0.5))
+#     img_shape = np.array(images[0].shape)
+#     img_size, img_channels = img_shape[:2], img_shape[2]
+#     dy, dx = img_size + pad
+#     grid_size = (img_size + pad) * grid_width - pad
+#     # make image
+#     grid = np.zeros_like(images, shape=(*grid_size, img_channels))
+#     for i, img in enumerate(images):
+#         iy, ix = i // grid_size, i % grid_size
+#         grid[dy*iy:dy*(iy+1), dx*ix:dx*(ix+1), :] = img
+#     # return made image
+#     return grid
+#
+# def save_frames_as_animation(frames, out_file, fps=30):
+#     import imageio
+#     with imageio.get_writer(out_file, fps=fps, mode='I') as writer:
+#         for frame in frames:
+#             writer.append_data(frame)
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #
