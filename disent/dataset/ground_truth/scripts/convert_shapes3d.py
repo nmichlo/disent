@@ -1,89 +1,15 @@
-import math
 import os
-import time
-
 import h5py
 import numpy as np
 from tqdm import tqdm
-
+from disent.dataset.util.hdf5 import bytes_to_human, hdf5_resave_dataset, hdf5_test_entries_per_second
 
 # ========================================================================= #
-# convert_shapes3d                                                           #
+# Shapes3d Utilities                                                        #
 # ========================================================================= #
 
 
-def bytes_to_human(size_bytes, decimals=3):
-    if size_bytes == 0:
-        return "0B"
-    size_name = ("B  ", "\033[92mKiB\033[0m", "\033[93mMiB\033[0m", "\033[91mGiB\033[0m", "TiB", "PiB", "EiB", "ZiB", "YiB")
-    i = int(math.floor(math.log(size_bytes, 1024)))
-    s = round(size_bytes / math.pow(1024, i), decimals)
-    return f"{s:{4+decimals}.{decimals}f} {size_name[i]}"
-
-
-def print_entry_data_stats(data, dataset, label='STATISTICS'):
-    dtype = data[dataset].dtype
-    itemsize = data[dataset].dtype.itemsize
-    # chunk
-    chunks = np.array(data[dataset].chunks)
-    data_per_chunk = np.prod(chunks) * itemsize
-    # entry
-    shape = np.array([1, *data[dataset].shape[1:]])
-    data_per_entry = np.prod(shape) * itemsize
-    # chunks per entry
-    chunks_per_dim = np.ceil(shape / chunks).astype('int')
-    chunks_per_entry = np.prod(chunks_per_dim)
-    read_data_per_entry = data_per_chunk * chunks_per_entry
-    # print info
-    if label:
-        tqdm.write(f'[{label}]: \033[92m{dataset}\033[0m')
-    tqdm.write(
-        f'\t\033[90mentry shape:\033[0m      {str(list(shape)):18s} \033[93m{bytes_to_human(data_per_entry)}\033[0m'
-        f'\n\t\033[90mchunk shape:\033[0m      {str(list(chunks)):18s} \033[93m{bytes_to_human(data_per_chunk)}\033[0m'
-        f'\n\t\033[90mchunks per entry:\033[0m {str(list(chunks_per_dim)):18s} \033[93m{bytes_to_human(read_data_per_entry)}\033[0m (\033[91m{chunks_per_entry}\033[0m)'
-    )
-
-
-def print_dataset_info(data, dataset, label='DATASET'):
-    if label:
-        tqdm.write(f'[{label}]: \033[92m{dataset}\033[0m')
-    tqdm.write(
-          f'\t\033[90mraw:\033[0m                {data[dataset]}'
-          f'\n\t\033[90mchunks:\033[0m           {data[dataset].chunks}'
-          f'\n\t\033[90mcompression:\033[0m      {data[dataset].compression}'
-          f'\n\t\033[90mcompression lvl:\033[0m  {data[dataset].compression_opts}'
-    )
-
-
-def resave_dataset(inp_data, out_data, dataset, chunks=None, compression=None, compression_opts=None, batch_size=None, max_entries=None, dry_run=False):
-    # print_dataset_info(inp_data, dataset, label='INPUT')
-    # create new dataset
-    out_data.create_dataset(
-        name=dataset,
-        shape=inp_data[dataset].shape,
-        dtype=inp_data[dataset].dtype,
-        chunks=chunks,
-        compression=compression,
-        compression_opts=compression_opts
-    )
-
-    print_entry_data_stats(inp_data, dataset, label=f'IN')
-    print_entry_data_stats(out_data, dataset, label=f'OUT')
-    tqdm.write('')
-
-    if not dry_run:
-        # choose chunk size
-        if batch_size is None:
-            batch_size = inp_data[dataset].chunks[0]
-        # batched copy
-        entries = len(inp_data[dataset])
-        with tqdm(total=entries) as progress:
-            for i in range(0, max_entries if max_entries else entries, batch_size):
-                out_data[dataset][i:i + batch_size] = inp_data[dataset][i:i + batch_size]
-                progress.update(batch_size)
-        tqdm.write('')
-
-def resave(
+def hdf5_3dshapes_resave(
         load_name=None,
         save_name=None,
         compression='gzip',
@@ -103,22 +29,67 @@ def resave(
 
     with h5py.File(load_name, 'r') as inp_data:
         with h5py.File(save_name, 'w') as out_data:
-            resave_dataset(inp_data, out_data, 'images', (image_chunks, image_block_size, image_block_size, image_channels), compression, compression_lvl, max_entries=48000 if stop_early else None, dry_run=dry_run)
-            resave_dataset(inp_data, out_data, 'labels', (label_chunks, 6), compression, compression_lvl, max_entries=48000 if stop_early else None, dry_run=dry_run)
-
+            hdf5_resave_dataset(inp_data, out_data, 'images', (image_chunks, image_block_size, image_block_size, image_channels), compression, compression_lvl, max_entries=48000 if stop_early else None, dry_run=dry_run)
+            hdf5_resave_dataset(inp_data, out_data, 'labels', (label_chunks, 6), compression, compression_lvl, max_entries=48000 if stop_early else None, dry_run=dry_run)
             if test:
-                start_time, timeout = time.time(), 10
-                for i, entry in enumerate(out_data['images']):
-                    if time.time() - start_time > timeout or i >= 48000:
-                        break
-                entries_per_sec = (i+1) / (time.time() - start_time)
+                entries_per_sec = hdf5_test_entries_per_second(out_data, 'images')
                 tqdm.write(f'\tTEST: entries per second = {entries_per_sec:.2f}')
                 os.rename(save_name, os.path.splitext(save_name)[0] + f'__{entries_per_sec:.2f}eps.h5')
                 tqdm.write('')
 
+def get_info_from_filenames(dir_path='data'):
+    FILE_DATA = []
+
+    for path in sorted(os.listdir(dir_path)):
+        try:
+            # extract components
+            file_name, ext = os.path.splitext(path)
+            name, comp, img, lbl_chunks, _, eps = file_name.split('_')
+
+            # parse values
+            compression, compression_lvl = comp[:4], int(comp[4:])
+            img_chunks, img_block, img_channels = [int(v) for v in img.split('-')]
+            lbl_chunks = int(lbl_chunks)
+            eps = float(eps[:-3])
+
+            # chunk
+            chunks = np.array([img_chunks, img_block, img_block, img_channels])
+            data_per_chunk = np.prod(chunks)
+            # entry
+            shape = np.array([1, 64, 64, 3])
+            data_per_entry = np.prod(shape)
+            # chunks per entry
+            chunks_per_dim = np.ceil(shape / chunks).astype('int')
+            chunks_per_entry = np.prod(chunks_per_dim)
+            read_data_per_entry = data_per_chunk * chunks_per_entry
+
+            FILE_DATA.append(dict(
+                path=path,
+                compression=compression,
+                compression_lvl=compression_lvl,
+                img_chunks=img_chunks,
+                img_block=img_block,
+                img_channels=img_channels,
+                lbl_chunks=lbl_chunks,
+                eps=eps,
+                data_per_entry=data_per_entry,
+                data_per_chunk=data_per_chunk,
+                read_data_per_entry=read_data_per_entry,
+                file_size=os.path.getsize('data/' + path),
+            ))
+
+        except:
+            pass
+
+    return FILE_DATA
+
+def print_info(file_data, sort_keys=('file_size', 'path')):
+    for dat in sorted(file_data, key=lambda x: tuple([x[k] for k in sort_keys])):
+        print(f'[{bytes_to_human(dat["file_size"])}] {dat["path"]:45s} | {dat["eps"]:7.2f} | {bytes_to_human(dat["read_data_per_entry"])} | {bytes_to_human(dat["data_per_chunk"])}')
+
 
 # ========================================================================= #
-# END                                                                       #
+# Main                                                                      #
 # ========================================================================= #
 
 
@@ -293,7 +264,7 @@ if __name__ == '__main__':
 
     # [775.470 MiB] 3dshapes_gzip4_128-16-1_4096__247.32eps.h5    |  247.32 |   1.500 MiB |  32.000 KiB
     # *[ 82.435 MiB] 3dshapes_gzip4_128-16-1_4096__254.62eps.h5    |  254.62 |   1.500 MiB |  32.000 KiB
-    resave(image_chunks=128, image_block_size=16, image_channels=1, label_chunks=4096, stop_early=False, dry_run=False, test=True)
+    hdf5_3dshapes_resave(image_chunks=128, image_block_size=16, image_channels=1, label_chunks=4096, stop_early=False, dry_run=False, test=True)
 
     # # [917.514 MiB] 3dshapes_gzip4_64-16-1_4096__1861.96eps.h5    | 1861.96 | 768.000 KiB |  16.000 KiB
     # # *[ 97.912 MiB] 3dshapes_gzip4_64-16-1_4096__1954.21eps.h5    | 1954.21 | 768.000 KiB |  16.000 KiB
@@ -301,7 +272,7 @@ if __name__ == '__main__':
 
     # [1012.996 MiB] 3dshapes_gzip4_64-32-1_4096__3020.21eps.h5    | 3020.21 | 768.000 KiB |  64.000 KiB
     # *[106.542 MiB] 3dshapes_gzip4_64-32-1_4096__3027.06eps.h5    | 3027.06 | 768.000 KiB |  64.000 KiB
-    resave(image_chunks=64, image_block_size=32, image_channels=1, label_chunks=4096, stop_early=False, dry_run=False, test=True)
+    hdf5_3dshapes_resave(image_chunks=64, image_block_size=32, image_channels=1, label_chunks=4096, stop_early=False, dry_run=False, test=True)
 
     # # # *[121.457 MiB] 3dshapes_gzip4_64-16-3_4096__3458.68eps.h5    | 3458.68 | 768.000 KiB |  48.000 KiB
     # # resave(image_chunks=64, image_block_size=16, image_channels=3, label_chunks=4096, stop_early=False, dry_run=False, test=True)
@@ -318,54 +289,9 @@ if __name__ == '__main__':
 
     # [  1.787 GiB] 3dshapes_gzip4_32-64-3_4096__4700.43eps.h5    | 4700.43 | 384.000 KiB | 384.000 KiB
     # *[202.748 MiB] 3dshapes_gzip4_32-64-3_4096__4784.69eps.h5    | 4784.69 | 384.000 KiB | 384.000 KiB
-    resave(image_chunks=32, image_block_size=64, image_channels=3, label_chunks=4096, stop_early=False, dry_run=False, test=True)
+    hdf5_3dshapes_resave(image_chunks=32, image_block_size=64, image_channels=3, label_chunks=4096, stop_early=False, dry_run=False, test=True)
 
-    # ======================= #
-    # Analiser                #
-    # ======================= #
 
-    FILE_DATA = []
-
-    for path in sorted(os.listdir('data')):
-        try:
-            # extract components
-            file_name, ext = os.path.splitext(path)
-            name, comp, img, lbl_chunks, _, eps = file_name.split('_')
-
-            # parse values
-            compression, compression_lvl = comp[:4], int(comp[4:])
-            img_chunks, img_block, img_channels = [int(v) for v in img.split('-')]
-            lbl_chunks = int(lbl_chunks)
-            eps = float(eps[:-3])
-
-            # chunk
-            chunks = np.array([img_chunks, img_block, img_block, img_channels])
-            data_per_chunk = np.prod(chunks)
-            # entry
-            shape = np.array([1, 64, 64, 3])
-            data_per_entry = np.prod(shape)
-            # chunks per entry
-            chunks_per_dim = np.ceil(shape / chunks).astype('int')
-            chunks_per_entry = np.prod(chunks_per_dim)
-            read_data_per_entry = data_per_chunk * chunks_per_entry
-
-            FILE_DATA.append(dict(
-                path=path,
-                compression=compression,
-                compression_lvl=compression_lvl,
-                img_chunks=img_chunks,
-                img_block=img_block,
-                img_channels=img_channels,
-                lbl_chunks=lbl_chunks,
-                eps=eps,
-                data_per_entry=data_per_entry,
-                data_per_chunk=data_per_chunk,
-                read_data_per_entry=read_data_per_entry,
-                file_size=os.path.getsize('data/' + path),
-            ))
-
-        except:
-            pass
-
-    for dat in sorted(FILE_DATA, key=lambda x: (x['file_size'], x['path'])):
-        print(f'[{bytes_to_human(dat["file_size"])}] {dat["path"]:45s} | {dat["eps"]:7.2f} | {bytes_to_human(dat["read_data_per_entry"])} | {bytes_to_human(dat["data_per_chunk"])}')
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #
