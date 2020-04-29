@@ -30,6 +30,8 @@ from PIL import Image
 import scipy.stats
 import imageio
 
+from disent.util import to_numpy
+
 
 def save_image(image, image_path):
     """Saves an image in the [0,1]-valued Numpy array to image_path.
@@ -171,17 +173,16 @@ def pad_around(image, padding_px=10, axis=None, value=None):
 #
 #     return padded_stack([image, footer], padding_px, axis=0, value=value)
 
-def save_grid_animation(list_of_animated_images, image_path, fps):
-    assert list_of_animated_images.dtype == np.uint8, f'{list_of_animated_images.dtype}'
-
+def gridify_animation(list_of_animated_images):
     full_size_images = []
     for single_images in zip(*list_of_animated_images):
-        full_size_images.append(
-            pad_around(padded_grid(list(single_images)))
-            # pad_around(add_below(padded_grid(list(single_images)))))
-        )
-    imageio.mimwrite(image_path, full_size_images, fps=fps)
+        full_size_images.append(pad_around(padded_grid(list(single_images))))
+    return to_numpy(full_size_images)
 
+def save_gridified_animation(list_of_animated_images, image_path, fps):
+    assert list_of_animated_images.dtype == np.uint8, f'{list_of_animated_images.dtype}'
+    full_size_images = gridify_animation(list_of_animated_images)
+    imageio.mimwrite(image_path, full_size_images, fps=fps)
 
 def cycle_factor(starting_index, num_indices, num_frames):
     """Cycles through the state space in a single cycle.
@@ -209,6 +210,7 @@ def cycle_gaussian(starting_value, num_frames, loc=0., scale=1.):
 def cycle_interval(starting_value, num_frames, min_val, max_val):
     """Cycles through the state space in a single cycle."""
     starting_in_01 = (starting_value - min_val) / (max_val - min_val)
+    starting_in_01 = np.nan_to_num(starting_in_01)  # handle division by zero, prints warning
     grid = np.linspace(starting_in_01, starting_in_01 + 2., num=num_frames, endpoint=False)
     grid -= np.maximum(0, 2 * grid - 2)
     grid += np.maximum(0, -2 * grid)

@@ -25,7 +25,6 @@
 import os
 from typing import Union
 
-from disent.dataset import make_ground_truth_data
 from disent.dataset.ground_truth.base import GroundTruthData
 from disent.loss.loss import lerp_step
 from disent.util import to_numpy
@@ -41,9 +40,8 @@ from disent.visualize.util import get_data
 # ========================================================================= #
 
 
-def visualise_get_still_images(data: Union[str, GroundTruthData], num_samples=16, mode='spread'):
+def sample_dataset_still_images(data: Union[str, GroundTruthData], num_samples=16, mode='spread'):
     data = get_data(data)
-
     # Create still images per factor of variation
     factor_images = []
     for i, size in enumerate(data.factor_sizes):
@@ -65,11 +63,11 @@ def visualise_get_still_images(data: Union[str, GroundTruthData], num_samples=16
         # get and store observations
         images = data.sample_observations_from_factors(factors)
         factor_images.append(images)
-
     # return all
     return to_numpy(factor_images)
 
-def visualise_get_animations(data: Union[str, GroundTruthData], num_animations=5, num_frames=20):
+
+def sample_dataset_animations(data: Union[str, GroundTruthData], num_animations=5, num_frames=20):
     data = get_data(data)
     # Create animations.
     animations = []
@@ -100,23 +98,15 @@ def save_dataset_visualisations(data: Union[str, GroundTruthData], output_path=N
       mode: still image mode, see function visualise_get_still_images
     """
     data = get_data(data)
-
     # Create output folder if necessary.
     path = ensure_dir_exists(output_path, data.__class__.__name__[:-4].lower())
-
     print(f'[VISUALISE] saving to: {path}')
-
     # Save still images.
-    for i, images in enumerate(visualise_get_still_images(data, num_samples=16, mode=mode)):
+    for i, images in enumerate(sample_dataset_still_images(data, num_samples=16, mode=mode)):
         visualize_util.minimal_square_save_images(images, os.path.join(path, f"variations_of_factor_{i}.png"))
-
     # Save animations.
-    for i, images in enumerate(visualise_get_animations(data, num_animations=num_animations, num_frames=num_frames)):
-        visualize_util.save_grid_animation(
-            images,
-            os.path.join(path, f"animation_{i}.gif"),
-            fps=fps
-        )
+    for i, images in enumerate(sample_dataset_animations(data, num_animations=num_animations, num_frames=num_frames)):
+        visualize_util.save_gridified_animation(images, os.path.join(path, f"animation_{i}.gif"), fps=fps)
 
 
 # ========================================================================= #

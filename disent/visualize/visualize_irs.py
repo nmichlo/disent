@@ -27,16 +27,18 @@ Based on the paper https://arxiv.org/abs/1811.00007.
 """
 
 import os
-
-# from disent.evaluation.metrics.irs import scalable_disentanglement_score
 import matplotlib.pyplot as plt  # pylint: disable=g-import-not-at-top
 import numpy as np
-
 from disent.dataset.util.io import ensure_dir_exists
-
+# from disent.evaluation.metrics.irs import scalable_disentanglement_score
 
 # TODO: FIX CODE
 raise NotImplementedError
+
+
+# ========================================================================= #
+# visualise irs                                                             #
+# ========================================================================= #
 
 
 def vis_all_interventional_effects(gen_factors, latents, output_dir):
@@ -67,6 +69,11 @@ def vis_all_interventional_effects(gen_factors, latents, output_dir):
 
     fig.tight_layout()
     fig.savefig(os.path.join(ensure_dir_exists(output_dir), "interventional_effect.png"))
+
+
+# ========================================================================= #
+# Helper Functions                                                          #
+# ========================================================================= #
 
 
 def _visualize_interventional_effect(
@@ -155,3 +162,7 @@ def _visualize_interventional_effect(
 
         if plot_legend:
             ax.legend()
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #
