@@ -204,7 +204,7 @@ class GroundTruthDataset(Dataset, GroundTruthData):
 
 class DownloadableGroundTruthData(GroundTruthData):
 
-    def __init__(self, data_dir='data', force_download=False):
+    def __init__(self, data_dir='data/dataset', force_download=False):
         super().__init__()
         # paths
         self._data_dir = ensure_dir_exists(data_dir)
@@ -232,7 +232,7 @@ class DownloadableGroundTruthData(GroundTruthData):
 
 class PreprocessedDownloadableGroundTruthData(DownloadableGroundTruthData):
 
-    def __init__(self, data_dir='data', force_download=False, force_preprocess=False):
+    def __init__(self, data_dir='data/dataset', force_download=False, force_preprocess=False):
         super().__init__(data_dir=data_dir, force_download=force_download)
         # paths
         self._proc_path = f'{self._data_path}.processed'
@@ -290,7 +290,7 @@ class Hdf5PreprocessedGroundTruthData(PreprocessedDownloadableGroundTruthData):
     TODO: Only supports one dataset from the hdf5 file itself, labels etc need a custom implementation.
     """
 
-    def __init__(self, data_dir='data', in_memory=False, force_download=False, force_preprocess=False):
+    def __init__(self, data_dir='data/dataset', in_memory=False, force_download=False, force_preprocess=False):
         super().__init__(data_dir=data_dir, force_download=force_download, force_preprocess=force_preprocess)
         self._in_memory = in_memory
 
@@ -303,14 +303,15 @@ class Hdf5PreprocessedGroundTruthData(PreprocessedDownloadableGroundTruthData):
                 with h5py.File(self.dataset_path, 'r') as db:
                     self.__class__._DATA = np.array(db[self.hdf5_name])
                 print('Loaded!')
+        else:
+            if not hasattr(self.__class__, '_DATASET'):
+                self.__class__._DATASET = h5py.File(self.dataset_path, 'r')[self.hdf5_name]
 
     def __getitem__(self, idx):
         if self._in_memory:
             return self.__class__._DATA[idx]
         else:
-            # open here for better multithreading support, saw this somewhere? check if correct.
-            with h5py.File(self.dataset_path, 'r') as db:
-                return db[self.hdf5_name][idx]
+            return self.__class__._DATASET[idx]
 
     def _preprocess_dataset(self, path_src, path_dst):
         import os
@@ -332,6 +333,7 @@ class Hdf5PreprocessedGroundTruthData(PreprocessedDownloadableGroundTruthData):
 
     @property
     def hdf5_compression_lvl(self) -> int:
+        # default is 4, max of 9 doesnt seem to add much cpu usage on read, but its not worth it data wise?
         return 4
 
     @property

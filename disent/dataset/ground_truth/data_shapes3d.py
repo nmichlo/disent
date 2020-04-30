@@ -29,7 +29,8 @@ class Shapes3dData(Hdf5PreprocessedGroundTruthData):
     observation_shape = (64, 64, 3)
 
     hdf5_name = 'images'
-    hdf5_chunk_size = (64, 32, 32, 1)
+    # minimum chunk size, no compression but good for random accesses
+    hdf5_chunk_size = (1, 64, 64, 3)
 
     # CHOSEN:
     # hdf5_resave_dataset(inp_data, out_data, 'images', (64, 32, 32, 1), compression, compression_lvl)
@@ -57,14 +58,14 @@ if __name__ == '__main__':
     import numpy as np
     from disent.dataset.ground_truth.base import PairedVariationDataset
 
-    dataset = Shapes3dData()
-    pair_dataset = PairedVariationDataset(dataset, k='uniform')
+    dataset = Shapes3dData(data_dir='data/dataset/shapes3d-1-64-64-3')
+    # pair_dataset = PairedVariationDataset(dataset, k='uniform')
 
-    # test that dimensions are resampled correctly, and only differ by a certain number of factors, not all.
-    for i in range(10):
-        idx = np.random.randint(len(dataset))
-        a, b = pair_dataset.sample_pair_factors(idx)
-        print(all(dataset.idx_to_pos(idx) == a), '|', a, '&', b, ':', [int(v) for v in (a == b)])
-        a, b = dataset.pos_to_idx([a, b])
-        print(a, b)
-        dataset[a], dataset[b]
+    # # test that dimensions are resampled correctly, and only differ by a certain number of factors, not all.
+    # for i in range(10):
+    #     idx = np.random.randint(len(dataset))
+    #     a, b = pair_dataset.sample_pair_factors(idx)
+    #     print(all(dataset.idx_to_pos(idx) == a), '|', a, '&', b, ':', [int(v) for v in (a == b)])
+    #     a, b = dataset.pos_to_idx([a, b])
+    #     print(a, b)
+    #     dataset[a], dataset[b]

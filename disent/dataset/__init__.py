@@ -24,7 +24,7 @@ def split_dataset(dataset, train_ratio=0.8):
     return torch.utils.data.random_split(dataset, [train_size, test_size])
 
 
-def make_ground_truth_data(name, data_dir='data', try_in_memory=True) -> GroundTruthData:
+def make_ground_truth_data(name, data_dir='data/dataset', try_in_memory=True) -> GroundTruthData:
     if '3dshapes' == name:
         data = Shapes3dData(data_dir=data_dir)
     elif 'dsprites' == name:
@@ -57,7 +57,7 @@ def make_ground_truth_data_transform(name):
     return transform
 
 
-def make_ground_truth_dataset(name, data_dir='data', try_in_memory=True) -> GroundTruthDataset:
+def make_ground_truth_dataset(name, data_dir='data/dataset', try_in_memory=True) -> GroundTruthDataset:
     # all datasets are in the range [0, 1] to correspond
     # to the sigmoid activation function.
     return GroundTruthDataset(

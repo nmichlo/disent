@@ -327,7 +327,7 @@ if __name__ == '__main__':
         return system
 
     # CELL
-    system = make_system(loss='beta-vae', dataset='3dshapes', model='simple-fc', load_path='data/trained-e1-3dshapes-simple-fc.ckpt')
+    system = make_system(loss='beta-vae', dataset='3dshapes', model='simple-fc', load_path='data/model/trained-e1-3dshapes-simple-fc.ckpt')
 
     save_model_visualisations(
         system.model.encode_gaussian,
