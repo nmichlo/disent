@@ -56,9 +56,9 @@ class VaeSystem(pl.LightningModule):
         # convert dataset for paired loss
         if self.loss.is_pair_loss:
             if isinstance(self.dataset_train, GroundTruthData):
-                self.dataset_train = PairedVariationDataset(self.dataset_train, k=self.my_hparams.k)
+                self.dataset_train_pairs = PairedVariationDataset(self.dataset_train, k=self.my_hparams.k)
             else:
-                self.dataset_train = RandomPairDataset(self.dataset_train)
+                self.dataset_train_pairs = RandomPairDataset(self.dataset_train)
 
     def forward(self, x):
         return self.model.forward(x)
@@ -88,7 +88,7 @@ class VaeSystem(pl.LightningModule):
     def train_dataloader(self):
         # Sample of data used to fit the model.
         return torch.utils.data.DataLoader(
-            self.dataset_train,
+            self.dataset_train_pairs if self.loss.is_pair_loss else self.dataset_train,
             batch_size=self.my_hparams.batch_size,
             num_workers=self.my_hparams.num_workers,
             shuffle=True
@@ -146,8 +146,7 @@ if __name__ == '__main__':
 
     # model = make_model('simple-fc', z_size=6)
 
-    system = VaeSystem(dataset_train='xygrid', model='simple-fc', loss='vae',
-                       hparams=dict(num_workers=8, batch_size=64, z_size=6))
+    system = VaeSystem(dataset_train='3dshapes', model='simple-fc', loss='ada-gvae', hparams=dict(num_workers=8, batch_size=64, z_size=6))
     system.quick_train()
     save_model(system, 'temp.model')
     load_model(system, 'temp.model')

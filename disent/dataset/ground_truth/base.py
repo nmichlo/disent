@@ -359,10 +359,7 @@ class PairedVariationDataset(Dataset):
         k: An integer (k), None (k=d-1), or "uniform" (random k in range 1 to d-1)
         variation_factor_indices: The indices of the factors of variation that are samples between pairs, if None (all factors are sampled)
         """
-        if isinstance(dataset, GroundTruthData):
-            dataset = GroundTruthDataset(dataset)
-
-        assert isinstance(dataset, GroundTruthDataset), 'passed object is not an instance of both GroundTruthData and Dataset'
+        assert isinstance(dataset, GroundTruthDataset), 'passed object is not an instance of GroundTruthDataset'
         # wrapped dataset
         self._dataset: GroundTruthDataset = dataset
         # possible fixed dimensions between pairs

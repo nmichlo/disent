@@ -73,5 +73,27 @@ def make_paired_dataset(name, k='uniform'):
 
 
 # ========================================================================= #
+# strings to datasets only if necessary                                     #
+# ========================================================================= #
+
+
+# TODO: merge into above methods
+def as_data(data) -> GroundTruthData:
+    if isinstance(data, str):
+        data = make_ground_truth_data(data, try_in_memory=False)
+    assert isinstance(data, GroundTruthData), 'data not an instance of GroundTruthData'
+    return data
+
+
+# TODO: merge into above methods
+def as_dataset(dataset):
+    if isinstance(dataset, str):
+        dataset = make_ground_truth_dataset(dataset, try_in_memory=False)
+    assert isinstance(dataset, GroundTruthDataset), 'dataset not an instance of GroundTruthDataset'
+    return dataset
+
+
+# ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
+
