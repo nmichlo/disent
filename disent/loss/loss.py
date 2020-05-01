@@ -162,25 +162,27 @@ class AdaGVaeLoss(BetaVaeLoss):
     def is_pair_loss(self):
         return True
 
-    def compute_loss(self, x, x_recon, z_mean, z_logvar, z_sampled, *args, **kwargs):
-        x2, x2_recon, z2_mean, z2_logvar, z2_sampled = args
-
+    def intercept_z_pair(self, z_mean, z_logvar, z2_mean, z2_logvar):
         # shared elements that need to be averaged, computed per pair in the batch.
         kl_deltas = _kl_normal_loss_pair_elements(z_mean, z_logvar, z2_mean, z2_logvar)  # [𝛿_i ...]
-        kl_threshs = _estimate_kl_threshold(kl_deltas)                                    # threshold τ
+        kl_threshs = _estimate_kl_threshold(kl_deltas)  # threshold τ
         ave_elements = kl_deltas < kl_threshs
 
         # compute average posteriors
         ave_mu, ave_logvar = self.compute_average(z_mean, z_logvar, z2_mean, z2_logvar)
 
+        # TODO: this needs to be fed forward, instead of the original z's
         # compute approximate posteriors
         # approx_z_mean, approx_z_logvar = z_mean.clone(), z_logvar.clone()
         # approx_z2_mean, approx_z2_logvar = z2_mean.clone(), z2_logvar.clone()
         z_mean[ave_elements], z_logvar[ave_elements] = ave_mu[ave_elements], ave_logvar[ave_elements]
         z2_mean[ave_elements], z2_logvar[ave_elements] = ave_mu[ave_elements], ave_logvar[ave_elements]
 
-        # TODO: x_recon and x2_recon need to use updated/averaged z?
-        # TODO: make use of regularizer() function
+        return z_mean, z_logvar, z2_mean, z2_logvar
+
+    def compute_loss(self, x, x_recon, z_mean, z_logvar, z_sampled, *args, **kwargs):
+        x2, x2_recon, z2_mean, z2_logvar, z2_sampled = args
+
         # reconstruction error & KL divergence losses
         recon_loss = _bce_loss(x, x_recon)              # E[log p(x|z)]
         recon2_loss = _bce_loss(x2, x2_recon)           # E[log p(x|z)]
@@ -188,7 +190,11 @@ class AdaGVaeLoss(BetaVaeLoss):
         kl2_loss = _kl_normal_loss(z2_mean, z2_logvar)  # D_kl(q(z|x) || p(z|x))
 
         # compute combined loss
+        # reduces down to summing the two BetaVAE losses
         loss = (recon_loss + recon2_loss) + self.beta * (kl_loss + kl2_loss)
+
+        # TODO: should this be divided by 2?
+        loss /= 2
 
         return {
             'loss': loss

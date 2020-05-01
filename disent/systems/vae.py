@@ -7,7 +7,7 @@ import pytorch_lightning as pl
 from pytorch_lightning import Trainer
 
 from disent.util import load_model, save_model
-from disent.loss import make_vae_loss
+from disent.loss import AdaGVaeLoss, make_vae_loss
 from disent.model import make_model, make_optimizer
 from disent.dataset import make_ground_truth_dataset
 from disent.dataset.ground_truth.base import (GroundTruthData, PairedVariationDataset, RandomPairDataset)
@@ -66,8 +66,23 @@ class VaeSystem(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         if self.loss.is_pair_loss:
             x, x2 = batch
-            x_recon, z_mean, z_logvar, z = self.forward(x)
-            x2_recon, z2_mean, z2_logvar, z2 = self.forward(x2)
+
+            # x_recon, z_mean, z_logvar, z = self.forward(x)
+            # x2_recon, z2_mean, z2_logvar, z2 = self.forward(x2)
+
+            z_mean, z_logvar = self.model.encode_gaussian(x)
+            z2_mean, z2_logvar = self.model.encode_gaussian(x2)
+
+            # TODO: this is hacky and moves functionality out of the right places
+            if isinstance(self.loss, AdaGVaeLoss):
+                z_mean, z_logvar, z2_mean, z2_logvar = self.loss.intercept_z_pair(z_mean, z_logvar, z2_mean, z2_logvar)
+
+            z = self.model.sample_from_latent_distribution(z_mean, z_logvar)
+            z2 = self.model.sample_from_latent_distribution(z2_mean, z2_logvar)
+
+            x_recon = self.model.decode(z)
+            x2_recon = self.model.decode(z2)
+
             losses = self.loss(x, x_recon, z_mean, z_logvar, z, x2, x2_recon, z2_mean, z2_logvar, z2)
         else:
             x = batch
@@ -143,13 +158,12 @@ if __name__ == '__main__':
     # print(list(params['state_dict'].keys()))
     # print(params['state_dict']['model.gaussian_encoder.model.1.weight'])
 
-
     # model = make_model('simple-fc', z_size=6)
 
     system = VaeSystem(dataset_train='3dshapes', model='simple-fc', loss='ada-gvae', hparams=dict(num_workers=8, batch_size=64, z_size=6))
     system.quick_train()
-    save_model(system, 'temp.model')
-    load_model(system, 'temp.model')
+    save_model(system, 'data/model/temp.model')
+    load_model(system, 'data/model/temp.model')
 
 
 # ========================================================================= #
