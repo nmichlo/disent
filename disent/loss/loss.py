@@ -3,7 +3,7 @@ import torch.nn.functional as F
 
 
 # ========================================================================= #
-# Vae Loss                                                                  #
+# Helper                                                                    #
 # ========================================================================= #
 
 
@@ -39,6 +39,12 @@ def _kl_normal_loss(mu, logvar):
     kl_loss = torch.sum(kl_means)
     return kl_loss
 
+
+# ========================================================================= #
+# Base VAE Loss                                                             #
+# ========================================================================= #
+
+
 class VaeLoss(object):
 
     def __call__(self, x, x_recon, z_mean, z_logvar, z_sampled, *args, **kwargs):
@@ -70,7 +76,6 @@ class VaeLoss(object):
 
     def regularizer(self, kl_loss, z_mean, z_logvar, z_sampled):
         return kl_loss
-
 
 
 # ========================================================================= #
@@ -124,6 +129,7 @@ class BetaVaeHLoss(BetaVaeLoss):
 # ========================================================================= #
 # Ada-GVae Loss                                                             #
 # ========================================================================= #
+
 
 def _kl_normal_loss_pair_elements(z_mean, z_logvar, z2_mean, z2_logvar):
     """Compute the KL divergence for normal distributions between all corresponding elements of a pair of latent vectors"""
