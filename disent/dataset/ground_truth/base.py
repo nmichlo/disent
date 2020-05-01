@@ -298,12 +298,14 @@ class Hdf5PreprocessedGroundTruthData(PreprocessedDownloadableGroundTruthData):
         if self._in_memory:
             # Only load the dataset once, no matter how many instances of the class are created.
             # data is stored on the underlying class at the _DATA property.
+            # TODO: this is weird
             if not hasattr(self.__class__, '_DATA'):
                 print(f'[DATASET: {self.__class__.__name__}]: Loading...', end=' ')
                 with h5py.File(self.dataset_path, 'r') as db:
                     self.__class__._DATA = np.array(db[self.hdf5_name])
                 print('Loaded!')
         else:
+            # TODO: this is weird
             if not hasattr(self.__class__, '_DATASET'):
                 self.__class__._DATASET = h5py.File(self.dataset_path, 'r')[self.hdf5_name]
 
