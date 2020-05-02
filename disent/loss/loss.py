@@ -151,7 +151,14 @@ def _estimate_kl_threshold(kl_deltas):
     threshs = 0.5 * (kl_deltas.max(axis=1)[0] + kl_deltas.min(axis=1)[0])
     return threshs[:, None]  # re-add the flattened dimension, shape=(batch_size, 1)
 
-class AdaGVaeLoss(BetaVaeLoss):
+
+class InterceptMixin(object):
+    def intercept_z_pair(self, z_mean, z_logvar, z2_mean, z2_logvar):
+        raise NotImplementedError()
+        # return z_mean, z_logvar, z2_mean, z2_logvar
+
+
+class AdaGVaeLoss(BetaVaeLoss, InterceptMixin):
 
     def __init__(self, beta=4):
         super().__init__(beta)

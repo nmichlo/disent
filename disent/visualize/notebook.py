@@ -107,7 +107,7 @@ def _plt_traverse_latent_space(decoder_fn, z_mean, dimensions=None, values=None,
         plt_images_grid(images_grid, figsize_ratio=figsize_ratio)
 
 def plt_traverse_latent_space(system, num_samples=1, dimensions=None, values=11, figsize_ratio=0.75):
-    obs = torch.stack(system.dataset_train.sample_observations(num_samples)).cuda()
+    obs = torch.stack(system.dataset_train.sample_observations(num_samples)).to(system.device)
     z_mean, z_logvar = to_numpy(system.model.encode_gaussian(obs))
     _plt_traverse_latent_space(system.model.decode, z_mean, dimensions=dimensions, values=values, figsize_ratio=figsize_ratio)
 
@@ -120,7 +120,7 @@ def _notebook_display_traverse_latent_space(decoder_fn, z_mean, dimensions=None,
         notebook_display_animation(frames, fps=fps)
 
 def notebook_display_traverse_latent_space(system, num_samples=1, dimensions=None, values=21, fps=10):
-    obs = torch.stack(system.dataset_train.sample_observations(num_samples)).cuda()
+    obs = torch.stack(system.dataset_train.sample_observations(num_samples)).to(system.device)
     z_mean, z_logvar = to_numpy(system.model.encode_gaussian(obs))
     _notebook_display_traverse_latent_space(system.model.decode, z_mean, dimensions=dimensions, values=values, fps=fps)
 
@@ -142,9 +142,9 @@ def _notebook_display_latent_cycle(decoder_fn, z_means, z_logvars, mode='fixed_i
 
 def notebook_display_latent_cycle(system, mode='fixed_interval_cycle', num_animations=1, num_test_samples=64, num_frames=21, fps=8, obs=None):
     if obs is None:
-        obs = torch.stack(system.dataset_train.sample_observations(num_test_samples)).cuda()
+        obs = torch.stack(system.dataset_train.sample_observations(num_test_samples)).to(system.device)
     else:
-        obs = torch.as_tensor(obs).cuda()
+        obs = torch.as_tensor(obs).to(system.device)
     z_mean, z_logvar = to_numpy(system.model.encode_gaussian(obs))
     _notebook_display_latent_cycle(system.model.decode, z_mean, z_logvar, mode=mode, num_animations=num_animations, num_frames=num_frames, fps=fps)
 
