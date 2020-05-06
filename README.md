@@ -3,6 +3,8 @@
 Disentanglement Library for pytorch and pytorch-lightning, based on
 Google's [disentanglement_lib](https://github.com/google-research/disentanglement_lib), but more notebook friendly.
 
+**DISCLAIMER:** This project is mostly a fork of disentanglement_lib and much of the code is not my own except with minor changes to make it work with pytorch, unfortunatly it didnt start out that way and is why the repo is not marked as such. I have left in the original copyrights above the files where appropriate.
+
 ## Another disentanglement library?
   
 - I needed to become more familiar with VAE's
