@@ -122,6 +122,12 @@ class GroundTruthData(DiscreteStateSpace):
         """Sample a batch of observations X given a batch of factors Y."""
         indices = self.pos_to_idx(factors)
         observations = [self[idx] for idx in indices]
+        # TODO: this should be configurable
+        if torch.is_tensor(observations[0]):
+            observations = torch.stack(observations)
+        else:
+            observations = np.stack(observations)
+        # return
         return observations
 
     def sample(self, num_samples):

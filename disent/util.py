@@ -71,24 +71,24 @@ def save_model(model, path):
     atomic_save(model.state_dict(), path)
     print(f'[MODEL]: saved {path}')
 
-def load_model(model, path, cuda=True, skip_if_missing=False):
+def load_model(model, path, cuda=True, fail_if_missing=True):
     """
     FROM: my obstacle_tower project
     """
-
     import os
     import torch
 
     if path and os.path.exists(path):
-        print(f'[MODEL]: loaded {path} (cuda: {cuda})')
         model.load_state_dict(torch.load(
             path,
             map_location=torch.device('cuda' if cuda else 'cpu')
         ))
-    elif skip_if_missing:
-        raise Exception(f'Could not initialise the model from: {path}')
+        print(f'[MODEL]: loaded {path} (cuda: {cuda})')
+    else:
+        if fail_if_missing:
+            raise Exception(f'Could not load model, path does not exist: {path}')
     if cuda:
-        model = model.to(torch.device('cuda'))  # this needs to stay despite the above.
+        model = model.cuda()  # this needs to stay despite the above.
         print('[MODEL]: Moved to GPU')
     return model
 
