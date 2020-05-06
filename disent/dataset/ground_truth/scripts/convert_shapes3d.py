@@ -1,6 +1,7 @@
 import os
 import h5py
 import numpy as np
+from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 from disent.dataset.util.hdf5 import bytes_to_human, hdf5_resave_dataset, hdf5_test_entries_per_second
 
@@ -23,21 +24,24 @@ def hdf5_3dshapes_resave(
         test=False,
 ):
     if load_name is None:
-        load_name = f'data/3dshapes.h5'
+        load_name = f'data/dataset/3dshapes.h5'
     if save_name is None:
-        save_name = f'data/3dshapes_{compression}{compression_lvl}_{image_chunks}-{image_block_size}-{image_channels}_{label_chunks}{"_dry" if dry_run else ""}'
+        save_name = f'data/dataset/3dshapes_{compression}{compression_lvl}_{image_chunks}-{image_block_size}-{image_channels}_{label_chunks}{"_dry" if dry_run else ""}'
 
     with h5py.File(load_name, 'r') as inp_data:
         with h5py.File(save_name, 'w') as out_data:
             hdf5_resave_dataset(inp_data, out_data, 'images', (image_chunks, image_block_size, image_block_size, image_channels), compression, compression_lvl, max_entries=48000 if stop_early else None, dry_run=dry_run)
-            hdf5_resave_dataset(inp_data, out_data, 'labels', (label_chunks, 6), compression, compression_lvl, max_entries=48000 if stop_early else None, dry_run=dry_run)
+            # hdf5_resave_dataset(inp_data, out_data, 'labels', (label_chunks, 6), compression, compression_lvl, max_entries=48000 if stop_early else None, dry_run=dry_run)
+            # File Size:
+            print(f'[FILE SIZES] IN: {bytes_to_human(os.path.getsize(load_name))} OUT: {bytes_to_human(os.path.getsize(save_name))}\n')
             if test:
                 entries_per_sec = hdf5_test_entries_per_second(out_data, 'images')
                 tqdm.write(f'\tTEST: entries per second = {entries_per_sec:.2f}')
                 os.rename(save_name, os.path.splitext(save_name)[0] + f'__{entries_per_sec:.2f}eps.h5')
                 tqdm.write('')
 
-def get_info_from_filenames(dir_path='data'):
+
+def get_info_from_filenames(dir_path='data/dataset'):
     FILE_DATA = []
 
     for path in sorted(os.listdir(dir_path)):
@@ -47,7 +51,13 @@ def get_info_from_filenames(dir_path='data'):
             name, comp, img, lbl_chunks, _, eps = file_name.split('_')
 
             # parse values
-            compression, compression_lvl = comp[:4], int(comp[4:])
+
+            compression, compression_lvl = comp[:4], comp[4:]
+            try:
+                compression_lvl = int(compression_lvl)
+            except:
+                pass
+
             img_chunks, img_block, img_channels = [int(v) for v in img.split('-')]
             lbl_chunks = int(lbl_chunks)
             eps = float(eps[:-3])
@@ -75,7 +85,7 @@ def get_info_from_filenames(dir_path='data'):
                 data_per_entry=data_per_entry,
                 data_per_chunk=data_per_chunk,
                 read_data_per_entry=read_data_per_entry,
-                file_size=os.path.getsize('data/' + path),
+                file_size=os.path.getsize('data/dataset/' + path),
             ))
 
         except:
@@ -85,7 +95,7 @@ def get_info_from_filenames(dir_path='data'):
 
 def print_info(file_data, sort_keys=('file_size', 'path')):
     for dat in sorted(file_data, key=lambda x: tuple([x[k] for k in sort_keys])):
-        print(f'[{bytes_to_human(dat["file_size"])}] {dat["path"]:45s} | {dat["eps"]:7.2f} | {bytes_to_human(dat["read_data_per_entry"])} | {bytes_to_human(dat["data_per_chunk"])}')
+        print(f'[{bytes_to_human(dat["file_size"])}|{bytes_to_human(dat["file_size"]*10)}] {dat["path"]:45s} | {dat["eps"]:7.2f} | {bytes_to_human(dat["read_data_per_entry"])} | {bytes_to_human(dat["data_per_chunk"])}')
 
 
 # ========================================================================= #
@@ -264,7 +274,7 @@ if __name__ == '__main__':
 
     # [775.470 MiB] 3dshapes_gzip4_128-16-1_4096__247.32eps.h5    |  247.32 |   1.500 MiB |  32.000 KiB
     # *[ 82.435 MiB] 3dshapes_gzip4_128-16-1_4096__254.62eps.h5    |  254.62 |   1.500 MiB |  32.000 KiB
-    hdf5_3dshapes_resave(image_chunks=128, image_block_size=16, image_channels=1, label_chunks=4096, stop_early=False, dry_run=False, test=True)
+    # hdf5_3dshapes_resave(image_chunks=128, image_block_size=16, image_channels=1, label_chunks=4096, stop_early=False, dry_run=False, test=True)
 
     # # [917.514 MiB] 3dshapes_gzip4_64-16-1_4096__1861.96eps.h5    | 1861.96 | 768.000 KiB |  16.000 KiB
     # # *[ 97.912 MiB] 3dshapes_gzip4_64-16-1_4096__1954.21eps.h5    | 1954.21 | 768.000 KiB |  16.000 KiB
@@ -272,7 +282,7 @@ if __name__ == '__main__':
 
     # [1012.996 MiB] 3dshapes_gzip4_64-32-1_4096__3020.21eps.h5    | 3020.21 | 768.000 KiB |  64.000 KiB
     # *[106.542 MiB] 3dshapes_gzip4_64-32-1_4096__3027.06eps.h5    | 3027.06 | 768.000 KiB |  64.000 KiB
-    hdf5_3dshapes_resave(image_chunks=64, image_block_size=32, image_channels=1, label_chunks=4096, stop_early=False, dry_run=False, test=True)
+    # hdf5_3dshapes_resave(image_chunks=64, image_block_size=32, image_channels=1, label_chunks=4096, stop_early=False, dry_run=False, test=True)
 
     # # # *[121.457 MiB] 3dshapes_gzip4_64-16-3_4096__3458.68eps.h5    | 3458.68 | 768.000 KiB |  48.000 KiB
     # # resave(image_chunks=64, image_block_size=16, image_channels=3, label_chunks=4096, stop_early=False, dry_run=False, test=True)
@@ -289,8 +299,118 @@ if __name__ == '__main__':
 
     # [  1.787 GiB] 3dshapes_gzip4_32-64-3_4096__4700.43eps.h5    | 4700.43 | 384.000 KiB | 384.000 KiB
     # *[202.748 MiB] 3dshapes_gzip4_32-64-3_4096__4784.69eps.h5    | 4784.69 | 384.000 KiB | 384.000 KiB
-    hdf5_3dshapes_resave(image_chunks=32, image_block_size=64, image_channels=3, label_chunks=4096, stop_early=False, dry_run=False, test=True)
+    # hdf5_3dshapes_resave(image_chunks=32, image_block_size=64, image_channels=3, label_chunks=4096, stop_early=False, dry_run=False, test=True)
 
+    # =================== #
+    # RANDOM ACCESS TESTS #
+    # =================== #
+
+    # OLD WITH LARGE CHUNKS:
+    # [106.381 MiB|  1.039 GiB] 3dshapes_gzip4_64-32-1_4096__406.75eps.h5     |  406.75 | 768.000 KiB |  64.000 KiB
+    # hdf5_3dshapes_resave(image_chunks=64, image_block_size=32, image_channels=1, label_chunks=4096, stop_early=True, dry_run=False, test=True)
+
+    # NEW WITH ELEMENTS AS CHUNKS:
+    # [204.065 MiB|  1.993 GiB] 3dshapes_gzip4_12-64-3_4096__1237.03eps.h5    | 1237.03 | 144.000 KiB | 144.000 KiB
+    # [178.386 MiB|  1.742 GiB] 3dshapes_gzip4_12-64-1_4096__1129.64eps.h5    | 1129.64 | 144.000 KiB |  48.000 KiB
+    # hdf5_3dshapes_resave(image_chunks=12, image_block_size=64, image_channels=3, label_chunks=4096, compression='gzip', compression_lvl=4, stop_early=True, dry_run=False, test=True)
+    # hdf5_3dshapes_resave(image_chunks=12, image_block_size=64, image_channels=1, label_chunks=4096, compression='gzip', compression_lvl=4, stop_early=True, dry_run=False, test=True)
+
+    # [210.778 MiB|  2.058 GiB] 3dshapes_gzip4_3-64-3_4096__2181.78eps.h5     | 2181.78 |  36.000 KiB |  36.000 KiB
+    # [191.422 MiB|  1.869 GiB] 3dshapes_gzip4_3-64-1_4096__1835.48eps.h5     | 1835.48 |  36.000 KiB |  12.000 KiB
+    # hdf5_3dshapes_resave(image_chunks=3, image_block_size=64, image_channels=3, label_chunks=4096, compression='gzip', compression_lvl=4, stop_early=True, dry_run=False, test=True)
+    # hdf5_3dshapes_resave(image_chunks=3, image_block_size=64, image_channels=1, label_chunks=4096, compression='gzip', compression_lvl=4, stop_early=True, dry_run=False, test=True)
+
+    # GOOD but cpu usage?
+    # [224.992 MiB|  2.197 GiB] 3dshapes_gzip4_1-64-3_4096__2631.94eps.h5     | 2631.94 |  12.000 KiB |  12.000 KiB
+    # [212.906 MiB|  2.079 GiB] 3dshapes_gzip4_1-64-1_4096__2165.64eps.h5     | 2165.64 |  12.000 KiB |   4.000 KiB
+    # hdf5_3dshapes_resave(image_chunks=1, image_block_size=64, image_channels=3, label_chunks=4096, compression='gzip', compression_lvl=4, stop_early=True, dry_run=False, test=True)
+    # hdf5_3dshapes_resave(image_chunks=1, image_block_size=64, image_channels=1, label_chunks=4096, compression='gzip', compression_lvl=4, stop_early=True, dry_run=False, test=True)
+
+    # GOOD but cpu usage?
+    # [221.576 MiB|  2.164 GiB] 3dshapes_gzip9_1-64-3_4096__2634.61eps.h5     | 2634.61 |  12.000 KiB |  12.000 KiB
+    # [208.458 MiB|  2.036 GiB] 3dshapes_gzip9_1-64-1_4096__2182.76eps.h5     | 2182.76 |  12.000 KiB |   4.000 KiB
+    # hdf5_3dshapes_resave(image_chunks=1, image_block_size=64, image_channels=3, label_chunks=4096, compression='gzip', compression_lvl=9, stop_early=True, dry_run=False, test=True)
+    # hdf5_3dshapes_resave(image_chunks=1, image_block_size=64, image_channels=1, label_chunks=4096, compression='gzip', compression_lvl=9, stop_early=True, dry_run=False, test=True)
+
+    # BEST but slightly less compression, CPU usage?
+    # [306.324 MiB|  2.991 GiB] 3dshapes_lzfNone_1-64-3_4096__2908.88eps.h5   | 2908.88 |  12.000 KiB |  12.000 KiB
+    # [257.929 MiB|  2.519 GiB] 3dshapes_lzfNone_1-64-1_4096__2361.23eps.h5   | 2361.23 |  12.000 KiB |   4.000 KiB
+    # hdf5_3dshapes_resave(image_chunks=1, image_block_size=64, image_channels=3, label_chunks=4096, compression='lzf', compression_lvl=None, stop_early=True, dry_run=False, test=True)
+    # hdf5_3dshapes_resave(image_chunks=1, image_block_size=64, image_channels=1, label_chunks=4096, compression='lzf', compression_lvl=None, stop_early=True, dry_run=False, test=True)
+
+    # TOO BIG
+    # [705.884 MiB|  6.893 GiB] 3dshapes_NoneNone_12-64-3_4096__2563.13eps.h5 | 2563.13 | 144.000 KiB | 144.000 KiB
+    # [706.508 MiB|  6.899 GiB] 3dshapes_NoneNone_12-64-1_4096__2269.54eps.h5 | 2269.54 | 144.000 KiB |  48.000 KiB
+    # [706.818 MiB|  6.903 GiB] 3dshapes_NoneNone_3-64-3_4096__2837.50eps.h5  | 2837.50 |  36.000 KiB |  36.000 KiB
+    # [709.308 MiB|  6.927 GiB] 3dshapes_NoneNone_1-64-3_4096__3029.55eps.h5  | 3029.55 |  12.000 KiB |  12.000 KiB
+    # [709.308 MiB|  6.927 GiB] 3dshapes_NoneNone_3-64-1_4096__1986.58eps.h5  | 1986.58 |  36.000 KiB |  12.000 KiB
+
+    # hdf5_3dshapes_resave(image_chunks=1, image_block_size=64, image_channels=3, label_chunks=4096, compression=None, compression_lvl=None, stop_early=True, dry_run=False, test=True)
+    # hdf5_3dshapes_resave(image_chunks=3, image_block_size=64, image_channels=3, label_chunks=4096, compression=None, compression_lvl=None, stop_early=True, dry_run=False, test=True)
+    # hdf5_3dshapes_resave(image_chunks=12, image_block_size=64, image_channels=3, label_chunks=4096, compression=None, compression_lvl=None, stop_early=True, dry_run=False, test=True)
+    # hdf5_3dshapes_resave(image_chunks=3, image_block_size=64, image_channels=1, label_chunks=4096, compression=None, compression_lvl=None, stop_early=True, dry_run=False, test=True)
+    # hdf5_3dshapes_resave(image_chunks=12, image_block_size=64, image_channels=1, label_chunks=4096, compression=None, compression_lvl=None, stop_early=True, dry_run=False, test=True)
+
+    print_info(get_info_from_filenames())
+
+    class PartialTestDatasetOpenInGetItem(Dataset):
+        def __init__(self, file):
+            self.file = file
+        def __len__(self):
+            return 48000
+        def __getitem__(self, item):
+            with h5py.File(self.file, 'r') as data:
+                return data['images'][item]
+
+    class PartialTestDatasetOpenInInit(Dataset):
+        def __init__(self, file):
+            self.file = file
+            self.data = h5py.File(self.file, 'r')['images']
+        def __len__(self):
+            return 48000
+        def __getitem__(self, item):
+            return self.data[item]
+
+
+    test_random_accesses = False
+    test_dataloader = True
+
+    files = [
+        'data/dataset/3dshapes_gzip4_64-32-1_4096__406.75eps.h5',  # OLD
+        'data/dataset/3dshapes_lzfNone_1-64-3_4096__2908.88eps.h5',
+        'data/dataset/3dshapes_gzip9_1-64-3_4096__2634.61eps.h5',
+        'data/dataset/3dshapes_gzip4_1-64-3_4096__2631.94eps.h5',
+    ]
+
+    for file in files:
+        print('TESTING:', file)
+
+        if test_random_accesses:
+            with h5py.File(file, 'r') as data:
+                eps = hdf5_test_entries_per_second(data, 'images')
+                print(f'\tEPS={eps:.3f}')
+
+        if test_dataloader:
+            # batch_size=64, num_workers=12 | PartialTestDataset
+            # TESTING: data/3dshapes_lzfNone_1-64-3_4096__2908.88eps.h5
+            # 100%|████████████████████████████████████████| 750/750 [00:04<00:00, 156.19it/s]
+            # TESTING: data/3dshapes_gzip9_1-64-3_4096__2634.61eps.h5
+            # 100%|████████████████████████████████████████| 750/750 [00:05<00:00, 147.82it/s]
+            # TESTING: data/3dshapes_gzip4_1-64-3_4096__2631.94eps.h5
+            # 100%|████████████████████████████████████████| 750/750 [00:05<00:00, 148.57it/s]
+
+            # batch_size=64, num_workers=12 | PartialTestDatasetAlt
+            # TESTING: data/3dshapes_lzfNone_1-64-3_4096__2908.88eps.h5
+            # 100%|████████████████████████████████████████| 750/750 [00:01<00:00, 426.08it/s]
+            # TESTING: data/3dshapes_gzip9_1-64-3_4096__2634.61eps.h5
+            # 100%|████████████████████████████████████████| 750/750 [00:01<00:00, 379.92it/s]
+            # TESTING: data/3dshapes_gzip4_1-64-3_4096__2631.94eps.h5
+            # 100%|████████████████████████████████████████| 750/750 [00:01<00:00, 387.58it/s]
+
+            print('Open in getitem', file)
+            for item in tqdm(DataLoader(PartialTestDatasetOpenInGetItem(file), batch_size=64, num_workers=12)): pass
+            print('Open in __init__', file)
+            for item in tqdm(DataLoader(PartialTestDatasetOpenInInit(file), batch_size=64, num_workers=12)): pass
 
 # ========================================================================= #
 # END                                                                       #

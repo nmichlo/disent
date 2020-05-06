@@ -28,7 +28,8 @@ class DSpritesData(Hdf5PreprocessedGroundTruthData):
     dataset_url = 'https://raw.githubusercontent.com/deepmind/dsprites-dataset/master/dsprites_ndarray_co1sh3sc6or40x32y32_64x64.hdf5'
 
     hdf5_name = 'imgs'
-    hdf5_chunk_size = (64, 32, 32)  # TODO: test optimal size, currently using same as shapes3d
+    # minimum chunk size, no compression but good for random accesses
+    hdf5_chunk_size = (1, 64, 64)
 
     def __getitem__(self, idx):
         return super().__getitem__(idx) * 255  # for some reason uint8 is used as datatype, but only in range 0-1

@@ -1,4 +1,4 @@
-from types import SimpleNamespace
+from dataclasses import dataclass
 
 import torch
 from torch.utils.data import Dataset
@@ -6,16 +6,34 @@ from torch.utils.data import Dataset
 import pytorch_lightning as pl
 from pytorch_lightning import Trainer
 
-from disent.util import load_model, save_model
-from disent.loss import make_vae_loss
+from disent.loss import AdaGVaeLoss, make_vae_loss
 from disent.model import make_model, make_optimizer
 from disent.dataset import make_ground_truth_dataset
 from disent.dataset.ground_truth.base import (GroundTruthData, PairedVariationDataset, RandomPairDataset)
 
+from disent.util import load_model, save_model
 
 # ========================================================================= #
 # xy system                                                                 #
 # ========================================================================= #
+
+
+@dataclass
+class HParams:
+    # MODEL
+    model: str = 'simple-fc'
+    z_size: int = 6
+    # OPTIMIZER
+    optimizer: str = 'radam'
+    lr: float = 0.001
+    # LOSS
+    loss: str = 'vae'
+    # DATASET
+    dataset: str = '3dshapes'
+    batch_size: int = 64
+    num_workers: int = 4
+    # PAIR DATASET
+    k: str = 'uniform'
 
 
 class VaeSystem(pl.LightningModule):
@@ -23,74 +41,65 @@ class VaeSystem(pl.LightningModule):
     Base system that wraps a model. Includes factories for datasets, optimizers and loss.
     """
 
-    def __init__(
-            self,
-            model='simple-fc',
-            loss='vae',
-            optimizer='radam',
-            dataset_train='3dshapes',
-            hparams=None
-    ):
+    def __init__(self, hparams: HParams=None):
         super().__init__()
 
         # parameters
-        self.my_hparams = SimpleNamespace(**{
-            # defaults
-            **dict(
-                lr=0.001,
-                batch_size=64,
-                num_workers=4,
-                k='uniform',
-                z_size=6,
-            ),
-            # custom values
-            **(hparams if hparams else {})
-        })
-
+        self.hparams: HParams = hparams if isinstance(hparams, HParams) else HParams(**(hparams if hparams else {}))
         # make
-        self.model = make_model(model, z_size=self.my_hparams.z_size) if isinstance(model, str) else model
-        self.loss = make_vae_loss(loss) if isinstance(loss, str) else loss
-        self.optimizer = optimizer
-        self.dataset_train: Dataset = make_ground_truth_dataset(dataset_train)
-
+        self.model = make_model(self.hparams.model, z_size=self.hparams.z_size)
+        self.loss = make_vae_loss(self.hparams.loss)
+        self.dataset_train: Dataset = make_ground_truth_dataset(self.hparams.dataset)
         # convert dataset for paired loss
         if self.loss.is_pair_loss:
             if isinstance(self.dataset_train, GroundTruthData):
-                self.dataset_train_pairs = PairedVariationDataset(self.dataset_train, k=self.my_hparams.k)
+                self.dataset_train_pairs = PairedVariationDataset(self.dataset_train, k=self.hparams.k)
             else:
                 self.dataset_train_pairs = RandomPairDataset(self.dataset_train)
+
+    def training_step(self, batch, batch_idx):
+        if self.loss.is_pair_loss:
+            return self._train_step_pair(batch, batch_idx)
+        else:
+            return self._train_step_single(batch, batch_idx)
+
+    def _train_step_single(self, batch, batch_idx):
+        x = batch
+        x_recon, z_mean, z_logvar, z = self.forward(x)
+        losses = self.loss(x, x_recon, z_mean, z_logvar, z)
+        # log & train
+        return {'loss': losses['loss'], 'log': {'train_loss': losses['loss']}}
+
+    def _train_step_pair(self, batch, batch_idx):
+        x, x2 = batch
+        # feed forward
+        # TODO: this is hacky and moves functionality out of the right places
+        z_mean, z_logvar = self.model.encode_gaussian(x)
+        z2_mean, z2_logvar = self.model.encode_gaussian(x2)
+        if isinstance(self.loss, AdaGVaeLoss):
+            z_mean, z_logvar, z2_mean, z2_logvar = self.loss.intercept_z_pair(z_mean, z_logvar, z2_mean, z2_logvar)
+        z = self.model.sample_from_latent_distribution(z_mean, z_logvar)
+        z2 = self.model.sample_from_latent_distribution(z2_mean, z2_logvar)
+        x_recon = self.model.decode(z)
+        x2_recon = self.model.decode(z2)
+        # compute loss
+        losses = self.loss(x, x_recon, z_mean, z_logvar, z, x2, x2_recon, z2_mean, z2_logvar, z2)
+        # log & train
+        return {'loss': losses['loss'], 'log': {'train_loss': losses['loss']}}
 
     def forward(self, x):
         return self.model.forward(x)
 
-    def training_step(self, batch, batch_idx):
-        if self.loss.is_pair_loss:
-            x, x2 = batch
-            x_recon, z_mean, z_logvar, z = self.forward(x)
-            x2_recon, z2_mean, z2_logvar, z2 = self.forward(x2)
-            losses = self.loss(x, x_recon, z_mean, z_logvar, z, x2, x2_recon, z2_mean, z2_logvar, z2)
-        else:
-            x = batch
-            x_recon, z_mean, z_logvar, z = self.forward(x)
-            losses = self.loss(x, x_recon, z_mean, z_logvar, z)
-
-        return {
-            'loss': losses['loss'],
-            # 'log': {
-            #     'train_loss': losses['loss']
-            # }
-        }
-
     def configure_optimizers(self):
-        return make_optimizer('radam', self.parameters(), lr=self.my_hparams.lr)
+        return make_optimizer(self.hparams.optimizer, self.parameters(), lr=self.hparams.lr)
 
     @pl.data_loader
     def train_dataloader(self):
         # Sample of data used to fit the model.
         return torch.utils.data.DataLoader(
             self.dataset_train_pairs if self.loss.is_pair_loss else self.dataset_train,
-            batch_size=self.my_hparams.batch_size,
-            num_workers=self.my_hparams.num_workers,
+            batch_size=self.hparams.batch_size,
+            num_workers=self.hparams.num_workers,
             shuffle=True
         )
 
@@ -143,13 +152,12 @@ if __name__ == '__main__':
     # print(list(params['state_dict'].keys()))
     # print(params['state_dict']['model.gaussian_encoder.model.1.weight'])
 
-
     # model = make_model('simple-fc', z_size=6)
 
-    system = VaeSystem(dataset_train='3dshapes', model='simple-fc', loss='ada-gvae', hparams=dict(num_workers=8, batch_size=64, z_size=6))
+    system = VaeSystem(HParams(loss='ada-gvae'))
     system.quick_train()
-    save_model(system, 'temp.model')
-    load_model(system, 'temp.model')
+    save_model(system, 'data/model/temp.model')
+    load_model(system, 'data/model/temp.model')
 
 
 # ========================================================================= #

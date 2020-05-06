@@ -1,14 +1,13 @@
 import torch
 from torch import Tensor
-from disent.model.encoders_decoders import (BaseDecoderModule, BaseGaussianEncoderModule)
-
+from disent.model.base import BaseDecoderModule, BaseGaussianEncoderModule
 
 # ========================================================================= #
 # gaussian encoder model                                                    #
 # ========================================================================= #
 
 
-class GaussianEncoderModel(BaseGaussianEncoderModule, BaseDecoderModule):
+class GaussianEncoderDecoderModel(BaseGaussianEncoderModule, BaseDecoderModule):
 
     def __init__(self, gaussian_encoder: BaseGaussianEncoderModule, decoder: BaseDecoderModule):
         assert gaussian_encoder.x_shape == decoder.x_shape, 'x_shape mismatch'

@@ -6,8 +6,8 @@ from .encoders_decoders import (
     DecoderSimpleConv64
 )
 
-from .gaussian_encoder_model import (
-    GaussianEncoderModel
+from .gaussian_model import (
+    GaussianEncoderDecoderModel
 )
 
 # ========================================================================= #
@@ -34,7 +34,7 @@ def make_optimizer(name, parameters, lr=0.001):
 
 
 def make_model(name, z_size=6, image_size=64, num_channels=3):
-    from disent.model.gaussian_encoder_model import GaussianEncoderModel
+    from disent.model.gaussian_model import GaussianEncoderDecoderModel
 
     x_shape = (num_channels, image_size, image_size)
 
@@ -49,7 +49,7 @@ def make_model(name, z_size=6, image_size=64, num_channels=3):
     else:
         raise KeyError(f'Unsupported Model: {name}')
 
-    return GaussianEncoderModel(encoder, decoder)
+    return GaussianEncoderDecoderModel(encoder, decoder)
 
 
 # ========================================================================= #
