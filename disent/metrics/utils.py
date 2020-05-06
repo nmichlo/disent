@@ -16,6 +16,9 @@
 """Utility functions that are useful for the different metrics."""
 
 import numpy as np
+from tqdm import tqdm
+
+from disent.dataset.ground_truth.base import GroundTruthDataset
 from disent.util import to_numpy
 
 # import sklearn
@@ -29,38 +32,39 @@ from disent.util import to_numpy
 # ========================================================================= #
 
 
-# def generate_batch_factor_code(
-#         ground_truth_data,
-#         representation_function,
-#         num_points,
-#         random_state,
-#         batch_size
-# ):
-#     """Sample a single training sample based on a mini-batch of ground-truth data.
-#     Args:
-#       ground_truth_data: GroundTruthData to be sampled from.
-#       representation_function: Function that takes observation as input and outputs a representation.
-#       num_points: Number of points to sample.
-#       random_state: Numpy random state used for randomness.
-#       batch_size: Batchsize to sample points.
-#     Returns:
-#       representations: Codes (num_codes, num_points)-np array.
-#       factors: Factors generating the codes (num_factors, num_points)-np array.
-#     """
-#     representations = None
-#     factors = None
-#     i = 0
-#     while i < num_points:
-#         num_points_iter = min(num_points - i, batch_size)
-#         current_factors, current_observations = ground_truth_data.sample(num_points_iter, random_state)
-#         if i == 0:
-#             factors = current_factors
-#             representations = representation_function(current_observations)
-#         else:
-#             factors = np.vstack((factors, current_factors))
-#             representations = np.vstack((representations, representation_function(current_observations)))
-#         i += num_points_iter
-#     return np.transpose(representations), np.transpose(factors)
+def generate_batch_factor_code(
+        ground_truth_dataset: GroundTruthDataset,
+        representation_function,
+        num_points,
+        batch_size
+):
+    """Sample a single training sample based on a mini-batch of ground-truth data.
+    Args:
+      ground_truth_dataset: GroundTruthData to be sampled from.
+      representation_function: Function that takes observation as input and outputs a representation.
+      num_points: Number of points to sample.
+      batch_size: Batchsize to sample points.
+    Returns:
+      representations: Codes (num_codes, num_points)-np array.
+      factors: Factors generating the codes (num_factors, num_points)-np array.
+    """
+    representations = None
+    factors = None
+    i = 0
+    with tqdm(total=num_points) as bar:
+        while i < num_points:
+            num_points_iter = min(num_points - i, batch_size)
+            current_factors, current_observations = ground_truth_dataset.sample(num_points_iter)
+            current_factors, current_observations = current_factors, current_observations.cuda()
+            if i == 0:
+                factors = current_factors
+                representations = to_numpy(representation_function(current_observations))
+            else:
+                factors = np.vstack((factors, current_factors))
+                representations = np.vstack((representations, to_numpy(representation_function(current_observations))))
+            i += num_points_iter
+            bar.update(num_points_iter)
+    return np.transpose(representations), np.transpose(factors)
 
 
 # def split_train_test(observations, train_percentage):
