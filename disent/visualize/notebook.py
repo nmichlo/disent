@@ -45,6 +45,9 @@ def plt_images_minimal_square(image_list, figsize_ratio=1., space=0):
     # DISPLAY IMAGES
     fig, axs = plt_subplots_grid(size, size, figsize_ratio, space)
     for ax, img in zip(np.array(axs).flatten(), image_list):
+        # TODO: this should not be here, image list should be PIL images first
+        if len(img.shape) == 3 and img.shape[-1] == 1:
+            img = img[:, :, 0]
         ax.imshow(img)
     return fig, axs
 
@@ -67,6 +70,23 @@ def notebook_display_animation(frames, fps=10):
     data = mimwrite('<bytes>', to_numpy(frames), format='gif', fps=fps)
     # diplay gif image in notebook | https://github.com/ipython/ipython/issues/10045#issuecomment-522697219
     image = display.Image(data=data, format='gif')
+    display.display(image)
+
+def notebook_display_image(img, format='png'):
+    """
+    Display a raw image within an IPython notebook
+    - Internally converts the image to bytes
+      representing a png image and then displays it.
+    """
+    assert format in {'png', 'jpg'}, 'Invalid format, must be one of: {"png", "jpg"}'
+    from IPython.core.interactiveshell import InteractiveShell
+    InteractiveShell.ast_node_interactivity = "all"
+    from IPython import display
+    from imageio import imwrite
+    # convert to png and get bytes | https://imageio.readthedocs.io/en/stable/userapi.html
+    data = imwrite('<bytes>', to_numpy(img), format=format)
+    # diplay png image in notebook | https://github.com/ipython/ipython/issues/10045#issuecomment-522697219
+    image = display.Image(data=data, format=format)
     display.display(image)
 
 # ========================================================================= #
@@ -107,7 +127,8 @@ def _plt_traverse_latent_space(decoder_fn, z_mean, dimensions=None, values=None,
         plt_images_grid(images_grid, figsize_ratio=figsize_ratio)
 
 def plt_traverse_latent_space(system, num_samples=1, dimensions=None, values=11, figsize_ratio=0.75):
-    obs = torch.stack(system.dataset_train.sample_observations(num_samples)).to(system.device)
+    # TODO: this is not general
+    obs = system.dataset_train.sample_observations(num_samples).cuda()
     z_mean, z_logvar = to_numpy(system.model.encode_gaussian(obs))
     _plt_traverse_latent_space(system.model.decode, z_mean, dimensions=dimensions, values=values, figsize_ratio=figsize_ratio)
 
@@ -120,7 +141,8 @@ def _notebook_display_traverse_latent_space(decoder_fn, z_mean, dimensions=None,
         notebook_display_animation(frames, fps=fps)
 
 def notebook_display_traverse_latent_space(system, num_samples=1, dimensions=None, values=21, fps=10):
-    obs = torch.stack(system.dataset_train.sample_observations(num_samples)).to(system.device)
+    # TODO: this is not general
+    obs = system.dataset_train.sample_observations(num_samples).cuda()
     z_mean, z_logvar = to_numpy(system.model.encode_gaussian(obs))
     _notebook_display_traverse_latent_space(system.model.decode, z_mean, dimensions=dimensions, values=values, fps=fps)
 
@@ -142,9 +164,11 @@ def _notebook_display_latent_cycle(decoder_fn, z_means, z_logvars, mode='fixed_i
 
 def notebook_display_latent_cycle(system, mode='fixed_interval_cycle', num_animations=1, num_test_samples=64, num_frames=21, fps=8, obs=None):
     if obs is None:
-        obs = torch.stack(system.dataset_train.sample_observations(num_test_samples)).to(system.device)
+        # TODO: this is not general
+        obs = system.dataset_train.sample_observations(num_test_samples).cuda()
     else:
-        obs = torch.as_tensor(obs).to(system.device)
+        # TODO: this is not general
+        obs = torch.as_tensor(obs).cuda()
     z_mean, z_logvar = to_numpy(system.model.encode_gaussian(obs))
     _notebook_display_latent_cycle(system.model.decode, z_mean, z_logvar, mode=mode, num_animations=num_animations, num_frames=num_frames, fps=fps)
 

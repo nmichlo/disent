@@ -26,14 +26,23 @@ class HParams:
     # OPTIMIZER
     optimizer: str = 'radam'
     lr: float = 0.001
+    weight_decay: float = 0.
     # LOSS
     loss: str = 'vae'
     # DATASET
     dataset: str = '3dshapes'
+    try_in_memory: bool = False
     batch_size: int = 64
     num_workers: int = 4
     # PAIR DATASET
     k: str = 'uniform'
+
+    def to_dict(self):
+        return {
+            k: getattr(self, k)
+            for k in dir(self)
+            if not (k.startswith('_') or k ==  'to_dict')
+        }
 
 
 class VaeSystem(pl.LightningModule):
@@ -49,7 +58,7 @@ class VaeSystem(pl.LightningModule):
         # make
         self.model = make_model(self.hparams.model, z_size=self.hparams.z_size)
         self.loss = make_vae_loss(self.hparams.loss)
-        self.dataset_train: Dataset = make_ground_truth_dataset(self.hparams.dataset)
+        self.dataset_train: Dataset = make_ground_truth_dataset(self.hparams.dataset, try_in_memory=self.hparams.try_in_memory)
         # convert dataset for paired loss
         if self.loss.is_pair_loss:
             if isinstance(self.dataset_train, GroundTruthData):
@@ -91,7 +100,7 @@ class VaeSystem(pl.LightningModule):
         return self.model.forward(x)
 
     def configure_optimizers(self):
-        return make_optimizer(self.hparams.optimizer, self.parameters(), lr=self.hparams.lr)
+        return make_optimizer(self.hparams.optimizer, self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
 
     @pl.data_loader
     def train_dataloader(self):
@@ -158,7 +167,6 @@ if __name__ == '__main__':
     system.quick_train()
     save_model(system, 'data/model/temp.model')
     load_model(system, 'data/model/temp.model')
-
 
 # ========================================================================= #
 # END                                                                       #

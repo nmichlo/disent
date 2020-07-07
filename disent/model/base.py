@@ -7,12 +7,23 @@ from torch import Tensor
 # Utility Layers                                                            #
 # ========================================================================= #
 
-
-class View(nn.Module):
+class Print(nn.Module):
     """From: https://github.com/1Konny/Beta-VAE/blob/master/model.py"""
-    def __init__(self, *size):
+    def __init__(self, layer):
         super().__init__()
-        self.size = size
+        self.layer = layer
+
+    def forward(self, tensor):
+        print(self.layer, '|', tensor.shape, '->', end=' ', flush=True)
+        output = self.layer.forward(tensor)
+        print(output.shape)
+        return output
+
+class BatchView(nn.Module):
+    """From: https://github.com/1Konny/Beta-VAE/blob/master/model.py"""
+    def __init__(self, size):
+        super().__init__()
+        self.size = (-1, *size)
 
     def forward(self, tensor):
         return tensor.view(*self.size)
@@ -55,10 +66,10 @@ class BaseModule(nn.Module):
 
     def assert_x_valid(self, x):
         assert x.ndim == 4
-        assert x.shape[1:] == self.x_shape
+        assert x.shape[1:] == self.x_shape, f'X shape mismatch. Required: {self.x_shape} Got: {x.shape[1:]}'
     def assert_z_valid(self, z):
         assert z.ndim == 2
-        assert z.shape[1] == self.z_size
+        assert z.shape[1] == self.z_size, f'Z size mismatch. Required: {self.z_size} Got: {z.shape[1]}'
     def assert_lengths(self, x, z):
         assert len(x) == len(z)
 

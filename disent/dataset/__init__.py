@@ -39,17 +39,17 @@ def make_ground_truth_data_transform(name):
     import torchvision
     import torch
 
-    if '3dshapes' == name:
+    if '3dshapes' == name:  # (1, 64, 64)
         transform = torchvision.transforms.ToTensor()
-    elif 'dsprites' == name:
+    elif 'dsprites' == name:  # (1, 64, 64)
         transform = torchvision.transforms.Compose([
             torchvision.transforms.ToTensor(),
-            torchvision.transforms.Lambda(lambda x: torch.cat([x, x, x], dim=0)),  # add extra channels
+            # torchvision.transforms.Lambda(lambda x: torch.cat([x, x, x], dim=0)),  # add extra channels
         ])
-    elif 'xygrid' == name:
+    elif 'xygrid' == name:  # (1, 64, 64)
         transform = torchvision.transforms.Compose([
             torchvision.transforms.ToTensor(),
-            torchvision.transforms.Lambda(lambda x: torch.cat([x, x, x], dim=0))  # add extra channels
+            # torchvision.transforms.Lambda(lambda x: torch.cat([x, x, x], dim=0))  # add extra channels
         ])
     else:
         raise KeyError(f'Unsupported Ground Truth Dataset: {name}')
