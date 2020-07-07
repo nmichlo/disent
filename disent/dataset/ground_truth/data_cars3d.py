@@ -28,7 +28,7 @@ class Cars3dData(DownloadableGroundTruthData):
         super().__init__()
         raise NotImplementedError
 
-    def __getitem__(self, indices):
+    def __getitem__(self, idx):
         raise NotImplementedError
 
 

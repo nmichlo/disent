@@ -38,6 +38,10 @@ class DiscreteStateSpace(object):
     def __getitem__(self, idx):
         return self.idx_to_pos(idx)
 
+    def __iter__(self):
+        for i in range(self.size):
+            yield self[i]
+
     @property
     def size(self):
         return self._size
@@ -47,9 +51,14 @@ class DiscreteStateSpace(object):
         return len(self._factor_sizes)
 
     def pos_to_idx(self, pos):
-        return np.dot(pos, self._factor_divisors)
+        idx = np.dot(pos, self._factor_divisors)
+        if idx < 0 or idx >= self.size:
+            raise IndexError('Index out of bounds')
+        return idx
 
     def idx_to_pos(self, idx):
+        if idx < 0 or idx >= self.size:
+            raise IndexError('Index out of bounds')
         return (idx % self._factor_modulus) // self._factor_divisors
 
     def sample_factors(self, num_samples, factor_indices=None):
@@ -148,9 +157,8 @@ class GroundTruthData(DiscreteStateSpace):
     def observation_shape(self) -> Tuple[int, ...]:
         raise NotImplementedError()
 
-    def __getitem__(self, indices):
+    def __getitem__(self, idx):
         raise NotImplementedError
-
 
 # ========================================================================= #
 # Convert ground truth data to a dataset                                    #
