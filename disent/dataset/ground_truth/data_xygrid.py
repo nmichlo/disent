@@ -29,9 +29,9 @@ class XYData(GroundTruthData):
     def observation_shape(self) -> Tuple[int, ...]:
         return self._width, self._width
 
-    def __init__(self, width=9, size=2):
-        self._width = width  # image size
-        self._square_width = size  # square size
+    def __init__(self, grid_size=9, square_size=2):
+        self._width = grid_size  # image size
+        self._square_width = square_size  # square size
         self._placements = self._width - (self._square_width - 1)
         super().__init__()
 
