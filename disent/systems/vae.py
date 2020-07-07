@@ -6,7 +6,8 @@ from torch.utils.data import Dataset
 import pytorch_lightning as pl
 from pytorch_lightning import Trainer
 
-from disent.loss import AdaGVaeLoss, make_vae_loss
+from disent.frameworks import make_vae_loss
+from disent.frameworks.semisupervised.adavae import InterceptZMixin
 from disent.model import make_model, make_optimizer
 from disent.dataset import make_ground_truth_dataset
 from disent.dataset.ground_truth.base import (GroundTruthData, PairedVariationDataset, RandomPairDataset)
@@ -85,7 +86,7 @@ class VaeSystem(pl.LightningModule):
         # TODO: this is hacky and moves functionality out of the right places
         z_mean, z_logvar = self.model.encode_gaussian(x)
         z2_mean, z2_logvar = self.model.encode_gaussian(x2)
-        if isinstance(self.loss, AdaGVaeLoss):
+        if isinstance(self.loss, InterceptZMixin):
             z_mean, z_logvar, z2_mean, z2_logvar = self.loss.intercept_z_pair(z_mean, z_logvar, z2_mean, z2_logvar)
         z = self.model.sample_from_latent_distribution(z_mean, z_logvar)
         z2 = self.model.sample_from_latent_distribution(z2_mean, z2_logvar)

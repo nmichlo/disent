@@ -1,11 +1,9 @@
+from .unsupervised.vae import VaeLoss
+from .unsupervised.betavae import BetaVaeLoss
+from .unsupervised.betavae import BetaVaeHLoss
+from .semisupervised.adavae import AdaGVaeLoss
+from .semisupervised.adavae import AdaMlVaeLoss
 
-from .loss import (
-    VaeLoss,
-    BetaVaeLoss,
-    BetaVaeHLoss,
-    AdaGVaeLoss,
-    AdaMlVaeLoss
-)
 
 # ========================================================================= #
 # __init__                                                                  #

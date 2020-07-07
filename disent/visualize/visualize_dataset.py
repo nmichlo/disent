@@ -26,7 +26,7 @@ import os
 from typing import Union
 
 from disent.dataset.ground_truth.base import GroundTruthData
-from disent.loss.loss import lerp_step
+from disent.frameworks.loss import lerp_step
 from disent.util import to_numpy
 from disent.visualize import visualize_util
 import numpy as np
