@@ -1,5 +1,5 @@
 import os
-from typing import Tuple, Union
+from typing import List, Tuple, Union
 import h5py
 import torch
 from PIL import Image
@@ -52,13 +52,15 @@ class DiscreteStateSpace(object):
 
     def pos_to_idx(self, pos):
         idx = np.dot(pos, self._factor_divisors)
-        if idx < 0 or idx >= self.size:
-            raise IndexError('Index out of bounds')
+        # TODO: fix for array of pos
+        # if idx < 0 or idx >= self.size:
+        #     raise IndexError('Index out of bounds')
         return idx
 
     def idx_to_pos(self, idx):
-        if idx < 0 or idx >= self.size:
-            raise IndexError('Index out of bounds')
+        # TODO: fix for array of idx
+        # if idx < 0 or idx >= self.size:
+        #     raise IndexError('Index out of bounds')
         return (idx % self._factor_modulus) // self._factor_divisors
 
     def sample_factors(self, num_samples, factor_indices=None):
@@ -222,25 +224,26 @@ class DownloadableGroundTruthData(GroundTruthData):
         super().__init__()
         # paths
         self._data_dir = ensure_dir_exists(data_dir)
-        self._data_path = os.path.join(self._data_dir, basename_from_url(self.dataset_url))
+        self._data_paths = [os.path.join(self._data_dir, basename_from_url(url)) for url in self.dataset_urls]
         # meta
         self._force_download = force_download
         # DOWNLOAD
         self._do_download_dataset()
 
     def _do_download_dataset(self):
-        no_data = not os.path.exists(self._data_path)
-        # download data
-        if self._force_download or no_data:
-            download_file(self.dataset_url, self._data_path)
+        for path, url in zip(self.dataset_paths, self.dataset_urls):
+            no_data = not os.path.exists(path)
+            # download data
+            if self._force_download or no_data:
+                download_file(url, path)
 
     @property
-    def dataset_path(self):
+    def dataset_paths(self) -> List[str]:
         '''path that the data should be loaded from in the child class'''
-        return self._data_path
+        return self._data_paths
 
     @property
-    def dataset_url(self) -> str:
+    def dataset_urls(self) -> List[str]:
         raise NotImplementedError()
 
 
@@ -288,6 +291,19 @@ class PreprocessedDownloadableGroundTruthData(DownloadableGroundTruthData):
             os.rename(temp_proc_path, self._proc_path)
 
             assert os.path.exists(self._proc_path), f'Overridden _preprocess_dataset method did not initialise the required dataset file: dataset_path="{self._proc_path}"'
+
+    @property
+    def _data_path(self):
+        assert len(self.dataset_paths) == 1
+        return self.dataset_paths[0]
+
+    @property
+    def dataset_urls(self):
+        return [self.dataset_url]
+
+    @property
+    def dataset_url(self):
+        raise NotImplementedError()
 
     @property
     def dataset_path(self):

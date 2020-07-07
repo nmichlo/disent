@@ -31,6 +31,8 @@ def make_ground_truth_data(name, data_dir='data/dataset', try_in_memory=True) ->
         data = DSpritesData(data_dir=data_dir, in_memory=try_in_memory)
     elif 'xygrid' == name:
         data = XYData(grid_size=64)
+    elif 'smallnorb' == name:
+        data = SmallNorbData()
     else:
         raise KeyError(f'Unsupported Ground Truth Dataset: {name}')
     return data
