@@ -286,6 +286,10 @@ class PreprocessedDownloadableGroundTruthData(DownloadableGroundTruthData):
         '''path that the dataset should be loaded from in the child class'''
         return self._proc_path
 
+    @property
+    def dataset_path_unprocessed(self):
+        return self._data_path
+
     def _preprocess_dataset(self, path_src, path_dst):
         raise NotImplementedError()
 
@@ -306,10 +310,14 @@ class Hdf5PreprocessedGroundTruthData(PreprocessedDownloadableGroundTruthData):
             # data is stored on the underlying class at the _DATA property.
             # TODO: this is weird
             if not hasattr(self.__class__, '_DATA'):
-                print(f'[DATASET: {self.__class__.__name__}]: Loading...', end=' ')
-                with h5py.File(self.dataset_path, 'r') as db:
-                    self.__class__._DATA = np.array(db[self.hdf5_name])
-                print('Loaded!')
+                print(f'[DATASET: {self.__class__.__name__}]: Loading...', end=' ', flush=True)
+                # Often the (non-chunked) dataset will be optimized for random accesses,
+                # while the unprocessed (chunked) dataset will be better for sequential reads.
+                with h5py.File(self.dataset_path_unprocessed, 'r') as db:
+                    # indexing dataset objects returns numpy array
+                    # instantiating np.array from the dataset requires double memory.
+                    self.__class__._DATA = db[self.hdf5_name][:]
+                print('Loaded!', flush=True)
         else:
             # TODO: this is weird
             if not hasattr(self.__class__, '_DATASET'):
