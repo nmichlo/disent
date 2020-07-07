@@ -223,7 +223,7 @@ def latent_cycle(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', 
 
 
 def sample_observations_and_reconstruct(gaussian_encoder_fn, decoder_fn, dataset, num_samples=16):
-    obs = torch.stack(dataset.sample_observations(num_samples)).cuda()
+    obs = dataset.sample_observations(num_samples).cuda()
     # reconstruct
     z_mean, z_logvar = gaussian_encoder_fn(obs)
     x_recon = decoder_fn(z_mean)
@@ -273,7 +273,7 @@ def save_model_visualisations(
     # activation = dict(logits=sigmoid, tanh=tanh)['logits']
 
     # sample random observations & feed forward | used for visualisations
-    obs = torch.stack(dataset.sample_observations(num_images)).cuda()  # TODO: cuda wont always be right
+    obs = dataset.sample_observations(num_images).cuda()  # TODO: cuda wont always be right
     z_means, z_logvars = gaussian_encoder_fn(obs)
     x_recons = decoder_fn(z_means)
 
