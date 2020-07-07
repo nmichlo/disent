@@ -35,6 +35,12 @@ def make_ground_truth_data(name, data_dir='data/dataset', try_in_memory=True) ->
         data = SmallNorbData()
     elif 'cars3d' == name:
         data = Cars3dData()
+    elif 'mpi3d_toy' == name:
+        data = Mpi3dData(subset='toy', in_memory=try_in_memory)
+    elif 'mpi3d_realistic' == name:
+        data = Mpi3dData(subset='realistic', in_memory=try_in_memory)
+    elif 'mpi3d_real' == name:
+        data = Mpi3dData(subset='real', in_memory=try_in_memory)
     else:
         raise KeyError(f'Unsupported Ground Truth Dataset: {name}')
     return data
