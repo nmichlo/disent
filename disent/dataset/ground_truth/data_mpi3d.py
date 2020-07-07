@@ -18,7 +18,7 @@ class Mpi3dData(DownloadableGroundTruthData):
     """
 
     factor_names = ("object_color", "object_shape", "object_size", "camera_height", "background_color", "first_dof", "second_dof")
-    factor_sizes = (4, 4, 2, 3, 3, 40, 40)
+    factor_sizes = (4, 4, 2, 3, 3, 40, 40)  # TOTAL: 460800
     observation_shape = (64, 64, 3)
 
     dataset_url = None

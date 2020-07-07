@@ -22,7 +22,7 @@ class Shapes3dData(Hdf5PreprocessedGroundTruthData):
     dataset_url = 'https://storage.googleapis.com/3d-shapes/3dshapes.h5'
 
     factor_names = ('floor_hue', 'wall_hue', 'object_hue', 'scale', 'shape', 'orientation')
-    factor_sizes = (10, 10, 10, 8, 4, 15)
+    factor_sizes = (10, 10, 10, 8, 4, 15)  # TOTAL: 480000
     observation_shape = (64, 64, 3)
 
     hdf5_name = 'images'

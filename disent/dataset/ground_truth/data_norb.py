@@ -46,11 +46,11 @@ class SmallNorbData(DownloadableGroundTruthData):
     # TODO: add ability to randomly sample the instance so
     #       that this corresponds to disentanglement_lib
     factor_names = ('category', 'instance', 'elevation', 'azimuth', 'lighting_condition')
-    factor_sizes = (5, 5, 9, 18, 6)  # divide the number of instances by 2 to correspond to test & train sets
+    factor_sizes = (5, 5, 9, 18, 6)  # TOTAL: 24300
     observation_shape = (96, 96, 1)
 
-    def __init__(self, is_test=False):
-        super().__init__()
+    def __init__(self, data_dir='data/dataset', force_download=False, is_test=False):
+        super().__init__(data_dir=data_dir, force_download=force_download)
         assert not is_test, 'Test set not yet supported'
 
         if not hasattr(self.__class__, '_DATA'):

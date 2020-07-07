@@ -22,7 +22,7 @@ class DSpritesData(Hdf5PreprocessedGroundTruthData):
     """
 
     factor_names = ('shape', 'scale', 'orientation', 'position_x', 'position_y')
-    factor_sizes = (3, 6, 40, 32, 32)
+    factor_sizes = (3, 6, 40, 32, 32)  # TOTAL: 737280
     observation_shape = (64, 64, 1)  # TODO: reference implementation has colour variants
 
     dataset_url = 'https://raw.githubusercontent.com/deepmind/dsprites-dataset/master/dsprites_ndarray_co1sh3sc6or40x32y32_64x64.hdf5'

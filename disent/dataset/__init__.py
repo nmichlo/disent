@@ -33,6 +33,8 @@ def make_ground_truth_data(name, data_dir='data/dataset', try_in_memory=True) ->
         data = XYData(grid_size=64)
     elif 'smallnorb' == name:
         data = SmallNorbData()
+    elif 'cars3d' == name:
+        data = Cars3dData()
     else:
         raise KeyError(f'Unsupported Ground Truth Dataset: {name}')
     return data
