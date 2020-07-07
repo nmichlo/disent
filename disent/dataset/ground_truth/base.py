@@ -386,6 +386,7 @@ class PairedVariationDataset(Dataset):
         variation_factor_indices: The indices of the factors of variation that are samples between pairs, if None (all factors are sampled)
         """
         assert isinstance(dataset, GroundTruthDataset), 'passed object is not an instance of GroundTruthDataset'
+        assert len(dataset) > 1, 'Dataset must be contain more than one observation.'
         # wrapped dataset
         self._dataset: GroundTruthDataset = dataset
         # possible fixed dimensions between pairs
@@ -443,13 +444,22 @@ class PairedVariationDataset(Dataset):
 
 class RandomPairDataset(Dataset):
     def __init__(self, dataset: Dataset):
+        assert len(dataset) > 1, 'Dataset must be contain more than one observation.'
         self.dataset = dataset
 
     def __len__(self):
         return len(self.dataset)
 
     def __getitem__(self, idx):
-        rand_idx = np.random.randint(len(self.dataset))
+        # find differing random index, nearly always this will only run once.
+        rand_idx, attempts = idx, 0
+        while rand_idx == idx:
+            rand_idx = np.random.randint(len(self.dataset))
+            attempts += 1
+            if attempts > 1000:
+                # pretty much impossible unless your dataset is of size 1, or your prng is broken...
+                raise IndexError('Unable to find random index that differs.')
+        # return elements
         return self.dataset[idx], self.dataset[rand_idx]
 
 
