@@ -11,11 +11,11 @@ from disent.frameworks.semisupervised.adavae import InterceptZMixin
 from disent.model import make_model, make_optimizer
 from disent.dataset import make_ground_truth_dataset
 from disent.dataset.ground_truth.base import (GroundTruthData, PairedVariationDataset, RandomPairDataset)
+from disent.util import chunked
 
-from disent.util import load_model, save_model
 
 # ========================================================================= #
-# xy system                                                                 #
+# general system                                                            #
 # ========================================================================= #
 
 
@@ -55,45 +55,42 @@ class VaeSystem(pl.LightningModule):
         super().__init__()
 
         # parameters
-        self.hparams: HParams = hparams if isinstance(hparams, HParams) else HParams(**(hparams if hparams else {}))
+        self.params: HParams = hparams if isinstance(hparams, HParams) else HParams(**(hparams if hparams else {}))
         # make
-        self.model = make_model(self.hparams.model, z_size=self.hparams.z_size)
-        self.loss = make_vae_loss(self.hparams.loss)
-        self.dataset_train: Dataset = make_ground_truth_dataset(self.hparams.dataset, try_in_memory=self.hparams.try_in_memory)
+        self.model = make_model(self.params.model, z_size=self.params.z_size)
+        self.loss = make_vae_loss(self.params.loss)
+        self.dataset_train: Dataset = make_ground_truth_dataset(self.params.dataset, try_in_memory=self.params.try_in_memory)
         # convert dataset for paired loss
         if self.loss.is_pair_loss:
             if isinstance(self.dataset_train, GroundTruthData):
-                self.dataset_train_pairs = PairedVariationDataset(self.dataset_train, k=self.hparams.k)
+                self.dataset_train_pairs = PairedVariationDataset(self.dataset_train, k=self.params.k)
             else:
                 self.dataset_train_pairs = RandomPairDataset(self.dataset_train)
 
     def training_step(self, batch, batch_idx):
-        if self.loss.is_pair_loss:
-            return self._train_step_pair(batch, batch_idx)
-        else:
-            return self._train_step_single(batch, batch_idx)
+        """
+        Generalised training step that can handle any number of observations in each sample.
+        (loss.is_single + loss.is_pair + loss.is_triplet + ...)
+        This is slightly slow, and thus it could be advantageous to specialise on the more simple cases.
+        """
+        # handle single case
+        if isinstance(batch, torch.Tensor):
+            batch = [batch]
 
-    def _train_step_single(self, batch, batch_idx):
-        x = batch
-        x_recon, z_mean, z_logvar, z = self.forward(x)
-        losses = self.loss(x, x_recon, z_mean, z_logvar, z)
-        # log & train
-        return {'loss': losses['loss'], 'log': {'train_loss': losses['loss']}}
-
-    def _train_step_pair(self, batch, batch_idx):
-        x, x2 = batch
-        # feed forward
-        # TODO: this is hacky and moves functionality out of the right places
-        z_mean, z_logvar = self.model.encode_gaussian(x)
-        z2_mean, z2_logvar = self.model.encode_gaussian(x2)
+        # encode [z_mean, z_logvar, ...]
+        z_params = [z_component for x in batch for z_component in self.model.encode_gaussian(x)]
+        # intercept and mutate if needed [z_mean, z_logvar, ...]
         if isinstance(self.loss, InterceptZMixin):
-            z_mean, z_logvar, z2_mean, z2_logvar = self.loss.intercept_z_pair(z_mean, z_logvar, z2_mean, z2_logvar)
-        z = self.model.sample_from_latent_distribution(z_mean, z_logvar)
-        z2 = self.model.sample_from_latent_distribution(z2_mean, z2_logvar)
-        x_recon = self.model.decode(z)
-        x2_recon = self.model.decode(z2)
-        # compute loss
-        losses = self.loss(x, x_recon, z_mean, z_logvar, z, x2, x2_recon, z2_mean, z2_logvar, z2)
+            z_params = self.loss.intercept_z(*z_params)
+        # reparametrize [z, ...]
+        zs = [self.model.sample_from_latent_distribution(z_mean, z_logvar) for z_mean, z_logvar in chunked(z_params, 2)]
+        # reconstruct [x_recon, ...]
+        x_recons = [self.model.decode(z) for z in zs]
+
+        # compute loss [x, x_recon, z_mean, z_logvar, z, ...]
+        loss_params = [param for (x, x_recon, (z_mean, z_logvar), z) in zip(batch, x_recons, chunked(z_params, 2), zs) for param in (x, x_recon, z_mean, z_logvar, z)]
+        losses = self.loss(*loss_params)
+
         # log & train
         return {'loss': losses['loss'], 'log': {'train_loss': losses['loss']}}
 
@@ -101,15 +98,15 @@ class VaeSystem(pl.LightningModule):
         return self.model.forward(x)
 
     def configure_optimizers(self):
-        return make_optimizer(self.hparams.optimizer, self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
+        return make_optimizer(self.params.optimizer, self.parameters(), lr=self.params.lr, weight_decay=self.params.weight_decay)
 
     @pl.data_loader
     def train_dataloader(self):
         # Sample of data used to fit the model.
         return torch.utils.data.DataLoader(
             self.dataset_train_pairs if self.loss.is_pair_loss else self.dataset_train,
-            batch_size=self.hparams.batch_size,
-            num_workers=self.hparams.num_workers,
+            batch_size=self.params.batch_size,
+            num_workers=self.params.num_workers,
             shuffle=True
         )
 
@@ -139,13 +136,9 @@ class VaeSystem(pl.LightningModule):
 
 
 if __name__ == '__main__':
-    # system = VaeSystem(dataset_train='dsprites', model='simple-fc', loss='vae', hparams=dict(num_workers=8, batch_size=64, z_size=6))
-    # print('Training')
-    # trainer = system.quick_train(
-    #     steps=16,
-    #     loggers=None, # loggers.TensorBoardLogger('logs/')
-    # )
-    #
+    system = VaeSystem(HParams(loss='ada-gvae', dataset='smallnorb'))
+    trainer = system.quick_train(epochs=1)
+
     # print('Saving')
     # trainer.save_checkpoint("temp.model")
     #
@@ -164,10 +157,10 @@ if __name__ == '__main__':
 
     # model = make_model('simple-fc', z_size=6)
 
-    system = VaeSystem(HParams(loss='ada-gvae'))
-    system.quick_train()
-    save_model(system, 'data/model/temp.model')
-    load_model(system, 'data/model/temp.model')
+    # system = VaeSystem(HParams(loss='ada-gvae'))
+    # system.quick_train()
+    # save_model(system, 'data/model/temp.model')
+    # load_model(system, 'data/model/temp.model')
 
 # ========================================================================= #
 # END                                                                       #

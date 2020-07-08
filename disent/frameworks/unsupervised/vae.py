@@ -13,9 +13,21 @@ class VaeLoss(object):
         return self.compute_loss(x, x_recon, z_mean, z_logvar, z_sampled, *args, **kwargs)
 
     @property
+    def required_observations(self):
+        """override in subclasses that need more observations, indicates format of arguments needed for compute_loss"""
+        return 1
+
+    @property
+    def is_single_loss(self):
+        return self.required_observations == 1
+
+    @property
     def is_pair_loss(self):
-        """override in subclasses that need paired loss, indicates format of arguments needed for compute_loss"""
-        return False
+        return self.required_observations == 2
+
+    @property
+    def is_triplet_loss(self):
+        return self.required_observations == 3
 
     def compute_loss(self, x, x_recon, z_mean, z_logvar, z_sampled, *args, **kwargs):
         """
@@ -57,11 +69,14 @@ class VaeLoss(object):
 
 def bce_loss(x, x_recon):
     """Computes the Bernoulli loss"""
-    x, x_recon = x.view(x.shape[0], -1), x_recon.view(x.shape[0], -1)
-    per_sample_loss = F.binary_cross_entropy(x_recon, x, reduction='none').sum(axis=1)
-    reconstruction_loss = per_sample_loss.mean()
+    # x, x_recon = x.view(x.shape[0], -1), x_recon.view(x.shape[0], -1)
+    # per_sample_loss = F.binary_cross_entropy(x_recon, x, reduction='none').sum(axis=1)
+    # reconstruction_loss = per_sample_loss.mean()
+    # ALTERNATIVE IMPLEMENTATION https://github.com/YannDubs/disentangling-vae/blob/master/disvae/models/losses.py
+    batch_size = x.shape[0]
+    reconstruction_loss = F.binary_cross_entropy(x_recon, x, reduction="sum") / batch_size
+    # return
     return reconstruction_loss
-
 
 def kl_normal_loss(mu, logvar):
     """

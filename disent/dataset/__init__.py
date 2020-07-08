@@ -49,22 +49,39 @@ def make_ground_truth_data_transform(name):
     import torchvision
     import torch
 
+    transforms = []
+
     if '3dshapes' == name:  # (1, 64, 64)
-        transform = torchvision.transforms.ToTensor()
+        pass
     elif 'dsprites' == name:  # (1, 64, 64)
-        transform = torchvision.transforms.Compose([
+        return torchvision.transforms.Compose([
             torchvision.transforms.ToTensor(),
-            # torchvision.transforms.Lambda(lambda x: torch.cat([x, x, x], dim=0)),  # add extra channels
+            torchvision.transforms.Lambda(lambda x: torch.cat([x, x, x], dim=0)),  # add extra channels
         ])
     elif 'xygrid' == name:  # (1, 64, 64)
-        transform = torchvision.transforms.Compose([
+        return torchvision.transforms.Compose([
             torchvision.transforms.ToTensor(),
-            # torchvision.transforms.Lambda(lambda x: torch.cat([x, x, x], dim=0))  # add extra channels
+            torchvision.transforms.Lambda(lambda x: torch.cat([x, x, x], dim=0))  # add extra channels
         ])
+    elif 'smallnorb' == name:
+        return torchvision.transforms.Compose([
+            torchvision.transforms.Resize(64),
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Lambda(lambda x: torch.cat([x, x, x], dim=0)),  # add extra channels
+        ])
+    elif 'cars3d' == name:
+        return torchvision.transforms.Compose([
+            torchvision.transforms.Resize(64),
+            torchvision.transforms.ToTensor(),
+        ])
+    # elif 'mpi3d_toy' == name:
+    #     pass
+    # elif 'mpi3d_realistic' == name:
+    #     pass
+    # elif 'mpi3d_real' == name:
+    #     pass
     else:
         raise KeyError(f'Unsupported Ground Truth Dataset: {name}')
-
-    return transform
 
 
 def make_ground_truth_dataset(name, data_dir='data/dataset', try_in_memory=True) -> GroundTruthDataset:

@@ -2,42 +2,117 @@ from disent.frameworks.unsupervised.betavae import BetaVaeLoss
 from disent.frameworks.unsupervised.vae import bce_loss, kl_normal_loss
 
 
+# ========================================================================= #
+# Mixin detected by trainer                                                 #
+# ========================================================================= #
+
+
 class InterceptZMixin(object):
     """
     If a framework inherits from this class, it indicates that the z parametrisations
     should be intercepted and mutated before being sampled from.
     """
 
-    def intercept_z_pair(self, z_mean, z_logvar, z2_mean, z2_logvar):
-        # return z_mean, z_logvar, z2_mean, z2_logvar
+    @property
+    def requires_labels(self):
+        return False
+
+    def intercept_z(self, z_mean, z_logvar, *args, **kwargs):
+        # return z_mean, z_logvar, *args
         raise NotImplementedError()
 
+
+# ========================================================================= #
+# Averaging Functions                                                       #
+# ========================================================================= #
+
+
+def compute_average_gvae(z_mean, z_logvar, z2_mean, z2_logvar):
+    """
+    Compute the arithmetic mean of the encoder distributions.
+    - Ada-GVAE Averaging function
+    """
+    # helper
+    z_var, z2_var = z_logvar.exp(), z2_logvar.exp()
+
+    # averages
+    ave_var = (z_var + z2_var) * 0.5
+    ave_mean = (z_mean + z2_mean) * 0.5
+
+    # mean, logvar
+    return ave_mean, ave_var.log()  # natural log
+
+def compute_average_ml_vae(z_mean, z_logvar, z2_mean, z2_logvar):
+    """
+    Compute the product of the encoder distributions.
+    - Ada-ML-VAE Averaging function
+    """
+    # helper
+    z_var, z2_var = z_logvar.exp(), z2_logvar.exp()
+
+    # Diagonal matrix inverse: E^-1 = 1 / E
+    # https://proofwiki.org/wiki/Inverse_of_Diagonal_Matrix
+    z_invvar, z2_invvar = z_var.reciprocal(), z2_var.reciprocal()
+
+    # average var: E^-1 = E1^-1 + E2^-1
+    ave_var = (z_invvar + z2_invvar).reciprocal()
+
+    # average mean: u^T = (u1^T E1^-1 + u2^T E2^-1) E
+    # u^T is horr vec (u is vert). E is square matrix
+    ave_mean = (z_mean * z_invvar + z2_mean * z2_invvar) * ave_var
+
+    # mean, logvar
+    return ave_mean, ave_var.log()  # natural log
+
+def estimate_unchanged(z_mean, z_logvar, z2_mean, z2_logvar):
+    """
+    Core of the adaptive VAE algorithm, estimating which factors
+    have changed (or in this case remained unchanged and should
+    be averaged) between pairs of observations.
+    """
+    # shared elements that need to be averaged, computed per pair in the batch.
+    kl_deltas = kl_normal_loss_pair_elements(z_mean, z_logvar, z2_mean, z2_logvar)  # [𝛿_i ...]
+    kl_threshs = estimate_kl_threshold(kl_deltas)  # threshold τ
+    unchanged_mask = kl_deltas < kl_threshs  # true if 'unchanged' and should be averaged
+
+    return kl_deltas, kl_threshs, unchanged_mask
 
 # ========================================================================= #
 # Ada-GVAE                                                                  #
 # ========================================================================= #
 
 
-class AdaGVaeLoss(BetaVaeLoss, InterceptZMixin):
+class AdaVaeLoss(BetaVaeLoss, InterceptZMixin):
+
+    AVERAGING_FUNCTIONS = {
+        'ml-vae': compute_average_ml_vae,
+        'gvae': compute_average_gvae,
+    }
+
+    def __init__(self, beta=4, average_mode='gvae'):
+        super().__init__(beta=beta)
+        # set averaging functions
+        if average_mode not in AdaVaeLoss.AVERAGING_FUNCTIONS:
+            raise KeyError(f'Unsupported {average_mode=} must be one of: {set(AdaVaeLoss.AVERAGING_FUNCTIONS.keys())}')
+        self.compute_average = AdaVaeLoss.AVERAGING_FUNCTIONS[average_mode]
 
     @property
-    def is_pair_loss(self):
-        return True
+    def required_observations(self):
+        return 2
 
-    def intercept_z_pair(self, z_mean, z_logvar, z2_mean, z2_logvar):
+    def intercept_z(self, z_mean, z_logvar, *args, **kwargs):
+        z2_mean, z2_logvar = args
+        assert not kwargs
+
         # shared elements that need to be averaged, computed per pair in the batch.
-        kl_deltas = kl_normal_loss_pair_elements(z_mean, z_logvar, z2_mean, z2_logvar)  # [𝛿_i ...]
-        kl_threshs = estimate_kl_threshold(kl_deltas)  # threshold τ
-        ave_elements = kl_deltas < kl_threshs
+        kl_deltas, kl_threshs, ave_mask = estimate_unchanged(z_mean, z_logvar, z2_mean, z2_logvar)
 
         # compute average posteriors
         ave_mu, ave_logvar = self.compute_average(z_mean, z_logvar, z2_mean, z2_logvar)
 
         # modify estimated shared elements of original posteriors
-        # approx_z_mean, approx_z_logvar = z_mean.clone(), z_logvar.clone()
-        # approx_z2_mean, approx_z2_logvar = z2_mean.clone(), z2_logvar.clone()
-        z_mean[ave_elements], z_logvar[ave_elements] = ave_mu[ave_elements], ave_logvar[ave_elements]
-        z2_mean[ave_elements], z2_logvar[ave_elements] = ave_mu[ave_elements], ave_logvar[ave_elements]
+        z_mean[ave_mask], z_logvar[ave_mask] = ave_mu[ave_mask], ave_logvar[ave_mask]
+        z2_mean[ave_mask], z2_logvar[ave_mask] = ave_mu[ave_mask], ave_logvar[ave_mask]
 
         return z_mean, z_logvar, z2_mean, z2_logvar
 
@@ -62,54 +137,6 @@ class AdaGVaeLoss(BetaVaeLoss, InterceptZMixin):
             # TODO: 'elbo': -(recon_loss + kl_loss),
         }
 
-    @staticmethod
-    def compute_average(z_mean, z_logvar, z2_mean, z2_logvar):
-        """
-        Compute the arithmetic mean of the encoder distributions.
-        - Ada-GVAE Averaging function
-        """
-        # helper
-        z_var, z2_var = z_logvar.exp(), z2_logvar.exp()
-
-        # averages
-        ave_var = (z_var + z2_var) * 0.5
-        ave_mean = (z_mean + z2_mean) * 0.5
-
-        # mean, logvar
-        return ave_mean, ave_var.log()  # natural log
-
-
-# ========================================================================= #
-# Ada-ML-VAE                                                                #
-# ========================================================================= #
-
-
-class AdaMlVaeLoss(AdaGVaeLoss):
-
-    @staticmethod
-    def compute_average(z_mean, z_logvar, z2_mean, z2_logvar):
-        """
-        Compute the product of the encoder distributions.
-        - Ada-ML-VAE Averaging function
-        """
-        # helper
-        z_var, z2_var = z_logvar.exp(), z2_logvar.exp()
-
-        # Diagonal matrix inverse: E^-1 = 1 / E
-        # https://proofwiki.org/wiki/Inverse_of_Diagonal_Matrix
-        z_invvar, z2_invvar = z_var.reciprocal(), z2_var.reciprocal()
-
-        # average var: E^-1 = E1^-1 + E2^-1
-        ave_var = (z_invvar + z2_invvar).reciprocal()
-
-        # average mean: u^T = (u1^T E1^-1 + u2^T E2^-1) E
-        # u^T is horr vec (u is vert). E is square matrix
-        ave_mean = (z_mean*z_invvar + z2_mean*z2_invvar) * ave_var
-
-        # mean, logvar
-        return ave_mean, ave_var.log()  # natural log
-
-
 # ========================================================================= #
 # HELPER                                                                    #
 # ========================================================================= #
@@ -132,7 +159,7 @@ def estimate_kl_threshold(kl_deltas):
 
     # Must return threshold for each image pair, not over entire batch.
     # specifying the axis returns a tuple of values and indices... better way?
-    threshs = 0.5 * (kl_deltas.max(axis=1)[0] + kl_deltas.min(axis=1)[0])
+    threshs = 0.5 * (kl_deltas.max(axis=1).values + kl_deltas.min(axis=1).values)
     return threshs[:, None]  # re-add the flattened dimension, shape=(batch_size, 1)
 
 
