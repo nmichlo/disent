@@ -91,30 +91,34 @@ class AdaVaeLoss(BetaVaeLoss, InterceptZMixin):
 
     def __init__(self, beta=4, average_mode='gvae'):
         super().__init__(beta=beta)
-        # set averaging functions
+        # check averaging function
         if average_mode not in AdaVaeLoss.AVERAGING_FUNCTIONS:
             raise KeyError(f'Unsupported {average_mode=} must be one of: {set(AdaVaeLoss.AVERAGING_FUNCTIONS.keys())}')
+        # set averaging function
         self.compute_average = AdaVaeLoss.AVERAGING_FUNCTIONS[average_mode]
 
     @property
     def required_observations(self):
         return 2
 
+    def make_averaged(self, z_mean, z_logvar, z2_mean, z2_logvar, ave_mask):
+        # compute average posteriors
+        ave_mu, ave_logvar = self.compute_average(z_mean, z_logvar, z2_mean, z2_logvar)
+        # modify estimated shared elements of original posteriors
+        z_mean[ave_mask], z_logvar[ave_mask] = ave_mu[ave_mask], ave_logvar[ave_mask]
+        z2_mean[ave_mask], z2_logvar[ave_mask] = ave_mu[ave_mask], ave_logvar[ave_mask]
+        # return values
+        return z_mean, z_logvar, z2_mean, z2_logvar
+
     def intercept_z(self, z_mean, z_logvar, *args, **kwargs):
         z2_mean, z2_logvar = args
         assert not kwargs
 
         # shared elements that need to be averaged, computed per pair in the batch.
-        kl_deltas, kl_threshs, ave_mask = estimate_unchanged(z_mean, z_logvar, z2_mean, z2_logvar)
+        _, _, ave_mask = estimate_unchanged(z_mean, z_logvar, z2_mean, z2_logvar)
 
-        # compute average posteriors
-        ave_mu, ave_logvar = self.compute_average(z_mean, z_logvar, z2_mean, z2_logvar)
-
-        # modify estimated shared elements of original posteriors
-        z_mean[ave_mask], z_logvar[ave_mask] = ave_mu[ave_mask], ave_logvar[ave_mask]
-        z2_mean[ave_mask], z2_logvar[ave_mask] = ave_mu[ave_mask], ave_logvar[ave_mask]
-
-        return z_mean, z_logvar, z2_mean, z2_logvar
+        # make averaged z parameters
+        return self.make_averaged(z_mean, z_logvar, z2_mean, z2_logvar, ave_mask)
 
     def compute_loss(self, x, x_recon, z_mean, z_logvar, z_sampled, *args, **kwargs):
         x2, x2_recon, z2_mean, z2_logvar, z2_sampled = args

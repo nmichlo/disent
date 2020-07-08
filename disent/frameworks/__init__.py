@@ -13,17 +13,17 @@ def make_vae_loss(name):
     if 'vae' == name:
         return VaeLoss()
     elif 'beta-vae' == name:
-        return BetaVaeLoss(beta=4)
+        return BetaVaeLoss(beta=0.5)
     elif 'beta-vae-h' == name:
         raise NotImplementedError('beta-vae-h loss is not yet implemented')
     elif 'ada-gvae' == name:
-        return AdaVaeLoss(beta=4, average_mode='gvae')
+        return AdaVaeLoss(beta=0.5, average_mode='gvae')
     elif 'ada-ml-vae' == name:
-        return AdaVaeLoss(beta=4, average_mode='ml-vae')
+        return AdaVaeLoss(beta=0.5, average_mode='ml-vae')
     elif 'g-ada-gvae' == name:
-        return GuidedAdaVaeLoss(beta=4, average_mode='gvae')
+        return GuidedAdaVaeLoss(beta=0.5, average_mode='gvae')
     elif 'g-ada-ml-vae' == name:
-        return GuidedAdaVaeLoss(beta=4, average_mode='ml-vae')
+        return GuidedAdaVaeLoss(beta=0.5, average_mode='ml-vae')
     else:
         raise KeyError(f'Unsupported VAE Framework: {name}')
 

@@ -6,21 +6,20 @@ from disent.frameworks.unsupervised.vae import bce_loss, kl_normal_loss
 # ========================================================================= #
 
 
-def compute_average_gvae_triplet(z_mean, z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar):
-    """
-    Compute the arithmetic mean of the encoder distributions.
-    - Ada-GVAE Averaging function
-    """
-    # helper
-    z_var, p_z_var, n_z_var = z_logvar.exp(), p_z_logvar.exp(), n_z_logvar.exp()
-
-    # averages
-    ave_var = (z_var + p_z_var + n_z_var) * (1/3)
-    ave_mean = (z_mean + p_z_mean + n_z_mean) * (1/3)
-
-    # mean, logvar
-    return ave_mean, ave_var.log()  # natural log
-
+# def compute_average_gvae_triplet(z_mean, z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar):
+#     """
+#     Compute the arithmetic mean of the encoder distributions.
+#     - Ada-GVAE Averaging function
+#     """
+#     # helper
+#     z_var, p_z_var, n_z_var = z_logvar.exp(), p_z_logvar.exp(), n_z_logvar.exp()
+#
+#     # averages
+#     ave_var = (z_var + p_z_var + n_z_var) * (1/3)
+#     ave_mean = (z_mean + p_z_mean + n_z_mean) * (1/3)
+#
+#     # mean, logvar
+#     return ave_mean, ave_var.log()  # natural log
 
 def compute_constrained_mask(p_kl_deltas, p_unchanged_mask, n_unchanged_mask):
     batch_size, dims = p_kl_deltas.shape
@@ -49,6 +48,9 @@ class GuidedAdaVaeLoss(AdaVaeLoss, InterceptZMixin):
         assert average_mode == 'gvae', f'{self.__class__.__name__} currently only supports GVAE averaging (average_mode="gvae")'
         super().__init__(beta=beta, average_mode=average_mode)
 
+        # TODO: remove, this is debug stuff
+        self.count = 0
+
     @property
     def required_observations(self):
         return 3
@@ -69,24 +71,14 @@ class GuidedAdaVaeLoss(AdaVaeLoss, InterceptZMixin):
 
         # modify threshold based on criterion and recompute if necessary
         # CORE of this approach!
-        p_ave_mask = compute_constrained_mask(p_kl_deltas, p_ave_mask, n_ave_mask)
+        p_ave_mask = compute_constrained_mask(p_kl_deltas, (old_p_ave_mask := p_ave_mask), n_ave_mask)
 
-        # compute average posteriors
-        a_ave_mu, a_ave_logvar = compute_average_gvae_triplet(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar)
-        p_ave_mu, p_ave_logvar = self.compute_average(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar)
-        n_ave_mu, n_ave_logvar = self.compute_average(a_z_mean, a_z_logvar, n_z_mean, n_z_logvar)
+        # TODO: remove, this is debug stuff
+        self.count += int(torch.sum(p_ave_mask == old_p_ave_mask).cpu().detach())
 
-        # TODO: what if we dont do these fancy updates, and just use the negative to push the positive closer?
-        #       and only use the positive pair in the loss?
-        # separate overlapping masks
-        aa_ave_mask, ap_ave_mask, an_ave_mask = (p_ave_mask & n_ave_mask), (p_ave_mask & ~n_ave_mask), (~p_ave_mask & n_ave_mask)
-        # apply averaging to anchor
-        a_z_mean[aa_ave_mask], a_z_logvar[aa_ave_mask] = a_ave_mu[aa_ave_mask], a_ave_logvar[aa_ave_mask]
-        a_z_mean[ap_ave_mask], a_z_logvar[ap_ave_mask] = p_ave_mu[ap_ave_mask], p_ave_logvar[ap_ave_mask]
-        a_z_mean[an_ave_mask], a_z_logvar[an_ave_mask] = n_ave_mu[an_ave_mask], n_ave_logvar[an_ave_mask]
-        # apply averaging to positive and negative
-        p_z_mean[p_ave_mask], p_z_logvar[p_ave_mask] = p_ave_mu[p_ave_mask], p_ave_logvar[p_ave_mask]
-        n_z_mean[n_ave_mask], n_z_logvar[n_ave_mask] = n_ave_mu[n_ave_mask], n_ave_logvar[n_ave_mask]
+        pAz_mean, pAz_logvar, p_z_mean, p_z_logvar = self.make_averaged(a_z_mean.clone(), a_z_logvar.clone(), p_z_mean, p_z_logvar, p_ave_mask)
+        nAz_mean, nAz_logvar, n_z_mean, n_z_logvar = self.make_averaged(a_z_mean.clone(), a_z_logvar.clone(), n_z_mean, n_z_logvar, n_ave_mask)
+        a_z_mean, a_z_logvar = self.compute_average(pAz_mean, pAz_logvar, nAz_mean, nAz_logvar)
 
         return a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar
 
@@ -97,6 +89,7 @@ class GuidedAdaVaeLoss(AdaVaeLoss, InterceptZMixin):
         recon_loss = bce_loss(x, x_recon)              # E[log p(x|z)]
         recon2_loss = bce_loss(x2, x2_recon)           # E[log p(x|z)]
         recon3_loss = bce_loss(x2, x2_recon)           # E[log p(x|z)]
+
         kl_loss = kl_normal_loss(z_mean, z_logvar)     # D_kl(q(z|x) || p(z|x))
         kl2_loss = kl_normal_loss(z2_mean, z2_logvar)  # D_kl(q(z|x) || p(z|x))
         kl3_loss = kl_normal_loss(z2_mean, z2_logvar)  # D_kl(q(z|x) || p(z|x))

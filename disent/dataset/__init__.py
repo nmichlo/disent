@@ -30,7 +30,7 @@ def make_ground_truth_data(name, try_in_memory=True) -> GroundTruthData:
     elif 'dsprites' == name:
         data = DSpritesData(in_memory=try_in_memory)
     elif 'xygrid' == name:
-        data = XYData(grid_size=64, square_size=2)
+        data = XYData(grid_size=64, square_size=8)
     elif 'smallnorb' == name:
         data = SmallNorbData()
     elif 'cars3d' == name:
