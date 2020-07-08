@@ -125,7 +125,7 @@ def _plt_latent_random_samples(decoder_fn, z_size, num_samples=16, figsize_ratio
     plt_images_minimal_square(images, figsize_ratio=figsize_ratio)
 
 def plt_latent_random_samples(system: 'VaeSystem', num_samples=16, figsize_ratio=0.75):
-    _plt_latent_random_samples(system.model.decode, system.model.z_size, num_samples=num_samples, figsize_ratio=figsize_ratio)
+    _plt_latent_random_samples(system.model.reconstruct, system.model.z_size, num_samples=num_samples, figsize_ratio=figsize_ratio)
 
 
 # TODO, these are useless, convert to just using the VaeSystem
@@ -139,7 +139,7 @@ def plt_traverse_latent_space(system, num_samples=1, dimensions=None, values=11,
     with TempNumpySeed(seed):
         obs = system.dataset.sample_observations(num_samples).cuda()
     z_mean, z_logvar = to_numpy(system.model.encode_gaussian(obs))
-    _plt_traverse_latent_space(system.model.decode, z_mean, dimensions=dimensions, values=values, figsize_ratio=figsize_ratio)
+    _plt_traverse_latent_space(system.model.reconstruct, z_mean, dimensions=dimensions, values=values, figsize_ratio=figsize_ratio)
 
 
 def _notebook_display_traverse_latent_space(decoder_fn, z_mean, dimensions=None, values=None, fps=10, display_ids=None):
@@ -157,7 +157,7 @@ def notebook_display_traverse_latent_space(system, num_samples=1, dimensions=Non
     with TempNumpySeed(seed):
         obs = system.dataset.sample_observations(num_samples).cuda()
     z_mean, z_logvar = to_numpy(system.model.encode_gaussian(obs))
-    return _notebook_display_traverse_latent_space(system.model.decode, z_mean, dimensions=dimensions, values=values, fps=fps, display_ids=display_ids)
+    return _notebook_display_traverse_latent_space(system.model.reconstruct, z_mean, dimensions=dimensions, values=values, fps=fps, display_ids=display_ids)
 
 
 def _plt_sample_observations_and_reconstruct(gaussian_encoder_fn, decoder_fn, dataset, num_samples=16, figsize_ratio=0.75, seed=None):
@@ -166,7 +166,7 @@ def _plt_sample_observations_and_reconstruct(gaussian_encoder_fn, decoder_fn, da
     plt_images_minimal_square(x_recon, figsize_ratio=figsize_ratio)
 
 def plt_sample_observations_and_reconstruct(system, num_samples=16, figsize_ratio=0.75, seed=None):
-    _plt_sample_observations_and_reconstruct(system.model.encode_gaussian, system.model.decode, system.dataset, num_samples=num_samples, figsize_ratio=figsize_ratio, seed=seed)
+    _plt_sample_observations_and_reconstruct(system.model.encode_gaussian, system.model.reconstruct, system.dataset, num_samples=num_samples, figsize_ratio=figsize_ratio, seed=seed)
 
 def _notebook_display_latent_cycle(decoder_fn, z_means, z_logvars, mode='fixed_interval_cycle', num_animations=1, num_frames=20, fps=10):
     animations = latent_cycle(decoder_fn, z_means, z_logvars, mode=mode, num_animations=num_animations, num_frames=num_frames)
@@ -184,7 +184,7 @@ def notebook_display_latent_cycle(system, mode='fixed_interval_cycle', num_anima
         # TODO: this is not general
         obs = torch.as_tensor(obs).cuda()
     z_mean, z_logvar = to_numpy(system.model.encode_gaussian(obs))
-    _notebook_display_latent_cycle(system.model.decode, z_mean, z_logvar, mode=mode, num_animations=num_animations, num_frames=num_frames, fps=fps)
+    _notebook_display_latent_cycle(system.model.reconstruct, z_mean, z_logvar, mode=mode, num_animations=num_animations, num_frames=num_frames, fps=fps)
 
 # ========================================================================= #
 # END                                                                       #

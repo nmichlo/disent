@@ -1,5 +1,5 @@
 from disent.frameworks.semisupervised.adavae import (AdaVaeLoss, InterceptZMixin, estimate_unchanged)
-from disent.frameworks.unsupervised.vae import bce_loss, kl_normal_loss
+from disent.frameworks.unsupervised.vae import bce_loss_with_logits, kl_normal_loss
 
 # ========================================================================= #
 # Ada-GVAE                                                                  #
@@ -86,9 +86,9 @@ class GuidedAdaVaeLoss(AdaVaeLoss, InterceptZMixin):
         x2, x2_recon, z2_mean, z2_logvar, z2_sampled, x3, x3_recon, z3_mean, z3_logvar, z3_sampled = args
 
         # reconstruction error & KL divergence losses
-        recon_loss = bce_loss(x, x_recon)              # E[log p(x|z)]
-        recon2_loss = bce_loss(x2, x2_recon)           # E[log p(x|z)]
-        recon3_loss = bce_loss(x2, x2_recon)           # E[log p(x|z)]
+        recon_loss = bce_loss_with_logits(x, x_recon)     # E[log p(x|z)]
+        recon2_loss = bce_loss_with_logits(x2, x2_recon)  # E[log p(x|z)]
+        recon3_loss = bce_loss_with_logits(x2, x2_recon)  # E[log p(x|z)]
 
         kl_loss = kl_normal_loss(z_mean, z_logvar)     # D_kl(q(z|x) || p(z|x))
         kl2_loss = kl_normal_loss(z2_mean, z2_logvar)  # D_kl(q(z|x) || p(z|x))

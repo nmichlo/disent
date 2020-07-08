@@ -75,7 +75,6 @@ class VaeSystem(pl.LightningModule):
         else:
             raise NotImplementedError(f'Unsupported number of observations required per step: n > 3')
 
-
     def training_step(self, batch, batch_idx):
         """
         Generalised training step that can handle any number of observations in each sample.

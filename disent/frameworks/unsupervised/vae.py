@@ -35,7 +35,7 @@ class VaeLoss(object):
         Based on: https://github.com/google-research/disentanglement_lib/blob/a64b8b9994a28fafd47ccd866b0318fa30a3c76c/disentanglement_lib/methods/unsupervised/vae.py#L153
         """
         # reconstruction loss
-        recon_loss = bce_loss(x, x_recon)   # E[log p(x|z)]
+        recon_loss = bce_loss_with_logits(x, x_recon)   # E[log p(x|z)]
 
         # regularizer
         kl_loss = kl_normal_loss(z_mean, z_logvar)      # D_kl(q(z|x) || p(z|x))
@@ -57,26 +57,30 @@ class VaeLoss(object):
 # ========================================================================= #
 
 
-# def _bce_loss_with_logits(x, x_recon):
-#     """
-#     Computes the Bernoulli loss for the sigmoid activation function
-#     FROM: https://github.com/google-research/disentanglement_lib/blob/76f41e39cdeff8517f7fba9d57b09f35703efca9/disentanglement_lib/methods/shared/losses.py
-#     """
-#     x, x_recon = x.view(x.shape[0], -1), x_recon.view(x.shape[0], -1)
-#     per_sample_loss = F.binary_cross_entropy_with_logits(x_recon, x, reduction='none').sum(axis=1)  # tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=x_recon, labels=x), axis=1)
-#     reconstruction_loss = per_sample_loss.mean()                                                    # tf.reduce_mean(per_sample_loss)
-#     return reconstruction_loss  # F.binary_cross_entropy_with_logits(x_recon, x, reduction='sum') / x.shape[0]
-
-def bce_loss(x, x_recon):
-    """Computes the Bernoulli loss"""
+def bce_loss_with_logits(x, x_recon):
+    """
+    Computes the Bernoulli loss for the sigmoid activation function
+    FROM: https://github.com/google-research/disentanglement_lib/blob/76f41e39cdeff8517f7fba9d57b09f35703efca9/disentanglement_lib/methods/shared/losses.py
+    """
     # x, x_recon = x.view(x.shape[0], -1), x_recon.view(x.shape[0], -1)
-    # per_sample_loss = F.binary_cross_entropy(x_recon, x, reduction='none').sum(axis=1)
-    # reconstruction_loss = per_sample_loss.mean()
+    # per_sample_loss = F.binary_cross_entropy_with_logits(x_recon, x, reduction='none').sum(axis=1)  # tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=x_recon, labels=x), axis=1)
+    # reconstruction_loss = per_sample_loss.mean()                                                    # tf.reduce_mean(per_sample_loss)
     # ALTERNATIVE IMPLEMENTATION https://github.com/YannDubs/disentangling-vae/blob/master/disvae/models/losses.py
     batch_size = x.shape[0]
-    reconstruction_loss = F.binary_cross_entropy(x_recon, x, reduction="sum") / batch_size
+    reconstruction_loss = F.binary_cross_entropy_with_logits(x_recon, x, reduction="sum") / batch_size
     # return
     return reconstruction_loss
+
+# def bce_loss(x, x_recon):
+#     """Computes the Bernoulli loss"""
+#     # x, x_recon = x.view(x.shape[0], -1), x_recon.view(x.shape[0], -1)
+#     # per_sample_loss = F.binary_cross_entropy(x_recon, x, reduction='none').sum(axis=1)
+#     # reconstruction_loss = per_sample_loss.mean()
+#     # ALTERNATIVE IMPLEMENTATION https://github.com/YannDubs/disentangling-vae/blob/master/disvae/models/losses.py
+#     batch_size = x.shape[0]
+#     reconstruction_loss = F.binary_cross_entropy(x_recon, x, reduction="sum") / batch_size
+#     # return
+#     return reconstruction_loss
 
 def kl_normal_loss(mu, logvar):
     """

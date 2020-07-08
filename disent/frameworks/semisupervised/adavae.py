@@ -1,5 +1,5 @@
 from disent.frameworks.unsupervised.betavae import BetaVaeLoss
-from disent.frameworks.unsupervised.vae import bce_loss, kl_normal_loss
+from disent.frameworks.unsupervised.vae import bce_loss_with_logits, kl_normal_loss
 
 
 # ========================================================================= #
@@ -124,10 +124,10 @@ class AdaVaeLoss(BetaVaeLoss, InterceptZMixin):
         x2, x2_recon, z2_mean, z2_logvar, z2_sampled = args
 
         # reconstruction error & KL divergence losses
-        recon_loss = bce_loss(x, x_recon)              # E[log p(x|z)]
-        recon2_loss = bce_loss(x2, x2_recon)           # E[log p(x|z)]
-        kl_loss = kl_normal_loss(z_mean, z_logvar)     # D_kl(q(z|x) || p(z|x))
-        kl2_loss = kl_normal_loss(z2_mean, z2_logvar)  # D_kl(q(z|x) || p(z|x))
+        recon_loss = bce_loss_with_logits(x, x_recon)     # E[log p(x|z)]
+        recon2_loss = bce_loss_with_logits(x2, x2_recon)  # E[log p(x|z)]
+        kl_loss = kl_normal_loss(z_mean, z_logvar)        # D_kl(q(z|x) || p(z|x))
+        kl2_loss = kl_normal_loss(z2_mean, z2_logvar)     # D_kl(q(z|x) || p(z|x))
 
         # compute combined loss
         # reduces down to summing the two BetaVAE losses

@@ -332,7 +332,7 @@ if __name__ == '__main__':
 
     save_model_visualisations(
         system.model.encode_gaussian,
-        system.model.decode,
+        system.model.reconstruct,
         system.dataset,
         system.model.z_size,
         output_dir='data/output/model',

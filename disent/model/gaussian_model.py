@@ -78,15 +78,14 @@ class GaussianEncoderDecoderModel(BaseGaussianEncoderModule, BaseDecoderModule):
               The final activation should not be included. This will always be sigmoid
               and is computed as part of the loss to improve numerical stability.
         """
-        x_recon = torch.sigmoid(self._decoder(z))
-        return x_recon
+        return self._decoder(z)
 
-    # def reconstruct(self, z: Tensor) -> Tensor:
-    #     """
-    #     Compute the full reconstruction of the input from a latent vector.
-    #     Like decode but performs a final sigmoid activation.
-    #     """
-    #     return torch.sigmoid(self.decode(z))
+    def reconstruct(self, z: Tensor) -> Tensor:
+        """
+        Compute the full reconstruction of the input from a latent vector.
+        Like decode but performs a final sigmoid activation.
+        """
+        return torch.sigmoid(self._decoder(z))
 
 # ========================================================================= #
 # END                                                                       #

@@ -505,7 +505,7 @@ class SupervisedTripletDataset(PairedVariationDataset):
         n_shared_indices = np.random.choice(self._variation_factor_indices, size=n_num_shared, replace=False)
         negative_factors = self._dataset.data.resampled_factors(anchor_factors[np.newaxis, :], n_shared_indices)[0]
 
-        # swap if number of shared factors is less for the positive | This is not idea
+        # swap if number of shared factors is less for the positive | This is not ideal
         # ie. enforce d(a, p) <= d(a, n)
         if np.sum(anchor_factors == positive_factors) < np.sum(anchor_factors == negative_factors):
             positive_factors, negative_factors = negative_factors, positive_factors
