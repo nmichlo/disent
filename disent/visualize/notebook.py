@@ -128,7 +128,7 @@ def _plt_traverse_latent_space(decoder_fn, z_mean, dimensions=None, values=None,
 
 def plt_traverse_latent_space(system, num_samples=1, dimensions=None, values=11, figsize_ratio=0.75):
     # TODO: this is not general
-    obs = system.dataset_train.sample_observations(num_samples).cuda()
+    obs = system.dataset.sample_observations(num_samples).cuda()
     z_mean, z_logvar = to_numpy(system.model.encode_gaussian(obs))
     _plt_traverse_latent_space(system.model.decode, z_mean, dimensions=dimensions, values=values, figsize_ratio=figsize_ratio)
 
@@ -142,7 +142,7 @@ def _notebook_display_traverse_latent_space(decoder_fn, z_mean, dimensions=None,
 
 def notebook_display_traverse_latent_space(system, num_samples=1, dimensions=None, values=21, fps=10):
     # TODO: this is not general
-    obs = system.dataset_train.sample_observations(num_samples).cuda()
+    obs = system.dataset.sample_observations(num_samples).cuda()
     z_mean, z_logvar = to_numpy(system.model.encode_gaussian(obs))
     _notebook_display_traverse_latent_space(system.model.decode, z_mean, dimensions=dimensions, values=values, fps=fps)
 
@@ -153,7 +153,7 @@ def _plt_sample_observations_and_reconstruct(gaussian_encoder_fn, decoder_fn, da
     plt_images_minimal_square(x_recon, figsize_ratio=figsize_ratio)
 
 def plt_sample_observations_and_reconstruct(system, num_samples=16, figsize_ratio=0.75):
-    _plt_sample_observations_and_reconstruct(system.model.encode_gaussian, system.model.decode, system.dataset_train, num_samples=num_samples, figsize_ratio=figsize_ratio)
+    _plt_sample_observations_and_reconstruct(system.model.encode_gaussian, system.model.decode, system.dataset, num_samples=num_samples, figsize_ratio=figsize_ratio)
 
 def _notebook_display_latent_cycle(decoder_fn, z_means, z_logvars, mode='fixed_interval_cycle', num_animations=1, num_frames=20, fps=10):
     animations = latent_cycle(decoder_fn, z_means, z_logvars, mode=mode, num_animations=num_animations, num_frames=num_frames)
@@ -165,7 +165,7 @@ def _notebook_display_latent_cycle(decoder_fn, z_means, z_logvars, mode='fixed_i
 def notebook_display_latent_cycle(system, mode='fixed_interval_cycle', num_animations=1, num_test_samples=64, num_frames=21, fps=8, obs=None):
     if obs is None:
         # TODO: this is not general
-        obs = system.dataset_train.sample_observations(num_test_samples).cuda()
+        obs = system.dataset.sample_observations(num_test_samples).cuda()
     else:
         # TODO: this is not general
         obs = torch.as_tensor(obs).cuda()

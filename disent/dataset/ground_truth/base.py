@@ -399,7 +399,7 @@ class PairedVariationDataset(Dataset):
 
         dataset: A dataset that extends GroundTruthData
         k: An integer (k), None (k=d-1), or "uniform" (random k in range 1 to d-1)
-        variation_factor_indices: The indices of the factors of variation that are samples between pairs, if None (all factors are sampled)
+        variation_factor_indices: The indices of the factors of variation that are sampled between pairs, if None (all factors are sampled)
         """
         assert isinstance(dataset, GroundTruthDataset), 'passed object is not an instance of GroundTruthDataset'
         assert len(dataset) > 1, 'Dataset must be contain more than one observation.'
@@ -412,10 +412,10 @@ class PairedVariationDataset(Dataset):
         # number of varied factors between pairs
         self._k = self._num_variation_factors - 1 if (k is None) else k
         # verify k
-        assert isinstance(k, str) or isinstance(k, int), f'k must be "uniform" or an integer 1 <= k <= d-1, d={self._num_variation_factors}'
-        if isinstance(k, int):
-            assert 1 <= k, 'k cannot be less than 1'
-            assert k < self._num_variation_factors, f'all factors cannot be varied for each pair, k must be less than {self._num_variation_factors}'
+        assert isinstance(self._k, str) or isinstance(self._k, int), f'k must be "uniform" or an integer 1 <= k <= d-1, d={self._num_variation_factors}'
+        if isinstance(self._k, int):
+            assert 1 <= self._k, 'k cannot be less than 1'
+            assert self._k < self._num_variation_factors, f'all factors cannot be varied for each pair, k must be less than {self._num_variation_factors}'
 
     def __len__(self):
         # TODO: is dataset as big as the latent space OR as big as the orig.
@@ -448,9 +448,9 @@ class PairedVariationDataset(Dataset):
         # get factors corresponding to index
         orig_factors = self._dataset.data.idx_to_pos(idx)
         # get fixed or random k
-        k = np.random.randint(1, self._dataset.data.num_factors) if self._k == 'uniform' else self._k
+        k = np.random.randint(1, self._num_variation_factors) if self._k == 'uniform' else self._k
         # make k random indices not shared
-        num_shared = self._num_variation_factors - k
+        num_shared = self._dataset.data.num_factors - k
         shared_indices = np.random.choice(self._variation_factor_indices, size=num_shared, replace=False)
         # resample paired item, differs by at most k factors of variation
         paired_factors = self._dataset.data.resampled_factors(orig_factors[np.newaxis, :], shared_indices)
@@ -478,6 +478,35 @@ class RandomPairDataset(Dataset):
         # return elements
         return self.dataset[idx], self.dataset[rand_idx]
 
+class SupervisedTripletDataset(PairedVariationDataset):
+
+    def __getitem__(self, idx):
+        anchor_factors, positive_factors, negative_factors = self.sample_triplet_factors(idx)
+        indices = self._dataset.data.pos_to_idx([anchor_factors, positive_factors, negative_factors])
+        return [self._dataset[idx] for idx in indices]
+
+    def sample_triplet_factors(self, idx):
+        # get factors corresponding to index
+        anchor_factors = self._dataset.data.idx_to_pos(idx)
+
+        # get fixed or random k (k is number of factors that differ)
+        p_k = np.random.randint(1, self._num_variation_factors) if self._k == 'uniform' else self._k
+        n_k = np.random.randint(p_k, self._num_variation_factors)
+
+        # these should generally differ by less factors
+        # make k random indices not shared + resample paired item, differs by at most k factors of variation
+        p_num_shared = self._dataset.data.num_factors - p_k
+        p_shared_indices = np.random.choice(self._variation_factor_indices, size=p_num_shared, replace=False)
+        positive_factors = self._dataset.data.resampled_factors(anchor_factors[np.newaxis, :], p_shared_indices)
+
+        # these should generally differ by more factors
+        # make k random indices not shared + resample paired item, differs by at most k factors of variation
+        n_num_shared = self._dataset.data.num_factors - n_k
+        n_shared_indices = np.random.choice(self._variation_factor_indices, size=n_num_shared, replace=False)
+        negative_factors = self._dataset.data.resampled_factors(anchor_factors[np.newaxis, :], n_shared_indices)
+
+        # return observations
+        return anchor_factors, positive_factors[0], negative_factors[0]
 
 
 # ========================================================================= #

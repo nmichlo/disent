@@ -10,7 +10,7 @@ from disent.frameworks import make_vae_loss
 from disent.frameworks.semisupervised.adavae import InterceptZMixin
 from disent.model import make_model, make_optimizer
 from disent.dataset import make_ground_truth_dataset
-from disent.dataset.ground_truth.base import (GroundTruthData, PairedVariationDataset, RandomPairDataset)
+from disent.dataset.ground_truth.base import (GroundTruthData, PairedVariationDataset, RandomPairDataset, SupervisedTripletDataset)
 from disent.util import chunked
 
 
@@ -59,13 +59,22 @@ class VaeSystem(pl.LightningModule):
         # make
         self.model = make_model(self.params.model, z_size=self.params.z_size)
         self.loss = make_vae_loss(self.params.loss)
-        self.dataset_train: Dataset = make_ground_truth_dataset(self.params.dataset, try_in_memory=self.params.try_in_memory)
+        self.dataset: Dataset = make_ground_truth_dataset(self.params.dataset, try_in_memory=self.params.try_in_memory)
+
         # convert dataset for paired loss
-        if self.loss.is_pair_loss:
-            if isinstance(self.dataset_train, GroundTruthData):
-                self.dataset_train_pairs = PairedVariationDataset(self.dataset_train, k=self.params.k)
+        if self.loss.required_observations == 1:
+            self.dataset_train = self.dataset
+        elif self.loss.required_observations == 2:
+            if isinstance(self.dataset, GroundTruthData):
+                self.dataset_train = PairedVariationDataset(self.dataset, k=self.params.k)
             else:
-                self.dataset_train_pairs = RandomPairDataset(self.dataset_train)
+                self.dataset_train = RandomPairDataset(self.dataset)
+        elif self.loss.required_observations == 3:
+            assert isinstance(self.dataset, GroundTruthData)
+            self.dataset_train = SupervisedTripletDataset(self.dataset)
+        else:
+            raise NotImplementedError(f'Unsupported number of observations required per step: n > 3')
+
 
     def training_step(self, batch, batch_idx):
         """
@@ -76,6 +85,7 @@ class VaeSystem(pl.LightningModule):
         # handle single case
         if isinstance(batch, torch.Tensor):
             batch = [batch]
+        assert len(batch) == self.loss.required_observations, f'Incorrect number of observations ({len(batch)}) for loss: {self.loss.__class__.__name__} ({self.loss.required_observations})'
 
         # encode [z_mean, z_logvar, ...]
         z_params = [z_component for x in batch for z_component in self.model.encode_gaussian(x)]
@@ -104,7 +114,7 @@ class VaeSystem(pl.LightningModule):
     def train_dataloader(self):
         # Sample of data used to fit the model.
         return torch.utils.data.DataLoader(
-            self.dataset_train_pairs if self.loss.is_pair_loss else self.dataset_train,
+            self.dataset_train,
             batch_size=self.params.batch_size,
             num_workers=self.params.num_workers,
             shuffle=True
@@ -136,8 +146,8 @@ class VaeSystem(pl.LightningModule):
 
 
 if __name__ == '__main__':
-    system = VaeSystem(HParams(loss='ada-gvae', dataset='smallnorb'))
-    trainer = system.quick_train(epochs=1)
+    system = VaeSystem(HParams(loss='g-ada-gvae', dataset='smallnorb'))
+    trainer = system.quick_train(epochs=10)
 
     # print('Saving')
     # trainer.save_checkpoint("temp.model")
