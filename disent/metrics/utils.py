@@ -132,13 +132,11 @@ def obtain_representation(observations, representation_function, batch_size):
 #     return h
 
 
-# @tonic.config("discretizer")
 # def make_discretizer(target, num_bins=gin.REQUIRED, discretizer_fn=gin.REQUIRED):
 #     """Wrapper that creates discretizers."""
 #     return discretizer_fn(target, num_bins)
 
 
-# @tonic.config("histogram_discretizer")
 # def _histogram_discretize(target, num_bins=gin.REQUIRED):
 #     """Discretization based on histograms."""
 #     discretized = np.zeros_like(target)

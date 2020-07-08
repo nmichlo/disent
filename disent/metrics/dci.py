@@ -19,7 +19,6 @@ Representations" (https://openreview.net/forum?id=By-7dz-AZ).
 """
 
 import logging
-import tonic
 from tqdm import tqdm
 
 from disent.metrics import utils
@@ -34,7 +33,6 @@ from sklearn.ensemble import GradientBoostingClassifier
 # ========================================================================= #
 
 
-@tonic.config("dci")
 def compute_dci(
         ground_truth_data,
         representation_function,

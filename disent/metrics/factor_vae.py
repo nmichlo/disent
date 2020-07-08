@@ -19,7 +19,6 @@ Based on "Disentangling by Factorising" (https://arxiv.org/abs/1802.05983).
 """
 
 import logging
-import tonic.config
 import torch
 from tqdm import tqdm
 
@@ -34,7 +33,6 @@ from disent.util import to_numpy
 # ========================================================================= #
 
 
-@tonic.config('score.factor_vae')
 def compute_factor_vae(
         ground_truth_data: GroundTruthDataset,
         representation_function: callable,
@@ -123,7 +121,6 @@ def compute_factor_vae(
 
     return scores_dict
 
-@tonic.config('factor_vae.prune_dims')
 def _prune_dims(variances, threshold=0.):
     """Mask for dimensions collapsed to the prior."""
     scale_z = np.sqrt(variances)
