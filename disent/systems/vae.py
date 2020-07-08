@@ -139,14 +139,13 @@ class VaeSystem(pl.LightningModule):
         trainer.fit(self)
         return trainer
 
-
 # ========================================================================= #
 # Main                                                                      #
 # ========================================================================= #
 
 
 if __name__ == '__main__':
-    system = VaeSystem(HParams(loss='beta-vae', model='fc', dataset='xygrid'))
+    system = VaeSystem(HParams(loss='g-ada-gvae', model='fc', dataset='cars3d'))
     trainer = system.quick_train(epochs=10)
 
     # print('Saving')

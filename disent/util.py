@@ -23,6 +23,28 @@ def seed(long=777):
     print(f'[SEEDED]: {long}')
 
 
+class TempNumpySeed(object):
+    def __init__(self, seed=None, offset=0):
+        if seed is not None:
+            try:
+                seed = int(seed)
+            except:
+                raise ValueError(f'{seed=} is not int-like!')
+        self._seed = seed
+        if seed is not None:
+            self._seed += offset
+        self._state = None
+
+    def __enter__(self):
+        if self._seed is not None:
+            self._state = np.random.get_state()
+            np.random.seed(self._seed)
+
+    def __exit__(self, *args, **kwargs):
+        if self._seed is not None:
+            np.random.set_state(self._state)
+            self._state = None
+
 # ========================================================================= #
 # IO                                                                        #
 # ========================================================================= #

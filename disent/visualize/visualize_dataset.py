@@ -27,7 +27,7 @@ from typing import Union
 
 from disent.dataset.ground_truth.base import GroundTruthData
 from disent.frameworks.unsupervised.betavae import lerp_step
-from disent.util import to_numpy
+from disent.util import TempNumpySeed, to_numpy
 from disent.visualize import visualize_util
 import numpy as np
 
@@ -40,12 +40,13 @@ from disent.dataset import as_data
 # ========================================================================= #
 
 
-def sample_dataset_still_images(data: Union[str, GroundTruthData], num_samples=16, mode='spread'):
+def sample_dataset_still_images(data: Union[str, GroundTruthData], num_samples=16, mode='spread', seed=None):
     data = as_data(data)
     # Create still images per factor of variation
     factor_images = []
     for i, size in enumerate(data.factor_sizes):
-        factors = data.sample_factors(num_samples)
+        with TempNumpySeed(seed, offset=i):
+            factors = data.sample_factors(num_samples)
         # only allow the current index to vary, copy the first to all others
         indices = [j for j in range(data.num_factors) if i != j]
         factors[:, indices] = factors[0, indices]
@@ -67,12 +68,13 @@ def sample_dataset_still_images(data: Union[str, GroundTruthData], num_samples=1
     return to_numpy(factor_images)
 
 
-def sample_dataset_animations(data: Union[str, GroundTruthData], num_animations=5, num_frames=20):
+def sample_dataset_animations(data: Union[str, GroundTruthData], num_animations=5, num_frames=20, seed=None):
     data = as_data(data)
     # Create animations.
     animations = []
     for animation_num in range(num_animations):
-        base_factor = data.sample_factors(1)
+        with TempNumpySeed(seed, offset=animation_num):
+            base_factor = data.sample_factors(1)
         images = []
         for i, factor_size in enumerate(data.factor_sizes):
             factors = np.repeat(base_factor, num_frames, axis=0)

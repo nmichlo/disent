@@ -30,7 +30,7 @@ from disent.dataset.util.io import ensure_dir_exists
 from disent.visualize import visualize_util
 from disent.dataset import as_dataset
 from disent.visualize.visualize_util import reconstructions_to_images
-from disent.util import to_numpy
+from disent.util import TempNumpySeed, to_numpy
 import numpy as np
 import torch
 
@@ -222,8 +222,9 @@ def latent_cycle(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', 
 # ========================================================================= #
 
 
-def sample_observations_and_reconstruct(gaussian_encoder_fn, decoder_fn, dataset, num_samples=16):
-    obs = dataset.sample_observations(num_samples).cuda()
+def sample_observations_and_reconstruct(gaussian_encoder_fn, decoder_fn, dataset, num_samples=16, seed=None):
+    with TempNumpySeed(seed):
+        obs = dataset.sample_observations(num_samples).cuda()
     # reconstruct
     z_mean, z_logvar = gaussian_encoder_fn(obs)
     x_recon = decoder_fn(z_mean)

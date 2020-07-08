@@ -497,16 +497,21 @@ class SupervisedTripletDataset(PairedVariationDataset):
         # make k random indices not shared + resample paired item, differs by at most k factors of variation
         p_num_shared = self._dataset.data.num_factors - p_k
         p_shared_indices = np.random.choice(self._variation_factor_indices, size=p_num_shared, replace=False)
-        positive_factors = self._dataset.data.resampled_factors(anchor_factors[np.newaxis, :], p_shared_indices)
+        positive_factors = self._dataset.data.resampled_factors(anchor_factors[np.newaxis, :], p_shared_indices)[0]
 
         # these should generally differ by more factors
         # make k random indices not shared + resample paired item, differs by at most k factors of variation
         n_num_shared = self._dataset.data.num_factors - n_k
         n_shared_indices = np.random.choice(self._variation_factor_indices, size=n_num_shared, replace=False)
-        negative_factors = self._dataset.data.resampled_factors(anchor_factors[np.newaxis, :], n_shared_indices)
+        negative_factors = self._dataset.data.resampled_factors(anchor_factors[np.newaxis, :], n_shared_indices)[0]
+
+        # swap if number of shared factors is less for the positive | This is not idea
+        # ie. enforce d(a, p) <= d(a, n)
+        if np.sum(anchor_factors == positive_factors) < np.sum(anchor_factors == negative_factors):
+            positive_factors, negative_factors = negative_factors, positive_factors
 
         # return observations
-        return anchor_factors, positive_factors[0], negative_factors[0]
+        return anchor_factors, positive_factors, negative_factors
 
 
 # ========================================================================= #
