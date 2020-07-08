@@ -29,7 +29,7 @@ class Cars3dData(DownloadableGroundTruthData):
 
     dataset_urls = ['http://www.scottreed.info/files/nips2015-analogy-data.tar.gz']
 
-    def __init__(self, data_dir='data/dataset', force_download=False):
+    def __init__(self, data_dir='data/dataset/cars3d', force_download=False):
         super().__init__(data_dir=data_dir, force_download=force_download)
 
         converted_file = self._make_converted_file(data_dir, force_download)

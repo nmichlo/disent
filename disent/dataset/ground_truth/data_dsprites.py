@@ -31,6 +31,9 @@ class DSpritesData(Hdf5PreprocessedGroundTruthData):
     # minimum chunk size, no compression but good for random accesses
     hdf5_chunk_size = (1, 64, 64)
 
+    def __init__(self, data_dir='data/dataset/dsprites', in_memory=False, force_download=False, force_preprocess=False):
+        super().__init__(data_dir=data_dir, in_memory=in_memory, force_download=force_download, force_preprocess=force_preprocess)
+
     def __getitem__(self, idx):
         return super().__getitem__(idx) * 255  # for some reason uint8 is used as datatype, but only in range 0-1
 

@@ -146,7 +146,7 @@ class VaeSystem(pl.LightningModule):
 
 
 if __name__ == '__main__':
-    system = VaeSystem(HParams(loss='g-ada-gvae', dataset='smallnorb'))
+    system = VaeSystem(HParams(loss='beta-vae', model='fc', dataset='xygrid'))
     trainer = system.quick_train(epochs=10)
 
     # print('Saving')

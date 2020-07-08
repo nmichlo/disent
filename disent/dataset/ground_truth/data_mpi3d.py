@@ -32,7 +32,7 @@ class Mpi3dData(DownloadableGroundTruthData):
     def dataset_urls(self):
         return [Mpi3dData.URLS[self.subset]]
 
-    def __init__(self, data_dir='data/dataset', force_download=False, subset='realistic', in_memory=True):
+    def __init__(self, data_dir='data/dataset/mpi3d', force_download=False, subset='realistic', in_memory=True):
         # check subset
         assert subset in Mpi3dData.URLS, f'Invalid subset: {subset=} must be one of: {set(Mpi3dData.URLS.values())}'
         self.subset = subset

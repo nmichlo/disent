@@ -29,6 +29,9 @@ class Shapes3dData(Hdf5PreprocessedGroundTruthData):
     # minimum chunk size, no compression but good for random accesses
     hdf5_chunk_size = (1, 64, 64, 3)
 
+    def __init__(self, data_dir='data/dataset/3dshapes', in_memory=False, force_download=False, force_preprocess=False):
+        super().__init__(data_dir=data_dir, in_memory=in_memory, force_download=force_download, force_preprocess=force_preprocess)
+
 
 # ========================================================================= #
 # END                                                                       #

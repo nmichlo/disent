@@ -24,13 +24,13 @@ def split_dataset(dataset, train_ratio=0.8):
     return torch.utils.data.random_split(dataset, [train_size, test_size])
 
 
-def make_ground_truth_data(name, data_dir='data/dataset', try_in_memory=True) -> GroundTruthData:
+def make_ground_truth_data(name, try_in_memory=True) -> GroundTruthData:
     if '3dshapes' == name:
-        data = Shapes3dData(data_dir=data_dir)
+        data = Shapes3dData()
     elif 'dsprites' == name:
-        data = DSpritesData(data_dir=data_dir, in_memory=try_in_memory)
+        data = DSpritesData(in_memory=try_in_memory)
     elif 'xygrid' == name:
-        data = XYData(grid_size=64)
+        data = XYData(grid_size=64, square_size=2)
     elif 'smallnorb' == name:
         data = SmallNorbData()
     elif 'cars3d' == name:
@@ -84,11 +84,11 @@ def make_ground_truth_data_transform(name):
         raise KeyError(f'Unsupported Ground Truth Dataset: {name}')
 
 
-def make_ground_truth_dataset(name, data_dir='data/dataset', try_in_memory=True) -> GroundTruthDataset:
+def make_ground_truth_dataset(name, try_in_memory=True) -> GroundTruthDataset:
     # all datasets are in the range [0, 1] to correspond
     # to the sigmoid activation function.
     return GroundTruthDataset(
-        ground_truth_data=make_ground_truth_data(name, data_dir=data_dir, try_in_memory=try_in_memory),
+        ground_truth_data=make_ground_truth_data(name, try_in_memory=try_in_memory),
         transform=make_ground_truth_data_transform(name)
     )
 

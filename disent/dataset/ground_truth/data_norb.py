@@ -49,7 +49,7 @@ class SmallNorbData(DownloadableGroundTruthData):
     factor_sizes = (5, 5, 9, 18, 6)  # TOTAL: 24300
     observation_shape = (96, 96, 1)
 
-    def __init__(self, data_dir='data/dataset', force_download=False, is_test=False):
+    def __init__(self, data_dir='data/dataset/smallnorb', force_download=False, is_test=False):
         super().__init__(data_dir=data_dir, force_download=force_download)
         assert not is_test, 'Test set not yet supported'
 
