@@ -1,3 +1,5 @@
+import torch
+
 from disent.frameworks.unsupervised.betavae import BetaVaeLoss
 from disent.frameworks.unsupervised.vae import bce_loss_with_logits, kl_normal_loss
 
@@ -64,18 +66,18 @@ def compute_average_ml_vae(z_mean, z_logvar, z2_mean, z2_logvar):
     # mean, logvar
     return ave_mean, ave_var.log()  # natural log
 
-def estimate_unchanged(z_mean, z_logvar, z2_mean, z2_logvar):
+def estimate_shared(z_mean, z_logvar, z2_mean, z2_logvar):
     """
     Core of the adaptive VAE algorithm, estimating which factors
-    have changed (or in this case remained unchanged and should
-    be averaged) between pairs of observations.
+    have changed (or in this case which are shared and should remained unchanged
+    by being be averaged) between pairs of observations.
     """
     # shared elements that need to be averaged, computed per pair in the batch.
     kl_deltas = kl_normal_loss_pair_elements(z_mean, z_logvar, z2_mean, z2_logvar)  # [𝛿_i ...]
     kl_threshs = estimate_kl_threshold(kl_deltas)  # threshold τ
-    unchanged_mask = kl_deltas < kl_threshs  # true if 'unchanged' and should be averaged
+    shared_mask = kl_deltas < kl_threshs  # true if 'unchanged' and should be average
 
-    return kl_deltas, kl_threshs, unchanged_mask
+    return kl_deltas, kl_threshs, shared_mask
 
 # ========================================================================= #
 # Ada-GVAE                                                                  #
@@ -115,7 +117,7 @@ class AdaVaeLoss(BetaVaeLoss, InterceptZMixin):
         assert not kwargs
 
         # shared elements that need to be averaged, computed per pair in the batch.
-        _, _, ave_mask = estimate_unchanged(z_mean, z_logvar, z2_mean, z2_logvar)
+        _, _, ave_mask = estimate_shared(z_mean, z_logvar, z2_mean, z2_logvar)
 
         # make averaged z parameters
         return self.make_averaged(z_mean, z_logvar, z2_mean, z2_logvar, ave_mask)

@@ -2,10 +2,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 
+from disent.dataset import as_dataset
 from disent.systems.vae import VaeSystem
 from disent.util import TempNumpySeed, to_numpy
 from disent.visualize.visualize_dataset import sample_dataset_animations, sample_dataset_still_images
-from disent.visualize.visualize_model import (LATENT_CYCLE_MODES, latent_random_samples, latent_traversals,
+from disent.visualize.visualize_model import (LATENT_CYCLE_MODES, _LATENT_CYCLE_MODES_MAP, latent_random_samples,
+                                              latent_traversals,
                                               sample_observations_and_reconstruct, latent_cycle)
 from disent.visualize.visualize_util import gridify_animation, reconstructions_to_images
 
@@ -152,7 +154,7 @@ def _notebook_display_traverse_latent_space(decoder_fn, z_mean, dimensions=None,
         new_display_ids.append(d_id)
     return new_display_ids if new_display_ids else None
 
-def notebook_display_traverse_latent_space(system, num_samples=1, dimensions=None, values=21, fps=10, display_ids=None, seed=None):
+def notebook_display_traverse_latent_space(system, num_samples=1, dimensions=None, values=21, fps=10, seed=None, display_ids=None):
     # TODO: this is not general
     with TempNumpySeed(seed):
         obs = system.dataset.sample_observations(num_samples).cuda()
@@ -168,14 +170,16 @@ def _plt_sample_observations_and_reconstruct(gaussian_encoder_fn, decoder_fn, da
 def plt_sample_observations_and_reconstruct(system, num_samples=16, figsize_ratio=0.75, seed=None):
     _plt_sample_observations_and_reconstruct(system.model.encode_gaussian, system.model.reconstruct, system.dataset, num_samples=num_samples, figsize_ratio=figsize_ratio, seed=seed)
 
-def _notebook_display_latent_cycle(decoder_fn, z_means, z_logvars, mode='fixed_interval_cycle', num_animations=1, num_frames=20, fps=10):
+def _notebook_display_latent_cycle(decoder_fn, z_means, z_logvars, mode='fixed_interval_cycle', num_animations=1, num_frames=20, fps=10, display_ids=None):
     animations = latent_cycle(decoder_fn, z_means, z_logvars, mode=mode, num_animations=num_animations, num_frames=num_frames)
     animations = reconstructions_to_images(animations, mode='int', moveaxis=False)  # axis already moved above
+    new_display_ids = []
     for i, images_frames in enumerate(animations):
         frames = gridify_animation(images_frames)
-        notebook_display_animation(frames, fps=fps)
+        new_display_ids.append(notebook_display_animation(frames, fps=fps, display_id=display_ids[i] if display_ids else None))
+    return new_display_ids
 
-def notebook_display_latent_cycle(system, mode='fixed_interval_cycle', num_animations=1, num_test_samples=64, num_frames=21, fps=8, obs=None, seed=None):
+def notebook_display_latent_cycle(system, mode='fixed_interval_cycle', num_animations=1, num_test_samples=64, num_frames=21, fps=8, obs=None, seed=None, display_ids=None):
     if obs is None:
         # TODO: this is not general
         with TempNumpySeed(seed):
@@ -184,7 +188,7 @@ def notebook_display_latent_cycle(system, mode='fixed_interval_cycle', num_anima
         # TODO: this is not general
         obs = torch.as_tensor(obs).cuda()
     z_mean, z_logvar = to_numpy(system.model.encode_gaussian(obs))
-    _notebook_display_latent_cycle(system.model.reconstruct, z_mean, z_logvar, mode=mode, num_animations=num_animations, num_frames=num_frames, fps=fps)
+    return _notebook_display_latent_cycle(system.model.reconstruct, z_mean, z_logvar, mode=mode, num_animations=num_animations, num_frames=num_frames, fps=fps, display_ids=display_ids)
 
 # ========================================================================= #
 # END                                                                       #

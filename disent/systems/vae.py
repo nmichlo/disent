@@ -30,6 +30,7 @@ class HParams:
     weight_decay: float = 0.
     # LOSS
     loss: str = 'vae'
+    beta: float = 4
     # DATASET
     dataset: str = '3dshapes'
     try_in_memory: bool = False
@@ -58,7 +59,7 @@ class VaeSystem(pl.LightningModule):
         self.params: HParams = hparams if isinstance(hparams, HParams) else HParams(**(hparams if hparams else {}))
         # make
         self.model = make_model(self.params.model, z_size=self.params.z_size)
-        self.loss = make_vae_loss(self.params.loss)
+        self.loss = make_vae_loss(self.params.loss, self.params.beta)
         self.dataset: Dataset = make_ground_truth_dataset(self.params.dataset, try_in_memory=self.params.try_in_memory)
 
         # convert dataset for paired loss

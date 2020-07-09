@@ -51,16 +51,17 @@ class DiscreteStateSpace(object):
         return len(self._factor_sizes)
 
     def pos_to_idx(self, pos):
+        pos = np.array(pos)
+        assert pos.ndim == 1, len(pos) == self.num_factors
         idx = np.dot(pos, self._factor_divisors)
-        # TODO: fix for array of pos
-        # if idx < 0 or idx >= self.size:
-        #     raise IndexError('Index out of bounds')
+        if idx < 0 or idx >= self.size:
+            raise IndexError('Index out of bounds')
         return idx
 
     def idx_to_pos(self, idx):
-        # TODO: fix for array of idx
-        # if idx < 0 or idx >= self.size:
-        #     raise IndexError('Index out of bounds')
+        assert isinstance(idx, int)
+        if idx < 0 or idx >= self.size:
+            raise IndexError('Index out of bounds')
         return (idx % self._factor_modulus) // self._factor_divisors
 
     def sample_factors(self, num_samples, factor_indices=None):
@@ -131,8 +132,7 @@ class GroundTruthData(DiscreteStateSpace):
 
     def sample_observations_from_factors(self, factors):
         """Sample a batch of observations X given a batch of factors Y."""
-        indices = self.pos_to_idx(factors)
-        observations = [self[idx] for idx in indices]
+        observations = [self[self.pos_to_idx(factor)] for factor in factors]
         # TODO: this should be configurable
         if torch.is_tensor(observations[0]):
             observations = torch.stack(observations)
@@ -393,7 +393,7 @@ class Hdf5PreprocessedGroundTruthData(PreprocessedDownloadableGroundTruthData):
 
 class PairedVariationDataset(Dataset):
 
-    def __init__(self, dataset: Union[GroundTruthData, GroundTruthDataset], k=None, variation_factor_indices=None):
+    def __init__(self, dataset: Union[GroundTruthData, GroundTruthDataset], k='uniform', variation_factor_indices=None):
         """
         Dataset that pairs together samples with at most k differing factors of variation.
 
@@ -423,9 +423,10 @@ class PairedVariationDataset(Dataset):
         return self._dataset.data.size
 
     def __getitem__(self, idx):
-        orig_factors, paired_factors = self.sample_pair_factors(idx)
-        indices = self._dataset.data.pos_to_idx([orig_factors, paired_factors])
-        return [self._dataset[idx] for idx in indices]
+        orig_factors, pair_factors = self.sample_pair_factors(idx)
+        orig_idx = self._dataset.data.pos_to_idx(orig_factors)
+        pair_idx = self._dataset.data.pos_to_idx(pair_factors)
+        return self._dataset[orig_idx], self._dataset[pair_idx]
 
     def sample_pair_factors(self, idx):
         """
@@ -482,8 +483,10 @@ class SupervisedTripletDataset(PairedVariationDataset):
 
     def __getitem__(self, idx):
         anchor_factors, positive_factors, negative_factors = self.sample_triplet_factors(idx)
-        indices = self._dataset.data.pos_to_idx([anchor_factors, positive_factors, negative_factors])
-        return [self._dataset[idx] for idx in indices]
+        a_idx = self._dataset.data.pos_to_idx(anchor_factors)
+        p_idx = self._dataset.data.pos_to_idx(positive_factors)
+        n_idx = self._dataset.data.pos_to_idx(negative_factors)
+        return self._dataset[a_idx], self._dataset[p_idx], self._dataset[n_idx]
 
     def sample_triplet_factors(self, idx):
         # get factors corresponding to index
@@ -506,9 +509,13 @@ class SupervisedTripletDataset(PairedVariationDataset):
         negative_factors = self._dataset.data.resampled_factors(anchor_factors[np.newaxis, :], n_shared_indices)[0]
 
         # swap if number of shared factors is less for the positive | This is not ideal
-        # ie. enforce d(a, p) <= d(a, n)
+        # (swap if number of differing factors [k] is greater for the positive)
         if np.sum(anchor_factors == positive_factors) < np.sum(anchor_factors == negative_factors):
             positive_factors, negative_factors = negative_factors, positive_factors
+
+        # CHECKED! choosing factors like this results in:
+        # np.sum(anchor_factors == positive_factors) >= np.sum(anchor_factors == negative_factors)
+        # ie. num positive shared factors >= num negative shared factors
 
         # return observations
         return anchor_factors, positive_factors, negative_factors

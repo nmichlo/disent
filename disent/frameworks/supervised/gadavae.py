@@ -1,10 +1,11 @@
-from disent.frameworks.semisupervised.adavae import (AdaVaeLoss, InterceptZMixin, estimate_unchanged)
+from disent.frameworks.semisupervised.adavae import (AdaVaeLoss, InterceptZMixin, estimate_shared)
 from disent.frameworks.unsupervised.vae import bce_loss_with_logits, kl_normal_loss
+
+import torch
 
 # ========================================================================= #
 # Ada-GVAE                                                                  #
 # ========================================================================= #
-
 
 # def compute_average_gvae_triplet(z_mean, z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar):
 #     """
@@ -21,25 +22,32 @@ from disent.frameworks.unsupervised.vae import bce_loss_with_logits, kl_normal_l
 #     # mean, logvar
 #     return ave_mean, ave_var.log()  # natural log
 
-def compute_constrained_mask(p_kl_deltas, p_unchanged_mask, n_unchanged_mask):
+def compute_constrained_mask(p_kl_deltas, p_shared_mask, n_kl_deltas, n_shared_mask, positive=True):
     batch_size, dims = p_kl_deltas.shape
 
     # number of changed factors
-    p_k = torch.sum(~p_unchanged_mask, dim=1, keepdim=True)
-    n_k = torch.sum(~n_unchanged_mask, dim=1, keepdim=True)
-
-    sort_indices = torch.argsort(p_kl_deltas, dim=1)
-
-    # orig_indices = torch.arange(dims).repeat(batch_size, 1)
-    # orig_mask = orig_indices < k
+    p_ks = torch.sum(~p_shared_mask, dim=1, keepdim=True)
+    n_ks = torch.sum(~n_shared_mask, dim=1, keepdim=True)
 
     # TODO: this is inefficient
-    p_mask = torch.zeros_like(p_unchanged_mask)
-    for i, min_k in enumerate(torch.min(p_k, n_k)):
-        unchanged = dims - min_k
-        p_mask[i, sort_indices[i, :unchanged]] = True
-
-    return p_mask
+    if positive:
+        # order from smallest to largest
+        sort_indices = torch.argsort(p_kl_deltas, dim=1)
+        p_mask = torch.zeros_like(p_shared_mask)
+        # compute p_k should be less than n_k
+        for i, k_min in enumerate(torch.min(p_ks, n_ks)):
+            shared = dims - k_min
+            p_mask[i, sort_indices[i, :shared]] = True
+        return p_mask
+    else:
+        # order from smallest to largest
+        sort_indices = torch.argsort(n_kl_deltas, dim=1)
+        n_mask = torch.zeros_like(n_shared_mask)
+        # compute n_k should be greater than p_k
+        for i, max_k in enumerate(torch.max(p_ks, n_ks)):
+            unchanged = dims - max_k
+            n_mask[i, sort_indices[i, :unchanged]] = True
+        return n_mask
 
 
 class GuidedAdaVaeLoss(AdaVaeLoss, InterceptZMixin):
@@ -49,11 +57,33 @@ class GuidedAdaVaeLoss(AdaVaeLoss, InterceptZMixin):
         super().__init__(beta=beta, average_mode=average_mode)
 
         # TODO: remove, this is debug stuff
-        self.count = 0
+        self.p_count = 0
+        self.p_count_new = 0
+        self.n_count = 0
+        self.n_count_new = 0
 
     @property
     def required_observations(self):
         return 3
+
+    # def intercept_z(self, a_z_mean, a_z_logvar, *args, **kwargs):
+    #     p_z_mean, p_z_logvar, n_z_mean, n_z_logvar = args
+    #     assert not kwargs
+    #
+    #     # shared elements that need to be averaged, computed per pair in the batch.
+    #     p_kl_deltas, p_kl_threshs, p_ave_mask = estimate_shared(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar)
+    #     n_kl_deltas, n_kl_threshs, n_ave_mask = estimate_shared(a_z_mean, a_z_logvar, n_z_mean, n_z_logvar)
+    #
+    #     old_p_ave_mask, old_n_ave_mask = p_ave_mask, n_ave_mask
+    #     p_ave_mask = compute_constrained_mask(p_kl_deltas, old_p_ave_mask, n_kl_deltas, old_n_ave_mask, positive=True)
+    #
+    #     # DEBUG
+    #     # self.p_count += int(torch.sum(old_p_ave_mask))
+    #     # self.p_count_new += int(torch.sum(p_ave_mask))
+    #     # self.n_count += int(torch.sum(n_ave_mask))
+    #
+    #     # make averaged z parameters
+    #     return self.make_averaged(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, p_ave_mask)
 
     def intercept_z(self, a_z_mean, a_z_logvar, *args, **kwargs):
         """
@@ -62,19 +92,27 @@ class GuidedAdaVaeLoss(AdaVaeLoss, InterceptZMixin):
           corresponding to z, z2, z3 satisfy the criteria d(l, l2) < d(l, l3)
           ie. l2 is the positive sample, l3 is the negative sample
         """
+        # TODO: \/ \/ \/ \/ \/ THIS IS WRONG FOR SOME REASON?????? WHY????? \/ \/ \/ \/ \/
         p_z_mean, p_z_logvar, n_z_mean, n_z_logvar = args
+        # TODO: /\ /\ /\ /\ /\ THIS IS WRONG FOR SOME REASON?????? WHY????? /\ /\ /\ /\ /\
+        # n_z_mean, n_z_logvar, p_z_mean, p_z_logvar = args
         assert not kwargs
 
         # shared elements that need to be averaged, computed per pair in the batch.
-        p_kl_deltas, p_kl_threshs, p_ave_mask = estimate_unchanged(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar)
-        n_kl_deltas, n_kl_threshs, n_ave_mask = estimate_unchanged(a_z_mean, a_z_logvar, n_z_mean, n_z_logvar)
+        p_kl_deltas, p_kl_threshs, p_ave_mask = estimate_shared(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar)
+        n_kl_deltas, n_kl_threshs, n_ave_mask = estimate_shared(a_z_mean, a_z_logvar, n_z_mean, n_z_logvar)
 
         # modify threshold based on criterion and recompute if necessary
         # CORE of this approach!
-        p_ave_mask = compute_constrained_mask(p_kl_deltas, (old_p_ave_mask := p_ave_mask), n_ave_mask)
+        old_p_ave_mask, old_n_ave_mask = p_ave_mask, n_ave_mask
+        p_ave_mask = compute_constrained_mask(p_kl_deltas, old_p_ave_mask, n_kl_deltas, old_n_ave_mask, positive=True)
+        n_ave_mask = compute_constrained_mask(p_kl_deltas, old_p_ave_mask, n_kl_deltas, old_n_ave_mask, positive=False)
 
-        # TODO: remove, this is debug stuff
-        self.count += int(torch.sum(p_ave_mask == old_p_ave_mask).cpu().detach())
+        # DEBUG
+        self.p_count += int(torch.sum(old_p_ave_mask))
+        self.p_count_new += int(torch.sum(p_ave_mask))
+        self.n_count += int(torch.sum(old_n_ave_mask))
+        self.n_count_new += int(torch.sum(n_ave_mask))
 
         pAz_mean, pAz_logvar, p_z_mean, p_z_logvar = self.make_averaged(a_z_mean.clone(), a_z_logvar.clone(), p_z_mean, p_z_logvar, p_ave_mask)
         nAz_mean, nAz_logvar, n_z_mean, n_z_logvar = self.make_averaged(a_z_mean.clone(), a_z_logvar.clone(), n_z_mean, n_z_logvar, n_ave_mask)
@@ -112,8 +150,8 @@ class GuidedAdaVaeLoss(AdaVaeLoss, InterceptZMixin):
 
 
 
-import numpy
-import torch
+# import numpy
+# import torch
 #
 # def estimate_kl_threshold(kl_deltas):
 #     """
