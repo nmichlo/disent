@@ -154,8 +154,9 @@ def kl_normal_loss_pair_elements(z_mean, z_logvar, z2_mean, z2_logvar):
     # σ0 = logv0.exp() ** 0.5
     # σ1 = logv1.exp() ** 0.5
     # return 0.5 * ((σ0/σ1)**2 + ((μ1 - μ0)**2)/(σ1**2) - 1 + 2*ln(σ1/σ0))
+    # return 0.5 * ((σ0/σ1)**2 + ((μ1 - μ0)**2)/(σ1**2) - 1 + ln(σ1**2 / σ0**2))
     # return 0.5 * (σ0.exp()/σ1.exp() + (μ1 - μ0).pow(2)/σ1.exp() - 1 + (logv1 - logv0))
-    return 0.5 * (z_logvar.exp() / z2_logvar.exp() + (z2_mean - z_mean).pow(2) / z2_logvar.exp() - 1 + (z_logvar - z_logvar))
+    return 0.5 * ((z_logvar.exp() / z2_logvar.exp()) + (z2_mean - z_mean).pow(2) / z2_logvar.exp() - 1 + (z2_logvar - z_logvar))
 
 def estimate_kl_threshold(kl_deltas):
     """
