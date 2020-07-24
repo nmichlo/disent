@@ -66,18 +66,6 @@ def compute_average_ml_vae(z_mean, z_logvar, z2_mean, z2_logvar):
     # mean, logvar
     return ave_mean, ave_var.log()  # natural log
 
-def estimate_shared(z_mean, z_logvar, z2_mean, z2_logvar):
-    """
-    Core of the adaptive VAE algorithm, estimating which factors
-    have changed (or in this case which are shared and should remained unchanged
-    by being be averaged) between pairs of observations.
-    """
-    # shared elements that need to be averaged, computed per pair in the batch.
-    kl_deltas = kl_normal_loss_pair_elements(z_mean, z_logvar, z2_mean, z2_logvar)  # [𝛿_i ...]
-    kl_threshs = estimate_kl_threshold(kl_deltas)  # threshold τ
-    shared_mask = kl_deltas < kl_threshs  # true if 'unchanged' and should be average
-
-    return kl_deltas, kl_threshs, shared_mask
 
 # ========================================================================= #
 # Ada-GVAE                                                                  #
@@ -114,7 +102,6 @@ class AdaVaeLoss(BetaVaeLoss, InterceptZMixin):
 
     def intercept_z(self, z_mean, z_logvar, *args, **kwargs):
         z2_mean, z2_logvar = args
-        assert not kwargs
 
         # shared elements that need to be averaged, computed per pair in the batch.
         _, _, ave_mask = estimate_shared(z_mean, z_logvar, z2_mean, z2_logvar)
@@ -169,6 +156,19 @@ def estimate_kl_threshold(kl_deltas):
     threshs = 0.5 * (kl_deltas.max(axis=1).values + kl_deltas.min(axis=1).values)
     return threshs[:, None]  # re-add the flattened dimension, shape=(batch_size, 1)
 
+def estimate_shared(z_mean, z_logvar, z2_mean, z2_logvar):
+    """
+    Core of the adaptive VAE algorithm, estimating which factors
+    have changed (or in this case which are shared and should remained unchanged
+    by being be averaged) between pairs of observations.
+    """
+    # shared elements that need to be averaged, computed per pair in the batch.
+    kl_deltas = kl_normal_loss_pair_elements(z_mean, z_logvar, z2_mean, z2_logvar)  # [𝛿_i ...]
+    kl_threshs = estimate_kl_threshold(kl_deltas)  # threshold τ
+
+    shared_mask = kl_deltas < kl_threshs  # true if 'unchanged' and should be average
+
+    return kl_deltas, kl_threshs, shared_mask
 
 # ========================================================================= #
 # END                                                                       #

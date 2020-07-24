@@ -52,8 +52,11 @@ def make_model(name, z_size=6, image_size=64, num_channels=3):
         encoder = EncoderFC(x_shape=x_shape, z_size=z_size)
         decoder = DecoderFC(x_shape=x_shape, z_size=z_size)
     elif 'conv' == name:
-        encoder = EncoderConv64(x_shape=x_shape, z_size=z_size)
-        decoder = DecoderConv64(x_shape=x_shape, z_size=z_size)
+        encoder = EncoderConv64(x_shape=x_shape, z_size=z_size, dropout=0.0)
+        decoder = DecoderConv64(x_shape=x_shape, z_size=z_size, dropout=0.0)
+    elif 'conv-dropout' == name:
+        encoder = EncoderConv64(x_shape=x_shape, z_size=z_size, dropout=0.33)
+        decoder = DecoderConv64(x_shape=x_shape, z_size=z_size, dropout=0.33)
     else:
         raise KeyError(f'Unsupported Model: {name}')
 

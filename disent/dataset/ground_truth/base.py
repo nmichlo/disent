@@ -345,7 +345,8 @@ class Hdf5PreprocessedGroundTruthData(PreprocessedDownloadableGroundTruthData):
         else:
             # TODO: this is weird
             if not hasattr(self.__class__, '_DATASET'):
-                self.__class__._DATASET = h5py.File(self.dataset_path, 'r')[self.hdf5_name]
+                # swrm - single write, multiple read
+                self.__class__._DATASET = h5py.File(self.dataset_path, 'r', swmr=True)[self.hdf5_name]
 
     def __getitem__(self, idx):
         if self._in_memory:
@@ -393,7 +394,7 @@ class Hdf5PreprocessedGroundTruthData(PreprocessedDownloadableGroundTruthData):
 
 class PairedVariationDataset(Dataset):
 
-    def __init__(self, dataset: Union[GroundTruthData, GroundTruthDataset], k='uniform', variation_factor_indices=None):
+    def __init__(self, dataset: Union[GroundTruthData, GroundTruthDataset], k='uniform', variation_factor_indices=None, return_factors=False):
         """
         Dataset that pairs together samples with at most k differing factors of variation.
 
@@ -416,6 +417,8 @@ class PairedVariationDataset(Dataset):
         if isinstance(self._k, int):
             assert 1 <= self._k, 'k cannot be less than 1'
             assert self._k < self._num_variation_factors, f'all factors cannot be varied for each pair, k must be less than {self._num_variation_factors}'
+        # if we must return (x, y) instead of just x, where y is the factors for x.
+        self._return_factors = return_factors
 
     def __len__(self):
         # TODO: is dataset as big as the latent space OR as big as the orig.
@@ -423,12 +426,12 @@ class PairedVariationDataset(Dataset):
         return self._dataset.data.size
 
     def __getitem__(self, idx):
-        orig_factors, pair_factors = self.sample_pair_factors(idx)
-        orig_idx = self._dataset.data.pos_to_idx(orig_factors)
-        pair_idx = self._dataset.data.pos_to_idx(pair_factors)
-        return self._dataset[orig_idx], self._dataset[pair_idx]
+        if self._return_factors:
+            return [(self._dataset[self._dataset.data.pos_to_idx(pos)], pos) for pos in self.sample_factors(idx)]
+        else:
+            return [self._dataset[self._dataset.data.pos_to_idx(pos)] for pos in self.sample_factors(idx)]
 
-    def sample_pair_factors(self, idx):
+    def sample_factors(self, idx):
         """
         Excerpt from Weakly-Supervised Disentanglement Without Compromises:
         [section 5. Experimental results]
@@ -460,6 +463,7 @@ class PairedVariationDataset(Dataset):
 
 
 class RandomPairDataset(Dataset):
+
     def __init__(self, dataset: Dataset):
         assert len(dataset) > 1, 'Dataset must be contain more than one observation.'
         self.dataset = dataset
@@ -477,18 +481,11 @@ class RandomPairDataset(Dataset):
                 # pretty much impossible unless your dataset is of size 1, or your prng is broken...
                 raise IndexError('Unable to find random index that differs.')
         # return elements
-        return self.dataset[idx], self.dataset[rand_idx]
+        return (self.dataset[idx], idx), (self.dataset[rand_idx], rand_idx)
 
 class SupervisedTripletDataset(PairedVariationDataset):
 
-    def __getitem__(self, idx):
-        anchor_factors, positive_factors, negative_factors = self.sample_triplet_factors(idx)
-        a_idx = self._dataset.data.pos_to_idx(anchor_factors)
-        p_idx = self._dataset.data.pos_to_idx(positive_factors)
-        n_idx = self._dataset.data.pos_to_idx(negative_factors)
-        return self._dataset[a_idx], self._dataset[p_idx], self._dataset[n_idx]
-
-    def sample_triplet_factors(self, idx):
+    def sample_factors(self, idx):
         # get factors corresponding to index
         anchor_factors = self._dataset.data.idx_to_pos(idx)
 

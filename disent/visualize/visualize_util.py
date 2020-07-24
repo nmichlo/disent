@@ -259,8 +259,9 @@ def reconstructions_to_images(recon, mode='float', moveaxis=True):
     # checks
     assert img.ndim >= 3
     assert img.dtype in (np.float32, np.float64)
-    assert 0 <= np.min(img) <= 1
-    assert 0 <= np.max(img) <= 1
+    if np.min(img) < 0 or np.max(img) > 1:
+        print('WARNING: image has been clipped')
+    img = np.clip(img, 0, 1)
     # move channels axis
     if moveaxis:
         # TODO: automatically detect

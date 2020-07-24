@@ -26,7 +26,7 @@ def split_dataset(dataset, train_ratio=0.8):
 
 def make_ground_truth_data(name, try_in_memory=True) -> GroundTruthData:
     if '3dshapes' == name:
-        data = Shapes3dData()
+        data = Shapes3dData(in_memory=try_in_memory)
     elif 'dsprites' == name:
         data = DSpritesData(in_memory=try_in_memory)
     elif 'xygrid' == name:
@@ -49,10 +49,8 @@ def make_ground_truth_data_transform(name):
     import torchvision
     import torch
 
-    transforms = []
-
     if '3dshapes' == name:  # (1, 64, 64)
-        pass
+        return torchvision.transforms.ToTensor()
     elif 'dsprites' == name:  # (1, 64, 64)
         return torchvision.transforms.Compose([
             torchvision.transforms.ToTensor(),

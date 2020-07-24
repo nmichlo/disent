@@ -191,7 +191,7 @@ class EncoderConv64(BaseGaussianEncoderModule):
     https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/shared/architectures.py
     """
 
-    def __init__(self, x_shape=(3, 64, 64), z_size=6):
+    def __init__(self, x_shape=(3, 64, 64), z_size=6, dropout=0.0):
         """
         Convolutional encoder used in beta-VAE paper for the chairs data.
         Based on row 3 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
@@ -204,18 +204,18 @@ class EncoderConv64(BaseGaussianEncoderModule):
         super().__init__(x_shape=x_shape, z_size=z_size)
 
         self.model = nn.Sequential(
-            nn.ReLU(True),
             nn.Conv2d(in_channels=num_channels, out_channels=32, kernel_size=4, stride=2, padding=2),
-            nn.ReLU(True),
+                nn.LeakyReLU(inplace=True),
             nn.Conv2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=2),
-            nn.ReLU(True),
+                nn.LeakyReLU(inplace=True),
             nn.Conv2d(in_channels=32, out_channels=64, kernel_size=2, stride=2, padding=1),
-            nn.ReLU(True),
+                nn.LeakyReLU(inplace=True),
             nn.Conv2d(in_channels=64, out_channels=64, kernel_size=2, stride=2, padding=1),
-            nn.ReLU(True),
+                nn.LeakyReLU(inplace=True),
             Flatten3D(),
             nn.Linear(1600, 256),
-            nn.ReLU(True),
+                nn.LeakyReLU(inplace=True),
+                nn.Dropout(dropout),
         )
         self.enc3mean = nn.Linear(256, self.z_size)
         self.enc3logvar = nn.Linear(256, self.z_size)
@@ -231,7 +231,7 @@ class DecoderConv64(BaseDecoderModule):
     https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/shared/architectures.py
     """
 
-    def __init__(self, x_shape=(3, 64, 64), z_size=6):
+    def __init__(self, x_shape=(3, 64, 64), z_size=6, dropout=0.0):
         """
         Convolutional decoder used in beta-VAE paper for the chairs data.
         Based on row 3 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
@@ -244,16 +244,18 @@ class DecoderConv64(BaseDecoderModule):
 
         self.model = nn.Sequential(
             nn.Linear(self.z_size, 256),
-            nn.ReLU(True),
+                # nn.Dropout(dropout),
+                nn.LeakyReLU(inplace=True),
             nn.Linear(256, 1024),
-            nn.ReLU(True),
+                # nn.Dropout(dropout),
+                nn.LeakyReLU(inplace=True),
             BatchView([64, 4, 4]),
             nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=4, stride=2, padding=1),
-            nn.ReLU(True),
+                nn.LeakyReLU(inplace=True),
             nn.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=4, stride=2, padding=1),
-            nn.ReLU(True),
+                nn.LeakyReLU(inplace=True),
             nn.ConvTranspose2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=1),
-            nn.ReLU(True),
+                nn.LeakyReLU(inplace=True),
             nn.ConvTranspose2d(in_channels=32, out_channels=num_channels, kernel_size=4, stride=2, padding=1),
         )
 
