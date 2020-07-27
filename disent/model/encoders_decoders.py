@@ -16,9 +16,9 @@ class EncoderSimpleFC(BaseGaussianEncoderModule):
         self.model = nn.Sequential(
             Flatten3D(),
             nn.Linear(self.x_size, h_size1),
-            nn.ReLU(True),
+                nn.ReLU(True),
             nn.Linear(h_size1, h_size2),
-            nn.ReLU(True),
+                nn.ReLU(True),
         )
         self.enc3mean = nn.Linear(h_size2, self.z_size)
         self.enc3logvar = nn.Linear(h_size2, self.z_size)
@@ -34,11 +34,11 @@ class DecoderSimpleFC(BaseDecoderModule):
         super().__init__(x_shape=x_shape, z_size=z_size)
         self.model = nn.Sequential(
             nn.Linear(self.z_size, h_size2),
-            nn.ReLU(True),
+                nn.ReLU(True),
             nn.Linear(h_size2, h_size1),
-            nn.ReLU(True),
+                nn.ReLU(True),
             nn.Linear(h_size1, self.x_size),
-            BatchView(self.x_shape),
+                BatchView(self.x_shape),
         )
 
     def decode(self, z):
@@ -61,18 +61,18 @@ class EncoderSimpleConv64(BaseGaussianEncoderModule):
 
         self.model = nn.Sequential(
             nn.Conv2d(in_channels=num_channels, out_channels=32, kernel_size=4, stride=2, padding=1),
-            nn.ReLU(True),
+                nn.ReLU(True),
             nn.Conv2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=1),
-            nn.ReLU(True),
+                nn.ReLU(True),
             nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2, padding=1),
-            nn.ReLU(True),
+                nn.ReLU(True),
             nn.Conv2d(in_channels=64, out_channels=128, kernel_size=4, stride=2, padding=1),
-            nn.ReLU(True),
+                nn.ReLU(True),
             nn.Conv2d(in_channels=128, out_channels=256, kernel_size=4, stride=2, padding=1),
-            nn.ReLU(True),
+                nn.ReLU(True),
             nn.Conv2d(in_channels=256, out_channels=256, kernel_size=4, stride=2, padding=1),
-            nn.ReLU(True),
-            Flatten3D(),
+                nn.ReLU(True),
+                Flatten3D(),
         )
         self.enc3mean = nn.Linear(256, self.z_size)
         self.enc3logvar = nn.Linear(256, self.z_size)
@@ -94,17 +94,17 @@ class DecoderSimpleConv64(BaseDecoderModule):
         self.model = nn.Sequential(
             Unsqueeze3D(),
             nn.Conv2d(in_channels=self.z_size, out_channels=256, kernel_size=1, stride=2),
-            nn.ReLU(True),
+                nn.ReLU(True),
             nn.ConvTranspose2d(in_channels=256, out_channels=256, kernel_size=4, stride=2, padding=1),
-            nn.ReLU(True),
+                nn.ReLU(True),
             nn.ConvTranspose2d(in_channels=256, out_channels=128, kernel_size=4, stride=2),
-            nn.ReLU(True),
+                nn.ReLU(True),
             nn.ConvTranspose2d(in_channels=128, out_channels=128, kernel_size=4, stride=2),
-            nn.ReLU(True),
+                nn.ReLU(True),
             nn.ConvTranspose2d(in_channels=128, out_channels=64, kernel_size=4, stride=2),
-            nn.ReLU(True),
+                nn.ReLU(True),
             nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=4, stride=2),
-            nn.ReLU(True),
+                nn.ReLU(True),
             nn.ConvTranspose2d(in_channels=64, out_channels=num_channels, kernel_size=3, stride=1)
         )
         # output shape = bs x 3 x 64 x 64
@@ -137,9 +137,9 @@ class EncoderFC(BaseGaussianEncoderModule):
         self.model = nn.Sequential(
             Flatten3D(),
             nn.Linear(np.prod(x_shape), 1200),
-            nn.ReLU(True),
+                nn.ReLU(True),
             nn.Linear(1200, 1200),
-            nn.ReLU(True),
+                nn.ReLU(True),
         )
 
         self.enc3mean = nn.Linear(1200, self.z_size)
@@ -167,13 +167,13 @@ class DecoderFC(BaseDecoderModule):
 
         self.model = nn.Sequential(
             nn.Linear(self.z_size, 1200),
-            nn.Tanh(),
+                nn.Tanh(),
             nn.Linear(1200, 1200),
-            nn.Tanh(),
+                nn.Tanh(),
             nn.Linear(1200, 1200),
-            nn.Tanh(),
+                nn.Tanh(),
             nn.Linear(1200, np.prod(x_shape)),
-            BatchView(self.x_shape),
+                BatchView(self.x_shape),
         )
 
     def decode(self, z) -> Tensor:
@@ -244,10 +244,9 @@ class DecoderConv64(BaseDecoderModule):
 
         self.model = nn.Sequential(
             nn.Linear(self.z_size, 256),
-                # nn.Dropout(dropout),
+                nn.Dropout(dropout),
                 nn.LeakyReLU(inplace=True),
             nn.Linear(256, 1024),
-                # nn.Dropout(dropout),
                 nn.LeakyReLU(inplace=True),
             BatchView([64, 4, 4]),
             nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=4, stride=2, padding=1),

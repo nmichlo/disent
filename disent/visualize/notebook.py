@@ -161,6 +161,46 @@ def notebook_display_traverse_latent_space(system, num_samples=1, dimensions=Non
     z_mean, z_logvar = to_numpy(system.model.encode_gaussian(obs))
     return _notebook_display_traverse_latent_space(system.model.reconstruct, z_mean, dimensions=dimensions, values=values, fps=fps, display_ids=display_ids)
 
+# TODO: remove, this is just a combination of other methods
+def notebook_model_visualisations(
+        system, dataset,
+        num_images=64,
+        num_animations=5,
+        num_frames=20,
+        fps=10
+):
+    encoder_fn = system.model.encode
+    decoder_fn = system.model.reconstruct
+    z_size = system.model.z_size
+
+    # convert string to dataset if needed
+    dataset = as_dataset(dataset)
+
+    # sample random observations & feed forward | used for visualisations
+    obs = dataset.sample_observations(num_images).cuda()  # TODO: cuda wont always be right
+    z_means, z_logvars = encoder_fn(obs)
+    x_recons = decoder_fn(z_means)
+
+    # plot reconstructions.
+    plt_images_minimal_square(reconstructions_to_images(obs))
+    plt_images_minimal_square(reconstructions_to_images(x_recons))
+    plt_images_minimal_square(np.concatenate([reconstructions_to_images(obs), reconstructions_to_images(x_recons)], axis=2))
+
+    # random latent samples
+    images = latent_random_samples(decoder_fn, z_size, num_images)
+    plt_images_minimal_square(images)
+
+    # Save latent traversals.
+    traversals = latent_traversals(decoder_fn, z_means)
+    for i, image_grid in enumerate(traversals):
+        plt_images_minimal_square(image_grid)
+
+    # Save the latent traversal animations.
+    for mode in _LATENT_CYCLE_MODES_MAP:
+        animations = latent_cycle(decoder_fn, z_means, z_logvars, mode=mode, num_animations=num_animations, num_frames=num_frames)
+        animations = reconstructions_to_images(animations, mode='int', moveaxis=False)  # axis already moved above
+        for i, animation in enumerate(animations):
+            notebook_display_animation(gridify_animation(animation))
 
 def _plt_sample_observations_and_reconstruct(gaussian_encoder_fn, decoder_fn, dataset, num_samples=16, figsize_ratio=0.75, seed=None):
     obs, x_recon = sample_observations_and_reconstruct(gaussian_encoder_fn, decoder_fn, dataset, num_samples=num_samples, seed=seed)

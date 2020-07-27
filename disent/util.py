@@ -129,7 +129,7 @@ def chunked(arr, chunk_size=1):
 # ========================================================================= #
 
 # TODO: make this return a string not actually print out so it can be used with logging
-def print_separator(text, header=None, width=100, char_v='#', char_h='=', char_corners=None):
+def make_separator_str(text, header=None, width=100, char_v='#', char_h='=', char_corners=None):
     """
     function wraps text between two lines or inside a box with lines on either side.
     FROM: my obstacle_tower project
@@ -158,14 +158,14 @@ def print_separator(text, header=None, width=100, char_v='#', char_h='=', char_c
         text = pprint.pformat(text, width=w)
     append_wrapped(text)
     lines.append(f'{sep}\n')
-    tqdm.write('\n'.join(lines))
+    return '\n'.join(lines)
 
-def print_box(text, header=None, width=100):
+def make_box_str(text, header=None, width=100, char_v='|', char_h='-', char_corners='#'):
     """
     like print_separator but is isntead a box
     FROM: my obstacle_tower project
     """
-    print_separator(text, header=header, width=width, char_v='|', char_h='-', char_corners='#')
+    return make_separator_str(text, header=header, width=width, char_v=char_v, char_h=char_h, char_corners=char_corners)
 
 
 # ========================================================================= #
