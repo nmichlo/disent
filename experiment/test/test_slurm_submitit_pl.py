@@ -1,6 +1,9 @@
 
 import os
 
+from experiment.util.slurm import slurm_run
+
+
 def make_system():
 
     import torch
@@ -125,21 +128,12 @@ def main():
 
 if __name__ == '__main__':
 
-    # executor is the submission interface (logs are dumped in the folder)
-    executor = submitit.AutoExecutor(folder=LOGS_DIR_SUBMITIT)
-
-    # set timeout in min, and partition for running the job
-    executor.update_parameters(
-        timeout_min=45,
-        slurm_partition="batch",
-        slurm_mem=None,
+    slurm_run(
+        main,
+        join=False,
+        logs_dir=LOGS_DIR_SUBMITIT,
+        # slurm args
+        timeout_min=60,
+        slurm_partition='batch',
         slurm_job_name='disent',
     )
-
-    gry, red, grn, rst = '\033[90m', '\033[91m', '\033[92m', '\033[0m'
-
-    job = executor.submit(main)
-    print(f'Started Job: {job.job_id}')
-    print(f'Watch progress with: {gry}$ {grn}tail -f {os.path.join(os.getcwd(), LOGS_DIR_SUBMITIT, f"{job.job_id}_{job.task_id}_log.out")}{rst}')
-    print(f'Watch errors with: {gry}$ {red}tail -f {os.path.join(os.getcwd(), LOGS_DIR_SUBMITIT, f"{job.job_id}_{job.task_id}_log.err")}{rst}')
-    # job.result()
