@@ -1,11 +1,9 @@
 import os
 import shutil
 
-import h5py
 import numpy as np
 from disent.dataset.ground_truth.base import DownloadableGroundTruthData
 from scipy.io import loadmat
-
 
 # ========================================================================= #
 # dataset_cars3d                                                            #
