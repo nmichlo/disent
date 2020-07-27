@@ -9,7 +9,7 @@ from pytorch_lightning import Trainer
 from disent.frameworks import make_vae_loss
 from disent.frameworks.semisupervised.adavae import InterceptZMixin
 from disent.model import make_model, make_optimizer
-from disent.dataset import make_ground_truth_dataset
+from disent.dataset import DEPRICATED_make_ground_truth_dataset
 from disent.dataset.ground_truth.base import (GroundTruthData, PairedVariationDataset, RandomPairDataset, SupervisedTripletDataset)
 from disent.util import chunked
 
@@ -60,7 +60,7 @@ class VaeSystem(pl.LightningModule):
         # make
         self.model = make_model(self.params.model, z_size=self.params.z_size)
         self.loss = make_vae_loss(self.params.loss, self.params.beta)
-        self.dataset: Dataset = make_ground_truth_dataset(self.params.dataset, try_in_memory=self.params.try_in_memory)
+        self.dataset: Dataset = DEPRICATED_make_ground_truth_dataset(self.params.dataset, try_in_memory=self.params.try_in_memory)
 
         # convert dataset for paired loss
         if self.loss.required_observations == 1:

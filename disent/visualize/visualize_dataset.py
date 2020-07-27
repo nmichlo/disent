@@ -32,7 +32,7 @@ from disent.visualize import visualize_util
 import numpy as np
 
 from disent.dataset.util.io import ensure_dir_exists
-from disent.dataset import as_data
+from disent.dataset import DEPRICATED_as_data
 
 
 # ========================================================================= #
@@ -41,7 +41,7 @@ from disent.dataset import as_data
 
 
 def sample_dataset_still_images(data: Union[str, GroundTruthData], num_samples=16, mode='spread', seed=None):
-    data = as_data(data)
+    data = DEPRICATED_as_data(data)
     # Create still images per factor of variation
     factor_images = []
     for i, size in enumerate(data.factor_sizes):
@@ -69,7 +69,7 @@ def sample_dataset_still_images(data: Union[str, GroundTruthData], num_samples=1
 
 
 def sample_dataset_animations(data: Union[str, GroundTruthData], num_animations=5, num_frames=20, seed=None):
-    data = as_data(data)
+    data = DEPRICATED_as_data(data)
     # Create animations.
     animations = []
     for animation_num in range(num_animations):
@@ -99,7 +99,7 @@ def save_dataset_visualisations(data: Union[str, GroundTruthData], output_path=N
       fps: Integer with frame rate for the animation.
       mode: still image mode, see function visualise_get_still_images
     """
-    data = as_data(data)
+    data = DEPRICATED_as_data(data)
     # Create output folder if necessary.
     path = ensure_dir_exists(output_path, data.__class__.__name__[:-4].lower())
     print(f'[VISUALISE] saving to: {path}')

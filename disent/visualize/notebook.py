@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 
-from disent.dataset import as_dataset
+from disent.dataset import DEPRICATED_as_dataset
 from disent.systems.vae import VaeSystem
 from disent.util import TempNumpySeed, to_numpy
 from disent.visualize.visualize_dataset import sample_dataset_animations, sample_dataset_still_images
@@ -174,7 +174,7 @@ def notebook_model_visualisations(
     z_size = system.model.z_size
 
     # convert string to dataset if needed
-    dataset = as_dataset(dataset)
+    dataset = DEPRICATED_as_dataset(dataset)
 
     # sample random observations & feed forward | used for visualisations
     obs = dataset.sample_observations(num_images).cuda()  # TODO: cuda wont always be right

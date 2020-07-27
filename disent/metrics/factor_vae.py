@@ -217,7 +217,7 @@ if __name__ == '__main__':
     def _main():
         from disent.systems.vae import HParams, VaeSystem
         from disent.util import load_model
-        from disent.dataset import make_ground_truth_dataset
+        from disent.dataset import DEPRICATED_make_ground_truth_dataset
 
 
         for z_size in [12, 6, 3]:
@@ -234,7 +234,7 @@ if __name__ == '__main__':
                 system = VaeSystem(hparams=hparams)
                 load_model(system, f'data/models/trained-e10-{hparams.dataset}-{hparams.model}-z{hparams.z_size}-{hparams.loss.replace("-","")}.ckpt')
                 score = compute_factor_vae(
-                    ground_truth_data=make_ground_truth_dataset(hparams.dataset),
+                    ground_truth_data=DEPRICATED_make_ground_truth_dataset(hparams.dataset),
                     representation_function=system.model.encode_deterministic,
                     batch_size=32,
                     num_train=1024,
