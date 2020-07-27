@@ -1,0 +1,6 @@
+# @package _group_
+cls:
+  target: disent.model.encoders_decoders.EncoderFC
+  params:
+    x_shape: ${dataset.x_shape}
+    z_size: ${model.z_size}

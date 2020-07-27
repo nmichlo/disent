@@ -1,0 +1,8 @@
+# @package _group_
+cls:
+  target: disent.dataset.ground_truth.data_norb.SmallNorbData
+  params:
+    data_dir: ${dataset.data_dir}/smallnorb
+    force_download: False
+    is_test: False
+x_shape: [1, 64, 64]

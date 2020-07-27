@@ -1,0 +1,29 @@
+defaults:
+  - framework: betavae
+  - dataset: xyscalecolorgrid
+  - optimizer: radam
+  - model/encoder: conv64
+  - model/decoder: conv64
+
+trainer:
+  cuda: False
+
+model:
+  z_size: 6
+
+dataset:
+  num_workers: 6
+  batch_size: 128
+  data_dir: 'data/dataset'
+
+optimizer:
+  lr: 1e-3
+
+logging:
+  logs_root: 'logs/'
+  wandb:
+    enabled: False
+    name: 'disent'
+    project: 'disentanglement'
+  tensorboard:
+    enabled: False

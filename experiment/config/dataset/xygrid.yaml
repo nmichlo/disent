@@ -1,0 +1,9 @@
+# @package _group_
+cls:
+  target: disent.dataset.ground_truth.data_xygrid.XYData
+  params:
+    grid_size: 64
+    grid_spacing: 1
+    square_size: 5
+x_shape: [1, 64, 64]
+
