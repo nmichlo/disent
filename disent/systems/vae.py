@@ -6,10 +6,7 @@ from torch.utils.data import Dataset
 import pytorch_lightning as pl
 from pytorch_lightning import Trainer
 
-from disent.frameworks import make_vae_loss
 from disent.frameworks.semisupervised.adavae import InterceptZMixin
-from disent.model import make_model, make_optimizer
-from disent.dataset import DEPRICATED_make_ground_truth_dataset
 from disent.dataset.ground_truth.base import (GroundTruthData, PairedVariationDataset, RandomPairDataset, SupervisedTripletDataset)
 from disent.util import chunked
 
@@ -58,8 +55,16 @@ class VaeSystem(pl.LightningModule):
         # parameters
         self.params: HParams = hparams if isinstance(hparams, HParams) else HParams(**(hparams if hparams else {}))
         # make
-        self.model = make_model(self.params.model, z_size=self.params.z_size)
-        self.loss = make_vae_loss(self.params.loss, self.params.beta)
+        # TODO: THIS IS BEING REPLACED WITH HYDRA
+        raise NotImplementedError
+        self.model = DEPRICATED_make_model(self.params.model, z_size=self.params.z_size)
+
+        # TODO: THIS IS BEING REPLACED WITH HYDRA
+        raise NotImplementedError
+        self.loss = DEPRICATED_make_vae_loss(self.params.loss, self.params.beta)
+
+        # TODO: THIS IS BEING REPLACED WITH HYDRA
+        raise NotImplementedError
         self.dataset: Dataset = DEPRICATED_make_ground_truth_dataset(self.params.dataset, try_in_memory=self.params.try_in_memory)
 
         # convert dataset for paired loss
@@ -108,7 +113,9 @@ class VaeSystem(pl.LightningModule):
         return self.model.forward(x)
 
     def configure_optimizers(self):
-        return make_optimizer(self.params.optimizer, self.parameters(), lr=self.params.lr, weight_decay=self.params.weight_decay)
+        # TODO: THIS IS BEING REPLACED WITH HYDRA
+        raise NotImplementedError
+        return DEPRICATED_make_optimizer(self.params.optimizer, self.parameters(), lr=self.params.lr, weight_decay=self.params.weight_decay)
 
     @pl.data_loader
     def train_dataloader(self):
@@ -138,38 +145,6 @@ class VaeSystem(pl.LightningModule):
         )
         trainer.fit(self)
         return trainer
-
-# ========================================================================= #
-# Main                                                                      #
-# ========================================================================= #
-
-
-if __name__ == '__main__':
-    system = VaeSystem(HParams(loss='g-ada-gvae', model='fc', dataset='cars3d'))
-    trainer = system.quick_train(epochs=10)
-
-    # print('Saving')
-    # trainer.save_checkpoint("temp.model")
-    #
-    # # print('Loading')
-    # loaded_system = VaeSystem.load_from_checkpoint(
-    #     checkpoint_path="temp.model",
-    #     # constructor
-    #     dataset_train='dsprites', model='simple-fc', loss='vae', hparams=dict(num_workers=8, batch_size=64, z_size=6)
-    # )
-    #
-    # # print('Done!')
-    #
-    # params = torch.load("temp.model")
-    # print(list(params['state_dict'].keys()))
-    # print(params['state_dict']['model.gaussian_encoder.model.1.weight'])
-
-    # model = make_model('simple-fc', z_size=6)
-
-    # system = VaeSystem(HParams(loss='ada-gvae'))
-    # system.quick_train()
-    # save_model(system, 'data/model/temp.model')
-    # load_model(system, 'data/model/temp.model')
 
 # ========================================================================= #
 # END                                                                       #

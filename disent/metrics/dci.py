@@ -127,37 +127,3 @@ def completeness(importance_matrix):
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-
-
-if __name__ == '__main__':
-    def _main():
-        from disent.systems.vae import HParams, VaeSystem
-        from disent.util import load_model
-        from disent.dataset import DEPRICATED_make_ground_truth_dataset
-
-        for z_size in [12, 6, 3]:
-            for loss in ['beta-vae', 'ada-gvae']:
-                print()
-                print('='*100)
-                print()
-
-                hparams = HParams(dataset='3dshapes', model='simple-fc', z_size=z_size, loss=loss)
-
-                print(hparams)
-                print()
-
-                system = VaeSystem(hparams=hparams)
-                load_model(system, f'data/models/trained-e10-{hparams.dataset}-{hparams.model}-z{hparams.z_size}-{hparams.loss.replace("-","")}.ckpt')
-                score = compute_dci(
-                    ground_truth_data=DEPRICATED_make_ground_truth_dataset(hparams.dataset),
-                    representation_function=system.model.encode_deterministic,
-                    num_train=1000,
-                    num_test=500,
-                )
-
-                print()
-                print(score)
-                print()
-
-    _main()
-    del _main

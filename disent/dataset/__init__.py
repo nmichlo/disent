@@ -26,15 +26,6 @@ def split_dataset(dataset, train_ratio=0.8):
     return torch.utils.data.random_split(dataset, [train_size, test_size])
 
 
-def DEPRICATED_make_ground_truth_dataset(name, try_in_memory=True) -> GroundTruthDataset:
-    raise NotImplementedError('Use hydra-config instead')
-    # all datasets are in the range [0, 1] to correspond
-    # to the sigmoid activation function.
-    # return GroundTruthDataset(
-    #     ground_truth_data=DEPRICATED_make_ground_truth_data(name, try_in_memory=try_in_memory),
-    #     transform=DEPRICATED_make_ground_truth_data_transform(name)
-    # )
-
 # ========================================================================= #
 # strings to datasets only if necessary                                     #
 # ========================================================================= #
@@ -42,7 +33,7 @@ def DEPRICATED_make_ground_truth_dataset(name, try_in_memory=True) -> GroundTrut
 
 # TODO: merge into above methods
 def DEPRICATED_as_data(data) -> GroundTruthData:
-    raise NotImplementedError('Use hydra-config instead')
+    raise NotImplementedError('convert to hydra-config')
     # if isinstance(data, str):
     #     data = DEPRICATED_make_ground_truth_data(data, try_in_memory=False)
     # assert isinstance(data, GroundTruthData), 'data not an instance of GroundTruthData'
@@ -51,7 +42,7 @@ def DEPRICATED_as_data(data) -> GroundTruthData:
 
 # TODO: merge into above methods
 def DEPRICATED_as_dataset(dataset):
-    raise NotImplementedError('Use hydra-config instead')
+    raise NotImplementedError('convert to hydra-config')
     # if isinstance(dataset, str):
     #     dataset = DEPRICATED_make_ground_truth_dataset(dataset, try_in_memory=False)
     # assert isinstance(dataset, GroundTruthDataset), 'dataset not an instance of GroundTruthDataset'

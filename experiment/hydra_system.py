@@ -30,19 +30,15 @@ class UnsupervisedVaeSystem(pl.LightningModule):
 
     def __init__(self, hparams: DictConfig):
         super().__init__()
-
         # hyper-parameters
         self.hparams = hparams
-
         # vae model
         self.model = GaussianEncoderDecoderModel(
             hydra.utils.instantiate(self.hparams.model.encoder.cls),
             hydra.utils.instantiate(self.hparams.model.decoder.cls)
         )
-
         # framework
         self.framework: VaeLoss = hydra.utils.instantiate(self.hparams.framework.cls)
-
         # data
         self.dataset_train = None
         self.dataset_test = None
@@ -208,7 +204,6 @@ if __name__ == '__main__':
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-
 
 #         # transforms for images
 #         transform = transforms.Compose([
