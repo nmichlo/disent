@@ -1,4 +1,0 @@
-defaults:
-  - hydra/launcher: submitit_slurm
-
-task: 1
