@@ -7,6 +7,7 @@ defaults:
 
 trainer:
   cuda: False
+  prepare_data_per_node: False
 
 model:
   z_size: 6

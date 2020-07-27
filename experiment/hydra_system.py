@@ -1,11 +1,13 @@
 import os
 
+import numpy as np
 import torch
 import torch.utils.data
 import torchvision
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 import pytorch_lightning as pl
 
+from disent.dataset import split_dataset
 from disent.dataset.ground_truth.base import GroundTruthDataset
 from disent.frameworks.semisupervised.adavae import InterceptZMixin
 from disent.frameworks.unsupervised.vae import VaeLoss
@@ -31,19 +33,35 @@ class UnsupervisedVaeSystem(pl.LightningModule):
 
         # hyper-parameters
         self.hparams = hparams
-        # dataset
-        self.data = hydra.utils.instantiate(self.hparams.dataset.cls)
-        self.dataset_train = GroundTruthDataset(
-            ground_truth_data=self.data,
-            transform=torchvision.transforms.ToTensor()
-        )
+
         # vae model
         self.model = GaussianEncoderDecoderModel(
             hydra.utils.instantiate(self.hparams.model.encoder.cls),
             hydra.utils.instantiate(self.hparams.model.decoder.cls)
         )
+
         # framework
         self.framework: VaeLoss = hydra.utils.instantiate(self.hparams.framework.cls)
+
+        # data
+        self.dataset_train = None
+        self.dataset_test = None
+
+    def prepare_data(self) -> None:
+        # *NB* Do not set model parameters here.
+        # - trainer.prepare_data_per_node controls behavior.
+        # Instantiate data once to download and prepare if needed.
+        hydra.utils.instantiate(self.hparams.dataset.cls)  # TODO: this should be in_memory=False by default
+
+    def setup(self, stage: str):
+        dataset = GroundTruthDataset(
+            ground_truth_data=hydra.utils.instantiate(self.hparams.dataset.cls),
+            transform=torchvision.transforms.Compose([
+                hydra.utils.instantiate(transform_cls)
+                for transform_cls in self.hparams.dataset.transforms
+            ])
+        )
+        self.dataset_train, self.dataset_test = split_dataset(dataset, self.hparams.dataset.train_ratio)
 
     def training_step(self, batch, batch_idx):
         x = batch
@@ -59,7 +77,34 @@ class UnsupervisedVaeSystem(pl.LightningModule):
         # compute loss
         losses = self.framework.compute_loss(x, x_recon, z_mean, z_logvar, z)
         # log & train
-        return {'loss': losses['loss'], 'log': {'train_loss': losses['loss']}}
+        loss = losses['loss']
+        loss_log_dict = {'train_loss': loss}
+        return {
+            'loss': loss,
+            'log': loss_log_dict,
+            # 'progress_bar': loss_log_dict
+        }
+
+    def validation_step(self, batch, batch_idx):
+        x = batch
+        # encode
+        z_mean, z_logvar = self.model.encode_gaussian(x)
+        # reconstruct
+        x_recon = self.model.decode(z_mean)
+        # compute loss
+        losses = self.framework.compute_loss(x, x_recon, z_mean, z_logvar, z_mean)
+        # log & train
+        return {
+            'val_loss': losses['loss'],
+        }
+
+    def validation_epoch_end(self, outputs):
+        loss_dict = {k: np.mean([output[k] for output in outputs]) for k in outputs[0].keys()}
+        return {
+            'val_loss': loss_dict['val_loss'],
+            'progress_bar': loss_dict,
+            'log': loss_dict,
+        }
 
     def forward(self, x):
         return self.model.forward(x)
@@ -80,6 +125,16 @@ class UnsupervisedVaeSystem(pl.LightningModule):
             shuffle=True
         )
 
+    @pl.data_loader
+    def val_dataloader(self):
+        # Sample of data used to fit the model.
+        return torch.utils.data.DataLoader(
+            self.dataset_val,
+            batch_size=self.hparams.dataset.batch_size,
+            num_workers=self.hparams.dataset.num_workers,
+            shuffle=True
+        )
+
 
 # ========================================================================= #
 # RUNNER                                                                    #
@@ -94,9 +149,14 @@ def main(cfg: DictConfig):
     # warn about CUDA
     cuda = cfg.trainer.get('cuda', torch.cuda.is_available())
     if not torch.cuda.is_available():
-        log.warning('CUDA is not available on this machine!')
-    elif not cuda:
-        log.warning('CUDA is available but not being used!')
+        if cuda:
+            log.error('trainer.cuda=True but CUDA is not available on this machine!')
+            exit()
+        else:
+            log.warning('CUDA is not available on this machine!')
+    else:
+        if not cuda:
+            log.warning('CUDA is available but is not being used!')
 
     # create trainer loggers
     loggers = []
@@ -114,13 +174,24 @@ def main(cfg: DictConfig):
             save_dir=os.path.join(cfg.logging.logs_root, 'tensorboard')
         ))
 
+    # check data preparation
+    prepare_data_per_node = cfg.trainer.get('prepare_data_per_node', True)
+    if not os.path.isabs(cfg.dataset.data_dir) and prepare_data_per_node:
+        log.warning(
+            f'trainer.prepare_data_per_node={repr(prepare_data_per_node)} but '
+            f'dataset.data_dir={repr(cfg.dataset.data_dir)} is a relative path which '
+            f'may be an error! Try specifying an absolute path that is guaranteed to '
+            f'be unique from each node, eg. dataset.data_dir=/tmp/dataset'
+        )
+
     # make & train system
     system = UnsupervisedVaeSystem(cfg)
     trainer = pl.Trainer(
+        logger=loggers,
+        gpus=1 if cuda else 0,
         max_epochs=cfg.trainer.get('epochs', 1000),
         max_steps=cfg.trainer.get('steps', None),
-        gpus=1 if cuda else 0,
-        logger=loggers
+        prepare_data_per_node=prepare_data_per_node,
     )
     trainer.fit(system)
 

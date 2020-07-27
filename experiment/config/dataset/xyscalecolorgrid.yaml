@@ -8,4 +8,6 @@ cls:
     max_square_size: 9
     square_size_spacing: 2
     palette: 'colors'
+transforms:
+  - target: torchvision.transforms.ToTensor
 x_shape: [3, 64, 64]

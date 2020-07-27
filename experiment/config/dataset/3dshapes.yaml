@@ -6,4 +6,6 @@ cls:
     in_memory: ${dataset.try_in_memory}
     force_download: False
     force_preprocess: False
+transforms:
+  - target: torchvision.transforms.ToTensor
 x_shape: [3, 64, 64]

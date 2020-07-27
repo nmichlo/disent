@@ -7,4 +7,6 @@ cls:
     min_square_size: 3
     max_square_size: 9
     square_size_spacing: 2
+transforms:
+  - target: torchvision.transforms.ToTensor
 x_shape: [1, 64, 64]
