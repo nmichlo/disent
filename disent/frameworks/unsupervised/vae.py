@@ -9,31 +9,25 @@ import torch.nn.functional as F
 
 class VaeLoss(object):
 
-    def __call__(self, x, x_recon, z_mean, z_logvar, z_sampled, *args, **kwargs):
-        return self.compute_loss(x, x_recon, z_mean, z_logvar, z_sampled, *args, **kwargs)
+    def __call__(self, x, x_recon, z_mean, z_logvar, z_sampled, *args):
+        return self.compute_loss(x, x_recon, z_mean, z_logvar, z_sampled, *args)
 
     @property
     def required_observations(self):
         """override in subclasses that need more observations, indicates format of arguments needed for compute_loss"""
         return 1
 
-    @property
-    def is_single_loss(self):
-        return self.required_observations == 1
+    def intercept_z(self, z_params, *args):
+        """mutate z_mean and z_logvar before sampling"""
+        return z_params, *args
 
-    @property
-    def is_pair_loss(self):
-        return self.required_observations == 2
-
-    @property
-    def is_triplet_loss(self):
-        return self.required_observations == 3
-
-    def compute_loss(self, x, x_recon, z_mean, z_logvar, z_sampled, *args, **kwargs):
+    def compute_loss(self, forward_data, *args):
         """
         Compute the varous VAE loss components.
         Based on: https://github.com/google-research/disentanglement_lib/blob/a64b8b9994a28fafd47ccd866b0318fa30a3c76c/disentanglement_lib/methods/unsupervised/vae.py#L153
         """
+        [(x, x_recon, (z_mean, z_logvar), z_sampled)] = (forward_data, *args)
+
         # reconstruction loss
         recon_loss = bce_loss_with_logits(x, x_recon)   # E[log p(x|z)]
 
@@ -42,10 +36,10 @@ class VaeLoss(object):
         regularizer = self.regularizer(kl_loss, z_mean, z_logvar, z_sampled)
 
         return {
-            'loss': recon_loss + regularizer,
-            # TODO: 'reconstruction_loss': recon_loss,
-            # TODO: 'kl_loss': kl_loss,
-            # TODO: 'elbo': -(recon_loss + kl_loss),
+            'train_loss': recon_loss + regularizer,
+            'reconstruction_loss': recon_loss,
+            'kl_loss': kl_loss,
+            'elbo': -(recon_loss + kl_loss),
         }
 
     def regularizer(self, kl_loss, z_mean, z_logvar, z_sampled):
@@ -70,17 +64,6 @@ def bce_loss_with_logits(x, x_recon):
     reconstruction_loss = F.binary_cross_entropy_with_logits(x_recon, x, reduction="sum") / batch_size
     # return
     return reconstruction_loss
-
-# def bce_loss(x, x_recon):
-#     """Computes the Bernoulli loss"""
-#     # x, x_recon = x.view(x.shape[0], -1), x_recon.view(x.shape[0], -1)
-#     # per_sample_loss = F.binary_cross_entropy(x_recon, x, reduction='none').sum(axis=1)
-#     # reconstruction_loss = per_sample_loss.mean()
-#     # ALTERNATIVE IMPLEMENTATION https://github.com/YannDubs/disentangling-vae/blob/master/disvae/models/losses.py
-#     batch_size = x.shape[0]
-#     reconstruction_loss = F.binary_cross_entropy(x_recon, x, reduction="sum") / batch_size
-#     # return
-#     return reconstruction_loss
 
 def kl_normal_loss(mu, logvar):
     """

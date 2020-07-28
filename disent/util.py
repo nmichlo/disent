@@ -1,5 +1,9 @@
+import logging
+
 import torch
 import numpy as np
+
+log = logging.getLogger(__name__)
 
 """
 helpful functions that do not fit nicely into any other file.
@@ -20,7 +24,7 @@ def seed(long=777):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
     np.random.seed(long)
-    print(f'[SEEDED]: {long}')
+    log.info(f'[SEEDED]: {long}')
 
 
 class TempNumpySeed(object):
@@ -90,7 +94,7 @@ def atomic_save(obj, path):
 
 def save_model(model, path):
     atomic_save(model.state_dict(), path)
-    print(f'[MODEL]: saved {path}')
+    log.info(f'[MODEL]: saved {path}')
 
 def load_model(model, path, cuda=True, fail_if_missing=True):
     """
@@ -104,13 +108,13 @@ def load_model(model, path, cuda=True, fail_if_missing=True):
             path,
             map_location=torch.device('cuda' if cuda else 'cpu')
         ))
-        print(f'[MODEL]: loaded {path} (cuda: {cuda})')
+        log.info(f'[MODEL]: loaded {path} (cuda: {cuda})')
     else:
         if fail_if_missing:
             raise Exception(f'Could not load model, path does not exist: {path}')
     if cuda:
         model = model.cuda()  # this needs to stay despite the above.
-        print('[MODEL]: Moved to GPU')
+        log.info('[MODEL]: Moved to GPU')
     return model
 
 

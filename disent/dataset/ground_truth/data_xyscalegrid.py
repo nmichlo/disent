@@ -57,10 +57,8 @@ class XYScaleData(GroundTruthData):
 # END                                                                       #
 # ========================================================================= #
 
-if __name__ == '__main__':
-
-    print(len(XYScaleData()))
-
-    for i in XYScaleData(6, 2, 2, 4, 2):
-        print(i)
-        print()
+# if __name__ == '__main__':
+#     print(len(XYScaleData()))
+#     for i in XYScaleData(6, 2, 2, 4, 2):
+#         print(i)
+#         print()

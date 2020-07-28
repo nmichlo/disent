@@ -1,6 +1,8 @@
+import logging
 import os
 import submitit
 
+log = logging.getLogger(__name__)
 
 # ========================================================================= #
 # slurm                                                                     #
@@ -29,9 +31,9 @@ def slurm_run(
     # print job info
     if print_info:
         gry, red, grn, rst = '\033[90m', '\033[91m', '\033[92m', '\033[0m'
-        print(f'Started Job: {job.job_id}')
-        print(f'Watch progress with: {gry}$ {grn}tail -f {os.path.join(logs_dir, f"{job.job_id}_{job.task_id}_log.out")}{rst}')
-        print(f'Watch errors with: {gry}$ {red}tail -f {os.path.join(logs_dir, f"{job.job_id}_{job.task_id}_log.err")}{rst}')
+        log.info(f'Started Job: {job.job_id}')
+        log.info(f'Watch progress with: {gry}$ {grn}tail -f {os.path.join(logs_dir, f"{job.job_id}_{job.task_id}_log.out")}{rst}')
+        log.info(f'Watch errors with: {gry}$ {red}tail -f {os.path.join(logs_dir, f"{job.job_id}_{job.task_id}_log.err")}{rst}')
 
     if join:
         return job.result()

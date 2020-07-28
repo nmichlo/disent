@@ -2,6 +2,7 @@ import torch
 from torch import Tensor
 from disent.model.base import BaseDecoderModule, BaseGaussianEncoderModule
 
+
 # ========================================================================= #
 # gaussian encoder model                                                    #
 # ========================================================================= #
@@ -87,7 +88,7 @@ class GaussianEncoderDecoderModel(BaseGaussianEncoderModule, BaseDecoderModule):
         """
         return torch.sigmoid(self._decoder(z))
 
+
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-

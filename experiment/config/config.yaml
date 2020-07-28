@@ -4,27 +4,57 @@ defaults:
   - optimizer: radam
   - model/encoder: conv64
   - model/decoder: conv64
+  # hydra plugins
+  - hydra/job_logging: colorlog
+  - hydra/hydra_logging: colorlog
+  - hydra/launcher: submitit_slurm
+
+# ------------------ #
+# EXPERIMENT OPTIONS #
+# ------------------ #
 
 trainer:
-  cuda: False
-  prepare_data_per_node: False
+  epochs: 100
+  steps: null
+  cuda: TRUE
+  prepare_data_per_node: FALSE
 
 model:
   z_size: 6
 
 dataset:
-  num_workers: 6
+  num_workers: 1
   batch_size: 128
-  data_dir: 'data/dataset'
+  data_dir: '${env:HOME}/downloads/datasets'
 
 optimizer:
   lr: 1e-3
 
+# --------------- #
+# RUNTIME OPTIONS #
+# --------------- #
+
 logging:
-  logs_root: 'logs/'
+  logs_dir: 'logs'
   wandb:
-    enabled: False
-    name: 'disent'
+    enabled: TRUE
+    name: '${hydra:job.name}'
     project: 'disentanglement'
-  tensorboard:
-    enabled: False
+    group: null
+    tags: null
+    entity: null
+
+hydra:
+  job:
+    name: 'disent'
+  launcher:
+    params:
+      partition: batch
+      mem_gb: 0
+      timeout_min: 120  # minutes
+      submitit_folder: '${hydra.sweep.dir}/submitit/%j'
+  run:
+    dir: '${logging.logs_dir}/hydra_run/${hydra.job.name}_${now:%Y-%m-%d_%H-%M-%S}'
+  sweep:
+    dir: '${logging.logs_dir}/hydra_sweep/${hydra.job.name}_${now:%Y-%m-%d_%H-%M-%S}'
+    subdir: '${hydra.job.id}'  # hydra.job.id is not available for dir

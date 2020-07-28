@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import List, Tuple, Union
 import h5py
@@ -7,6 +8,7 @@ from torch.utils.data.dataset import Dataset
 import numpy as np
 from disent.dataset.util.io import basename_from_url, download_file, ensure_dir_exists
 
+log = logging.getLogger(__name__)
 
 # ========================================================================= #
 # index                                                                     #
@@ -334,14 +336,14 @@ class Hdf5PreprocessedGroundTruthData(PreprocessedDownloadableGroundTruthData):
             # data is stored on the underlying class at the _DATA property.
             # TODO: this is weird
             if not hasattr(self.__class__, '_DATA'):
-                print(f'[DATASET: {self.__class__.__name__}]: Loading...', end=' ', flush=True)
+                log.info(f'[DATASET: {self.__class__.__name__}]: Loading...')
                 # Often the (non-chunked) dataset will be optimized for random accesses,
                 # while the unprocessed (chunked) dataset will be better for sequential reads.
-                with h5py.File(self.dataset_path_unprocessed, 'r') as db:
+                with h5py.File(self.dataset_path, 'r') as db:
                     # indexing dataset objects returns numpy array
                     # instantiating np.array from the dataset requires double memory.
                     self.__class__._DATA = db[self.hdf5_name][:]
-                print('Loaded!', flush=True)
+                log.info(f'[DATASET: {self.__class__.__name__}]: Loaded!')
         else:
             # TODO: this is weird
             if not hasattr(self.__class__, '_DATASET'):
@@ -363,10 +365,10 @@ class Hdf5PreprocessedGroundTruthData(PreprocessedDownloadableGroundTruthData):
             with h5py.File(path_dst, 'w') as out_data:
                 hdf5_resave_dataset(inp_data, out_data, self.hdf5_name, self.hdf5_chunk_size, self.hdf5_compression, self.hdf5_compression_lvl)
                 # File Size:
-                print(f'[FILE SIZES] IN: {bytes_to_human(os.path.getsize(path_src))} OUT: {bytes_to_human(os.path.getsize(path_dst))}\n')
+                log.info(f'[FILE SIZES] IN: {bytes_to_human(os.path.getsize(path_src))} OUT: {bytes_to_human(os.path.getsize(path_dst))}\n')
                 # Test Speed:
-                print('[TESTING] Access Speed...', end=' ')
-                print(f'Random Accesses Per Second: {hdf5_test_entries_per_second(out_data, self.hdf5_name, access_method="random"):.3f}')
+                log.info('[TESTING] Access Speed...')
+                log.info(f'Random Accesses Per Second: {hdf5_test_entries_per_second(out_data, self.hdf5_name, access_method="random"):.3f}')
 
     @property
     def hdf5_compression(self) -> 'str':

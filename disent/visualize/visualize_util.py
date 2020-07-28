@@ -24,14 +24,15 @@
 Utility functions for the visualization code.
 """
 
+import logging
 import math
 import numpy as np
 from PIL import Image
 import scipy.stats
 import imageio
-
 from disent.util import to_numpy
 
+log = logging.getLogger(__name__)
 
 # ========================================================================= #
 # Saving Images/Animations | FROM: disentanglement_lib                      #
@@ -260,7 +261,7 @@ def reconstructions_to_images(recon, mode='float', moveaxis=True):
     assert img.ndim >= 3
     assert img.dtype in (np.float32, np.float64)
     if np.min(img) < 0 or np.max(img) > 1:
-        print('WARNING: image has been clipped')
+        log.warning('image has been clipped')
     img = np.clip(img, 0, 1)
     # move channels axis
     if moveaxis:

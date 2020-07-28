@@ -1,5 +1,8 @@
+import logging
+
 from disent.frameworks.unsupervised.vae import VaeLoss
 
+log = logging.getLogger(__name__)
 
 # ========================================================================= #
 # Beta-VAE Loss                                                             #
@@ -36,7 +39,7 @@ class BetaVaeHLoss(BetaVaeLoss):
         raise NotImplementedError('n_train_steps is not yet implemented for BetaVaeHLoss, it will not yet work')
 
     def regularizer(self, kl_loss, z_mean, z_logvar, z_sampled):
-        print('WARNING: training steps not updated')
+        log.warning('TODO: training step count was not updated!')
         anneal_reg = lerp_step(0, 1, self.n_train_steps, self.anneal_end_steps)  # if is_train else 1
         return (anneal_reg * self.beta) * kl_loss
 

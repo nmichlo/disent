@@ -22,7 +22,9 @@
 
 
 """Methods to visualize latent factors in the data sets."""
+
 import os
+import logging
 from typing import Union
 
 from disent.dataset.ground_truth.base import GroundTruthData
@@ -34,6 +36,7 @@ import numpy as np
 from disent.dataset.util.io import ensure_dir_exists
 from disent.dataset import DEPRICATED_as_data
 
+log = logging.getLogger(__name__)
 
 # ========================================================================= #
 # Visualise Ground Truth Datasets                                           #
@@ -102,7 +105,7 @@ def save_dataset_visualisations(data: Union[str, GroundTruthData], output_path=N
     data = DEPRICATED_as_data(data)
     # Create output folder if necessary.
     path = ensure_dir_exists(output_path, data.__class__.__name__[:-4].lower())
-    print(f'[VISUALISE] saving to: {path}')
+    log.info(f'Saving visualisations to: {path}')
     # Save still images.
     for i, images in enumerate(sample_dataset_still_images(data, num_samples=16, mode=mode)):
         visualize_util.minimal_square_save_images(images, os.path.join(path, f"variations_of_factor_{i}.png"))

@@ -50,10 +50,8 @@ class XYData(GroundTruthData):
 # END                                                                       #
 # ========================================================================= #
 
-if __name__ == '__main__':
-
-    print(len(XYData()))
-
-    for i in XYData(6, 2, 3):
-        print(i)
-        print()
+# if __name__ == '__main__':
+#     print(len(XYData()))
+#     for i in XYData(6, 2, 3):
+#         print(i)
+#         print()

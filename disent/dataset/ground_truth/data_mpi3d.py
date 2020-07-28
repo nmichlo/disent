@@ -1,5 +1,8 @@
 from disent.dataset.ground_truth.base import DownloadableGroundTruthData
 import numpy as np
+import logging
+
+log = logging.getLogger(__name__)
 
 # ========================================================================= #
 # mpi3d                                                                   #
@@ -40,7 +43,7 @@ class Mpi3dData(DownloadableGroundTruthData):
         # TODO: add support for converting to h5py for fast disk access
         assert in_memory, f'{in_memory=} is not yet supported'
         if in_memory:
-            print('[WARNING]: mpi3d files are extremely large (over 11GB), you are trying to load these into memory.')
+            log.warning('[WARNING]: mpi3d files are extremely large (over 11GB), you are trying to load these into memory.')
 
         # initialise
         super().__init__(data_dir=data_dir, force_download=force_download)

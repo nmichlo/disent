@@ -1,9 +1,11 @@
+import logging
 import os
 import shutil
-
 import numpy as np
 from disent.dataset.ground_truth.base import DownloadableGroundTruthData
 from scipy.io import loadmat
+
+log = logging.getLogger(__name__)
 
 # ========================================================================= #
 # dataset_cars3d                                                            #
@@ -56,13 +58,13 @@ class Cars3dData(DownloadableGroundTruthData):
                 if os.path.exists(dataset_dir):
                     shutil.rmtree(dataset_dir)
                 # extract the files
-                print(f'[UNZIPPING]: {zip_path} to {dataset_dir}')
+                log.info(f'[UNZIPPING]: {zip_path} to {dataset_dir}')
                 shutil.unpack_archive(zip_path, data_dir)
                 # rename dir
                 shutil.move(extract_dir, dataset_dir)
 
             images = self._load_cars3d_images(images_dir)
-            print(f'[CONVERTING]: {converted_file}')
+            log.info(f'[CONVERTING]: {converted_file}')
             np.savez(os.path.splitext(converted_file)[0], images=images)
 
         return converted_file
@@ -70,7 +72,7 @@ class Cars3dData(DownloadableGroundTruthData):
     @staticmethod
     def _load_cars3d_images(images_dir):
         images = []
-        print(f'[LOADING]: {images_dir}')
+        log.info(f'[LOADING]: {images_dir}')
         with open(os.path.join(images_dir, 'list.txt'), 'r') as img_names:
             for i, img_name in enumerate(img_names):
                 img_path = os.path.join(images_dir, f'{img_name.strip()}.mat')

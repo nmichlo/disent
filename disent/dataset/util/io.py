@@ -1,3 +1,6 @@
+import logging
+
+log = logging.getLogger(__name__)
 
 # ========================================================================= #
 # io                                                                        #
@@ -15,7 +18,7 @@ def ensure_dir_exists(*path):
     # create missing directory
     if path and not os.path.isdir(path):
         os.makedirs(path, exist_ok=True)
-        print(f'[INFO] created missing directories: {path}')
+        log.info(f'created missing directories: {path}')
     # return directory
     return path
 
@@ -33,7 +36,7 @@ def download_file(url, save_path=None, overwrite_existing=False, chunk_size=4096
 
     if save_path is None:
         save_path = basename_from_url(url)
-        print(f'[INFO] inferred save_path="{save_path}"')
+        log.info(f'inferred save_path="{save_path}"')
 
     # split path
     # TODO: also used in base.py for processing, convert to with syntax.

@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 import torch.nn as nn
 from torch import Tensor
@@ -12,11 +14,12 @@ class Print(nn.Module):
     def __init__(self, layer):
         super().__init__()
         self.layer = layer
+        self.log = logging.getLogger(__name__)
 
     def forward(self, tensor):
-        print(self.layer, '|', tensor.shape, '->', end=' ', flush=True)
+        self.log.debug(self.layer, '|', tensor.shape, '->')
         output = self.layer.forward(tensor)
-        print(output.shape)
+        self.log.debug(output.shape)
         return output
 
 class BatchView(nn.Module):

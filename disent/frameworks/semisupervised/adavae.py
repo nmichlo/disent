@@ -5,26 +5,6 @@ from disent.frameworks.unsupervised.vae import bce_loss_with_logits, kl_normal_l
 
 
 # ========================================================================= #
-# Mixin detected by trainer                                                 #
-# ========================================================================= #
-
-
-class InterceptZMixin(object):
-    """
-    If a framework inherits from this class, it indicates that the z parametrisations
-    should be intercepted and mutated before being sampled from.
-    """
-
-    @property
-    def requires_labels(self):
-        return False
-
-    def intercept_z(self, z_mean, z_logvar, *args, **kwargs):
-        # return z_mean, z_logvar, *args
-        raise NotImplementedError()
-
-
-# ========================================================================= #
 # Averaging Functions                                                       #
 # ========================================================================= #
 
@@ -72,7 +52,7 @@ def compute_average_ml_vae(z_mean, z_logvar, z2_mean, z2_logvar):
 # ========================================================================= #
 
 
-class AdaVaeLoss(BetaVaeLoss, InterceptZMixin):
+class AdaVaeLoss(BetaVaeLoss):
 
     AVERAGING_FUNCTIONS = {
         'ml-vae': compute_average_ml_vae,
@@ -98,10 +78,10 @@ class AdaVaeLoss(BetaVaeLoss, InterceptZMixin):
         z_mean[ave_mask], z_logvar[ave_mask] = ave_mu[ave_mask], ave_logvar[ave_mask]
         z2_mean[ave_mask], z2_logvar[ave_mask] = ave_mu[ave_mask], ave_logvar[ave_mask]
         # return values
-        return z_mean, z_logvar, z2_mean, z2_logvar
+        return (z_mean, z_logvar), (z2_mean, z2_logvar)
 
-    def intercept_z(self, z_mean, z_logvar, *args, **kwargs):
-        z2_mean, z2_logvar = args
+    def intercept_z(self, z_params, *args):
+        [(z_mean, z_logvar), (z2_mean, z2_logvar)] = (z_params, *args)
 
         # shared elements that need to be averaged, computed per pair in the batch.
         _, _, ave_mask = estimate_shared(z_mean, z_logvar, z2_mean, z2_logvar)
@@ -109,8 +89,9 @@ class AdaVaeLoss(BetaVaeLoss, InterceptZMixin):
         # make averaged z parameters
         return self.make_averaged(z_mean, z_logvar, z2_mean, z2_logvar, ave_mask)
 
-    def compute_loss(self, x, x_recon, z_mean, z_logvar, z_sampled, *args, **kwargs):
-        x2, x2_recon, z2_mean, z2_logvar, z2_sampled = args
+    def compute_loss(self, forward_data, *args):
+        [(x, x_recon, (z_mean, z_logvar), z_sampled),
+         (x2, x2_recon, (z2_mean, z2_logvar), z2_sampled)] = (forward_data, *args)
 
         # reconstruction error & KL divergence losses
         recon_loss = bce_loss_with_logits(x, x_recon)     # E[log p(x|z)]
@@ -124,11 +105,12 @@ class AdaVaeLoss(BetaVaeLoss, InterceptZMixin):
         loss /= 2
 
         return {
-            'loss': loss
-            # TODO: 'reconstruction_loss': recon_loss,
-            # TODO: 'kl_loss': kl_loss,
-            # TODO: 'elbo': -(recon_loss + kl_loss),
+            'train_loss': loss,
+            'reconstruction_loss': recon_loss,
+            'kl_loss': kl_loss,
+            'elbo': -(recon_loss + kl_loss),
         }
+
 
 # ========================================================================= #
 # HELPER                                                                    #
@@ -169,6 +151,7 @@ def estimate_shared(z_mean, z_logvar, z2_mean, z2_logvar):
     shared_mask = kl_deltas < kl_threshs  # true if 'unchanged' and should be average
 
     return kl_deltas, kl_threshs, shared_mask
+
 
 # ========================================================================= #
 # END                                                                       #

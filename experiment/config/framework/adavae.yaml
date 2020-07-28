@@ -1,0 +1,11 @@
+# @package _group_
+cls:
+  target: disent.frameworks.semisupervised.adavae.AdaVaeLoss
+  params:
+    beta: 4
+    average_mode: 'gvae'  # gvae or ml-vae
+
+augment_dataset:
+  target: disent.dataset.ground_truth.base.PairedVariationDataset
+  params:
+    k: 'uniform'

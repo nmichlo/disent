@@ -2,7 +2,7 @@
 cls:
   target: torch.optim.SGD
   params:
-    lr: 1e-3 # required
+    lr: ${optimizer.lr}
     momentum: 0
     dampening: 0
     weight_decay: 0

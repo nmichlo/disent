@@ -1,0 +1,3 @@
+# @package _group_
+cls:
+  target: disent.frameworks.unsupervised.vae.VaeLoss

@@ -1,24 +1,25 @@
 import os
+import time
 
 import numpy as np
 import torch
 import torch.utils.data
 import torchvision
-from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 import pytorch_lightning as pl
+from pytorch_lightning.loggers import WandbLogger
 
-from disent.dataset import split_dataset
 from disent.dataset.ground_truth.base import GroundTruthDataset
-from disent.frameworks.semisupervised.adavae import InterceptZMixin
 from disent.frameworks.unsupervised.vae import VaeLoss
 from disent.model import GaussianEncoderDecoderModel
-from disent.util import make_box_str
 
 import hydra
 from omegaconf import DictConfig
 import logging
 
-log = logging.getLogger(__name__)
+from disent.util import make_box_str
+
+
+log = logging.getLogger(os.path.splitext(os.path.basename(__file__))[0])
 
 
 # ========================================================================= #
@@ -26,7 +27,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class UnsupervisedVaeSystem(pl.LightningModule):
+class HydraSystem(pl.LightningModule):
 
     def __init__(self, hparams: DictConfig):
         super().__init__()
@@ -40,76 +41,110 @@ class UnsupervisedVaeSystem(pl.LightningModule):
         # framework
         self.framework: VaeLoss = hydra.utils.instantiate(self.hparams.framework.cls)
         # data
+        self.dataset = None
         self.dataset_train = None
-        self.dataset_test = None
+        # self.dataset_val = None
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Initialisation                                                        #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     def prepare_data(self) -> None:
         # *NB* Do not set model parameters here.
         # - trainer.prepare_data_per_node controls behavior.
         # Instantiate data once to download and prepare if needed.
-        hydra.utils.instantiate(self.hparams.dataset.cls)  # TODO: this should be in_memory=False by default
+        # TODO: this should be in_memory=False by default
+        hydra.utils.instantiate(self.hparams.dataset.cls)
 
     def setup(self, stage: str):
-        dataset = GroundTruthDataset(
+        # single observations
+        self.dataset = GroundTruthDataset(
             ground_truth_data=hydra.utils.instantiate(self.hparams.dataset.cls),
             transform=torchvision.transforms.Compose([
                 hydra.utils.instantiate(transform_cls)
                 for transform_cls in self.hparams.dataset.transforms
             ])
         )
-        self.dataset_train, self.dataset_test = split_dataset(dataset, self.hparams.dataset.train_ratio)
 
-    def training_step(self, batch, batch_idx):
-        x = batch
-        # encode
-        z_mean, z_logvar = self.model.encode_gaussian(x)
-        # intercept and mutate if needed
-        if isinstance(self.framework, InterceptZMixin):
-            z_mean, z_logvar = self.framework.intercept_z(z_mean, z_logvar)
-        # reparametrize
-        z = self.model.sample_from_latent_distribution(z_mean, z_logvar)
-        # reconstruct
-        x_recon = self.model.decode(z)
-        # compute loss
-        losses = self.framework.compute_loss(x, x_recon, z_mean, z_logvar, z)
-        # log & train
-        loss = losses['loss']
-        loss_log_dict = {'train_loss': loss}
-        return {
-            'loss': loss,
-            'log': loss_log_dict,
-            # 'progress_bar': loss_log_dict
-        }
+        # augment dataset if the framework requires TODO: use RandomPairDataset(self.dataset) if self.framework.required_observations == 2 and not isinstance(self.dataset, GroundTruthData)
+        self.dataset_train = self.dataset
+        if 'augment_dataset' in self.hparams.framework:
+            self.dataset_train = hydra.utils.instantiate(self.hparams.framework.augment_dataset.cls, self.dataset)
 
-    def validation_step(self, batch, batch_idx):
-        x = batch
-        # encode
-        z_mean, z_logvar = self.model.encode_gaussian(x)
-        # reconstruct
-        x_recon = self.model.decode(z_mean)
-        # compute loss
-        losses = self.framework.compute_loss(x, x_recon, z_mean, z_logvar, z_mean)
-        # log & train
-        return {
-            'val_loss': losses['loss'],
-        }
-
-    def validation_epoch_end(self, outputs):
-        loss_dict = {k: np.mean([output[k] for output in outputs]) for k in outputs[0].keys()}
-        return {
-            'val_loss': loss_dict['val_loss'],
-            'progress_bar': loss_dict,
-            'log': loss_dict,
-        }
-
-    def forward(self, x):
-        return self.model.forward(x)
+        # training & validation
+        # self.dataset_train, self.dataset_val = split_dataset(dataset, self.hparams.dataset.train_ratio)
 
     def configure_optimizers(self):
         return hydra.utils.instantiate(
             self.hparams.optimizer.cls,
             self.model.parameters()
         )
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Output                                                                #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    def forward(self, x):
+        return self.model.forward(x)
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Training & Evaluation                                                 #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    def training_step(self, batch, batch_idx):
+        # handle single case
+        if isinstance(batch, torch.Tensor):
+            batch = [batch]
+        assert len(batch) == self.framework.required_observations, f'Incorrect number of observations ({len(batch)}) for loss: {self.framework.__class__.__name__} ({self.framework.required_observations})'
+        # encode, then intercept and mutate if needed [(z_mean, z_logvar), ...]
+        z_params = [self.model.encode_gaussian(x) for x in batch]
+        z_params = self.framework.intercept_z(*z_params)
+        # reparametrize
+        zs = [self.model.sample_from_latent_distribution(z0_mean, z0_logvar) for z0_mean, z0_logvar in z_params]
+        # reconstruct
+        x_recons = [self.model.decode(z) for z in zs]
+        # compute loss [(x, x_recon, (z_mean, z_logvar), z), ...]
+        loss_dict = self.framework.compute_loss(*[forward_data for forward_data in zip(batch, x_recons, z_params, zs)])
+        # log & train
+        return {
+            'loss': loss_dict['train_loss'],
+            'log': loss_dict,
+            'progress_bar': loss_dict
+        }
+
+    # def validation_step(self, batch, batch_idx):
+    #     x = batch
+    #     # encode
+    #     z_mean, z_logvar = self.model.encode_gaussian(x)
+    #     # reconstruct
+    #     x_recon = self.model.decode(z_mean)
+    #     # compute loss
+    #     losses = self.framework.compute_loss(x, x_recon, z_mean, z_logvar, z_mean)
+    #     # log & train
+    #     return {
+    #         'val_loss': losses['loss'],
+    #     }
+    #
+    # def validation_epoch_end(self, outputs):
+    #     loss_dict = {k: np.mean([output[k] for output in outputs]) for k in outputs[0].keys()}
+    #     return {
+    #         'val_loss': loss_dict['val_loss'],
+    #         'progress_bar': loss_dict,
+    #         'log': loss_dict,
+    #     }
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Training Dataset:
+    #     The sample of data used to fit the model.
+    # Validation Dataset:
+    #     Data used to provide an unbiased evaluation of a model fit on the
+    #     training dataset while tuning model hyperparameters. The
+    #     evaluation becomes more biased as skill on the validation
+    #     dataset is incorporated into the model configuration.
+    # Test Dataset:
+    #     The sample of data used to provide an unbiased evaluation of a
+    #     final model fit on the training dataset.
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     @pl.data_loader
     def train_dataloader(self):
@@ -121,15 +156,15 @@ class UnsupervisedVaeSystem(pl.LightningModule):
             shuffle=True
         )
 
-    @pl.data_loader
-    def val_dataloader(self):
-        # Sample of data used to fit the model.
-        return torch.utils.data.DataLoader(
-            self.dataset_val,
-            batch_size=self.hparams.dataset.batch_size,
-            num_workers=self.hparams.dataset.num_workers,
-            shuffle=True
-        )
+    # @pl.data_loader
+    # def val_dataloader(self):
+    #     # Sample of data used to fit the model.
+    #     return torch.utils.data.DataLoader(
+    #         self.dataset_val,
+    #         batch_size=self.hparams.dataset.batch_size,
+    #         num_workers=self.hparams.dataset.num_workers,
+    #         shuffle=True
+    #     )
 
 
 # ========================================================================= #
@@ -141,6 +176,10 @@ class UnsupervisedVaeSystem(pl.LightningModule):
 def main(cfg: DictConfig):
     # print hydra config
     log.info(make_box_str(cfg.pretty()))
+
+    # directories
+    log.info(f"Current working directory : {os.getcwd()}")
+    log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
 
     # warn about CUDA
     cuda = cfg.trainer.get('cuda', torch.cuda.is_available())
@@ -155,40 +194,46 @@ def main(cfg: DictConfig):
             log.warning('CUDA is available but is not being used!')
 
     # create trainer loggers
-    loggers = []
+    logger = None
     if cfg.logging.wandb.enabled:
-        loggers.append(WandbLogger(
+        log.info(f'wandb log directory: {os.path.abspath("wandb")}')
+        logger = WandbLogger(
             name=cfg.logging.wandb.name,
             project=cfg.logging.wandb.project,
             group=cfg.logging.wandb.get('group', None),
             tags=cfg.logging.wandb.get('tags', None),
             entity=cfg.logging.get('entity', None),
-            save_dir=os.path.join(cfg.logging.logs_root, 'wandb'),
-        ))
-    if cfg.logging.tensorboard.enabled:
-        loggers.append(TensorBoardLogger(
-            save_dir=os.path.join(cfg.logging.logs_root, 'tensorboard')
-        ))
+            save_dir=hydra.utils.to_absolute_path(cfg.logging.logs_dir),  # relative to hydra's original cwd
+        )
 
     # check data preparation
     prepare_data_per_node = cfg.trainer.get('prepare_data_per_node', True)
-    if not os.path.isabs(cfg.dataset.data_dir) and prepare_data_per_node:
+    if not os.path.isabs(cfg.dataset.data_dir):
         log.warning(
-            f'trainer.prepare_data_per_node={repr(prepare_data_per_node)} but '
-            f'dataset.data_dir={repr(cfg.dataset.data_dir)} is a relative path which '
-            f'may be an error! Try specifying an absolute path that is guaranteed to '
-            f'be unique from each node, eg. dataset.data_dir=/tmp/dataset'
+            f'A relative path was specified for dataset.data_dir={repr(cfg.dataset.data_dir)}.'
+            f' This is probably an error! Using relative paths can have unintended consequences'
+            f' and performance drawbacks if the current working directory is on a shared/network drive.'
+            f' Hydra config also uses a new working directory for each run of the program, meaning'
+            f' data will be repeatedly downloaded.'
         )
+        if prepare_data_per_node:
+            log.error(
+                f'trainer.prepare_data_per_node={repr(prepare_data_per_node)} but  dataset.data_dir='
+                f'{repr(cfg.dataset.data_dir)} is a relative path which may be an error! Try specifying an'
+                f' absolute path that is guaranteed to be unique from each node, eg. dataset.data_dir=/tmp/dataset'
+            )
+        raise RuntimeError('dataset.data_dir={repr(cfg.dataset.data_dir)} is a relative path!')
 
     # make & train system
-    system = UnsupervisedVaeSystem(cfg)
+    system = HydraSystem(cfg)
     trainer = pl.Trainer(
-        logger=loggers,
+        logger=logger,
         gpus=1 if cuda else 0,
-        max_epochs=cfg.trainer.get('epochs', 1000),
+        max_epochs=cfg.trainer.get('epochs', 100),
         max_steps=cfg.trainer.get('steps', None),
         prepare_data_per_node=prepare_data_per_node,
     )
+
     trainer.fit(system)
 
 
@@ -204,15 +249,3 @@ if __name__ == '__main__':
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-
-#         # transforms for images
-#         transform = transforms.Compose([
-#             transforms.ToTensor(),
-#             # transforms.Normalize((0.1307,), (0.3081,))
-#         ])
-#
-#         # prepare transforms standard to MNIST
-#         self.mnist_train, self.mnist_val = random_split(
-#             MNIST('data/dataset', train=True, download=True, transform=transform),
-#             [55000, 5000]
-#         )

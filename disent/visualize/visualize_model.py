@@ -33,7 +33,9 @@ from disent.visualize.visualize_util import reconstructions_to_images
 from disent.util import TempNumpySeed, to_numpy
 import numpy as np
 import torch
+import logging
 
+log = logging.getLogger(__name__)
 
 # ========================================================================= #
 # Visualise varying single factor for model                                 #
@@ -261,7 +263,7 @@ def save_model_visualisations(
     # Create the output directory if necessary.
     if os.path.isdir(output_dir):
         if overwrite:
-            print(f'[WARNING] Directory Exists... DELETING: {output_dir}')
+            log.warning(f'Directory already exists... DELETING: {output_dir}')
             import shutil
             shutil.rmtree(output_dir)
         else:
