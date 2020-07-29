@@ -1,23 +1,22 @@
+import logging
 import os
-import time
 
+import hydra
 import numpy as np
+import pytorch_lightning as pl
 import torch
 import torch.utils.data
 import torchvision
-import pytorch_lightning as pl
+import wandb
+from omegaconf import DictConfig
 from pytorch_lightning.loggers import WandbLogger
 
 from disent.dataset.ground_truth.base import GroundTruthDataset
 from disent.frameworks.unsupervised.vae import VaeLoss
 from disent.model import GaussianEncoderDecoderModel
-
-import hydra
-from omegaconf import DictConfig
-import logging
-
-from disent.util import make_box_str
-
+from disent.util import TempNumpySeed, make_box_str, to_numpy
+from disent.visualize.visualize_model import latent_cycle
+from disent.visualize.visualize_util import gridify_animation, reconstructions_to_images
 
 log = logging.getLogger(os.path.splitext(os.path.basename(__file__))[0])
 
@@ -111,6 +110,22 @@ class HydraSystem(pl.LightningModule):
             'log': loss_dict,
             'progress_bar': loss_dict
         }
+
+    def training_epoch_end(self, *args, **kwargs):
+        # VISUALISE!
+        # generate and log latent traversals
+        if isinstance(self.logger, WandbLogger):
+            # get random sample of z_means & z_logvars for computing the range of the latent_cycle
+            with TempNumpySeed(7777):
+                obs = self.dataset.sample_observations(64).to(self.device)
+            z_means, z_logvars = self.model.encode_gaussian(obs)
+            # produce latent cycle animation & merge frames
+            animation = latent_cycle(self.model.reconstruct, z_means, z_logvars, mode='fitted_gaussian_cycle', num_animations=1, num_frames=21)
+            animation = reconstructions_to_images(animation, mode='int', moveaxis=False)  # axis already moved above
+            frames = np.transpose(gridify_animation(animation[0], padding_px=4, value=64), [0, 3, 1, 2])
+            # log video
+            return {'log': {'fitted_gaussian_cycle': wandb.Video(frames, fps=8, format='gif')}}
+        return {}
 
     # def validation_step(self, batch, batch_idx):
     #     x = batch
@@ -226,6 +241,7 @@ def main(cfg: DictConfig):
 
     # make & train system
     system = HydraSystem(cfg)
+
     trainer = pl.Trainer(
         logger=logger,
         gpus=1 if cuda else 0,
@@ -244,7 +260,6 @@ def main(cfg: DictConfig):
 
 if __name__ == '__main__':
     main()
-
 
 # ========================================================================= #
 # END                                                                       #

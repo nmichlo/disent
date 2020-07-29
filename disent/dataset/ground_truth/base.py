@@ -184,15 +184,21 @@ class GroundTruthDataset(Dataset, GroundTruthData):
     def __len__(self):
         return len(self.data)
 
-    def __getitem__(self, indices):
+    def __getitem__(self, idx):
         """
         should return a single observation if an integer index, or
         an array of observations if indices is an array.
         """
-        if torch.is_tensor(indices):
-            indices = indices.tolist()
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
 
-        image = self.data[indices]
+        try:
+            idx = int(idx)
+        except:
+            raise TypeError(f'Indices must be integer-like ({type(idx)}): {idx}')
+
+        # we do not support indexing by lists
+        image = self.data[idx]
 
         # https://github.com/pytorch/vision/blob/master/torchvision/datasets/mnist.py
         # PIL Image so that this is consistent with other datasets

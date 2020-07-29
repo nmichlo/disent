@@ -203,6 +203,7 @@ LATENT_CYCLE_MODES = list(_LATENT_CYCLE_MODES_MAP.keys())
 def latent_cycle(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', num_animations=4, num_frames=20):
     assert len(z_means) > 1 and len(z_logvars) > 1, 'not enough samples to average'
     # convert
+    t = z_means
     z_means, z_logvars = to_numpy(z_means), to_numpy(z_logvars)
     # get mode
     if mode not in _LATENT_CYCLE_MODES_MAP:
@@ -213,7 +214,7 @@ def latent_cycle(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', 
         frames = []
         for j in range(z_means.shape[1]):
             z = z_gen_func(base_z, z_means, z_logvars, j, num_frames)
-            z = torch.as_tensor(z).cuda()  # TODO: wont always be cuda
+            z = torch.as_tensor(z).type_as(t)
             frames.append(reconstructions_to_images(decoder_func(z)))
         animations.append(frames)
     return to_numpy(animations)
