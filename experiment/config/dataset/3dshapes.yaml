@@ -1,4 +1,5 @@
 # @package _group_
+name: 3dshapes
 cls:
   target: disent.dataset.ground_truth.data_shapes3d.Shapes3dData
   params:

@@ -1,4 +1,5 @@
 # @package _group_
+name: sgd
 cls:
   target: torch.optim.SGD
   params:

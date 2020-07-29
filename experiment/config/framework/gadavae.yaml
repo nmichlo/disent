@@ -1,4 +1,5 @@
 # @package _group_
+name: gadavae
 cls:
   target: disent.frameworks.supervised.gadavae.GuidedAdaVaeLoss
   params:
@@ -6,6 +7,7 @@ cls:
     average_mode: 'gvae'  # gvae or ml-vae
 
 augment_dataset:
-  target: disent.dataset.ground_truth.base.SupervisedTripletDataset
-  params:
-    k: 'uniform'
+  cls:
+    target: disent.dataset.ground_truth.base.SupervisedTripletDataset
+    params:
+      k: 'uniform'

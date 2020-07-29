@@ -1,4 +1,5 @@
 # @package _group_
+name: xyscalecolorgrid
 cls:
   target: disent.dataset.ground_truth.data_xyscalecolorgrid.XYScaleColorData
   params:

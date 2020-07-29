@@ -1,4 +1,5 @@
 # @package _group_
+name: dsprites
 cls:
   target: disent.dataset.ground_truth.data_dsprites.DSpritesData
   params:

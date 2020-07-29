@@ -1,4 +1,5 @@
 # @package _group_
+name: mpi3d_toy
 cls:
   target: disent.dataset.ground_truth.data_mpi3d.Mpi3dData
   params:

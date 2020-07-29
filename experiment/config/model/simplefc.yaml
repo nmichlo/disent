@@ -1,0 +1,18 @@
+# @package _group_
+name: simplefc
+encoder:
+  cls:
+    target: disent.model.encoders_decoders.EncoderSimpleFC
+    params:
+      x_shape: ${dataset.x_shape}
+      z_size: ${model.z_size}
+      h_size1: 256
+      h_size2: 128
+decoder:
+  cls:
+    target: disent.model.encoders_decoders.DecoderSimpleFC
+    params:
+      x_shape: ${dataset.x_shape}
+      z_size: ${model.z_size}
+      h_size1: 256
+      h_size2: 128

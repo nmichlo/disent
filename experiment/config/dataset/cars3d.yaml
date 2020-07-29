@@ -1,4 +1,5 @@
 # @package _group_
+name: cars3d
 cls:
   target: disent.dataset.ground_truth.data_cars3d.Cars3dData
   params:

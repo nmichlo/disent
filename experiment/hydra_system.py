@@ -111,22 +111,6 @@ class HydraSystem(pl.LightningModule):
             'progress_bar': loss_dict
         }
 
-    def training_epoch_end(self, *args, **kwargs):
-        # VISUALISE!
-        # generate and log latent traversals
-        if isinstance(self.logger, WandbLogger):
-            # get random sample of z_means & z_logvars for computing the range of the latent_cycle
-            with TempNumpySeed(7777):
-                obs = self.dataset.sample_observations(64).to(self.device)
-            z_means, z_logvars = self.model.encode_gaussian(obs)
-            # produce latent cycle animation & merge frames
-            animation = latent_cycle(self.model.reconstruct, z_means, z_logvars, mode='fitted_gaussian_cycle', num_animations=1, num_frames=21)
-            animation = reconstructions_to_images(animation, mode='int', moveaxis=False)  # axis already moved above
-            frames = np.transpose(gridify_animation(animation[0], padding_px=4, value=64), [0, 3, 1, 2])
-            # log video
-            return {'log': {'fitted_gaussian_cycle': wandb.Video(frames, fps=8, format='gif')}}
-        return {}
-
     # def validation_step(self, batch, batch_idx):
     #     x = batch
     #     # encode
@@ -183,6 +167,39 @@ class HydraSystem(pl.LightningModule):
 
 
 # ========================================================================= #
+# CALLBACKS                                                                 #
+# ========================================================================= #
+
+
+class LatentCycleLoggingCallback(pl.Callback):
+
+    def __init__(self, wandb_logger):
+        assert isinstance(wandb_logger, WandbLogger)
+        self.wandb_logger = wandb_logger
+
+    def on_epoch_end(self, trainer, system):
+        # VISUALISE!
+        # generate and log latent traversals
+        assert isinstance(system, HydraSystem)
+        # get random sample of z_means and z_logvars for computing the range of values for the latent_cycle
+        with TempNumpySeed(7777):
+            obs = system.dataset.sample_observations(64).to(system.device)
+        z_means, z_logvars = system.model.encode_gaussian(obs)
+        # produce latent cycle animation & merge frames
+        animation = latent_cycle(system.model.reconstruct, z_means, z_logvars, mode='fitted_gaussian_cycle', num_animations=1, num_frames=21)
+        animation = reconstructions_to_images(animation, mode='int', moveaxis=False)  # axis already moved above
+        frames = np.transpose(gridify_animation(animation[0], padding_px=4, value=64), [0, 3, 1, 2])
+        # check and add missing channel if needed (convert greyscale to rgb images)
+        assert frames.shape[1] in {1, 3}, f'Invalid number of image channels: {animation.shape} -> {frames.shape}'
+        if frames.shape[1] == 1:
+            frames = np.repeat(frames, 3, axis=1)
+        # log video
+        self.wandb_logger.experiment.log(
+            {'fitted_gaussian_cycle': wandb.Video(frames, fps=5, format='mp4')},
+            commit=False
+        )
+
+# ========================================================================= #
 # RUNNER                                                                    #
 # ========================================================================= #
 
@@ -209,9 +226,10 @@ def main(cfg: DictConfig):
             log.warning('CUDA is available but is not being used!')
 
     # create trainer loggers
-    logger = None
+    logger, callbacks = None, []
     if cfg.logging.wandb.enabled:
         log.info(f'wandb log directory: {os.path.abspath("wandb")}')
+        # TODO: this should be moved into configs, instantiated from a class & target
         logger = WandbLogger(
             name=cfg.logging.wandb.name,
             project=cfg.logging.wandb.project,
@@ -219,7 +237,9 @@ def main(cfg: DictConfig):
             tags=cfg.logging.wandb.get('tags', None),
             entity=cfg.logging.get('entity', None),
             save_dir=hydra.utils.to_absolute_path(cfg.logging.logs_dir),  # relative to hydra's original cwd
+            offline=cfg.logging.wandb.get('offline', False),
         )
+        callbacks.append(LatentCycleLoggingCallback(logger))
 
     # check data preparation
     prepare_data_per_node = cfg.trainer.get('prepare_data_per_node', True)
@@ -244,6 +264,7 @@ def main(cfg: DictConfig):
 
     trainer = pl.Trainer(
         logger=logger,
+        callbacks=callbacks,
         gpus=1 if cuda else 0,
         max_epochs=cfg.trainer.get('epochs', 100),
         max_steps=cfg.trainer.get('steps', None),
@@ -256,7 +277,6 @@ def main(cfg: DictConfig):
 # ========================================================================= #
 # MAIN                                                                      #
 # ========================================================================= #
-
 
 if __name__ == '__main__':
     main()

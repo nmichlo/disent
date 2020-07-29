@@ -1,9 +1,8 @@
 defaults:
   - framework: betavae
-  - dataset: xyscalecolorgrid
+  - model: conv64
   - optimizer: radam
-  - model/encoder: conv64
-  - model/decoder: conv64
+  - dataset: xyscalecolorgrid
   # hydra plugins
   - hydra/job_logging: colorlog
   - hydra/hydra_logging: colorlog
@@ -17,15 +16,16 @@ trainer:
   epochs: 100
   steps: null
   cuda: TRUE
-  prepare_data_per_node: FALSE
+  prepare_data_per_node: TRUE
 
 model:
   z_size: 6
 
 dataset:
-  num_workers: 1
-  batch_size: 128
-  data_dir: '${env:HOME}/downloads/datasets'
+  num_workers: 8
+  batch_size: 256
+  data_dir: '/tmp/${env:USER}/datasets'
+  try_in_memory: TRUE
 
 optimizer:
   lr: 1e-3
@@ -38,15 +38,19 @@ logging:
   logs_dir: 'logs'
   wandb:
     enabled: TRUE
-    name: '${hydra:job.name}'
+    name: '${framework.name}-${model.name}-${optimizer.name}-${dataset.name}'
     project: 'disentanglement'
     group: null
-    tags: null
-    entity: null
+    entity: '${env:USER}'
+    tags:
+      - '${framework.name}'
+      - '${model.name}'
+      - '${optimizer.name}'
+      - '${dataset.name}'
 
 hydra:
   job:
-    name: 'disent'
+    name: '${framework.name}-${model.name}-${optimizer.name}-${dataset.name}'
   launcher:
     params:
       partition: batch
@@ -54,7 +58,7 @@ hydra:
       timeout_min: 120  # minutes
       submitit_folder: '${hydra.sweep.dir}/submitit/%j'
   run:
-    dir: '${logging.logs_dir}/hydra_run/${hydra.job.name}_${now:%Y-%m-%d_%H-%M-%S}'
+    dir: '${logging.logs_dir}/hydra_run/${now:%Y-%m-%d_%H-%M-%S}_${hydra.job.name}'
   sweep:
-    dir: '${logging.logs_dir}/hydra_sweep/${hydra.job.name}_${now:%Y-%m-%d_%H-%M-%S}'
+    dir: '${logging.logs_dir}/hydra_sweep/${now:%Y-%m-%d_%H-%M-%S}_${hydra.job.name}'
     subdir: '${hydra.job.id}'  # hydra.job.id is not available for dir

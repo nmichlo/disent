@@ -1,4 +1,5 @@
 # @package _group_
+name: radam
 cls:
   target: torch_optimizer.RAdam
   params:
