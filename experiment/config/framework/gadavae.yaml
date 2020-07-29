@@ -8,6 +8,7 @@ cls:
     mode: 'ave_triple'      # [adavae, ave_pos, ave_triple]
     triplet_scale: 0        # >= 0
     triplet_alpha: 0.3
+    triplet_after_sampling: FALSE
 
 augment_dataset:
   cls:

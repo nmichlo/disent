@@ -54,6 +54,7 @@ class GuidedAdaVaeLoss(AdaVaeLoss):
             mode=MODE_AVE_TRIPLET,
             triplet_scale=0,
             triplet_alpha=0.3,
+            triplet_after_sampling=False,
     ):
         assert average_mode == AdaVaeLoss.AVE_MODE_GVAE, f'currently only supports average_mode={repr(AdaVaeLoss.AVE_MODE_GVAE)}'
         super().__init__(beta=beta, average_mode=average_mode)
@@ -65,6 +66,7 @@ class GuidedAdaVaeLoss(AdaVaeLoss):
         # use triplet loss
         self.triplet_scale = triplet_scale
         self.triplet_alpha = triplet_alpha
+        self.triplet_after_sampling = triplet_after_sampling
         assert self.triplet_scale >= 0, f'triplet_scale={repr(self.triplet_scale)} must be non-negative'
         if self.triplet_scale > 0:
             assert mode == GuidedAdaVaeLoss.MODE_AVE_TRIPLET, f'triplet_scale={repr(self.triplet_scale)}, only supports triplet_scale > 0 for mode={repr(GuidedAdaVaeLoss.MODE_AVE_TRIPLET)}'
@@ -149,7 +151,10 @@ class GuidedAdaVaeLoss(AdaVaeLoss):
             }
 
             if self.triplet_scale > 0:
-                loss_triplet = triplet_loss(z_sampled, z2_sampled, z3_sampled, alpha=self.triplet_alpha)
+                if self.triplet_after_sampling:
+                    loss_triplet = triplet_loss(z_sampled, z2_sampled, z3_sampled, alpha=self.triplet_alpha)
+                else:
+                    loss_triplet = triplet_loss(z_mean, z2_mean, z3_mean, alpha=self.triplet_alpha)
                 loss_dict.update({
                     'train_loss': loss + self.triplet_scale * loss_triplet,
                     'triplet_loss': loss_triplet
