@@ -10,4 +10,4 @@ augment_dataset:
   cls:
     target: disent.dataset.ground_truth.base.PairedVariationDataset
     params:
-      k: 'uniform'
+      k: 1

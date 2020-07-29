@@ -38,19 +38,19 @@ logging:
   logs_dir: 'logs'
   wandb:
     enabled: TRUE
-    name: '${framework.name}-${model.name}-${optimizer.name}-${dataset.name}'
+    name: '${framework.name}-${dataset.name}-${optimizer.name}-${model.name}'
     project: 'disentanglement'
     group: null
     entity: '${env:USER}'
     tags:
       - '${framework.name}'
-      - '${model.name}'
-      - '${optimizer.name}'
       - '${dataset.name}'
+      - '${optimizer.name}'
+      - '${model.name}'
 
 hydra:
   job:
-    name: '${framework.name}-${model.name}-${optimizer.name}-${dataset.name}'
+    name: 'disent'
   launcher:
     params:
       partition: batch

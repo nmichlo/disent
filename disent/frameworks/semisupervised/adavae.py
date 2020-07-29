@@ -54,12 +54,15 @@ def compute_average_ml_vae(z_mean, z_logvar, z2_mean, z2_logvar):
 
 class AdaVaeLoss(BetaVaeLoss):
 
+    AVE_MODE_GVAE = 'gvae'
+    AVE_MODE_ML_VAE = 'ml-vae'
+
     AVERAGING_FUNCTIONS = {
-        'ml-vae': compute_average_ml_vae,
-        'gvae': compute_average_gvae,
+        AVE_MODE_ML_VAE: compute_average_ml_vae,
+        AVE_MODE_GVAE: compute_average_gvae,
     }
 
-    def __init__(self, beta=4, average_mode='gvae'):
+    def __init__(self, beta=4, average_mode=AVE_MODE_GVAE):
         super().__init__(beta=beta)
         # check averaging function
         if average_mode not in AdaVaeLoss.AVERAGING_FUNCTIONS:
@@ -96,8 +99,11 @@ class AdaVaeLoss(BetaVaeLoss):
         # reconstruction error & KL divergence losses
         recon_loss = bce_loss_with_logits(x, x_recon)     # E[log p(x|z)]
         recon2_loss = bce_loss_with_logits(x2, x2_recon)  # E[log p(x|z)]
+        ave_recon_loss = (recon_loss + recon2_loss) / 2
+
         kl_loss = kl_normal_loss(z_mean, z_logvar)        # D_kl(q(z|x) || p(z|x))
         kl2_loss = kl_normal_loss(z2_mean, z2_logvar)     # D_kl(q(z|x) || p(z|x))
+        ave_kl_loss = (kl_loss + kl2_loss) / 2
 
         # compute combined loss
         # reduces down to summing the two BetaVAE losses
@@ -106,9 +112,9 @@ class AdaVaeLoss(BetaVaeLoss):
 
         return {
             'train_loss': loss,
-            'reconstruction_loss': recon_loss,
-            'kl_loss': kl_loss,
-            'elbo': -(recon_loss + kl_loss),
+            'reconstruction_loss': ave_recon_loss,
+            'kl_loss': ave_kl_loss,
+            'elbo': -(ave_recon_loss + ave_kl_loss),
         }
 
 
