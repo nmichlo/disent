@@ -50,10 +50,12 @@ class HydraSystem(pl.LightningModule):
 
     def prepare_data(self) -> None:
         # *NB* Do not set model parameters here.
-        # - trainer.prepare_data_per_node controls behavior.
-        # Instantiate data once to download and prepare if needed.
-        # TODO: this should be in_memory=False by default
-        hydra.utils.instantiate(self.hparams.dataset.cls)
+        # - Instantiate data once to download and prepare if needed.
+        # - trainer.prepare_data_per_node affects this functions behavior per node.
+        if 'in_memory' in self.hparams.dataset.cls.params:
+            hydra.utils.instantiate(self.hparams.dataset.cls, in_memory=False)
+        else:
+            hydra.utils.instantiate(self.hparams.dataset.cls)
 
     def setup(self, stage: str):
         # single observations
@@ -64,8 +66,7 @@ class HydraSystem(pl.LightningModule):
                 for transform_cls in self.hparams.dataset.transforms
             ])
         )
-
-        # augment dataset if the framework requires TODO: use RandomPairDataset(self.dataset) if self.framework.required_observations == 2 and not isinstance(self.dataset, GroundTruthData)
+        # augment dataset if the framework requires
         self.dataset_train = self.dataset
         if 'augment_dataset' in self.hparams.framework:
             self.dataset_train = hydra.utils.instantiate(self.hparams.framework.augment_dataset.cls, self.dataset)
