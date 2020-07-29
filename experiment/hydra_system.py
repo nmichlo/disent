@@ -70,9 +70,6 @@ class HydraSystem(pl.LightningModule):
         if 'augment_dataset' in self.hparams.framework:
             self.dataset_train = hydra.utils.instantiate(self.hparams.framework.augment_dataset.cls, self.dataset)
 
-        # training & validation
-        # self.dataset_train, self.dataset_val = split_dataset(dataset, self.hparams.dataset.train_ratio)
-
     def configure_optimizers(self):
         return hydra.utils.instantiate(
             self.hparams.optimizer.cls,
@@ -111,27 +108,6 @@ class HydraSystem(pl.LightningModule):
             'progress_bar': loss_dict
         }
 
-    # def validation_step(self, batch, batch_idx):
-    #     x = batch
-    #     # encode
-    #     z_mean, z_logvar = self.model.encode_gaussian(x)
-    #     # reconstruct
-    #     x_recon = self.model.decode(z_mean)
-    #     # compute loss
-    #     losses = self.framework.compute_loss(x, x_recon, z_mean, z_logvar, z_mean)
-    #     # log & train
-    #     return {
-    #         'val_loss': losses['loss'],
-    #     }
-    #
-    # def validation_epoch_end(self, outputs):
-    #     loss_dict = {k: np.mean([output[k] for output in outputs]) for k in outputs[0].keys()}
-    #     return {
-    #         'val_loss': loss_dict['val_loss'],
-    #         'progress_bar': loss_dict,
-    #         'log': loss_dict,
-    #     }
-
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Training Dataset:
     #     The sample of data used to fit the model.
@@ -155,15 +131,7 @@ class HydraSystem(pl.LightningModule):
             shuffle=True
         )
 
-    # @pl.data_loader
-    # def val_dataloader(self):
-    #     # Sample of data used to fit the model.
-    #     return torch.utils.data.DataLoader(
-    #         self.dataset_val,
-    #         batch_size=self.hparams.dataset.batch_size,
-    #         num_workers=self.hparams.dataset.num_workers,
-    #         shuffle=True
-    #     )
+
 
 
 # ========================================================================= #
