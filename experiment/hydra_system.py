@@ -194,10 +194,10 @@ class LatentCycleLoggingCallback(pl.Callback):
         if frames.shape[1] == 1:
             frames = np.repeat(frames, 3, axis=1)
         # log video
-        self.wandb_logger.experiment.log(
-            {'fitted_gaussian_cycle': wandb.Video(frames, fps=5, format='mp4')},
-            commit=False
-        )
+        self.wandb_logger.experiment.log({
+            'fitted_gaussian_cycle': wandb.Video(frames, fps=5, format='mp4'),
+            'epoch': trainer.current_epoch,
+        }, commit=False)
 
 # ========================================================================= #
 # RUNNER                                                                    #
