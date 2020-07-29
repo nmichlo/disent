@@ -13,6 +13,7 @@ from pytorch_lightning.loggers import WandbLogger
 
 from disent.dataset.ground_truth.base import GroundTruthDataset
 from disent.frameworks.unsupervised.vae import VaeLoss
+from disent.metrics import compute_dci, compute_factor_vae
 from disent.model import GaussianEncoderDecoderModel
 from disent.util import TempNumpySeed, make_box_str, to_numpy
 from disent.visualize.visualize_model import latent_cycle
@@ -228,9 +229,9 @@ def main(cfg: DictConfig):
             )
         raise RuntimeError('dataset.data_dir={repr(cfg.dataset.data_dir)} is a relative path!')
 
-    # make & train system
-    system = HydraSystem(cfg)
+    # TRAIN
 
+    system = HydraSystem(cfg)
     trainer = pl.Trainer(
         logger=logger,
         callbacks=callbacks,
@@ -239,9 +240,17 @@ def main(cfg: DictConfig):
         max_steps=cfg.trainer.get('steps', None),
         prepare_data_per_node=prepare_data_per_node,
     )
-
     trainer.fit(system)
 
+    # EVALUATE
+
+    metrics = [compute_dci, compute_factor_vae]
+    for metric in metrics:
+        scores = metric(system.dataset, system.model.encode_deterministic)
+        log.info(f'{metric.__name__}:\n{DictConfig(scores).pretty()}')
+        if logger:
+            assert isinstance(logger, WandbLogger)
+            logger.experiment.log(scores, commit=False, step=0)
 
 # ========================================================================= #
 # MAIN                                                                      #

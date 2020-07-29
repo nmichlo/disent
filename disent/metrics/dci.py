@@ -21,6 +21,7 @@ Representations" (https://openreview.net/forum?id=By-7dz-AZ).
 import logging
 from tqdm import tqdm
 
+from disent.dataset.ground_truth.base import GroundTruthDataset
 from disent.metrics import utils
 import numpy as np
 import scipy
@@ -34,11 +35,11 @@ from sklearn.ensemble import GradientBoostingClassifier
 
 
 def compute_dci(
-        ground_truth_data,
-        representation_function,
-        num_train=10000,
-        num_test=5000,
-        batch_size=16
+        ground_truth_data: GroundTruthDataset,
+        representation_function: callable,
+        num_train: int = 10000,
+        num_test: int = 5000,
+        batch_size: int = 16
 ):
     """Computes the DCI scores according to Sec 2.
     Args:
