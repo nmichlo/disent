@@ -26,7 +26,7 @@ Visualization module for disentangled representations.
 
 import numbers
 import os
-from disent.dataset.util.io import ensure_dir_exists
+from disent.dataset.util.in_out import ensure_dir_exists
 from disent.visualize import visualize_util
 from disent.dataset import DEPRICATED_as_dataset
 from disent.visualize.visualize_util import reconstructions_to_images

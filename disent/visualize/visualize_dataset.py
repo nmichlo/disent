@@ -33,7 +33,7 @@ from disent.util import TempNumpySeed, to_numpy
 from disent.visualize import visualize_util
 import numpy as np
 
-from disent.dataset.util.io import ensure_dir_exists
+from disent.dataset.util.in_out import ensure_dir_exists
 from disent.dataset import DEPRICATED_as_data
 
 log = logging.getLogger(__name__)
