@@ -3,7 +3,7 @@ import numpy as np
 
 class DiscreteStateSpace(object):
     """
-    State space where an index corresponds to coordinates in the factor space.
+    State space where an index corresponds to coordinates (factors/positions) in the factor space.
     ie. State space with multiple factors of variation, where each factor can be a different size.
     Heavily modified FROM: https://github.com/google-research/disentanglement_lib/blob/adb2772b599ea55c60d58fd4b47dff700ef9233b/disentanglement_lib/data/ground_truth/util.py
     """
@@ -13,13 +13,10 @@ class DiscreteStateSpace(object):
         # dimension
         self._factor_sizes = np.array(factor_sizes)
         self._factor_sizes.flags.writeable = False
+        # total permutations
         self._size = int(np.prod(factor_sizes))
         # dimension sampling
         self._factor_indices_set = set(range(self.num_factors))
-        # helper data for conversion between factors and indexes
-        bases = np.prod(self._factor_sizes) // np.cumprod([1, *self._factor_sizes])
-        self._factor_divisors = bases[1:]
-        self._factor_modulus = bases[:-1]
 
     def __len__(self):
         return self.size
@@ -69,10 +66,6 @@ class DiscreteStateSpace(object):
         sizes = self._factor_sizes if (factor_indices is None) else self._factor_sizes[factor_indices]
         return np.random.randint(sizes, size=(num_samples, len(sizes)))
 
-    # def sample_indices(self, num_samples):
-    #     """Like sample_factors but returns indices."""
-    #     return self.pos_to_idx(self.sample_factors(num_samples))
-
     def sample_missing_factors(self, values, factor_indices):
         """
         Samples the remaining factors not given in the dimension_indices.
@@ -95,17 +88,9 @@ class DiscreteStateSpace(object):
         # return
         return all_values
 
-    # def sample_missing_indices(self, values, factor_indices):
-    #     """Like sample_missing_factors but returns indices."""
-    #     return self.pos_to_idx(self.sample_missing_factors(values, factor_indices))
-
     def resampled_factors(self, values, factors_indices):
         """
         Resample across all the factors, keeping factor_indices constant.
         returned values are ordered by increasing factor index and not factor_indices.
         """
         return self.sample_missing_factors(values[:, factors_indices], factors_indices)
-
-    # def resampled_indices(self, values, factors_indices):
-    #     """Like resampled_factors but returns indices."""
-    #     return self.pos_to_idx(self.resampled_factors(values, factors_indices))
