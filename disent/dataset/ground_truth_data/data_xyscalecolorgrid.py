@@ -1,5 +1,5 @@
 from typing import Tuple
-from disent.dataset.ground_truth.base import GroundTruthData
+from disent.dataset.ground_truth_data.base_data import GroundTruthData
 import numpy as np
 
 
@@ -8,7 +8,7 @@ import numpy as np
 # ========================================================================= #
 
 
-class XYScaleColorData(GroundTruthData):
+class XYData(GroundTruthData):
 
     """
     Dataset that generates all possible permutations of a square placed on a square grid,
@@ -16,11 +16,25 @@ class XYScaleColorData(GroundTruthData):
 
     - Does not seem to learn with a VAE when square size is equal to 1
       (This property may be explained in the paper "Understanding disentanglement in Beta-VAEs")
-
-    TODO: increase square size
     """
 
-    _COLOR_PALETTES = {
+    COLOR_PALETTES_1 = {
+        'white': [
+            1.0,
+        ],
+        'greys_halves': [
+            0.5,
+            1.0,
+        ],
+        'greys_quarters': [
+            .25,
+            0.5,
+            .75,
+            1.0,
+        ],
+    }
+
+    COLOR_PALETTES_3 = {
         'white': [
             [255, 255, 255],
         ],
@@ -57,10 +71,15 @@ class XYScaleColorData(GroundTruthData):
 
     @property
     def observation_shape(self) -> Tuple[int, ...]:
-        return self._width, self._width, 3
+        return self._width, self._width, (3 if self._rgb else 1)
 
-    def __init__(self, grid_size=64, grid_spacing=1, min_square_size=3, max_square_size=9, square_size_spacing=2, palette='colors'):
-        self._colors = np.array(XYScaleColorData._COLOR_PALETTES[palette])
+    def __init__(self, grid_size=64, grid_spacing=1, min_square_size=3, max_square_size=9, square_size_spacing=2, rgb=True, palette='colors'):
+        # generation
+        self._rgb = rgb
+        if rgb:
+            self._colors = np.array(XYData.COLOR_PALETTES_3[palette])
+        else:
+            self._colors = np.array(XYData.COLOR_PALETTES_1[palette])
         # image sizes
         self._width = grid_size
         # square scales
@@ -71,9 +90,9 @@ class XYScaleColorData(GroundTruthData):
         self._spacing = grid_spacing
         self._placements = (self._width - max_square_size) // grid_spacing + 1
         super().__init__()
-
+    
     def __getitem__(self, idx):
-        x, y, s, c = self.idx_to_pos(idx)
+        x, y, s, c = self.state_space.idx_to_pos(idx)
         s = self._square_scales[s]
         r = (self._max_square_size - s) // 2
         x, y = self._spacing*x + r, self._spacing*y + r
