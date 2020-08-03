@@ -10,8 +10,9 @@ from disent.model.encoders_decoders import (
     DecoderConv64,
 )
 
-from disent.model.gaussian_model import (
-    GaussianEncoderDecoderModel
+from disent.model.autoencoders import (
+    AutoEncoderModule,
+    GaussianAutoEncoderModel,
 )
 
 # ========================================================================= #

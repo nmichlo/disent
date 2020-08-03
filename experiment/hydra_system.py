@@ -14,7 +14,7 @@ from pytorch_lightning.loggers import WandbLogger
 from disent.dataset.single import GroundTruthDataset
 from disent.frameworks.unsupervised.vae import VaeLoss
 from disent.metrics import compute_dci, compute_factor_vae
-from disent.model import GaussianEncoderDecoderModel
+from disent.model import GaussianAutoEncoderModel
 from disent.util import TempNumpySeed, make_box_str, to_numpy
 from disent.visualize.visualize_model import latent_cycle
 from disent.visualize.visualize_util import gridify_animation, reconstructions_to_images
@@ -34,7 +34,7 @@ class HydraSystem(pl.LightningModule):
         # hyper-parameters
         self.hparams = hparams
         # vae model
-        self.model = GaussianEncoderDecoderModel(
+        self.model = GaussianAutoEncoderModel(
             hydra.utils.instantiate(self.hparams.model.encoder.cls),
             hydra.utils.instantiate(self.hparams.model.decoder.cls)
         )
@@ -97,8 +97,8 @@ class HydraSystem(pl.LightningModule):
         # encode, then intercept and mutate if needed [(z_mean, z_logvar), ...]
         z_params = [self.model.encode_gaussian(x) for x in batch]
         z_params = self.framework.intercept_z(*z_params)
-        # reparametrize
-        zs = [self.model.sample_from_latent_distribution(z0_mean, z0_logvar) for z0_mean, z0_logvar in z_params]
+        # reparameterize
+        zs = [self.model.reparameterize(z0_mean, z0_logvar) for z0_mean, z0_logvar in z_params]
         # reconstruct
         x_recons = [self.model.decode(z) for z in zs]
         # compute loss [(x, x_recon, (z_mean, z_logvar), z), ...]

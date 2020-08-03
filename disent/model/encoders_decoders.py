@@ -1,7 +1,8 @@
+import gin
 import torch.nn as nn
 import numpy as np
 from torch import Tensor
-from disent.model.base import BaseGaussianEncoderModule, BaseDecoderModule, Flatten3D, Unsqueeze3D, BatchView
+from disent.model.base import BaseEncoderModule, BaseDecoderModule, Flatten3D, Unsqueeze3D, BatchView
 
 
 # ========================================================================= #
@@ -9,7 +10,8 @@ from disent.model.base import BaseGaussianEncoderModule, BaseDecoderModule, Flat
 # ========================================================================= #
 
 
-class EncoderSimpleFC(BaseGaussianEncoderModule):
+@gin.configurable('model.encoder.SimpleFC')
+class EncoderSimpleFC(BaseEncoderModule):
 
     def __init__(self, x_shape=(3, 64, 64), h_size1=128, h_size2=128, z_size=6):
         super().__init__(x_shape=x_shape, z_size=z_size)
@@ -19,15 +21,14 @@ class EncoderSimpleFC(BaseGaussianEncoderModule):
                 nn.ReLU(True),
             nn.Linear(h_size1, h_size2),
                 nn.ReLU(True),
+            nn.Linear(h_size2, self.z_size)
         )
-        self.enc3mean = nn.Linear(h_size2, self.z_size)
-        self.enc3logvar = nn.Linear(h_size2, self.z_size)
 
-    def encode_gaussian(self, x) -> (Tensor, Tensor):
-        pre_z = self.model(x)
-        return self.enc3mean(pre_z), self.enc3logvar(pre_z)
+    def encode(self, x) -> (Tensor, Tensor):
+        return self.model(x)
 
 
+@gin.configurable('model.decoder.SimpleFC')
 class DecoderSimpleFC(BaseDecoderModule):
 
     def __init__(self, x_shape=(3, 64, 64), h_size1=128, h_size2=128, z_size=6):
@@ -50,7 +51,8 @@ class DecoderSimpleFC(BaseDecoderModule):
 # ========================================================================= #
 
 
-class EncoderSimpleConv64(BaseGaussianEncoderModule):
+@gin.configurable('model.encoder.SimpleConv64')
+class EncoderSimpleConv64(BaseEncoderModule):
     """From: https://github.com/amir-abdi/disentanglement-pytorch"""
 
     def __init__(self, x_shape=(3, 64, 64), z_size=6):
@@ -73,15 +75,14 @@ class EncoderSimpleConv64(BaseGaussianEncoderModule):
             nn.Conv2d(in_channels=256, out_channels=256, kernel_size=4, stride=2, padding=1),
                 nn.ReLU(True),
                 Flatten3D(),
+            nn.Linear(256, self.z_size)
         )
-        self.enc3mean = nn.Linear(256, self.z_size)
-        self.enc3logvar = nn.Linear(256, self.z_size)
 
-    def encode_gaussian(self, x) -> (Tensor, Tensor):
-        pre_z = self.model(x)
-        return self.enc3mean(pre_z), self.enc3logvar(pre_z)
+    def encode(self, x) -> (Tensor, Tensor):
+        return self.model(x)
 
 
+@gin.configurable('model.decoder.SimpleConv64')
 class DecoderSimpleConv64(BaseDecoderModule):
     """From: https://github.com/amir-abdi/disentanglement-pytorch"""
 
@@ -118,7 +119,8 @@ class DecoderSimpleConv64(BaseDecoderModule):
 # ========================================================================= #
 
 
-class EncoderFC(BaseGaussianEncoderModule):
+@gin.configurable('model.encoder.FC')
+class EncoderFC(BaseEncoderModule):
     """
     From:
     https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/shared/architectures.py
@@ -136,20 +138,18 @@ class EncoderFC(BaseGaussianEncoderModule):
 
         self.model = nn.Sequential(
             Flatten3D(),
-            nn.Linear(np.prod(x_shape), 1200),
+            nn.Linear(int(np.prod(x_shape)), 1200),
                 nn.ReLU(True),
             nn.Linear(1200, 1200),
                 nn.ReLU(True),
+            nn.Linear(1200, self.z_size)
         )
 
-        self.enc3mean = nn.Linear(1200, self.z_size)
-        self.enc3logvar = nn.Linear(1200, self.z_size)
-
-    def encode_gaussian(self, x) -> (Tensor, Tensor):
-        pre_z = self.model(x)
-        return self.enc3mean(pre_z), self.enc3logvar(pre_z)
+    def encode(self, x) -> (Tensor, Tensor):
+        return self.model(x)
 
 
+@gin.configurable('model.decoder.FC')
 class DecoderFC(BaseDecoderModule):
     """
     From:
@@ -172,7 +172,7 @@ class DecoderFC(BaseDecoderModule):
                 nn.Tanh(),
             nn.Linear(1200, 1200),
                 nn.Tanh(),
-            nn.Linear(1200, np.prod(x_shape)),
+            nn.Linear(1200, int(np.prod(x_shape))),
                 BatchView(self.x_shape),
         )
 
@@ -185,7 +185,8 @@ class DecoderFC(BaseDecoderModule):
 # ========================================================================= #
 
 
-class EncoderConv64(BaseGaussianEncoderModule):
+@gin.configurable('model.encoder.Conv64')
+class EncoderConv64(BaseEncoderModule):
     """
     From:
     https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/shared/architectures.py
@@ -216,15 +217,14 @@ class EncoderConv64(BaseGaussianEncoderModule):
             nn.Linear(1600, 256),
                 nn.LeakyReLU(inplace=True),
                 nn.Dropout(dropout),
+            nn.Linear(256, self.z_size),
         )
-        self.enc3mean = nn.Linear(256, self.z_size)
-        self.enc3logvar = nn.Linear(256, self.z_size)
 
-    def encode_gaussian(self, x) -> (Tensor, Tensor):
-        pre_z = self.model(x)
-        return self.enc3mean(pre_z), self.enc3logvar(pre_z)
+    def encode(self, x) -> (Tensor, Tensor):
+        return self.model(x)
 
 
+@gin.configurable('model.decoder.Conv64')
 class DecoderConv64(BaseDecoderModule):
     """
     From:

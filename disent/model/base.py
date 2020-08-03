@@ -1,4 +1,6 @@
+import gin
 import numpy as np
+import torch
 import torch.nn as nn
 from torch import Tensor
 from disent.util import make_logger
@@ -76,40 +78,29 @@ class BaseModule(nn.Module):
         assert len(x) == len(z)
 
 
-# class BaseEncoderModule(BaseModule):
-#     def forward(self, x) -> Tensor:
-#         self.assert_x_valid(x)
-#         # encode
-#         z = self.encode(x)
-#         # checks
-#         self.assert_z_valid(z)
-#         self.assert_lengths(x, z)
-#         # return
-#         return z
-#
-#     def encode(self, x) -> Tensor:
-#         raise NotImplementedError
+class BaseEncoderModule(BaseModule):
 
-
-class BaseGaussianEncoderModule(BaseModule):
-    def forward(self, x) -> (Tensor, Tensor):
+    def forward(self, x) -> Tensor:
+        """same as self.encode but with size checks"""
         self.assert_x_valid(x)
         # encode | p(z|x)
-        z_mean, z_logvar = self.encode_gaussian(x)
+        # for a gaussian encoder, we treat z as concat(z_mean, z_logvar) where z_mean.shape == z_logvar.shape
+        # ie. the first half of z is z_mean, the second half of z is z_logvar
+        z = self.encode(x)
         # checks
-        self.assert_z_valid(z_mean)
-        self.assert_z_valid(z_logvar)
-        self.assert_lengths(x, z_logvar)
-        self.assert_lengths(x, z_mean)
+        self.assert_z_valid(z)
+        self.assert_lengths(x, z)
         # return
-        return z_mean, z_logvar
+        return z
 
-    def encode_gaussian(self, x) -> (Tensor, Tensor):
+    def encode(self, x) -> Tensor:
         raise NotImplementedError
 
 
 class BaseDecoderModule(BaseModule):
+
     def forward(self, z):
+        """same as self.decode but with size checks"""
         self.assert_z_valid(z)
         # decode | p(x|z)
         x_recon = self.decode(z)
@@ -121,21 +112,6 @@ class BaseDecoderModule(BaseModule):
 
     def decode(self, z) -> Tensor:
         raise NotImplementedError
-
-
-# class BaseAutoEncoderModule(BaseEncoderModule, BaseDecoderModule):
-#     def forward(self, x):
-#         self.assert_x_valid(x)
-#         # encode
-#         z = self.encode(x)
-#         self.assert_z_valid(z)
-#         assert len(x) == len(z)
-#         # decode
-#         x_recon = self.decode(z)
-#         self.assert_x_valid(x_recon)
-#         assert len(z) == len(x_recon)
-#         # return
-#         return x_recon
 
 
 # ========================================================================= #
