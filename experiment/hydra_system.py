@@ -174,7 +174,7 @@ class LatentCycleLoggingCallback(pl.Callback):
 # ========================================================================= #
 
 
-@hydra.main(config_path='config', config_name="config")
+@hydra.main(config_path='hydra_config', config_name="config")
 def main(cfg: DictConfig):
     # print hydra config
     log.info(make_box_str(cfg.pretty()))

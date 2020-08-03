@@ -20,6 +20,9 @@ class GroundTruthData(object):
     def __init__(self):
         assert len(self.factor_names) == len(self.factor_sizes), 'Dimensionality mismatch of FACTOR_NAMES and FACTOR_DIMS'
         self.state_space = StateSpace(self.factor_sizes)
+        
+    def __len__(self):
+        return len(self.state_space)
 
     def sample_observations(self, num_samples):
         """Sample a batch of observations X."""
