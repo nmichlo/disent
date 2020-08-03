@@ -6,7 +6,7 @@ from .ground_truth_data.data_dsprites import DSpritesData
 from .ground_truth_data.data_mpi3d import Mpi3dData
 from .ground_truth_data.data_norb import SmallNorbData
 from .ground_truth_data.data_shapes3d import Shapes3dData
-from .ground_truth_data.data_xyscalecolorgrid import XYData
+from .ground_truth_data.data_xygrid import XYData
 
 # make datasets directly accessible
 from .single import GroundTruthDataset

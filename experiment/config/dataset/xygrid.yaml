@@ -5,8 +5,11 @@ cls:
   params:
     grid_size: 64
     grid_spacing: 1
-    square_size: 5
+    min_square_size: 5
+    max_square_size: 5
+    square_size_spacing: 2
+    rgb: FALSE
+    palette: 'white'
 transforms:
   - target: torchvision.transforms.ToTensor
 x_shape: [1, 64, 64]
-
