@@ -1,13 +1,44 @@
 import logging
 
+import gin
 import torch
 import numpy as np
 
-log = logging.getLogger(__name__)
 
 """
 helpful functions that do not fit nicely into any other file.
 """
+
+# ========================================================================= #
+# logging                                                                   #
+# ========================================================================= #
+
+IS_LOGGING_INITIALISED = False
+
+@gin.configurable('log', whitelist=['level'])
+def make_logger(name=None, level='INFO'):
+    """
+    function that returns a logger with defaults.
+    automatically retrieves the module name from the stack.
+    """
+    global IS_LOGGING_INITIALISED
+    # initialise logging once
+    if not IS_LOGGING_INITIALISED:
+        import coloredlogs
+        coloredlogs.install(
+            level=level,
+            fmt='[%(asctime)s][%(hostname)s][%(name)s:%(process)d][%(levelname)s]: %(message)s',
+            field_styles=coloredlogs.parse_encoded_styles('asctime=white;hostname=cyan;name=magenta;process=red;levelname=yellow'),
+            level_styles=coloredlogs.parse_encoded_styles('debug=green;info=white;warning=yellow;error=red;critical=bold,background=red'),
+        )
+        IS_LOGGING_INITIALISED = True
+    # get name if needed from stack | 2 if using gin.config otherwise 1
+    if name is None:
+        import inspect
+        name = inspect.getmodule(inspect.stack()[2].frame).__name__
+    # make logger
+    import logging
+    return logging.getLogger(name)
 
 # ========================================================================= #
 # seeds                                                                     #
