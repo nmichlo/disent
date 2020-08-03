@@ -7,7 +7,7 @@ from PIL import Image
 from torch.utils.data.dataset import Dataset
 import numpy as np
 from disent.dataset.util.in_out import basename_from_url, download_file, ensure_dir_exists
-from disent.dataset.util.state_space import DiscreteStateSpace
+from disent.dataset.util.state_space import StateSpace
 
 log = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class GroundTruthData(DiscreteStateSpace):
+class GroundTruthData(StateSpace):
 
     def __init__(self):
         assert len(self.factor_names) == len(self.factor_sizes), 'Dimensionality mismatch of FACTOR_NAMES and FACTOR_DIMS'
@@ -360,7 +360,7 @@ class PairedVariationDataset(Dataset):
         num_shared = self._dataset.data.num_factors - k
         shared_indices = np.random.choice(self._variation_factor_indices, size=num_shared, replace=False)
         # resample paired item, differs by at most k factors of variation
-        paired_factors = self._dataset.data.resampled_factors(orig_factors[np.newaxis, :], shared_indices)
+        paired_factors = self._dataset.data.resample_factors(orig_factors[np.newaxis, :], shared_indices)
         # return observations
         return orig_factors, paired_factors[0]
 
@@ -400,13 +400,13 @@ class SupervisedTripletDataset(PairedVariationDataset):
         # make k random indices not shared + resample paired item, differs by at most k factors of variation
         p_num_shared = self._dataset.data.num_factors - p_k
         p_shared_indices = np.random.choice(self._variation_factor_indices, size=p_num_shared, replace=False)
-        positive_factors = self._dataset.data.resampled_factors(anchor_factors[np.newaxis, :], p_shared_indices)[0]
+        positive_factors = self._dataset.data.resample_factors(anchor_factors[np.newaxis, :], p_shared_indices)[0]
 
         # these should generally differ by more factors
         # make k random indices not shared + resample paired item, differs by at most k factors of variation
         n_num_shared = self._dataset.data.num_factors - n_k
         n_shared_indices = np.random.choice(self._variation_factor_indices, size=n_num_shared, replace=False)
-        negative_factors = self._dataset.data.resampled_factors(anchor_factors[np.newaxis, :], n_shared_indices)[0]
+        negative_factors = self._dataset.data.resample_factors(anchor_factors[np.newaxis, :], n_shared_indices)[0]
 
         # swap if number of shared factors is less for the positive | This is not ideal
         # (swap if number of differing factors [k] is greater for the positive)
