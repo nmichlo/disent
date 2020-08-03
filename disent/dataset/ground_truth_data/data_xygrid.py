@@ -92,7 +92,7 @@ class XYData(GroundTruthData):
         super().__init__()
     
     def __getitem__(self, idx):
-        x, y, s, c = self.state_space.idx_to_pos(idx)
+        x, y, s, c = self.idx_to_pos(idx)
         s = self._square_scales[s]
         r = (self._max_square_size - s) // 2
         x, y = self._spacing*x + r, self._spacing*y + r

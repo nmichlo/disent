@@ -1,15 +1,13 @@
-import gin
+import logging
 from disent.frameworks.unsupervised.vae import Vae
-from disent.util import make_logger
 
-log = make_logger()
+log = logging.getLogger(__name__)
 
 # ========================================================================= #
 # Beta-VAE Loss                                                             #
 # ========================================================================= #
 
 
-@gin.configurable('framework.unsupervised.BetaVae')
 class BetaVae(Vae):
     def __init__(self, beta=4):
         self.beta = beta
@@ -23,7 +21,6 @@ class BetaVae(Vae):
 # ========================================================================= #
 
 
-@gin.configurable('framework.unsupervised.BetaVaeH')
 class BetaVaeH(BetaVae):
     """
     Compute the Beta-VAE loss as in [1]
@@ -34,13 +31,13 @@ class BetaVaeH(BetaVae):
     (NOTE: BetaVAEB is from understanding disentanglement in Beta VAEs)
     """
 
-    def __init__(self, anneal_end_steps=gin.REQUIRED, beta=4):
+    def __init__(self, anneal_end_steps, beta=4):
         super().__init__(beta)
         self.n_train_steps = 0
         self.anneal_end_steps = anneal_end_steps
         raise NotImplementedError('n_train_steps is not yet implemented for BetaVaeH, it will not yet work')
 
-    def regularizer(self, kl_loss, z_mean, z_logvar, z_sampled):
+    def regularizer(self, kl_loss):
         log.warning('TODO: training step count was not updated!')
         anneal_reg = lerp_step(0, 1, self.n_train_steps, self.anneal_end_steps)  # if is_train else 1
         return (anneal_reg * self.beta) * kl_loss

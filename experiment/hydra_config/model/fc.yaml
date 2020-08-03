@@ -6,6 +6,7 @@ encoder:
     params:
       x_shape: ${dataset.x_shape}
       z_size: ${model.z_size}
+      z_multiplier: 2
 decoder:
   cls:
     target: disent.model.encoders_decoders.DecoderFC

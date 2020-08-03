@@ -1,19 +1,11 @@
-from dataclasses import dataclass
-
-import gin
+from collections import namedtuple
 import torch
 import torch.nn.functional as F
 from disent.frameworks.framework import BaseFramework
 from disent.model import GaussianAutoEncoder
 
 
-@dataclass
-class TrainingData:
-    x: torch.Tensor
-    x_recon: torch.Tensor
-    z_mean: torch.Tensor
-    z_logvar: torch.Tensor
-    z_sampled: torch.Tensor
+TrainingData = namedtuple('TrainingData', ['x', 'x_recon', 'z_mean', 'z_logvar', 'z_sampled'])
 
 
 # ========================================================================= #
@@ -21,7 +13,6 @@ class TrainingData:
 # ========================================================================= #
 
 
-@gin.configurable('framework.unsupervised.Vae')
 class Vae(BaseFramework):
 
     def training_step(self, model: GaussianAutoEncoder, batch):

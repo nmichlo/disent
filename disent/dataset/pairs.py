@@ -34,7 +34,7 @@ class RandomPairDataset(Dataset):
 
 class PairedVariationDataset(Dataset):
 
-    def __init__(self, dataset: Union[GroundTruthData, GroundTruthDataset], k='uniform', variation_factor_indices=None, return_factors=False):
+    def __init__(self, dataset: GroundTruthDataset, k='uniform', variation_factor_indices=None, return_factors=False):
         """
         Dataset that pairs together samples with at most k differing factors of variation.
 
@@ -45,7 +45,7 @@ class PairedVariationDataset(Dataset):
         assert isinstance(dataset, GroundTruthDataset), 'passed object is not an instance of GroundTruthDataset'
         assert len(dataset) > 1, 'Dataset must be contain more than one observation.'
         # wrapped dataset
-        self._dataset: GroundTruthDataset = dataset
+        self._dataset = dataset
         # possible fixed dimensions between pairs
         self._variation_factor_indices = np.arange(self._dataset.data.num_factors) if (variation_factor_indices is None) else np.array(variation_factor_indices)
         # d
@@ -63,7 +63,7 @@ class PairedVariationDataset(Dataset):
     def __len__(self):
         # TODO: is dataset as big as the latent space OR as big as the orig.
         # return self._latent_space.size
-        return self._dataset.data.size
+        return len(self._dataset.data)
 
     def __getitem__(self, idx):
         if self._return_factors:

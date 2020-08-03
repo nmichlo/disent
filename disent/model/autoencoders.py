@@ -1,4 +1,3 @@
-import gin
 import torch
 from torch import Tensor
 from disent.model.base import BaseDecoderModule, BaseEncoderModule, BaseModule
@@ -9,19 +8,15 @@ from disent.model.base import BaseDecoderModule, BaseEncoderModule, BaseModule
 # ========================================================================= #
 
 
-@gin.configurable('model.AutoEncoder')
 class AutoEncoder(BaseModule):
 
-    def __init__(
-            self,
-            encoder: BaseEncoderModule = gin.REQUIRED,
-            decoder: BaseDecoderModule = gin.REQUIRED
-    ):
+    def __init__(self, encoder: BaseEncoderModule, decoder: BaseDecoderModule):
         assert isinstance(encoder, BaseEncoderModule)
         assert isinstance(decoder, BaseDecoderModule)
         self.encode = encoder
         self.decode = decoder
         # check sizes
+        assert encoder.z_multiplier == 1, 'z_multiplier must be 1 for encoder'
         assert encoder.x_shape == decoder.x_shape, 'x_shape mismatch'
         assert encoder.x_size == decoder.x_size, 'x_size mismatch - this should never happen if x_shape matches'
         assert encoder.z_size == decoder.z_size, 'z_size mismatch'
@@ -38,24 +33,22 @@ class AutoEncoder(BaseModule):
 # ========================================================================= #
 
 
-@gin.configurable('model.GaussianAutoEncoder')
 class GaussianAutoEncoder(BaseModule):
 
-    def __init__(
-            self,
-            encoder: BaseEncoderModule = gin.REQUIRED,
-            decoder: BaseDecoderModule = gin.REQUIRED
-    ):
+    def __init__(self, encoder: BaseEncoderModule, decoder: BaseDecoderModule):
         assert isinstance(encoder, BaseEncoderModule)
         assert isinstance(decoder, BaseDecoderModule)
-        self._encoder = encoder
-        self._decoder = decoder
         # check sizes
+        assert encoder.z_multiplier == 2, 'z_multiplier must be 2 for gaussian encoder (encoder output is split into z_mean and z_logvar)'
         assert encoder.x_shape == decoder.x_shape, 'x_shape mismatch'
         assert encoder.x_size == decoder.x_size, 'x_size mismatch - this should never happen if x_shape matches'
-        assert encoder.z_size == decoder.z_size * 2, 'z_size mismatch, encoder.size != 2*decoder.z_size (encoder output is split into z_mean and z_logvar)'
+        assert encoder.z_size == decoder.z_size, 'z_size mismatch'
         # initialise
         super().__init__(x_shape=decoder.x_shape, z_size=decoder.z_size)
+        # assign
+        self._encoder = encoder
+        self._decoder = decoder
+
 
     @staticmethod
     def reparameterize(z_mean: Tensor, z_logvar: Tensor) -> Tensor:

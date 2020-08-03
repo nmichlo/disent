@@ -1,8 +1,8 @@
+import logging
 import numpy as np
 from disent.dataset.ground_truth_data.base_data import DownloadableGroundTruthData
-from disent.util import make_logger
 
-log = make_logger()
+log = logging.getLogger(__name__)
 
 # ========================================================================= #
 # mpi3d                                                                   #

@@ -22,19 +22,19 @@
 
 
 """Methods to visualize latent factors in the data sets."""
-
+import logging
 import os
 from typing import Union
 import numpy as np
 
 from disent.dataset.ground_truth_data.base_data import GroundTruthData
 from disent.frameworks.unsupervised.betavae import lerp_step
-from disent.util import TempNumpySeed, make_logger, to_numpy
+from disent.util import TempNumpySeed, to_numpy
 from disent.visualize import visualize_util
 from disent.dataset.util.in_out import ensure_dir_exists
 from disent.dataset import DEPRICATED_as_data
 
-log = make_logger()
+log = logging.getLogger(__name__)
 
 # ========================================================================= #
 # Visualise Ground Truth Datasets                                           #

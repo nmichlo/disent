@@ -6,6 +6,7 @@ encoder:
     params:
       x_shape: ${dataset.x_shape}
       z_size: ${model.z_size}
+      z_multiplier: 2
       h_size1: 256
       h_size2: 128
 decoder:

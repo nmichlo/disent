@@ -1,11 +1,9 @@
-import gin
+import logging
 import numpy as np
-import torch
 import torch.nn as nn
 from torch import Tensor
-from disent.util import make_logger
 
-log = make_logger()
+log = logging.getLogger(__name__)
 
 # ========================================================================= #
 # Utility Layers                                                            #
@@ -52,11 +50,12 @@ class Flatten3D(nn.Module):
 
 
 class BaseModule(nn.Module):
-    def __init__(self, x_shape=(3, 64, 64), z_size=6):
+    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
         super().__init__()
         self._x_shape = x_shape
         self._x_size = int(np.prod(x_shape))
         self._z_size = z_size
+        self._z_multiplier = z_multiplier
 
     @property
     def x_shape(self):
@@ -67,13 +66,19 @@ class BaseModule(nn.Module):
     @property
     def z_size(self):
         return self._z_size
+    @property
+    def z_multiplier(self):
+        return self._z_multiplier
+    @property
+    def z_total(self):
+        return self._z_size * self._z_multiplier
 
     def assert_x_valid(self, x):
         assert x.ndim == 4
         assert x.shape[1:] == self.x_shape, f'X shape mismatch. Required: {self.x_shape} Got: {x.shape[1:]}'
     def assert_z_valid(self, z):
         assert z.ndim == 2
-        assert z.shape[1] == self.z_size, f'Z size mismatch. Required: {self.z_size} Got: {z.shape[1]}'
+        assert z.shape[1] == self.z_total, f'Z size mismatch. Required: {self.z_size} (x{self.z_multiplier}) = {self.z_total} Got: {z.shape[1]}'
     def assert_lengths(self, x, z):
         assert len(x) == len(z)
 
@@ -98,6 +103,10 @@ class BaseEncoderModule(BaseModule):
 
 
 class BaseDecoderModule(BaseModule):
+    
+    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
+        assert z_multiplier == 1, 'decoder does not support z_multiplier != 1'
+        super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
     def forward(self, z):
         """same as self.decode but with size checks"""

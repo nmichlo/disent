@@ -23,15 +23,15 @@
 """
 Utility functions for the visualization code.
 """
-
+import logging
 import math
 import numpy as np
 from PIL import Image
 import scipy.stats
 import imageio
-from disent.util import make_logger, to_numpy
+from disent.util import to_numpy
 
-log = make_logger()
+log = logging.getLogger(__name__)
 
 # ========================================================================= #
 # Saving Images/Animations | FROM: disentanglement_lib                      #

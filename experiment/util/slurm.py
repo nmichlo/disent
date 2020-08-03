@@ -1,8 +1,8 @@
+import logging
 import os
 import submitit
-from disent.util import make_logger
 
-log = make_logger()
+log = logging.getLogger(__name__)
 
 # ========================================================================= #
 # slurm                                                                     #

@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import List, Tuple
 import h5py
@@ -5,9 +6,8 @@ import torch
 import numpy as np
 from disent.dataset.util.in_out import basename_from_url, download_file, ensure_dir_exists
 from disent.dataset.util.state_space import StateSpace
-from disent.util import make_logger
 
-log = make_logger()
+log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
@@ -15,15 +15,12 @@ log = make_logger()
 # ========================================================================= #
 
 
-class GroundTruthData(object):
+class GroundTruthData(StateSpace):
 
     def __init__(self):
         assert len(self.factor_names) == len(self.factor_sizes), 'Dimensionality mismatch of FACTOR_NAMES and FACTOR_DIMS'
-        self.state_space = StateSpace(self.factor_sizes)
+        super().__init__(self.factor_sizes)
         
-    def __len__(self):
-        return len(self.state_space)
-
     def sample_observations(self, num_samples):
         """Sample a batch of observations X."""
         factors, observations = self.sample(num_samples)
@@ -31,7 +28,7 @@ class GroundTruthData(object):
 
     def sample_observations_from_factors(self, factors):
         """Sample a batch of observations X given a batch of factors Y."""
-        observations = [self[self.state_space.pos_to_idx(factor)] for factor in factors]
+        observations = [self[self.pos_to_idx(factor)] for factor in factors]
         # TODO: this should be configurable
         if torch.is_tensor(observations[0]):
             observations = torch.stack(observations)
@@ -42,10 +39,10 @@ class GroundTruthData(object):
 
     def sample(self, num_samples):
         """Sample a batch of factors Y and observations X."""
-        factors = self.state_space.sample_factors(num_samples)
+        factors = self.sample_factors(num_samples)
         observations = self.sample_observations_from_factors(factors)
         return factors, observations
-
+    
     @property
     def factor_names(self) -> Tuple[str, ...]:
         raise NotImplementedError()

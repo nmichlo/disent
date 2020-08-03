@@ -1,3 +1,0 @@
-
-run.cuda = True
-# run.loggers = [@pl.loggers.WandbLogger]

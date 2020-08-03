@@ -1,13 +1,13 @@
-import gin
+import logging
+
 import torch
 
 from disent.frameworks.framework import BaseFramework
 from disent.frameworks.weaklysupervised.adavae import (AdaVae, estimate_shared)
 from disent.frameworks.unsupervised.vae import TrainingData, bce_loss_with_logits, kl_normal_loss
 from disent.model import GaussianAutoEncoder
-from disent.util import make_logger
 
-log = make_logger()
+log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
@@ -15,7 +15,6 @@ log = make_logger()
 # ========================================================================= #
 
 
-@gin.configurable('framework.supervised.GuidedAdaVae')
 class GuidedAdaVae(BaseFramework):
 
     MODE_ADAVAE = 'adavae'
@@ -94,26 +93,26 @@ class GuidedAdaVae(BaseFramework):
 
         # modify threshold based on criterion and recompute if necessary
         # CORE of this approach!
-        old_p_ave_mask, old_n_ave_mask = p_shared_mask, n_shared_mask
-        p_shared_mask, n_shared_mask = compute_constrained_masks(p_kl_deltas, old_p_ave_mask, n_kl_deltas, old_n_ave_mask)
+        old_p_shared_mask, old_n_shared_mask = p_shared_mask, n_shared_mask
+        p_shared_mask, n_shared_mask = compute_constrained_masks(p_kl_deltas, old_p_shared_mask, n_kl_deltas, old_n_shared_mask)
 
         # if self.mode == 'adavae':
         #     new_args, _ = self.adavae.intercept_z(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar)
         # elif self.mode == 'ave_pos':
         #     new_args = self.adavae.make_averaged(a_z_mean.clone(), a_z_logvar.clone(), p_z_mean, p_z_logvar, p_shared_mask)
         if self.mode == 'ave_triple':
-            (pAz_mean, pAz_logvar), (p_z_mean, p_z_logvar) = self.adavae.make_averaged(a_z_mean.clone(), a_z_logvar.clone(), p_z_mean, p_z_logvar, p_shared_mask)
-            (nAz_mean, nAz_logvar), (n_z_mean, n_z_logvar) = self.adavae.make_averaged(a_z_mean.clone(), a_z_logvar.clone(), n_z_mean, n_z_logvar, n_shared_mask)
+            pAz_mean, pAz_logvar, p_z_mean, p_z_logvar = self.adavae.make_averaged(a_z_mean.clone(), a_z_logvar.clone(), p_z_mean, p_z_logvar, p_shared_mask)
+            nAz_mean, nAz_logvar, n_z_mean, n_z_logvar = self.adavae.make_averaged(a_z_mean.clone(), a_z_logvar.clone(), n_z_mean, n_z_logvar, n_shared_mask)
             a_z_mean, a_z_logvar = self.adavae.compute_average(pAz_mean, pAz_logvar, nAz_mean, nAz_logvar)
             new_args = a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar
         else:
             raise KeyError
 
         return new_args, {
-            'p_shared_before': old_p_ave_mask.sum() / len(a_z_mean),
-            'p_shared_after': p_shared_mask.sum() / len(a_z_mean),
-            'n_shared_before': old_n_ave_mask.sum() / len(a_z_mean),
-            'n_shared_after': n_shared_mask.sum() / len(a_z_mean),
+            'p_shared_before': old_p_shared_mask.sum(dim=1).float().mean(),
+            'p_shared_after':      p_shared_mask.sum(dim=1).float().mean(),
+            'n_shared_before': old_n_shared_mask.sum(dim=1).float().mean(),
+            'n_shared_after':      n_shared_mask.sum(dim=1).float().mean(),
         }
 
     def compute_loss(self, a_data: TrainingData, p_data: TrainingData, n_data: TrainingData):

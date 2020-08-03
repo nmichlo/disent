@@ -1,4 +1,5 @@
-import gin
+import logging
+
 import torch
 
 from disent.frameworks.framework import BaseFramework
@@ -6,12 +7,13 @@ from disent.model import GaussianAutoEncoder
 from disent.frameworks.unsupervised.vae import TrainingData, bce_loss_with_logits, kl_normal_loss
 
 
+log = logging.getLogger(__name__)
+
 # ========================================================================= #
 # Ada-GVAE                                                                  #
 # ========================================================================= #
 
 
-@gin.configurable('framework.weaklysupervised.AdaVae')
 class AdaVae(BaseFramework):
     
     AVE_MODE_GVAE = 'gvae'
@@ -60,7 +62,9 @@ class AdaVae(BaseFramework):
         # make averaged z parameters
         new_args = self.make_averaged(z0_mean, z0_logvar, z1_mean, z1_logvar, share_mask)
         # return new args & generate logs
-        return new_args, {'shared': share_mask.sum(dim=1).mean()}
+        return new_args, {
+            'shared': share_mask.sum(dim=1).float().mean(),
+        }
 
     def make_averaged(self, z0_mean, z0_logvar, z1_mean, z1_logvar, share_mask):
         # compute average posteriors

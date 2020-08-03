@@ -1,6 +1,6 @@
 import logging
 import os
-
+from omegaconf import DictConfig
 import hydra
 import numpy as np
 import pytorch_lightning as pl
@@ -8,14 +8,12 @@ import torch
 import torch.utils.data
 import torchvision
 import wandb
-from omegaconf import DictConfig
 from pytorch_lightning.loggers import WandbLogger
 
 from disent.dataset.single import GroundTruthDataset
-from disent.frameworks.unsupervised.vae import VaeLoss
-from disent.metrics import compute_dci, compute_factor_vae
-from disent.model import GaussianAutoEncoder
-from disent.util import TempNumpySeed, make_box_str, to_numpy
+from disent.frameworks.framework import BaseFramework
+from disent.model import EncoderConv64, GaussianAutoEncoder
+from disent.util import TempNumpySeed, make_box_str
 from disent.visualize.visualize_model import latent_cycle
 from disent.visualize.visualize_util import gridify_animation, reconstructions_to_images
 
@@ -39,11 +37,10 @@ class HydraSystem(pl.LightningModule):
             hydra.utils.instantiate(self.hparams.model.decoder.cls)
         )
         # framework
-        self.framework: VaeLoss = hydra.utils.instantiate(self.hparams.framework.cls)
+        self.framework: BaseFramework = hydra.utils.instantiate(self.hparams.framework.cls)
         # data
         self.dataset = None
         self.dataset_train = None
-        # self.dataset_val = None
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Initialisation                                                        #
@@ -90,19 +87,7 @@ class HydraSystem(pl.LightningModule):
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     def training_step(self, batch, batch_idx):
-        # handle single case
-        if isinstance(batch, torch.Tensor):
-            batch = [batch]
-        assert len(batch) == self.framework.required_observations, f'Incorrect number of observations ({len(batch)}) for loss: {self.framework.__class__.__name__} ({self.framework.required_observations})'
-        # encode, then intercept and mutate if needed [(z_mean, z_logvar), ...]
-        z_params = [self.model.encode_gaussian(x) for x in batch]
-        z_params = self.framework.intercept_z(*z_params)
-        # reparameterize
-        zs = [self.model.reparameterize(z0_mean, z0_logvar) for z0_mean, z0_logvar in z_params]
-        # reconstruct
-        x_recons = [self.model.decode(z) for z in zs]
-        # compute loss [(x, x_recon, (z_mean, z_logvar), z), ...]
-        loss_dict = self.framework.compute_loss(*[forward_data for forward_data in zip(batch, x_recons, z_params, zs)])
+        loss_dict = self.framework.training_step(self.model, batch)
         # log & train
         return {
             'loss': loss_dict['train_loss'],
@@ -123,7 +108,6 @@ class HydraSystem(pl.LightningModule):
     #     final model fit on the training dataset.
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    @pl.data_loader
     def train_dataloader(self):
         # Sample of data used to fit the model.
         return torch.utils.data.DataLoader(
@@ -132,8 +116,6 @@ class HydraSystem(pl.LightningModule):
             num_workers=self.hparams.dataset.num_workers,
             shuffle=True
         )
-
-
 
 
 # ========================================================================= #
@@ -173,7 +155,6 @@ class LatentCycleLoggingCallback(pl.Callback):
 # RUNNER                                                                    #
 # ========================================================================= #
 
-
 @hydra.main(config_path='hydra_config', config_name="config")
 def main(cfg: DictConfig):
     # print hydra config
@@ -203,7 +184,7 @@ def main(cfg: DictConfig):
         logger = WandbLogger(
             name=cfg.logging.wandb.name,
             project=cfg.logging.wandb.project,
-            group=cfg.logging.wandb.get('group', None),
+            # group=cfg.logging.wandb.get('group', None),
             tags=cfg.logging.wandb.get('tags', None),
             entity=cfg.logging.get('entity', None),
             save_dir=hydra.utils.to_absolute_path(cfg.logging.logs_dir),  # relative to hydra's original cwd
@@ -244,13 +225,13 @@ def main(cfg: DictConfig):
 
     # EVALUATE
 
-    metrics = [compute_dci, compute_factor_vae]
-    for metric in metrics:
-        scores = metric(system.dataset, system.model.encode_deterministic)
-        log.info(f'{metric.__name__}:\n{DictConfig(scores).pretty()}')
-        if logger:
-            assert isinstance(logger, WandbLogger)
-            logger.experiment.log(scores, commit=False, step=0)
+    # metrics = [compute_dci, compute_factor_vae]
+    # for metric in metrics:
+    #     scores = metric(system.dataset, system.model.encode_deterministic)
+    #     log.info(f'{metric.__name__}:\n{DictConfig(scores).pretty()}')
+    #     if logger:
+    #         assert isinstance(logger, WandbLogger)
+    #         logger.experiment.log(scores, commit=False, step=0)
 
 # ========================================================================= #
 # MAIN                                                                      #
