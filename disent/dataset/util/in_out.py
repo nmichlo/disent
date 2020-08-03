@@ -1,6 +1,6 @@
-import logging
+from disent.util import make_logger
 
-log = logging.getLogger(__name__)
+log = make_logger()
 
 # ========================================================================= #
 # io                                                                        #

@@ -1,4 +1,3 @@
-import logging
 import os
 from typing import List, Tuple
 import h5py
@@ -6,8 +5,9 @@ import torch
 import numpy as np
 from disent.dataset.util.in_out import basename_from_url, download_file, ensure_dir_exists
 from disent.dataset.util.state_space import StateSpace
+from disent.util import make_logger
 
-log = logging.getLogger(__name__)
+log = make_logger()
 
 
 # ========================================================================= #

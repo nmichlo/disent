@@ -13,13 +13,9 @@ h5py
 
 submitit
 wandb
-comet-ml
-
+coloredlogs
 gin-config
-hydra-core
-hydra-colorlog
-hydra-joblib-launcher
-hydra-submitit-launcher
+pytest
 
 torch
 torchvision
@@ -28,5 +24,3 @@ pytorch-lightning
 
 tensorflow-gpu
 tensorboard
-
-pytest

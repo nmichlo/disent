@@ -24,15 +24,14 @@
 Utility functions for the visualization code.
 """
 
-import logging
 import math
 import numpy as np
 from PIL import Image
 import scipy.stats
 import imageio
-from disent.util import to_numpy
+from disent.util import make_logger, to_numpy
 
-log = logging.getLogger(__name__)
+log = make_logger()
 
 # ========================================================================= #
 # Saving Images/Animations | FROM: disentanglement_lib                      #

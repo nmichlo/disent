@@ -1,8 +1,7 @@
-import logging
-
 from disent.frameworks.unsupervised.vae import VaeLoss
+from disent.util import make_logger
 
-log = logging.getLogger(__name__)
+log = make_logger()
 
 # ========================================================================= #
 # Beta-VAE Loss                                                             #

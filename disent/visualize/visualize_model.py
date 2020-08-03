@@ -30,12 +30,11 @@ from disent.dataset.util.in_out import ensure_dir_exists
 from disent.visualize import visualize_util
 from disent.dataset import DEPRICATED_as_dataset
 from disent.visualize.visualize_util import reconstructions_to_images
-from disent.util import TempNumpySeed, to_numpy
+from disent.util import TempNumpySeed, make_logger, to_numpy
 import numpy as np
 import torch
-import logging
 
-log = logging.getLogger(__name__)
+log = make_logger()
 
 # ========================================================================= #
 # Visualise varying single factor for model                                 #

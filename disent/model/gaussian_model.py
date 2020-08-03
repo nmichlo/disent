@@ -1,3 +1,4 @@
+import gin
 import torch
 from torch import Tensor
 from disent.model.base import BaseDecoderModule, BaseGaussianEncoderModule

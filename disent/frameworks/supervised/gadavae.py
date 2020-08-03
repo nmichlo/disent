@@ -1,12 +1,9 @@
-from disent.frameworks.semisupervised.adavae import (AdaVaeLoss, estimate_shared)
-
-import numpy as np
 import torch
-import logging
-
+from disent.frameworks.semisupervised.adavae import (AdaVaeLoss, estimate_shared)
 from disent.frameworks.unsupervised.vae import bce_loss_with_logits, kl_normal_loss
+from disent.util import make_logger
 
-log = logging.getLogger(__name__)
+log = make_logger()
 
 
 # ========================================================================= #

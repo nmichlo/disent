@@ -1,11 +1,11 @@
-import logging
 import os
 import shutil
 import numpy as np
-from disent.dataset.ground_truth_data.base_data import DownloadableGroundTruthData
 from scipy.io import loadmat
+from disent.dataset.ground_truth_data.base_data import DownloadableGroundTruthData
+from disent.util import make_logger
 
-log = logging.getLogger(__name__)
+log = make_logger()
 
 # ========================================================================= #
 # dataset_cars3d                                                            #
