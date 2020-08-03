@@ -7,6 +7,7 @@ from disent.frameworks.weaklysupervised.adavae import (AdaVae, estimate_shared)
 from disent.frameworks.unsupervised.vae import TrainingData, bce_loss_with_logits, kl_normal_loss
 from disent.model import GaussianAutoEncoder
 
+
 log = logging.getLogger(__name__)
 
 
@@ -27,6 +28,7 @@ class GuidedAdaVae(BaseFramework):
             self,
             beta=4,
             average_mode=AdaVae.AVE_MODE_GVAE,
+            thresh_mode=AdaVae.THRESH_MODE_KL_MID,
             mode=MODE_AVE_TRIPLET,
             triplet_scale=0,
             triplet_alpha=0.3,
@@ -34,7 +36,7 @@ class GuidedAdaVae(BaseFramework):
     ):
         # adavae instance
         assert average_mode == AdaVae.AVE_MODE_GVAE, f'currently only supports average_mode={repr(AdaVae.AVE_MODE_GVAE)}'
-        self.adavae = AdaVae(beta=beta, average_mode=average_mode)
+        self.adavae = AdaVae(beta=beta, average_mode=average_mode, thresh_mode=thresh_mode)
         # set mode
         assert mode in GuidedAdaVae.MODES, f'invalid {mode=}, must be one of {GuidedAdaVae.MODES}'
         self.mode = mode
@@ -96,11 +98,13 @@ class GuidedAdaVae(BaseFramework):
         old_p_shared_mask, old_n_shared_mask = p_shared_mask, n_shared_mask
         p_shared_mask, n_shared_mask = compute_constrained_masks(p_kl_deltas, old_p_shared_mask, n_kl_deltas, old_n_shared_mask)
 
-        # if self.mode == 'adavae':
-        #     new_args, _ = self.adavae.intercept_z(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar)
-        # elif self.mode == 'ave_pos':
-        #     new_args = self.adavae.make_averaged(a_z_mean.clone(), a_z_logvar.clone(), p_z_mean, p_z_logvar, p_shared_mask)
-        if self.mode == 'ave_triple':
+        if self.mode == GuidedAdaVae.MODE_ADAVAE:
+            raise KeyError(f'{self.mode=} has been disabled')
+            new_args, _ = self.adavae.intercept_z(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar)
+        elif self.mode == GuidedAdaVae.MODE_AVE_POS:
+            raise KeyError(f'{self.mode=} has been disabled')
+            new_args = self.adavae.make_averaged(a_z_mean.clone(), a_z_logvar.clone(), p_z_mean, p_z_logvar, p_shared_mask)
+        elif self.mode == GuidedAdaVae.MODE_AVE_TRIPLET:
             pAz_mean, pAz_logvar, p_z_mean, p_z_logvar = self.adavae.make_averaged(a_z_mean.clone(), a_z_logvar.clone(), p_z_mean, p_z_logvar, p_shared_mask)
             nAz_mean, nAz_logvar, n_z_mean, n_z_logvar = self.adavae.make_averaged(a_z_mean.clone(), a_z_logvar.clone(), n_z_mean, n_z_logvar, n_shared_mask)
             a_z_mean, a_z_logvar = self.adavae.compute_average(pAz_mean, pAz_logvar, nAz_mean, nAz_logvar)
@@ -117,7 +121,7 @@ class GuidedAdaVae(BaseFramework):
 
     def compute_loss(self, a_data: TrainingData, p_data: TrainingData, n_data: TrainingData):
         # COMPUTE LOSS FOR TRIPLE:
-        if self.mode == 'ave_triple':
+        if self.mode == GuidedAdaVae.MODE_AVE_TRIPLET:
             (a_x, a_x_recon, a_z_mean, a_z_logvar, a_z_sampled) = a_data
             (p_x, p_x_recon, p_z_mean, p_z_logvar, p_z_sampled) = p_data
             (n_x, n_x_recon, n_z_mean, n_z_logvar, n_z_sampled) = n_data
@@ -155,9 +159,10 @@ class GuidedAdaVae(BaseFramework):
                 })
 
         # COMPUTE LOSS FOR PAIR:
-        # elif (self.mode == 'adavae') or (self.mode == 'ave_pos'):
-        #     assert self.triplet_scale == 0, f'triplet_scale={repr(self.triplet_scale)}, triplet_scale > 0 is not supported for the current mode={self.mode}'
-        #     loss_dict = self.adavae.compute_loss()
+        elif (self.mode == GuidedAdaVae.MODE_ADAVAE) or (self.mode == GuidedAdaVae.MODE_AVE_POS):
+            raise KeyError(f'{self.mode=} has been disabled')
+            assert self.triplet_scale == 0, f'triplet_scale={repr(self.triplet_scale)}, triplet_scale > 0 is not supported for the current mode={self.mode}'
+            loss_dict = self.adavae.compute_loss()
         else:
             raise KeyError
 
@@ -211,7 +216,7 @@ def triplet_loss(anchor, positive, negative, alpha=0.3):
     positive_dist = torch.sum((anchor - positive)**2, dim=1)
     negative_dist = torch.sum((anchor - negative)**2, dim=1)
     clamped = torch.clamp_min((positive_dist - negative_dist) + alpha, 0)
-    loss = torch.sum(clamped, dim=0)
+    loss = torch.mean(clamped, dim=0)  # TODO: this was sum
     return loss
 
 

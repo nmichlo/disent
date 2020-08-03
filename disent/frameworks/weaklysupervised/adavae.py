@@ -1,13 +1,12 @@
 import logging
-
 import torch
-
 from disent.frameworks.framework import BaseFramework
 from disent.model import GaussianAutoEncoder
 from disent.frameworks.unsupervised.vae import TrainingData, bce_loss_with_logits, kl_normal_loss
 
 
 log = logging.getLogger(__name__)
+
 
 # ========================================================================= #
 # Ada-GVAE                                                                  #
@@ -16,19 +15,28 @@ log = logging.getLogger(__name__)
 
 class AdaVae(BaseFramework):
     
-    AVE_MODE_GVAE = 'gvae'
+    AVE_MODE_GVAE = 'gvae'  # best
     AVE_MODE_ML_VAE = 'ml-vae'
-    
     AVE_MODES = {AVE_MODE_GVAE, AVE_MODE_ML_VAE}
     
-    def __init__(self, beta=4, average_mode=AVE_MODE_GVAE):
+    THRESH_MODE_KL_MID = 'kl_mid'  # original
+    THRESH_MODE_KL_STD = 'kl_std'
+    THRESH_MODE_KL_MEAN = 'kl_mean'
+    THRESH_MODE_KL_MEDIAN = 'kl_median'
+    
+    THRESH_MODES = {THRESH_MODE_KL_MID, THRESH_MODE_KL_STD, THRESH_MODE_KL_MEAN, THRESH_MODE_KL_MEDIAN}
+    
+    def __init__(self, beta=4, average_mode=AVE_MODE_GVAE, thresh_mode=THRESH_MODE_KL_MID):
         # set averaging function
         if average_mode == AdaVae.AVE_MODE_GVAE:
             self.compute_average = compute_average_gvae
         elif average_mode == AdaVae.AVE_MODE_ML_VAE:
             self.compute_average = compute_average_ml_vae
         else:
-            raise KeyError(f'Invalid averaging mode: {repr(average_mode)}, must be one of: {AdaVae.AVE_MODES}')
+            raise KeyError(f'Invalid {average_mode=}, must be one of: {AdaVae.AVE_MODES}')
+        # check thresholding mode
+        assert thresh_mode in AdaVae.THRESH_MODES, f'Invalid {thresh_mode=}, must be one of: {AdaVae.THRESH_MODES}'
+        self.thresh_mode = thresh_mode
         # beta-vae params
         self.beta = beta
 
@@ -58,7 +66,7 @@ class AdaVae(BaseFramework):
     
     def intercept_z(self, z0_mean, z0_logvar, z1_mean, z1_logvar):
         # shared elements that need to be averaged, computed per pair in the batch.
-        _, _, share_mask = estimate_shared(z0_mean, z0_logvar, z1_mean, z1_logvar)
+        _, _, share_mask = estimate_shared(z0_mean, z0_logvar, z1_mean, z1_logvar, thresh_mode=self.thresh_mode)
         # make averaged z parameters
         new_args = self.make_averaged(z0_mean, z0_logvar, z1_mean, z1_logvar, share_mask)
         # return new args & generate logs
@@ -115,18 +123,37 @@ def kl_normal_loss_pair_elements(z_mean, z_logvar, z2_mean, z2_logvar):
     # return 0.5 * (σ0.exp()/σ1.exp() + (μ1 - μ0).pow(2)/σ1.exp() - 1 + (logv1 - logv0))
     return 0.5 * ((z_logvar.exp() / z2_logvar.exp()) + (z2_mean - z_mean).pow(2) / z2_logvar.exp() - 1 + (z2_logvar - z_logvar))
 
-def estimate_kl_threshold(kl_deltas):
+def estimate_kl_threshold(kl_deltas, thresh_mode=AdaVae.THRESH_MODE_KL_MID):
     """
     Compute the threshold for each image pair in a batch of kl divergences of all elements of the latent distributions.
     It should be noted that for a perfectly trained model, this threshold is always correct.
     """
-
+    # TODO: what would happen if you took the std across the batch and the std across the vector
+    #       and then took one less than the other for the thresh? What is that intuition?
+    
+    # TODO: what would happen if you used a ratio between min and max instead of the mask and hard averaging
+    
     # Must return threshold for each image pair, not over entire batch.
-    # specifying the axis returns a tuple of values and indices... better way?
-    threshs = 0.5 * (kl_deltas.max(axis=1).values + kl_deltas.min(axis=1).values)
-    return threshs[:, None]  # re-add the flattened dimension, shape=(batch_size, 1)
+    if thresh_mode == AdaVae.THRESH_MODE_KL_MID:
+        # half way between the min and max divergence
+        # specifying the axis returns a tuple of values and indices... better way?
+        return 0.5 * (kl_deltas.max(axis=1, keepdim=True).values + kl_deltas.min(axis=1, keepdim=True).values)
+    elif thresh_mode == AdaVae.THRESH_MODE_KL_STD:
+        raise KeyError(f'{thresh_mode=} has been disabled')
+        # this seems to work okay
+        return kl_deltas.std(axis=1, keepdim=True)
+    elif thresh_mode == AdaVae.THRESH_MODE_KL_MEAN:
+        raise KeyError(f'{thresh_mode=} has been disabled')
+        # ???
+        return kl_deltas.mean(axis=1, keepdim=True)
+    elif thresh_mode == AdaVae.THRESH_MODE_KL_MEDIAN:
+        raise KeyError(f'{thresh_mode=} has been disabled')
+        # quite terrible
+        return kl_deltas.median(axis=1, keepdim=True).values
+    else:
+        raise KeyError(f'Invalid {thresh_mode=}, must be one of: {AdaVae.THRESH_MODES}')
 
-def estimate_shared(z0_mean, z0_logvar, z1_mean, z1_logvar):
+def estimate_shared(z0_mean, z0_logvar, z1_mean, z1_logvar, thresh_mode=AdaVae.THRESH_MODE_KL_MID):
     """
     Core of the adaptive VAE algorithm, estimating which factors
     have changed (or in this case which are shared and should remained unchanged
@@ -134,9 +161,12 @@ def estimate_shared(z0_mean, z0_logvar, z1_mean, z1_logvar):
     """
     # shared elements that need to be averaged, computed per pair in the batch.
     kl_deltas = kl_normal_loss_pair_elements(z0_mean, z0_logvar, z1_mean, z1_logvar)  # [𝛿_i ...]
-    kl_threshs = estimate_kl_threshold(kl_deltas)  # threshold τ
+    kl_threshs = estimate_kl_threshold(kl_deltas, thresh_mode=thresh_mode)  # threshold τ
+    
+    assert kl_threshs.shape == (z0_mean.shape[0], 1), f'{kl_threshs.shape} != {(z0_mean.shape[0], 1)}'
 
-    shared_mask = kl_deltas < kl_threshs  # true if 'unchanged' and should be average
+    # true if 'unchanged' and should be average
+    shared_mask = kl_deltas < kl_threshs
 
     return kl_deltas, kl_threshs, shared_mask
 

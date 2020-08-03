@@ -1,5 +1,5 @@
 defaults:
-  - framework: gadavae
+  - framework: betavae
   - model: conv64
   - optimizer: radam
   - dataset: xyscalecolorgrid
