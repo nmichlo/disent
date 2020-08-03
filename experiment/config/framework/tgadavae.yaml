@@ -12,6 +12,6 @@ cls:
 
 augment_dataset:
   cls:
-    target: disent.dataset.ground_truth.base.SupervisedTripletDataset
+    target: disent.dataset.triplets.SupervisedTripletDataset
     params:
       k: 1

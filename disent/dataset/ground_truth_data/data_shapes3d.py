@@ -1,4 +1,4 @@
-from disent.dataset.ground_truth.base import Hdf5PreprocessedGroundTruthData
+from disent.dataset.ground_truth_data.base_data import Hdf5PreprocessedGroundTruthData
 
 
 # ========================================================================= #
@@ -40,7 +40,7 @@ class Shapes3dData(Hdf5PreprocessedGroundTruthData):
 
 if __name__ == '__main__':
     import numpy as np
-    from disent.dataset.ground_truth.base import PairedVariationDataset
+    from disent.dataset.pairs import PairedVariationDataset
 
     dataset = Shapes3dData(data_dir='data/dataset/shapes3d-1-64-64-3')
     # pair_dataset = PairedVariationDataset(dataset, k='uniform')

@@ -39,7 +39,7 @@ def download_file(url, save_path=None, overwrite_existing=False, chunk_size=4096
         log.info(f'inferred save_path="{save_path}"')
 
     # split path
-    # TODO: also used in base.py for processing, convert to with syntax.
+    # TODO: also used in base_data.py for processing, convert to with syntax.
     path_dir, path_base = os.path.split(save_path)
     ensure_dir_exists(path_dir)
 

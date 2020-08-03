@@ -1,7 +1,7 @@
 # @package _group_
 name: 3dshapes
 cls:
-  target: disent.dataset.ground_truth.data_shapes3d.Shapes3dData
+  target: disent.dataset.ground_truth_data.data_shapes3d.Shapes3dData
   params:
     data_dir: ${dataset.data_dir}/3dshapes
     in_memory: ${dataset.try_in_memory}

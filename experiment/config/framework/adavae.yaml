@@ -8,6 +8,6 @@ cls:
 
 augment_dataset:
   cls:
-    target: disent.dataset.ground_truth.base.PairedVariationDataset
+    target: disent.dataset.pairs.PairedVariationDataset
     params:
       k: 1

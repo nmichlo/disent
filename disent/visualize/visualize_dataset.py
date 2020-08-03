@@ -27,7 +27,7 @@ import os
 import logging
 from typing import Union
 
-from disent.dataset.ground_truth.base import GroundTruthData
+from disent.dataset.ground_truth_data.base_data import GroundTruthData
 from disent.frameworks.unsupervised.betavae import lerp_step
 from disent.util import TempNumpySeed, to_numpy
 from disent.visualize import visualize_util

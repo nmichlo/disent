@@ -11,7 +11,7 @@ import wandb
 from omegaconf import DictConfig
 from pytorch_lightning.loggers import WandbLogger
 
-from disent.dataset.ground_truth.base import GroundTruthDataset
+from disent.dataset.single import GroundTruthDataset
 from disent.frameworks.unsupervised.vae import VaeLoss
 from disent.metrics import compute_dci, compute_factor_vae
 from disent.model import GaussianEncoderDecoderModel

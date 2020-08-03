@@ -1,4 +1,4 @@
-from disent.dataset.ground_truth.base import Hdf5PreprocessedGroundTruthData, DownloadableGroundTruthData
+from disent.dataset.ground_truth_data.base_data import Hdf5PreprocessedGroundTruthData, DownloadableGroundTruthData
 
 
 # ========================================================================= #

@@ -11,12 +11,10 @@ class _BaseStateSpace(object):
     def size(self):
         """The number of permutations of factors handled by this state space"""
         raise NotImplementedError
-
     @property
     def num_factors(self):
         """The number of factors handled by this state space"""
         raise NotImplementedError
-    
     @property
     def factor_sizes(self):
         """A list of sizes or dimensionality of factors handled by this state space"""
@@ -25,11 +23,9 @@ class _BaseStateSpace(object):
     def __len__(self):
         """Same as self.size"""
         return self.size
-
     def __getitem__(self, idx):
         """same as self.idx_to_pos"""
         return self.idx_to_pos(idx)
-
     def __iter__(self):
         """iterate over all indices and return a corresponding coordinate/position vector"""
         for idx in range(self.size):
@@ -42,7 +38,6 @@ class _BaseStateSpace(object):
         - indices are integers < size
         """
         raise NotImplementedError
-
     def idx_to_pos(self, indices):
         """
         Convert an index to a position (or convert a list of indices to a list of positions)
@@ -57,7 +52,6 @@ class _BaseStateSpace(object):
         returned values must appear in the same order as factor_indices.
         """
         raise NotImplementedError
-
     def sample_missing_factors(self, partial_factors, partial_factor_indices):
         """
         Samples the remaining factors not given in the partial_factor_indices.
@@ -66,7 +60,6 @@ class _BaseStateSpace(object):
         (partial_factors must correspond to partial_factor_indices)
         """
         raise NotImplementedError
-
     def resample_factors(self, factors, fixed_factor_indices):
         """
         Resample across all the factors, keeping factor_indices constant.

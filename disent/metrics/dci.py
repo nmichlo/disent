@@ -21,7 +21,7 @@ Representations" (https://openreview.net/forum?id=By-7dz-AZ).
 import logging
 from tqdm import tqdm
 
-from disent.dataset.ground_truth.base import GroundTruthDataset
+from disent.dataset.single import GroundTruthDataset
 from disent.metrics import utils
 import numpy as np
 import scipy
