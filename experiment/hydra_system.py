@@ -14,7 +14,7 @@ from pytorch_lightning.loggers import WandbLogger
 from disent.dataset.single import GroundTruthDataset
 from disent.frameworks.unsupervised.vae import VaeLoss
 from disent.metrics import compute_dci, compute_factor_vae
-from disent.model import GaussianAutoEncoderModel
+from disent.model import GaussianAutoEncoder
 from disent.util import TempNumpySeed, make_box_str, to_numpy
 from disent.visualize.visualize_model import latent_cycle
 from disent.visualize.visualize_util import gridify_animation, reconstructions_to_images
@@ -34,7 +34,7 @@ class HydraSystem(pl.LightningModule):
         # hyper-parameters
         self.hparams = hparams
         # vae model
-        self.model = GaussianAutoEncoderModel(
+        self.model = GaussianAutoEncoder(
             hydra.utils.instantiate(self.hparams.model.encoder.cls),
             hydra.utils.instantiate(self.hparams.model.decoder.cls)
         )

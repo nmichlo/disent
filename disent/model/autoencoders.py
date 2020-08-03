@@ -10,7 +10,7 @@ from disent.model.base import BaseDecoderModule, BaseEncoderModule, BaseModule
 
 
 @gin.configurable('model.AutoEncoder')
-class AutoEncoderModule(BaseModule):
+class AutoEncoder(BaseModule):
 
     def __init__(
             self,
@@ -29,8 +29,9 @@ class AutoEncoderModule(BaseModule):
         super().__init__(x_shape=decoder.x_shape, z_size=decoder.z_size)
 
     def forward(self, x):
-        return self.decode(self.encode(x))
-
+        z = self.encode(x)
+        x_recon = self.decode(z)
+        return x_recon, z
 
 # ========================================================================= #
 # gaussian encoder model                                                    #
@@ -38,7 +39,7 @@ class AutoEncoderModule(BaseModule):
 
 
 @gin.configurable('model.GaussianAutoEncoder')
-class GaussianAutoEncoderModel(BaseModule):
+class GaussianAutoEncoder(BaseModule):
 
     def __init__(
             self,

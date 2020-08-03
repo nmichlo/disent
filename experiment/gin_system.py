@@ -1,8 +1,6 @@
-import logging
 import os
+from dataclasses import dataclass, field
 from typing import List, Optional, Union
-
-import coloredlogs as coloredlogs
 import gin
 
 import numpy as np
@@ -14,9 +12,10 @@ import wandb
 from pytorch_lightning.loggers import CometLogger, LightningLoggerBase, WandbLogger
 
 from disent.dataset.single import GroundTruthDataset
+from disent.frameworks.framework import BaseFramework
 from disent.frameworks.unsupervised.vae import VaeLoss
 from disent.metrics import compute_dci, compute_factor_vae
-from disent.model import GaussianEncoderDecoderModel
+from disent.model import GaussianAutoEncoder
 from disent.util import TempNumpySeed, make_box_str, make_logger, to_numpy
 from disent.visualize.visualize_model import latent_cycle
 from disent.visualize.visualize_util import gridify_animation, reconstructions_to_images
@@ -30,33 +29,27 @@ log = make_logger()
 # ========================================================================= #
 
 
+@gin.configurable('')
 class VaeSystem(pl.LightningModule):
 
-    def __init__(self, hparams):
+    def __init__(
+            self,
+            model=gin.REQUIRED,
+            framework=gin.REQUIRED,
+    ):
         super().__init__()
-        # hyper-parameters
-        self.hparams = hparams
         # vae model
-        self.model = GaussianEncoderDecoderModel()
+        self.model: GaussianAutoEncoder = model
         # framework
-        self.framework: VaeLoss = hydra.utils.instantiate(self.hparams.framework.cls)
+        self.framework: BaseFramework = framework
+        # dataset_name
         # data
         self.dataset = None
         self.dataset_train = None
-        # self.dataset_val = None
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Initialisation                                                        #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-
-    def prepare_data(self) -> None:
-        # *NB* Do not set model parameters here.
-        # - Instantiate data once to download and prepare if needed.
-        # - trainer.prepare_data_per_node affects this functions behavior per node.
-        if 'in_memory' in self.hparams.dataset.cls.params:
-            hydra.utils.instantiate(self.hparams.dataset.cls, in_memory=False)
-        else:
-            hydra.utils.instantiate(self.hparams.dataset.cls)
 
     def setup(self, stage: str):
         # single observations
@@ -97,8 +90,8 @@ class VaeSystem(pl.LightningModule):
         # encode, then intercept and mutate if needed [(z_mean, z_logvar), ...]
         z_params = [self.model.encode_gaussian(x) for x in batch]
         z_params = self.framework.intercept_z(*z_params)
-        # reparametrize
-        zs = [self.model.sample_from_latent_distribution(z0_mean, z0_logvar) for z0_mean, z0_logvar in z_params]
+        # reparameterize
+        zs = [self.model.reparameterize(z0_mean, z0_logvar) for z0_mean, z0_logvar in z_params]
         # reconstruct
         x_recons = [self.model.decode(z) for z in zs]
         # compute loss [(x, x_recon, (z_mean, z_logvar), z), ...]
@@ -177,17 +170,27 @@ class LatentCycleLoggingCallback(pl.Callback):
 gin.external_configurable(WandbLogger, 'pl.loggers.WandbLogger')
 gin.external_configurable(CometLogger, 'pl.loggers.CometLogger')
 
+@gin.configurable('logging')
+@dataclass
+class ConfigLogging:
+    logs_dir: str = '~/downloads/datasets/'
+    loggers: Optional[list] = None
+    
+
+
+@dataclass
+class Config:
+    logging: ConfigLogging = field(default_factory=ConfigLogging)
+
+
 @gin.configurable
-def main(
+def run(
         cuda: bool = gin.REQUIRED,
-        loggers: Optional[Union[LightningLoggerBase,List[LightningLoggerBase]]] = None,
+        data_dir: str = '~/downloads/datasets/',
+        prepare_data_per_node: bool = True,
 ):
     # directories
-    log.critical(f"Current working directory : {os.getcwd()}")
-    log.error(f"Current working directory : {os.getcwd()}")
-    log.warning(f"Current working directory : {os.getcwd()}")
     log.info(f"Current working directory : {os.getcwd()}")
-    log.debug(f"Current working directory : {os.getcwd()}")
 
     # warn about CUDA
     if torch.cuda.is_available():
@@ -197,30 +200,23 @@ def main(
         if cuda:
             log.error(f'{cuda=} but CUDA is not available on this machine!')
             exit()
+        else:
+            log.warning('CUDA is not available on this machine.')
 
-    log.info(loggers)
-
-    # # create trainer loggers
-    # logger, callbacks = None, []
-    # if cfg.logging.wandb.enabled:
-    #     log.info(f'wandb log directory: {os.path.abspath("wandb")}')
-    #     # TODO: this should be moved into configs, instantiated from a class & target
-    #     logger = WandbLogger(
-    #         name=cfg.logging.wandb.name,
-    #         project=cfg.logging.wandb.project,
-    #         group=cfg.logging.wandb.get('group', None),
-    #         tags=cfg.logging.wandb.get('tags', None),
-    #         entity=cfg.logging.get('entity', None),
-    #         save_dir=hydra.utils.to_absolute_path(cfg.logging.logs_dir),  # relative to hydra's original cwd
-    #         offline=cfg.logging.wandb.get('offline', False),
-    #     )
-    #     callbacks.append(LatentCycleLoggingCallback(logger))
+    # # initialise loggers
+    # logs_dir = os.path.abspath(os.path.expanduser(logs_dir))
+    # log.info(f'logs directory: {logs_dir}')
+    # loggers = [
+    #     logger(save_dir=os.path.join(logs_dir, logger.__name__[:-len('Logger')].lower()))
+    #     for logger in loggers
+    # ]  if loggers else []
     #
     # # check data preparation
-    # prepare_data_per_node = cfg.trainer.get('prepare_data_per_node', True)
-    # if not os.path.isabs(cfg.dataset.data_dir):
+    # data_dir = os.path.abspath(os.path.expanduser(data_dir))
+    # log.info(f'data directory: {data_dir}')
+    # if not os.path.isabs(data_dir):
     #     log.warning(
-    #         f'A relative path was specified for dataset.data_dir={repr(cfg.dataset.data_dir)}.'
+    #         f'A relative path was specified for run.data_dir={repr(data_dir)}.'
     #         f' This is probably an error! Using relative paths can have unintended consequences'
     #         f' and performance drawbacks if the current working directory is on a shared/network drive.'
     #         f' Hydra config also uses a new working directory for each run of the program, meaning'
@@ -228,16 +224,16 @@ def main(
     #     )
     #     if prepare_data_per_node:
     #         log.error(
-    #             f'trainer.prepare_data_per_node={repr(prepare_data_per_node)} but  dataset.data_dir='
-    #             f'{repr(cfg.dataset.data_dir)} is a relative path which may be an error! Try specifying an'
-    #             f' absolute path that is guaranteed to be unique from each node, eg. dataset.data_dir=/tmp/dataset'
+    #             f'run.prepare_data_per_node={repr(prepare_data_per_node)} but run.data_dir='
+    #             f'{repr(data_dir)} is a relative path which may be an error! Try specifying an'
+    #             f' absolute path that is guaranteed to be unique from each node, eg. run.data_dir=/tmp/dataset'
     #         )
-    #     raise RuntimeError('dataset.data_dir={repr(cfg.dataset.data_dir)} is a relative path!')
+    #     raise ValueError('dataset.data_dir={repr(cfg.dataset.data_dir)} is a relative path!')
     #
     # # TRAIN
     #
     # system = HydraSystem(cfg)
-    # trainer = pl.Trainer(
+    # trainer = pl.BaseFramework(
     #     logger=logger,
     #     callbacks=callbacks,
     #     gpus=1 if cuda else 0,
@@ -246,16 +242,16 @@ def main(
     #     prepare_data_per_node=prepare_data_per_node,
     # )
     # trainer.fit(system)
-    #
-    # # EVALUATE
-    #
-    # metrics = [compute_dci, compute_factor_vae]
-    # for metric in metrics:
-    #     scores = metric(system.dataset, system.model.encode_deterministic)
-    #     log.info(f'{metric.__name__}:\n{DictConfig(scores).pretty()}')
-    #     if logger:
-    #         assert isinstance(logger, WandbLogger)
-    #         logger.experiment.log(scores, commit=False, step=0)
+    # #
+    # # # EVALUATE
+    # #
+    # # metrics = [compute_dci, compute_factor_vae]
+    # # for metric in metrics:
+    # #     scores = metric(system.dataset, system.model.encode_deterministic)
+    # #     log.info(f'{metric.__name__}:\n{DictConfig(scores).pretty()}')
+    # #     if logger:
+    # #         assert isinstance(logger, WandbLogger)
+    # #         logger.experiment.log(scores, commit=False, step=0)
 
 
 # ========================================================================= #
@@ -264,9 +260,8 @@ def main(
 
 
 if __name__ == '__main__':
-    gin.bind_parameter('main.cuda', True)
-
-    main()
+    gin.parse_config_file('experiment/config.gin')
+    run()
 
 
 # ========================================================================= #

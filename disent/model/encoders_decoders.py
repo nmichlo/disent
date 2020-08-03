@@ -130,7 +130,7 @@ class EncoderFC(BaseEncoderModule):
         """
         Fully connected encoder used in beta-VAE paper for the dSprites data.
         Based on row 1 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
-        Concepts with a Constrained Variational Framework"
+        Concepts with a Constrained Variational BaseFramework"
         (https://openreview.net/forum?id=Sy2fzU9gl).
         """
         # checks
@@ -160,7 +160,7 @@ class DecoderFC(BaseDecoderModule):
         """
         Fully connected encoder used in beta-VAE paper for the dSprites data.
         Based on row 1 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
-        Concepts with a Constrained Variational Framework"
+        Concepts with a Constrained Variational BaseFramework"
         (https://openreview.net/forum?id=Sy2fzU9gl)
         """
         super().__init__(x_shape=x_shape, z_size=z_size)
@@ -196,7 +196,7 @@ class EncoderConv64(BaseEncoderModule):
         """
         Convolutional encoder used in beta-VAE paper for the chairs data.
         Based on row 3 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
-        Concepts with a Constrained Variational Framework"
+        Concepts with a Constrained Variational BaseFramework"
         (https://openreview.net/forum?id=Sy2fzU9gl)
         """
         # checks
@@ -235,7 +235,7 @@ class DecoderConv64(BaseDecoderModule):
         """
         Convolutional decoder used in beta-VAE paper for the chairs data.
         Based on row 3 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
-        Concepts with a Constrained Variational Framework"
+        Concepts with a Constrained Variational BaseFramework"
         (https://openreview.net/forum?id=Sy2fzU9gl)
         """
         assert tuple(x_shape[1:]) == (64, 64), 'This model only works with image size 64x64.'

@@ -9,7 +9,7 @@ from disent.dataset.ground_truth_data.base_data import Hdf5PreprocessedGroundTru
 class DSpritesData(Hdf5PreprocessedGroundTruthData):
     """
     DSprites Dataset
-    - beta-VAE: Learning Basic Visual Concepts with a Constrained Variational Framework
+    - beta-VAE: Learning Basic Visual Concepts with a Constrained Variational BaseFramework
       (https://github.com/deepmind/dsprites-dataset)
 
     Files:

@@ -11,8 +11,8 @@ from disent.model.encoders_decoders import (
 )
 
 from disent.model.autoencoders import (
-    AutoEncoderModule,
-    GaussianAutoEncoderModel,
+    AutoEncoder,
+    GaussianAutoEncoder,
 )
 
 # ========================================================================= #

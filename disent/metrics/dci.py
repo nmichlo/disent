@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """Implementation of Disentanglement, Completeness and Informativeness.
-Based on "A Framework for the Quantitative Evaluation of Disentangled
+Based on "A BaseFramework for the Quantitative Evaluation of Disentangled
 Representations" (https://openreview.net/forum?id=By-7dz-AZ).
 """
 

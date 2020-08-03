@@ -1,7 +1,7 @@
 # @package _group_
 name: tgadavae
 cls:
-  target: disent.frameworks.supervised.gadavae.GuidedAdaVaeLoss
+  target: disent.frameworks.supervised.gadavae.GuidedAdaVae
   params:
     beta: 4
     average_mode: 'gvae'    # [gvae, ml-vae]
