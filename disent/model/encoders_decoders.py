@@ -1,7 +1,12 @@
+import logging
+
 import torch.nn as nn
 import numpy as np
 from torch import Tensor
-from disent.model.base import BaseGaussianEncoderModule, BaseDecoderModule, Flatten3D, Unsqueeze3D, BatchView
+from disent.model.base import BaseEncoderModule, BaseDecoderModule, Flatten3D, Unsqueeze3D, BatchView
+
+
+log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
@@ -9,29 +14,27 @@ from disent.model.base import BaseGaussianEncoderModule, BaseDecoderModule, Flat
 # ========================================================================= #
 
 
-class EncoderSimpleFC(BaseGaussianEncoderModule):
+class EncoderSimpleFC(BaseEncoderModule):
 
-    def __init__(self, x_shape=(3, 64, 64), h_size1=128, h_size2=128, z_size=6):
-        super().__init__(x_shape=x_shape, z_size=z_size)
+    def __init__(self, x_shape=(3, 64, 64), h_size1=128, h_size2=128, z_size=6, z_multiplier=1):
+        super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
         self.model = nn.Sequential(
             Flatten3D(),
             nn.Linear(self.x_size, h_size1),
                 nn.ReLU(True),
             nn.Linear(h_size1, h_size2),
                 nn.ReLU(True),
+            nn.Linear(h_size2, self.z_total)
         )
-        self.enc3mean = nn.Linear(h_size2, self.z_size)
-        self.enc3logvar = nn.Linear(h_size2, self.z_size)
 
-    def encode_gaussian(self, x) -> (Tensor, Tensor):
-        pre_z = self.model(x)
-        return self.enc3mean(pre_z), self.enc3logvar(pre_z)
+    def encode(self, x) -> (Tensor, Tensor):
+        return self.model(x)
 
 
 class DecoderSimpleFC(BaseDecoderModule):
 
-    def __init__(self, x_shape=(3, 64, 64), h_size1=128, h_size2=128, z_size=6):
-        super().__init__(x_shape=x_shape, z_size=z_size)
+    def __init__(self, x_shape=(3, 64, 64), h_size1=128, h_size2=128, z_size=6, z_multiplier=1):
+        super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
         self.model = nn.Sequential(
             nn.Linear(self.z_size, h_size2),
                 nn.ReLU(True),
@@ -50,14 +53,14 @@ class DecoderSimpleFC(BaseDecoderModule):
 # ========================================================================= #
 
 
-class EncoderSimpleConv64(BaseGaussianEncoderModule):
+class EncoderSimpleConv64(BaseEncoderModule):
     """From: https://github.com/amir-abdi/disentanglement-pytorch"""
 
-    def __init__(self, x_shape=(3, 64, 64), z_size=6):
+    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
         # checks
         assert tuple(x_shape[1:]) == (64, 64), 'This model only works with image size 64x64.'
         num_channels = x_shape[0]
-        super().__init__(x_shape=x_shape, z_size=z_size)
+        super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
         self.model = nn.Sequential(
             nn.Conv2d(in_channels=num_channels, out_channels=32, kernel_size=4, stride=2, padding=1),
@@ -73,23 +76,21 @@ class EncoderSimpleConv64(BaseGaussianEncoderModule):
             nn.Conv2d(in_channels=256, out_channels=256, kernel_size=4, stride=2, padding=1),
                 nn.ReLU(True),
                 Flatten3D(),
+            nn.Linear(256, self.z_total)
         )
-        self.enc3mean = nn.Linear(256, self.z_size)
-        self.enc3logvar = nn.Linear(256, self.z_size)
 
-    def encode_gaussian(self, x) -> (Tensor, Tensor):
-        pre_z = self.model(x)
-        return self.enc3mean(pre_z), self.enc3logvar(pre_z)
+    def encode(self, x) -> (Tensor, Tensor):
+        return self.model(x)
 
 
 class DecoderSimpleConv64(BaseDecoderModule):
     """From: https://github.com/amir-abdi/disentanglement-pytorch"""
 
-    def __init__(self, x_shape=(3, 64, 64), z_size=6):
+    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
         # checks
         assert tuple(x_shape[1:]) == (64, 64), 'This model only works with image size 64x64.'
         num_channels = x_shape[0]
-        super().__init__(x_shape=x_shape, z_size=z_size)
+        super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
         self.model = nn.Sequential(
             Unsqueeze3D(),
@@ -118,36 +119,33 @@ class DecoderSimpleConv64(BaseDecoderModule):
 # ========================================================================= #
 
 
-class EncoderFC(BaseGaussianEncoderModule):
+class EncoderFC(BaseEncoderModule):
     """
     From:
     https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/shared/architectures.py
     """
 
-    def __init__(self, x_shape=(3, 64, 64), z_size=6):
+    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
         """
         Fully connected encoder used in beta-VAE paper for the dSprites data.
         Based on row 1 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
-        Concepts with a Constrained Variational Framework"
+        Concepts with a Constrained Variational BaseFramework"
         (https://openreview.net/forum?id=Sy2fzU9gl).
         """
         # checks
-        super().__init__(x_shape=x_shape, z_size=z_size)
+        super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
         self.model = nn.Sequential(
             Flatten3D(),
-            nn.Linear(np.prod(x_shape), 1200),
+            nn.Linear(int(np.prod(x_shape)), 1200),
                 nn.ReLU(True),
             nn.Linear(1200, 1200),
                 nn.ReLU(True),
+            nn.Linear(1200, self.z_total)
         )
 
-        self.enc3mean = nn.Linear(1200, self.z_size)
-        self.enc3logvar = nn.Linear(1200, self.z_size)
-
-    def encode_gaussian(self, x) -> (Tensor, Tensor):
-        pre_z = self.model(x)
-        return self.enc3mean(pre_z), self.enc3logvar(pre_z)
+    def encode(self, x) -> (Tensor, Tensor):
+        return self.model(x)
 
 
 class DecoderFC(BaseDecoderModule):
@@ -156,14 +154,14 @@ class DecoderFC(BaseDecoderModule):
     https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/shared/architectures.py
     """
 
-    def __init__(self, x_shape=(3, 64, 64), z_size=6):
+    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
         """
         Fully connected encoder used in beta-VAE paper for the dSprites data.
         Based on row 1 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
-        Concepts with a Constrained Variational Framework"
+        Concepts with a Constrained Variational BaseFramework"
         (https://openreview.net/forum?id=Sy2fzU9gl)
         """
-        super().__init__(x_shape=x_shape, z_size=z_size)
+        super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
         self.model = nn.Sequential(
             nn.Linear(self.z_size, 1200),
@@ -172,7 +170,7 @@ class DecoderFC(BaseDecoderModule):
                 nn.Tanh(),
             nn.Linear(1200, 1200),
                 nn.Tanh(),
-            nn.Linear(1200, np.prod(x_shape)),
+            nn.Linear(1200, int(np.prod(x_shape))),
                 BatchView(self.x_shape),
         )
 
@@ -185,23 +183,23 @@ class DecoderFC(BaseDecoderModule):
 # ========================================================================= #
 
 
-class EncoderConv64(BaseGaussianEncoderModule):
+class EncoderConv64(BaseEncoderModule):
     """
     From:
     https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/shared/architectures.py
     """
 
-    def __init__(self, x_shape=(3, 64, 64), z_size=6, dropout=0.0):
+    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1, dropout=0.0):
         """
         Convolutional encoder used in beta-VAE paper for the chairs data.
         Based on row 3 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
-        Concepts with a Constrained Variational Framework"
+        Concepts with a Constrained Variational BaseFramework"
         (https://openreview.net/forum?id=Sy2fzU9gl)
         """
         # checks
         assert tuple(x_shape[1:]) == (64, 64), 'This model only works with image size 64x64.'
         num_channels = x_shape[0]
-        super().__init__(x_shape=x_shape, z_size=z_size)
+        super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
         self.model = nn.Sequential(
             nn.Conv2d(in_channels=num_channels, out_channels=32, kernel_size=4, stride=2, padding=2),
@@ -216,13 +214,11 @@ class EncoderConv64(BaseGaussianEncoderModule):
             nn.Linear(1600, 256),
                 nn.LeakyReLU(inplace=True),
                 nn.Dropout(dropout),
+            nn.Linear(256, self.z_total),
         )
-        self.enc3mean = nn.Linear(256, self.z_size)
-        self.enc3logvar = nn.Linear(256, self.z_size)
 
-    def encode_gaussian(self, x) -> (Tensor, Tensor):
-        pre_z = self.model(x)
-        return self.enc3mean(pre_z), self.enc3logvar(pre_z)
+    def encode(self, x) -> (Tensor, Tensor):
+        return self.model(x)
 
 
 class DecoderConv64(BaseDecoderModule):
@@ -231,16 +227,16 @@ class DecoderConv64(BaseDecoderModule):
     https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/shared/architectures.py
     """
 
-    def __init__(self, x_shape=(3, 64, 64), z_size=6, dropout=0.0):
+    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1, dropout=0.0):
         """
         Convolutional decoder used in beta-VAE paper for the chairs data.
         Based on row 3 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
-        Concepts with a Constrained Variational Framework"
+        Concepts with a Constrained Variational BaseFramework"
         (https://openreview.net/forum?id=Sy2fzU9gl)
         """
         assert tuple(x_shape[1:]) == (64, 64), 'This model only works with image size 64x64.'
         num_channels = x_shape[0]
-        super().__init__(x_shape=x_shape, z_size=z_size)
+        super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
         self.model = nn.Sequential(
             nn.Linear(self.z_size, 256),

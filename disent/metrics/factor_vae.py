@@ -21,7 +21,8 @@ Based on "Disentangling by Factorising" (https://arxiv.org/abs/1802.05983).
 import logging
 from tqdm import tqdm
 
-from disent.dataset.ground_truth.base import GroundTruthData, GroundTruthDataset
+from disent.dataset.ground_truth_data.base_data import GroundTruthData
+from disent.dataset.single import GroundTruthDataset
 from disent.metrics import utils
 import numpy as np
 from disent.util import to_numpy

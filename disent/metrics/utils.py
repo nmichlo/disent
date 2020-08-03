@@ -18,7 +18,7 @@
 import numpy as np
 from tqdm import tqdm
 
-from disent.dataset.ground_truth.base import GroundTruthDataset
+from disent.dataset.single import GroundTruthDataset
 from disent.util import to_numpy
 
 # import sklearn

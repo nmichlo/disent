@@ -1,4 +1,4 @@
-from disent.dataset.util.state_space import DiscreteStateSpace
+from disent.dataset.util.state_space import StateSpace
 import numpy as np
 
 FACTOR_SIZES = [
@@ -13,7 +13,7 @@ FACTOR_SIZES = [
 
 def test_discrete_state_space_single_values():
     for factor_sizes in FACTOR_SIZES:
-        states = DiscreteStateSpace(factor_sizes=factor_sizes)
+        states = StateSpace(factor_sizes=factor_sizes)
         # check size
         assert len(states) == np.prod(factor_sizes)
         # check single values
@@ -26,7 +26,7 @@ def test_discrete_state_space_single_values():
 
 def test_discrete_state_space_one_to_one():
     for factor_sizes in FACTOR_SIZES:
-        states = DiscreteStateSpace(factor_sizes=factor_sizes)
+        states = StateSpace(factor_sizes=factor_sizes)
         # check that entire range of values is generated
         # chances of this failing are extremely low, but it could happen...
         pos_0 = states.sample_factors(100_000)

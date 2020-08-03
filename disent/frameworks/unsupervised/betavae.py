@@ -1,6 +1,5 @@
 import logging
-
-from disent.frameworks.unsupervised.vae import VaeLoss
+from disent.frameworks.unsupervised.vae import Vae
 
 log = logging.getLogger(__name__)
 
@@ -9,11 +8,11 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class BetaVaeLoss(VaeLoss):
+class BetaVae(Vae):
     def __init__(self, beta=4):
         self.beta = beta
 
-    def regularizer(self, kl_loss, z_mean, z_logvar, z_sampled):
+    def regularizer(self, kl_loss):
         return self.beta * kl_loss
 
 
@@ -22,7 +21,7 @@ class BetaVaeLoss(VaeLoss):
 # ========================================================================= #
 
 
-class BetaVaeHLoss(BetaVaeLoss):
+class BetaVaeH(BetaVae):
     """
     Compute the Beta-VAE loss as in [1]
 
@@ -36,9 +35,9 @@ class BetaVaeHLoss(BetaVaeLoss):
         super().__init__(beta)
         self.n_train_steps = 0
         self.anneal_end_steps = anneal_end_steps
-        raise NotImplementedError('n_train_steps is not yet implemented for BetaVaeHLoss, it will not yet work')
+        raise NotImplementedError('n_train_steps is not yet implemented for BetaVaeH, it will not yet work')
 
-    def regularizer(self, kl_loss, z_mean, z_logvar, z_sampled):
+    def regularizer(self, kl_loss):
         log.warning('TODO: training step count was not updated!')
         anneal_reg = lerp_step(0, 1, self.n_train_steps, self.anneal_end_steps)  # if is_train else 1
         return (anneal_reg * self.beta) * kl_loss

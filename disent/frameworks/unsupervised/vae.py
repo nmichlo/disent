@@ -1,5 +1,11 @@
+from collections import namedtuple
 import torch
 import torch.nn.functional as F
+from disent.frameworks.framework import BaseFramework
+from disent.model import GaussianAutoEncoder
+
+
+TrainingData = namedtuple('TrainingData', ['x', 'x_recon', 'z_mean', 'z_logvar', 'z_sampled'])
 
 
 # ========================================================================= #
@@ -7,42 +13,43 @@ import torch.nn.functional as F
 # ========================================================================= #
 
 
-class VaeLoss(object):
+class Vae(BaseFramework):
 
-    def __call__(self, x, x_recon, z_mean, z_logvar, z_sampled, *args):
-        return self.compute_loss(x, x_recon, z_mean, z_logvar, z_sampled, *args)
+    def training_step(self, model: GaussianAutoEncoder, batch):
+        x = batch
+        # encode, then intercept and mutate if needed
+        z_mean, z_logvar = model.encode_gaussian(x)
+        # reparameterize
+        z_sampled = model.reparameterize(z_mean, z_logvar)
+        # reconstruct
+        x_recon = model.decode(z_sampled)
+        # log & train
+        return self.compute_loss(TrainingData(x, x_recon, z_mean, z_logvar, z_sampled))
 
-    @property
-    def required_observations(self):
-        """override in subclasses that need more observations, indicates format of arguments needed for compute_loss"""
-        return 1
-
-    def intercept_z(self, z_params, *args):
-        """mutate z_mean and z_logvar before sampling"""
-        return z_params, *args
-
-    def compute_loss(self, forward_data, *args):
+    def compute_loss(self, data: TrainingData):
         """
         Compute the varous VAE loss components.
         Based on: https://github.com/google-research/disentanglement_lib/blob/a64b8b9994a28fafd47ccd866b0318fa30a3c76c/disentanglement_lib/methods/unsupervised/vae.py#L153
         """
-        [(x, x_recon, (z_mean, z_logvar), z_sampled)] = (forward_data, *args)
-
-        # reconstruction loss
+        x, x_recon, z_mean, z_logvar, z_sampled = data
+        
+        # reconstruction error
         recon_loss = bce_loss_with_logits(x, x_recon)   # E[log p(x|z)]
-
-        # regularizer
+        
+        # KL divergence
         kl_loss = kl_normal_loss(z_mean, z_logvar)      # D_kl(q(z|x) || p(z|x))
-        regularizer = self.regularizer(kl_loss, z_mean, z_logvar, z_sampled)
+        
+        # compute combined loss
+        loss = recon_loss + self.regularizer(kl_loss)
 
         return {
-            'train_loss': recon_loss + regularizer,
+            'train_loss': loss,
             'reconstruction_loss': recon_loss,
             'kl_loss': kl_loss,
             'elbo': -(recon_loss + kl_loss),
         }
 
-    def regularizer(self, kl_loss, z_mean, z_logvar, z_sampled):
+    def regularizer(self, kl_loss):
         return kl_loss
 
 

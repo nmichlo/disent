@@ -1,15 +1,17 @@
 
-# Make datasets directly accessible
-from .ground_truth.base import GroundTruthData, GroundTruthDataset
-from .ground_truth.data_cars3d import Cars3dData
-from .ground_truth.data_dsprites import DSpritesData
-from .ground_truth.data_mpi3d import Mpi3dData
-from .ground_truth.data_norb import SmallNorbData
-from .ground_truth.data_shapes3d import Shapes3dData
-from .ground_truth.data_xygrid import XYData
-from .ground_truth.data_xyscalegrid import XYScaleData
-from .ground_truth.data_xyscalecolorgrid import XYScaleColorData
+# Make data directly accessible
+from .ground_truth_data.base_data import GroundTruthData
+from .ground_truth_data.data_cars3d import Cars3dData
+from .ground_truth_data.data_dsprites import DSpritesData
+from .ground_truth_data.data_mpi3d import Mpi3dData
+from .ground_truth_data.data_norb import SmallNorbData
+from .ground_truth_data.data_shapes3d import Shapes3dData
+from .ground_truth_data.data_xygrid import XYData
 
+# make datasets directly accessible
+from .single import GroundTruthDataset
+from .pairs import PairedVariationDataset, RandomPairDataset
+from .triplets import SupervisedTripletDataset
 
 # ========================================================================= #
 # util                                                                      #

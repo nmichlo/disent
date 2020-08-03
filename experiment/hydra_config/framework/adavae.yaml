@@ -1,0 +1,13 @@
+# @package _group_
+name: adavae
+cls:
+  target: disent.frameworks.weaklysupervised.adavae.AdaVae
+  params:
+    beta: 4
+    average_mode: 'gvae'  # gvae or ml-vae
+
+augment_dataset:
+  cls:
+    target: disent.dataset.pairs.PairedVariationDataset
+    params:
+      k: 1

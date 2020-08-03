@@ -1,39 +1,13 @@
-from disent.frameworks.semisupervised.adavae import (AdaVaeLoss, estimate_shared)
-
-import numpy as np
-import torch
 import logging
 
-from disent.frameworks.unsupervised.vae import bce_loss_with_logits, kl_normal_loss
+import torch
+
+from disent.frameworks.framework import BaseFramework
+from disent.frameworks.weaklysupervised.adavae import (AdaVae, estimate_shared)
+from disent.frameworks.unsupervised.vae import TrainingData, bce_loss_with_logits, kl_normal_loss
+from disent.model import GaussianAutoEncoder
 
 log = logging.getLogger(__name__)
-
-
-# ========================================================================= #
-# HELPER                                                                    #
-# ========================================================================= #
-
-
-def compute_constrained_mask(p_kl_deltas, p_shared_mask, n_kl_deltas, n_shared_mask, positive=True):
-    batch_size, dims = p_kl_deltas.shape
-
-    # number of changed factors
-    p_shared = torch.sum(p_shared_mask, dim=1, keepdim=True)
-    n_shared = torch.sum(n_shared_mask, dim=1, keepdim=True)
-
-    # order from smallest to largest
-    sort_indices = torch.argsort(p_kl_deltas if positive else n_kl_deltas, dim=1)
-    new_mask = torch.zeros_like(p_shared_mask)
-
-    # share max
-    new_share = torch.max(p_shared, n_shared) if positive else torch.min(p_shared, n_shared)
-    assert new_share.shape == p_shared.shape == n_shared.shape
-
-    # compute p_k should be less than n_k
-    for i, shared in enumerate(new_share):
-        new_mask[i, sort_indices[i, :shared]] = True
-
-    return new_mask
 
 
 # ========================================================================= #
@@ -41,107 +15,127 @@ def compute_constrained_mask(p_kl_deltas, p_shared_mask, n_kl_deltas, n_shared_m
 # ========================================================================= #
 
 
-class GuidedAdaVaeLoss(AdaVaeLoss):
+class GuidedAdaVae(BaseFramework):
 
     MODE_ADAVAE = 'adavae'
     MODE_AVE_POS = 'ave_pos'
     MODE_AVE_TRIPLET = 'ave_triple'
-
+    
+    MODES = {MODE_AVE_TRIPLET}
+    
     def __init__(
             self,
             beta=4,
-            average_mode=AdaVaeLoss.AVE_MODE_GVAE,
+            average_mode=AdaVae.AVE_MODE_GVAE,
             mode=MODE_AVE_TRIPLET,
             triplet_scale=0,
             triplet_alpha=0.3,
             triplet_after_sampling=False,
     ):
-        assert average_mode == AdaVaeLoss.AVE_MODE_GVAE, f'currently only supports average_mode={repr(AdaVaeLoss.AVE_MODE_GVAE)}'
-        super().__init__(beta=beta, average_mode=average_mode)
-
+        # adavae instance
+        assert average_mode == AdaVae.AVE_MODE_GVAE, f'currently only supports average_mode={repr(AdaVae.AVE_MODE_GVAE)}'
+        self.adavae = AdaVae(beta=beta, average_mode=average_mode)
         # set mode
-        assert mode in {GuidedAdaVaeLoss.MODE_ADAVAE, GuidedAdaVaeLoss.MODE_AVE_POS, GuidedAdaVaeLoss.MODE_AVE_TRIPLET}, f'invalid {mode=}, must be one of {[GuidedAdaVaeLoss.MODE_ADAVAE, GuidedAdaVaeLoss.MODE_AVE_POS, GuidedAdaVaeLoss.MODE_AVE_TRIPLET]}'
+        assert mode in GuidedAdaVae.MODES, f'invalid {mode=}, must be one of {GuidedAdaVae.MODES}'
         self.mode = mode
-
         # use triplet loss
         self.triplet_scale = triplet_scale
         self.triplet_alpha = triplet_alpha
         self.triplet_after_sampling = triplet_after_sampling
         assert self.triplet_scale >= 0, f'triplet_scale={repr(self.triplet_scale)} must be non-negative'
         if self.triplet_scale > 0:
-            assert mode == GuidedAdaVaeLoss.MODE_AVE_TRIPLET, f'triplet_scale={repr(self.triplet_scale)}, only supports triplet_scale > 0 for mode={repr(GuidedAdaVaeLoss.MODE_AVE_TRIPLET)}'
+            assert mode == GuidedAdaVae.MODE_AVE_TRIPLET, f'triplet_scale={repr(self.triplet_scale)}, only supports triplet_scale > 0 for mode={repr(GuidedAdaVae.MODE_AVE_TRIPLET)}'
+        # beta-vae stuffs
+        self.beta = beta
+    
+    def training_step(self, model: GaussianAutoEncoder, batch):
+        a_x, p_x, n_x = batch
+        # ENCODE
+        a_z_mean, a_z_logvar = model.encode_gaussian(a_x)
+        p_z_mean, p_z_logvar = model.encode_gaussian(p_x)
+        n_z_mean, n_z_logvar = model.encode_gaussian(n_x)
+        # INTERCEPT
+        (a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar), intercept_logs = self.intercept_z(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar)
+        # REPARAMETERIZE
+        a_z_sampled = model.reparameterize(a_z_mean, a_z_logvar)
+        p_z_sampled = model.reparameterize(p_z_mean, p_z_logvar)
+        n_z_sampled = model.reparameterize(n_z_mean, n_z_logvar)
+        # RECONSTRUCT
+        a_x_recon = model.decode(a_z_sampled)
+        p_x_recon = model.decode(p_z_sampled)
+        n_x_recon = model.decode(n_z_sampled)
+        # COMPUTE LOSS
+        loss_logs = self.compute_loss(
+            TrainingData(a_x, a_x_recon, a_z_mean, a_z_logvar, a_z_sampled),
+            TrainingData(p_x, p_x_recon, p_z_mean, p_z_logvar, p_z_sampled),
+            TrainingData(n_x, n_x_recon, n_z_mean, n_z_logvar, n_z_sampled),
+        )
+        # RETURN INFO
+        return {
+            **intercept_logs,
+            **loss_logs,
+        }
 
-        # DEBUG VARS
-        self.p_shared_before = 0
-        self.p_shared_after = 0
-        self.n_shared_before = 0
-        self.n_shared_after = 0
-        self.item_count = 0
+    # @property
+    # def required_observations(self):
+    #     return 3
 
-    @property
-    def required_observations(self):
-        return 3
-
-    def intercept_z(self, z_params, *args):
+    def intercept_z(self, a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar):
         """
         *NB* arguments must satisfy: d(l, l2) < d(l, l3) [positive dist < negative dist]
         - This function assumes that the distance between labels l, l2, l3
           corresponding to z, z2, z3 satisfy the criteria d(l, l2) < d(l, l3)
           ie. l2 is the positive sample, l3 is the negative sample
         """
-        [(a_z_mean, a_z_logvar), (p_z_mean, p_z_logvar), (n_z_mean, n_z_logvar)] = (z_params, *args)
-
         # shared elements that need to be averaged, computed per pair in the batch.
         p_kl_deltas, p_kl_threshs, p_shared_mask = estimate_shared(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar)
         n_kl_deltas, n_kl_threshs, n_shared_mask = estimate_shared(a_z_mean, a_z_logvar, n_z_mean, n_z_logvar)
 
         # modify threshold based on criterion and recompute if necessary
         # CORE of this approach!
-        old_p_ave_mask, old_n_ave_mask = p_shared_mask, n_shared_mask
-        p_shared_mask = compute_constrained_mask(p_kl_deltas, old_p_ave_mask, n_kl_deltas, old_n_ave_mask, positive=True)
-        n_shared_mask = compute_constrained_mask(p_kl_deltas, old_p_ave_mask, n_kl_deltas, old_n_ave_mask, positive=False)
+        old_p_shared_mask, old_n_shared_mask = p_shared_mask, n_shared_mask
+        p_shared_mask, n_shared_mask = compute_constrained_masks(p_kl_deltas, old_p_shared_mask, n_kl_deltas, old_n_shared_mask)
 
-        # DEBUG
-        self.item_count += len(a_z_mean)
-        self.p_shared_before += int(old_p_ave_mask.sum())
-        self.p_shared_after += int(p_shared_mask.sum())
-        self.n_shared_before += int(old_n_ave_mask.sum())
-        self.n_shared_after += int(n_shared_mask.sum())
-
-        if self.mode == 'adavae':
-            return super().intercept_z((a_z_mean, a_z_logvar), (p_z_mean, p_z_logvar))
-        elif self.mode == 'ave_pos':
-            return self.make_averaged(a_z_mean.clone(), a_z_logvar.clone(), p_z_mean, p_z_logvar, p_shared_mask)
-        elif self.mode == 'ave_triple':
-            (pAz_mean, pAz_logvar), (p_z_mean, p_z_logvar) = self.make_averaged(a_z_mean.clone(), a_z_logvar.clone(), p_z_mean, p_z_logvar, p_shared_mask)
-            (nAz_mean, nAz_logvar), (n_z_mean, n_z_logvar) = self.make_averaged(a_z_mean.clone(), a_z_logvar.clone(), n_z_mean, n_z_logvar, n_shared_mask)
-            a_z_mean, a_z_logvar = self.compute_average(pAz_mean, pAz_logvar, nAz_mean, nAz_logvar)
-            return (a_z_mean, a_z_logvar), (p_z_mean, p_z_logvar), (n_z_mean, n_z_logvar)
+        # if self.mode == 'adavae':
+        #     new_args, _ = self.adavae.intercept_z(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar)
+        # elif self.mode == 'ave_pos':
+        #     new_args = self.adavae.make_averaged(a_z_mean.clone(), a_z_logvar.clone(), p_z_mean, p_z_logvar, p_shared_mask)
+        if self.mode == 'ave_triple':
+            pAz_mean, pAz_logvar, p_z_mean, p_z_logvar = self.adavae.make_averaged(a_z_mean.clone(), a_z_logvar.clone(), p_z_mean, p_z_logvar, p_shared_mask)
+            nAz_mean, nAz_logvar, n_z_mean, n_z_logvar = self.adavae.make_averaged(a_z_mean.clone(), a_z_logvar.clone(), n_z_mean, n_z_logvar, n_shared_mask)
+            a_z_mean, a_z_logvar = self.adavae.compute_average(pAz_mean, pAz_logvar, nAz_mean, nAz_logvar)
+            new_args = a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar
         else:
             raise KeyError
 
-    def compute_loss(self, forward_data, *args):
+        return new_args, {
+            'p_shared_before': old_p_shared_mask.sum(dim=1).float().mean(),
+            'p_shared_after':      p_shared_mask.sum(dim=1).float().mean(),
+            'n_shared_before': old_n_shared_mask.sum(dim=1).float().mean(),
+            'n_shared_after':      n_shared_mask.sum(dim=1).float().mean(),
+        }
+
+    def compute_loss(self, a_data: TrainingData, p_data: TrainingData, n_data: TrainingData):
         # COMPUTE LOSS FOR TRIPLE:
         if self.mode == 'ave_triple':
-            [(x, x_recon, (z_mean, z_logvar), z_sampled),
-             (x2, x2_recon, (z2_mean, z2_logvar), z2_sampled),
-             (x3, x3_recon, (z3_mean, z3_logvar), z3_sampled)] = (forward_data, *args)
+            (a_x, a_x_recon, a_z_mean, a_z_logvar, a_z_sampled) = a_data
+            (p_x, p_x_recon, p_z_mean, p_z_logvar, p_z_sampled) = p_data
+            (n_x, n_x_recon, n_z_mean, n_z_logvar, n_z_sampled) = n_data
+            
+            # reconstruction error
+            a_recon_loss = bce_loss_with_logits(a_x, a_x_recon)  # E[log p(x|z)]
+            p_recon_loss = bce_loss_with_logits(p_x, p_x_recon)  # E[log p(x|z)]
+            n_recon_loss = bce_loss_with_logits(n_x, n_x_recon)  # E[log p(x|z)]
+            ave_recon_loss = (a_recon_loss + p_recon_loss + n_recon_loss) / 3
 
-            # reconstruction error & KL divergence losses
-            recon_loss = bce_loss_with_logits(x, x_recon)     # E[log p(x|z)]
-            recon2_loss = bce_loss_with_logits(x2, x2_recon)  # E[log p(x|z)]
-            recon3_loss = bce_loss_with_logits(x3, x3_recon)  # E[log p(x|z)]
-            ave_recon_loss = (recon_loss + recon2_loss + recon3_loss) / 3
-
-            kl_loss = kl_normal_loss(z_mean, z_logvar)     # D_kl(q(z|x) || p(z|x))
-            kl2_loss = kl_normal_loss(z2_mean, z2_logvar)  # D_kl(q(z|x) || p(z|x))
-            kl3_loss = kl_normal_loss(z3_mean, z3_logvar)  # D_kl(q(z|x) || p(z|x))
-            ave_kl_loss = (kl_loss + kl2_loss + kl3_loss) / 3
+            # KL divergence
+            a_kl_loss = kl_normal_loss(a_z_mean, a_z_logvar)  # D_kl(q(z|x) || p(z|x))
+            p_kl_loss = kl_normal_loss(p_z_mean, p_z_logvar)  # D_kl(q(z|x) || p(z|x))
+            n_kl_loss = kl_normal_loss(n_z_mean, n_z_logvar)  # D_kl(q(z|x) || p(z|x))
+            ave_kl_loss = (a_kl_loss + p_kl_loss + n_kl_loss) / 3
 
             # compute combined loss
-            # reduces down to summing the two BetaVAE losses
-            loss = (recon_loss + recon2_loss + recon3_loss) + self.beta * (kl_loss + kl2_loss + kl3_loss)
-            loss /= 3
+            loss = ave_recon_loss + self.beta * ave_kl_loss
 
             loss_dict = {
                 'train_loss': loss,
@@ -152,36 +146,55 @@ class GuidedAdaVaeLoss(AdaVaeLoss):
 
             if self.triplet_scale > 0:
                 if self.triplet_after_sampling:
-                    loss_triplet = triplet_loss(z_sampled, z2_sampled, z3_sampled, alpha=self.triplet_alpha)
+                    loss_triplet = triplet_loss(a_z_sampled, p_z_sampled, n_z_sampled, alpha=self.triplet_alpha)
                 else:
-                    loss_triplet = triplet_loss(z_mean, z2_mean, z3_mean, alpha=self.triplet_alpha)
+                    loss_triplet = triplet_loss(a_z_mean, p_z_mean, n_z_mean, alpha=self.triplet_alpha)
                 loss_dict.update({
                     'train_loss': loss + self.triplet_scale * loss_triplet,
                     'triplet_loss': loss_triplet
                 })
 
         # COMPUTE LOSS FOR PAIR:
-        elif (self.mode == 'adavae') or (self.mode == 'ave_pos'):
-            assert self.triplet_scale == 0, f'triplet_scale={repr(self.triplet_scale)}, triplet_scale > 0 is not supported for the current mode={self.mode}'
-            loss_dict = super().compute_loss(forward_data, *args)
+        # elif (self.mode == 'adavae') or (self.mode == 'ave_pos'):
+        #     assert self.triplet_scale == 0, f'triplet_scale={repr(self.triplet_scale)}, triplet_scale > 0 is not supported for the current mode={self.mode}'
+        #     loss_dict = self.adavae.compute_loss()
         else:
             raise KeyError
 
-        # DEBUG COUNTS
-        p_shared_before = self.p_shared_before / self.item_count
-        p_shared_after = self.p_shared_after / self.item_count
-        n_shared_before = self.n_shared_before / self.item_count
-        n_shared_after = self.n_shared_after / self.item_count
-        self.p_shared_before, self.p_shared_after, self.n_shared_before, self.n_shared_after = 0, 0, 0, 0
-
-        loss_dict.update({
-            'p_shared_before': p_shared_before,
-            'p_shared_after': p_shared_after,
-            'n_shared_before': n_shared_before,
-            'n_shared_after': n_shared_after,
-        })
-
         return loss_dict
+
+
+# ========================================================================= #
+# HELPER                                                                    #
+# ========================================================================= #
+
+
+def compute_constrained_masks(p_kl_deltas, p_shared_mask, n_kl_deltas, n_shared_mask):
+    # number of changed factors
+    p_shared_num = torch.sum(p_shared_mask, dim=1, keepdim=True)
+    n_shared_num = torch.sum(n_shared_mask, dim=1, keepdim=True)
+    
+    # POSITIVE SHARED MASK
+    # order from smallest to largest
+    p_sort_indices = torch.argsort(p_kl_deltas, dim=1)
+    # p_shared should be at least n_shared
+    new_p_shared_num = torch.max(p_shared_num, n_shared_num)
+
+    # NEGATIVE SHARED MASK
+    # order from smallest to largest
+    n_sort_indices = torch.argsort(n_kl_deltas, dim=1)
+    # n_shared should be at most p_shared
+    new_n_shared_num = torch.min(p_shared_num, n_shared_num)
+
+    # COMPUTE NEW MASKS
+    new_p_shared_mask = torch.zeros_like(p_shared_mask)
+    new_n_shared_mask = torch.zeros_like(n_shared_mask)
+    for i, (new_shared_p, new_shared_n) in enumerate(zip(new_p_shared_num, new_n_shared_num)):
+        new_p_shared_mask[i, p_sort_indices[i, :new_shared_p]] = True
+        new_n_shared_mask[i, n_sort_indices[i, :new_shared_n]] = True
+
+    # return masks
+    return new_p_shared_mask, new_n_shared_mask
 
 
 # ========================================================================= #

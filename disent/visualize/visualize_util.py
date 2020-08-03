@@ -23,7 +23,6 @@
 """
 Utility functions for the visualization code.
 """
-
 import logging
 import math
 import numpy as np

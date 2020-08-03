@@ -1,6 +1,0 @@
-# @package _group_
-name: betavae
-cls:
-  target: disent.frameworks.unsupervised.betavae.BetaVaeLoss
-  params:
-    beta: 4
