@@ -25,6 +25,8 @@ class MatrixSubspaceProject(BaseModule):
         if init_mode == 'xavier':
             torch.nn.init.xavier_normal_(self.M)
         elif init_mode == 'ortho':
+            # in this mode, if all labels are zero and passed to mutated_z, the result should be all zeros.
+            # typically the loss enforces this constraint that M^T = M^-1
             from scipy.stats import ortho_group
             assert self.y_size == self.z_size, f'For {init_mode=}, {y_size=} must equal {z_size=}'
             self.M[:, :] = torch.as_tensor(ortho_group.rvs(dim=self.y_size))
@@ -49,18 +51,18 @@ class MatrixSubspaceProject(BaseModule):
         - this is applied to the whole batch of z
         """
         y_hat = z @ self.M.T
-        # mutate label space
+        # compute delta in label space
         delta = torch.zeros_like(y_hat)
         for i, y in new_labels:
             delta[:, i] = y * weight - y_hat[:, i]
-        # apply difference to z
+        # apply delta in latent space
         return z + delta @ self.M
     
     def mutated_z_alt(self, z, label_vec, apply_label_mask):
         y_hat = z @ self.M.T
-        # mutate label space
+        # compute delta in label space
         delta = (label_vec - y_hat) * apply_label_mask
-        # apply difference to z
+        # apply delta in latent space
         return z + delta @ self.M
 
 if __name__ == '__main__':
@@ -68,7 +70,6 @@ if __name__ == '__main__':
     msp = MatrixSubspaceProject(y_size=y_size, z_size=z_size, init_mode='xavier')
 
     z = torch.randn((batch_size, z_size))
-
 
     labels, mutate_mask = torch.as_tensor([[0, 1, -1, 0, 0, 0], [False, True, True, False, True, True]])
     new_labels = [(i, v) for i, (v, m) in enumerate(zip(labels, mutate_mask)) if m]
