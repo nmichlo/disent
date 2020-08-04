@@ -23,17 +23,18 @@
 """
 Visualization module for disentangled representations.
 """
-
+import logging
 import numbers
 import os
-from disent.dataset.util.io import ensure_dir_exists
+from disent.dataset.util.in_out import ensure_dir_exists
 from disent.visualize import visualize_util
-from disent.dataset import as_dataset
+from disent.dataset import DEPRICATED_as_dataset
 from disent.visualize.visualize_util import reconstructions_to_images
-from disent.util import to_numpy
+from disent.util import TempNumpySeed, to_numpy
 import numpy as np
 import torch
 
+log = logging.getLogger(__name__)
 
 # ========================================================================= #
 # Visualise varying single factor for model                                 #
@@ -201,6 +202,7 @@ LATENT_CYCLE_MODES = list(_LATENT_CYCLE_MODES_MAP.keys())
 def latent_cycle(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', num_animations=4, num_frames=20):
     assert len(z_means) > 1 and len(z_logvars) > 1, 'not enough samples to average'
     # convert
+    t = z_means
     z_means, z_logvars = to_numpy(z_means), to_numpy(z_logvars)
     # get mode
     if mode not in _LATENT_CYCLE_MODES_MAP:
@@ -211,7 +213,7 @@ def latent_cycle(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', 
         frames = []
         for j in range(z_means.shape[1]):
             z = z_gen_func(base_z, z_means, z_logvars, j, num_frames)
-            z = torch.as_tensor(z).cuda()  # TODO: wont always be cuda
+            z = torch.as_tensor(z).type_as(t)
             frames.append(reconstructions_to_images(decoder_func(z)))
         animations.append(frames)
     return to_numpy(animations)
@@ -222,8 +224,9 @@ def latent_cycle(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', 
 # ========================================================================= #
 
 
-def sample_observations_and_reconstruct(gaussian_encoder_fn, decoder_fn, dataset, num_samples=16):
-    obs = dataset.sample_observations(num_samples).cuda()
+def sample_observations_and_reconstruct(gaussian_encoder_fn, decoder_fn, dataset, num_samples=16, seed=None):
+    with TempNumpySeed(seed):
+        obs = dataset.sample_observations(num_samples).cuda()
     # reconstruct
     z_mean, z_logvar = gaussian_encoder_fn(obs)
     x_recon = decoder_fn(z_mean)
@@ -260,14 +263,14 @@ def save_model_visualisations(
     # Create the output directory if necessary.
     if os.path.isdir(output_dir):
         if overwrite:
-            print(f'[WARNING] Directory Exists... DELETING: {output_dir}')
+            log.warning(f'Directory already exists... DELETING: {output_dir}')
             import shutil
             shutil.rmtree(output_dir)
         else:
             raise ValueError("Directory already exists and overwrite is False.")
 
     # convert string to dataset if needed
-    dataset = as_dataset(dataset)
+    dataset = DEPRICATED_as_dataset(dataset)
 
     # TODO: get activation function | add support throughout disent
     # activation = dict(logits=sigmoid, tanh=tanh)['logits']
@@ -331,8 +334,8 @@ if __name__ == '__main__':
 
     save_model_visualisations(
         system.model.encode_gaussian,
-        system.model.decode,
-        system.dataset_train,
+        system.model.reconstruct,
+        system.dataset,
         system.model.z_size,
         output_dir='data/output/model',
         overwrite=True,

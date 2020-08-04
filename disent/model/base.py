@@ -1,7 +1,9 @@
+import logging
 import numpy as np
 import torch.nn as nn
 from torch import Tensor
 
+log = logging.getLogger(__name__)
 
 # ========================================================================= #
 # Utility Layers                                                            #
@@ -14,9 +16,9 @@ class Print(nn.Module):
         self.layer = layer
 
     def forward(self, tensor):
-        print(self.layer, '|', tensor.shape, '->', end=' ', flush=True)
+        log.debug(self.layer, '|', tensor.shape, '->')
         output = self.layer.forward(tensor)
-        print(output.shape)
+        log.debug(output.shape)
         return output
 
 class BatchView(nn.Module):
@@ -48,11 +50,12 @@ class Flatten3D(nn.Module):
 
 
 class BaseModule(nn.Module):
-    def __init__(self, x_shape=(3, 64, 64), z_size=6):
+    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
         super().__init__()
         self._x_shape = x_shape
         self._x_size = int(np.prod(x_shape))
         self._z_size = z_size
+        self._z_multiplier = z_multiplier
 
     @property
     def x_shape(self):
@@ -63,51 +66,50 @@ class BaseModule(nn.Module):
     @property
     def z_size(self):
         return self._z_size
+    @property
+    def z_multiplier(self):
+        return self._z_multiplier
+    @property
+    def z_total(self):
+        return self._z_size * self._z_multiplier
 
     def assert_x_valid(self, x):
         assert x.ndim == 4
         assert x.shape[1:] == self.x_shape, f'X shape mismatch. Required: {self.x_shape} Got: {x.shape[1:]}'
     def assert_z_valid(self, z):
         assert z.ndim == 2
-        assert z.shape[1] == self.z_size, f'Z size mismatch. Required: {self.z_size} Got: {z.shape[1]}'
+        assert z.shape[1] == self.z_total, f'Z size mismatch. Required: {self.z_size} (x{self.z_multiplier}) = {self.z_total} Got: {z.shape[1]}'
     def assert_lengths(self, x, z):
         assert len(x) == len(z)
 
 
-# class BaseEncoderModule(BaseModule):
-#     def forward(self, x) -> Tensor:
-#         self.assert_x_valid(x)
-#         # encode
-#         z = self.encode(x)
-#         # checks
-#         self.assert_z_valid(z)
-#         self.assert_lengths(x, z)
-#         # return
-#         return z
-#
-#     def encode(self, x) -> Tensor:
-#         raise NotImplementedError
+class BaseEncoderModule(BaseModule):
 
-
-class BaseGaussianEncoderModule(BaseModule):
-    def forward(self, x) -> (Tensor, Tensor):
+    def forward(self, x) -> Tensor:
+        """same as self.encode but with size checks"""
         self.assert_x_valid(x)
         # encode | p(z|x)
-        z_mean, z_logvar = self.encode_gaussian(x)
+        # for a gaussian encoder, we treat z as concat(z_mean, z_logvar) where z_mean.shape == z_logvar.shape
+        # ie. the first half of z is z_mean, the second half of z is z_logvar
+        z = self.encode(x)
         # checks
-        self.assert_z_valid(z_mean)
-        self.assert_z_valid(z_logvar)
-        self.assert_lengths(x, z_logvar)
-        self.assert_lengths(x, z_mean)
+        self.assert_z_valid(z)
+        self.assert_lengths(x, z)
         # return
-        return z_mean, z_logvar
+        return z
 
-    def encode_gaussian(self, x) -> (Tensor, Tensor):
+    def encode(self, x) -> Tensor:
         raise NotImplementedError
 
 
 class BaseDecoderModule(BaseModule):
+    
+    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
+        assert z_multiplier == 1, 'decoder does not support z_multiplier != 1'
+        super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
+
     def forward(self, z):
+        """same as self.decode but with size checks"""
         self.assert_z_valid(z)
         # decode | p(x|z)
         x_recon = self.decode(z)
@@ -119,21 +121,6 @@ class BaseDecoderModule(BaseModule):
 
     def decode(self, z) -> Tensor:
         raise NotImplementedError
-
-
-# class BaseAutoEncoderModule(BaseEncoderModule, BaseDecoderModule):
-#     def forward(self, x):
-#         self.assert_x_valid(x)
-#         # encode
-#         z = self.encode(x)
-#         self.assert_z_valid(z)
-#         assert len(x) == len(z)
-#         # decode
-#         x_recon = self.decode(z)
-#         self.assert_x_valid(x_recon)
-#         assert len(z) == len(x_recon)
-#         # return
-#         return x_recon
 
 
 # ========================================================================= #

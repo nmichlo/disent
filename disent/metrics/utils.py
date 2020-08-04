@@ -18,7 +18,7 @@
 import numpy as np
 from tqdm import tqdm
 
-from disent.dataset.ground_truth.base import GroundTruthDataset
+from disent.dataset.single import GroundTruthDataset
 from disent.util import to_numpy
 
 # import sklearn
@@ -36,7 +36,8 @@ def generate_batch_factor_code(
         ground_truth_dataset: GroundTruthDataset,
         representation_function,
         num_points,
-        batch_size
+        batch_size,
+        show_progress=False,
 ):
     """Sample a single training sample based on a mini-batch of ground-truth data.
     Args:
@@ -44,6 +45,7 @@ def generate_batch_factor_code(
       representation_function: Function that takes observation as input and outputs a representation.
       num_points: Number of points to sample.
       batch_size: Batchsize to sample points.
+      show_progress: if a progress bar should be shown
     Returns:
       representations: Codes (num_codes, num_points)-np array.
       factors: Factors generating the codes (num_factors, num_points)-np array.
@@ -51,11 +53,11 @@ def generate_batch_factor_code(
     representations = None
     factors = None
     i = 0
-    with tqdm(total=num_points) as bar:
+    with tqdm(total=num_points, disable=not show_progress) as bar:
         while i < num_points:
             num_points_iter = min(num_points - i, batch_size)
             current_factors, current_observations = ground_truth_dataset.sample(num_points_iter)
-            current_factors, current_observations = current_factors, current_observations.cuda()
+            current_factors, current_observations = current_factors, current_observations
             if i == 0:
                 factors = current_factors
                 representations = to_numpy(representation_function(current_observations))
@@ -132,13 +134,11 @@ def obtain_representation(observations, representation_function, batch_size):
 #     return h
 
 
-# @tonic.config("discretizer")
 # def make_discretizer(target, num_bins=gin.REQUIRED, discretizer_fn=gin.REQUIRED):
 #     """Wrapper that creates discretizers."""
 #     return discretizer_fn(target, num_bins)
 
 
-# @tonic.config("histogram_discretizer")
 # def _histogram_discretize(target, num_bins=gin.REQUIRED):
 #     """Discretization based on histograms."""
 #     discretized = np.zeros_like(target)

@@ -19,11 +19,10 @@ Based on "Disentangling by Factorising" (https://arxiv.org/abs/1802.05983).
 """
 
 import logging
-import tonic.config
-import torch
 from tqdm import tqdm
 
-from disent.dataset.ground_truth.base import GroundTruthData, GroundTruthDataset
+from disent.dataset.ground_truth_data.base_data import GroundTruthData
+from disent.dataset.single import GroundTruthDataset
 from disent.metrics import utils
 import numpy as np
 from disent.util import to_numpy
@@ -34,14 +33,14 @@ from disent.util import to_numpy
 # ========================================================================= #
 
 
-@tonic.config('score.factor_vae')
 def compute_factor_vae(
         ground_truth_data: GroundTruthDataset,
         representation_function: callable,
         batch_size: int = 64,
         num_train: int = 10000,
         num_eval: int = 5000,
-        num_variance_estimate: int = 10000
+        num_variance_estimate: int = 10000,
+        show_progress=False,
 ):
     """
     Computes the FactorVAE disentanglement metric.
@@ -84,6 +83,7 @@ def compute_factor_vae(
       num_train: Number of points used for training.
       num_eval: Number of points used for evaluation.
       num_variance_estimate: Number of points used to estimate global variances.
+      show_progress: If a tqdm progress bar should be shown
     Returns:
       Dictionary with scores:
         train_accuracy: Accuracy on training set.
@@ -102,7 +102,7 @@ def compute_factor_vae(
         return scores_dict
 
     logging.info("Generating training set.")
-    training_votes = _generate_training_batch(ground_truth_data, representation_function, batch_size, num_train, global_variances, active_dims)
+    training_votes = _generate_training_batch(ground_truth_data, representation_function, batch_size, num_train, global_variances, active_dims, show_progress=show_progress)
     classifier = np.argmax(training_votes, axis=0)
     other_index = np.arange(training_votes.shape[1])
 
@@ -111,7 +111,7 @@ def compute_factor_vae(
     logging.info("Training set accuracy: %.2g", train_accuracy)
 
     logging.info("Generating evaluation set.")
-    eval_votes = _generate_training_batch(ground_truth_data, representation_function, batch_size, num_eval, global_variances, active_dims)
+    eval_votes = _generate_training_batch(ground_truth_data, representation_function, batch_size, num_eval, global_variances, active_dims, show_progress=show_progress)
 
     logging.info("Evaluate evaluation set accuracy.")
     eval_accuracy = np.sum(eval_votes[classifier, other_index]) * 1. / np.sum(eval_votes)
@@ -123,7 +123,6 @@ def compute_factor_vae(
 
     return scores_dict
 
-@tonic.config('factor_vae.prune_dims')
 def _prune_dims(variances, threshold=0.):
     """Mask for dimensions collapsed to the prior."""
     scale_z = np.sqrt(variances)
@@ -192,7 +191,8 @@ def _generate_training_batch(
         batch_size: int,
         num_points: int,
         global_variances: np.ndarray,
-        active_dims: list
+        active_dims: list,
+        show_progress=False,
 ):
     """Sample a set of training samples based on a batch of ground-truth data.
     Args:
@@ -206,7 +206,7 @@ def _generate_training_batch(
       (num_factors, dim_representation)-sized numpy array with votes.
     """
     votes = np.zeros((ground_truth_data.num_factors, global_variances.shape[0]), dtype=np.int64)
-    for _ in tqdm(range(num_points)):
+    for _ in tqdm(range(num_points), disable=(not show_progress)):
         factor_index, argmin = _generate_training_sample(ground_truth_data, representation_function, batch_size, global_variances, active_dims)
         votes[factor_index, argmin] += 1
     return votes
@@ -214,40 +214,3 @@ def _generate_training_batch(
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-
-
-if __name__ == '__main__':
-    def _main():
-        from disent.systems.vae import HParams, VaeSystem
-        from disent.util import load_model
-        from disent.dataset import make_ground_truth_dataset
-
-
-        for z_size in [12, 6, 3]:
-            for loss in ['beta-vae', 'ada-gvae']:
-                print()
-                print('='*100)
-                print()
-
-                hparams = HParams(dataset='3dshapes', model='simple-fc', z_size=z_size, loss=loss)
-
-                print(hparams)
-                print()
-
-                system = VaeSystem(hparams=hparams)
-                load_model(system, f'data/models/trained-e10-{hparams.dataset}-{hparams.model}-z{hparams.z_size}-{hparams.loss.replace("-","")}.ckpt')
-                score = compute_factor_vae(
-                    ground_truth_data=make_ground_truth_dataset(hparams.dataset),
-                    representation_function=system.model.encode_deterministic,
-                    batch_size=32,
-                    num_train=1024,
-                    num_eval=512,
-                    num_variance_estimate=2048,
-                )
-
-                print()
-                print(score)
-                print()
-
-    _main()
-    del _main

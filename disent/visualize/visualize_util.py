@@ -23,15 +23,15 @@
 """
 Utility functions for the visualization code.
 """
-
+import logging
 import math
 import numpy as np
 from PIL import Image
 import scipy.stats
 import imageio
-
 from disent.util import to_numpy
 
+log = logging.getLogger(__name__)
 
 # ========================================================================= #
 # Saving Images/Animations | FROM: disentanglement_lib                      #
@@ -103,7 +103,7 @@ def save_gridified_animation(list_of_animated_images, image_path, fps):
 # ========================================================================= #
 
 
-def padded_grid(images, num_rows=None, padding_px=10, value=None):
+def padded_grid(images, num_rows=None, padding_px=8, value=None):
     """Creates a grid with padding in between images."""
     num_images = len(images)
     if num_rows is None:
@@ -121,7 +121,7 @@ def padded_grid(images, num_rows=None, padding_px=10, value=None):
     return padded_stack(rows, padding_px, axis=0, value=value)
 
 
-def padded_stack(images, padding_px=10, axis=0, value=None):
+def padded_stack(images, padding_px=8, axis=0, value=None):
     """Stacks images along axis with padding in between images."""
     padding_arr = padding_array(images[0], padding_px, axis, value=value)
     new_images = [images[0]]
@@ -138,11 +138,15 @@ def padding_array(image, padding_px, axis, value=None):
     if value is None:
         return np.ones(shape, dtype=image.dtype)
     else:
+        try:
+            len(value)
+        except:
+            value = [value] * shape[-1]
         assert len(value) == shape[-1]
         shape[-1] = 1
         return np.tile(value, shape)
 
-def pad_around(image, padding_px=10, axis=None, value=None):
+def pad_around(image, padding_px=8, axis=None, value=None):
     """Adds a padding around each image."""
     # If axis is None, pad both the first and the second axis.
     if axis is None:
@@ -152,14 +156,14 @@ def pad_around(image, padding_px=10, axis=None, value=None):
     return np.concatenate([padding_arr, image, padding_arr], axis=axis)
 
 
-def gridify_animation(list_of_animated_images):
+def gridify_animation(list_of_animated_images, padding_px=8, value=None):
     full_size_images = []
     for single_images in zip(*list_of_animated_images):
-        full_size_images.append(pad_around(padded_grid(list(single_images))))
+        full_size_images.append(pad_around(padded_grid(list(single_images), padding_px=padding_px, value=value), padding_px=padding_px, value=value))
     return to_numpy(full_size_images)
 
 
-# def add_below(image, padding_px=10, value=None):
+# def add_below(image, padding_px=8, value=None):
 #     """Adds a footer below."""
 #     if len(image.shape) == 2:
 #         image = np.expand_dims(image, -1)
@@ -259,8 +263,9 @@ def reconstructions_to_images(recon, mode='float', moveaxis=True):
     # checks
     assert img.ndim >= 3
     assert img.dtype in (np.float32, np.float64)
-    assert 0 <= np.min(img) <= 1
-    assert 0 <= np.max(img) <= 1
+    if np.min(img) < 0 or np.max(img) > 1:
+        log.warning('image has been clipped')
+    img = np.clip(img, 0, 1)
     # move channels axis
     if moveaxis:
         # TODO: automatically detect

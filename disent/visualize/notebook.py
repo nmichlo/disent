@@ -2,10 +2,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 
+from disent.dataset import DEPRICATED_as_dataset
 from disent.systems.vae import VaeSystem
-from disent.util import to_numpy
+from disent.util import TempNumpySeed, to_numpy
 from disent.visualize.visualize_dataset import sample_dataset_animations, sample_dataset_still_images
-from disent.visualize.visualize_model import (LATENT_CYCLE_MODES, latent_random_samples, latent_traversals,
+from disent.visualize.visualize_model import (LATENT_CYCLE_MODES, _LATENT_CYCLE_MODES_MAP, latent_random_samples,
+                                              latent_traversals,
                                               sample_observations_and_reconstruct, latent_cycle)
 from disent.visualize.visualize_util import gridify_animation, reconstructions_to_images
 
@@ -56,7 +58,7 @@ def plt_images_minimal_square(image_list, figsize_ratio=1., space=0):
 # notebook                                                                  #
 # ========================================================================= #
 
-def notebook_display_animation(frames, fps=10):
+def notebook_display_animation(frames, fps=10, display_id=None):
     """
     Display an animation within an IPython notebook.
     - Internally converts the list of frames into bytes
@@ -70,9 +72,13 @@ def notebook_display_animation(frames, fps=10):
     data = mimwrite('<bytes>', to_numpy(frames), format='gif', fps=fps)
     # diplay gif image in notebook | https://github.com/ipython/ipython/issues/10045#issuecomment-522697219
     image = display.Image(data=data, format='gif')
-    display.display(image)
+    if display_id:
+        display.update_display(image, display_id=display_id)
+        return display_id
+    else:
+        return display.display(image, display_id=True).display_id
 
-def notebook_display_image(img, format='png'):
+def notebook_display_image(img, format='png', display_id=None):
     """
     Display a raw image within an IPython notebook
     - Internally converts the image to bytes
@@ -87,7 +93,11 @@ def notebook_display_image(img, format='png'):
     data = imwrite('<bytes>', to_numpy(img), format=format)
     # diplay png image in notebook | https://github.com/ipython/ipython/issues/10045#issuecomment-522697219
     image = display.Image(data=data, format=format)
-    display.display(image)
+    if display_id:
+        display.update_display(image, display_id=display_id)
+        return display_id
+    else:
+        return display.display(image, display_id=True).display_id
 
 # ========================================================================= #
 # notebook - dataset visualisation                                          #
@@ -97,14 +107,14 @@ def plt_sample_dataset_still_images(data='3dshapes', num_samples=16, mode='sprea
     images = sample_dataset_still_images(data=data, num_samples=num_samples, mode=mode)
     plt_images_grid(images, figsize_ratio=figsize_ratio)
 
-def plt_sample_dataset_animation(data='3dshapes', num_frames=9, figsize_ratio=0.75):
-    frames = sample_dataset_animations(data, num_animations=1, num_frames=num_frames)[0]
+def plt_sample_dataset_animation(data='3dshapes', num_frames=9, figsize_ratio=0.75, seed=None):
+    frames = sample_dataset_animations(data, num_animations=1, num_frames=num_frames, seed=seed)[0]
     plt_images_grid(frames, figsize_ratio=figsize_ratio)
 
-def notebook_display_sample_dataset_animation(data='3dshapes', num_frames=30, fps=10):
-    frames = sample_dataset_animations(data, num_animations=1, num_frames=num_frames)[0]
+def notebook_display_sample_dataset_animation(data='3dshapes', num_frames=30, fps=10, seed=None, display_id=None):
+    frames = sample_dataset_animations(data, num_animations=1, num_frames=num_frames, seed=seed)[0]
     frames = gridify_animation(frames)
-    notebook_display_animation(frames, fps=fps)
+    return notebook_display_animation(frames, fps=fps, display_id=display_id)
 
 
 # ========================================================================= #
@@ -117,7 +127,7 @@ def _plt_latent_random_samples(decoder_fn, z_size, num_samples=16, figsize_ratio
     plt_images_minimal_square(images, figsize_ratio=figsize_ratio)
 
 def plt_latent_random_samples(system: 'VaeSystem', num_samples=16, figsize_ratio=0.75):
-    _plt_latent_random_samples(system.model.decode, system.model.z_size, num_samples=num_samples, figsize_ratio=figsize_ratio)
+    _plt_latent_random_samples(system.model.reconstruct, system.model.z_size, num_samples=num_samples, figsize_ratio=figsize_ratio)
 
 
 # TODO, these are useless, convert to just using the VaeSystem
@@ -126,51 +136,99 @@ def _plt_traverse_latent_space(decoder_fn, z_mean, dimensions=None, values=None,
     for images_grid in traversals:
         plt_images_grid(images_grid, figsize_ratio=figsize_ratio)
 
-def plt_traverse_latent_space(system, num_samples=1, dimensions=None, values=11, figsize_ratio=0.75):
+def plt_traverse_latent_space(system, num_samples=1, dimensions=None, values=11, figsize_ratio=0.75, seed=None):
     # TODO: this is not general
-    obs = system.dataset_train.sample_observations(num_samples).cuda()
+    with TempNumpySeed(seed):
+        obs = system.dataset.sample_observations(num_samples).cuda()
     z_mean, z_logvar = to_numpy(system.model.encode_gaussian(obs))
-    _plt_traverse_latent_space(system.model.decode, z_mean, dimensions=dimensions, values=values, figsize_ratio=figsize_ratio)
+    _plt_traverse_latent_space(system.model.reconstruct, z_mean, dimensions=dimensions, values=values, figsize_ratio=figsize_ratio)
 
 
-def _notebook_display_traverse_latent_space(decoder_fn, z_mean, dimensions=None, values=None, fps=10):
+def _notebook_display_traverse_latent_space(decoder_fn, z_mean, dimensions=None, values=None, fps=10, display_ids=None):
     traversals = latent_traversals(decoder_fn, z_mean, dimensions=dimensions, values=values)
     traversals = reconstructions_to_images(traversals, 'int', moveaxis=False)
-    for frames in traversals:
+    new_display_ids = []
+    for i, frames in enumerate(traversals):
         frames = gridify_animation(frames)
-        notebook_display_animation(frames, fps=fps)
+        d_id = notebook_display_animation(frames, fps=fps, display_id=display_ids[i] if display_ids else None)
+        new_display_ids.append(d_id)
+    return new_display_ids if new_display_ids else None
 
-def notebook_display_traverse_latent_space(system, num_samples=1, dimensions=None, values=21, fps=10):
+def notebook_display_traverse_latent_space(system, num_samples=1, dimensions=None, values=21, fps=10, seed=None, display_ids=None):
     # TODO: this is not general
-    obs = system.dataset_train.sample_observations(num_samples).cuda()
+    with TempNumpySeed(seed):
+        obs = system.dataset.sample_observations(num_samples).cuda()
     z_mean, z_logvar = to_numpy(system.model.encode_gaussian(obs))
-    _notebook_display_traverse_latent_space(system.model.decode, z_mean, dimensions=dimensions, values=values, fps=fps)
+    return _notebook_display_traverse_latent_space(system.model.reconstruct, z_mean, dimensions=dimensions, values=values, fps=fps, display_ids=display_ids)
 
+# TODO: remove, this is just a combination of other methods
+def notebook_model_visualisations(
+        system, dataset,
+        num_images=64,
+        num_animations=5,
+        num_frames=20,
+        fps=10
+):
+    encoder_fn = system.model.encode
+    decoder_fn = system.model.reconstruct
+    z_size = system.model.z_size
 
-def _plt_sample_observations_and_reconstruct(gaussian_encoder_fn, decoder_fn, dataset, num_samples=16, figsize_ratio=0.75):
-    obs, x_recon = sample_observations_and_reconstruct(gaussian_encoder_fn, decoder_fn, dataset, num_samples=num_samples)
+    # convert string to dataset if needed
+    dataset = DEPRICATED_as_dataset(dataset)
+
+    # sample random observations & feed forward | used for visualisations
+    obs = dataset.sample_observations(num_images).cuda()  # TODO: cuda wont always be right
+    z_means, z_logvars = encoder_fn(obs)
+    x_recons = decoder_fn(z_means)
+
+    # plot reconstructions.
+    plt_images_minimal_square(reconstructions_to_images(obs))
+    plt_images_minimal_square(reconstructions_to_images(x_recons))
+    plt_images_minimal_square(np.concatenate([reconstructions_to_images(obs), reconstructions_to_images(x_recons)], axis=2))
+
+    # random latent samples
+    images = latent_random_samples(decoder_fn, z_size, num_images)
+    plt_images_minimal_square(images)
+
+    # Save latent traversals.
+    traversals = latent_traversals(decoder_fn, z_means)
+    for i, image_grid in enumerate(traversals):
+        plt_images_minimal_square(image_grid)
+
+    # Save the latent traversal animations.
+    for mode in _LATENT_CYCLE_MODES_MAP:
+        animations = latent_cycle(decoder_fn, z_means, z_logvars, mode=mode, num_animations=num_animations, num_frames=num_frames)
+        animations = reconstructions_to_images(animations, mode='int', moveaxis=False)  # axis already moved above
+        for i, animation in enumerate(animations):
+            notebook_display_animation(gridify_animation(animation))
+
+def _plt_sample_observations_and_reconstruct(gaussian_encoder_fn, decoder_fn, dataset, num_samples=16, figsize_ratio=0.75, seed=None):
+    obs, x_recon = sample_observations_and_reconstruct(gaussian_encoder_fn, decoder_fn, dataset, num_samples=num_samples, seed=seed)
     plt_images_minimal_square(obs, figsize_ratio=figsize_ratio)
     plt_images_minimal_square(x_recon, figsize_ratio=figsize_ratio)
 
-def plt_sample_observations_and_reconstruct(system, num_samples=16, figsize_ratio=0.75):
-    _plt_sample_observations_and_reconstruct(system.model.encode_gaussian, system.model.decode, system.dataset_train, num_samples=num_samples, figsize_ratio=figsize_ratio)
+def plt_sample_observations_and_reconstruct(system, num_samples=16, figsize_ratio=0.75, seed=None):
+    _plt_sample_observations_and_reconstruct(system.model.encode_gaussian, system.model.reconstruct, system.dataset, num_samples=num_samples, figsize_ratio=figsize_ratio, seed=seed)
 
-def _notebook_display_latent_cycle(decoder_fn, z_means, z_logvars, mode='fixed_interval_cycle', num_animations=1, num_frames=20, fps=10):
+def _notebook_display_latent_cycle(decoder_fn, z_means, z_logvars, mode='fixed_interval_cycle', num_animations=1, num_frames=20, fps=10, display_ids=None):
     animations = latent_cycle(decoder_fn, z_means, z_logvars, mode=mode, num_animations=num_animations, num_frames=num_frames)
     animations = reconstructions_to_images(animations, mode='int', moveaxis=False)  # axis already moved above
+    new_display_ids = []
     for i, images_frames in enumerate(animations):
         frames = gridify_animation(images_frames)
-        notebook_display_animation(frames, fps=fps)
+        new_display_ids.append(notebook_display_animation(frames, fps=fps, display_id=display_ids[i] if display_ids else None))
+    return new_display_ids
 
-def notebook_display_latent_cycle(system, mode='fixed_interval_cycle', num_animations=1, num_test_samples=64, num_frames=21, fps=8, obs=None):
+def notebook_display_latent_cycle(system, mode='fixed_interval_cycle', num_animations=1, num_test_samples=64, num_frames=21, fps=8, obs=None, seed=None, display_ids=None):
     if obs is None:
         # TODO: this is not general
-        obs = system.dataset_train.sample_observations(num_test_samples).cuda()
+        with TempNumpySeed(seed):
+            obs = system.dataset.sample_observations(num_test_samples).cuda()
     else:
         # TODO: this is not general
         obs = torch.as_tensor(obs).cuda()
     z_mean, z_logvar = to_numpy(system.model.encode_gaussian(obs))
-    _notebook_display_latent_cycle(system.model.decode, z_mean, z_logvar, mode=mode, num_animations=num_animations, num_frames=num_frames, fps=fps)
+    return _notebook_display_latent_cycle(system.model.reconstruct, z_mean, z_logvar, mode=mode, num_animations=num_animations, num_frames=num_frames, fps=fps, display_ids=display_ids)
 
 # ========================================================================= #
 # END                                                                       #

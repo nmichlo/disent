@@ -14,19 +14,18 @@
 # limitations under the License.
 
 """Implementation of Disentanglement, Completeness and Informativeness.
-Based on "A Framework for the Quantitative Evaluation of Disentangled
+Based on "A BaseFramework for the Quantitative Evaluation of Disentangled
 Representations" (https://openreview.net/forum?id=By-7dz-AZ).
 """
 
 import logging
-import tonic
 from tqdm import tqdm
 
+from disent.dataset.single import GroundTruthDataset
 from disent.metrics import utils
 import numpy as np
 import scipy
 import scipy.stats
-from sklearn.ensemble import GradientBoostingClassifier
 
 
 # ========================================================================= #
@@ -34,13 +33,14 @@ from sklearn.ensemble import GradientBoostingClassifier
 # ========================================================================= #
 
 
-@tonic.config("dci")
 def compute_dci(
-        ground_truth_data,
-        representation_function,
-        num_train=10000,
-        num_test=5000,
-        batch_size=16
+        ground_truth_data: GroundTruthDataset,
+        representation_function: callable,
+        num_train: int = 10000,
+        num_test: int = 5000,
+        batch_size: int = 16,
+        boost_mode='sklearn',
+        show_progress=False,
 ):
     """Computes the DCI scores according to Sec 2.
     Args:
@@ -50,6 +50,8 @@ def compute_dci(
       num_train: Number of points used for training.
       num_test: Number of points used for testing.
       batch_size: Batch size for sampling.
+      boost_mode: which boosting algorithm should be used [sklearn, xgboost, lightgbm] (this can have a significant effect on score)
+      show_progress: If a tqdm progress bar should be shown
     Returns:
       Dictionary with average disentanglement score, completeness and
         informativeness (train and test).
@@ -57,20 +59,21 @@ def compute_dci(
     logging.info("Generating training set.")
     # mus_train are of shape [num_codes, num_train], while ys_train are of shape
     # [num_factors, num_train].
-    mus_train, ys_train = utils.generate_batch_factor_code(ground_truth_data, representation_function, num_train, batch_size)
+    mus_train, ys_train = utils.generate_batch_factor_code(ground_truth_data, representation_function, num_train, batch_size, show_progress=False)
     assert mus_train.shape[1] == num_train
     assert ys_train.shape[1] == num_train
-    mus_test, ys_test = utils.generate_batch_factor_code(ground_truth_data, representation_function, num_test, batch_size)
+    mus_test, ys_test = utils.generate_batch_factor_code(ground_truth_data, representation_function, num_test, batch_size, show_progress=False)
 
     logging.info("Computing DCI metric.")
-    scores = _compute_dci(mus_train, ys_train, mus_test, ys_test)
+    scores = _compute_dci(mus_train, ys_train, mus_test, ys_test, boost_mode=boost_mode, show_progress=show_progress)
+
     return scores
 
 
-def _compute_dci(mus_train, ys_train, mus_test, ys_test):
+def _compute_dci(mus_train, ys_train, mus_test, ys_test, boost_mode='sklearn', show_progress=False):
     """Computes score based on both training and testing codes and factors."""
     scores = {}
-    importance_matrix, train_err, test_err = compute_importance_gbt(mus_train, ys_train, mus_test, ys_test)
+    importance_matrix, train_err, test_err = compute_importance_gbt(mus_train, ys_train, mus_test, ys_test, boost_mode=boost_mode, show_progress=show_progress)
     assert importance_matrix.shape[0] == mus_train.shape[0]
     assert importance_matrix.shape[1] == ys_train.shape[0]
     scores["informativeness_train"] = train_err
@@ -80,19 +83,31 @@ def _compute_dci(mus_train, ys_train, mus_test, ys_test):
     return scores
 
 
-def compute_importance_gbt(x_train, y_train, x_test, y_test):
+def compute_importance_gbt(x_train, y_train, x_test, y_test, boost_mode='sklearn', show_progress=False):
     """Compute importance based on gradient boosted trees."""
     num_factors = y_train.shape[0]
     num_codes = x_train.shape[0]
     importance_matrix = np.zeros(shape=[num_codes, num_factors], dtype=np.float64)
     train_loss = []
     test_loss = []
-    for i in tqdm(range(num_factors)):
-        model = GradientBoostingClassifier()
+    for i in tqdm(range(num_factors), disable=(not show_progress)):
+        if boost_mode == 'sklearn':
+            from sklearn.ensemble import GradientBoostingClassifier
+            model = GradientBoostingClassifier()
+        elif boost_mode == 'xgboost':
+            from xgboost import XGBClassifier
+            model = XGBClassifier()
+        elif boost_mode == 'lightgbm':
+            from lightgbm import LGBMClassifier
+            model = LGBMClassifier()
+        else:
+            raise KeyError(f'Invalid boosting mode: {boost_mode=}')
+
         model.fit(x_train.T, y_train[i, :])
         importance_matrix[:, i] = np.abs(model.feature_importances_)
         train_loss.append(np.mean(model.predict(x_train.T) == y_train[i, :]))
         test_loss.append(np.mean(model.predict(x_test.T) == y_test[i, :]))
+
     return importance_matrix, np.mean(train_loss), np.mean(test_loss)
 
 
@@ -108,7 +123,6 @@ def disentanglement(importance_matrix):
     if importance_matrix.sum() == 0.:
         importance_matrix = np.ones_like(importance_matrix)
     code_importance = importance_matrix.sum(axis=1) / importance_matrix.sum()
-
     return np.sum(per_code * code_importance)
 
 
@@ -129,37 +143,3 @@ def completeness(importance_matrix):
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-
-
-if __name__ == '__main__':
-    def _main():
-        from disent.systems.vae import HParams, VaeSystem
-        from disent.util import load_model
-        from disent.dataset import make_ground_truth_dataset
-
-        for z_size in [12, 6, 3]:
-            for loss in ['beta-vae', 'ada-gvae']:
-                print()
-                print('='*100)
-                print()
-
-                hparams = HParams(dataset='3dshapes', model='simple-fc', z_size=z_size, loss=loss)
-
-                print(hparams)
-                print()
-
-                system = VaeSystem(hparams=hparams)
-                load_model(system, f'data/models/trained-e10-{hparams.dataset}-{hparams.model}-z{hparams.z_size}-{hparams.loss.replace("-","")}.ckpt')
-                score = compute_dci(
-                    ground_truth_data=make_ground_truth_dataset(hparams.dataset),
-                    representation_function=system.model.encode_deterministic,
-                    num_train=1000,
-                    num_test=500,
-                )
-
-                print()
-                print(score)
-                print()
-
-    _main()
-    del _main
