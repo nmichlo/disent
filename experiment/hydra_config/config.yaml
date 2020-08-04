@@ -1,5 +1,5 @@
 defaults:
-  - framework: mspadavae
+  - framework: adavae
   - model: conv64
   - optimizer: radam
   - dataset: xyscalecolorgrid

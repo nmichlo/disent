@@ -1,5 +1,7 @@
-import logging
 import os
+import logging
+import time
+
 from omegaconf import DictConfig
 import hydra
 import numpy as np
@@ -13,12 +15,11 @@ from pytorch_lightning.loggers import WandbLogger
 from disent.dataset.single import GroundTruthDataset
 from disent.frameworks.addon.msp import MatrixSubspaceProjection
 from disent.frameworks.framework import BaseFramework
-from disent.model import EncoderConv64, GaussianAutoEncoder
+from disent.metrics import compute_dci, compute_factor_vae
+from disent.model import GaussianAutoEncoder
 from disent.util import TempNumpySeed, make_box_str
 from disent.visualize.visualize_model import latent_cycle
 from disent.visualize.visualize_util import gridify_animation, reconstructions_to_images
-
-log = logging.getLogger(os.path.splitext(os.path.basename(__file__))[0])
 
 
 # ========================================================================= #
@@ -132,20 +133,19 @@ class HydraSystem(pl.LightningModule):
 
 class LatentCycleLoggingCallback(pl.Callback):
 
-    def __init__(self, wandb_logger):
-        assert isinstance(wandb_logger, WandbLogger)
-        self.wandb_logger = wandb_logger
+    def __init__(self, seed=7777):
+        self.seed = seed
 
-    def on_epoch_end(self, trainer, system):
+    def on_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         # VISUALISE!
         # generate and log latent traversals
-        assert isinstance(system, HydraSystem)
+        assert isinstance(pl_module, HydraSystem)
         # get random sample of z_means and z_logvars for computing the range of values for the latent_cycle
-        with TempNumpySeed(7777):
-            obs = system.dataset.sample_observations(64).to(system.device)
-        z_means, z_logvars = system.model.encode_gaussian(obs)
+        with TempNumpySeed(self.seed):
+            obs = pl_module.dataset.sample_observations(64).to(pl_module.device)
+        z_means, z_logvars = pl_module.model.encode_gaussian(obs)
         # produce latent cycle animation & merge frames
-        animation = latent_cycle(system.model.reconstruct, z_means, z_logvars, mode='fitted_gaussian_cycle', num_animations=1, num_frames=21)
+        animation = latent_cycle(pl_module.model.reconstruct, z_means, z_logvars, mode='fitted_gaussian_cycle', num_animations=1, num_frames=21)
         animation = reconstructions_to_images(animation, mode='int', moveaxis=False)  # axis already moved above
         frames = np.transpose(gridify_animation(animation[0], padding_px=4, value=64), [0, 3, 1, 2])
         # check and add missing channel if needed (convert greyscale to rgb images)
@@ -153,10 +153,56 @@ class LatentCycleLoggingCallback(pl.Callback):
         if frames.shape[1] == 1:
             frames = np.repeat(frames, 3, axis=1)
         # log video
-        self.wandb_logger.experiment.log({
-            'fitted_gaussian_cycle': wandb.Video(frames, fps=5, format='mp4'),
+        trainer.log_metrics({
             'epoch': trainer.current_epoch,
-        }, commit=False)
+            'fitted_gaussian_cycle': wandb.Video(frames, fps=5, format='mp4'),
+        }, {})
+
+class DisentanglementLoggingCallback(pl.Callback):
+    
+    def __init__(self, epoch_end_metrics=None, train_end_metrics=None, every_n_epochs=2, begin_first_epoch=True):
+        self.begin_first_epoch = begin_first_epoch
+        self.epoch_end_metrics = epoch_end_metrics if epoch_end_metrics else []
+        self.train_end_metrics = train_end_metrics if train_end_metrics else []
+        self.every_n_epochs = every_n_epochs
+        assert isinstance(self.epoch_end_metrics, list)
+        assert isinstance(self.train_end_metrics, list)
+        assert self.epoch_end_metrics or self.train_end_metrics, 'No metrics given to epoch_end_metrics or train_end_metrics'
+
+    def _compute_metrics_and_log(self, trainer, pl_module, metrics, is_final=False):
+        # checks
+        assert isinstance(pl_module, HydraSystem)
+        # compute all metrics
+        for metric in metrics:
+            scores = metric(pl_module.dataset, lambda x: pl_module.model.encode_deterministic(x.to(pl_module.device)))
+            log.info(f'metric (epoch: {trainer.current_epoch}): {scores}')
+            # log to wandb if it exists
+            trainer.log_metrics({
+                    'epoch': trainer.current_epoch,
+                    'final_metric' if is_final else 'epoch_metric': scores,
+            }, {})
+
+    def on_epoch_end(self, trainer, pl_module):
+        if self.epoch_end_metrics:
+            # first epoch is 0, if we dont want the first one to be run we need to increment by 1
+            if 0 == (trainer.current_epoch + int(not self.begin_first_epoch)) % self.every_n_epochs:
+                self._compute_metrics_and_log(trainer, pl_module, metrics=self.epoch_end_metrics)
+
+    def on_train_end(self, trainer, pl_module):
+        if self.train_end_metrics:
+            self._compute_metrics_and_log(trainer, pl_module, metrics=self.train_end_metrics)
+
+class LoggerProgressCallback(pl.Callback):
+    def __init__(self, time_step=10):
+        self.last_time = 0
+        self.time_step = time_step
+        
+    def on_batch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+        if self.last_time + self.time_step < time.time():
+            self.last_time = time.time()
+            log.info(f'EPOCH: {trainer.current_epoch}/{trainer.max_epochs} [{int(trainer.current_epoch/trainer.max_epochs*100):3d}%] '
+                     f'STEP: {trainer.batch_idx:{len(str(trainer.num_training_batches))}d}/{trainer.num_training_batches} [{int(trainer.batch_idx/trainer.num_training_batches*100):3d}%] '
+                     f'[GLOBAL STEP: {trainer.global_step}]')
 
 # ========================================================================= #
 # RUNNER                                                                    #
@@ -173,6 +219,7 @@ def main(cfg: DictConfig):
 
     # warn about CUDA
     cuda = cfg.trainer.get('cuda', torch.cuda.is_available())
+    device = 'cuda' if cuda else 'cpu'
     if not torch.cuda.is_available():
         if cuda:
             log.error('trainer.cuda=True but CUDA is not available on this machine!')
@@ -183,7 +230,7 @@ def main(cfg: DictConfig):
         if not cuda:
             log.warning('CUDA is available but is not being used!')
 
-    # create trainer loggers
+    # create trainer loggers & callbacks
     logger, callbacks = None, []
     if cfg.logging.wandb.enabled:
         log.info(f'wandb log directory: {os.path.abspath("wandb")}')
@@ -197,7 +244,22 @@ def main(cfg: DictConfig):
             save_dir=hydra.utils.to_absolute_path(cfg.logging.logs_dir),  # relative to hydra's original cwd
             offline=cfg.logging.wandb.get('offline', False),
         )
-        callbacks.append(LatentCycleLoggingCallback(logger))
+        # Log the latent cycle visualisations to wandb
+        callbacks.append(LatentCycleLoggingCallback())
+
+    # Log metric scores
+    # TODO: allow disabling in config
+    callbacks.append(DisentanglementLoggingCallback(
+        every_n_epochs=2,
+        epoch_end_metrics=[lambda dat, fn: compute_dci(dat, fn, 1000, 500, boost_mode='lightgbm')],
+        train_end_metrics=[
+            compute_dci,
+            compute_factor_vae
+        ],
+    ))
+    
+    # custom progress bar
+    callbacks.append(LoggerProgressCallback(time_step=5))
 
     # check data preparation
     prepare_data_per_node = cfg.trainer.get('prepare_data_per_node', True)
@@ -227,18 +289,18 @@ def main(cfg: DictConfig):
         max_epochs=cfg.trainer.get('epochs', 100),
         max_steps=cfg.trainer.get('steps', None),
         prepare_data_per_node=prepare_data_per_node,
+        progress_bar_refresh_rate=0,  # ptl 0.9
     )
     trainer.fit(system)
+    # trainer resets the systems device
 
-    # EVALUATE
+# ========================================================================= #
+# LOGGING                                                                   #
+# ========================================================================= #
 
-    # metrics = [compute_dci, compute_factor_vae]
-    # for metric in metrics:
-    #     scores = metric(system.dataset, system.model.encode_deterministic)
-    #     log.info(f'{metric.__name__}:\n{DictConfig(scores).pretty()}')
-    #     if logger:
-    #         assert isinstance(logger, WandbLogger)
-    #         logger.experiment.log(scores, commit=False, step=0)
+
+log = logging.getLogger(os.path.splitext(os.path.basename(__file__))[0])
+
 
 # ========================================================================= #
 # MAIN                                                                      #

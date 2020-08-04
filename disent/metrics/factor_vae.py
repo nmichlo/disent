@@ -39,7 +39,8 @@ def compute_factor_vae(
         batch_size: int = 64,
         num_train: int = 10000,
         num_eval: int = 5000,
-        num_variance_estimate: int = 10000
+        num_variance_estimate: int = 10000,
+        show_progress=False,
 ):
     """
     Computes the FactorVAE disentanglement metric.
@@ -82,6 +83,7 @@ def compute_factor_vae(
       num_train: Number of points used for training.
       num_eval: Number of points used for evaluation.
       num_variance_estimate: Number of points used to estimate global variances.
+      show_progress: If a tqdm progress bar should be shown
     Returns:
       Dictionary with scores:
         train_accuracy: Accuracy on training set.
@@ -100,7 +102,7 @@ def compute_factor_vae(
         return scores_dict
 
     logging.info("Generating training set.")
-    training_votes = _generate_training_batch(ground_truth_data, representation_function, batch_size, num_train, global_variances, active_dims)
+    training_votes = _generate_training_batch(ground_truth_data, representation_function, batch_size, num_train, global_variances, active_dims, show_progress=show_progress)
     classifier = np.argmax(training_votes, axis=0)
     other_index = np.arange(training_votes.shape[1])
 
@@ -109,7 +111,7 @@ def compute_factor_vae(
     logging.info("Training set accuracy: %.2g", train_accuracy)
 
     logging.info("Generating evaluation set.")
-    eval_votes = _generate_training_batch(ground_truth_data, representation_function, batch_size, num_eval, global_variances, active_dims)
+    eval_votes = _generate_training_batch(ground_truth_data, representation_function, batch_size, num_eval, global_variances, active_dims, show_progress=show_progress)
 
     logging.info("Evaluate evaluation set accuracy.")
     eval_accuracy = np.sum(eval_votes[classifier, other_index]) * 1. / np.sum(eval_votes)
@@ -189,7 +191,8 @@ def _generate_training_batch(
         batch_size: int,
         num_points: int,
         global_variances: np.ndarray,
-        active_dims: list
+        active_dims: list,
+        show_progress=False,
 ):
     """Sample a set of training samples based on a batch of ground-truth data.
     Args:
@@ -203,7 +206,7 @@ def _generate_training_batch(
       (num_factors, dim_representation)-sized numpy array with votes.
     """
     votes = np.zeros((ground_truth_data.num_factors, global_variances.shape[0]), dtype=np.int64)
-    for _ in tqdm(range(num_points)):
+    for _ in tqdm(range(num_points), disable=(not show_progress)):
         factor_index, argmin = _generate_training_sample(ground_truth_data, representation_function, batch_size, global_variances, active_dims)
         votes[factor_index, argmin] += 1
     return votes
