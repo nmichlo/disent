@@ -11,6 +11,7 @@ import wandb
 from pytorch_lightning.loggers import WandbLogger
 
 from disent.dataset.single import GroundTruthDataset
+from disent.frameworks.addon.msp import MatrixSubspaceProjection
 from disent.frameworks.framework import BaseFramework
 from disent.model import EncoderConv64, GaussianAutoEncoder
 from disent.util import TempNumpySeed, make_box_str
@@ -36,8 +37,14 @@ class HydraSystem(pl.LightningModule):
             hydra.utils.instantiate(self.hparams.model.encoder.cls),
             hydra.utils.instantiate(self.hparams.model.decoder.cls)
         )
+        # TODO: THIS NEEDS TO BE MOVED ELSEWHERE:
+        self.msp = MatrixSubspaceProjection(y_size=hparams.model.y_size, x_shape=hparams.dataset.x_shape, z_size=hparams.model.z_size)
         # framework
-        self.framework: BaseFramework = hydra.utils.instantiate(self.hparams.framework.cls)
+        try:
+            self.framework: BaseFramework = hydra.utils.instantiate(self.hparams.framework.cls, msp=self.msp)
+        except:
+            self.framework: BaseFramework = hydra.utils.instantiate(self.hparams.framework.cls)
+            self.msp = None
         # data
         self.dataset = None
         self.dataset_train = None

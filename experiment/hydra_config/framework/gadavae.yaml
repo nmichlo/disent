@@ -15,4 +15,4 @@ augment_dataset:
   cls:
     target: disent.dataset.triplets.SupervisedTripletDataset
     params:
-      k: 'uniform'
+      k: 1

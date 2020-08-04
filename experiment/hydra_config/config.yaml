@@ -1,5 +1,5 @@
 defaults:
-  - framework: betavae
+  - framework: mspadavae
   - model: conv64
   - optimizer: radam
   - dataset: xyscalecolorgrid
@@ -19,7 +19,8 @@ trainer:
   prepare_data_per_node: TRUE
 
 model:
-  z_size: 6
+  z_size: 12
+  y_size: 6
 
 dataset:
   num_workers: 8
