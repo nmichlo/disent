@@ -133,10 +133,15 @@ class HydraSystem(pl.LightningModule):
 
 class LatentCycleLoggingCallback(pl.Callback):
 
-    def __init__(self, seed=7777):
+    def __init__(self, seed=7777, every_n_epochs=1, begin_first_epoch=False):
         self.seed = seed
+        self.every_n_epochs = every_n_epochs
+        self.begin_first_epoch = begin_first_epoch
 
     def on_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+        # skip if need be
+        if 0 != (trainer.current_epoch + int(not self.begin_first_epoch)) % self.every_n_epochs:
+            return
         # VISUALISE!
         # generate and log latent traversals
         assert isinstance(pl_module, HydraSystem)
@@ -160,7 +165,7 @@ class LatentCycleLoggingCallback(pl.Callback):
 
 class DisentanglementLoggingCallback(pl.Callback):
     
-    def __init__(self, epoch_end_metrics=None, train_end_metrics=None, every_n_epochs=2, begin_first_epoch=True):
+    def __init__(self, epoch_end_metrics=None, train_end_metrics=None, every_n_epochs=2, begin_first_epoch=False):
         self.begin_first_epoch = begin_first_epoch
         self.epoch_end_metrics = epoch_end_metrics if epoch_end_metrics else []
         self.train_end_metrics = train_end_metrics if train_end_metrics else []
@@ -192,17 +197,42 @@ class DisentanglementLoggingCallback(pl.Callback):
         if self.train_end_metrics:
             self._compute_metrics_and_log(trainer, pl_module, metrics=self.train_end_metrics)
 
+
 class LoggerProgressCallback(pl.Callback):
     def __init__(self, time_step=10):
+        self.start_time = None
         self.last_time = 0
         self.time_step = time_step
-        
+        self.start_time = time.time()
+
+    def sig(self, num, digits):
+        return f'{num:.{digits}g}'
+    
     def on_batch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
-        if self.last_time + self.time_step < time.time():
-            self.last_time = time.time()
-            log.info(f'EPOCH: {trainer.current_epoch}/{trainer.max_epochs} [{int(trainer.current_epoch/trainer.max_epochs*100):3d}%] '
-                     f'STEP: {trainer.batch_idx:{len(str(trainer.num_training_batches))}d}/{trainer.num_training_batches} [{int(trainer.batch_idx/trainer.num_training_batches*100):3d}%] '
-                     f'[GLOBAL STEP: {trainer.global_step}]')
+        current_time = time.time()
+        step_delta = current_time - self.last_time
+        # only print every few seconds
+        if self.time_step < step_delta:
+            self.last_time = current_time
+            # vars
+            step, max_steps = trainer.batch_idx + 1, trainer.num_training_batches
+            epoch, max_epoch = trainer.current_epoch + 1, trainer.max_epochs
+            global_step, global_steps = trainer.global_step + 1, max_epoch*max_steps
+            # computed
+            train_pct = global_step / global_steps
+            step_len, global_step_len = len(str(max_steps)), len(str(global_steps))
+            # completion
+            train_remain_time = (current_time - self.start_time) * (1 - train_pct) / train_pct
+            # info dict
+            info_dict = {k: f'{self.sig(v, 4)}' if isinstance(v, (int, float)) else f'{v}' for k, v in trainer.progress_bar_dict.items() if k != 'v_num'}
+            sorted_k = sorted(info_dict.keys(), key=lambda k: ('loss' != k.lower(), 'loss' not in k.lower(), k))
+            # log
+            log.info(
+                f'EPOCH: {epoch}/{max_epoch} - {global_step:0{global_step_len}d}/{global_steps} '
+                f'({int(train_pct*100):02d}%) [{int(train_remain_time)}s] '
+                f'STEP: {step:{step_len}d}/{max_steps} ({int(step/max_steps*100):02d}%) '
+                f'| {" ".join(f"{k}={info_dict[k]}" for k in sorted_k)}'
+            )
 
 # ========================================================================= #
 # RUNNER                                                                    #
@@ -210,16 +240,13 @@ class LoggerProgressCallback(pl.Callback):
 
 @hydra.main(config_path='hydra_config', config_name="config")
 def main(cfg: DictConfig):
-    # print hydra config
+    # print useful info
     log.info(make_box_str(cfg.pretty()))
-
-    # directories
     log.info(f"Current working directory : {os.getcwd()}")
     log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
 
     # warn about CUDA
     cuda = cfg.trainer.get('cuda', torch.cuda.is_available())
-    device = 'cuda' if cuda else 'cpu'
     if not torch.cuda.is_available():
         if cuda:
             log.error('trainer.cuda=True but CUDA is not available on this machine!')
@@ -234,7 +261,6 @@ def main(cfg: DictConfig):
     logger, callbacks = None, []
     if cfg.logging.wandb.enabled:
         log.info(f'wandb log directory: {os.path.abspath("wandb")}')
-        # TODO: this should be moved into configs, instantiated from a class & target
         logger = WandbLogger(
             name=cfg.logging.wandb.name,
             project=cfg.logging.wandb.project,
@@ -244,22 +270,34 @@ def main(cfg: DictConfig):
             save_dir=hydra.utils.to_absolute_path(cfg.logging.logs_dir),  # relative to hydra's original cwd
             offline=cfg.logging.wandb.get('offline', False),
         )
-        # Log the latent cycle visualisations to wandb
-        callbacks.append(LatentCycleLoggingCallback())
+        if cfg.callbacks.latent_cycle.enabled:
+            # Log the latent cycle visualisations to wandb
+            callbacks.append(LatentCycleLoggingCallback(
+                seed=cfg.callbacks.latent_cycle.seed,
+                every_n_epochs=cfg.callbacks.latent_cycle.every_n_epochs,
+                begin_first_epoch=False,
+            ))
 
     # Log metric scores
-    # TODO: allow disabling in config
-    callbacks.append(DisentanglementLoggingCallback(
-        every_n_epochs=2,
-        epoch_end_metrics=[lambda dat, fn: compute_dci(dat, fn, 1000, 500, boost_mode='lightgbm')],
-        train_end_metrics=[
-            compute_dci,
-            compute_factor_vae
-        ],
-    ))
+    if cfg.callbacks.metrics.enabled:
+        callbacks.append(DisentanglementLoggingCallback(
+            every_n_epochs=cfg.callbacks.metrics.every_n_epochs,
+            begin_first_epoch=False,
+            epoch_end_metrics=[
+                lambda dat, fn: compute_dci(dat, fn, 1000, 500, boost_mode='sklearn'),
+                lambda dat, fn: compute_factor_vae(dat, fn, num_train=1000, num_eval=500, num_variance_estimate=1000),
+            ],
+            train_end_metrics=[
+                compute_dci,
+                compute_factor_vae
+            ],
+        ))
     
     # custom progress bar
-    callbacks.append(LoggerProgressCallback(time_step=5))
+    if cfg.callbacks.progress.enabled:
+        callbacks.append(LoggerProgressCallback(
+            time_step=cfg.callbacks.progress.step_time
+        ))
 
     # check data preparation
     prepare_data_per_node = cfg.trainer.get('prepare_data_per_node', True)
@@ -283,6 +321,8 @@ def main(cfg: DictConfig):
 
     system = HydraSystem(cfg)
     trainer = pl.Trainer(
+        row_log_interval=cfg.logging.get('log_interval', 50),
+        log_save_interval=cfg.logging.get('save_log_interval', 100),
         logger=logger,
         callbacks=callbacks,
         gpus=1 if cuda else 0,
@@ -307,7 +347,10 @@ log = logging.getLogger(os.path.splitext(os.path.basename(__file__))[0])
 # ========================================================================= #
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except:
+        log.error('A critical error occurred! Exiting safely...', exc_info=True)
 
 # ========================================================================= #
 # END                                                                       #

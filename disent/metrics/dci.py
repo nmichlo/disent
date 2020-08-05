@@ -76,10 +76,10 @@ def _compute_dci(mus_train, ys_train, mus_test, ys_test, boost_mode='sklearn', s
     importance_matrix, train_err, test_err = compute_importance_gbt(mus_train, ys_train, mus_test, ys_test, boost_mode=boost_mode, show_progress=show_progress)
     assert importance_matrix.shape[0] == mus_train.shape[0]
     assert importance_matrix.shape[1] == ys_train.shape[0]
-    scores["informativeness_train"] = train_err
-    scores["informativeness_test"] = test_err
-    scores["disentanglement"] = disentanglement(importance_matrix)
-    scores["completeness"] = completeness(importance_matrix)
+    scores["dci.informativeness_train"] = train_err
+    scores["dci.informativeness_test"] = test_err
+    scores["dci.disentanglement"] = disentanglement(importance_matrix)
+    scores["dci.completeness"] = completeness(importance_matrix)
     return scores
 
 
