@@ -9,6 +9,7 @@ from disent.util import TempNumpySeed
 from disent.visualize.visualize_model import latent_cycle
 from disent.visualize.visualize_util import gridify_animation, reconstructions_to_images
 
+
 log = logging.getLogger(__name__)
 
 
@@ -28,22 +29,26 @@ class LatentCycleLoggingCallback(pl.Callback):
         # skip if need be
         if 0 != (trainer.current_epoch + int(not self.begin_first_epoch)) % self.every_n_epochs:
             return
-        # VISUALISE!
-        # generate and log latent traversals
-        assert isinstance(pl_module, HydraSystem)
+
+        # VISUALISE - generate and log latent traversals
+        # TODO: re-enable
+        # assert isinstance(pl_module, HydraSystem)
+
         # get random sample of z_means and z_logvars for computing the range of values for the latent_cycle
         with TempNumpySeed(self.seed):
-            obs = pl_module.dataset.sample_observations(64).to(pl_module.device)
+            obs = trainer.datamodule.dataset.sample_observations(64).to(pl_module.device)
         z_means, z_logvars = pl_module.model.encode_gaussian(obs)
+        
         # produce latent cycle animation & merge frames
-        animation = latent_cycle(pl_module.model.reconstruct, z_means, z_logvars, mode='fitted_gaussian_cycle',
-                                 num_animations=1, num_frames=21)
+        animation = latent_cycle(pl_module.model.reconstruct, z_means, z_logvars, mode='fitted_gaussian_cycle', num_animations=1, num_frames=21)
         animation = reconstructions_to_images(animation, mode='int', moveaxis=False)  # axis already moved above
         frames = np.transpose(gridify_animation(animation[0], padding_px=4, value=64), [0, 3, 1, 2])
+        
         # check and add missing channel if needed (convert greyscale to rgb images)
         assert frames.shape[1] in {1, 3}, f'Invalid number of image channels: {animation.shape} -> {frames.shape}'
         if frames.shape[1] == 1:
             frames = np.repeat(frames, 3, axis=1)
+        
         # log video
         trainer.log_metrics({
             'epoch': trainer.current_epoch,
@@ -62,12 +67,13 @@ class DisentanglementLoggingCallback(pl.Callback):
         assert isinstance(self.train_end_metrics, list)
         assert self.epoch_end_metrics or self.train_end_metrics, 'No metrics given to epoch_end_metrics or train_end_metrics'
     
-    def _compute_metrics_and_log(self, trainer, pl_module, metrics, is_final=False):
-        # checks
-        assert isinstance(pl_module, HydraSystem)
+    def _compute_metrics_and_log(self, trainer: pl.Trainer, pl_module: pl.LightningModule, metrics: list, is_final=False):
+        # TODO: re-enable
+        # assert isinstance(pl_module, HydraSystem)
+
         # compute all metrics
         for metric in metrics:
-            scores = metric(pl_module.dataset, lambda x: pl_module.model.encode_deterministic(x.to(pl_module.device)))
+            scores = metric(trainer.datamodule.dataset, lambda x: pl_module.model.encode_deterministic(x.to(pl_module.device)))
             log.info(f'metric (epoch: {trainer.current_epoch}): {scores}')
             # log to wandb if it exists
             trainer.log_metrics({
@@ -79,10 +85,12 @@ class DisentanglementLoggingCallback(pl.Callback):
         if self.epoch_end_metrics:
             # first epoch is 0, if we dont want the first one to be run we need to increment by 1
             if 0 == (trainer.current_epoch + int(not self.begin_first_epoch)) % self.every_n_epochs:
+                log.info('Computing epoch metrics:')
                 self._compute_metrics_and_log(trainer, pl_module, metrics=self.epoch_end_metrics)
-    
+
     def on_train_end(self, trainer, pl_module):
         if self.train_end_metrics:
+            log.info('Computing final training run metrics:')
             self._compute_metrics_and_log(trainer, pl_module, metrics=self.train_end_metrics)
 
 
