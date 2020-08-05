@@ -1,5 +1,5 @@
 import logging
-from disent.frameworks.unsupervised.vae import Vae
+from disent.frameworks.unsupervised.vae import TrainingData, Vae, bce_loss_with_logits, kl_normal_loss
 
 log = logging.getLogger(__name__)
 
@@ -11,10 +11,25 @@ log = logging.getLogger(__name__)
 class BetaVae(Vae):
     def __init__(self, beta=4):
         self.beta = beta
+        
+    def compute_loss(self, data: TrainingData):
+        x, x_recon, z_mean, z_logvar, z_sampled = data
+        # reconstruction error
+        recon_loss = bce_loss_with_logits(x, x_recon)   # E[log p(x|z)]
+        # KL divergence
+        kl_loss = kl_normal_loss(z_mean, z_logvar)      # D_kl(q(z|x) || p(z|x))
+        # regularisation loss
+        reg_loss = self.beta * kl_loss
+        # compute combined loss
+        loss = recon_loss + reg_loss
 
-    def regularizer(self, kl_loss):
-        return self.beta * kl_loss
-
+        return {
+            'train_loss': loss,
+            'reconstruction_loss': recon_loss,
+            'regularize_loss': reg_loss,
+            'kl_loss': kl_loss,
+            'elbo': -(recon_loss + kl_loss),
+        }
 
 # ========================================================================= #
 # Beta-VAE-H Loss                                                           #
@@ -37,10 +52,27 @@ class BetaVaeH(BetaVae):
         self.anneal_end_steps = anneal_end_steps
         raise NotImplementedError('n_train_steps is not yet implemented for BetaVaeH, it will not yet work')
 
-    def regularizer(self, kl_loss):
+    def compute_loss(self, data: TrainingData):
+        x, x_recon, z_mean, z_logvar, z_sampled = data
+        # reconstruction error
+        recon_loss = bce_loss_with_logits(x, x_recon)   # E[log p(x|z)]
+        # KL divergence
+        kl_loss = kl_normal_loss(z_mean, z_logvar)      # D_kl(q(z|x) || p(z|x))
+        # anneal
         log.warning('TODO: training step count was not updated!')
         anneal_reg = lerp_step(0, 1, self.n_train_steps, self.anneal_end_steps)  # if is_train else 1
-        return (anneal_reg * self.beta) * kl_loss
+        # regularisation loss
+        reg_loss = (anneal_reg * self.beta) * kl_loss
+        # compute combined loss
+        loss = recon_loss + reg_loss
+
+        return {
+            'train_loss': loss,
+            'reconstruction_loss': recon_loss,
+            'regularize_loss': reg_loss,
+            'kl_loss': kl_loss,
+            'elbo': -(recon_loss + kl_loss),
+        }
 
 
 # ========================================================================= #

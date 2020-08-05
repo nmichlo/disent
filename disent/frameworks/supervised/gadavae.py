@@ -137,13 +137,17 @@ class GuidedAdaVae(BaseFramework):
             p_kl_loss = kl_normal_loss(p_z_mean, p_z_logvar)  # D_kl(q(z|x) || p(z|x))
             n_kl_loss = kl_normal_loss(n_z_mean, n_z_logvar)  # D_kl(q(z|x) || p(z|x))
             ave_kl_loss = (a_kl_loss + p_kl_loss + n_kl_loss) / 3
+            
+            # regularisation loss
+            reg_loss = self.beta * ave_kl_loss
 
             # compute combined loss
-            loss = ave_recon_loss + self.beta * ave_kl_loss
+            loss = ave_recon_loss + reg_loss
 
             loss_dict = {
                 'train_loss': loss,
                 'reconstruction_loss': ave_recon_loss,
+                'regularize_loss': reg_loss,
                 'kl_loss': ave_kl_loss,
                 'elbo': -(ave_recon_loss + ave_kl_loss),
             }
@@ -154,8 +158,8 @@ class GuidedAdaVae(BaseFramework):
                 else:
                     loss_triplet = triplet_loss(a_z_mean, p_z_mean, n_z_mean, alpha=self.triplet_alpha)
                 loss_dict.update({
-                    'train_loss': loss + self.triplet_scale * loss_triplet,
-                    'triplet_loss': loss_triplet
+                    'train_loss': loss + self.triplet_scale*loss_triplet,
+                    'triplet_loss': self.triplet_scale*loss_triplet
                 })
 
         # COMPUTE LOSS FOR PAIR:

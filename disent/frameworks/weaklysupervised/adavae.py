@@ -97,12 +97,16 @@ class AdaVae(BaseFramework):
         kl1_loss = kl_normal_loss(z1_mean, z1_logvar)     # D_kl(q(z|x) || p(z|x))
         ave_kl_loss = (kl0_loss + kl1_loss) / 2
 
+        # regularisation loss
+        reg_loss = self.beta * ave_kl_loss
+        
         # compute combined loss - must be same as the BetaVAE
-        loss = ave_recon_loss + (self.beta * ave_kl_loss)
+        loss = ave_recon_loss + reg_loss
 
         return {
             'train_loss': loss,
             'reconstruction_loss': ave_recon_loss,
+            'regularize_loss': reg_loss,
             'kl_loss': ave_kl_loss,
             'elbo': -(ave_recon_loss + ave_kl_loss),
         }

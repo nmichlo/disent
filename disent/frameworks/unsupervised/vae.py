@@ -32,25 +32,22 @@ class Vae(BaseFramework):
         Based on: https://github.com/google-research/disentanglement_lib/blob/a64b8b9994a28fafd47ccd866b0318fa30a3c76c/disentanglement_lib/methods/unsupervised/vae.py#L153
         """
         x, x_recon, z_mean, z_logvar, z_sampled = data
-        
         # reconstruction error
         recon_loss = bce_loss_with_logits(x, x_recon)   # E[log p(x|z)]
-        
         # KL divergence
         kl_loss = kl_normal_loss(z_mean, z_logvar)      # D_kl(q(z|x) || p(z|x))
-        
+        # regularisation loss
+        reg_loss = kl_loss
         # compute combined loss
-        loss = recon_loss + self.regularizer(kl_loss)
+        loss = recon_loss + reg_loss
 
         return {
             'train_loss': loss,
             'reconstruction_loss': recon_loss,
+            'regularize_loss': reg_loss,
             'kl_loss': kl_loss,
             'elbo': -(recon_loss + kl_loss),
         }
-
-    def regularizer(self, kl_loss):
-        return kl_loss
 
 
 # ========================================================================= #

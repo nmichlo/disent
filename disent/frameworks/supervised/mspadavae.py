@@ -82,16 +82,22 @@ class MspGuidedAdaVae(GuidedAdaVae):
         # loss_y_triplet = torch.norm(a_y-p_y) - torch.norm(a_y-n_y)
         loss_y_triplet = triplet_loss(a_y, p_y, n_y, alpha=self.triplet_alpha)
 
+        # regularisation loss
+        reg_loss = self.beta * ave_kl_loss
+        t_loss = self.triplet_scale * loss_y_triplet
+        msp_loss = self.msp_scale * loss_y_msp_ave
+
         # compute combined loss
-        loss = ave_recon_loss + self.beta*ave_kl_loss + self.triplet_scale*loss_y_triplet + self.msp_scale*loss_y_msp_ave
+        loss = ave_recon_loss + reg_loss + (t_loss + msp_loss)
 
         loss_dict = {
             'train_loss': loss,
-            'triplet_loss': self.triplet_scale*loss_y_triplet,
-            'msp_loss': self.msp_scale*loss_y_msp_ave,
             'reconstruction_loss': ave_recon_loss,
-            'kl_loss': self.beta*ave_kl_loss,
+            'regularize_loss': reg_loss,
+            'kl_loss': ave_kl_loss,
             'elbo': -(ave_recon_loss + ave_kl_loss),
+            'triplet_loss': t_loss,
+            'msp_loss': msp_loss,
         }
 
         return loss_dict
