@@ -19,19 +19,21 @@ log = logging.getLogger(__name__)
 
 class LatentCycleLoggingCallback(pl.Callback):
     
-    def __init__(self, seed=7777):
+    def __init__(self, seed=7777, every_n_epochs=1, begin_first_epoch=False):
         self.seed = seed
+        self.every_n_epochs = every_n_epochs
+        self.begin_first_epoch = begin_first_epoch
     
     def on_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+        # skip if need be
+        if 0 != (trainer.current_epoch + int(not self.begin_first_epoch)) % self.every_n_epochs:
+            return
         # VISUALISE!
         # generate and log latent traversals
-        # TODO: reenable
-        # assert isinstance(pl_module, HydraLightningModule)
+        assert isinstance(pl_module, HydraSystem)
         # get random sample of z_means and z_logvars for computing the range of values for the latent_cycle
         with TempNumpySeed(self.seed):
-            log.debug(dir(pl_module))
-            log.debug(dir(trainer))
-            obs = pl_module.datamodule.dataset.sample_observations(64).to(pl_module.device)
+            obs = pl_module.dataset.sample_observations(64).to(pl_module.device)
         z_means, z_logvars = pl_module.model.encode_gaussian(obs)
         # produce latent cycle animation & merge frames
         animation = latent_cycle(pl_module.model.reconstruct, z_means, z_logvars, mode='fitted_gaussian_cycle',
@@ -51,7 +53,7 @@ class LatentCycleLoggingCallback(pl.Callback):
 
 class DisentanglementLoggingCallback(pl.Callback):
     
-    def __init__(self, epoch_end_metrics=None, train_end_metrics=None, every_n_epochs=2, begin_first_epoch=True):
+    def __init__(self, epoch_end_metrics=None, train_end_metrics=None, every_n_epochs=2, begin_first_epoch=False):
         self.begin_first_epoch = begin_first_epoch
         self.epoch_end_metrics = epoch_end_metrics if epoch_end_metrics else []
         self.train_end_metrics = train_end_metrics if train_end_metrics else []
@@ -60,19 +62,12 @@ class DisentanglementLoggingCallback(pl.Callback):
         assert isinstance(self.train_end_metrics, list)
         assert self.epoch_end_metrics or self.train_end_metrics, 'No metrics given to epoch_end_metrics or train_end_metrics'
     
-    def _compute_metrics_and_log(self, trainer: pl.Trainer, pl_module: pl.LightningModule, metrics, is_final=False):
+    def _compute_metrics_and_log(self, trainer, pl_module, metrics, is_final=False):
         # checks
-        # TODO: reenable
-        # assert isinstance(pl_module, HydraLightningModule)
+        assert isinstance(pl_module, HydraSystem)
         # compute all metrics
         for metric in metrics:
-            log.info(dir(pl_module))
-            log.info(dir(pl_module))
-            log.info(dir(pl_module))
-            log.info(pl_module.datamodule)
-            log.info(pl_module.train_dataloader)
-            scores = metric(pl_module.datamodule.dataset,
-                            lambda x: pl_module.model.encode_deterministic(x.to(pl_module.device)))
+            scores = metric(pl_module.dataset, lambda x: pl_module.model.encode_deterministic(x.to(pl_module.device)))
             log.info(f'metric (epoch: {trainer.current_epoch}): {scores}')
             # log to wandb if it exists
             trainer.log_metrics({
@@ -88,7 +83,7 @@ class DisentanglementLoggingCallback(pl.Callback):
     
     def on_train_end(self, trainer, pl_module):
         if self.train_end_metrics:
-            self._compute_metrics_and_log(trainer, pl_module, metrics=self.train_end_metrics, is_final=True)
+            self._compute_metrics_and_log(trainer, pl_module, metrics=self.train_end_metrics)
 
 
 class LoggerProgressCallback(pl.Callback):
@@ -98,27 +93,35 @@ class LoggerProgressCallback(pl.Callback):
         self.time_step = time_step
         self.start_time = time.time()
     
+    def sig(self, num, digits):
+        return f'{num:.{digits}g}'
+    
     def on_batch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         current_time = time.time()
         step_delta = current_time - self.last_time
-        
+        # only print every few seconds
         if self.time_step < step_delta:
-            self.last_time = time.time()
+            self.last_time = current_time
             # vars
             step, max_steps = trainer.batch_idx + 1, trainer.num_training_batches
             epoch, max_epoch = trainer.current_epoch + 1, trainer.max_epochs
+            global_step, global_steps = trainer.global_step + 1, max_epoch * max_steps
             # computed
-            epoch_pct = epoch / max_epoch
-            step_pct = step / max_steps
-            step_len = len(str(max_steps))
+            train_pct = global_step / global_steps
+            step_len, global_step_len = len(str(max_steps)), len(str(global_steps))
             # completion
-            epoch_delta = current_time - self.start_time
-            epoch_remain_time = step_delta / step_pct - step_delta
-            train_remain_time = epoch_delta / epoch_pct - epoch_delta
+            train_remain_time = (current_time - self.start_time) * (1 - train_pct) / train_pct
+            # info dict
+            info_dict = {k: f'{self.sig(v, 4)}' if isinstance(v, (int, float)) else f'{v}' for k, v in
+                         trainer.progress_bar_dict.items() if k != 'v_num'}
+            sorted_k = sorted(info_dict.keys(), key=lambda k: ('loss' != k.lower(), 'loss' not in k.lower(), k))
             # log
-            log.info(f'EPOCH: {epoch}/{max_epoch} [{int(epoch_pct * 100):3d}%, {int(epoch_remain_time)}s] '
-                     f'STEP: {step:{step_len}d}/{max_steps} [{int(step_pct * 100):3d}%] '
-                     f'[GLOBAL STEP: {trainer.global_step}, {int(train_remain_time)}s]')
+            log.info(
+                f'EPOCH: {epoch}/{max_epoch} - {global_step:0{global_step_len}d}/{global_steps} '
+                f'({int(train_pct * 100):02d}%) [{int(train_remain_time)}s] '
+                f'STEP: {step:{step_len}d}/{max_steps} ({int(step / max_steps * 100):02d}%) '
+                f'| {" ".join(f"{k}={info_dict[k]}" for k in sorted_k)}'
+            )
 
 # ========================================================================= #
 # END                                                                       #
