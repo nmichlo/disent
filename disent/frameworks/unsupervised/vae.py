@@ -60,7 +60,7 @@ class Vae(BaseFramework):
 
     def kl_regularization(self, kl_loss):
         return kl_loss
-
+    
 
 # ========================================================================= #
 # Helper                                                                    #

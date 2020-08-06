@@ -1,14 +1,6 @@
-import logging
-
 import torch
-
-from disent.frameworks.framework import BaseFramework
 from disent.frameworks.weaklysupervised.adavae import (AdaVae, estimate_shared)
-from disent.frameworks.unsupervised.vae import TrainingData, bce_loss_with_logits, kl_normal_loss
-from disent.model import GaussianAutoEncoder
-
-
-log = logging.getLogger(__name__)
+from disent.frameworks.unsupervised.vae import bce_loss_with_logits, kl_normal_loss
 
 
 # ========================================================================= #
@@ -16,71 +8,63 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class GuidedAdaVae(BaseFramework):
+class GuidedAdaVae(AdaVae):
+    
+    def __init__(self, make_optimizer_fn, make_model_fn, beta=4, average_mode='gvae', anchor_ave_mode='average'):
+        super().__init__(make_optimizer_fn, make_model_fn, beta=beta, average_mode=average_mode)
+        # how the anchor is averaged
+        assert anchor_ave_mode in {'thresh', 'average'}
+        self.anchor_ave_mode = anchor_ave_mode
 
-    MODE_ADAVAE = 'adavae'
-    MODE_AVE_POS = 'ave_pos'
-    MODE_AVE_TRIPLET = 'ave_triple'
-    
-    MODES = {MODE_AVE_TRIPLET}
-    
-    def __init__(
-            self,
-            beta=4,
-            average_mode=AdaVae.AVE_MODE_GVAE,
-            thresh_mode=AdaVae.THRESH_MODE_KL_MID,
-            mode=MODE_AVE_TRIPLET,
-            triplet_scale=0,
-            triplet_alpha=0.3,
-            triplet_after_sampling=False,
-    ):
-        # adavae instance
-        assert average_mode == AdaVae.AVE_MODE_GVAE, f'currently only supports average_mode={repr(AdaVae.AVE_MODE_GVAE)}'
-        self.adavae = AdaVae(beta=beta, average_mode=average_mode, thresh_mode=thresh_mode)
-        # set mode
-        assert mode in GuidedAdaVae.MODES, f'invalid {mode=}, must be one of {GuidedAdaVae.MODES}'
-        self.mode = mode
-        # use triplet loss
-        self.triplet_scale = triplet_scale
-        self.triplet_alpha = triplet_alpha
-        self.triplet_after_sampling = triplet_after_sampling
-        assert self.triplet_scale >= 0, f'triplet_scale={repr(self.triplet_scale)} must be non-negative'
-        if self.triplet_scale > 0:
-            assert mode == GuidedAdaVae.MODE_AVE_TRIPLET, f'triplet_scale={repr(self.triplet_scale)}, only supports triplet_scale > 0 for mode={repr(GuidedAdaVae.MODE_AVE_TRIPLET)}'
-        # beta-vae stuffs
-        self.beta = beta
-    
-    def training_step(self, model: GaussianAutoEncoder, batch):
+    def compute_loss(self, batch, batch_idx):
         a_x, p_x, n_x = batch
-        # ENCODE
-        a_z_mean, a_z_logvar = model.encode_gaussian(a_x)
-        p_z_mean, p_z_logvar = model.encode_gaussian(p_x)
-        n_z_mean, n_z_logvar = model.encode_gaussian(n_x)
-        # INTERCEPT
+        # FORWARD
+        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+        # latent distribution parametrisation
+        a_z_mean, a_z_logvar = self.model.encode_gaussian(a_x)
+        p_z_mean, p_z_logvar = self.model.encode_gaussian(p_x)
+        n_z_mean, n_z_logvar = self.model.encode_gaussian(n_x)
+        # intercept and mutate z [SPECIFIC TO ADAVAE]
         (a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar), intercept_logs = self.intercept_z(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar)
-        # REPARAMETERIZE
-        a_z_sampled = model.reparameterize(a_z_mean, a_z_logvar)
-        p_z_sampled = model.reparameterize(p_z_mean, p_z_logvar)
-        n_z_sampled = model.reparameterize(n_z_mean, n_z_logvar)
-        # RECONSTRUCT
-        a_x_recon = model.decode(a_z_sampled)
-        p_x_recon = model.decode(p_z_sampled)
-        n_x_recon = model.decode(n_z_sampled)
-        # COMPUTE LOSS
-        loss_logs = self.compute_loss(
-            TrainingData(a_x, a_x_recon, a_z_mean, a_z_logvar, a_z_sampled),
-            TrainingData(p_x, p_x_recon, p_z_mean, p_z_logvar, p_z_sampled),
-            TrainingData(n_x, n_x_recon, n_z_mean, n_z_logvar, n_z_sampled),
-        )
-        # RETURN INFO
-        return {
-            **intercept_logs,
-            **loss_logs,
-        }
+        # sample from latent distribution
+        a_z_sampled = self.model.reparameterize(a_z_mean, a_z_logvar)
+        p_z_sampled = self.model.reparameterize(p_z_mean, p_z_logvar)
+        n_z_sampled = self.model.reparameterize(n_z_mean, n_z_logvar)
+        # reconstruct without the final activation
+        a_x_recon = self.model.decode(a_z_sampled)
+        p_x_recon = self.model.decode(p_z_sampled)
+        n_x_recon = self.model.decode(n_z_sampled)
+        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
-    # @property
-    # def required_observations(self):
-    #     return 3
+        # LOSS
+        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+        # reconstruction error
+        a_recon_loss = bce_loss_with_logits(a_x, a_x_recon)  # E[log p(x|z)]
+        p_recon_loss = bce_loss_with_logits(p_x, p_x_recon)  # E[log p(x|z)]
+        n_recon_loss = bce_loss_with_logits(n_x, n_x_recon)  # E[log p(x|z)]
+        ave_recon_loss = (a_recon_loss + p_recon_loss + n_recon_loss) / 3
+        # KL divergence
+        a_kl_loss = kl_normal_loss(a_z_mean, a_z_logvar)     # D_kl(q(z|x) || p(z|x))
+        p_kl_loss = kl_normal_loss(p_z_mean, p_z_logvar)     # D_kl(q(z|x) || p(z|x))
+        n_kl_loss = kl_normal_loss(n_z_mean, n_z_logvar)     # D_kl(q(z|x) || p(z|x))
+        ave_kl_loss = (a_kl_loss + p_kl_loss + n_kl_loss) / 3
+        # compute kl regularisation
+        ave_kl_reg_loss = self.kl_regularization(ave_kl_loss)
+        # augment loss (0 for this)
+        augment_loss, augment_loss_logs = self.augment_loss(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar)
+        # compute combined loss - must be same as the BetaVAE
+        loss = ave_recon_loss + ave_kl_reg_loss + augment_loss
+        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+
+        return {
+            'train_loss': loss,
+            'recon_loss': ave_recon_loss,
+            'kl_reg_loss': ave_kl_reg_loss,
+            'kl_loss': ave_kl_loss,
+            'elbo': -(ave_recon_loss + ave_kl_loss),
+            **intercept_logs,
+            **augment_loss_logs,
+        }
 
     def intercept_z(self, a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar):
         """
@@ -90,87 +74,36 @@ class GuidedAdaVae(BaseFramework):
           ie. l2 is the positive sample, l3 is the negative sample
         """
         # shared elements that need to be averaged, computed per pair in the batch.
-        p_kl_deltas, p_kl_threshs, p_shared_mask = estimate_shared(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar)
-        n_kl_deltas, n_kl_threshs, n_shared_mask = estimate_shared(a_z_mean, a_z_logvar, n_z_mean, n_z_logvar)
+        p_kl_deltas, p_kl_threshs, old_p_shared_mask = estimate_shared(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar)
+        n_kl_deltas, n_kl_threshs, old_n_shared_mask = estimate_shared(a_z_mean, a_z_logvar, n_z_mean, n_z_logvar)
 
         # modify threshold based on criterion and recompute if necessary
         # CORE of this approach!
-        old_p_shared_mask, old_n_shared_mask = p_shared_mask, n_shared_mask
         p_shared_mask, n_shared_mask = compute_constrained_masks(p_kl_deltas, old_p_shared_mask, n_kl_deltas, old_n_shared_mask)
+        
+        # make averaged variables
+        pa_z_mean, pa_z_logvar, p_z_mean, p_z_logvar = self.make_averaged(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, p_shared_mask)
+        na_z_mean, na_z_logvar, n_z_mean, n_z_logvar = self.make_averaged(a_z_mean, a_z_logvar, n_z_mean, n_z_logvar, n_shared_mask)
+        ave_mean, ave_logvar = self.compute_average(pa_z_mean, pa_z_logvar, na_z_mean, na_z_logvar)
 
-        if self.mode == GuidedAdaVae.MODE_ADAVAE:
-            raise KeyError(f'{self.mode=} has been disabled')
-            new_args, _ = self.adavae.intercept_z(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar)
-        elif self.mode == GuidedAdaVae.MODE_AVE_POS:
-            raise KeyError(f'{self.mode=} has been disabled')
-            new_args = self.adavae.make_averaged(a_z_mean.clone(), a_z_logvar.clone(), p_z_mean, p_z_logvar, p_shared_mask)
-        elif self.mode == GuidedAdaVae.MODE_AVE_TRIPLET:
-            pAz_mean, pAz_logvar, p_z_mean, p_z_logvar = self.adavae.make_averaged(a_z_mean.clone(), a_z_logvar.clone(), p_z_mean, p_z_logvar, p_shared_mask)
-            nAz_mean, nAz_logvar, n_z_mean, n_z_logvar = self.adavae.make_averaged(a_z_mean.clone(), a_z_logvar.clone(), n_z_mean, n_z_logvar, n_shared_mask)
-            a_z_mean, a_z_logvar = self.adavae.compute_average(pAz_mean, pAz_logvar, nAz_mean, nAz_logvar)
-            new_args = a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar
-        else:
-            raise KeyError
+        anchor_ave_logs = {}
+        if self.anchor_ave_mode == 'thresh':
+            # compute anchor average using the adaptive threshold
+            ave_shared_mask = p_shared_mask * n_shared_mask
+            ave_mean, ave_logvar, _, _ = self.make_averaged(a_z_mean, a_z_logvar, ave_mean, ave_logvar, ave_shared_mask)
+            anchor_ave_logs['ave_shared'] = ave_shared_mask.sum(dim=1).float().mean()
 
+        new_args = ave_mean, ave_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar
         return new_args, {
             'p_shared_before': old_p_shared_mask.sum(dim=1).float().mean(),
             'p_shared_after':      p_shared_mask.sum(dim=1).float().mean(),
             'n_shared_before': old_n_shared_mask.sum(dim=1).float().mean(),
             'n_shared_after':      n_shared_mask.sum(dim=1).float().mean(),
+            **anchor_ave_logs,
         }
-
-    def compute_loss(self, a_data: TrainingData, p_data: TrainingData, n_data: TrainingData):
-        # COMPUTE LOSS FOR TRIPLE:
-        if self.mode == GuidedAdaVae.MODE_AVE_TRIPLET:
-            (a_x, a_x_recon, a_z_mean, a_z_logvar, a_z_sampled) = a_data
-            (p_x, p_x_recon, p_z_mean, p_z_logvar, p_z_sampled) = p_data
-            (n_x, n_x_recon, n_z_mean, n_z_logvar, n_z_sampled) = n_data
-            
-            # reconstruction error
-            a_recon_loss = bce_loss_with_logits(a_x, a_x_recon)  # E[log p(x|z)]
-            p_recon_loss = bce_loss_with_logits(p_x, p_x_recon)  # E[log p(x|z)]
-            n_recon_loss = bce_loss_with_logits(n_x, n_x_recon)  # E[log p(x|z)]
-            ave_recon_loss = (a_recon_loss + p_recon_loss + n_recon_loss) / 3
-
-            # KL divergence
-            a_kl_loss = kl_normal_loss(a_z_mean, a_z_logvar)  # D_kl(q(z|x) || p(z|x))
-            p_kl_loss = kl_normal_loss(p_z_mean, p_z_logvar)  # D_kl(q(z|x) || p(z|x))
-            n_kl_loss = kl_normal_loss(n_z_mean, n_z_logvar)  # D_kl(q(z|x) || p(z|x))
-            ave_kl_loss = (a_kl_loss + p_kl_loss + n_kl_loss) / 3
-            
-            # regularisation loss
-            reg_loss = self.beta * ave_kl_loss
-
-            # compute combined loss
-            loss = ave_recon_loss + reg_loss
-
-            loss_dict = {
-                'train_loss': loss,
-                'reconstruction_loss': ave_recon_loss,
-                'regularize_loss': reg_loss,
-                'kl_loss': ave_kl_loss,
-                'elbo': -(ave_recon_loss + ave_kl_loss),
-            }
-
-            if self.triplet_scale > 0:
-                if self.triplet_after_sampling:
-                    loss_triplet = triplet_loss(a_z_sampled, p_z_sampled, n_z_sampled, alpha=self.triplet_alpha)
-                else:
-                    loss_triplet = triplet_loss(a_z_mean, p_z_mean, n_z_mean, alpha=self.triplet_alpha)
-                loss_dict.update({
-                    'train_loss': loss + self.triplet_scale*loss_triplet,
-                    'triplet_loss': self.triplet_scale*loss_triplet
-                })
-
-        # COMPUTE LOSS FOR PAIR:
-        elif (self.mode == GuidedAdaVae.MODE_ADAVAE) or (self.mode == GuidedAdaVae.MODE_AVE_POS):
-            raise KeyError(f'{self.mode=} has been disabled')
-            assert self.triplet_scale == 0, f'triplet_scale={repr(self.triplet_scale)}, triplet_scale > 0 is not supported for the current mode={self.mode}'
-            loss_dict = self.adavae.compute_loss()
-        else:
-            raise KeyError
-
-        return loss_dict
+    
+    def augment_loss(self, a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar):
+        return 0, {}
 
 
 # ========================================================================= #
@@ -182,7 +115,7 @@ def compute_constrained_masks(p_kl_deltas, p_shared_mask, n_kl_deltas, n_shared_
     # number of changed factors
     p_shared_num = torch.sum(p_shared_mask, dim=1, keepdim=True)
     n_shared_num = torch.sum(n_shared_mask, dim=1, keepdim=True)
-    
+
     # POSITIVE SHARED MASK
     # order from smallest to largest
     p_sort_indices = torch.argsort(p_kl_deltas, dim=1)
@@ -204,24 +137,6 @@ def compute_constrained_masks(p_kl_deltas, p_shared_mask, n_kl_deltas, n_shared_
 
     # return masks
     return new_p_shared_mask, new_n_shared_mask
-
-
-# ========================================================================= #
-# TRIPLET LOSSES                                                            #
-# ========================================================================= #
-
-def triplet_loss(anchor, positive, negative, alpha=0.3):
-    # import tensorflow as tf
-    # positive_dist = tf.reduce_sum(tf.square(tf.subtract(anchor, positive)), 1)
-    # negative_dist = tf.reduce_sum(tf.square(tf.subtract(anchor, negative)), 1)
-    # loss_1 = tf.add(tf.subtract(positive_dist, negative_dist), alpha)
-    # loss = tf.reduce_sum(tf.maximum(loss_1, 0.0), 0)
-
-    positive_dist = torch.sum((anchor - positive)**2, dim=1)
-    negative_dist = torch.sum((anchor - negative)**2, dim=1)
-    clamped = torch.clamp_min((positive_dist - negative_dist) + alpha, 0)
-    loss = torch.mean(clamped, dim=0)  # TODO: this was sum
-    return loss
 
 
 # ========================================================================= #

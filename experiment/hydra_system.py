@@ -25,13 +25,13 @@ log = logging.getLogger(__name__)
 
 
 class HydraDataModule(pl.LightningDataModule):
-    
+
     def __init__(self, hparams: DictConfig):
         super().__init__()
         self.hparams = hparams
         self.dataset = None
         self.dataset_train = None
-    
+
     def prepare_data(self) -> None:
         # *NB* Do not set model parameters here.
         # - Instantiate data once to download and prepare if needed.
@@ -131,13 +131,13 @@ def hydra_make_logger(cfg):
         log.info(f'wandb log directory: {os.path.abspath("wandb")}')
         # TODO: this should be moved into configs, instantiated from a class & target
         return WandbLogger(
+            offline=cfg.logging.wandb.get('offline', False),
             name=cfg.logging.wandb.name,
             project=cfg.logging.wandb.project,
-            # group=cfg.logging.wandb.get('group', None),
+            group=cfg.logging.wandb.get('group', None),
             tags=cfg.logging.wandb.get('tags', None),
             entity=cfg.logging.get('entity', None),
             save_dir=hydra.utils.to_absolute_path(cfg.logging.logs_dir),  # relative to hydra's original cwd
-            offline=cfg.logging.wandb.get('offline', False),
         )
     return None
 
@@ -197,6 +197,9 @@ def main(cfg: DictConfig):
             decoder=hydra.utils.instantiate(cfg.model.decoder.cls)
         ),
     )
+
+    # LOG ALL HYPER-PARAMETERS
+    framework.hparams = cfg
 
     # TRAIN
     trainer = pl.Trainer(

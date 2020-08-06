@@ -1,5 +1,5 @@
 defaults:
-  - framework: adavae
+  - framework: gadavae
   - model: conv64
   - optimizer: radam
   - dataset: xyscalecolorgrid
@@ -20,8 +20,8 @@ trainer:
   prepare_data_per_node: TRUE
 
 model:
-  z_size: 12
-  y_size: 6
+  z_size: 9
+  y_size: 9
 
 dataset:
   num_workers: 8
@@ -30,7 +30,7 @@ dataset:
   try_in_memory: TRUE
 
 optimizer:
-  lr: 1e-3
+  lr: 0.003
 
 # TODO: fix, this is terrible
 callbacks:
@@ -57,8 +57,8 @@ logging:
   # log to online service
   wandb:
     enabled: TRUE
-    name: '${framework.name}-${dataset.name}-${optimizer.name}-${model.name}'
-    project: 'disentanglement'
+    name: '${framework.name}-${model.z_size}-${dataset.name}-${optimizer.name}-${model.name}'
+    project: 'test'
     group: null
     entity: '${env:USER}'
     tags:
