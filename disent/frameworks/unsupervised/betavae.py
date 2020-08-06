@@ -1,7 +1,5 @@
-import logging
-from disent.frameworks.unsupervised.vae import TrainingData, Vae, bce_loss_with_logits, kl_normal_loss
+from disent.frameworks.unsupervised.vae import Vae
 
-log = logging.getLogger(__name__)
 
 # ========================================================================= #
 # Beta-VAE Loss                                                             #
@@ -9,27 +7,15 @@ log = logging.getLogger(__name__)
 
 
 class BetaVae(Vae):
-    def __init__(self, beta=4):
-        self.beta = beta
-        
-    def compute_loss(self, data: TrainingData):
-        x, x_recon, z_mean, z_logvar, z_sampled = data
-        # reconstruction error
-        recon_loss = bce_loss_with_logits(x, x_recon)   # E[log p(x|z)]
-        # KL divergence
-        kl_loss = kl_normal_loss(z_mean, z_logvar)      # D_kl(q(z|x) || p(z|x))
-        # regularisation loss
-        reg_loss = self.beta * kl_loss
-        # compute combined loss
-        loss = recon_loss + reg_loss
 
-        return {
-            'train_loss': loss,
-            'reconstruction_loss': recon_loss,
-            'regularize_loss': reg_loss,
-            'kl_loss': kl_loss,
-            'elbo': -(recon_loss + kl_loss),
-        }
+    def __init__(self, make_optimizer_fn, make_model_fn, beta=4):
+        super().__init__(make_optimizer_fn, make_model_fn)
+        assert beta >= 0
+        self.beta = beta
+
+    def kl_regularization(self, kl_loss):
+        return self.beta * kl_loss
+
 
 # ========================================================================= #
 # Beta-VAE-H Loss                                                           #
@@ -46,33 +32,15 @@ class BetaVaeH(BetaVae):
     (NOTE: BetaVAEB is from understanding disentanglement in Beta VAEs)
     """
 
-    def __init__(self, anneal_end_steps, beta=4):
-        super().__init__(beta)
-        self.n_train_steps = 0
+    def __init__(self, make_optimizer_fn, make_model_fn, anneal_end_steps=0, beta=4):
+        super().__init__(make_optimizer_fn, make_model_fn, beta=beta)
         self.anneal_end_steps = anneal_end_steps
-        raise NotImplementedError('n_train_steps is not yet implemented for BetaVaeH, it will not yet work')
 
-    def compute_loss(self, data: TrainingData):
-        x, x_recon, z_mean, z_logvar, z_sampled = data
-        # reconstruction error
-        recon_loss = bce_loss_with_logits(x, x_recon)   # E[log p(x|z)]
-        # KL divergence
-        kl_loss = kl_normal_loss(z_mean, z_logvar)      # D_kl(q(z|x) || p(z|x))
+    def kl_regularization(self, kl_loss):
         # anneal
-        log.warning('TODO: training step count was not updated!')
-        anneal_reg = lerp_step(0, 1, self.n_train_steps, self.anneal_end_steps)  # if is_train else 1
-        # regularisation loss
-        reg_loss = (anneal_reg * self.beta) * kl_loss
-        # compute combined loss
-        loss = recon_loss + reg_loss
-
-        return {
-            'train_loss': loss,
-            'reconstruction_loss': recon_loss,
-            'regularize_loss': reg_loss,
-            'kl_loss': kl_loss,
-            'elbo': -(recon_loss + kl_loss),
-        }
+        anneal_reg = lerp_step(0, 1, self.trainer.global_step, self.anneal_end_steps)
+        # compute kl regularisation
+        return anneal_reg * self.beta * kl_loss
 
 
 # ========================================================================= #

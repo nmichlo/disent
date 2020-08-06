@@ -5,7 +5,6 @@ cls:
   params:
     beta: 4
     average_mode: 'gvae'  # gvae or ml-vae
-    thresh_mode: 'kl_mid'
 
 augment_dataset:
   cls:

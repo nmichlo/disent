@@ -5,7 +5,6 @@ cls:
   params:
     beta: 4
     average_mode: 'gvae'    # [gvae, ml-vae]
-    thresh_mode: 'kl_mid'
     mode: 'ave_triple'      # [adavae, ave_pos, ave_triple]
     triplet_scale: 0        # >= 0
     triplet_alpha: 0.3

@@ -10,8 +10,6 @@ import torchvision
 from pytorch_lightning.loggers import WandbLogger
 
 from disent.dataset.single import GroundTruthDataset
-from disent.frameworks.addon.msp import MatrixSubspaceProjection
-from disent.frameworks.framework import BaseFramework
 from disent.metrics import compute_dci, compute_factor_vae
 from disent.model import GaussianAutoEncoder
 from disent.util import make_box_str
@@ -19,51 +17,6 @@ from disent.util import make_box_str
 from experiment.util.callbacks import DisentanglementLoggingCallback, LatentCycleLoggingCallback, LoggerProgressCallback
 
 log = logging.getLogger(__name__)
-
-
-# ========================================================================= #
-# runner                                                                    #
-# ========================================================================= #
-
-
-class HydraLightningModule(pl.LightningModule):
-    
-    def __init__(self, hparams: DictConfig):
-        super().__init__()
-        # hyper-parameters
-        self.hparams = hparams
-        # vae model
-        self.model = GaussianAutoEncoder(
-            hydra.utils.instantiate(self.hparams.model.encoder.cls),
-            hydra.utils.instantiate(self.hparams.model.decoder.cls)
-        )
-        # framework
-        try:
-            # TODO: THIS NEEDS TO BE MOVED ELSEWHERE:
-            self.msp = MatrixSubspaceProjection(y_size=hparams.model.y_size, x_shape=hparams.dataset.x_shape,
-                                                z_size=hparams.model.z_size)
-            self.framework: BaseFramework = hydra.utils.instantiate(self.hparams.framework.cls, msp=self.msp)
-        except:
-            self.framework: BaseFramework = hydra.utils.instantiate(self.hparams.framework.cls)
-            self.msp = None
-    
-    def configure_optimizers(self):
-        return hydra.utils.instantiate(
-            self.hparams.optimizer.cls,
-            self.model.parameters()
-        )
-    
-    def forward(self, x):
-        return self.model.forward(x)
-    
-    def training_step(self, batch, batch_idx):
-        loss_dict = self.framework.training_step(self.model, batch)
-        # log & train
-        return {
-            'loss': loss_dict['train_loss'],
-            'log': loss_dict,
-            'progress_bar': loss_dict
-        }
 
 
 # ========================================================================= #
@@ -87,7 +40,7 @@ class HydraDataModule(pl.LightningDataModule):
             hydra.utils.instantiate(self.hparams.dataset.cls, in_memory=False)
         else:
             hydra.utils.instantiate(self.hparams.dataset.cls)
-    
+
     def setup(self, stage=None) -> None:
         # single observations
         self.dataset = GroundTruthDataset(
@@ -126,19 +79,11 @@ class HydraDataModule(pl.LightningDataModule):
 
 
 # ========================================================================= #
-# RUNNER                                                                    #
+# HYDRA CONFIG HELPERS                                                      #
 # ========================================================================= #
 
 
-@hydra.main(config_path='hydra_config', config_name="config")
-def main(cfg: DictConfig):
-    # print useful info
-    log.info(make_box_str(cfg.pretty()))
-    log.info(f"Current working directory : {os.getcwd()}")
-    log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
-    
-    # check CUDA setting
-    cuda = cfg.trainer.get('cuda', torch.cuda.is_available())
+def hydra_check_cuda(cuda):
     if not torch.cuda.is_available():
         if cuda:
             log.error('trainer.cuda=True but CUDA is not available on this machine!')
@@ -149,51 +94,7 @@ def main(cfg: DictConfig):
         if not cuda:
             log.warning('CUDA is available but is not being used!')
 
-    # create trainer loggers & callbacks
-    logger, callbacks = None, []
-    if cfg.logging.wandb.enabled:
-        log.info(f'wandb log directory: {os.path.abspath("wandb")}')
-        # TODO: this should be moved into configs, instantiated from a class & target
-        logger = WandbLogger(
-            name=cfg.logging.wandb.name,
-            project=cfg.logging.wandb.project,
-            # group=cfg.logging.wandb.get('group', None),
-            tags=cfg.logging.wandb.get('tags', None),
-            entity=cfg.logging.get('entity', None),
-            save_dir=hydra.utils.to_absolute_path(cfg.logging.logs_dir),  # relative to hydra's original cwd
-            offline=cfg.logging.wandb.get('offline', False),
-        )
-        if cfg.callbacks.latent_cycle.enabled:
-            # Log the latent cycle visualisations to wandb
-            callbacks.append(LatentCycleLoggingCallback(
-                seed=cfg.callbacks.latent_cycle.seed,
-                every_n_epochs=cfg.callbacks.latent_cycle.every_n_epochs,
-                begin_first_epoch=False,
-            ))
-
-    # Log metric scores
-    if cfg.callbacks.metrics.enabled:
-        callbacks.append(DisentanglementLoggingCallback(
-            every_n_epochs=cfg.callbacks.metrics.every_n_epochs,
-            begin_first_epoch=False,
-            epoch_end_metrics=[
-                lambda dat, fn: compute_dci(dat, fn, 1000, 500, boost_mode='sklearn'),
-                lambda dat, fn: compute_factor_vae(dat, fn, num_train=1000, num_eval=500, num_variance_estimate=1000),
-            ],
-            train_end_metrics=[
-                compute_dci,
-                compute_factor_vae
-            ],
-        ))
-    
-    # custom progress bar
-    if cfg.callbacks.progress.enabled:
-        callbacks.append(LoggerProgressCallback(
-            time_step=cfg.callbacks.progress.step_time
-        ))
-
-    # check data preparation
-    prepare_data_per_node = cfg.trainer.get('prepare_data_per_node', True)
+def hydra_check_datadir(prepare_data_per_node, cfg):
     if not os.path.isabs(cfg.dataset.data_dir):
         log.warning(
             f'A relative path was specified for dataset.data_dir={repr(cfg.dataset.data_dir)}.'
@@ -209,12 +110,95 @@ def main(cfg: DictConfig):
                 f' absolute path that is guaranteed to be unique from each node, eg. dataset.data_dir=/tmp/dataset'
             )
         raise RuntimeError('dataset.data_dir={repr(cfg.dataset.data_dir)} is a relative path!')
+
+def hydra_append_metric_callback(callbacks, cfg):
+    if cfg.callbacks.metrics.enabled:
+        callbacks.append(DisentanglementLoggingCallback(
+            every_n_epochs=cfg.callbacks.metrics.every_n_epochs,
+            begin_first_epoch=False,
+            epoch_end_metrics=[
+                lambda dat, fn: compute_dci(dat, fn, 1000, 500, boost_mode='sklearn'),
+                lambda dat, fn: compute_factor_vae(dat, fn, num_train=1000, num_eval=500, num_variance_estimate=1000),
+            ],
+            train_end_metrics=[
+                compute_dci,
+                compute_factor_vae
+            ],
+        ))
+
+def hydra_make_logger(cfg):
+    if cfg.logging.wandb.enabled:
+        log.info(f'wandb log directory: {os.path.abspath("wandb")}')
+        # TODO: this should be moved into configs, instantiated from a class & target
+        return WandbLogger(
+            name=cfg.logging.wandb.name,
+            project=cfg.logging.wandb.project,
+            # group=cfg.logging.wandb.get('group', None),
+            tags=cfg.logging.wandb.get('tags', None),
+            entity=cfg.logging.get('entity', None),
+            save_dir=hydra.utils.to_absolute_path(cfg.logging.logs_dir),  # relative to hydra's original cwd
+            offline=cfg.logging.wandb.get('offline', False),
+        )
+    return None
+
+def hydra_append_progress_callback(callbacks, cfg):
+    if cfg.callbacks.progress.enabled:
+        callbacks.append(LoggerProgressCallback(
+            time_step=cfg.callbacks.progress.step_time
+        ))
+
+def hydra_append_latent_cycle_logger_callback(callbacks, cfg):
+    # this currently only supports WANDB logger
+    if cfg.logging.wandb.enabled:
+        if cfg.callbacks.latent_cycle.enabled:
+            # Log the latent cycle visualisations to wandb
+            callbacks.append(LatentCycleLoggingCallback(
+                seed=cfg.callbacks.latent_cycle.seed,
+                every_n_epochs=cfg.callbacks.latent_cycle.every_n_epochs,
+                begin_first_epoch=False,
+            ))
+
+
+# ========================================================================= #
+# RUNNER                                                                    #
+# ========================================================================= #
+
+
+@hydra.main(config_path='hydra_config', config_name="config")
+def main(cfg: DictConfig):
+    # print useful info
+    log.info(make_box_str(cfg.pretty()))
+    log.info(f"Current working directory : {os.getcwd()}")
+    log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
+
+    # check CUDA setting
+    cuda = cfg.trainer.get('cuda', torch.cuda.is_available())
+    hydra_check_cuda(cuda)
+
+    # check data preparation
+    prepare_data_per_node = cfg.trainer.get('prepare_data_per_node', True)
+    hydra_check_datadir(prepare_data_per_node, cfg)
+
+    # create trainer loggers & callbacks
+    logger = hydra_make_logger(cfg)
+
+    # TRAINER CALLBACKS
+    callbacks = []
+    hydra_append_latent_cycle_logger_callback(callbacks, cfg)
+    hydra_append_metric_callback(callbacks, cfg)
+    hydra_append_progress_callback(callbacks, cfg)
     
-    # DATASET
-    datamodule = HydraDataModule(cfg)
-    
+    # FRAMEWORK
+    framework = hydra.utils.instantiate(
+        cfg.framework.cls,
+        make_optimizer_fn=lambda params: hydra.utils.instantiate(cfg.optimizer.cls, params),
+        make_model_fn=lambda: GaussianAutoEncoder(
+            encoder=hydra.utils.instantiate(cfg.model.encoder.cls),
+            decoder=hydra.utils.instantiate(cfg.model.decoder.cls)
+        ),
+    )
+
     # TRAIN
-    system = HydraLightningModule(cfg)
     trainer = pl.Trainer(
         row_log_interval=cfg.logging.get('log_interval', 50),
         log_save_interval=cfg.logging.get('save_log_interval', 100),
@@ -226,7 +210,7 @@ def main(cfg: DictConfig):
         prepare_data_per_node=prepare_data_per_node,
         progress_bar_refresh_rate=0,  # ptl 0.9
     )
-    trainer.fit(system, datamodule=datamodule)
+    trainer.fit(framework, datamodule=HydraDataModule(cfg))
 
 
 # ========================================================================= #
