@@ -57,6 +57,7 @@ class AdaVae(BetaVae):
             'kl_reg_loss': ave_kl_reg_loss,
             'kl_loss': ave_kl_loss,
             'elbo': -(ave_recon_loss + ave_kl_loss),
+            **intercept_logs,
         }
 
     def intercept_z(self, z0_mean, z0_logvar, z1_mean, z1_logvar):
@@ -70,19 +71,11 @@ class AdaVae(BetaVae):
     def make_averaged(self, z0_mean, z0_logvar, z1_mean, z1_logvar, share_mask):
         # compute average posteriors
         ave_mu, ave_logvar = self.compute_average(z0_mean, z0_logvar, z1_mean, z1_logvar)
-        # ALT
-        z0_mean_alt = (~share_mask * z0_mean) + (share_mask * ave_mu)
-        z1_mean_alt = (~share_mask * z1_mean) + (share_mask * ave_mu)
-        z0_logvar_alt = (~share_mask * z0_logvar) + (share_mask * ave_logvar)
-        z1_logvar_alt = (~share_mask * z1_logvar) + (share_mask * ave_logvar)
-        # modify estimated shared elements of original posteriors
-        z0_mean[share_mask], z0_logvar[share_mask] = ave_mu[share_mask], ave_logvar[share_mask]
-        z1_mean[share_mask], z1_logvar[share_mask] = ave_mu[share_mask], ave_logvar[share_mask]
-        # asdf
-        assert torch.allclose(z0_mean, z0_mean_alt)
-        assert torch.allclose(z1_mean, z1_mean_alt)
-        assert torch.allclose(z0_logvar, z0_logvar_alt)
-        assert torch.allclose(z1_logvar, z1_logvar_alt)
+        # apply average
+        z0_mean = (~share_mask * z0_mean) + (share_mask * ave_mu)
+        z1_mean = (~share_mask * z1_mean) + (share_mask * ave_mu)
+        z0_logvar = (~share_mask * z0_logvar) + (share_mask * ave_logvar)
+        z1_logvar = (~share_mask * z1_logvar) + (share_mask * ave_logvar)
         # return values
         return z0_mean, z0_logvar, z1_mean, z1_logvar
 
