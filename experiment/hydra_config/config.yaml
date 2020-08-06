@@ -30,7 +30,7 @@ dataset:
   try_in_memory: TRUE
 
 optimizer:
-  lr: 0.003
+  lr: 1e-3
 
 # TODO: fix, this is terrible
 callbacks:
@@ -57,7 +57,7 @@ logging:
   # log to online service
   wandb:
     enabled: TRUE
-    name: '${framework.name}-${model.z_size}-${dataset.name}-${optimizer.name}-${model.name}'
+    name: 'datafix-1-${framework.name}-${model.z_size}-${dataset.name}-${optimizer.name}-${model.name}'
     project: 'test'
     group: null
     entity: '${env:USER}'
@@ -66,6 +66,7 @@ logging:
       - '${dataset.name}'
       - '${optimizer.name}'
       - '${model.name}'
+      - 'datafix-1'
 
 
 hydra:
