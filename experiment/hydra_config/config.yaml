@@ -14,8 +14,8 @@ defaults:
 
 # remember to set timeout limits below
 trainer:
-  epochs: 250
-  steps: null
+  epochs: 100000  # not resilient to change in dataset size, we rather limit by steps (len(dataset) / batch_size)
+  steps: 100000
   cuda: TRUE
   prepare_data_per_node: TRUE
 
@@ -29,7 +29,7 @@ dataset:
   data_dir: '/tmp/${env:USER}/datasets'
   try_in_memory: TRUE
   # varying factors (if applicable for pairs and triplets)
-  k: 'uniform'
+  k: 1
   n_k: 'uniform'
 
 optimizer:
@@ -56,7 +56,6 @@ logging:
       - '${dataset.name}'
       - '${optimizer.name}'
       - '${model.name}'
-      - 'datafix-1'
 
 # TODO: fix, this is terrible
 callbacks:
@@ -66,10 +65,10 @@ callbacks:
   latent_cycle:
     enabled: TRUE
     seed: 7777
-    every_n_epochs: 5
+    every_n_steps: 1000
   metrics:
     enabled: TRUE
-    every_n_epochs: 10
+    every_n_steps: 2000
 
 hydra:
   job:

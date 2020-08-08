@@ -54,7 +54,7 @@ class HydraDataModule(pl.LightningDataModule):
         self.dataset_train = self.dataset
         if 'augment_dataset' in self.hparams.framework:
             self.dataset_train = hydra.utils.instantiate(self.hparams.framework.augment_dataset.cls, self.dataset)
-    
+
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Training Dataset:
     #     The sample of data used to fit the model.
@@ -67,7 +67,7 @@ class HydraDataModule(pl.LightningDataModule):
     #     The sample of data used to provide an unbiased evaluation of a
     #     final model fit on the training dataset.
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    
+
     def train_dataloader(self):
         """Training Dataset: Sample of data used to fit the model"""
         return torch.utils.data.DataLoader(
@@ -114,9 +114,9 @@ def hydra_check_datadir(prepare_data_per_node, cfg):
 def hydra_append_metric_callback(callbacks, cfg):
     if cfg.callbacks.metrics.enabled:
         callbacks.append(DisentanglementLoggingCallback(
-            every_n_epochs=cfg.callbacks.metrics.every_n_epochs,
-            begin_first_epoch=False,
-            epoch_end_metrics=[
+            every_n_steps=cfg.callbacks.metrics.every_n_steps,
+            begin_first_step=False,
+            step_end_metrics=[
                 lambda dat, fn: compute_dci(dat, fn, 1000, 500, boost_mode='sklearn'),
                 lambda dat, fn: compute_factor_vae(dat, fn, num_train=1000, num_eval=500, num_variance_estimate=1000),
             ],
@@ -154,8 +154,8 @@ def hydra_append_latent_cycle_logger_callback(callbacks, cfg):
             # Log the latent cycle visualisations to wandb
             callbacks.append(LatentCycleLoggingCallback(
                 seed=cfg.callbacks.latent_cycle.seed,
-                every_n_epochs=cfg.callbacks.latent_cycle.every_n_epochs,
-                begin_first_epoch=False,
+                every_n_steps=cfg.callbacks.latent_cycle.every_n_steps,
+                begin_first_step=False,
             ))
 
 
@@ -187,7 +187,7 @@ def main(cfg: DictConfig):
     hydra_append_latent_cycle_logger_callback(callbacks, cfg)
     hydra_append_metric_callback(callbacks, cfg)
     hydra_append_progress_callback(callbacks, cfg)
-    
+
     # FRAMEWORK
     framework = hydra.utils.instantiate(
         cfg.framework.cls,
