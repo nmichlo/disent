@@ -223,6 +223,8 @@ def main(cfg: DictConfig):
 if __name__ == '__main__':
     try:
         main()
+    except KeyboardInterrupt as e:
+        log.warning('Interrupted - Exited early!')
     except:
         log.error('A critical error occurred! Exiting safely...', exc_info=True)
 

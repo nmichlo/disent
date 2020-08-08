@@ -13,5 +13,5 @@ augment_dataset:
   cls:
     target: disent.dataset.triplets.SupervisedTripletDataset
     params:
-      k: 1
-      n_k: 'uniform'
+      k: ${dataset.k}
+      n_k: ${dataset.n_k}

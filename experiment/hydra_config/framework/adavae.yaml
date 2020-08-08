@@ -10,4 +10,4 @@ augment_dataset:
   cls:
     target: disent.dataset.pairs.PairedVariationDataset
     params:
-      k: 1
+      k: ${dataset.k}

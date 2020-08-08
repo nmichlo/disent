@@ -28,22 +28,12 @@ dataset:
   batch_size: 256
   data_dir: '/tmp/${env:USER}/datasets'
   try_in_memory: TRUE
+  # varying factors (if applicable for pairs and triplets)
+  k: 'uniform'
+  n_k: 'uniform'
 
 optimizer:
   lr: 1e-3
-
-# TODO: fix, this is terrible
-callbacks:
-  progress:
-    enabled: TRUE
-    step_time: 30
-  latent_cycle:
-    enabled: TRUE
-    seed: 7777
-    every_n_epochs: 5
-  metrics:
-    enabled: TRUE
-    every_n_epochs: 10
 
 # --------------- #
 # RUNTIME OPTIONS #
@@ -57,7 +47,7 @@ logging:
   # log to online service
   wandb:
     enabled: TRUE
-    name: 'datafix-1-${framework.name}-${model.z_size}-${dataset.name}-${optimizer.name}-${model.name}'
+    name: 'uniform-${framework.name}-${model.z_size}-${dataset.name}-${optimizer.name}-${model.name}'
     project: 'test'
     group: null
     entity: '${env:USER}'
@@ -68,6 +58,18 @@ logging:
       - '${model.name}'
       - 'datafix-1'
 
+# TODO: fix, this is terrible
+callbacks:
+  progress:
+    enabled: TRUE
+    step_time: 30
+  latent_cycle:
+    enabled: TRUE
+    seed: 7777
+    every_n_epochs: 5
+  metrics:
+    enabled: TRUE
+    every_n_epochs: 10
 
 hydra:
   job:
