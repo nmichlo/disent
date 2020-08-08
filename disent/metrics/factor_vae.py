@@ -96,9 +96,9 @@ def compute_factor_vae(
     scores_dict = {}
 
     if not active_dims.any():
-        scores_dict["train_accuracy"] = 0.
-        scores_dict["eval_accuracy"] = 0.
-        scores_dict["num_active_dims"] = 0
+        scores_dict["factor_vae.train_accuracy"] = 0.
+        scores_dict["factor_vae.eval_accuracy"] = 0.
+        scores_dict["factor_vae.num_active_dims"] = 0
         return scores_dict
 
     logging.info("Generating training set.")
@@ -117,9 +117,9 @@ def compute_factor_vae(
     eval_accuracy = np.sum(eval_votes[classifier, other_index]) * 1. / np.sum(eval_votes)
 
     logging.info("Evaluation set accuracy: %.2g", eval_accuracy)
-    scores_dict["train_accuracy"] = train_accuracy
-    scores_dict["eval_accuracy"] = eval_accuracy
-    scores_dict["num_active_dims"] = len(active_dims)
+    scores_dict["factor_vae.train_accuracy"] = train_accuracy
+    scores_dict["factor_vae.eval_accuracy"] = eval_accuracy
+    scores_dict["factor_vae.num_active_dims"] = len(active_dims)
 
     return scores_dict
 

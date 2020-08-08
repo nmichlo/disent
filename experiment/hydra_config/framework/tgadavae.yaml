@@ -1,18 +1,17 @@
 # @package _group_
 name: tgadavae
 cls:
-  target: disent.frameworks.supervised.gadavae.GuidedAdaVae
+  target: disent.frameworks.supervised.tgadavae.TripletGuidedAdaVae
   params:
     beta: 4
-    average_mode: 'gvae'    # [gvae, ml-vae]
-    thresh_mode: 'kl_mid'
-    mode: 'ave_triple'      # [adavae, ave_pos, ave_triple]
-    triplet_scale: 1        # >= 0
-    triplet_alpha: 0.3
-    triplet_after_sampling: FALSE
+    average_mode: 'gvae'       # [gvae, ml-vae]
+    anchor_ave_mode: 'average' # [average, thresh]
+    triplet_alpha: 0.1
+    triplet_scale: 1
 
 augment_dataset:
   cls:
     target: disent.dataset.triplets.SupervisedTripletDataset
     params:
-      k: 1
+      k: ${dataset.k}
+      n_k: ${dataset.n_k}

@@ -1,57 +1,66 @@
-from collections import namedtuple
 import torch
 import torch.nn.functional as F
 from disent.frameworks.framework import BaseFramework
 from disent.model import GaussianAutoEncoder
 
 
-TrainingData = namedtuple('TrainingData', ['x', 'x_recon', 'z_mean', 'z_logvar', 'z_sampled'])
-
-
 # ========================================================================= #
-# Base VAE Loss                                                             #
+# framework_vae                                                             #
 # ========================================================================= #
 
 
 class Vae(BaseFramework):
+    """
+    Variational Auto Encoder
+    https://arxiv.org/abs/1312.6114
+    """
 
-    def training_step(self, model: GaussianAutoEncoder, batch):
+    def __init__(self, make_optimizer_fn, make_model_fn):
+        super().__init__(make_optimizer_fn)
+        # vae model
+        assert callable(make_model_fn)
+        self.model = make_model_fn()
+        assert isinstance(self.model, GaussianAutoEncoder)
+
+    def forward(self, batch) -> torch.Tensor:
+        return self.model.forward_deterministic(batch)
+
+    def compute_loss(self, batch, batch_idx):
         x = batch
-        # encode, then intercept and mutate if needed
-        z_mean, z_logvar = model.encode_gaussian(x)
-        # reparameterize
-        z_sampled = model.reparameterize(z_mean, z_logvar)
-        # reconstruct
-        x_recon = model.decode(z_sampled)
-        # log & train
-        return self.compute_loss(TrainingData(x, x_recon, z_mean, z_logvar, z_sampled))
 
-    def compute_loss(self, data: TrainingData):
-        """
-        Compute the varous VAE loss components.
-        Based on: https://github.com/google-research/disentanglement_lib/blob/a64b8b9994a28fafd47ccd866b0318fa30a3c76c/disentanglement_lib/methods/unsupervised/vae.py#L153
-        """
-        x, x_recon, z_mean, z_logvar, z_sampled = data
-        
+        # FORWARD
+        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+        # latent distribution parametrisation
+        z_mean, z_logvar = self.model.encode_gaussian(x)
+        # sample from latent distribution
+        z = self.model.reparameterize(z_mean, z_logvar)
+        # reconstruct without the final activation
+        x_recon = self.model.decode(z)
+        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+
+        # LOSS
+        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # reconstruction error
-        recon_loss = bce_loss_with_logits(x, x_recon)   # E[log p(x|z)]
-        
+        recon_loss = bce_loss_with_logits(x, x_recon)  # E[log p(x|z)]
         # KL divergence
-        kl_loss = kl_normal_loss(z_mean, z_logvar)      # D_kl(q(z|x) || p(z|x))
-        
+        kl_loss = kl_normal_loss(z_mean, z_logvar)     # D_kl(q(z|x) || p(z|x))
+        # compute kl regularisation
+        kl_reg_loss = self.kl_regularization(kl_loss)
         # compute combined loss
-        loss = recon_loss + self.regularizer(kl_loss)
+        loss = recon_loss + kl_reg_loss
+        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
         return {
             'train_loss': loss,
-            'reconstruction_loss': recon_loss,
+            'recon_loss': recon_loss,
+            'kl_reg_loss': kl_reg_loss,
             'kl_loss': kl_loss,
             'elbo': -(recon_loss + kl_loss),
         }
 
-    def regularizer(self, kl_loss):
+    def kl_regularization(self, kl_loss):
         return kl_loss
-
+    
 
 # ========================================================================= #
 # Helper                                                                    #

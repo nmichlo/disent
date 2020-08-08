@@ -1,7 +1,5 @@
-import logging
 from disent.frameworks.unsupervised.vae import Vae
 
-log = logging.getLogger(__name__)
 
 # ========================================================================= #
 # Beta-VAE Loss                                                             #
@@ -9,10 +7,13 @@ log = logging.getLogger(__name__)
 
 
 class BetaVae(Vae):
-    def __init__(self, beta=4):
+
+    def __init__(self, make_optimizer_fn, make_model_fn, beta=4):
+        super().__init__(make_optimizer_fn, make_model_fn)
+        assert beta >= 0
         self.beta = beta
 
-    def regularizer(self, kl_loss):
+    def kl_regularization(self, kl_loss):
         return self.beta * kl_loss
 
 
@@ -31,16 +32,15 @@ class BetaVaeH(BetaVae):
     (NOTE: BetaVAEB is from understanding disentanglement in Beta VAEs)
     """
 
-    def __init__(self, anneal_end_steps, beta=4):
-        super().__init__(beta)
-        self.n_train_steps = 0
+    def __init__(self, make_optimizer_fn, make_model_fn, anneal_end_steps=0, beta=4):
+        super().__init__(make_optimizer_fn, make_model_fn, beta=beta)
         self.anneal_end_steps = anneal_end_steps
-        raise NotImplementedError('n_train_steps is not yet implemented for BetaVaeH, it will not yet work')
 
-    def regularizer(self, kl_loss):
-        log.warning('TODO: training step count was not updated!')
-        anneal_reg = lerp_step(0, 1, self.n_train_steps, self.anneal_end_steps)  # if is_train else 1
-        return (anneal_reg * self.beta) * kl_loss
+    def kl_regularization(self, kl_loss):
+        # anneal
+        anneal_reg = lerp_step(0, 1, self.trainer.global_step, self.anneal_end_steps)
+        # compute kl regularisation
+        return anneal_reg * self.beta * kl_loss
 
 
 # ========================================================================= #

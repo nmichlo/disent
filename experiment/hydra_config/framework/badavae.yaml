@@ -1,11 +1,10 @@
 # @package _group_
-name: gadavae
+name: badavae
 cls:
-  target: disent.frameworks.supervised.gadavae.GuidedAdaVae
+  target: disent.frameworks.supervised.badavae.BoundedAdaVae
   params:
     beta: 4
-    average_mode: 'gvae'       # [gvae, ml-vae]
-    anchor_ave_mode: 'average' # [average, thresh]
+    average_mode: 'gvae'  # gvae or ml-vae
 
 augment_dataset:
   cls:

@@ -1,5 +1,5 @@
 defaults:
-  - framework: adavae
+  - framework: gadavae
   - model: conv64
   - optimizer: radam
   - dataset: xyscalecolorgrid
@@ -12,21 +12,25 @@ defaults:
 # EXPERIMENT OPTIONS #
 # ------------------ #
 
+# remember to set timeout limits below
 trainer:
-  epochs: 100
+  epochs: 250
   steps: null
   cuda: TRUE
   prepare_data_per_node: TRUE
 
 model:
-  z_size: 12
-  y_size: 6
+  z_size: 9
+  y_size: 9
 
 dataset:
   num_workers: 8
   batch_size: 256
   data_dir: '/tmp/${env:USER}/datasets'
   try_in_memory: TRUE
+  # varying factors (if applicable for pairs and triplets)
+  k: 'uniform'
+  n_k: 'uniform'
 
 optimizer:
   lr: 1e-3
@@ -37,10 +41,14 @@ optimizer:
 
 logging:
   logs_dir: 'logs'
+  # logging frequency in number of batchers, default: log_interval=50, save_log_interval=100
+  log_interval: 100
+  save_log_interval: 200
+  # log to online service
   wandb:
     enabled: TRUE
-    name: '${framework.name}-${dataset.name}-${optimizer.name}-${model.name}'
-    project: 'disentanglement'
+    name: 'uniform-${framework.name}-${model.z_size}-${dataset.name}-${optimizer.name}-${model.name}'
+    project: 'test'
     group: null
     entity: '${env:USER}'
     tags:
@@ -48,6 +56,20 @@ logging:
       - '${dataset.name}'
       - '${optimizer.name}'
       - '${model.name}'
+      - 'datafix-1'
+
+# TODO: fix, this is terrible
+callbacks:
+  progress:
+    enabled: TRUE
+    step_time: 30
+  latent_cycle:
+    enabled: TRUE
+    seed: 7777
+    every_n_epochs: 5
+  metrics:
+    enabled: TRUE
+    every_n_epochs: 10
 
 hydra:
   job:
@@ -56,7 +78,7 @@ hydra:
     params:
       partition: batch
       mem_gb: 0
-      timeout_min: 120  # minutes
+      timeout_min: 1440  # minutes
       submitit_folder: '${hydra.sweep.dir}/submitit/%j'
   run:
     dir: '${logging.logs_dir}/hydra_run/${now:%Y-%m-%d_%H-%M-%S}_${hydra.job.name}'

@@ -34,7 +34,14 @@ class RandomPairDataset(Dataset):
 
 class PairedVariationDataset(Dataset):
 
-    def __init__(self, dataset: GroundTruthDataset, k='uniform', variation_factor_indices=None, return_factors=False):
+    def __init__(
+            self,
+            dataset: GroundTruthDataset,
+            k=1,
+            force_different_factors=True,
+            variation_factor_indices=None,
+            return_factors=False
+    ):
         """
         Dataset that pairs together samples with at most k differing factors of variation.
 
@@ -59,6 +66,8 @@ class PairedVariationDataset(Dataset):
             assert self._k < self._num_variation_factors, f'all factors cannot be varied for each pair, k must be less than {self._num_variation_factors}'
         # if we must return (x, y) instead of just x, where y is the factors for x.
         self._return_factors = return_factors
+        # if sampled factors MUST be different
+        self.force_different_factors = force_different_factors
 
     def __len__(self):
         # TODO: is dataset as big as the latent space OR as big as the orig.
@@ -91,15 +100,22 @@ class PairedVariationDataset(Dataset):
 
         # get factors corresponding to index
         orig_factors = self._dataset.data.idx_to_pos(idx)
-        # get fixed or random k
-        k = np.random.randint(1, self._num_variation_factors) if self._k == 'uniform' else self._k
-        # make k random indices not shared
-        num_shared = self._dataset.data.num_factors - k
-        shared_indices = np.random.choice(self._variation_factor_indices, size=num_shared, replace=False)
-        # resample paired item, differs by at most k factors of variation
-        paired_factors = self._dataset.data.resample_factors(orig_factors[np.newaxis, :], shared_indices)
+        # get fixed or random k (k is number of factors that differ)
+        k = np.random.randint(1, self._num_variation_factors) if (self._k == 'uniform') else self._k
         # return observations
-        return orig_factors, paired_factors[0]
+        return orig_factors, self._resample_factors(orig_factors, k)
+
+    def _resample_factors(self, base_factors, k):
+        resampled_factors = None
+        while (resampled_factors is None) or np.all(base_factors == resampled_factors):
+            # make k random indices not shared + resample paired item, differs by at most k factors of variation
+            num_shared = self._dataset.data.num_factors - k
+            shared_indices = np.random.choice(self._variation_factor_indices, size=num_shared, replace=False)
+            resampled_factors = self._dataset.data.resample_factors(base_factors[np.newaxis, :], shared_indices)[0]
+            # dont retry if sampled factors are the same
+            if not self.force_different_factors:
+                break
+        return resampled_factors
 
     
 # ========================================================================= #
