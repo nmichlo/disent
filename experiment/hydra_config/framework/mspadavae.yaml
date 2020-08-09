@@ -1,0 +1,15 @@
+# @package _group_
+name: mspadavae
+cls:
+  target: disent.frameworks.weaklysupervised.msp_adavae.MspAdaVae
+  params:
+    beta: 4
+    average_mode: 'gvae'  # gvae or ml-vae
+    y_size: ${model.y_size}
+    msp_scale: 1000
+
+augment_dataset:
+  cls:
+    target: disent.dataset.pairs.PairedVariationDataset
+    params:
+      k: ${dataset.k}

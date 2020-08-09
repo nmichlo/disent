@@ -5,6 +5,7 @@ import numpy as np
 import pytorch_lightning as pl
 import wandb
 
+from disent.frameworks.weaklysupervised.msp_adavae import MspAdaVae
 from disent.util import TempNumpySeed
 from disent.visualize.visualize_model import latent_cycle
 from disent.visualize.visualize_util import gridify_animation, reconstructions_to_images
@@ -39,8 +40,17 @@ class LatentCycleLoggingCallback(pl.Callback):
         z_means, z_logvars = pl_module.encode_gaussian(obs)
 
         # produce latent cycle animation & merge frames
-        animation = latent_cycle(pl_module.model.reconstruct, z_means, z_logvars, mode='fitted_gaussian_cycle', num_animations=1, num_frames=21)
-        animation = latent_cycle(pl_module.decode, z_means, z_logvars, mode='fitted_gaussian_cycle', num_animations=1, num_frames=21)
+        if isinstance(pl_module, MspAdaVae):
+            animation = latent_cycle(
+                lambda y: pl_module.decode(pl_module._msp.mutated_z(z_means[0], y, 1)),
+                pl_module._msp.latent_to_labels(z_means),
+                pl_module._msp.latent_to_labels(z_logvars),
+                mode='fitted_gaussian_cycle',
+                num_animations=1,
+                num_frames=21
+            )
+        else:
+            animation = latent_cycle(pl_module.decode, z_means, z_logvars, mode='fitted_gaussian_cycle', num_animations=1, num_frames=21)
         animation = reconstructions_to_images(animation, mode='int', moveaxis=False)  # axis already moved above
         frames = np.transpose(gridify_animation(animation[0], padding_px=4, value=64), [0, 3, 1, 2])
         

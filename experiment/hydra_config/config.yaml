@@ -1,5 +1,5 @@
 defaults:
-  - framework: gadavae
+  - framework: mspadavae
   - model: conv64
   - optimizer: radam
   - dataset: xyscalecolorgrid
@@ -20,7 +20,7 @@ trainer:
   prepare_data_per_node: TRUE
 
 model:
-  z_size: 9
+  z_size: 12
   y_size: 9
 
 dataset:
@@ -47,8 +47,8 @@ logging:
   # log to online service
   wandb:
     enabled: TRUE
-    name: 'uniform-${framework.name}-${model.z_size}-${dataset.name}-${optimizer.name}-${model.name}'
-    project: 'test'
+    name: 'DELETE-${framework.name}-${model.z_size}-${dataset.name}-${optimizer.name}-${model.name}'
+    project: 'delete'
     group: null
     entity: '${env:USER}'
     tags:
