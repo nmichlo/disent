@@ -21,19 +21,19 @@ class GuidedAdaVae(AdaVae):
         # FORWARD
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # latent distribution parametrisation
-        a_z_mean, a_z_logvar = self.model.encode_gaussian(a_x)
-        p_z_mean, p_z_logvar = self.model.encode_gaussian(p_x)
-        n_z_mean, n_z_logvar = self.model.encode_gaussian(n_x)
+        a_z_mean, a_z_logvar = self.encode_gaussian(a_x)
+        p_z_mean, p_z_logvar = self.encode_gaussian(p_x)
+        n_z_mean, n_z_logvar = self.encode_gaussian(n_x)
         # intercept and mutate z [SPECIFIC TO ADAVAE]
         (a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar), intercept_logs = self.intercept_z(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar)
         # sample from latent distribution
-        a_z_sampled = self.model.reparameterize(a_z_mean, a_z_logvar)
-        p_z_sampled = self.model.reparameterize(p_z_mean, p_z_logvar)
-        n_z_sampled = self.model.reparameterize(n_z_mean, n_z_logvar)
+        a_z_sampled = self.reparameterize(a_z_mean, a_z_logvar)
+        p_z_sampled = self.reparameterize(p_z_mean, p_z_logvar)
+        n_z_sampled = self.reparameterize(n_z_mean, n_z_logvar)
         # reconstruct without the final activation
-        a_x_recon = self.model.decode(a_z_sampled)
-        p_x_recon = self.model.decode(p_z_sampled)
-        n_x_recon = self.model.decode(n_z_sampled)
+        a_x_recon = self.decode_partial(a_z_sampled)
+        p_x_recon = self.decode_partial(p_z_sampled)
+        n_x_recon = self.decode_partial(n_z_sampled)
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
         # LOSS

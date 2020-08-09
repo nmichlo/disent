@@ -65,10 +65,10 @@ callbacks:
   latent_cycle:
     enabled: TRUE
     seed: 7777
-    every_n_steps: 1000
+    every_n_steps: 1200
   metrics:
     enabled: TRUE
-    every_n_steps: 2000
+    every_n_steps: 3600
 
 hydra:
   job:

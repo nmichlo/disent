@@ -23,16 +23,16 @@ class AdaVae(BetaVae):
         # FORWARD
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # latent distribution parametrisation
-        z0_mean, z0_logvar = self.model.encode_gaussian(x0)
-        z1_mean, z1_logvar = self.model.encode_gaussian(x1)
+        z0_mean, z0_logvar = self.encode_gaussian(x0)
+        z1_mean, z1_logvar = self.encode_gaussian(x1)
         # intercept and mutate z [SPECIFIC TO ADAVAE]
         (z0_mean, z0_logvar, z1_mean, z1_logvar), intercept_logs = self.intercept_z(z0_mean, z0_logvar, z1_mean, z1_logvar)
         # sample from latent distribution
-        z0_sampled = self.model.reparameterize(z0_mean, z0_logvar)
-        z1_sampled = self.model.reparameterize(z1_mean, z1_logvar)
+        z0_sampled = self.reparameterize(z0_mean, z0_logvar)
+        z1_sampled = self.reparameterize(z1_mean, z1_logvar)
         # reconstruct without the final activation
-        x0_recon = self.model.decode(z0_sampled)
-        x1_recon = self.model.decode(z1_sampled)
+        x0_recon = self.decode_partial(z0_sampled)
+        x1_recon = self.decode_partial(z1_sampled)
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
         # LOSS

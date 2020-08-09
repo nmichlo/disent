@@ -19,11 +19,8 @@ class Vae(BaseFramework):
         super().__init__(make_optimizer_fn)
         # vae model
         assert callable(make_model_fn)
-        self.model = make_model_fn()
-        assert isinstance(self.model, GaussianAutoEncoder)
-
-    def forward(self, batch) -> torch.Tensor:
-        return self.model.forward_deterministic(batch)
+        self._model: GaussianAutoEncoder = make_model_fn()
+        assert isinstance(self._model, GaussianAutoEncoder)
 
     def compute_loss(self, batch, batch_idx):
         x = batch
@@ -31,11 +28,11 @@ class Vae(BaseFramework):
         # FORWARD
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # latent distribution parametrisation
-        z_mean, z_logvar = self.model.encode_gaussian(x)
+        z_mean, z_logvar = self.encode_gaussian(x)
         # sample from latent distribution
-        z = self.model.reparameterize(z_mean, z_logvar)
+        z = self.reparameterize(z_mean, z_logvar)
         # reconstruct without the final activation
-        x_recon = self.model.decode(z)
+        x_recon = self.decode_partial(z)
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
         # LOSS
@@ -60,6 +57,39 @@ class Vae(BaseFramework):
 
     def kl_regularization(self, kl_loss):
         return kl_loss
+
+    # --------------------------------------------------------------------- #
+    # VAE Model Utility Functions (Visualisation)                           #
+    # --------------------------------------------------------------------- #
+
+    def encode(self, x):
+        """Get the deterministic latent representation z = z_mean of observation x (useful for visualisation)"""
+        return self._model.encode_deterministic(x)
+
+    def decode(self, z):
+        """Decode latent vector z into reconstruction x_recon (useful for visualisation)"""
+        return self._model.reconstruct(z)
+
+    def forward(self, batch) -> torch.Tensor:
+        """The full deterministic model with the final activation (useful for visualisation)"""
+        z_mean, _ = self.encode_gaussian(batch)
+        return self.reconstruct(z_mean)
+
+    # --------------------------------------------------------------------- #
+    # VAE Model Utility Functions (Training)                                #
+    # --------------------------------------------------------------------- #
+
+    def encode_gaussian(self, x):
+        """Get latent parametrisation (z_mean, z_logvar) of observation x (useful for training)"""
+        return self._model.encode_gaussian(x)
+
+    def reparameterize(self, z_mean, z_logvar):
+        """Sample from latent distribution parametrized by (z_mean, z_logvar) to get z (useful for training)"""
+        return self._model.reparameterize(z_mean, z_logvar)
+
+    def decode_partial(self, z):
+        """Decode latent vector z into partial reconstruction x_recon, without the final activation (useful for training)"""
+        return self._model.decode(z)
     
 
 # ========================================================================= #

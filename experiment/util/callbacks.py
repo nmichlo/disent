@@ -36,10 +36,11 @@ class LatentCycleLoggingCallback(pl.Callback):
         # get random sample of z_means and z_logvars for computing the range of values for the latent_cycle
         with TempNumpySeed(self.seed):
             obs = trainer.datamodule.dataset.sample_observations(64).to(pl_module.device)
-        z_means, z_logvars = pl_module.model.encode_gaussian(obs)
-        
+        z_means, z_logvars = pl_module.encode_gaussian(obs)
+
         # produce latent cycle animation & merge frames
         animation = latent_cycle(pl_module.model.reconstruct, z_means, z_logvars, mode='fitted_gaussian_cycle', num_animations=1, num_frames=21)
+        animation = latent_cycle(pl_module.decode, z_means, z_logvars, mode='fitted_gaussian_cycle', num_animations=1, num_frames=21)
         animation = reconstructions_to_images(animation, mode='int', moveaxis=False)  # axis already moved above
         frames = np.transpose(gridify_animation(animation[0], padding_px=4, value=64), [0, 3, 1, 2])
         
@@ -64,15 +65,14 @@ class DisentanglementLoggingCallback(pl.Callback):
         assert isinstance(self.step_end_metrics, list)
         assert isinstance(self.train_end_metrics, list)
         assert self.step_end_metrics or self.train_end_metrics, 'No metrics given to step_end_metrics or train_end_metrics'
-    
-    def _compute_metrics_and_log(self, trainer: pl.Trainer, pl_module: pl.LightningModule, metrics: list,
-                                 is_final=False):
+
+    def _compute_metrics_and_log(self, trainer: pl.Trainer, pl_module: pl.LightningModule, metrics: list, is_final=False):
         # TODO: re-enable
         # assert isinstance(pl_module, HydraSystem)
-        
+    
         # compute all metrics
         for metric in metrics:
-            scores = metric(trainer.datamodule.dataset, lambda x: pl_module.model.encode_deterministic(x.to(pl_module.device)))
+            scores = metric(trainer.datamodule.dataset, lambda x: pl_module.encode(x.to(pl_module.device)))
             log.info(f'metric (step: {trainer.global_step}): {scores}')
             # log to wandb if it exists
             trainer.log_metrics({
