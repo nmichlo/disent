@@ -4,9 +4,10 @@ cls:
   target: disent.frameworks.weaklysupervised.msp_adavae.MspAdaVae
   params:
     beta: 4
-    average_mode: 'gvae'  # gvae or ml-vae
+    average_mode: 'gvae'     # gvae or ml-vae
     y_size: ${model.y_size}
-    msp_scale: 1000
+    msp_scale: 100
+    msp_mode: 'zero_logvar'  # [logvar, zero_logvar, ada_logvar, ada_zero_logvar]
 
 augment_dataset:
   cls:

@@ -13,7 +13,7 @@ from disent.frameworks.weaklysupervised.adavae import AdaVae
 
 class MspAdaVae(AdaVae):
     
-    def __init__(self, make_optimizer_fn, make_model_fn, beta=4, average_mode='gvae', y_size=None, msp_scale=10):
+    def __init__(self, make_optimizer_fn, make_model_fn, beta=4, average_mode='gvae', y_size=None, msp_scale=10, msp_mode='zero_logvar'):
         super().__init__(make_optimizer_fn, make_model_fn, beta=beta, average_mode=average_mode)
         self._msp = MatrixSubspaceProjection(
             y_size=self._model.z_size if (y_size is None) else y_size,
@@ -21,7 +21,8 @@ class MspAdaVae(AdaVae):
             z_size=self._model.z_size,
             z_multiplier=1
         )
-        self.msp_scale = msp_scale
+        self._msp_scale = msp_scale
+        self._msp_mode = msp_mode
 
     def compute_loss(self, batch, batch_idx):
         x0, x1 = batch
@@ -34,13 +35,22 @@ class MspAdaVae(AdaVae):
         # MSP labels
         y0_mean, y0_logvar = self._msp.latent_to_labels(z0_mean), self._msp.latent_to_labels(z0_logvar)
         y1_mean, y1_logvar = self._msp.latent_to_labels(z1_mean), self._msp.latent_to_labels(z1_logvar)
-        (y0_mean_trg, _, y1_mean_trg, _), intercept_logs = self.intercept_z(y0_mean, torch.zeros_like(y0_logvar), y1_mean, torch.zeros_like(y1_logvar))
-        # (y0_mean_trg, _, y1_mean_trg, _), intercept_logs = self.intercept_z(y0_mean, y0_logvar, y1_mean, y1_logvar)
-        # WE DONT ACTUALLY AVERAGE USING THE ABOVE LIKE THE NORMAL VAE
 
-        # uncomment for normal adavae action, on top of adavae on labels
-        # # intercept and mutate z [SPECIFIC TO ADAVAE]
-        # (z0_mean, z0_logvar, z1_mean, z1_logvar), intercept_logs = self.intercept_z(z0_mean, z0_logvar, z1_mean, z1_logvar)
+        intercept_logs_z = {}
+        if self._msp_mode == 'zero_logvar':
+            (y0_mean_trg, _, y1_mean_trg, _), intercept_logs = self.intercept_z(y0_mean, torch.zeros_like(y0_logvar), y1_mean, torch.zeros_like(y1_logvar))
+        elif self._msp_mode == 'logvar':
+            (y0_mean_trg, _, y1_mean_trg, _), intercept_logs = self.intercept_z(y0_mean, y0_logvar, y1_mean, y1_logvar)
+        elif self._msp_mode == 'ada_zero_logvar':
+            (y0_mean_trg, _, y1_mean_trg, _), intercept_logs = self.intercept_z(y0_mean, torch.zeros_like(y0_logvar), y1_mean, torch.zeros_like(y1_logvar))
+            # intercept and mutate z [SPECIFIC TO ADAVAE]
+            (z0_mean, z0_logvar, z1_mean, z1_logvar), intercept_logs_z = self.intercept_z(z0_mean, z0_logvar, z1_mean, z1_logvar)
+        elif self._msp_mode == 'ada_logvar':
+            (y0_mean_trg, _, y1_mean_trg, _), intercept_logs = self.intercept_z(y0_mean, y0_logvar, y1_mean, y1_logvar)
+            # intercept and mutate z [SPECIFIC TO ADAVAE]
+            (z0_mean, z0_logvar, z1_mean, z1_logvar), intercept_logs_z = self.intercept_z(z0_mean, z0_logvar, z1_mean, z1_logvar)
+        else:
+            raise KeyError('Invalid msp mode')
 
         # sample from latent distribution
         z0_sampled = self.reparameterize(z0_mean, z0_logvar)
@@ -53,8 +63,8 @@ class MspAdaVae(AdaVae):
         # LOSS
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # msp loss
-        msp0_loss = self._msp.loss_batch(z0_mean, y0_mean_trg) * self.msp_scale
-        msp1_loss = self._msp.loss_batch(z1_mean, y1_mean_trg) * self.msp_scale
+        msp0_loss = self._msp.loss_batch(z0_mean, y0_mean_trg) * self._msp_scale
+        msp1_loss = self._msp.loss_batch(z1_mean, y1_mean_trg) * self._msp_scale
         ave_msp_loss = (msp0_loss + msp1_loss) / 2
         ave_msp_loss = torch.clamp_max(ave_msp_loss, 1000)
         # reconstruction error
@@ -79,6 +89,7 @@ class MspAdaVae(AdaVae):
             'elbo': -(ave_recon_loss + ave_kl_loss),
             'msp_loss': ave_msp_loss,
             **intercept_logs,
+            **{f'z_{k}': v for k, v in intercept_logs_z.items()}
         }
     
     # TODO: conflics with callback

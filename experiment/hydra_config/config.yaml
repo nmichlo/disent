@@ -47,7 +47,7 @@ logging:
   # log to online service
   wandb:
     enabled: TRUE
-    name: 'DELETE-${framework.name}-${model.z_size}-${dataset.name}-${optimizer.name}-${model.name}'
+    name: '${framework.cls.params.msp_mode}-${framework.name}-${model.z_size}-${dataset.name}-${optimizer.name}-${model.name}'
     project: 'delete'
     group: null
     entity: '${env:USER}'
@@ -56,6 +56,7 @@ logging:
       - '${dataset.name}'
       - '${optimizer.name}'
       - '${model.name}'
+      - '${framework.cls.params.msp_mode}'
 
 # TODO: fix, this is terrible
 callbacks:
