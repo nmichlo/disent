@@ -2,7 +2,7 @@ defaults:
   - framework: adavae
   - model: conv64
   - optimizer: radam
-  - dataset: xysquares
+  - dataset: xyscalecolorgrid
   # hydra plugins
   - hydra/job_logging: colorlog
   - hydra/hydra_logging: colorlog
@@ -66,6 +66,9 @@ callbacks:
     every_n_steps: 1200
   metrics:
     every_n_steps: 3600
+  correlation:
+    repeats_per_factor: 10
+    every_n_steps: 1200
 
 hydra:
   job:

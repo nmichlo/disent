@@ -70,6 +70,7 @@ class GaussianAutoEncoder(BaseModule):
           -> decode  |
           -> x_recon | no final activation
         """
+        # TODO: cleanup
         raise RuntimeError('This has been disabled')
         # encode
         z_mean, z_logvar = self.encode_gaussian(x)
@@ -79,6 +80,7 @@ class GaussianAutoEncoder(BaseModule):
         return x_recon, z_mean, z_logvar, z
 
     def forward_deterministic(self, x: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
+        # TODO: cleanup
         raise RuntimeError('This has been disabled')
         # encode
         z_mean, z_logvar = self.encode_gaussian(x)
@@ -103,11 +105,13 @@ class GaussianAutoEncoder(BaseModule):
         return z_mean, z_logvar
 
     def encode_stochastic(self, x) -> Tensor:
+        # TODO: cleanup
         raise RuntimeError('This has been disabled')
         z_mean, z_logvar = self.encode_gaussian(x)
         return self.reparameterize(z_mean, z_logvar)
 
     def encode_deterministic(self, x) -> Tensor:
+        # TODO: cleanup
         raise RuntimeError('This has been disabled')
         z_mean, z_logvar = self.encode_gaussian(x)
         return z_mean
@@ -117,6 +121,7 @@ class GaussianAutoEncoder(BaseModule):
         Compute the partial reconstruction of the input from a latent vector, the output is not passed
         through the final activation which can cause numerical errors if it is sigmoid.
         """
+        # TODO: cleanup
         raise RuntimeError('This has been deprecated in favor of decode_partial')
         return self._decoder(z)
 
@@ -128,6 +133,7 @@ class GaussianAutoEncoder(BaseModule):
         Compute the full reconstruction of the input from a latent vector.
         Like decode but performs a final sigmoid activation.
         """
+        # TODO: cleanup
         raise RuntimeError('This has been deprecated and should be renamed to decode which was being used')
         return torch.sigmoid(self._decoder(z))
 

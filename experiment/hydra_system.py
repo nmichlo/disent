@@ -15,6 +15,7 @@ from disent.model import GaussianAutoEncoder
 from disent.util import make_box_str
 
 from experiment.util.callbacks import VaeDisentanglementLoggingCallback, VaeLatentCycleLoggingCallback, LoggerProgressCallback
+from experiment.util.callbacks.callbacks_vae import VaeLatentCorrelationLoggingCallback
 
 log = logging.getLogger(__name__)
 
@@ -159,6 +160,14 @@ def hydra_append_metric_callback(callbacks, cfg):
             ],
         ))
 
+def hydra_append_correlation_callback(callbacks, cfg):
+    if 'correlation' in cfg.callbacks:
+        callbacks.append(VaeLatentCorrelationLoggingCallback(
+            repeats_per_factor=cfg.callbacks.correlation.repeats_per_factor,
+            every_n_steps=cfg.callbacks.correlation.every_n_steps,
+            begin_first_step=False,
+        ))
+
 # ========================================================================= #
 # RUNNER                                                                    #
 # ========================================================================= #
@@ -187,6 +196,7 @@ def main(cfg: DictConfig):
     hydra_append_progress_callback(callbacks, cfg)
     hydra_append_latent_cycle_logger_callback(callbacks, cfg)
     hydra_append_metric_callback(callbacks, cfg)
+    hydra_append_correlation_callback(callbacks, cfg)
 
     # FRAMEWORK
     framework = hydra.utils.instantiate(

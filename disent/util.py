@@ -123,8 +123,9 @@ def load_model(model, path, cuda=True, fail_if_missing=True):
 # ========================================================================= #
 
 
-def chunked(arr, chunk_size=1):
-    for i in range(len(arr) // chunk_size):
+def chunked(arr, chunk_size=1, include_last=True):
+    size = (len(arr) + chunk_size - 1) if include_last else len(arr)
+    for i in range(size // chunk_size):
         yield arr[chunk_size*i:chunk_size*(i+1)]
 
 

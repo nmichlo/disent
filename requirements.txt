@@ -6,6 +6,7 @@ xgboost
 lightgbm
 
 matplotlib
+plotly
 seaborn
 tqdm
 
