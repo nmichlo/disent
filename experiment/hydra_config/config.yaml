@@ -58,17 +58,13 @@ logging:
       - '${optimizer.name}'
       - '${model.name}'
 
-# TODO: fix, this is terrible
 callbacks:
   progress:
-    enabled: TRUE
-    step_time: 30
+    interval: 30
   latent_cycle:
-    enabled: TRUE
     seed: 7777
     every_n_steps: 1200
   metrics:
-    enabled: TRUE
     every_n_steps: 3600
 
 hydra:

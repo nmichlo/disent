@@ -111,21 +111,6 @@ def hydra_check_datadir(prepare_data_per_node, cfg):
             )
         raise RuntimeError('dataset.data_dir={repr(cfg.dataset.data_dir)} is a relative path!')
 
-def hydra_append_metric_callback(callbacks, cfg):
-    if cfg.callbacks.metrics.enabled:
-        callbacks.append(DisentanglementLoggingCallback(
-            every_n_steps=cfg.callbacks.metrics.every_n_steps,
-            begin_first_step=False,
-            step_end_metrics=[
-                lambda dat, fn: compute_dci(dat, fn, 1000, 500, boost_mode='sklearn'),
-                lambda dat, fn: compute_factor_vae(dat, fn, num_train=1000, num_eval=500, num_variance_estimate=1000),
-            ],
-            train_end_metrics=[
-                compute_dci,
-                compute_factor_vae
-            ],
-        ))
-
 def hydra_make_logger(cfg):
     if cfg.logging.wandb.enabled:
         log.info(f'wandb log directory: {os.path.abspath("wandb")}')
@@ -142,22 +127,37 @@ def hydra_make_logger(cfg):
     return None
 
 def hydra_append_progress_callback(callbacks, cfg):
-    if cfg.callbacks.progress.enabled:
+    if 'progress' in cfg.callbacks:
         callbacks.append(LoggerProgressCallback(
-            time_step=cfg.callbacks.progress.step_time
+            interval=cfg.callbacks.progress.interval
         ))
 
 def hydra_append_latent_cycle_logger_callback(callbacks, cfg):
-    # this currently only supports WANDB logger
-    if cfg.logging.wandb.enabled:
-        if cfg.callbacks.latent_cycle.enabled:
-            # Log the latent cycle visualisations to wandb
+    if 'latent_cycle' in cfg.callbacks:
+        if cfg.logging.wandb.enabled:
+            # this currently only supports WANDB logger
             callbacks.append(LatentCycleLoggingCallback(
                 seed=cfg.callbacks.latent_cycle.seed,
                 every_n_steps=cfg.callbacks.latent_cycle.every_n_steps,
                 begin_first_step=False,
             ))
+        else:
+            log.warning('latent_cycle callback is not being used because wandb is not enabled!')
 
+def hydra_append_metric_callback(callbacks, cfg):
+    if 'metrics' in cfg.callbacks:
+        callbacks.append(DisentanglementLoggingCallback(
+            every_n_steps=cfg.callbacks.metrics.every_n_steps,
+            begin_first_step=False,
+            step_end_metrics=[
+                lambda dat, fn: compute_dci(dat, fn, 1000, 500, boost_mode='sklearn'),
+                lambda dat, fn: compute_factor_vae(dat, fn, num_train=1000, num_eval=500, num_variance_estimate=1000),
+            ],
+            train_end_metrics=[
+                compute_dci,
+                compute_factor_vae
+            ],
+        ))
 
 # ========================================================================= #
 # RUNNER                                                                    #
@@ -184,9 +184,9 @@ def main(cfg: DictConfig):
 
     # TRAINER CALLBACKS
     callbacks = []
+    hydra_append_progress_callback(callbacks, cfg)
     hydra_append_latent_cycle_logger_callback(callbacks, cfg)
     hydra_append_metric_callback(callbacks, cfg)
-    hydra_append_progress_callback(callbacks, cfg)
 
     # FRAMEWORK
     framework = hydra.utils.instantiate(

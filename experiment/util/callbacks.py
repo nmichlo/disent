@@ -14,26 +14,64 @@ log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
-# callbacks                                                                   #
+# HELPER CALLBACKS                                                          #
 # ========================================================================= #
 
 
-class LatentCycleLoggingCallback(pl.Callback):
+class _PeriodicCallback(pl.Callback):
     
-    def __init__(self, seed=7777, every_n_steps=250, begin_first_step=False):
-        self.seed = seed
+    def __init__(self, every_n_steps=None, begin_first_step=False):
         self.every_n_steps = every_n_steps
         self.begin_first_step = begin_first_step
-    
-    def on_batch_end(self, trainer: pl.Trainer, pl_module: Vae):
+
+    def on_train_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+        if self.every_n_steps is None:
+            # number of steps/batches in an epoch
+            self.every_n_steps = trainer.num_training_batches
+            
+    def on_batch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         # skip if need be
-        if 0 != (trainer.global_step + int(not self.begin_first_step)) % self.every_n_steps:
-            return
-        
+        if 0 == (trainer.global_step + int(not self.begin_first_step)) % self.every_n_steps:
+            self.do_step(trainer, pl_module)
+
+    def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+        raise NotImplementedError
+
+
+class _TimedCallback(pl.Callback):
+    
+    def __init__(self, interval=10):
+        self._last_time = 0
+        self._interval = interval
+        self._start_time = time.time()
+
+    def on_batch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+        current_time = time.time()
+        step_delta = current_time - self._last_time
+        # only run every few seconds
+        if self._interval < step_delta:
+            self._last_time = current_time
+            self.do_interval(trainer, pl_module, current_time, self._start_time)
+
+    def do_interval(self, trainer: pl.Trainer, pl_module: pl.LightningModule, current_time, start_time):
+        raise NotImplementedError
+
+
+# ========================================================================= #
+# MAIN CALLBACKS                                                            #
+# ========================================================================= #
+
+
+class LatentCycleLoggingCallback(_PeriodicCallback):
+
+    def __init__(self, seed=7777, every_n_steps=None, begin_first_step=False):
+        super().__init__(every_n_steps, begin_first_step)
+        self.seed = seed
+
+    def do_step(self, trainer: pl.Trainer, pl_module: Vae):
         # VISUALISE - generate and log latent traversals
-        # TODO: re-enable
-        # assert isinstance(pl_module, HydraSystem)
-        
+        assert isinstance(pl_module, Vae), 'pl_module is not an instance of the Vae framework'
+
         # get random sample of z_means and z_logvars for computing the range of values for the latent_cycle
         with TempNumpySeed(self.seed):
             obs = trainer.datamodule.dataset.sample_observations(64).to(pl_module.device)
@@ -55,78 +93,59 @@ class LatentCycleLoggingCallback(pl.Callback):
         }, {})
 
 
-class DisentanglementLoggingCallback(pl.Callback):
+class DisentanglementLoggingCallback(_PeriodicCallback):
     
-    def __init__(self, step_end_metrics=None, train_end_metrics=None, every_n_steps=1000, begin_first_step=False):
-        self.begin_first_step = begin_first_step
+    def __init__(self, step_end_metrics=None, train_end_metrics=None, every_n_steps=None, begin_first_step=False):
+        super().__init__(every_n_steps, begin_first_step)
         self.step_end_metrics = step_end_metrics if step_end_metrics else []
         self.train_end_metrics = train_end_metrics if train_end_metrics else []
-        self.every_n_steps = every_n_steps
         assert isinstance(self.step_end_metrics, list)
         assert isinstance(self.train_end_metrics, list)
         assert self.step_end_metrics or self.train_end_metrics, 'No metrics given to step_end_metrics or train_end_metrics'
 
     def _compute_metrics_and_log(self, trainer: pl.Trainer, pl_module: Vae, metrics: list, is_final=False):
-        # TODO: re-enable
-        # assert isinstance(pl_module, HydraSystem)
-    
+        assert isinstance(pl_module, Vae)
         # compute all metrics
         for metric in metrics:
             scores = metric(trainer.datamodule.dataset, lambda x: pl_module.encode(x.to(pl_module.device)))
             log.info(f'metric (step: {trainer.global_step}): {scores}')
-            # log to wandb if it exists
-            trainer.log_metrics({
-                'final_metric' if is_final else 'epoch_metric': scores,
-            }, {})
-    
-    def on_batch_end(self, trainer: pl.Trainer, pl_module: Vae):
+            trainer.log_metrics({'final_metric' if is_final else 'epoch_metric': scores}, {})
+
+    def do_step(self, trainer: pl.Trainer, pl_module: Vae):
         if self.step_end_metrics:
-            # first epoch is 0, if we dont want the first one to be run we need to increment by 1
-            if 0 == (trainer.global_step + int(not self.begin_first_step)) % self.every_n_steps:
-                log.info('Computing epoch metrics:')
-                self._compute_metrics_and_log(trainer, pl_module, metrics=self.step_end_metrics)
-    
+            log.info('Computing epoch metrics:')
+            self._compute_metrics_and_log(trainer, pl_module, metrics=self.step_end_metrics, is_final=False)
+
     def on_train_end(self, trainer: pl.Trainer, pl_module: Vae):
         if self.train_end_metrics:
             log.info('Computing final training run metrics:')
-            self._compute_metrics_and_log(trainer, pl_module, metrics=self.train_end_metrics)
+            self._compute_metrics_and_log(trainer, pl_module, metrics=self.train_end_metrics, is_final=True)
 
 
-class LoggerProgressCallback(pl.Callback):
-    def __init__(self, time_step=10):
-        self.start_time = None
-        self.last_time = 0
-        self.time_step = time_step
-        self.start_time = time.time()
+class LoggerProgressCallback(_TimedCallback):
     
     def sig(self, num, digits):
         return f'{num:.{digits}g}'
     
-    def on_batch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
-        current_time = time.time()
-        step_delta = current_time - self.last_time
-        # only print every few seconds
-        if self.time_step < step_delta:
-            self.last_time = current_time
-            # vars
-            step, max_steps = trainer.batch_idx + 1, trainer.num_training_batches
-            epoch, max_epoch = trainer.current_epoch + 1, trainer.max_epochs
-            global_step, global_steps = trainer.global_step + 1, max_epoch * max_steps
-            # computed
-            train_pct = global_step / global_steps
-            step_len, global_step_len = len(str(max_steps)), len(str(global_steps))
-            # completion
-            train_remain_time = (current_time - self.start_time) * (1 - train_pct) / train_pct
-            # info dict
-            info_dict = {k: f'{self.sig(v, 4)}' if isinstance(v, (int, float)) else f'{v}' for k, v in trainer.progress_bar_dict.items() if k != 'v_num'}
-            sorted_k = sorted(info_dict.keys(), key=lambda k: ('loss' != k.lower(), 'loss' not in k.lower(), k))
-            # log
-            log.info(
-                f'EPOCH: {epoch}/{max_epoch} - {global_step:0{global_step_len}d}/{global_steps} '
-                f'({int(train_pct * 100):02d}%) [{int(train_remain_time)}s] '
-                f'STEP: {step:{step_len}d}/{max_steps} ({int(step / max_steps * 100):02d}%) '
-                f'| {" ".join(f"{k}={info_dict[k]}" for k in sorted_k)}'
-            )
+    def do_interval(self, trainer: pl.Trainer, pl_module: pl.LightningModule, current_time, start_time):
+        # vars
+        batch, max_batches = trainer.batch_idx + 1, trainer.num_training_batches
+        epoch, max_epoch = trainer.current_epoch + 1, min(trainer.max_epochs, (trainer.max_steps + max_batches - 1) // max_batches)
+        global_step, global_steps = trainer.global_step + 1, min(trainer.max_epochs * max_batches, trainer.max_steps)
+        # computed
+        train_pct = global_step / global_steps
+        # completion
+        train_remain_time = (current_time - start_time) * (1 - train_pct) / train_pct
+        # info dict
+        info_dict = {k: f'{self.sig(v, 4)}' if isinstance(v, (int, float)) else f'{v}' for k, v in trainer.progress_bar_dict.items() if k != 'v_num'}
+        sorted_k = sorted(info_dict.keys(), key=lambda k: ('loss' != k.lower(), 'loss' not in k.lower(), k))
+        # log
+        log.info(
+            f'EPOCH: {epoch}/{max_epoch} - {global_step:0{len(str(global_steps))}d}/{global_steps} '
+            f'({int(train_pct * 100):02d}%) [{int(train_remain_time)}s] '
+            f'STEP: {batch:{len(str(max_batches))}d}/{max_batches} ({int(batch / max_batches * 100):02d}%) '
+            f'| {" ".join(f"{k}={info_dict[k]}" for k in sorted_k)}'
+        )
 
 # ========================================================================= #
 # END                                                                       #
