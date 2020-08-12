@@ -5,6 +5,7 @@ import numpy as np
 import pytorch_lightning as pl
 import wandb
 
+from disent.frameworks.unsupervised.vae import Vae
 from disent.util import TempNumpySeed
 from disent.visualize.visualize_model import latent_cycle
 from disent.visualize.visualize_util import gridify_animation, reconstructions_to_images
@@ -24,7 +25,7 @@ class LatentCycleLoggingCallback(pl.Callback):
         self.every_n_steps = every_n_steps
         self.begin_first_step = begin_first_step
     
-    def on_batch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+    def on_batch_end(self, trainer: pl.Trainer, pl_module: Vae):
         # skip if need be
         if 0 != (trainer.global_step + int(not self.begin_first_step)) % self.every_n_steps:
             return
@@ -39,11 +40,10 @@ class LatentCycleLoggingCallback(pl.Callback):
         z_means, z_logvars = pl_module.encode_gaussian(obs)
 
         # produce latent cycle animation & merge frames
-        animation = latent_cycle(pl_module.model.reconstruct, z_means, z_logvars, mode='fitted_gaussian_cycle', num_animations=1, num_frames=21)
         animation = latent_cycle(pl_module.decode, z_means, z_logvars, mode='fitted_gaussian_cycle', num_animations=1, num_frames=21)
         animation = reconstructions_to_images(animation, mode='int', moveaxis=False)  # axis already moved above
         frames = np.transpose(gridify_animation(animation[0], padding_px=4, value=64), [0, 3, 1, 2])
-        
+
         # check and add missing channel if needed (convert greyscale to rgb images)
         assert frames.shape[1] in {1, 3}, f'Invalid number of image channels: {animation.shape} -> {frames.shape}'
         if frames.shape[1] == 1:
@@ -66,7 +66,7 @@ class DisentanglementLoggingCallback(pl.Callback):
         assert isinstance(self.train_end_metrics, list)
         assert self.step_end_metrics or self.train_end_metrics, 'No metrics given to step_end_metrics or train_end_metrics'
 
-    def _compute_metrics_and_log(self, trainer: pl.Trainer, pl_module: pl.LightningModule, metrics: list, is_final=False):
+    def _compute_metrics_and_log(self, trainer: pl.Trainer, pl_module: Vae, metrics: list, is_final=False):
         # TODO: re-enable
         # assert isinstance(pl_module, HydraSystem)
     
@@ -79,14 +79,14 @@ class DisentanglementLoggingCallback(pl.Callback):
                 'final_metric' if is_final else 'epoch_metric': scores,
             }, {})
     
-    def on_batch_end(self, trainer, pl_module):
+    def on_batch_end(self, trainer: pl.Trainer, pl_module: Vae):
         if self.step_end_metrics:
             # first epoch is 0, if we dont want the first one to be run we need to increment by 1
             if 0 == (trainer.global_step + int(not self.begin_first_step)) % self.every_n_steps:
                 log.info('Computing epoch metrics:')
                 self._compute_metrics_and_log(trainer, pl_module, metrics=self.step_end_metrics)
     
-    def on_train_end(self, trainer, pl_module):
+    def on_train_end(self, trainer: pl.Trainer, pl_module: Vae):
         if self.train_end_metrics:
             log.info('Computing final training run metrics:')
             self._compute_metrics_and_log(trainer, pl_module, metrics=self.train_end_metrics)

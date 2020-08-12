@@ -47,6 +47,7 @@ logging:
   # log to online service
   wandb:
     enabled: TRUE
+    offline: FALSE
     name: 'uniform-${framework.name}-${model.z_size}-${dataset.name}-${optimizer.name}-${model.name}'
     project: 'test'
     group: null
