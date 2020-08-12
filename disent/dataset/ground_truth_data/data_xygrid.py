@@ -8,7 +8,7 @@ import numpy as np
 # ========================================================================= #
 
 
-class XYData(GroundTruthData):
+class XYGridData(GroundTruthData):
 
     """
     Dataset that generates all possible permutations of a square placed on a square grid,
@@ -20,17 +20,17 @@ class XYData(GroundTruthData):
 
     COLOR_PALETTES_1 = {
         'white': [
-            1.0,
+            [255],
         ],
         'greys_halves': [
-            0.5,
-            1.0,
+            [128],
+            [255],
         ],
         'greys_quarters': [
-            .25,
-            0.5,
-            .75,
-            1.0,
+            [64],
+            [128],
+            [192],
+            [255],
         ],
     }
 
@@ -47,6 +47,11 @@ class XYData(GroundTruthData):
             [128, 128, 128],
             [192, 192, 192],
             [255, 255, 255],
+        ],
+        'rgb': [
+            [255, 000, 000],
+            [000, 255, 000],
+            [000, 000, 255],
         ],
         'colors': [
             [255, 000, 000], [000, 255, 000], [000, 000, 255],
@@ -77,9 +82,9 @@ class XYData(GroundTruthData):
         # generation
         self._rgb = rgb
         if rgb:
-            self._colors = np.array(XYData.COLOR_PALETTES_3[palette])
+            self._colors = np.array(XYGridData.COLOR_PALETTES_3[palette])
         else:
-            self._colors = np.array(XYData.COLOR_PALETTES_1[palette])
+            self._colors = np.array(XYGridData.COLOR_PALETTES_1[palette])
         # image sizes
         self._width = grid_size
         # square scales

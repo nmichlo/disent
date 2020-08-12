@@ -1,7 +1,7 @@
 # @package _group_
 name: xygrid
 cls:
-  target: disent.dataset.ground_truth_data.data_xygrid.XYData
+  target: disent.dataset.ground_truth_data.data_xygrid.XYGridData
   params:
     grid_size: 64
     grid_spacing: 1

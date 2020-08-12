@@ -1,0 +1,13 @@
+# @package _group_
+name: xysquares
+cls:
+  target: disent.dataset.ground_truth_data.data_xysquares.XYSquaresData
+  params:
+    grid_size: 64
+    grid_levels: [1, 2, 3]
+    rgb: True
+    palette: 'rgb'
+    invert_bg: False
+transforms:
+  - target: torchvision.transforms.ToTensor
+x_shape: [3, 64, 64]

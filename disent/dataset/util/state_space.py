@@ -29,7 +29,7 @@ class _BaseStateSpace(object):
     def __iter__(self):
         """iterate over all indices and return a corresponding coordinate/position vector"""
         for idx in range(self.size):
-            yield self.idx_to_pos(idx)
+            yield self[idx]
     
     def pos_to_idx(self, positions):
         """
