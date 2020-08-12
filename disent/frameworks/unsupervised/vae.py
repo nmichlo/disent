@@ -64,7 +64,8 @@ class Vae(BaseFramework):
 
     def encode(self, x):
         """Get the deterministic latent representation z = z_mean of observation x (useful for visualisation)"""
-        return self._model.encode_deterministic(x)
+        z_mean, _ = self.encode_gaussian(x)
+        return z_mean
 
     def decode(self, z):
         """Decode latent vector z into reconstruction x_recon (useful for visualisation)"""
@@ -72,8 +73,7 @@ class Vae(BaseFramework):
 
     def forward(self, batch) -> torch.Tensor:
         """The full deterministic model with the final activation (useful for visualisation)"""
-        z_mean, _ = self.encode_gaussian(batch)
-        return self.reconstruct(z_mean)
+        return self.decode(self.encode(batch))
 
     # --------------------------------------------------------------------- #
     # VAE Model Utility Functions (Training)                                #
@@ -89,7 +89,7 @@ class Vae(BaseFramework):
 
     def decode_partial(self, z):
         """Decode latent vector z into partial reconstruction x_recon, without the final activation (useful for training)"""
-        return self._model.decode(z)
+        return self._model.decode_partial(z)
     
 
 # ========================================================================= #
