@@ -14,7 +14,7 @@ from disent.metrics import compute_dci, compute_factor_vae
 from disent.model import GaussianAutoEncoder
 from disent.util import make_box_str
 
-from experiment.util.callbacks import DisentanglementLoggingCallback, LatentCycleLoggingCallback, LoggerProgressCallback
+from experiment.util.callbacks.callbacks import DisentanglementLoggingCallback, LatentCycleLoggingCallback, LoggerProgressCallback
 
 log = logging.getLogger(__name__)
 
