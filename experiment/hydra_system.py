@@ -14,7 +14,7 @@ from disent.metrics import compute_dci, compute_factor_vae
 from disent.model import GaussianAutoEncoder
 from disent.util import make_box_str
 
-from experiment.util.callbacks.callbacks import DisentanglementLoggingCallback, LatentCycleLoggingCallback, LoggerProgressCallback
+from experiment.util.callbacks import VaeDisentanglementLoggingCallback, VaeLatentCycleLoggingCallback, LoggerProgressCallback
 
 log = logging.getLogger(__name__)
 
@@ -136,7 +136,7 @@ def hydra_append_latent_cycle_logger_callback(callbacks, cfg):
     if 'latent_cycle' in cfg.callbacks:
         if cfg.logging.wandb.enabled:
             # this currently only supports WANDB logger
-            callbacks.append(LatentCycleLoggingCallback(
+            callbacks.append(VaeLatentCycleLoggingCallback(
                 seed=cfg.callbacks.latent_cycle.seed,
                 every_n_steps=cfg.callbacks.latent_cycle.every_n_steps,
                 begin_first_step=False,
@@ -146,7 +146,7 @@ def hydra_append_latent_cycle_logger_callback(callbacks, cfg):
 
 def hydra_append_metric_callback(callbacks, cfg):
     if 'metrics' in cfg.callbacks:
-        callbacks.append(DisentanglementLoggingCallback(
+        callbacks.append(VaeDisentanglementLoggingCallback(
             every_n_steps=cfg.callbacks.metrics.every_n_steps,
             begin_first_step=False,
             step_end_metrics=[
