@@ -15,11 +15,11 @@ class BoundedAdaVae(AdaVae):
         # FORWARD
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # latent distribution parametrisation
-        a_z_mean, a_z_logvar = self.encode_gaussian(a_x)
-        p_z_mean, p_z_logvar = self.encode_gaussian(p_x)
-        n_z_mean, n_z_logvar = self.encode_gaussian(n_x)
+        a_z_mean_old, a_z_logvar_old = self.encode_gaussian(a_x)
+        p_z_mean_old, p_z_logvar_old = self.encode_gaussian(p_x)
+        n_z_mean_old, n_z_logvar_old = self.encode_gaussian(n_x)
         # intercept and mutate z [SPECIFIC TO ADAVAE]
-        (a_z_mean, a_z_logvar, p_z_mean, p_z_logvar), intercept_logs = self.intercept_z(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar)
+        (a_z_mean, a_z_logvar, p_z_mean, p_z_logvar), (p_shared_mask, n_shared_mask), intercept_logs = self.intercept_z(a_z_mean_old, a_z_logvar_old, p_z_mean_old, p_z_logvar_old, n_z_mean_old, n_z_logvar_old)
         # sample from latent distribution
         a_z_sampled = self.reparameterize(a_z_mean, a_z_logvar)
         p_z_sampled = self.reparameterize(p_z_mean, p_z_logvar)
@@ -41,9 +41,19 @@ class BoundedAdaVae(AdaVae):
         # compute kl regularisation
         ave_kl_reg_loss = self.kl_regularization(ave_kl_loss)
         # augment loss (0 for this)
-        augment_loss, augment_loss_logs = self.augment_loss(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar)
+        augment_loss, augment_loss_logs = self.augment_loss(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, None, None)
         # compute combined loss - must be same as the BetaVAE
         loss = ave_recon_loss + ave_kl_reg_loss + augment_loss
+        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+
+        # ADDON
+        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+        if self._mse_shared_loss:
+            a_mse_loss = AdaVae.masked_mse_loss(a_z_mean_old, a_z_mean, p_shared_mask)
+            p_mse_loss = AdaVae.masked_mse_loss(p_z_mean_old, p_z_mean, p_shared_mask)
+            ave_mse_loss = (a_mse_loss + p_mse_loss) / 2
+            loss += ave_mse_loss
+            intercept_logs['mse_shared_loss'] = ave_mse_loss
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
         return {
@@ -69,7 +79,7 @@ class BoundedAdaVae(AdaVae):
         new_args = self.make_averaged(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, p_shared_mask)
 
         # return new args & generate logs
-        return new_args, {
+        return new_args, (p_shared_mask, n_shared_mask), {
             'p_shared_before': old_p_shared_mask.sum(dim=1).float().mean(),
             'p_shared_after':      p_shared_mask.sum(dim=1).float().mean(),
             'n_shared_before': old_n_shared_mask.sum(dim=1).float().mean(),

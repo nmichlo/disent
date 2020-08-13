@@ -1,6 +1,6 @@
 from disent.frameworks.vae.unsupervised import BetaVae
 from disent.frameworks.vae.loss import bce_loss_with_logits, kl_normal_loss
-
+import torch
 
 # ========================================================================= #
 # Ada-GVAE                                                                  #
@@ -9,23 +9,25 @@ from disent.frameworks.vae.loss import bce_loss_with_logits, kl_normal_loss
 
 class AdaVae(BetaVae):
 
-    def __init__(self, make_optimizer_fn, make_model_fn, beta=4, average_mode='gvae'):
+    def __init__(self, make_optimizer_fn, make_model_fn, beta=4, average_mode='gvae', mse_shared_loss=False):
         super().__init__(make_optimizer_fn, make_model_fn, beta=beta)
         # averaging modes
         self.compute_average = {
             'gvae': compute_average_gvae,
             'ml-vae': compute_average_ml_vae
         }[average_mode]
+        # addon
+        self._mse_shared_loss = mse_shared_loss
 
     def compute_loss(self, batch, batch_idx):
         x0, x1 = batch
         # FORWARD
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # latent distribution parametrisation
-        z0_mean, z0_logvar = self.encode_gaussian(x0)
-        z1_mean, z1_logvar = self.encode_gaussian(x1)
+        z0_mean_old, z0_logvar_old = self.encode_gaussian(x0)
+        z1_mean_old, z1_logvar_old = self.encode_gaussian(x1)
         # intercept and mutate z [SPECIFIC TO ADAVAE]
-        (z0_mean, z0_logvar, z1_mean, z1_logvar), intercept_logs = self.intercept_z(z0_mean, z0_logvar, z1_mean, z1_logvar)
+        (z0_mean, z0_logvar, z1_mean, z1_logvar), share_mask, intercept_logs = self.intercept_z(z0_mean_old, z0_logvar_old, z1_mean_old, z1_logvar_old)
         # sample from latent distribution
         z0_sampled = self.reparameterize(z0_mean, z0_logvar)
         z1_sampled = self.reparameterize(z1_mean, z1_logvar)
@@ -50,6 +52,16 @@ class AdaVae(BetaVae):
         loss = ave_recon_loss + ave_kl_reg_loss
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
+        # ADDON
+        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+        if self._mse_shared_loss:
+            mse0_loss = AdaVae.masked_mse_loss(z0_mean_old, z0_mean, share_mask)
+            mse1_loss = AdaVae.masked_mse_loss(z1_mean_old, z1_mean, share_mask)
+            ave_mse_loss = (mse0_loss + mse1_loss) / 2
+            loss += ave_mse_loss
+            intercept_logs['mse_shared_loss'] = ave_mse_loss
+        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+
         return {
             'train_loss': loss,
             'recon_loss': ave_recon_loss,
@@ -65,7 +77,7 @@ class AdaVae(BetaVae):
         # make averaged z parameters
         new_args = self.make_averaged(z0_mean, z0_logvar, z1_mean, z1_logvar, share_mask)
         # return new args & generate logs
-        return new_args, {'shared': share_mask.sum(dim=1).float().mean()}
+        return new_args, share_mask, {'shared': share_mask.sum(dim=1).float().mean()}
 
     def make_averaged(self, z0_mean, z0_logvar, z1_mean, z1_logvar, share_mask):
         # compute average posteriors
@@ -100,6 +112,14 @@ class AdaVae(BetaVae):
         shared_mask = kl_deltas < kl_threshs
         # return
         return kl_deltas, kl_threshs, shared_mask
+
+    @staticmethod
+    def masked_mse_loss(z_mean_orig, z_mean_shared, shared_mask):
+        """THIS IS NOT PART OF THE ORIGINAL PAPER"""
+        # detach target
+        delta = (z_mean_orig - z_mean_shared.detach()) * shared_mask
+        return (torch.sum(delta**2)**0.5) / torch.sum(shared_mask).float()
+        
 
 
 # ========================================================================= #
