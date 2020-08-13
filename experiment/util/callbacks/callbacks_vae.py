@@ -5,7 +5,7 @@ import numpy as np
 import pytorch_lightning as pl
 
 from disent.dataset.ground_truth_data.base_data import GroundTruthData
-from disent.frameworks.unsupervised.vae import Vae
+from disent.frameworks.vae.unsupervised._vae import Vae
 from disent.util import TempNumpySeed, chunked, to_numpy
 from disent.visualize.visualize_model import latent_cycle
 from disent.visualize.visualize_util import gridify_animation, reconstructions_to_images

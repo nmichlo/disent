@@ -1,4 +1,4 @@
 # @package _group_
 name: vae
 cls:
-  target: disent.frameworks.unsupervised.vae.VaeLoss
+  target: disent.frameworks.vae.unsupervised.Vae

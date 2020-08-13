@@ -1,4 +1,4 @@
-from disent.frameworks.unsupervised.vae import Vae
+from disent.frameworks.vae.unsupervised import Vae
 
 
 # ========================================================================= #

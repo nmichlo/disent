@@ -1,6 +1,6 @@
 import torch
-from disent.frameworks.weaklysupervised.adavae import (AdaVae, estimate_shared)
-from disent.frameworks.unsupervised.vae import bce_loss_with_logits, kl_normal_loss
+from disent.frameworks.vae.weaklysupervised import AdaVae
+from disent.frameworks.vae.loss import bce_loss_with_logits, kl_normal_loss
 
 
 # ========================================================================= #
@@ -58,12 +58,12 @@ class BoundedAdaVae(AdaVae):
 
     def intercept_z(self, a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar):
         # shared elements that need to be averaged, computed per pair in the batch.
-        p_kl_deltas, p_kl_threshs, old_p_shared_mask = estimate_shared(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar)
-        n_kl_deltas, n_kl_threshs, old_n_shared_mask = estimate_shared(a_z_mean, a_z_logvar, n_z_mean, n_z_logvar)
+        p_kl_deltas, p_kl_threshs, old_p_shared_mask = AdaVae.estimate_shared(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar)
+        n_kl_deltas, n_kl_threshs, old_n_shared_mask = AdaVae.estimate_shared(a_z_mean, a_z_logvar, n_z_mean, n_z_logvar)
 
         # modify threshold based on criterion and recompute if necessary
         # CORE of this approach!
-        p_shared_mask, n_shared_mask = compute_constrained_masks(p_kl_deltas, old_p_shared_mask, n_kl_deltas, old_n_shared_mask)
+        p_shared_mask, n_shared_mask = BoundedAdaVae.compute_constrained_masks(p_kl_deltas, old_p_shared_mask, n_kl_deltas, old_n_shared_mask)
         
         # make averaged variables
         new_args = self.make_averaged(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, p_shared_mask)
@@ -78,39 +78,38 @@ class BoundedAdaVae(AdaVae):
     
     def augment_loss(self, a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar):
         return 0, {}
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # HELPER                                                                #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    @staticmethod
+    def compute_constrained_masks(p_kl_deltas, p_shared_mask, n_kl_deltas, n_shared_mask):
+        # number of changed factors
+        p_shared_num = torch.sum(p_shared_mask, dim=1, keepdim=True)
+        n_shared_num = torch.sum(n_shared_mask, dim=1, keepdim=True)
     
-
-# ========================================================================= #
-# HELPER                                                                    #
-# ========================================================================= #
-
-
-def compute_constrained_masks(p_kl_deltas, p_shared_mask, n_kl_deltas, n_shared_mask):
-    # number of changed factors
-    p_shared_num = torch.sum(p_shared_mask, dim=1, keepdim=True)
-    n_shared_num = torch.sum(n_shared_mask, dim=1, keepdim=True)
-
-    # POSITIVE SHARED MASK
-    # order from smallest to largest
-    p_sort_indices = torch.argsort(p_kl_deltas, dim=1)
-    # p_shared should be at least n_shared
-    new_p_shared_num = torch.max(p_shared_num, n_shared_num)
-
-    # NEGATIVE SHARED MASK
-    # order from smallest to largest
-    n_sort_indices = torch.argsort(n_kl_deltas, dim=1)
-    # n_shared should be at most p_shared
-    new_n_shared_num = torch.min(p_shared_num, n_shared_num)
-
-    # COMPUTE NEW MASKS
-    new_p_shared_mask = torch.zeros_like(p_shared_mask)
-    new_n_shared_mask = torch.zeros_like(n_shared_mask)
-    for i, (new_shared_p, new_shared_n) in enumerate(zip(new_p_shared_num, new_n_shared_num)):
-        new_p_shared_mask[i, p_sort_indices[i, :new_shared_p]] = True
-        new_n_shared_mask[i, n_sort_indices[i, :new_shared_n]] = True
-
-    # return masks
-    return new_p_shared_mask, new_n_shared_mask
+        # POSITIVE SHARED MASK
+        # order from smallest to largest
+        p_sort_indices = torch.argsort(p_kl_deltas, dim=1)
+        # p_shared should be at least n_shared
+        new_p_shared_num = torch.max(p_shared_num, n_shared_num)
+    
+        # NEGATIVE SHARED MASK
+        # order from smallest to largest
+        n_sort_indices = torch.argsort(n_kl_deltas, dim=1)
+        # n_shared should be at most p_shared
+        new_n_shared_num = torch.min(p_shared_num, n_shared_num)
+    
+        # COMPUTE NEW MASKS
+        new_p_shared_mask = torch.zeros_like(p_shared_mask)
+        new_n_shared_mask = torch.zeros_like(n_shared_mask)
+        for i, (new_shared_p, new_shared_n) in enumerate(zip(new_p_shared_num, new_n_shared_num)):
+            new_p_shared_mask[i, p_sort_indices[i, :new_shared_p]] = True
+            new_n_shared_mask[i, n_sort_indices[i, :new_shared_n]] = True
+    
+        # return masks
+        return new_p_shared_mask, new_n_shared_mask
 
 
 # ========================================================================= #

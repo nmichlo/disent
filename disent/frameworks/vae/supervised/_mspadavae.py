@@ -2,7 +2,7 @@
 #
 # import torch
 #
-# from disent.frameworks.addon.msp import MatrixSubspaceProjection
+# from disent.frameworks.other.msp import MatrixSubspaceProjection
 # from disent.frameworks.supervised.gadavae import GuidedAdaVae, triplet_loss
 # from disent.frameworks.unsupervised.vae import TrainingData, bce_loss_with_logits, kl_normal_loss
 #
@@ -17,10 +17,10 @@
 #
 # class MspGuidedAdaVae(GuidedAdaVae):
 #
-#     def __init__(self, msp: MatrixSubspaceProjection, beta=4, triplet_alpha=0.3, triplet_scale=1, msp_scale=1):
+#     def __init__(self, msp: MatrixSubspaceProjection, beta=4, triplet_margin=0.3, triplet_scale=1, msp_scale=1):
 #         assert triplet_scale > 0, f'{triplet_scale=} must be > 0'
 #         assert msp_scale > 0, f'{msp_scale=} must be > 0'
-#         super().__init__(beta, triplet_alpha=triplet_alpha, triplet_scale=triplet_scale)
+#         super().__init__(beta, triplet_margin=triplet_margin, triplet_scale=triplet_scale)
 #         # matrix subspace projection
 #         self.msp_scale = msp_scale
 #         self.msp = msp
@@ -80,7 +80,7 @@
 #
 #         # MSP - triplet on labels
 #         # loss_y_triplet = torch.norm(a_y-p_y) - torch.norm(a_y-n_y)
-#         loss_y_triplet = triplet_loss(a_y, p_y, n_y, alpha=self.triplet_alpha)
+#         loss_y_triplet = triplet_loss(a_y, p_y, n_y, alpha=self.triplet_margin)
 #
 #         # regularisation loss
 #         reg_loss = self.beta * ave_kl_loss

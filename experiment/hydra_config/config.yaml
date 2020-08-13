@@ -15,7 +15,7 @@ defaults:
 # remember to set timeout limits below
 trainer:
   epochs: 100000  # not resilient to change in dataset size, we rather limit by steps (len(dataset) / batch_size)
-  steps: 100000
+  steps: 250000
   cuda: TRUE
   prepare_data_per_node: TRUE
 
@@ -48,7 +48,7 @@ logging:
   wandb:
     enabled: TRUE
     offline: FALSE
-    name: '${framework.name}-${model.z_size}-${dataset.name}-${optimizer.name}-${model.name}'
+    name: 'LONG-${framework.name}-${model.z_size}-${dataset.name}-${optimizer.name}-${model.name}'
     project: 'test'
     group: null
     entity: '${env:USER}'
@@ -68,7 +68,7 @@ callbacks:
     every_n_steps: 3600
   correlation:
     repeats_per_factor: 10
-    every_n_steps: 3600
+    every_n_steps: 7200
 
 hydra:
   job:

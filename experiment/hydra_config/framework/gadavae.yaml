@@ -1,7 +1,7 @@
 # @package _group_
 name: gadavae
 cls:
-  target: disent.frameworks.supervised.gadavae.GuidedAdaVae
+  target: disent.frameworks.vae.supervised.GuidedAdaVae
   params:
     beta: 4
     average_mode: 'gvae'       # [gvae, ml-vae]

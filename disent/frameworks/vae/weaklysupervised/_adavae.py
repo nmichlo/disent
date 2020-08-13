@@ -1,6 +1,5 @@
-import torch
-from disent.frameworks.unsupervised.betavae import BetaVae
-from disent.frameworks.unsupervised.vae import bce_loss_with_logits, kl_normal_loss
+from disent.frameworks.vae.unsupervised import BetaVae
+from disent.frameworks.vae.loss import bce_loss_with_logits, kl_normal_loss
 
 
 # ========================================================================= #
@@ -62,7 +61,7 @@ class AdaVae(BetaVae):
 
     def intercept_z(self, z0_mean, z0_logvar, z1_mean, z1_logvar):
         # shared elements that need to be averaged, computed per pair in the batch.
-        _, _, share_mask = estimate_shared(z0_mean, z0_logvar, z1_mean, z1_logvar)
+        _, _, share_mask = AdaVae.estimate_shared(z0_mean, z0_logvar, z1_mean, z1_logvar)
         # make averaged z parameters
         new_args = self.make_averaged(z0_mean, z0_logvar, z1_mean, z1_logvar, share_mask)
         # return new args & generate logs
@@ -78,6 +77,29 @@ class AdaVae(BetaVae):
         z1_logvar = (~share_mask * z1_logvar) + (share_mask * ave_logvar)
         # return values
         return z0_mean, z0_logvar, z1_mean, z1_logvar
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # HELPER                                                                #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    @staticmethod
+    def estimate_shared(z0_mean, z0_logvar, z1_mean, z1_logvar):
+        """
+        Core of the adaptive VAE algorithm, estimating which factors
+        have changed (or in this case which are shared and should remained unchanged
+        by being be averaged) between pairs of observations.
+        """
+        # shared elements that need to be averaged, computed per pair in the batch.
+        # [𝛿_i ...]
+        kl_deltas = kl_normal_loss_pair_elements(z0_mean, z0_logvar, z1_mean, z1_logvar)
+        # threshold τ
+        kl_threshs = estimate_kl_threshold(kl_deltas)
+        # check shapes
+        assert kl_threshs.shape == (z0_mean.shape[0], 1), f'{kl_threshs.shape} != {(z0_mean.shape[0], 1)}'
+        # true if 'unchanged' and should be average
+        shared_mask = kl_deltas < kl_threshs
+        # return
+        return kl_deltas, kl_threshs, shared_mask
 
 
 # ========================================================================= #
@@ -106,24 +128,6 @@ def estimate_kl_threshold(kl_deltas):
     maximums = kl_deltas.max(axis=1, keepdim=True).values
     minimums = kl_deltas.min(axis=1, keepdim=True).values
     return 0.5 * (minimums + maximums)
-
-def estimate_shared(z0_mean, z0_logvar, z1_mean, z1_logvar):
-    """
-    Core of the adaptive VAE algorithm, estimating which factors
-    have changed (or in this case which are shared and should remained unchanged
-    by being be averaged) between pairs of observations.
-    """
-    # shared elements that need to be averaged, computed per pair in the batch.
-    # [𝛿_i ...]
-    kl_deltas = kl_normal_loss_pair_elements(z0_mean, z0_logvar, z1_mean, z1_logvar)
-    # threshold τ
-    kl_threshs = estimate_kl_threshold(kl_deltas)
-    # check shapes
-    assert kl_threshs.shape == (z0_mean.shape[0], 1), f'{kl_threshs.shape} != {(z0_mean.shape[0], 1)}'
-    # true if 'unchanged' and should be average
-    shared_mask = kl_deltas < kl_threshs
-    # return
-    return kl_deltas, kl_threshs, shared_mask
 
 
 # ========================================================================= #

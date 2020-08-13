@@ -1,6 +1,6 @@
 # @package _group_
 name: betavae
 cls:
-  target: disent.frameworks.unsupervised.betavae.BetaVae
+  target: disent.frameworks.vae.unsupervised.BetaVae
   params:
     beta: 4

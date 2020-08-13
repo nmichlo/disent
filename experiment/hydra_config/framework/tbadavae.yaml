@@ -1,11 +1,11 @@
 # @package _group_
 name: tbadavae
 cls:
-  target: disent.frameworks.supervised.tbadavae.TripletBoundedAdaVae
+  target: disent.frameworks.vae.supervised.TripletBoundedAdaVae
   params:
     beta: 4
     average_mode: 'gvae'  # gvae or ml-vae
-    triplet_alpha: 0.1
+    triplet_margin: 0.1
     triplet_scale: 1
 
 augment_dataset:

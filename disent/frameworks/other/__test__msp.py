@@ -1,5 +1,5 @@
 import torch
-from disent.frameworks.addon.msp import MatrixSubspaceProjection
+from disent.frameworks.other.msp import MatrixSubspaceProjection
 
 
 def test_msp_orthonormal():
