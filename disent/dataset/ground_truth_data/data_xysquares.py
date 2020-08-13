@@ -1,7 +1,9 @@
+import logging
 from typing import Tuple
 from disent.dataset.ground_truth_data.base_data import GroundTruthData
 import numpy as np
 
+log = logging.getLogger(__name__)
 
 # ========================================================================= #
 # xy squares data                                                           #
@@ -13,6 +15,10 @@ class XYSquaresData(GroundTruthData):
     """
     Dataset that generates all possible permutations of xor'd squares of
     different scales moving across the grid.
+    
+    This dataset is designed not to overlap in the reconstruction loss space, but xor'ing may be too
+    complex to learn efficiently, and some sizes of factors may be too small (eg. biggest
+    square moving only has two positions)
     """
 
     COLOR_PALETTES_1 = {
@@ -35,6 +41,7 @@ class XYSquaresData(GroundTruthData):
         'white': [
             [255, 255, 255],
         ],
+        # THIS IS IDEAL.
         'rgb': [
             [255, 000, 000],
             [000, 255, 000],
@@ -62,6 +69,8 @@ class XYSquaresData(GroundTruthData):
     def __init__(self, grid_size=64, grid_levels=(1, 2, 3), rgb=True, palette='rgb', invert_bg=False):
         # colors
         self._rgb = rgb
+        if palette != 'rgb':
+            log.warning('rgb palette is not being used, might overlap for the reconstruction loss.')
         if rgb:
             assert palette in XYSquaresData.COLOR_PALETTES_3, f'{palette=} must be one of {list(XYSquaresData.COLOR_PALETTES_3.keys())}'
             self._colors = np.array(XYSquaresData.COLOR_PALETTES_3[palette])
