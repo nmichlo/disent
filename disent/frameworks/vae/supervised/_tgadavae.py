@@ -23,12 +23,12 @@ class TripletGuidedAdaVae(GuidedAdaVae):
         self.triplet_margin = triplet_margin
         self.triplet_scale = triplet_scale
 
-    def augment_loss(self, a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar):
-        loss_triplet = triplet_loss(a_z_mean, p_z_mean, n_z_mean, margin=self.triplet_margin)
+    def augment_loss(self, a_z_mean_old, a_z_logvar_old, p_z_mean_old, p_z_logvar_old, n_z_mean_old, n_z_logvar_old):
+        loss_triplet = triplet_loss(a_z_mean_old, p_z_mean_old, n_z_mean_old, margin=self.triplet_margin)
         augmented_loss = self.triplet_scale * loss_triplet
         return augmented_loss, {
             'triplet_loss': loss_triplet,
-            'triplet_loss_torch': F.triplet_margin_loss(a_z_mean, p_z_mean, n_z_mean, margin=self.triplet_margin)
+            'triplet_loss_torch': F.triplet_margin_loss(a_z_mean_old, p_z_mean_old, n_z_mean_old, margin=self.triplet_margin)
         }
 
 

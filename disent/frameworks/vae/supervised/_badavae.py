@@ -41,7 +41,7 @@ class BoundedAdaVae(AdaVae):
         # compute kl regularisation
         ave_kl_reg_loss = self.kl_regularization(ave_kl_loss)
         # augment loss (0 for this)
-        augment_loss, augment_loss_logs = self.augment_loss(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, None, None)
+        augment_loss, augment_loss_logs = self.augment_loss(a_z_mean_old, a_z_logvar_old, p_z_mean_old, p_z_logvar_old, n_z_mean_old, n_z_logvar_old)
         # compute combined loss - must be same as the BetaVAE
         loss = ave_recon_loss + ave_kl_reg_loss + augment_loss
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -74,7 +74,7 @@ class BoundedAdaVae(AdaVae):
         # modify threshold based on criterion and recompute if necessary
         # CORE of this approach!
         p_shared_mask, n_shared_mask = BoundedAdaVae.compute_constrained_masks(p_kl_deltas, old_p_shared_mask, n_kl_deltas, old_n_shared_mask)
-        
+
         # make averaged variables
         new_args = self.make_averaged(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, p_shared_mask)
 
@@ -86,7 +86,7 @@ class BoundedAdaVae(AdaVae):
             'n_shared_after':      n_shared_mask.sum(dim=1).float().mean(),
         }
     
-    def augment_loss(self, a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar):
+    def augment_loss(self, a_z_mean_old, a_z_logvar_old, p_z_mean_old, p_z_logvar_old, n_z_mean_old, n_z_logvar_old):
         return 0, {}
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -117,7 +117,7 @@ class BoundedAdaVae(AdaVae):
         for i, (new_shared_p, new_shared_n) in enumerate(zip(new_p_shared_num, new_n_shared_num)):
             new_p_shared_mask[i, p_sort_indices[i, :new_shared_p]] = True
             new_n_shared_mask[i, n_sort_indices[i, :new_shared_n]] = True
-    
+
         # return masks
         return new_p_shared_mask, new_n_shared_mask
 

@@ -21,11 +21,11 @@ class GuidedAdaVae(AdaVae):
         # FORWARD
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # latent distribution parametrisation
-        a_z_mean, a_z_logvar = self.encode_gaussian(a_x)
-        p_z_mean, p_z_logvar = self.encode_gaussian(p_x)
-        n_z_mean, n_z_logvar = self.encode_gaussian(n_x)
+        a_z_mean_old, a_z_logvar_old = self.encode_gaussian(a_x)
+        p_z_mean_old, p_z_logvar_old = self.encode_gaussian(p_x)
+        n_z_mean_old, n_z_logvar_old = self.encode_gaussian(n_x)
         # intercept and mutate z [SPECIFIC TO ADAVAE]
-        (a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar), intercept_logs = self.intercept_z(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar)
+        (a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar), intercept_logs = self.intercept_z(a_z_mean_old, a_z_logvar_old, p_z_mean_old, p_z_logvar_old, n_z_mean_old, n_z_logvar_old)
         # sample from latent distribution
         a_z_sampled = self.reparameterize(a_z_mean, a_z_logvar)
         p_z_sampled = self.reparameterize(p_z_mean, p_z_logvar)
@@ -51,7 +51,7 @@ class GuidedAdaVae(AdaVae):
         # compute kl regularisation
         ave_kl_reg_loss = self.kl_regularization(ave_kl_loss)
         # augment loss (0 for this)
-        augment_loss, augment_loss_logs = self.augment_loss(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar)
+        augment_loss, augment_loss_logs = self.augment_loss(a_z_mean_old, a_z_logvar_old, p_z_mean_old, p_z_logvar_old, n_z_mean_old, n_z_logvar_old)
         # compute combined loss - must be same as the BetaVAE
         loss = ave_recon_loss + ave_kl_reg_loss + augment_loss
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -102,7 +102,7 @@ class GuidedAdaVae(AdaVae):
             **anchor_ave_logs,
         }
     
-    def augment_loss(self, a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar):
+    def augment_loss(self, a_z_mean_old, a_z_logvar_old, p_z_mean_old, p_z_logvar_old, n_z_mean_old, n_z_logvar_old):
         return 0, {}
 
 
