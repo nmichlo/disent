@@ -5,7 +5,7 @@ cls:
   params:
     beta: 4
     average_mode: 'gvae'  # gvae or ml-vae
-    mse_shared_loss: FALSE
+    mse_shared_loss_weight: 0
     triplet_margin: 0.1
     triplet_scale: 1
 

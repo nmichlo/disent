@@ -9,7 +9,7 @@ import torch
 
 class AdaVae(BetaVae):
 
-    def __init__(self, make_optimizer_fn, make_model_fn, beta=4, average_mode='gvae', mse_shared_loss=False):
+    def __init__(self, make_optimizer_fn, make_model_fn, beta=4, average_mode='gvae', mse_shared_loss_weight=0):
         super().__init__(make_optimizer_fn, make_model_fn, beta=beta)
         # averaging modes
         self.compute_average = {
@@ -17,7 +17,8 @@ class AdaVae(BetaVae):
             'ml-vae': compute_average_ml_vae
         }[average_mode]
         # addon
-        self._mse_shared_loss = mse_shared_loss
+        assert mse_shared_loss_weight >= 0
+        self._mse_shared_loss_weight = mse_shared_loss_weight
 
     def compute_loss(self, batch, batch_idx):
         x0, x1 = batch
@@ -54,10 +55,10 @@ class AdaVae(BetaVae):
 
         # ADDON
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-        if self._mse_shared_loss:
+        if self._mse_shared_loss_weight > 0:
             mse0_loss = AdaVae.masked_mse_loss(z0_mean_old, z0_mean, share_mask)
             mse1_loss = AdaVae.masked_mse_loss(z1_mean_old, z1_mean, share_mask)
-            ave_mse_loss = (mse0_loss + mse1_loss) / 2
+            ave_mse_loss = ((mse0_loss + mse1_loss) / 2) * self._mse_shared_loss_weight
             loss += ave_mse_loss
             intercept_logs['mse_shared_loss'] = ave_mse_loss
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #

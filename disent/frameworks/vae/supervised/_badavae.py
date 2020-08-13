@@ -48,10 +48,10 @@ class BoundedAdaVae(AdaVae):
 
         # ADDON
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-        if self._mse_shared_loss:
+        if self._mse_shared_loss_weight > 0:
             a_mse_loss = AdaVae.masked_mse_loss(a_z_mean_old, a_z_mean, p_shared_mask)
             p_mse_loss = AdaVae.masked_mse_loss(p_z_mean_old, p_z_mean, p_shared_mask)
-            ave_mse_loss = (a_mse_loss + p_mse_loss) / 2
+            ave_mse_loss = ((a_mse_loss + p_mse_loss) / 2) * self._mse_shared_loss_weight
             loss += ave_mse_loss
             intercept_logs['mse_shared_loss'] = ave_mse_loss
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #

@@ -15,11 +15,11 @@ class TripletBoundedAdaVae(BoundedAdaVae):
             make_model_fn,
             beta=4,
             average_mode='gvae',
-            mse_shared_loss=False,
+            mse_shared_loss_weight=0,
             triplet_margin=0.1,
             triplet_scale=1,
     ):
-        super().__init__(make_optimizer_fn, make_model_fn, beta=beta, average_mode=average_mode, mse_shared_loss=mse_shared_loss)
+        super().__init__(make_optimizer_fn, make_model_fn, beta=beta, average_mode=average_mode, mse_shared_loss_weight=mse_shared_loss_weight)
         self.triplet_margin = triplet_margin
         self.triplet_scale = triplet_scale
 
