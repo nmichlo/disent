@@ -153,10 +153,15 @@ class VaeLatentCorrelationLoggingCallback(_PeriodicCallback):
             correlation = np.abs(f_corr[i, :])
             correlation[i] = 0
             for j in np.argsort(correlation)[::-1][:NUM]:
-                plt.scatter(zs[:, i], zs[:, j])
-                plt.xlabel(f'z{i}')
-                plt.ylabel(f'z{j}')
-                wandb.log({f"chart.correlation.z{i}-vs-z{j}": plt})
+                if i == j:
+                    continue
+                ix, iy = (i, j)  # if i < j else (j, i)
+                plt.scatter(zs[:, ix], zs[:, iy])
+                plt.title(f'z{ix}-vs-z{iy}')
+                plt.xlabel(f'z{ix}')
+                plt.ylabel(f'z{iy}')
+                # wandb.log({f"chart.correlation.z{ix}-vs-z{iy}": plt})
+                wandb.log({f"chart.correlation.z{ix}-vs-max-corr": plt})
 
 # ========================================================================= #
 # END                                                                       #

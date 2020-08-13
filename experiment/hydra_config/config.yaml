@@ -48,7 +48,7 @@ logging:
   wandb:
     enabled: TRUE
     offline: FALSE
-    name: 'uniform-${framework.name}-${model.z_size}-${dataset.name}-${optimizer.name}-${model.name}'
+    name: '${framework.name}-${model.z_size}-${dataset.name}-${optimizer.name}-${model.name}'
     project: 'test'
     group: null
     entity: '${env:USER}'
@@ -68,7 +68,7 @@ callbacks:
     every_n_steps: 3600
   correlation:
     repeats_per_factor: 10
-    every_n_steps: 1200
+    every_n_steps: 3600
 
 hydra:
   job:

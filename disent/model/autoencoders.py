@@ -134,7 +134,7 @@ class GaussianAutoEncoder(BaseModule):
         Like decode but performs a final sigmoid activation.
         """
         # TODO: cleanup
-        raise RuntimeError('This has been deprecated and should be renamed to decode which was being used')
+        # TODO: REPLACE WITH DECODE!
         return torch.sigmoid(self._decoder(z))
 
 
