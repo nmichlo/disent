@@ -40,8 +40,10 @@ class BoundedAdaVae(AdaVae):
         ave_kl_loss = (a_kl_loss + p_kl_loss) / 2
         # compute kl regularisation
         ave_kl_reg_loss = self.kl_regularization(ave_kl_loss)
+        # augment loss (0 for this)
+        augment_loss, augment_loss_logs = self.augment_loss(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar)
         # compute combined loss - must be same as the BetaVAE
-        loss = ave_recon_loss + ave_kl_reg_loss
+        loss = ave_recon_loss + ave_kl_reg_loss + augment_loss
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
         return {
@@ -51,6 +53,7 @@ class BoundedAdaVae(AdaVae):
             'kl_loss': ave_kl_loss,
             'elbo': -(ave_recon_loss + ave_kl_loss),
             **intercept_logs,
+            **augment_loss_logs,
         }
 
     def intercept_z(self, a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar):
@@ -72,6 +75,9 @@ class BoundedAdaVae(AdaVae):
             'n_shared_before': old_n_shared_mask.sum(dim=1).float().mean(),
             'n_shared_after':      n_shared_mask.sum(dim=1).float().mean(),
         }
+    
+    def augment_loss(self, a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar):
+        return 0, {}
     
 
 # ========================================================================= #

@@ -2,7 +2,7 @@ from disent.frameworks.supervised.gadavae import GuidedAdaVae
 import torch
 
 # ========================================================================= #
-# tadavae                                                                   #
+# tgadavae                                                                  #
 # ========================================================================= #
 
 
