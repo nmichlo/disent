@@ -36,7 +36,7 @@ class AutoEncoder(BaseFramework):
         # LOSS
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # reconstruction error
-        recon_loss = bce_loss_with_logits(x, x_recon)  # E[log p(x|z)]
+        recon_loss = bce_loss_with_logits(x_recon, x)  # E[log p(x|z)]
         # compute combined loss
         loss = recon_loss
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #

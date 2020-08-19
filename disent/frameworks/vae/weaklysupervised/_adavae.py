@@ -37,8 +37,8 @@ class AdaVae(BetaVae):
         # LOSS
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # reconstruction error
-        recon0_loss = bce_loss_with_logits(x0, x0_recon)  # E[log p(x|z)]
-        recon1_loss = bce_loss_with_logits(x1, x1_recon)  # E[log p(x|z)]
+        recon0_loss = bce_loss_with_logits(x0_recon, x0)  # E[log p(x|z)]
+        recon1_loss = bce_loss_with_logits(x1_recon, x1)  # E[log p(x|z)]
         ave_recon_loss = (recon0_loss + recon1_loss) / 2
         # KL divergence
         kl0_loss = kl_normal_loss(z0_mean, z0_logvar)     # D_kl(q(z|x) || p(z|x))

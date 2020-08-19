@@ -6,8 +6,7 @@ import torch.nn.functional as F
 # Vae Loss Functions                                                        #
 # ========================================================================= #
 
-
-def bce_loss_with_logits(x, x_recon):
+def bce_loss_with_logits(x_recon, x_target):
     """
     Computes the Bernoulli loss for the sigmoid activation function
     FROM: https://github.com/google-research/disentanglement_lib/blob/76f41e39cdeff8517f7fba9d57b09f35703efca9/disentanglement_lib/methods/shared/losses.py
@@ -16,10 +15,8 @@ def bce_loss_with_logits(x, x_recon):
     # per_sample_loss = F.binary_cross_entropy_with_logits(x_recon, x, reduction='none').sum(axis=1)  # tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=x_recon, labels=x), axis=1)
     # reconstruction_loss = per_sample_loss.mean()                                                    # tf.reduce_mean(per_sample_loss)
     # ALTERNATIVE IMPLEMENTATION https://github.com/YannDubs/disentangling-vae/blob/master/disvae/models/losses.py
-    batch_size = x.shape[0]
-    reconstruction_loss = F.binary_cross_entropy_with_logits(x_recon, x, reduction="sum") / batch_size
-    # return
-    return reconstruction_loss
+    assert x_recon.shape == x_target.shape
+    return F.binary_cross_entropy_with_logits(x_recon, x_target, reduction="sum") / len(x_target)
 
 def kl_normal_loss(mu, logvar):
     """

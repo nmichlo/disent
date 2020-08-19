@@ -4,7 +4,7 @@
 #
 # from disent.frameworks.other.msp import MatrixSubspaceProjection
 # from disent.frameworks.supervised.gadavae import GuidedAdaVae, triplet_loss
-# from disent.frameworks.unsupervised.vae import TrainingData, bce_loss_with_logits, kl_normal_loss
+# from disent.frameworks.unsupervised.vae import TrainingData, bce_loss_with_logits_OLD, kl_normal_loss
 #
 #
 # log = logging.getLogger(__name__)
@@ -37,9 +37,9 @@
 #         (n_x, n_x_recon, n_z_mean, n_z_logvar, n_z_sampled) = n_data
 #
 #         # reconstruction error
-#         a_recon_loss = bce_loss_with_logits(a_x, a_x_recon)  # E[log p(x|z)]
-#         p_recon_loss = bce_loss_with_logits(p_x, p_x_recon)  # E[log p(x|z)]
-#         n_recon_loss = bce_loss_with_logits(n_x, n_x_recon)  # E[log p(x|z)]
+#         a_recon_loss = bce_loss_with_logits_OLD(a_x, a_x_recon)  # E[log p(x|z)]
+#         p_recon_loss = bce_loss_with_logits_OLD(p_x, p_x_recon)  # E[log p(x|z)]
+#         n_recon_loss = bce_loss_with_logits_OLD(n_x, n_x_recon)  # E[log p(x|z)]
 #         ave_recon_loss = (a_recon_loss + p_recon_loss + n_recon_loss) / 3
 #
 #         # KL divergence

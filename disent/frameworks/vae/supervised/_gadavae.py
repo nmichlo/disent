@@ -39,9 +39,9 @@ class GuidedAdaVae(AdaVae):
         # LOSS
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # reconstruction error
-        a_recon_loss = bce_loss_with_logits(a_x, a_x_recon)  # E[log p(x|z)]
-        p_recon_loss = bce_loss_with_logits(p_x, p_x_recon)  # E[log p(x|z)]
-        n_recon_loss = bce_loss_with_logits(n_x, n_x_recon)  # E[log p(x|z)]
+        a_recon_loss = bce_loss_with_logits(a_x_recon, a_x)  # E[log p(x|z)]
+        p_recon_loss = bce_loss_with_logits(p_x_recon, p_x)  # E[log p(x|z)]
+        n_recon_loss = bce_loss_with_logits(n_x_recon, n_x)  # E[log p(x|z)]
         ave_recon_loss = (a_recon_loss + p_recon_loss + n_recon_loss) / 3
         # KL divergence
         a_kl_loss = kl_normal_loss(a_z_mean, a_z_logvar)     # D_kl(q(z|x) || p(z|x))

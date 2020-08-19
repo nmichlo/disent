@@ -38,7 +38,7 @@ class Vae(BaseFramework):
         # LOSS
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # reconstruction error
-        recon_loss = bce_loss_with_logits(x, x_recon)  # E[log p(x|z)]
+        recon_loss = bce_loss_with_logits(x_recon, x)  # E[log p(x|z)]
         # KL divergence
         kl_loss = kl_normal_loss(z_mean, z_logvar)     # D_kl(q(z|x) || p(z|x))
         # compute kl regularisation
