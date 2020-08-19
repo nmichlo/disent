@@ -1,5 +1,5 @@
 defaults:
-  - framework: adavae
+  - framework: st-betavae
   - model: conv64
   - optimizer: radam
   - dataset: xymultigrid
@@ -48,8 +48,8 @@ logging:
   wandb:
     enabled: TRUE
     offline: FALSE
-    name: 'LONG-${framework.name}-${model.z_size}-${dataset.name}-${optimizer.name}-${model.name}'
-    project: 'test'
+    name: '${framework.name}-${model.z_size}-${dataset.name}-${optimizer.name}-${model.name}'
+    project: 'vae-swapped-target'
     group: null
     entity: '${env:USER}'
     tags:

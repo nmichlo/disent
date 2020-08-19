@@ -1,0 +1,13 @@
+# @package _group_
+name: st-betavae
+cls:
+  target: disent.frameworks.vae.weaklysupervised.SwappedTargetBetaVae
+  params:
+    beta: 4
+    swap_chance: 0.1
+
+augment_dataset:
+  cls:
+    target: disent.dataset.pairs.PairedVariationDataset
+    params:
+      k: ${dataset.k}
