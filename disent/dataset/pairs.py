@@ -1,7 +1,11 @@
 from typing import Union
 import numpy as np
-from torch.utils.data import Dataset
+from torch.utils.data import DataLoader, Dataset
+from torchvision.transforms import ToTensor
+from tqdm import tqdm
+
 from disent.dataset.ground_truth_data.base_data import GroundTruthData
+from disent.dataset.ground_truth_data.data_xygrid import XYGridData
 from disent.dataset.single import GroundTruthDataset
 
 
@@ -40,7 +44,8 @@ class PairedVariationDataset(Dataset):
             k=1,
             force_different_factors=True,
             variation_factor_indices=None,
-            return_factors=False
+            return_factors=False,
+            sample_nearby=False,
     ):
         """
         Dataset that pairs together samples with at most k differing factors of variation.
@@ -55,6 +60,7 @@ class PairedVariationDataset(Dataset):
         self._dataset = dataset
         # possible fixed dimensions between pairs
         self._variation_factor_indices = np.arange(self._dataset.data.num_factors) if (variation_factor_indices is None) else np.array(variation_factor_indices)
+        self._variation_factor_sizes = np.array(self._dataset.data.factor_sizes)[self._variation_factor_indices]
         # d
         self._num_variation_factors = len(self._variation_factor_indices)
         # number of varied factors between pairs
@@ -68,6 +74,9 @@ class PairedVariationDataset(Dataset):
         self._return_factors = return_factors
         # if sampled factors MUST be different
         self.force_different_factors = force_different_factors
+        # if we must sample according to offsets, rather than along an entire axis
+        # TODO: change this to a radius
+        self._sample_nearby = sample_nearby
 
     def __len__(self):
         # TODO: is dataset as big as the latent space OR as big as the orig.
@@ -111,7 +120,14 @@ class PairedVariationDataset(Dataset):
             # make k random indices not shared + resample paired item, differs by at most k factors of variation
             num_shared = self._dataset.data.num_factors - k
             shared_indices = np.random.choice(self._variation_factor_indices, size=num_shared, replace=False)
-            resampled_factors = self._dataset.data.resample_factors(base_factors[np.newaxis, :], shared_indices)[0]
+            # how the non-shared indices are to be sampled
+            if self._sample_nearby:
+                share_mask = np.zeros(self._num_variation_factors, dtype='bool')
+                share_mask[shared_indices] = True
+                offsets = (np.random.randint(0, 2, size=self._num_variation_factors) * 2 - 1) * (~share_mask)
+                resampled_factors = np.clip(base_factors + offsets, 0, self._variation_factor_sizes - 1)  # CYCLIC: (base_factors + offsets) % self._variation_factor_sizes
+            else:
+                resampled_factors = self._dataset.data.resample_factors(base_factors[np.newaxis, :], shared_indices)[0]
             # dont retry if sampled factors are the same
             if not self.force_different_factors:
                 break

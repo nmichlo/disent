@@ -21,8 +21,9 @@ class SupervisedTripletDataset(PairedVariationDataset):
             force_different_factors=True,
             variation_factor_indices=None,
             return_factors=False,
+            sample_nearby=False,
     ):
-        super().__init__(dataset, k=k, force_different_factors=force_different_factors, variation_factor_indices=variation_factor_indices, return_factors=return_factors)
+        super().__init__(dataset, k=k, force_different_factors=force_different_factors, variation_factor_indices=variation_factor_indices, return_factors=return_factors, sample_nearby=sample_nearby)
         self.swap_if_wrong = swap_if_wrong
         # number of varied factors between pairs
         self._n_k = self._num_variation_factors if (n_k is None) else n_k
