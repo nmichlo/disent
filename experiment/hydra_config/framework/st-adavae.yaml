@@ -1,0 +1,14 @@
+# @package _group_
+name: st-adavae
+cls:
+  target: disent.frameworks.vae.weaklysupervised.SwappedTargetAdaVae
+  params:
+    beta: 4
+    swap_chance: 0.1
+    average_mode: 'gvae'  # gvae or ml-vae
+
+augment_dataset:
+  cls:
+    target: disent.dataset.pairs.PairedVariationDataset
+    params:
+      k: ${dataset.k}
