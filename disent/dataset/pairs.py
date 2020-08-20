@@ -1,5 +1,5 @@
-from typing import Union
 import numpy as np
+import torchvision
 from torch.utils.data import DataLoader, Dataset
 from torchvision.transforms import ToTensor
 from tqdm import tqdm
@@ -46,6 +46,8 @@ class PairedVariationDataset(Dataset):
             variation_factor_indices=None,
             return_factors=False,
             sample_nearby=False,
+            random_copy_chance=0,
+            random_transform=None,
     ):
         """
         Dataset that pairs together samples with at most k differing factors of variation.
@@ -77,6 +79,10 @@ class PairedVariationDataset(Dataset):
         # if we must sample according to offsets, rather than along an entire axis
         # TODO: change this to a radius
         self._sample_nearby = sample_nearby
+        # randomness
+        assert random_copy_chance >= 0, f'{random_copy_chance=} must be >= 0'
+        self._random_copy_chance = random_copy_chance
+        self._random_transform = random_transform
 
     def __len__(self):
         # TODO: is dataset as big as the latent space OR as big as the orig.
@@ -84,10 +90,23 @@ class PairedVariationDataset(Dataset):
         return len(self._dataset.data)
 
     def __getitem__(self, idx):
+        # get random factor pairs
+        factors = list(self.sample_factors(idx))
+        assert 2 <= len(factors) <= 3, 'More factors are not yet supported!'
+        # transform if needed, or randomly replace!
+        if self._random_copy_chance > 0:
+            if np.random.random_sample() < self._random_copy_chance:
+                factors[1] = factors[0]  # we still want the negatives in triples to be further away
+        # get observations from factors
+        observations = [self._dataset[self._dataset.data.pos_to_idx(pos)] for pos in factors]
+        # do random transformations
+        if self._random_transform:
+            observations = [self._random_transform(x) for x in observations]
+        # return observations and factors, or just observations
         if self._return_factors:
-            return [(self._dataset[self._dataset.data.pos_to_idx(pos)], pos) for pos in self.sample_factors(idx)]
+            return list(zip(observations, factors))
         else:
-            return [self._dataset[self._dataset.data.pos_to_idx(pos)] for pos in self.sample_factors(idx)]
+            return observations
 
     def sample_factors(self, idx):
         """
@@ -133,7 +152,32 @@ class PairedVariationDataset(Dataset):
                 break
         return resampled_factors
 
-    
+
+class PairedContrastiveDataset(Dataset):
+
+    def __init__(self, dataset: GroundTruthDataset, transforms):
+        """
+        Dataset that creates a randomly transformed contrastive pair.
+
+        dataset: A dataset that extends GroundTruthData
+        transforms: transform to apply - should make use of random transforms.
+        """
+        assert isinstance(dataset, GroundTruthDataset), 'passed object is not an instance of GroundTruthDataset'
+        assert len(dataset) > 1, 'Dataset must be contain more than one observation.'
+        # wrapped dataset
+        self._dataset = dataset
+        # random transforms
+        self._transforms = transforms
+
+    def __len__(self):
+        return len(self._dataset.data)
+
+    def __getitem__(self, idx):
+        x0 = self._dataset[idx]
+        x1 = self._transforms(x0)
+        return x0, x1
+
+
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
