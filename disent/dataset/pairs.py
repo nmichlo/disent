@@ -1,7 +1,5 @@
-from typing import Union
 import numpy as np
-from torch.utils.data import Dataset
-from disent.dataset.ground_truth_data.base_data import GroundTruthData
+from torch.utils.data import DataLoader, Dataset
 from disent.dataset.single import GroundTruthDataset
 
 
@@ -40,7 +38,10 @@ class PairedVariationDataset(Dataset):
             k=1,
             force_different_factors=True,
             variation_factor_indices=None,
-            return_factors=False
+            return_factors=False,
+            sample_radius=None,
+            random_copy_chance=0,
+            random_transform=None,
     ):
         """
         Dataset that pairs together samples with at most k differing factors of variation.
@@ -55,6 +56,7 @@ class PairedVariationDataset(Dataset):
         self._dataset = dataset
         # possible fixed dimensions between pairs
         self._variation_factor_indices = np.arange(self._dataset.data.num_factors) if (variation_factor_indices is None) else np.array(variation_factor_indices)
+        self._variation_factor_sizes = np.array(self._dataset.data.factor_sizes)[self._variation_factor_indices]
         # d
         self._num_variation_factors = len(self._variation_factor_indices)
         # number of varied factors between pairs
@@ -68,6 +70,14 @@ class PairedVariationDataset(Dataset):
         self._return_factors = return_factors
         # if sampled factors MUST be different
         self.force_different_factors = force_different_factors
+        # if we must sample according to offsets, rather than along an entire axis
+        # TODO: change this to a radius
+        assert (sample_radius is None) or (sample_radius > 0)
+        self._sample_radius = sample_radius
+        # randomness
+        assert random_copy_chance >= 0, f'{random_copy_chance=} must be >= 0'
+        self._random_copy_chance = random_copy_chance
+        self._random_transform = random_transform
 
     def __len__(self):
         # TODO: is dataset as big as the latent space OR as big as the orig.
@@ -75,10 +85,23 @@ class PairedVariationDataset(Dataset):
         return len(self._dataset.data)
 
     def __getitem__(self, idx):
+        # get random factor pairs
+        factors = list(self.sample_factors(idx))
+        assert 2 <= len(factors) <= 3, 'More factors are not yet supported!'
+        # transform if needed, or randomly replace!
+        if self._random_copy_chance > 0:
+            if np.random.random_sample() < self._random_copy_chance:
+                factors[1] = factors[0]  # we still want the negatives in triples to be further away
+        # get observations from factors
+        observations = [self._dataset[self._dataset.data.pos_to_idx(pos)] for pos in factors]
+        # do random transformations
+        if self._random_transform:
+            observations = [self._random_transform(x) for x in observations]
+        # return observations and factors, or just observations
         if self._return_factors:
-            return [(self._dataset[self._dataset.data.pos_to_idx(pos)], pos) for pos in self.sample_factors(idx)]
+            return list(zip(observations, factors))
         else:
-            return [self._dataset[self._dataset.data.pos_to_idx(pos)] for pos in self.sample_factors(idx)]
+            return observations
 
     def sample_factors(self, idx):
         """
@@ -111,13 +134,47 @@ class PairedVariationDataset(Dataset):
             # make k random indices not shared + resample paired item, differs by at most k factors of variation
             num_shared = self._dataset.data.num_factors - k
             shared_indices = np.random.choice(self._variation_factor_indices, size=num_shared, replace=False)
-            resampled_factors = self._dataset.data.resample_factors(base_factors[np.newaxis, :], shared_indices)[0]
+            # how the non-shared indices are to be sampled
+            if self._sample_radius is None:
+                resampled_factors = self._dataset.data.resample_factors(base_factors[np.newaxis, :], shared_indices)[0]
+            else:
+                # elementwise sampling range for factors
+                factors_min = np.maximum(base_factors - self._sample_radius, 0)
+                factors_max = np.minimum(base_factors + self._sample_radius, self._variation_factor_sizes - 1)
+                # choose factors & keep shared indices the same | TODO: this is inefficient sampling along all factors and then only keeping some
+                resampled_factors = np.random.randint(factors_min, factors_max + 1)
+                resampled_factors[shared_indices] = base_factors[shared_indices]
             # dont retry if sampled factors are the same
             if not self.force_different_factors:
                 break
         return resampled_factors
 
-    
+
+class PairedContrastiveDataset(Dataset):
+
+    def __init__(self, dataset: GroundTruthDataset, transforms):
+        """
+        Dataset that creates a randomly transformed contrastive pair.
+
+        dataset: A dataset that extends GroundTruthData
+        transforms: transform to apply - should make use of random transforms.
+        """
+        assert isinstance(dataset, GroundTruthDataset), 'passed object is not an instance of GroundTruthDataset'
+        assert len(dataset) > 1, 'Dataset must be contain more than one observation.'
+        # wrapped dataset
+        self._dataset = dataset
+        # random transforms
+        self._transforms = transforms
+
+    def __len__(self):
+        return len(self._dataset.data)
+
+    def __getitem__(self, idx):
+        x0 = self._dataset[idx]
+        x1 = self._transforms(x0)
+        return x0, x1
+
+
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #

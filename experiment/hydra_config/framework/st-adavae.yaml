@@ -1,15 +1,15 @@
 # @package _group_
-name: badavae
+name: st-adavae
 cls:
-  target: disent.frameworks.vae.supervised.BoundedAdaVae
+  target: disent.frameworks.vae.weaklysupervised.SwappedTargetAdaVae
   params:
     beta: 4
+    swap_chance: 0.1
     average_mode: 'gvae'  # gvae or ml-vae
 
 augment_dataset:
   cls:
-    target: disent.dataset.triplets.SupervisedTripletDataset
+    target: disent.dataset.pairs.PairedVariationDataset
     params:
       k: ${dataset.k}
-      n_k: ${dataset.n_k}
       sample_nearby: FALSE

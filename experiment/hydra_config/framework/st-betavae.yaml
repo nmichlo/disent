@@ -1,10 +1,10 @@
 # @package _group_
-name: adavae
+name: st-betavae
 cls:
-  target: disent.frameworks.vae.weaklysupervised.AdaVae
+  target: disent.frameworks.vae.weaklysupervised.SwappedTargetBetaVae
   params:
     beta: 4
-    average_mode: 'gvae'  # gvae or ml-vae
+    swap_chance: 0.1
 
 augment_dataset:
   cls:
