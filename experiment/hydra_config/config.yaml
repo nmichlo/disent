@@ -31,6 +31,7 @@ dataset:
   # varying factors (if applicable for pairs and triplets)
   k: 1
   n_k: 'uniform'
+  resample_radius: 'inf'  # resampling factors along a single dimension, recommend: 1 or 'inf'.
 
 optimizer:
   lr: 1e-3
@@ -48,13 +49,13 @@ logging:
   wandb:
     enabled: TRUE
     offline: FALSE
-    name: '${framework.name}-${model.z_size}-${dataset.name}-${optimizer.name}-${model.name}'
-    project: 'vae-swapped-target'
+    name: '${framework.name}|${model.z_size}|${dataset.name}:${dataset.resample_radius}|${optimizer.name}|${model.name}'
+    project: 'vae-factor-resample-radius'
     group: null
     entity: '${env:USER}'
     tags:
       - '${framework.name}'
-      - '${dataset.name}'
+      - '${dataset.name}:${dataset.resample_radius}'
       - '${optimizer.name}'
       - '${model.name}'
 

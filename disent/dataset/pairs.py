@@ -39,7 +39,7 @@ class PairedVariationDataset(Dataset):
             force_different_factors=True,
             variation_factor_indices=None,
             return_factors=False,
-            sample_radius=None,
+            resample_radius='inf',
             random_copy_chance=0,
             random_transform=None,
     ):
@@ -71,9 +71,10 @@ class PairedVariationDataset(Dataset):
         # if sampled factors MUST be different
         self.force_different_factors = force_different_factors
         # if we must sample according to offsets, rather than along an entire axis
-        # TODO: change this to a radius
-        assert (sample_radius is None) or (sample_radius > 0)
-        self._sample_radius = sample_radius
+        if resample_radius in {'inf', 'infinite', np.inf}:
+            resample_radius = None
+        assert (resample_radius is None) or (isinstance(resample_radius, int) and (resample_radius > 0))
+        self._resample_radius = resample_radius
         # randomness
         assert random_copy_chance >= 0, f'{random_copy_chance=} must be >= 0'
         self._random_copy_chance = random_copy_chance
@@ -135,12 +136,12 @@ class PairedVariationDataset(Dataset):
             num_shared = self._dataset.data.num_factors - k
             shared_indices = np.random.choice(self._variation_factor_indices, size=num_shared, replace=False)
             # how the non-shared indices are to be sampled
-            if self._sample_radius is None:
+            if self._resample_radius is None:
                 resampled_factors = self._dataset.data.resample_factors(base_factors[np.newaxis, :], shared_indices)[0]
             else:
                 # elementwise sampling range for factors
-                factors_min = np.maximum(base_factors - self._sample_radius, 0)
-                factors_max = np.minimum(base_factors + self._sample_radius, self._variation_factor_sizes - 1)
+                factors_min = np.maximum(base_factors - self._resample_radius, 0)
+                factors_max = np.minimum(base_factors + self._resample_radius, self._variation_factor_sizes - 1)
                 # choose factors & keep shared indices the same | TODO: this is inefficient sampling along all factors and then only keeping some
                 resampled_factors = np.random.randint(factors_min, factors_max + 1)
                 resampled_factors[shared_indices] = base_factors[shared_indices]

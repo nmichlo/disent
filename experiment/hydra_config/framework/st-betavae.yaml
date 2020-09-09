@@ -11,4 +11,4 @@ augment_dataset:
     target: disent.dataset.pairs.PairedVariationDataset
     params:
       k: ${dataset.k}
-      sample_nearby: FALSE
+      resample_radius: ${dataset.resample_radius}

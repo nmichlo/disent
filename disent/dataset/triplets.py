@@ -21,7 +21,7 @@ class SupervisedTripletDataset(PairedVariationDataset):
             force_different_factors=True,
             variation_factor_indices=None,
             return_factors=False,
-            sample_radius=None,
+            resample_radius='inf',
             random_copy_chance=0,
             random_transform=None,
     ):
@@ -31,7 +31,7 @@ class SupervisedTripletDataset(PairedVariationDataset):
             force_different_factors=force_different_factors,
             variation_factor_indices=variation_factor_indices,
             return_factors=return_factors,
-            sample_radius=sample_radius,
+            resample_radius=resample_radius,
             random_copy_chance=random_copy_chance,
             random_transform=random_transform
         )
@@ -57,7 +57,7 @@ class SupervisedTripletDataset(PairedVariationDataset):
 
         if self.swap_if_wrong:
             # swap if number of shared factors is less for the positive
-            if True:  # self.sample_radius is None:
+            if True:  # self.resample_radius is None:
                 # use the number of factors that have changed.
                 if np.sum(anchor_factors == positive_factors) < np.sum(anchor_factors == negative_factors):
                     positive_factors, negative_factors = negative_factors, positive_factors

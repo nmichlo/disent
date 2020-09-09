@@ -12,4 +12,4 @@ augment_dataset:
     params:
       k: ${dataset.k}
       n_k: ${dataset.n_k}
-      sample_nearby: FALSE
+      resample_radius: ${dataset.resample_radius}
