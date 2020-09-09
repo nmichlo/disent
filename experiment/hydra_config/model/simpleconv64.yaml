@@ -1,15 +1,11 @@
 # @package _group_
 name: simpleconv64
 encoder:
-  cls:
-    target: disent.model.encoders_decoders.EncoderSimpleConv64
-    params:
-      x_shape: ${dataset.x_shape}
-      z_size: ${model.z_size}
-      z_multiplier: 2
+  _target_: disent.model.encoders_decoders.EncoderSimpleConv64
+  x_shape: ${dataset.x_shape}
+  z_size: ${model.z_size}
+  z_multiplier: 2
 decoder:
-  cls:
-    target: disent.model.encoders_decoders.DecoderSimpleConv64
-    params:
-      x_shape: ${dataset.x_shape}
-      z_size: ${model.z_size}
+  _target_: disent.model.encoders_decoders.DecoderSimpleConv64
+  x_shape: ${dataset.x_shape}
+  z_size: ${model.z_size}

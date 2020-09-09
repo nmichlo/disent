@@ -1,14 +1,11 @@
 # @package _group_
 name: adavae
-cls:
-  target: disent.frameworks.vae.weaklysupervised.AdaVae
-  params:
-    beta: 4
-    average_mode: 'gvae'  # gvae or ml-vae
+module:
+  _target_: disent.frameworks.vae.weaklysupervised.AdaVae
+  beta: 4
+  average_mode: 'gvae'  # gvae or ml-vae
 
-augment_dataset:
-  cls:
-    target: disent.dataset.pairs.PairedVariationDataset
-    params:
-      k: ${dataset.k}
-      resample_radius: ${dataset.resample_radius}
+augment:
+  _target_: disent.dataset.pairs.PairedVariationDataset
+  k: ${dataset.k}
+  resample_radius: ${dataset.resample_radius}

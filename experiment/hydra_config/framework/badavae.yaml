@@ -1,15 +1,12 @@
 # @package _group_
 name: badavae
-cls:
-  target: disent.frameworks.vae.supervised.BoundedAdaVae
-  params:
-    beta: 4
-    average_mode: 'gvae'  # gvae or ml-vae
+module:
+  _target_: disent.frameworks.vae.supervised.BoundedAdaVae
+  beta: 4
+  average_mode: 'gvae'  # gvae or ml-vae
 
-augment_dataset:
-  cls:
-    target: disent.dataset.triplets.SupervisedTripletDataset
-    params:
-      k: ${dataset.k}
-      n_k: ${dataset.n_k}
-      resample_radius: ${dataset.resample_radius}
+augment:
+  _target_: disent.dataset.triplets.SupervisedTripletDataset
+  k: ${dataset.k}
+  n_k: ${dataset.n_k}
+  resample_radius: ${dataset.resample_radius}

@@ -1,14 +1,11 @@
 # @package _group_
 name: st-betavae
-cls:
-  target: disent.frameworks.vae.weaklysupervised.SwappedTargetBetaVae
-  params:
-    beta: 4
-    swap_chance: 0.1
+module:
+  _target_: disent.frameworks.vae.weaklysupervised.SwappedTargetBetaVae
+  beta: 4
+  swap_chance: 0.1
 
-augment_dataset:
-  cls:
-    target: disent.dataset.pairs.PairedVariationDataset
-    params:
-      k: ${dataset.k}
-      resample_radius: ${dataset.resample_radius}
+augment:
+  _target_: disent.dataset.pairs.PairedVariationDataset
+  k: ${dataset.k}
+  resample_radius: ${dataset.resample_radius}

@@ -1,12 +1,11 @@
 # @package _group_
 name: xymultigrid
-cls:
-  target: disent.dataset.ground_truth_data.data_xymultigrid.XYMultiGridData
-  params:
-    square_size: 8
-    grid_size: 64
-    grid_spacing: 8
+data:
+  _target_: disent.dataset.ground_truth_data.data_xymultigrid.XYMultiGridData
+  square_size: 8
+  grid_size: 64
+  grid_spacing: 8
 transforms:
-  - target: torchvision.transforms.ToTensor
+  - _target_: torchvision.transforms.ToTensor
 x_shape: [3, 64, 64]
 # (floor((64-8) / 8) + 1) ** 6 == 262144  // 256 = 1024 batches per epoch

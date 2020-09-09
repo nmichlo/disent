@@ -1,6 +1,5 @@
 # @package _group_
 name: betavae
-cls:
-  target: disent.frameworks.vae.unsupervised.BetaVae
-  params:
-    beta: 4
+module:
+  _target_: disent.frameworks.vae.unsupervised.BetaVae
+  beta: 4

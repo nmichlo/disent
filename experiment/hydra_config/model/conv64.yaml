@@ -1,17 +1,13 @@
 # @package _group_
 name: conv64
 encoder:
-  cls:
-    target: disent.model.encoders_decoders.EncoderConv64
-    params:
-      x_shape: ${dataset.x_shape}
-      z_size: ${model.z_size}
-      z_multiplier: 2
-      dropout: 0.0
+  _target_: disent.model.encoders_decoders.EncoderConv64
+  x_shape: ${dataset.x_shape}
+  z_size: ${model.z_size}
+  z_multiplier: 2
+  dropout: 0.0
 decoder:
-  cls:
-    target: disent.model.encoders_decoders.DecoderConv64
-    params:
-      x_shape: ${dataset.x_shape}
-      z_size: ${model.z_size}
-      dropout: 0.0
+  _target_: disent.model.encoders_decoders.DecoderConv64
+  x_shape: ${dataset.x_shape}
+  z_size: ${model.z_size}
+  dropout: 0.0

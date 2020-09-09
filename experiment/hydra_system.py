@@ -37,15 +37,15 @@ class HydraDataModule(pl.LightningDataModule):
         # *NB* Do not set model parameters here.
         # - Instantiate data once to download and prepare if needed.
         # - trainer.prepare_data_per_node affects this functions behavior per node.
-        if 'in_memory' in self.hparams.dataset.cls.params:
-            hydra.utils.instantiate(self.hparams.dataset.cls, in_memory=False)
-        else:
-            hydra.utils.instantiate(self.hparams.dataset.cls)
+        data = self.hparams.dataset.data.copy()
+        if 'in_memory' in data:
+            del data['in_memory']
+        hydra.utils.instantiate(data)
 
     def setup(self, stage=None) -> None:
         # single observations
         self.dataset = GroundTruthDataset(
-            ground_truth_data=hydra.utils.instantiate(self.hparams.dataset.cls),
+            ground_truth_data=hydra.utils.instantiate(self.hparams.dataset.data),
             transform=torchvision.transforms.Compose([
                 hydra.utils.instantiate(transform_cls)
                 for transform_cls in self.hparams.dataset.transforms
@@ -53,8 +53,8 @@ class HydraDataModule(pl.LightningDataModule):
         )
         # augment dataset if the framework requires
         self.dataset_train = self.dataset
-        if 'augment_dataset' in self.hparams.framework:
-            self.dataset_train = hydra.utils.instantiate(self.hparams.framework.augment_dataset.cls, self.dataset)
+        if 'augment' in self.hparams.framework:
+            self.dataset_train = hydra.utils.instantiate(self.hparams.framework.augment, self.dataset)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Training Dataset:
@@ -200,11 +200,11 @@ def main(cfg: DictConfig):
 
     # FRAMEWORK
     framework = hydra.utils.instantiate(
-        cfg.framework.cls,
+        cfg.framework.module,
         make_optimizer_fn=lambda params: hydra.utils.instantiate(cfg.optimizer.cls, params),
         make_model_fn=lambda: GaussianAutoEncoder(
-            encoder=hydra.utils.instantiate(cfg.model.encoder.cls),
-            decoder=hydra.utils.instantiate(cfg.model.decoder.cls)
+            encoder=hydra.utils.instantiate(cfg.model.encoder),
+            decoder=hydra.utils.instantiate(cfg.model.decoder)
         ),
     )
 

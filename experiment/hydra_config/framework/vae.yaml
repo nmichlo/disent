@@ -1,4 +1,4 @@
 # @package _group_
 name: vae
-cls:
-  target: disent.frameworks.vae.unsupervised.Vae
+module:
+  _target_: disent.frameworks.vae.unsupervised.Vae

@@ -1,16 +1,13 @@
 # @package _group_
 name: gadavae
-cls:
-  target: disent.frameworks.vae.supervised.GuidedAdaVae
-  params:
-    beta: 4
-    average_mode: 'gvae'       # [gvae, ml-vae]
-    anchor_ave_mode: 'average' # [average, thresh]
+module:
+  _target_: disent.frameworks.vae.supervised.GuidedAdaVae
+  beta: 4
+  average_mode: 'gvae'       # [gvae, ml-vae]
+  anchor_ave_mode: 'average' # [average, thresh]
 
-augment_dataset:
-  cls:
-    target: disent.dataset.triplets.SupervisedTripletDataset
-    params:
-      k: ${dataset.k}
-      n_k: ${dataset.n_k}
-      resample_radius: ${dataset.resample_radius}
+augment:
+  _target_: disent.dataset.triplets.SupervisedTripletDataset
+  k: ${dataset.k}
+  n_k: ${dataset.n_k}
+  resample_radius: ${dataset.resample_radius}

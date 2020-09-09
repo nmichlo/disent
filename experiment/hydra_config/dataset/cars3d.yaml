@@ -1,13 +1,11 @@
 # @package _group_
 name: cars3d
-cls:
-  target: disent.dataset.ground_truth_data.data_cars3d.Cars3dData
-  params:
-    data_dir: ${dataset.data_dir}/cars3d
-    force_download: False
+data:
+  _target_: disent.dataset.ground_truth_data.data_cars3d.Cars3dData
+  data_dir: ${dataset.data_dir}/cars3d
+  force_download: False
 transforms:
-  - target: torchvision.transforms.Resize
-    params:
-      size: 64
-  - target: torchvision.transforms.ToTensor
+  - _target_: torchvision.transforms.Resize
+    size: 64
+  - _target_: torchvision.transforms.ToTensor
 x_shape: [3, 64, 64]

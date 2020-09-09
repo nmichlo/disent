@@ -75,11 +75,10 @@ hydra:
   job:
     name: 'disent'
   launcher:
-    params:
-      partition: batch
-      mem_gb: 0
-      timeout_min: 1440  # minutes
-      submitit_folder: '${hydra.sweep.dir}/submitit/%j'
+    partition: batch
+    mem_gb: 0
+    timeout_min: 1440  # minutes
+    submitit_folder: '${hydra.sweep.dir}/submitit/%j'
   run:
     dir: '${logging.logs_dir}/hydra_run/${now:%Y-%m-%d_%H-%M-%S}_${hydra.job.name}'
   sweep:
