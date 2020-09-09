@@ -1,5 +1,7 @@
+from typing import Union, Optional
+
 import numpy as np
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import Dataset, IterableDataset
 from disent.dataset.single import GroundTruthDataset
 
 
@@ -8,7 +10,7 @@ from disent.dataset.single import GroundTruthDataset
 # ========================================================================= #
 
 
-class RandomPairDataset(Dataset):
+class RandomPairDataset(IterableDataset):
 
     def __init__(self, dataset: Dataset):
         assert len(dataset) > 1, 'Dataset must be contain more than one observation.'
@@ -16,6 +18,10 @@ class RandomPairDataset(Dataset):
 
     def __len__(self):
         return len(self.dataset)
+
+    def __iter__(self):
+        for i in range(len(self)):
+            yield self[i]
 
     def __getitem__(self, idx):
         # find differing random index, nearly always this will only run once.
@@ -30,17 +36,17 @@ class RandomPairDataset(Dataset):
         return (self.dataset[idx], idx), (self.dataset[rand_idx], rand_idx)
 
 
-class PairedVariationDataset(Dataset):
+class PairedVariationDataset(IterableDataset):
 
     def __init__(
             self,
             dataset: GroundTruthDataset,
-            k=1,
-            force_different_factors=True,
+            k: int = 1,
+            force_different_factors: bool = True,
             variation_factor_indices=None,
-            return_factors=False,
-            resample_radius='inf',
-            random_copy_chance=0,
+            return_factors: bool = False,
+            resample_radius: Optional[Union[str, int]] = 'inf',
+            random_copy_chance: float = 0,
             random_transform=None,
     ):
         """
@@ -85,7 +91,14 @@ class PairedVariationDataset(Dataset):
         # return self._latent_space.size
         return len(self._dataset.data)
 
+    def __iter__(self):
+        for i in range(len(self)):
+            yield self[i]
+
     def __getitem__(self, idx):
+        if idx >= len(self):
+            print(idx)
+            return IndexError
         # get random factor pairs
         factors = list(self.sample_factors(idx))
         assert 2 <= len(factors) <= 3, 'More factors are not yet supported!'
@@ -151,7 +164,7 @@ class PairedVariationDataset(Dataset):
         return resampled_factors
 
 
-class PairedContrastiveDataset(Dataset):
+class PairedContrastiveDataset(IterableDataset):
 
     def __init__(self, dataset: GroundTruthDataset, transforms):
         """
@@ -170,6 +183,10 @@ class PairedContrastiveDataset(Dataset):
     def __len__(self):
         return len(self._dataset.data)
 
+    def __iter__(self):
+        for i in range(len(self)):
+            yield self[i]
+
     def __getitem__(self, idx):
         x0 = self._dataset[idx]
         x1 = self._transforms(x0)
@@ -179,3 +196,24 @@ class PairedContrastiveDataset(Dataset):
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
+
+
+if __name__ == '__main__':
+    from disent.dataset.ground_truth_data.data_xymultigrid import XYMultiGridData
+    from disent.util import concat_lines
+
+    # check that resample radius is working correctly!
+    dataset = XYMultiGridData(1, 4)
+    dataset = GroundTruthDataset(dataset)
+    dataset = PairedVariationDataset(dataset, resample_radius=1)
+    for pair in dataset:
+        obs0, obs1 = np.array(pair[0], dtype='int'), np.array(pair[1], dtype='int')
+        # CHECKS
+        diff = np.abs(obs1 - obs0)
+        diff_coords = np.array(np.where(diff > 0)).T
+        assert len(diff_coords) == 2  # check max changes
+        dist = np.abs(diff_coords[0] - diff_coords[1])
+        assert np.sum(dist > 0) == 1  # check max changes
+        assert np.max(dist) == 1      # check radius
+        # INFO
+        print(concat_lines(*[((obs > 0) * [1, 2, 4]).sum(axis=-1) for obs in (obs0, obs1)]), '\n')

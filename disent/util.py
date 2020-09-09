@@ -92,9 +92,11 @@ def atomic_save(obj, path):
     torch.save(obj, path + '.tmp')
     os.rename(path + '.tmp', path)
 
+
 def save_model(model, path):
     atomic_save(model.state_dict(), path)
     log.info(f'[MODEL]: saved {path}')
+
 
 def load_model(model, path, cuda=True, fail_if_missing=True):
     """
@@ -133,6 +135,7 @@ def chunked(arr, chunk_size=1, include_last=True):
 # STRINGS                                                                   #
 # ========================================================================= #
 
+
 # TODO: make this return a string not actually print out so it can be used with logging
 def make_separator_str(text, header=None, width=100, char_v='#', char_h='=', char_corners=None):
     """
@@ -165,12 +168,33 @@ def make_separator_str(text, header=None, width=100, char_v='#', char_h='=', cha
     lines.append(f'{sep}\n')
     return '\n'.join(lines)
 
+
 def make_box_str(text, header=None, width=100, char_v='|', char_h='-', char_corners='#'):
     """
     like print_separator but is isntead a box
     FROM: my obstacle_tower project
     """
     return make_separator_str(text, header=header, width=width, char_v=char_v, char_h=char_h, char_corners=char_corners)
+
+
+def concat_lines(*strings, sep=' | '):
+    """
+    Join multi-line strings together horizontally, with the
+    specified separator between them.
+    """
+
+    def pad_width(lines):
+        max_len = max(len(line) for line in lines)
+        return [f'{s:{max_len}}' for s in lines]
+
+    def pad_height(list_of_lines):
+        max_lines = max(len(lines) for lines in list_of_lines)
+        return [(lines + ([''] * (max_lines - len(lines)))) for lines in list_of_lines]
+
+    list_of_lines = [str(string).splitlines() for string in strings]
+    list_of_lines = pad_height(list_of_lines)
+    list_of_lines = [pad_width(lines) for lines in list_of_lines]
+    return '\n'.join(sep.join(rows) for rows in zip(*list_of_lines))
 
 
 # ========================================================================= #
