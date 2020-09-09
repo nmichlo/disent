@@ -36,6 +36,11 @@ class BaseFramework(pl.LightningModule):
     def compute_loss(self, batch, batch_idx) -> dict:
         raise NotImplementedError
 
+    def _forward_unimplemented(self, *args, **kwargs):
+        # Annoying fix applied by torch for Module.forward:
+        # https://github.com/python/mypy/issues/8795
+        raise RuntimeError('This should never run!')
+
 
 # ========================================================================= #
 # END                                                                       #
