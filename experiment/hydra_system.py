@@ -173,7 +173,7 @@ def hydra_append_correlation_callback(callbacks, cfg):
 # ========================================================================= #
 
 
-@hydra.main(config_path='hydra_config', config_name="config")
+@hydra.main(config_path='config', config_name="config")
 def main(cfg: DictConfig):
     # print useful info
     log.info(make_box_str(cfg.pretty()))
