@@ -1,7 +1,7 @@
 from typing import Union, Optional
 
 import numpy as np
-from torch.utils.data import Dataset, IterableDataset
+from torch.utils.data import Dataset
 from disent.dataset.single import GroundTruthDataset
 
 
@@ -10,7 +10,7 @@ from disent.dataset.single import GroundTruthDataset
 # ========================================================================= #
 
 
-class RandomPairDataset(IterableDataset):
+class RandomPairDataset(Dataset):
 
     def __init__(self, dataset: Dataset):
         assert len(dataset) > 1, 'Dataset must be contain more than one observation.'
@@ -20,6 +20,8 @@ class RandomPairDataset(IterableDataset):
         return len(self.dataset)
 
     def __iter__(self):
+        # this takes priority over __getitem__, otherwise __getitem__ would need to
+        # raise an IndexError if out of bounds to signal the end of iteration
         for i in range(len(self)):
             yield self[i]
 
@@ -31,12 +33,12 @@ class RandomPairDataset(IterableDataset):
             attempts += 1
             if attempts > 1000:
                 # pretty much impossible unless your dataset is of size 1, or your prng is broken...
-                raise IndexError('Unable to find random index that differs.')
+                raise RuntimeError('Unable to find random index that differs.')
         # return elements
         return (self.dataset[idx], idx), (self.dataset[rand_idx], rand_idx)
 
 
-class PairedVariationDataset(IterableDataset):
+class PairedVariationDataset(Dataset):
 
     def __init__(
             self,
@@ -92,6 +94,8 @@ class PairedVariationDataset(IterableDataset):
         return len(self._dataset.data)
 
     def __iter__(self):
+        # this takes priority over __getitem__, otherwise __getitem__ would need to
+        # raise an IndexError if out of bounds to signal the end of iteration
         for i in range(len(self)):
             yield self[i]
 
@@ -164,7 +168,7 @@ class PairedVariationDataset(IterableDataset):
         return resampled_factors
 
 
-class PairedContrastiveDataset(IterableDataset):
+class PairedContrastiveDataset(Dataset):
 
     def __init__(self, dataset: GroundTruthDataset, transforms):
         """
@@ -184,6 +188,8 @@ class PairedContrastiveDataset(IterableDataset):
         return len(self._dataset.data)
 
     def __iter__(self):
+        # this takes priority over __getitem__, otherwise __getitem__ would need to
+        # raise an IndexError if out of bounds to signal the end of iteration
         for i in range(len(self)):
             yield self[i]
 

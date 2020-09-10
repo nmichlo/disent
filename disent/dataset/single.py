@@ -1,7 +1,7 @@
 from typing import Tuple
 import torch
 from PIL import Image
-from torch.utils.data import IterableDataset
+from torch.utils.data import Dataset
 from disent.dataset.ground_truth_data.base_data import GroundTruthData
 
 
@@ -10,7 +10,7 @@ from disent.dataset.ground_truth_data.base_data import GroundTruthData
 # ========================================================================= #
 
 
-class GroundTruthDataset(IterableDataset, GroundTruthData):
+class GroundTruthDataset(Dataset, GroundTruthData):
     """
     Converts ground truth data into a dataset
     """
@@ -26,6 +26,8 @@ class GroundTruthDataset(IterableDataset, GroundTruthData):
         return len(self.data)
 
     def __iter__(self):
+        # this takes priority over __getitem__, otherwise __getitem__ would need to
+        # raise an IndexError if out of bounds to signal the end of iteration
         for i in range(len(self)):
             yield self[i]
 
