@@ -1,5 +1,5 @@
 # @package _group_
-name: xymultigrid-overlap
+name: xymultigrid-overlap-grey
 data:
   _target_: disent.dataset.ground_truth_data.data_xymultigrid.XYMultiGridData
   square_size: 8

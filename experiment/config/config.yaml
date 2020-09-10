@@ -49,10 +49,10 @@ logging:
   wandb:
     enabled: TRUE
     offline: FALSE
-    name: '${framework.name}|${model.z_size}|${dataset.name}-${dataset.data.grid_spacing}:${dataset.resample_radius}'
+    entity: 'n_michlo'
     project: 'vae-dataset-overlap'
+    name: '${framework.name}|${model.z_size}|${dataset.name}-${dataset.data.grid_spacing}:${dataset.resample_radius}'
     group: null
-    entity: '${env:USER}'
     tags:
       - '${framework.name}'
       - '${dataset.name}-${dataset.data.grid_spacing}:${dataset.resample_radius}'

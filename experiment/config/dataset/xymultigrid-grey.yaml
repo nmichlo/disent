@@ -1,5 +1,5 @@
 # @package _group_
-name: xymultigrid
+name: xymultigrid-grey
 data:
   _target_: disent.dataset.ground_truth_data.data_xymultigrid.XYMultiGridData
   square_size: 8
