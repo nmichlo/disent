@@ -7,7 +7,7 @@ import pytorch_lightning as pl
 import torch
 import torch.utils.data
 import torchvision
-from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.loggers import WandbLogger, CometLogger
 
 from disent.dataset.single import GroundTruthDataset
 from disent.metrics import compute_dci, compute_factor_vae
@@ -113,19 +113,27 @@ def hydra_check_datadir(prepare_data_per_node, cfg):
         raise RuntimeError('dataset.data_dir={repr(cfg.dataset.data_dir)} is a relative path!')
 
 def hydra_make_logger(cfg):
-    if cfg.logging.wandb.enabled:
-        log.info(f'wandb log directory: {os.path.abspath("wandb")}')
-        # TODO: this should be moved into configs, instantiated from a class & target
-        return WandbLogger(
+    loggers = []
+    if ('wandb' in cfg.logging) and cfg.logging.wandb.get('enabled', True):
+        loggers.append(WandbLogger(
             offline=cfg.logging.wandb.get('offline', False),
-            name=cfg.logging.wandb.name,
-            project=cfg.logging.wandb.project,
-            group=cfg.logging.wandb.get('group', None),
-            tags=cfg.logging.wandb.get('tags', None),
-            entity=cfg.logging.get('entity', None),
+            entity=cfg.logging.wandb.get('entity', None),  # cometml: workspace
+            project=cfg.logging.wandb.project,             # cometml: project_name
+            name=cfg.logging.wandb.name,                   # cometml: experiment_name
+            group=cfg.logging.wandb.get('group', None),    # experiment group
+            tags=cfg.logging.wandb.get('tags', None),      # experiment tags
             save_dir=hydra.utils.to_absolute_path(cfg.logging.logs_dir),  # relative to hydra's original cwd
-        )
-    return None
+        ))
+    if ('cometml' in cfg.logging) and cfg.logging.cometml.get('enabled', True):
+        loggers.append(CometLogger(
+            offline=cfg.logging.cometml.get('offline', False),
+            workspace=cfg.logging.cometml.get('workspace', None),  # wandb: entity
+            project_name=cfg.logging.cometml.project,              # wandb: project
+            experiment_name=cfg.logging.cometml.name,              # wandb: name
+            api_key=os.environ['COMET_API_KEY'],                   # TODO: use dotenv
+            save_dir=hydra.utils.to_absolute_path(cfg.logging.logs_dir),  # relative to hydra's original cwd
+        ))
+    return loggers if loggers else None  # lists are turned into a LoggerCollection by pl
 
 def hydra_append_progress_callback(callbacks, cfg):
     if 'progress' in cfg.callbacks:
