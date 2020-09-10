@@ -47,7 +47,7 @@ logging:
   save_log_interval: 200
   # log to online service
   wandb:
-    enabled: FALSE
+    enabled: TRUE
     offline: FALSE
     name: '${framework.name}|${model.z_size}|${dataset.name}-${dataset.data.grid_spacing}:${dataset.resample_radius}'
     project: 'vae-dataset-overlap'

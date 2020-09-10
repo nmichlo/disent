@@ -32,11 +32,13 @@ class XYMultiGridData(GroundTruthData):
     def observation_shape(self) -> Tuple[int, ...]:
         return self._width, self._width, 3
 
-    def __init__(self, square_size=8, grid_size=64, grid_spacing=None):
+    def __init__(self, square_size=8, grid_size=64, grid_spacing=None, rgb=True):
         if grid_spacing is None:
             grid_spacing = square_size
         if grid_spacing < square_size:
             log.warning(f'overlap between squares for reconstruction loss, {grid_spacing} < {square_size}')
+        # color
+        self._rgb = rgb
         # image sizes
         self._width = grid_size
         # square scales
@@ -56,9 +58,14 @@ class XYMultiGridData(GroundTruthData):
         x0, y0 = offset + space * fx0, offset + space * fy0
         x1, y1 = offset + space * fx1, offset + space * fy1
         x2, y2 = offset + space * fx2, offset + space * fy2
-        obs[y0:y0+size, x0:x0+size, 0] = 255
-        obs[y1:y1+size, x1:x1+size, 1] = 255
-        obs[y2:y2+size, x2:x2+size, 2] = 255
+        if self._rgb:
+            obs[y0:y0+size, x0:x0+size, 0] = 255
+            obs[y1:y1+size, x1:x1+size, 1] = 255
+            obs[y2:y2+size, x2:x2+size, 2] = 255
+        else:
+            obs[y0:y0+size, x0:x0+size, :] = 255
+            obs[y1:y1+size, x1:x1+size, :] = 255
+            obs[y2:y2+size, x2:x2+size, :] = 255
         return obs
 
 
