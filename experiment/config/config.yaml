@@ -15,7 +15,7 @@ defaults:
 # remember to set timeout limits below
 trainer:
   epochs: 100000  # not resilient to change in dataset size, we rather limit by steps (len(dataset) / batch_size)
-  steps: 250000
+  steps: 100001
   cuda: TRUE
   prepare_data_per_node: TRUE
 
@@ -27,7 +27,7 @@ dataset:
   num_workers: 8
   batch_size: 256
   data_dir: '/tmp/${env:USER}/datasets'
-  try_in_memory: TRUE
+  try_in_memory: FALSE
   # varying factors (if applicable for pairs and triplets)
   k: 1
   n_k: 'uniform'
@@ -47,15 +47,15 @@ logging:
   save_log_interval: 200
   # log to online service
   wandb:
-    enabled: TRUE
+    enabled: FALSE
     offline: FALSE
-    name: '${framework.name}|${model.z_size}|${dataset.name}:${dataset.resample_radius}|${optimizer.name}|${model.name}'
-    project: 'vae-factor-resample-radius'
+    name: '${framework.name}|${model.z_size}|${dataset.name}-${dataset.data.grid_spacing}:${dataset.resample_radius}'
+    project: 'vae-dataset-overlap'
     group: null
     entity: '${env:USER}'
     tags:
       - '${framework.name}'
-      - '${dataset.name}:${dataset.resample_radius}'
+      - '${dataset.name}-${dataset.data.grid_spacing}:${dataset.resample_radius}'
       - '${optimizer.name}'
       - '${model.name}'
 
