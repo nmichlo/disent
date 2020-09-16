@@ -3,6 +3,7 @@ from typing import Tuple
 from disent.dataset.ground_truth_data.base_data import GroundTruthData
 import numpy as np
 
+from disent.util import chunked
 
 log = logging.getLogger(__name__)
 
@@ -22,17 +23,19 @@ class XYMultiGridData(GroundTruthData):
     (if the spacing is set correctly.)
     """
 
-    factor_names = ('x_R', 'y_R', 'x_G', 'y_G', 'x_B', 'y_B')
+    @property
+    def factor_names(self) -> Tuple[str, ...]:
+        return ('x_R', 'y_R', 'x_G', 'y_G', 'x_B', 'y_B')[:self._num_squares*2]
 
     @property
     def factor_sizes(self) -> Tuple[int, ...]:
-        return (self._placements, self._placements) * 3  # R, G, B squares
+        return (self._placements, self._placements) * self._num_squares  # R, G, B squares
 
     @property
     def observation_shape(self) -> Tuple[int, ...]:
         return self._width, self._width, 3
 
-    def __init__(self, square_size=8, grid_size=64, grid_spacing=None, rgb=True):
+    def __init__(self, square_size=8, grid_size=64, grid_spacing=None, num_squares=3, rgb=True):
         if grid_spacing is None:
             grid_spacing = square_size
         if grid_spacing < square_size:
@@ -41,6 +44,9 @@ class XYMultiGridData(GroundTruthData):
         self._rgb = rgb
         # image sizes
         self._width = grid_size
+        # number of squares
+        self._num_squares = num_squares
+        assert 1 <= num_squares <= 3, 'Only 1, 2 or 3 squares are supported!'
         # square scales
         self._square_size = square_size
         # x, y
@@ -51,21 +57,16 @@ class XYMultiGridData(GroundTruthData):
     
     def __getitem__(self, idx):
         # get factors
-        fx0, fy0, fx1, fy1, fx2, fy2 = self.idx_to_pos(idx)
+        factors = self.idx_to_pos(idx)
         offset, space, size = self._offset, self._spacing, self._square_size
         # GENERATE
         obs = np.zeros(self.observation_shape, dtype=np.uint8)
-        x0, y0 = offset + space * fx0, offset + space * fy0
-        x1, y1 = offset + space * fx1, offset + space * fy1
-        x2, y2 = offset + space * fx2, offset + space * fy2
-        if self._rgb:
-            obs[y0:y0+size, x0:x0+size, 0] = 255
-            obs[y1:y1+size, x1:x1+size, 1] = 255
-            obs[y2:y2+size, x2:x2+size, 2] = 255
-        else:
-            obs[y0:y0+size, x0:x0+size, :] = 255
-            obs[y1:y1+size, x1:x1+size, :] = 255
-            obs[y2:y2+size, x2:x2+size, :] = 255
+        for i, (fx, fy) in enumerate(chunked(factors, 2)):
+            x, y = offset + space * fx, offset + space * fy
+            if self._rgb:
+                obs[y:y+size, x:x+size, i] = 255
+            else:
+                obs[y:y+size, x:x+size, :] = 255
         return obs
 
 

@@ -5,6 +5,7 @@ data:
   square_size: 8
   grid_size: 64
   grid_spacing: 8
+  num_squares: 3
   rgb: FALSE
 transforms:
   - _target_: torchvision.transforms.ToTensor

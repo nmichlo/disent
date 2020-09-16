@@ -1,5 +1,5 @@
 defaults:
-  - framework: st-betavae
+  - framework: adavae
   - model: conv64
   - optimizer: radam
   - dataset: xymultigrid
@@ -51,13 +51,14 @@ logging:
     offline: FALSE
     entity: 'n_michlo'
     project: 'vae-dataset-overlap'
-    name: '${framework.name}|${model.z_size}|${dataset.name}-${dataset.data.grid_spacing}:${dataset.resample_radius}'
+    name: '${framework.name}|${model.z_size}|1s-${dataset.name}-${dataset.data.grid_spacing}:${dataset.resample_radius}'
     group: null
     tags:
       - '${framework.name}'
       - '${dataset.name}-${dataset.data.grid_spacing}:${dataset.resample_radius}'
       - '${optimizer.name}'
       - '${model.name}'
+      - '1-square'
 
 callbacks:
   progress:
