@@ -1,16 +1,16 @@
 import logging
 import numpy as np
-from disent.dataset import GroundTruthDataset
-from disent.dataset.pairs import PairedVariationDataset
+from disent.dataset.groundtruth import GroundTruthDatasetPairs, GroundTruthDataset
 
 log = logging.getLogger(__name__)
+
 
 # ========================================================================= #
 # triplets                                                                  #
 # ========================================================================= #
 
 
-class SupervisedTripletDataset(PairedVariationDataset):
+class GroundTruthDatasetTriples(GroundTruthDatasetPairs):
 
     def __init__(
             self,

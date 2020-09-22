@@ -130,6 +130,8 @@ dmypy.json
 
 # custom
 .idea/
-data/
 outputs/
 logs/
+
+# custom - root folder only
+/data/

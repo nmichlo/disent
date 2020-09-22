@@ -9,7 +9,7 @@ import torch.utils.data
 import torchvision
 from pytorch_lightning.loggers import WandbLogger, CometLogger
 
-from disent.dataset.single import GroundTruthDataset
+from disent.dataset.groundtruth import GroundTruthDataset
 from disent.metrics import compute_dci, compute_factor_vae
 from disent.model import GaussianAutoEncoder
 from disent.util import make_box_str

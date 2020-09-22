@@ -198,5 +198,25 @@ def concat_lines(*strings, sep=' | '):
 
 
 # ========================================================================= #
+# Iterable                                                                  #
+# ========================================================================= #
+
+
+class LengthIter(object):
+
+    def __iter__(self):
+        # this takes priority over __getitem__, otherwise __getitem__ would need to
+        # raise an IndexError if out of bounds to signal the end of iteration
+        for i in range(len(self)):
+            yield self[i]
+
+    def __len__(self):
+        raise NotImplemented()
+
+    def __getitem__(self, item):
+        raise NotImplemented()
+
+
+# ========================================================================= #
 # END                                                                       #
 # ========================================================================= #

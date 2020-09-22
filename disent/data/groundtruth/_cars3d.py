@@ -3,7 +3,7 @@ import os
 import shutil
 import numpy as np
 from scipy.io import loadmat
-from disent.dataset.ground_truth_data.base_data import DownloadableGroundTruthData
+from disent.data.groundtruth.base import DownloadableGroundTruthData
 
 log = logging.getLogger(__name__)
 

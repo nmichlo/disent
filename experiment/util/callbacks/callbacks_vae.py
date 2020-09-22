@@ -4,7 +4,7 @@ import wandb
 import numpy as np
 import pytorch_lightning as pl
 
-from disent.dataset.ground_truth_data.base_data import GroundTruthData
+from disent.data.groundtruth.base import GroundTruthData
 from disent.frameworks.vae.unsupervised._vae import Vae
 from disent.util import TempNumpySeed, chunked, to_numpy
 from disent.visualize.visualize_model import latent_cycle
@@ -172,7 +172,7 @@ class VaeLatentCorrelationLoggingCallback(_PeriodicCallback):
 # from torchvision.transforms import ToTensor
 #
 # from disent.dataset import GroundTruthDataset
-# from disent.dataset.ground_truth_data.data_xygrid import XYGridData
+# from disent.data.groundtruth._xygrid import XYGridData
 # from disent.model import DecoderConv64, EncoderConv64, GaussianAutoEncoder
 # from disent.util import TempNumpySeed, chunked, to_numpy
 # import numpy as np

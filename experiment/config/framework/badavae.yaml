@@ -6,7 +6,7 @@ module:
   average_mode: 'gvae'  # gvae or ml-vae
 
 dataset_wrapper:
-  _target_: disent.dataset.triplets.SupervisedTripletDataset
+  _target_: disent.dataset.groundtruth.GroundTruthDatasetTriples
   k: ${dataset.k}
   n_k: ${dataset.n_k}
   resample_radius: ${dataset.resample_radius}

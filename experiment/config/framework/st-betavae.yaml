@@ -6,6 +6,6 @@ module:
   swap_chance: 0.1
 
 dataset_wrapper:
-  _target_: disent.dataset.pairs.PairedVariationDataset
+  _target_: disent.dataset.groundtruth.GroundTruthDatasetPairs
   k: ${dataset.k}
   resample_radius: ${dataset.resample_radius}

@@ -1,4 +1,4 @@
-from disent.dataset.util.state_space import StateSpace
+from disent.data.util.state_space import StateSpace
 import numpy as np
 
 FACTOR_SIZES = [

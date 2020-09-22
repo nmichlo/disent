@@ -1,16 +1,15 @@
 from typing import Union, Optional
-
 import numpy as np
 from torch.utils.data import Dataset
-from disent.dataset.single import GroundTruthDataset
+from disent.dataset.groundtruth import GroundTruthDataset
+from disent.util import LengthIter
 
 
 # ========================================================================= #
 # random pairs                                                              #
 # ========================================================================= #
 
-
-class RandomPairDataset(Dataset):
+class RandomPairDataset(Dataset, LengthIter):
 
     def __init__(self, dataset: Dataset):
         assert len(dataset) > 1, 'Dataset must be contain more than one observation.'
@@ -18,12 +17,6 @@ class RandomPairDataset(Dataset):
 
     def __len__(self):
         return len(self.dataset)
-
-    def __iter__(self):
-        # this takes priority over __getitem__, otherwise __getitem__ would need to
-        # raise an IndexError if out of bounds to signal the end of iteration
-        for i in range(len(self)):
-            yield self[i]
 
     def __getitem__(self, idx):
         # find differing random index, nearly always this will only run once.
@@ -43,7 +36,7 @@ class RandomPairDataset(Dataset):
 # ========================================================================= #
 
 
-class PairedVariationDataset(Dataset):
+class GroundTruthDatasetPairs(Dataset, LengthIter):
 
     def __init__(
             self,
@@ -65,9 +58,10 @@ class PairedVariationDataset(Dataset):
         assert len(dataset) > 1, 'Dataset must be contain more than one observation.'
         # wrapped dataset
         self._dataset = dataset
+        self._data = dataset.data
         # possible fixed dimensions between pairs
-        self._variation_factor_indices = np.arange(self._dataset.data.num_factors) if (variation_factor_indices is None) else np.array(variation_factor_indices)
-        self._variation_factor_sizes = np.array(self._dataset.data.factor_sizes)[self._variation_factor_indices]
+        self._variation_factor_indices = np.arange(self._data.num_factors) if (variation_factor_indices is None) else np.array(variation_factor_indices)
+        self._variation_factor_sizes = np.array(self._data.factor_sizes)[self._variation_factor_indices]
         self._num_variation_factors = len(self._variation_factor_indices)
         # number of varied factors between pairs
         self._k = self._num_variation_factors - 1 if (k is None) else k
@@ -89,18 +83,12 @@ class PairedVariationDataset(Dataset):
     def __len__(self):
         # TODO: is dataset as big as the latent space OR as big as the orig.
         # return self._latent_space.size
-        return len(self._dataset.data)
-
-    def __iter__(self):
-        # this takes priority over __getitem__, otherwise __getitem__ would need to
-        # raise an IndexError if out of bounds to signal the end of iteration
-        for i in range(len(self)):
-            yield self[i]
+        return len(self._data)
 
     def __getitem__(self, idx):
         # get random factor pairs & get observations from factors
         factors = self.sample_factors(idx)
-        observations = [self._dataset[self._dataset.data.pos_to_idx(pos)] for pos in factors]
+        observations = [self._dataset[self._data.pos_to_idx(pos)] for pos in factors]
         assert 2 <= len(observations) <= 3, 'More factors are not yet supported!'
         # return observations and factors, or just observations
         return list(zip(observations, factors)) if self._return_factors else observations
@@ -124,7 +112,7 @@ class PairedVariationDataset(Dataset):
         """
 
         # get factors corresponding to index
-        orig_factors = self._dataset.data.idx_to_pos(idx)
+        orig_factors = self._data.idx_to_pos(idx)
         # get fixed or random k (k is number of factors that differ)
         k = np.random.randint(1, self._num_variation_factors) if (self._k == 'uniform') else self._k
         # return observations
@@ -134,11 +122,11 @@ class PairedVariationDataset(Dataset):
         resampled_factors = None
         while (resampled_factors is None) or np.all(base_factors == resampled_factors):
             # make k random indices not shared + resample paired item, differs by at most k factors of variation
-            num_shared = self._dataset.data.num_factors - k
+            num_shared = self._data.num_factors - k
             shared_indices = np.random.choice(self._variation_factor_indices, size=num_shared, replace=False)
             # how the non-shared indices are to be sampled
             if resample_radius is None:
-                resampled_factors = self._dataset.data.resample_factors(base_factors[np.newaxis, :], shared_indices)[0]
+                resampled_factors = self._data.resample_factors(base_factors[np.newaxis, :], shared_indices)[0]
             else:
                 # elementwise sampling range for factors
                 factors_min = np.maximum(base_factors - resample_radius, 0)
@@ -157,7 +145,7 @@ class PairedVariationDataset(Dataset):
 # ========================================================================= #
 
 
-class PairedContrastiveDataset(Dataset):
+class PairedContrastiveDataset(Dataset, LengthIter):
 
     def __init__(self, dataset: GroundTruthDataset, transforms):
         """
@@ -170,17 +158,12 @@ class PairedContrastiveDataset(Dataset):
         assert len(dataset) > 1, 'Dataset must be contain more than one observation.'
         # wrapped dataset
         self._dataset = dataset
+        self._data = dataset.data
         # random transforms
         self._transforms = transforms
 
     def __len__(self):
-        return len(self._dataset.data)
-
-    def __iter__(self):
-        # this takes priority over __getitem__, otherwise __getitem__ would need to
-        # raise an IndexError if out of bounds to signal the end of iteration
-        for i in range(len(self)):
-            yield self[i]
+        return len(self._data)
 
     def __getitem__(self, idx):
         x0 = self._dataset[idx]
@@ -194,13 +177,13 @@ class PairedContrastiveDataset(Dataset):
 
 
 if __name__ == '__main__':
-    from disent.dataset.ground_truth_data.data_xymultigrid import XYMultiGridData
+    from disent.data.groundtruth import XYMultiGridData
     from disent.util import concat_lines
 
     # check that resample radius is working correctly!
     dataset = XYMultiGridData(1, 4)
     dataset = GroundTruthDataset(dataset)
-    dataset = PairedVariationDataset(dataset, resample_radius=1)
+    dataset = GroundTruthDatasetPairs(dataset, resample_radius=1)
     for pair in dataset:
         obs0, obs1 = np.array(pair[0], dtype='int'), np.array(pair[1], dtype='int')
         # CHECKS

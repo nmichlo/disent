@@ -6,6 +6,6 @@ module:
   average_mode: 'gvae'  # gvae or ml-vae
 
 dataset_wrapper:
-  _target_: disent.dataset.pairs.PairedVariationDataset
+  _target_: disent.dataset.groundtruth.GroundTruthDatasetPairs
   k: ${dataset.k}
   resample_radius: ${dataset.resample_radius}
