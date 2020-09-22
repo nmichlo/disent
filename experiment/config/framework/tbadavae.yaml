@@ -7,7 +7,7 @@ module:
   triplet_margin: 0.1
   triplet_scale: 1
 
-augment:
+dataset_wrapper:
   _target_: disent.dataset.triplets.SupervisedTripletDataset
   k: ${dataset.k}
   n_k: ${dataset.n_k}

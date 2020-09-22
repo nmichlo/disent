@@ -6,7 +6,7 @@ module:
   average_mode: 'gvae'       # [gvae, ml-vae]
   anchor_ave_mode: 'average' # [average, thresh]
 
-augment:
+dataset_wrapper:
   _target_: disent.dataset.triplets.SupervisedTripletDataset
   k: ${dataset.k}
   n_k: ${dataset.n_k}

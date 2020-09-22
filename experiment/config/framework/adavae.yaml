@@ -5,7 +5,7 @@ module:
   beta: 4
   average_mode: 'gvae'  # gvae or ml-vae
 
-augment:
+dataset_wrapper:
   _target_: disent.dataset.pairs.PairedVariationDataset
   k: ${dataset.k}
   resample_radius: ${dataset.resample_radius}
