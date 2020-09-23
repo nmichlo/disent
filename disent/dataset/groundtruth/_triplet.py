@@ -1,6 +1,7 @@
 import logging
 import numpy as np
-from disent.dataset.groundtruth import GroundTruthDatasetPairs, GroundTruthDataset
+from disent.data.groundtruth.base import GroundTruthData
+from disent.dataset.groundtruth import GroundTruthDatasetPairs
 
 log = logging.getLogger(__name__)
 
@@ -14,57 +15,57 @@ class GroundTruthDatasetTriples(GroundTruthDatasetPairs):
 
     def __init__(
             self,
-            dataset: GroundTruthDataset,
+            ground_truth_data: GroundTruthData,
+            transform=None,
             k=1,
             n_k='uniform',
             resample_radius='inf',
             swap_if_wrong=False,
-            force_different_factors=True,
-            variation_factor_indices=None,
-            return_factors=False,
     ):
         super().__init__(
-            dataset,
+            ground_truth_data=ground_truth_data,
+            transform=transform,
             k=k,
-            resample_radius=resample_radius,
-            force_different_factors=force_different_factors,
-            variation_factor_indices=variation_factor_indices,
-            return_factors=return_factors,
+            resample_radius=resample_radius
         )
-        self.swap_if_wrong = swap_if_wrong
+
         # number of varied factors between pairs
-        self._n_k = self._num_variation_factors if (n_k is None) else n_k
-        # verify k
-        assert isinstance(self._n_k, str) or isinstance(self._n_k, int), f'n_k must be "uniform" or an integer k < n_k <= d, k={self._k}, d={self._num_variation_factors}'
+        self._n_k = self.data.num_factors if (n_k is None) else n_k
+        assert isinstance(self._n_k, str) or isinstance(self._n_k, int), f'n_k must be "uniform" or an integer k < n_k <= d, k={self._k}, d={self.data.num_factors}'
         if isinstance(self._n_k, int):
-            # TODO: relax constraint to <=
             assert self._k < self._n_k, f'n_k must be greater than k, k={self._k}'
-            assert self._n_k <= self._num_variation_factors, f'cannot vary more factors than there exist, k must be <= {self._num_variation_factors}'
+            assert self._n_k <= self.data.num_factors, f'cannot vary more factors than there exist, k must be <= {self.data.num_factors}'
+
+        # swap if the sampled factors are ordered wrong
+        self._swap_metric = 'factors' if swap_if_wrong else None
+        assert self._swap_metric in {None, 'factors', 'manhattan'}
 
     def sample_factors(self, idx):
         # get factors corresponding to index
-        anchor_factors = self._dataset.data.idx_to_pos(idx)
+        anchor_factors = self.data.idx_to_pos(idx)
 
         # get fixed or random k (k is number of factors that differ)
-        p_k = np.random.randint(1, self._num_variation_factors) if (self._k == 'uniform') else self._k
-        n_k = np.random.randint(p_k+1, self._num_variation_factors+1) if (self._n_k == 'uniform') else self._n_k
+        p_k = np.random.randint(1, self.data.num_factors) if (self._k == 'uniform') else self._k
+        n_k = np.random.randint(p_k+1, self.data.num_factors+1) if (self._n_k == 'uniform') else self._n_k
 
-        positive_factors = self._resample_factors(anchor_factors, p_k, self._resample_radius)
-        negative_factors = self._resample_factors(anchor_factors, n_k, self._resample_radius)
+        positive_factors = self.data.resample_radius(anchor_factors, resample_radius=self._resample_radius, distinct=True, num_shared_factors=self.data.num_factors-p_k)
+        negative_factors = self.data.resample_radius(anchor_factors, resample_radius=self._resample_radius, distinct=True, num_shared_factors=self.data.num_factors-n_k)
 
-        if self.swap_if_wrong:
-            # swap if number of shared factors is less for the positive
-            if True:  # self.resample_radius is None:
-                # use the number of factors that have changed.
-                if np.sum(anchor_factors == positive_factors) < np.sum(anchor_factors == negative_factors):
-                    positive_factors, negative_factors = negative_factors, positive_factors
-                    log.warning('Swapped factors based on number of factors')
-            else:
-                # TODO: enable this functionality
-                # use manhattan distance along the factors
-                if np.sum(np.abs(anchor_factors - positive_factors)) < np.sum(np.abs(anchor_factors - negative_factors)):
-                    positive_factors, negative_factors = negative_factors, positive_factors
-                    log.warning('Swapped factors based on Manhattan distance')
+        # swap if number of shared factors is less for the positive
+        if self._swap_metric is not None:
+            pass  # do nothing!
+        elif self._swap_metric == 'factors':
+            # use the number of factors that have changed.
+            if np.sum(anchor_factors == positive_factors) < np.sum(anchor_factors == negative_factors):
+                positive_factors, negative_factors = negative_factors, positive_factors
+                log.warning('Swapped factors based on number of factors')
+        elif self._swap_metric == 'manhattan':
+            # use manhattan distance along the factors
+            if np.sum(np.abs(anchor_factors - positive_factors)) < np.sum(np.abs(anchor_factors - negative_factors)):
+                positive_factors, negative_factors = negative_factors, positive_factors
+                log.warning('Swapped factors based on Manhattan distance')
+        else:
+            raise KeyError
 
         # return observations
         return anchor_factors, positive_factors, negative_factors

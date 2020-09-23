@@ -1,5 +1,3 @@
-import torch
-from PIL import Image
 from torch.utils.data import Dataset
 from disent.data.groundtruth.base import GroundTruthData
 from disent.util import LengthIter
@@ -16,18 +14,17 @@ class GroundTruthDataset(Dataset, LengthIter):
     """
 
     def __init__(self, ground_truth_data: GroundTruthData, transform=None):
+        assert isinstance(ground_truth_data, GroundTruthData), f'{ground_truth_data=} must be an instance of GroundTruthData!'
         self.data = ground_truth_data
-        # transform observation
         self.transform = transform
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, idx):
-        """
-        should return a single observation if an integer index, or
-        an array of observations if indices is an array.
-        """
+        return self._getitem_transformed(idx)
+
+    def _getitem_transformed(self, idx):
         try:
             idx = int(idx)
         except:
@@ -41,7 +38,7 @@ class GroundTruthDataset(Dataset, LengthIter):
 
         return image
 
-    
+
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #

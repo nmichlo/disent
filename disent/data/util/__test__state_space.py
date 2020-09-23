@@ -38,3 +38,13 @@ def test_discrete_state_space_one_to_one():
         idx_1 = states.pos_to_idx(pos_1)
         assert np.all(idx_0 == idx_1)
         assert np.all(pos_0 == pos_1)
+
+
+def test_new_functions():
+    # TODO: convert to propper tests
+    s = StateSpace([2, 4, 6])
+    print(np.max([s.sample_factors((2, 2), factor_indices=[2, 1, 2, 2]) for i in range(100)], axis=0))
+    print(np.max([s.sample_missing_factors([[1, 1], [2, 2]], known_factor_indices=[0, 2]) for i in range(100)], axis=0))
+    print(np.min([s.resample_radius([[0, 1, 2], [0, 0, 0]], resample_radius=1, distinct=True) for i in range(1000)], axis=0).tolist())
+    print(np.max([s.resample_radius([[0, 1, 2], [0, 0, 0]], resample_radius=1, distinct=True) for i in range(1000)], axis=0).tolist())
+
