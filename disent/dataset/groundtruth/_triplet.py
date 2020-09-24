@@ -71,41 +71,37 @@ class GroundTruthDatasetTriples(GroundTruthDatasetPairs):
         return anchor_factors, positive_factors, negative_factors
 
 
-class TripletFactorSampler(object):
+def normalise_range(mins, maxs, sizes):
+    sizes = np.array(sizes)
+    # compute the bounds for each factor
+    mins, maxs = np.broadcast_to(mins, sizes.shape).copy(), np.broadcast_to(maxs, sizes.shape).copy()
+    mins[mins < 0] += sizes[mins < 0] + 1
+    maxs[maxs < 0] += sizes[maxs < 0] + 1
+    # check that min <= max
+    assert np.all(mins <= maxs)
+    # check that everything is in the right range [1, -1]
+    assert np.all(0 <= mins) and np.all(mins <= sizes)
+    assert np.all(0 <= maxs) and np.all(maxs <= sizes)
+    # return merged
+    return mins, maxs
 
-    def __init__(
-            self,
-            num_factors: int,
-            p_range=(1, -2),
-            n_range=(1, -1),
-            n_is_offset=True,
-            share_p=True,
-    ):
+def normalise_range_pair(min_max, sizes):
+    min_max = np.array(min_max)
+    # if not a 2 tuple, repeat. This fixes the min == max.
+    if min_max.shape == ():
+        min_max = min_max.repeat(2)
+    # check final shape
+    assert min_max.shape == (2,)
+    # get values
+    return normalise_range(*min_max, sizes)
+
+
+class TripletFactorSampler(object):
+    def __init__(self, num_factors: int, p_range=(1, -2), n_range=(1, -1), n_is_offset=True, share_p=True):
+        self.num_factors = int(num_factors)
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        assert 1 <= num_factors
-        self.num_factors = num_factors
-        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        p_range = np.array(p_range)
-        n_range = np.array(n_range)
-        # if not a 2 tuple, repeat. This fixes the min == max.
-        if p_range.shape == (): p_range = p_range.repeat(2)
-        if n_range.shape == (): n_range = n_range.repeat(2)
-        # check final shape
-        assert p_range.shape == (2,)
-        assert n_range.shape == (2,)
-        # compute the variability for each factor!
-        p_range[p_range < 0] += num_factors + 1
-        n_range[n_range < 0] += num_factors + 1
-        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        self.p_min, self.p_max = p_range
-        self.n_min, self.n_max = n_range
-        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        # check that min <= max
-        assert self.p_min <= self.p_max
-        assert self.n_min <= self.n_max
-        # check that everything is in the right range [1, -1]
-        assert 0 <= self.p_min and self.p_max <= num_factors
-        assert 0 <= self.n_min and self.n_max <= num_factors
+        self.p_min, self.p_max = normalise_range_pair(p_range, self.num_factors)
+        self.n_min, self.n_max = normalise_range_pair(n_range, self.num_factors)
         # cross factor assertions
         if not n_is_offset:
             assert self.p_min <= self.n_min
@@ -113,27 +109,29 @@ class TripletFactorSampler(object):
         else:
             assert (self.p_max + self.n_min) <= num_factors
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        self.n_is_offset = n_is_offset
-        self.share_p = share_p
+        self.n_is_offset = bool(n_is_offset)
+        self.share_p = bool(share_p)
 
     def sample_num_differing(self):
-        p_num = np.random.randint(self.p_min, self.p_max + 1)
         if self.n_is_offset:
             # Sample so that [n_min, n_max] is offset from p_num
+            p_num = np.random.randint(self.p_min, self.p_max + 1)
             n_num = np.random.randint(p_num + self.n_min, min(p_num + self.n_max, self.num_factors) + 1)
         else:
             # Sample [p_min, p_max] and [n_min, n_max] individually
+            p_num = np.random.randint(self.p_min, self.p_max + 1)
             n_num = np.random.randint(max(p_num, self.n_min), self.n_max + 1)
+
         return p_num, n_num
 
     def sample_shared_indices(self):
-        p_k, n_k = self.sample_num_differing()
-        p_num_shared = self.num_factors - p_k
-        n_num_shared = self.num_factors - n_k
+        p_num, n_num = self.sample_num_differing()
+        p_num_shared = self.num_factors - p_num
+        n_num_shared = self.num_factors - n_num
         # sample
         if self.share_p:
             p_shared_indices = np.random.choice(self.num_factors, size=p_num_shared, replace=False)
-            n_shared_indices = p_shared_indices[:p_num_shared]
+            n_shared_indices = p_shared_indices[:n_num_shared]
         else:
             p_shared_indices = np.random.choice(self.num_factors, size=p_num_shared, replace=False)
             n_shared_indices = np.random.choice(self.num_factors, size=n_num_shared, replace=False)
