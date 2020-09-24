@@ -22,7 +22,7 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
             p_k_range=(1, -2),
             n_k_range=(1, -1),
             n_k_is_offset=True,
-            share_p=True,
+            n_k_is_shared=True,
             # radius sampling
             p_radius_range=(1, -2),
             n_radius_range=(2, -1),
@@ -36,23 +36,23 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         # DIFFERING FACTORS
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        self.p_min, self.p_max = normalise_range_pair(p_k_range, self.data.num_factors)
-        self.n_min, self.n_max = normalise_range_pair(n_k_range, self.data.num_factors)
+        self.p_k_min, self.p_k_max = normalise_range_pair(p_k_range, self.data.num_factors)
+        self.n_k_min, self.n_k_max = normalise_range_pair(n_k_range, self.data.num_factors)
         self.n_k_is_offset = n_k_is_offset
-        self.share_p = share_p
+        self.n_k_is_shared = n_k_is_shared
         # cross factor assertions
         if not n_k_is_offset:
-            assert self.p_min <= self.n_min
-            assert self.p_max <= self.n_max
+            assert self.p_k_min <= self.n_k_min
+            assert self.p_k_max <= self.n_k_max
         else:
-            assert (self.p_max + self.n_min) <= self.data.num_factors
+            assert (self.p_k_max + self.n_k_min) <= self.data.num_factors
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         # RADIUS SAMPLING
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         self.p_radius_min, self.p_radius_max = normalise_range_pair(p_radius_range, self.data.factor_sizes)
         self.n_radius_min, self.n_radius_max = normalise_range_pair(n_radius_range, self.data.factor_sizes)
-        assert np.all(self.p_min <= self.n_min)
-        assert np.all(self.p_max <= self.n_max)
+        assert np.all(self.p_radius_min <= self.p_radius_max)
+        assert np.all(self.n_radius_min <= self.n_radius_max)
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         # OTHER
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
@@ -79,19 +79,19 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         if self.n_k_is_offset:
             # Sample so that [n_min, n_max] is offset from p_num
-            p_num_k = np.random.randint(self.p_min, self.p_max + 1)
-            n_num_k = np.random.randint(p_num_k + self.n_min, min(p_num_k + self.n_max, self.data.num_factors) + 1)
+            p_k = np.random.randint(self.p_k_min, self.p_k_max + 1)
+            n_k = np.random.randint(p_k + self.n_k_min, min(p_k + self.n_k_max, self.data.num_factors) + 1)
         else:
             # Sample [p_min, p_max] and [n_min, n_max] individually
-            p_num_k = np.random.randint(self.p_min, self.p_max + 1)
-            n_num_k = np.random.randint(max(p_num_k, self.n_min), self.n_max + 1)
+            p_k = np.random.randint(self.p_k_min, self.p_k_max + 1)
+            n_k = np.random.randint(max(p_k, self.n_k_min), self.n_k_max + 1)
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         # SHARED FACTOR INDICES
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        p_num_shared = self.data.num_factors - p_num_k
-        n_num_shared = self.data.num_factors - n_num_k
+        p_num_shared = self.data.num_factors - p_k
+        n_num_shared = self.data.num_factors - n_k
         # sample
-        if self.share_p:
+        if self.n_k_is_shared:
             p_shared_indices = np.random.choice(self.data.num_factors, size=p_num_shared, replace=False)
             n_shared_indices = p_shared_indices[:n_num_shared]
         else:
@@ -101,8 +101,10 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
         # RESAMPLE FACTORS
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         anchor_factors = self.data.idx_to_pos(idx)
-        positive_factors = self.data.resample_radius(anchor_factors, resample_radius=self._p_radius, distinct=True, shared_factor_indices=p_shared_indices)
-        negative_factors = self.data.resample_radius(anchor_factors, resample_radius=self._n_radius, distinct=True, shared_factor_indices=n_shared_indices)
+        positive_factors = sample_radius(anchor_factors, 0, self.data.factor_sizes, self.p_radius_min, self.p_radius_max)
+        negative_factors = sample_radius(anchor_factors, 0, self.data.factor_sizes, self.n_radius_min, self.n_radius_max)
+        positive_factors[p_shared_indices] = anchor_factors[p_shared_indices]
+        negative_factors[n_shared_indices] = negative_factors[n_shared_indices]
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         # SWAP IF +VE FURTHER THAN -VE
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
@@ -167,6 +169,41 @@ def normalise_range_pair(min_max, sizes):
     # get values
     return normalise_range(*min_max, sizes)
 
+
+def randint2(a_low, a_high, b_low, b_high, size=None):
+    """
+    Like np.random.randint, but supports two ranges of values.
+    Samples with equal probability from both ranges.
+    - a: [a_low, a_high) -> including a_low, excluding a_high!
+    - b: [b_low, b_high) -> including b_low, excluding b_high!
+    """
+    # convert
+    a_low, a_high = np.array(a_low), np.array(a_high)
+    b_low, b_high = np.array(b_low), np.array(b_high)
+    # checks
+    assert np.all(a_low <= a_high)
+    assert np.all(b_low <= b_high)
+    assert np.all(a_high <= b_low)
+    # compute
+    da = a_high - a_low
+    db = b_high - b_low
+    d = da + db
+    assert np.all(d > 0), 'r'
+    # sampled
+    offset = np.random.randint(0, d, size=size)
+    offset += (da <= offset) * (b_low - a_high)
+    return a_low + offset
+
+
+def sample_radius(factors, factor_mins, factor_maxs, radius_mins, radius_maxs):
+    factors = np.array(factors)
+    return randint2(
+        a_low=np.maximum(factors - radius_maxs, factor_mins),
+        a_high=factors - radius_mins + 1,
+        # if radius_mins == 0, then the ranges overlap, so we must shift one of them.
+        b_low=factors + radius_mins + (radius_mins == 0),
+        b_high=np.minimum(factors + radius_maxs + 1, factor_maxs),
+    )
 
 # ========================================================================= #
 # END                                                                       #
