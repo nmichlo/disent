@@ -21,50 +21,26 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
             # factor sampling
             p_k_range=(1, -2),
             n_k_range=(1, -1),
-            n_k_is_offset=True,
+            n_k_sample_mode='offset',
             n_k_is_shared=True,
             # radius sampling
             p_radius_range=(1, -2),
-            n_radius_range=(2, -1),
+            n_radius_range=(1, -1),
+            n_radius_sample_mode='offset',
             # final checks
             swap_metric=None,
     ):
-        super().__init__(
-            ground_truth_data=ground_truth_data,
-            transform=transform,
-        )
-        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+        super().__init__(ground_truth_data=ground_truth_data, transform=transform)
         # DIFFERING FACTORS
-        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        self.p_k_min, self.p_k_max = normalise_range_pair(p_k_range, self.data.num_factors)
-        self.n_k_min, self.n_k_max = normalise_range_pair(n_k_range, self.data.num_factors)
-        self.n_k_is_offset = n_k_is_offset
+        self.n_k_sample_mode = n_k_sample_mode
         self.n_k_is_shared = n_k_is_shared
-        # cross factor assertions
-        if not n_k_is_offset:
-            assert self.p_k_min <= self.n_k_min
-            assert self.p_k_max <= self.n_k_max
-        else:
-            assert (self.p_k_max + self.n_k_min) <= self.data.num_factors
-        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+        self.p_k_min, self.p_k_max, self.n_k_min, self.n_k_max = self._min_max_from_range(p_range=p_k_range, n_range=n_k_range, max_values=self.data.num_factors, n_is_offset=self.n_k_is_offset)
         # RADIUS SAMPLING
-        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        self.p_radius_min, self.p_radius_max = normalise_range_pair(p_radius_range, self.data.factor_sizes)
-        self.n_radius_min, self.n_radius_max = normalise_range_pair(n_radius_range, self.data.factor_sizes)
-        assert np.all(self.p_radius_min <= self.p_radius_max)
-        assert np.all(self.n_radius_min <= self.n_radius_max)
-        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        # OTHER
-        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        # # if _n_radius should be offset from _p_radius, rather than index 0
-        # if n_resample_is_offset:
-        #     raise NotImplemented('n_resample_is_offset has not yet been implemented')
-        # # values
-        # self._p_radius = p_radius_range
-        # self._n_radius = n_radius_range
-        # swap if the sampled factors are ordered wrong
+        self.n_radius_sample_mode = n_radius_sample_mode
+        self.p_radius_min, self.p_radius_max, self.n_radius_min, self.n_radius_max = self._min_max_from_range(p_range=p_radius_range, n_range=n_radius_range, max_values=self.data.factor_sizes, n_is_offset=self.n_radius_is_offset)
+        # SWAP: if negative is not further than the positive
         self._swap_metric = swap_metric
-        assert swap_metric in {None, 'factors', 'manhattan', 'manhattan_ratio'}
+        assert swap_metric in {None, 'factors', 'manhattan', 'manhattan_ratio', 'euclidean', 'euclidean_ratio'}
 
     def __getitem__(self, idx):
         f0, f1, f2 = self.sample_factors(idx)
@@ -74,44 +50,75 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
         return obs0, obs1, obs2
 
     def sample_factors(self, idx):
-        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        # NUM DIFFERING FACTORS
-        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        if self.n_k_is_offset:
-            # Sample so that [n_min, n_max] is offset from p_num
-            p_k = np.random.randint(self.p_k_min, self.p_k_max + 1)
-            n_k = np.random.randint(p_k + self.n_k_min, min(p_k + self.n_k_max, self.data.num_factors) + 1)
-        else:
-            # Sample [p_min, p_max] and [n_min, n_max] individually
-            p_k = np.random.randint(self.p_k_min, self.p_k_max + 1)
-            n_k = np.random.randint(max(p_k, self.n_k_min), self.n_k_max + 1)
-        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        # SHARED FACTOR INDICES
-        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        p_num_shared = self.data.num_factors - p_k
-        n_num_shared = self.data.num_factors - n_k
-        # sample
-        if self.n_k_is_shared:
-            p_shared_indices = np.random.choice(self.data.num_factors, size=p_num_shared, replace=False)
-            n_shared_indices = p_shared_indices[:n_num_shared]
-        else:
-            p_shared_indices = np.random.choice(self.data.num_factors, size=p_num_shared, replace=False)
-            n_shared_indices = np.random.choice(self.data.num_factors, size=n_num_shared, replace=False)
-        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        # RESAMPLE FACTORS
-        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+        # SAMPLE FACTOR INDICES
+        p_k, n_k = self._sample_num_factors()
+        p_shared_indices, n_shared_indices = self._sample_shared_indices(p_k, n_k)
+        # SAMPLE FACTORS - sample, resample and replace shared factors with originals
         anchor_factors = self.data.idx_to_pos(idx)
-        positive_factors = sample_radius(anchor_factors, 0, self.data.factor_sizes, self.p_radius_min, self.p_radius_max)
-        negative_factors = sample_radius(anchor_factors, 0, self.data.factor_sizes, self.n_radius_min, self.n_radius_max)
+        positive_factors, negative_factors = self._resample_factors(anchor_factors)
         positive_factors[p_shared_indices] = anchor_factors[p_shared_indices]
         negative_factors[n_shared_indices] = negative_factors[n_shared_indices]
-        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         # SWAP IF +VE FURTHER THAN -VE
-        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         if self._swap_metric is not None:
             positive_factors, negative_factors = self._swap_factors(anchor_factors, positive_factors, negative_factors)
-        # return observations
         return anchor_factors, positive_factors, negative_factors
+
+    # --------------------------------------------------------------------- #
+    # HELPER                                                                #
+    # --------------------------------------------------------------------- #
+
+    def _min_max_from_range(self, p_range, n_range, max_values, n_is_offset):
+        p_min, p_max = normalise_range_pair(p_range, max_values)
+        n_min, n_max = normalise_range_pair(n_range, max_values)
+        # cross factor assertions
+        if not n_is_offset:
+            assert np.all(p_min < n_min)
+            assert np.all(p_max <= n_max)
+        else:
+            assert np.all((p_max + n_min) <= max_values)
+        return p_min, p_max, n_min, n_max
+
+    def _sample_num_factors(self):
+        p_k = np.random.randint(self.p_k_min, self.p_k_max + 1)
+        # sample for negative
+        if self.n_k_sample_mode == 'offset':
+            n_k = np.random.randint(p_k + self.n_k_min, min(p_k + self.n_k_max, self.data.num_factors) + 1)
+        elif self.n_k_sample_mode == 'normal':
+            n_k = np.random.randint(max(p_k, self.n_k_min), self.n_k_max + 1)
+        elif self.n_radius_sample_mode == 'unchecked':
+            n_k = np.random.randint(self.n_k_min, self.n_k_max + 1)
+        else:
+            raise KeyError
+        # we're done!
+        return p_k, n_k
+
+    def _resample_factors(self, anchor_factors):
+        positive_factors = sample_radius(anchor_factors, low=0, high=self.data.factor_sizes, r_min=self.p_radius_min, r_max=self.p_radius_max)
+        # sample for negative
+        if self.n_radius_sample_mode == 'offset':
+            sampled_radius = np.abs(anchor_factors - positive_factors)
+            n_radius_min = sampled_radius + self.n_radius_min
+            n_radius_max = sampled_radius + self.n_radius_max
+            negative_factors = sample_radius(anchor_factors, low=0, high=self.data.factor_sizes, r_min=n_radius_min, r_max=n_radius_max)
+        elif self.n_radius_sample_mode == 'normal':
+            n_radius_min = np.minimum(np.abs(anchor_factors - positive_factors), self.n_radius_min)
+            negative_factors = sample_radius(anchor_factors, low=0, high=self.data.factor_sizes, r_min=n_radius_min, r_max=self.n_radius_max)
+        elif self.n_radius_sample_mode == 'unchecked':
+            negative_factors = sample_radius(anchor_factors, low=0, high=self.data.factor_sizes, r_min=self.n_radius_min, r_max=self.n_radius_max)
+        else:
+            raise KeyError
+        # we're done!
+        return positive_factors, negative_factors
+
+    def _sample_shared_indices(self, p_k, n_k):
+        p_shared_indices = np.random.choice(self.data.num_factors, size=self.data.num_factors-p_k, replace=False)
+        # sample for negative
+        if self.n_k_is_shared:
+            n_shared_indices = p_shared_indices[:self.data.num_factors-n_k]
+        else:
+            n_shared_indices = np.random.choice(self.data.num_factors, size=self.data.num_factors-n_k, replace=False)
+        # we're done!
+        return p_shared_indices, n_shared_indices
 
     def _swap_factors(self, anchor_factors, positive_factors, negative_factors):
         if self._swap_metric == 'factors':
@@ -195,15 +202,24 @@ def randint2(a_low, a_high, b_low, b_high, size=None):
     return a_low + offset
 
 
-def sample_radius(factors, factor_mins, factor_maxs, radius_mins, radius_maxs):
-    factors = np.array(factors)
+def sample_radius(value, low, high, r_min, r_max):
+    """
+    Sample around the given value (low <= value < high),
+    the resampled value will lie in th same range.
+    - sampling occurs in a radius around the value
+    """
+    value = np.array(value)
+    assert np.all(low <= value)
+    assert np.all(value < high)
+    # sample for new value
     return randint2(
-        a_low=np.maximum(factors - radius_maxs, factor_mins),
-        a_high=factors - radius_mins + 1,
-        # if radius_mins == 0, then the ranges overlap, so we must shift one of them.
-        b_low=factors + radius_mins + (radius_mins == 0),
-        b_high=np.minimum(factors + radius_maxs + 1, factor_maxs),
+        a_low=np.maximum(value - r_max, low),
+        a_high=value - r_min + 1,
+        # if r_min == 0, then the ranges overlap, so we must shift one of them.
+        b_low=value + r_min + (r_min == 0),
+        b_high=np.minimum(value + r_max, high),
     )
+
 
 # ========================================================================= #
 # END                                                                       #
