@@ -3,6 +3,7 @@ import numpy as np
 from disent.data.groundtruth.base import GroundTruthData
 from disent.dataset.groundtruth import GroundTruthDataset
 
+
 log = logging.getLogger(__name__)
 
 
@@ -115,10 +116,19 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
         # we're done!
         return p_k, n_k
 
+    def _sample_shared_indices(self, p_k, n_k):
+        p_shared_indices = np.random.choice(self.data.num_factors, size=self.data.num_factors-p_k, replace=False)
+        # sample for negative
+        if self.n_k_is_shared:
+            n_shared_indices = p_shared_indices[:self.data.num_factors-n_k]
+        else:
+            n_shared_indices = np.random.choice(self.data.num_factors, size=self.data.num_factors-n_k, replace=False)
+        # we're done!
+        return p_shared_indices, n_shared_indices
+
     def _resample_factors(self, anchor_factors):
-        high = np.array(self.data.factor_sizes) + 1
         # sample positive
-        positive_factors = sample_radius(anchor_factors, low=0, high=high, r_low=self.p_radius_min, r_high=self.p_radius_max + 1)
+        positive_factors = sample_radius(anchor_factors, low=0, high=self.data.factor_sizes, r_low=self.p_radius_min, r_high=self.p_radius_max + 1)
         # negative arguments
         if self.n_radius_sample_mode == 'offset':
             sampled_radius = np.abs(anchor_factors - positive_factors)
@@ -134,19 +144,9 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
         else:
             raise KeyError(f'Unknown mode: {self.n_radius_sample_mode=}')
         # sample negative
-        negative_factors = sample_radius(anchor_factors, low=0, high=high, r_low=n_r_low, r_high=n_r_high)
+        negative_factors = sample_radius(anchor_factors, low=0, high=self.data.factor_sizes, r_low=n_r_low, r_high=n_r_high)
         # we're done!
         return positive_factors, negative_factors
-
-    def _sample_shared_indices(self, p_k, n_k):
-        p_shared_indices = np.random.choice(self.data.num_factors, size=self.data.num_factors-p_k, replace=False)
-        # sample for negative
-        if self.n_k_is_shared:
-            n_shared_indices = p_shared_indices[:self.data.num_factors-n_k]
-        else:
-            n_shared_indices = np.random.choice(self.data.num_factors, size=self.data.num_factors-n_k, replace=False)
-        # we're done!
-        return p_shared_indices, n_shared_indices
 
     def _swap_factors(self, anchor_factors, positive_factors, negative_factors):
         if self._swap_metric == 'factors':
@@ -156,14 +156,14 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
             p_dist = np.sum(np.abs(anchor_factors - positive_factors))
             n_dist = np.sum(np.abs(anchor_factors - negative_factors))
         elif self._swap_metric == 'manhattan_ratio':
-            p_dist = np.sum(np.abs((anchor_factors - positive_factors) / self.data.factor_sizes))
-            n_dist = np.sum(np.abs((anchor_factors - negative_factors) / self.data.factor_sizes))
+            p_dist = np.sum(np.abs((anchor_factors - positive_factors) / np.subtract(self.data.factor_sizes, 1)))
+            n_dist = np.sum(np.abs((anchor_factors - negative_factors) / np.subtract(self.data.factor_sizes, 1)))
         elif self._swap_metric == 'euclidean':
             p_dist = np.linalg.norm(anchor_factors - positive_factors)
             n_dist = np.linalg.norm(anchor_factors - negative_factors)
         elif self._swap_metric == 'euclidean_ratio':
-            p_dist = np.linalg.norm((anchor_factors - positive_factors) / self.data.factor_sizes)
-            n_dist = np.linalg.norm((anchor_factors - negative_factors) / self.data.factor_sizes)
+            p_dist = np.linalg.norm((anchor_factors - positive_factors) / np.subtract(self.data.factor_sizes, 1))
+            n_dist = np.linalg.norm((anchor_factors - negative_factors) / np.subtract(self.data.factor_sizes, 1))
         else:
             raise KeyError
         # perform swap
@@ -211,6 +211,9 @@ def normalise_range_pair(min_max, sizes):
     assert min_max.shape == (2,)
     # get values
     return normalise_range(*min_max, sizes)
+
+
+# TODO: these functions should be moved into the state_space or at least a helper class!
 
 
 def randint2(a_low, a_high, b_low, b_high, size=None):
@@ -281,7 +284,7 @@ def sample_radius(value, low, high, r_low, r_high):
     #     n_k_sample_mode='unchecked',
     #     n_k_is_shared=True,
     #     # radius sampling
-    #     p_radius_range=(1, 2),
+    #     p_radius_range=(1, 1),
     #     n_radius_range=(1, -1),
     #     n_radius_sample_mode='offset',
     #     # final checks
@@ -311,7 +314,34 @@ def sample_radius(value, low, high, r_low, r_high):
     # print(dataset.data.factor_sizes)
     # for k, v in stats.items():
     #     print(f'{k}: {np.around(np.mean(v), 3)} ± {np.around(conf(v, 0.95), 3)}')
-
+    #
+    # # check that resample radius is working correctly!
+    # dataset = GroundTruthDatasetTriples(
+    #     XYMultiGridData(1, 4),
+    #     # factor sampling
+    #     p_k_range=(1, 1),
+    #     n_k_range=(1, 1),
+    #     n_k_sample_mode='unchecked',
+    #     n_k_is_shared=True,
+    #     # radius sampling
+    #     p_radius_range=(1, 1),
+    #     n_radius_range=(1, 1),
+    #     n_radius_sample_mode='offset',
+    #     # final checks
+    #     swap_metric=None,
+    # )
+    #
+    # for pair in dataset:
+    #     obs0, _, obs1 = np.array(pair[0], dtype='int'), np.array(pair[1], dtype='int'), np.array(pair[2], dtype='int')
+    #     # CHECKS
+    #     diff = np.abs(obs1 - obs0)
+    #     diff_coords = np.array(np.where(diff > 0)).T
+    #     assert len(diff_coords) == 2  # check max changes
+    #     dist = np.abs(diff_coords[0] - diff_coords[1])
+    #     assert np.sum(dist > 0) == 1  # check max changes
+    #     assert np.max(dist) == 2      # check radius
+    #     # INFO
+    #     print(concat_lines(*[((obs > 0) * [1, 2, 4]).sum(axis=-1) for obs in (obs0, obs1)]), '\n')
 
     # import time
     # t = time.time_ns()
