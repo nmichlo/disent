@@ -29,7 +29,7 @@ Based on the paper https://arxiv.org/abs/1811.00007.
 import os
 import matplotlib.pyplot as plt  # pylint: disable=g-import-not-at-top
 import numpy as np
-from disent.dataset.util.in_out import ensure_dir_exists
+from disent.data.util.in_out import ensure_dir_exists
 # from disent.evaluation.metrics.irs import scalable_disentanglement_score
 
 # TODO: FIX CODE

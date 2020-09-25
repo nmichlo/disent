@@ -4,8 +4,8 @@ from typing import List, Tuple
 import h5py
 import torch
 import numpy as np
-from disent.dataset.util.in_out import basename_from_url, download_file, ensure_dir_exists
-from disent.dataset.util.state_space import StateSpace
+from disent.data.util.in_out import basename_from_url, download_file, ensure_dir_exists
+from disent.data.util.state_space import StateSpace
 
 log = logging.getLogger(__name__)
 
@@ -202,7 +202,7 @@ class Hdf5PreprocessedGroundTruthData(PreprocessedDownloadableGroundTruthData):
 
     def _preprocess_dataset(self, path_src, path_dst):
         import os
-        from disent.dataset.util.hdf5 import hdf5_resave_dataset, hdf5_test_entries_per_second, bytes_to_human
+        from disent.data.util.hdf5 import hdf5_resave_dataset, hdf5_test_entries_per_second, bytes_to_human
 
         # resave datasets
         with h5py.File(path_src, 'r') as inp_data:

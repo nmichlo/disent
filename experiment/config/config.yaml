@@ -28,10 +28,16 @@ dataset:
   batch_size: 256
   data_dir: '/tmp/${env:USER}/datasets'
   try_in_memory: FALSE
-  # varying factors (if applicable for pairs and triplets)
-  k: 1
-  n_k: 'uniform'
-  resample_radius: 'inf'  # resampling factors along a single dimension, recommend: 1 or 'inf'.
+  # varying factors (if applicable for pairs)
+  # - sample in range: [min, max]
+  k: [1, 1]
+  k_radius: [1, 1]
+  # varying factors (if applicable for triplets)
+  # - sample in range: [min, max]
+  n_k: [0, 0]
+  n_k_mode: 'offset'
+  n_k_radius: [1, -1]
+  n_k_radius_mode: 'offset'
 
 optimizer:
   lr: 1e-3
