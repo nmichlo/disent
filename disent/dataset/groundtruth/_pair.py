@@ -95,31 +95,30 @@ class GroundTruthDatasetPairs(GroundTruthDataset):
         return positive_factors
 
 
-
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
 
 
-if __name__ == '__main__':
-    from disent.data.groundtruth import XYMultiGridData
-    from disent.util import concat_lines
-
-    # check that resample radius is working correctly!
-    dataset = GroundTruthDatasetPairs(
-        XYMultiGridData(1, 4),
-        p_k_range=(1, 1),
-        p_radius_range=(1, 1)
-    )
-
-    for pair in dataset:
-        obs0, obs1 = np.array(pair[0], dtype='int'), np.array(pair[1], dtype='int')
-        # CHECKS
-        diff = np.abs(obs1 - obs0)
-        diff_coords = np.array(np.where(diff > 0)).T
-        assert len(diff_coords) == 2  # check max changes
-        dist = np.abs(diff_coords[0] - diff_coords[1])
-        assert np.sum(dist > 0) == 1  # check max changes
-        assert np.max(dist) == 1      # check radius
-        # INFO
-        print(concat_lines(*[((obs > 0) * [1, 2, 4]).sum(axis=-1) for obs in (obs0, obs1)]), '\n')
+# if __name__ == '__main__':
+#     from disent.data.groundtruth import XYMultiGridData
+#     from disent.util import concat_lines
+#
+#     # check that resample radius is working correctly!
+#     dataset = GroundTruthDatasetPairs(
+#         XYMultiGridData(1, 4),
+#         p_k_range=(1, 1),
+#         p_radius_range=(1, 1)
+#     )
+#
+#     for pair in dataset:
+#         obs0, obs1 = np.array(pair[0], dtype='int'), np.array(pair[1], dtype='int')
+#         # CHECKS
+#         diff = np.abs(obs1 - obs0)
+#         diff_coords = np.array(np.where(diff > 0)).T
+#         assert len(diff_coords) == 2  # check max changes
+#         dist = np.abs(diff_coords[0] - diff_coords[1])
+#         assert np.sum(dist > 0) == 1  # check max changes
+#         assert np.max(dist) == 1      # check radius
+#         # INFO
+#         print(concat_lines(*[((obs > 0) * [1, 2, 4]).sum(axis=-1) for obs in (obs0, obs1)]), '\n')

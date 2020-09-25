@@ -54,8 +54,11 @@ class HydraDataModule(pl.LightningDataModule):
         # wrap the dataset if the framework requires it
         # some datasets need triplets, pairs, etc.
         self.dataset_train = self.dataset
-        if 'dataset_wrapper' in self.hparams.framework:
-            self.dataset_train = hydra.utils.instantiate(self.hparams.framework.dataset_wrapper, self.dataset)
+        self.dataset_train = hydra.utils.instantiate(
+            self.hparams.framework.data_wrapper,
+            ground_truth_dataset=self.dataset,
+            transform=None,  # TODO: add transforms!
+        )
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Training Dataset:

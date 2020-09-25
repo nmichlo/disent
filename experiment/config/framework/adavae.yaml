@@ -5,7 +5,9 @@ module:
   beta: 4
   average_mode: 'gvae'  # gvae or ml-vae
 
-dataset_wrapper:
+data_wrapper:
   _target_: disent.dataset.groundtruth.GroundTruthDatasetPairs
-  k: ${dataset.k}
-  resample_radius: ${dataset.resample_radius}
+  # factor sampling
+  p_k_range: {dataset.k}
+  # radius sampling
+  p_radius_range: ${dataset.k_radius}
