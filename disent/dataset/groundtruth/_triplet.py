@@ -33,15 +33,27 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
         super().__init__(ground_truth_data=ground_truth_data, transform=transform)
         # checks
         assert swap_metric in {None, 'factors', 'manhattan', 'manhattan_ratio', 'euclidean', 'euclidean_ratio'}
-        assert n_k_sample_mode in {'offset', 'normal', 'unchecked'}
-        assert n_radius_sample_mode in {'offset', 'normal', 'unchecked'}
+        assert n_k_sample_mode in {'offset', 'bounded_below', 'random'}
+        assert n_radius_sample_mode in {'offset', 'bounded_below', 'random'}
         # DIFFERING FACTORS
         self.n_k_sample_mode = n_k_sample_mode
         self.n_k_is_shared = n_k_is_shared
-        self.p_k_min, self.p_k_max, self.n_k_min, self.n_k_max = self._min_max_from_range(p_range=p_k_range, n_range=n_k_range, max_values=self.data.num_factors, n_sample_mode=n_k_sample_mode, is_radius=False)
+        self.p_k_min, self.p_k_max, self.n_k_min, self.n_k_max = self._min_max_from_range(
+            p_range=p_k_range,
+            n_range=n_k_range,
+            max_values=self.data.num_factors,
+            n_sample_mode=n_k_sample_mode,
+            is_radius=False
+        )
         # RADIUS SAMPLING
         self.n_radius_sample_mode = n_radius_sample_mode
-        self.p_radius_min, self.p_radius_max, self.n_radius_min, self.n_radius_max = self._min_max_from_range(p_range=p_radius_range, n_range=n_radius_range, max_values=self.data.factor_sizes, n_sample_mode=n_radius_sample_mode, is_radius=True)
+        self.p_radius_min, self.p_radius_max, self.n_radius_min, self.n_radius_max = self._min_max_from_range(
+            p_range=p_radius_range,
+            n_range=n_radius_range,
+            max_values=self.data.factor_sizes,
+            n_sample_mode=n_radius_sample_mode,
+            is_radius=True
+        )
         # SWAP: if negative is not further than the positive
         self._swap_metric = swap_metric
 
@@ -80,6 +92,7 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
         # cross factor assertions
         if n_sample_mode == 'offset':
             if is_radius:
+                # TODO: radius for -ve values should be handled when sampling, not here.
                 if not np.all((p_max + n_min) <= np.floor_divide(max_values, 2)):
                     raise FactorSizeError(f'Factor dimensions are too small for given offset radius:'
                                           f'\n\tUnsatisfied: p_max + offset_min <= max_size // 2'
@@ -107,9 +120,9 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
         # sample for negative
         if self.n_k_sample_mode == 'offset':
             n_k = np.random.randint(p_k + self.n_k_min, min(p_k + self.n_k_max, self.data.num_factors) + 1)
-        elif self.n_k_sample_mode == 'normal':
+        elif self.n_k_sample_mode == 'bounded_below':
             n_k = np.random.randint(max(p_k, self.n_k_min), self.n_k_max + 1)
-        elif self.n_k_sample_mode == 'unchecked':
+        elif self.n_k_sample_mode == 'random':
             n_k = np.random.randint(self.n_k_min, self.n_k_max + 1)
         else:
             raise KeyError(f'Unknown mode: {self.n_k_sample_mode=}')
@@ -134,11 +147,11 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
             sampled_radius = np.abs(anchor_factors - positive_factors)
             n_r_low = sampled_radius + self.n_radius_min
             n_r_high = sampled_radius + self.n_radius_max + 1
-        elif self.n_radius_sample_mode == 'normal':
+        elif self.n_radius_sample_mode == 'bounded_below':
             sampled_radius = np.abs(anchor_factors - positive_factors)
             n_r_low = np.maximum(sampled_radius, self.n_radius_min)
             n_r_high = self.n_radius_max + 1
-        elif self.n_radius_sample_mode == 'unchecked':
+        elif self.n_radius_sample_mode == 'random':
             n_r_low = self.n_radius_min
             n_r_high = self.n_radius_max + 1
         else:
@@ -281,7 +294,7 @@ def sample_radius(value, low, high, r_low, r_high):
     #     # factor sampling
     #     p_k_range=(1, 1),
     #     n_k_range=(1, 1),
-    #     n_k_sample_mode='unchecked',
+    #     n_k_sample_mode='random',
     #     n_k_is_shared=True,
     #     # radius sampling
     #     p_radius_range=(1, 1),
@@ -321,7 +334,7 @@ def sample_radius(value, low, high, r_low, r_high):
     #     # factor sampling
     #     p_k_range=(1, 1),
     #     n_k_range=(1, 1),
-    #     n_k_sample_mode='unchecked',
+    #     n_k_sample_mode='random',
     #     n_k_is_shared=True,
     #     # radius sampling
     #     p_radius_range=(1, 1),

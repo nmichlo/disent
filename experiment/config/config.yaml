@@ -61,10 +61,9 @@ logging:
     group: null
     tags:
       - '${framework.name}'
-      - '${dataset.name}-${dataset.data.grid_spacing}:${dataset.resample_radius}'
+      - '${dataset.name}'
       - '${optimizer.name}'
       - '${model.name}'
-      - '1-square'
 
 callbacks:
   progress:
