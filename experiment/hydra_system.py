@@ -16,6 +16,7 @@ from disent.util import make_box_str
 
 from experiment.util.callbacks import VaeDisentanglementLoggingCallback, VaeLatentCycleLoggingCallback, LoggerProgressCallback
 from experiment.util.callbacks.callbacks_vae import VaeLatentCorrelationLoggingCallback
+from experiment.util.hydra_utils import instantiate_recursive
 
 log = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ class HydraDataModule(pl.LightningDataModule):
     def __init__(self, hparams: DictConfig):
         super().__init__()
         self.hparams = hparams
+        self.data = None
         self.dataset = None
         self.dataset_train = None
 
@@ -43,21 +45,24 @@ class HydraDataModule(pl.LightningDataModule):
         hydra.utils.instantiate(data)
 
     def setup(self, stage=None) -> None:
+        # ground truth data
+        self.data = hydra.utils.instantiate(self.hparams.dataset.data)
         # single observations
         self.dataset = GroundTruthDataset(
-            ground_truth_data=hydra.utils.instantiate(self.hparams.dataset.data),
-            transform=torchvision.transforms.Compose([
-                hydra.utils.instantiate(transform_cls)
-                for transform_cls in self.hparams.dataset.transforms
-            ])
+            ground_truth_data=self.data,
+            # ground truth data
+            transform=instantiate_recursive(self.hparams.dataset.transform)
         )
-        # wrap the dataset if the framework requires it
+        # wrap the data for the framework
         # some datasets need triplets, pairs, etc.
-        self.dataset_train = self.dataset
         self.dataset_train = hydra.utils.instantiate(
             self.hparams.framework.data_wrapper,
-            ground_truth_dataset=self.dataset,
-            transform=None,  # TODO: add transforms!
+            ground_truth_data=self.data,
+            # augmentations
+            transform=torchvision.transforms.Compose([
+                self.dataset.transform,
+                instantiate_recursive(self.hparams.augment.transform)
+            ]),
         )
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #

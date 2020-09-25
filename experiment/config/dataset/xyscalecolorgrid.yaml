@@ -9,7 +9,9 @@ data:
   square_size_spacing: 2
   rgb: TRUE
   palette: 'colors'
-transforms:
-  - _target_: torchvision.transforms.ToPILImage
-  - _target_: torchvision.transforms.ToTensor
+transform:
+  _target_: torchvision.transforms.Compose
+  transforms:
+    - _target_: torchvision.transforms.ToPILImage
+    - _target_: torchvision.transforms.ToTensor
 x_shape: [3, 64, 64]

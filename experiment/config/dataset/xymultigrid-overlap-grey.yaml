@@ -7,9 +7,11 @@ data:
   grid_spacing: 4
   num_squares: 3
   rgb: FALSE
-transforms:
-  - _target_: torchvision.transforms.ToPILImage
-  - _target_: torchvision.transforms.ToTensor
+transform:
+  _target_: torchvision.transforms.Compose
+  transforms:
+    - _target_: torchvision.transforms.ToPILImage
+    - _target_: torchvision.transforms.ToTensor
 x_shape: [3, 64, 64]
 # CURRENT:     (floor((64-8) / 4) + 1) ** 6 == 11390625 // 256 = 44494 batches per epoch | overlap by half
 # ALTERNATIVE: (floor((64-14) / 7) + 1) ** 6 == 262144  // 256 = 1024 batches per epoch

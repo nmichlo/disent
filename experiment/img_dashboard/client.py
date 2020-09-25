@@ -29,7 +29,7 @@ def main(cfg: DictConfig):
 
     while True:
         # get random images
-        images = datamodule.dataset[np.random.randint(len(datamodule.dataset))]
+        images = datamodule.dataset_train[np.random.randint(len(datamodule.dataset))]
         if not isinstance(images, (tuple, list)):
             images = [images]
 

@@ -5,9 +5,11 @@ data:
   data_dir: ${dataset.data_dir}/smallnorb
   force_download: False
   is_test: False
-transforms:
-  - _target_: torchvision.transforms.ToPILImage
-  - _target_: torchvision.transforms.Resize
-    size: 64
-  - _target_: torchvision.transforms.ToTensor
+transform:
+  _target_: torchvision.transforms.Compose
+  transforms:
+    - _target_: torchvision.transforms.ToPILImage
+    - _target_: torchvision.transforms.Resize
+      size: 64
+    - _target_: torchvision.transforms.ToTensor
 x_shape: [1, 64, 64]
