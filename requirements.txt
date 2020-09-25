@@ -12,6 +12,7 @@ matplotlib
 plotly
 seaborn
 tqdm
+dash
 
 pillow
 imageio
@@ -31,7 +32,11 @@ torch
 torchvision
 torch-optimizer
 pytorch-lightning
+pytorch-lightning-bolts
 
-tensorflow-gpu
-tensorboard
+kornia
+imgaug
+albumentations
 
+# tensorflow-gpu
+# tensorboard
