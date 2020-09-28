@@ -134,9 +134,9 @@ if __name__ == '__main__':
     def update_metrics(n):
         rows = []
         # append rows
-        for name, info in IMAGE_QUEUE.items():
+        for name in IMAGE_QUEUE.keys():
             rows.append(html.Plaintext(name, className='row-heading'))
-            rows.append(html.Div([img['elem'] for img in info['items'] if (img is not None)]))
+            rows.append(html.Div([img['elem'] for img in IMAGE_QUEUE[name]['items'] if (img is not None)]))
         # display
         return rows if rows else html.Plaintext('No images uploaded!', className='no-images-message')
 
