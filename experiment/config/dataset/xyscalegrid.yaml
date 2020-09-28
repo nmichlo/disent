@@ -10,8 +10,5 @@ data:
   rgb: FALSE
   palette: 'white'
 transform:
-  _target_: torchvision.transforms.Compose
-  transforms:
-    - _target_: torchvision.transforms.ToPILImage
-    - _target_: torchvision.transforms.ToTensor
+  _target_: disent.augment.ToStandardisedTensor
 x_shape: [1, 64, 64]

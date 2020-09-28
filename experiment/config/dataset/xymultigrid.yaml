@@ -8,9 +8,6 @@ data:
   num_squares: 3
   rgb: TRUE
 transform:
-  _target_: torchvision.transforms.Compose
-  transforms:
-    - _target_: torchvision.transforms.ToPILImage
-    - _target_: torchvision.transforms.ToTensor
+  _target_: disent.augment.ToStandardisedTensor
 x_shape: [3, 64, 64]
-# (floor((64-8) / 8) + 1) ** 6 == 262144  // 256 = 1024 batches per epoch
+

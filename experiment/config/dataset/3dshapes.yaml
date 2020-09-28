@@ -7,8 +7,5 @@ data:
   force_download: False
   force_preprocess: False
 transform:
-  _target_: torchvision.transforms.Compose
-  transforms:
-    - _target_: torchvision.transforms.ToPILImage
-    - _target_: torchvision.transforms.ToTensor
+  _target_: disent.augment.ToStandardisedTensor
 x_shape: [3, 64, 64]
