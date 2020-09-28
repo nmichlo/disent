@@ -15,8 +15,13 @@ class Vae(BaseFramework):
     https://arxiv.org/abs/1312.6114
     """
 
-    def __init__(self, make_optimizer_fn, make_model_fn):
-        super().__init__(make_optimizer_fn)
+    def __init__(
+            self,
+            make_optimizer_fn,
+            make_model_fn,
+            make_augment_fn=None
+    ):
+        super().__init__(make_optimizer_fn, make_augment_fn=make_augment_fn)
         # vae model
         assert callable(make_model_fn)
         self._model: GaussianAutoEncoder = make_model_fn()

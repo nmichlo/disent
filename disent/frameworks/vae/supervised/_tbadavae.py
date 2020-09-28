@@ -13,12 +13,13 @@ class TripletBoundedAdaVae(BoundedAdaVae):
             self,
             make_optimizer_fn,
             make_model_fn,
+            make_augment_fn=None,
             beta=4,
             average_mode='gvae',
             triplet_margin=0.1,
             triplet_scale=1,
     ):
-        super().__init__(make_optimizer_fn, make_model_fn, beta=beta, average_mode=average_mode)
+        super().__init__(make_optimizer_fn, make_model_fn, make_augment_fn=make_augment_fn, beta=beta, average_mode=average_mode)
         self.triplet_margin = triplet_margin
         self.triplet_scale = triplet_scale
 

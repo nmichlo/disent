@@ -58,7 +58,7 @@ class HydraDataModule(pl.LightningDataModule):
             ground_truth_data=self.data,
             # augmentations
             transform=self.dataset.transform,
-            augment=instantiate_recursive(self.hparams.augment.transform)
+            augment=instantiate_recursive(self.hparams.augment.dataset_transform) if ('dataset_transform' in self.hparams.augment) else None
         )
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -219,6 +219,7 @@ def main(cfg: DictConfig):
             encoder=hydra.utils.instantiate(cfg.model.encoder),
             decoder=hydra.utils.instantiate(cfg.model.decoder)
         ),
+        make_augment_fn=(lambda: instantiate_recursive(cfg.augment.batch_transform)) if ('batch_transform' in cfg.augment) else None
     )
 
     # LOG ALL HYPER-PARAMETERS

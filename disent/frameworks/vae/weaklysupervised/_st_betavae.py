@@ -10,8 +10,15 @@ from disent.frameworks.vae.loss import bce_loss_with_logits, kl_normal_loss
 
 class SwappedTargetBetaVae(BetaVae):
 
-    def __init__(self, make_optimizer_fn, make_model_fn, beta=4, swap_chance=0.1):
-        super().__init__(make_optimizer_fn, make_model_fn, beta=beta)
+    def __init__(
+            self,
+            make_optimizer_fn,
+            make_model_fn,
+            make_augment_fn=None,
+            beta=4,
+            swap_chance=0.1
+    ):
+        super().__init__(make_optimizer_fn, make_model_fn, make_augment_fn=make_augment_fn, beta=beta)
         assert swap_chance >= 0
         self.swap_chance = swap_chance
 
