@@ -1,11 +1,13 @@
 import logging
 import os
 import time
+
 import numpy as np
 import kornia
 
 from omegaconf import DictConfig
 import hydra
+
 from disent.util import make_box_str
 from experiment.hydra_system import HydraDataModule, hydra_check_datadir
 from experiment.img_dashboard.server import send_images
@@ -29,15 +31,26 @@ def main(cfg: DictConfig):
 
     while True:
         # get random images
-        images = datamodule.dataset_train[np.random.randint(len(datamodule.dataset))]
-        if not isinstance(images, (tuple, list)):
-            images = [images]
+        idx = np.random.randint(len(datamodule.dataset))
+        raw_obs, aug_obs = datamodule.data[idx], datamodule.dataset_train[idx]
+
+        # convert augmented images to observations
+        if not isinstance(aug_obs, (tuple, list)):
+            aug_obs = [aug_obs]
+        aug_obs = [kornia.tensor_to_image(obs) for obs in aug_obs]
 
         # send images to server
         try:
-            send_images({f'obs{i}': kornia.tensor_to_image(img) for i, img in enumerate(images)}, format='png')
+            send_images({
+                'ground_truth': raw_obs,
+                **{
+                    f'obs{i}': obs
+                    for i, obs in enumerate(aug_obs)
+                }
+            }, format='png')
         except Exception as e:
             pass
+
         # wait
         time.sleep(1)
 

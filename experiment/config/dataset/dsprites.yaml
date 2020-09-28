@@ -7,5 +7,5 @@ data:
   force_download: False
   force_preprocess: False
 transform:
-  _target_: disent.augment.ToStandardisedTensor
+  _target_: disent.transform.ToStandardisedTensor
 x_shape: [1, 64, 64]

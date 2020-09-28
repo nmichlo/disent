@@ -10,5 +10,5 @@ data:
   rgb: FALSE
   palette: 'white'
 transform:
-  _target_: disent.augment.ToStandardisedTensor
+  _target_: disent.transform.ToStandardisedTensor
 x_shape: [1, 64, 64]

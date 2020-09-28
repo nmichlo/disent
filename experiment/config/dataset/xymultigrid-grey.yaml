@@ -8,6 +8,6 @@ data:
   num_squares: 3
   rgb: FALSE
 transform:
-  _target_: disent.augment.ToStandardisedTensor
+  _target_: disent.transform.ToStandardisedTensor
 x_shape: [3, 64, 64]
 # (floor((64-8) / 8) + 1) ** 6 == 262144  // 256 = 1024 batches per epoch

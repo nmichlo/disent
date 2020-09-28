@@ -23,13 +23,11 @@ class CheckTensor(object):
 
 class ToStandardisedTensor(object):
     """
-    Basic transform that can be applied to
+    Basic transform that should be applied to
     any dataset before augmentation.
 
     1. resize if size is specified
     2. convert to tensor in range [0, 1]
-    3. check that tensor is in range [0, 1]
-    4. normalise tensor in range [-1, 1]
     """
 
     def __init__(self, size=None):
@@ -40,11 +38,29 @@ class ToStandardisedTensor(object):
             transforms.append(torchvision.transforms.Resize(size=size))
         # transform to tensor
         transforms.append(torchvision.transforms.ToTensor())
-        transforms.append(CheckTensor(low=0, high=1, dtype=torch.float32))
-        # normalise
-        transforms.append(torchvision.transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], inplace=True))
         # final transform
         self._transform = torchvision.transforms.Compose(transforms)
 
     def __call__(self, obs) -> torch.Tensor:
         return self._transform(obs)
+
+
+class NormalizeTensor(object):
+    """
+    Basic transform that should be applied after augmentation before
+    being passed to a model as the input.
+
+    1. check that tensor is in range [0, 1]
+    2. normalise tensor in range [-1, 1]
+    """
+
+    def __init__(self):
+        self._transform = torchvision.transforms.Compose([
+            CheckTensor(low=0, high=1, dtype=torch.float32),
+            torchvision.transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], inplace=True)
+        ])
+
+    def __call__(self, obs) -> torch.Tensor:
+        return self._transform(obs)
+
+

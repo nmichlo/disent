@@ -8,6 +8,6 @@ data:
   num_squares: 3
   rgb: TRUE
 transform:
-  _target_: disent.augment.ToStandardisedTensor
+  _target_: disent.transform.ToStandardisedTensor
 x_shape: [3, 64, 64]
 
