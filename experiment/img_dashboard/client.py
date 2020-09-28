@@ -5,7 +5,7 @@ import time
 import numpy as np
 import kornia
 
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 import hydra
 
 from disent.util import make_box_str
@@ -15,10 +15,15 @@ from experiment.img_dashboard.server import send_images
 log = logging.getLogger(__name__)
 
 
+# ========================================================================= #
+# ENTRY POINT                                                               #
+# ========================================================================= #
+
+
 @hydra.main(config_path='../config', config_name="config")
 def main(cfg: DictConfig):
     # print useful info
-    log.info(make_box_str(cfg.pretty()))
+    log.info(make_box_str(OmegaConf.to_yaml(cfg)))
     log.info(f"Current working directory : {os.getcwd()}")
     log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
 
@@ -59,6 +64,7 @@ def main(cfg: DictConfig):
 # MAIN                                                                      #
 # ========================================================================= #
 
+
 if __name__ == '__main__':
     try:
         main()
@@ -66,6 +72,7 @@ if __name__ == '__main__':
         log.warning('Interrupted - Exited early!')
     except:
         log.error('A critical error occurred! Exiting safely...', exc_info=True)
+
 
 # ========================================================================= #
 # END                                                                       #

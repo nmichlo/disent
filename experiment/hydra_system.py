@@ -1,7 +1,7 @@
 import os
 import logging
 
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 import hydra
 import pytorch_lightning as pl
 import torch
@@ -193,7 +193,7 @@ def hydra_append_correlation_callback(callbacks, cfg):
 @hydra.main(config_path='config', config_name="config")
 def main(cfg: DictConfig):
     # print useful info
-    log.info(make_box_str(cfg.pretty()))
+    log.info(make_box_str(OmegaConf.to_yaml(cfg)))
     log.info(f"Current working directory : {os.getcwd()}")
     log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
 

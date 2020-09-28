@@ -1,19 +1,18 @@
 import base64
 import io
+import os
 from uuid import uuid4
 from collections import defaultdict, deque
 import imageio
 
 import flask
-from flask import request, flash, redirect
+from flask import request
 import requests
 
 import dash
 import dash_html_components as html
 import dash_core_components as dcc
 from dash.dependencies import Input, Output
-
-# from mtgml.util.collections import CircularQueue
 
 
 # ========================================================================= #
@@ -24,8 +23,9 @@ from dash.dependencies import Input, Output
 PORT = 7777
 IMAGE_FORMAT = 'png'
 REFRESH_MS = 1001
-ROW_HEIGHT = 204
+ROW_HEIGHT = 128
 ROW_SIZE = 9
+
 
 # ========================================================================= #
 # HELPER                                                                    #
@@ -38,11 +38,13 @@ def send_images(images, address='localhost', format=IMAGE_FORMAT):
         for key, image in images.items()
     })
 
+
 def clear_all_images(address='localhost'):
     try:
         return requests.delete(f'http://{address}:{PORT}/api/images')
     except:
         pass
+
 
 # ========================================================================= #
 # SERVER                                                                    #
@@ -53,10 +55,15 @@ if __name__ == '__main__':
 
     # app & dashboard
     server = flask.Flask(__name__)
-    app = dash.Dash(__name__, server=server, routes_pathname_prefix='/')
+    app = dash.Dash(
+        __name__,
+        server=server,
+        routes_pathname_prefix='/',
+        assets_folder=os.path.join(os.path.dirname(__file__), 'assets'),
+    )
 
     # data storage
-    IMAGE_QUEUE = defaultdict(lambda: deque(maxlen=ROW_SIZE))
+    IMAGE_QUEUE = defaultdict(lambda: deque(maxlen=ROW_SIZE + 1))  # +1 so we can remove uuids from UUID_TO_IMAGE
     UUID_TO_IMAGE = {}
 
     # helper function to store an image in the database, and generate and html component
@@ -71,18 +78,17 @@ if __name__ == '__main__':
             img = base64.b64encode(img).decode()
             src = f'data:image/{IMAGE_FORMAT};base64,{img}'
 
-        a = dict(
+        IMAGE_QUEUE[key].append(dict(
             uuid=uuid,
-            elem=html.Img(
-                src=src,
-                style={'width': 'auto', 'height': f'{ROW_HEIGHT}px'}
-            )
-        )
-        b = IMAGE_QUEUE[key].append(a)
+            elem=html.Img(src=src, className='row-image', style={
+                'height': f'{ROW_HEIGHT}px',
+                'width': 'auto',
+            })
+        ))
 
+        # remove uuid from UUID_TO_IMAGE for removed element
         if len(IMAGE_QUEUE[key]) > ROW_SIZE:
             replaced = IMAGE_QUEUE[key].popleft()
-            print(a, b, replaced)
             if replaced['uuid'] in UUID_TO_IMAGE:
                 del UUID_TO_IMAGE[replaced['uuid']]
 
@@ -122,14 +128,12 @@ if __name__ == '__main__':
     @app.callback(Output('image-list', 'children'), [Input('interval-component', 'n_intervals')])
     def update_metrics(n):
         rows = []
-
+        # append rows
         for name, image_elems in IMAGE_QUEUE.items():
-            # append row
-            rows.append(html.Plaintext(name))
+            rows.append(html.Plaintext(name, className='row-heading'))
             rows.append(html.Div([img['elem'] for img in image_elems]))
-
         # display
-        return rows if rows else html.Plaintext('No images uploaded!')
+        return rows if rows else html.Plaintext('No images uploaded!', className='no-images-message')
 
     # layout of the home page
     app.layout = html.Div([
