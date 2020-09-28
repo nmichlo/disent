@@ -22,7 +22,7 @@ from dash.dependencies import Input, Output
 
 PORT = 7777
 IMAGE_FORMAT = 'png'
-REFRESH_MS = 1001
+REFRESH_MS = 1000
 ROW_HEIGHT = 128
 ROW_SIZE = 9
 
@@ -63,8 +63,11 @@ if __name__ == '__main__':
     )
 
     # data storage
-    IMAGE_QUEUE = defaultdict(lambda: deque(maxlen=ROW_SIZE + 1))  # +1 so we can remove uuids from UUID_TO_IMAGE
     UUID_TO_IMAGE = {}
+    IMAGE_QUEUE = defaultdict(lambda: {
+        'pos': 0,
+        'items': [None] * ROW_SIZE
+    })
 
     # helper function to store an image in the database, and generate and html component
     def push_list_image(key, img, serve=True):
@@ -78,17 +81,19 @@ if __name__ == '__main__':
             img = base64.b64encode(img).decode()
             src = f'data:image/{IMAGE_FORMAT};base64,{img}'
 
-        IMAGE_QUEUE[key].append(dict(
+        # ADD ITEM TO LIST AT CORRECT POSITION
+        items, idx = IMAGE_QUEUE[key]['items'], IMAGE_QUEUE[key]['pos']
+        IMAGE_QUEUE[key]['pos'] = (idx + 1) % ROW_SIZE
+        replaced, items[idx] = items[idx], dict(
             uuid=uuid,
             elem=html.Img(src=src, className='row-image', style={
                 'height': f'{ROW_HEIGHT}px',
                 'width': 'auto',
             })
-        ))
+        )
 
         # remove uuid from UUID_TO_IMAGE for removed element
-        if len(IMAGE_QUEUE[key]) > ROW_SIZE:
-            replaced = IMAGE_QUEUE[key].popleft()
+        if replaced is not None:
             if replaced['uuid'] in UUID_TO_IMAGE:
                 del UUID_TO_IMAGE[replaced['uuid']]
 
@@ -129,16 +134,16 @@ if __name__ == '__main__':
     def update_metrics(n):
         rows = []
         # append rows
-        for name, image_elems in IMAGE_QUEUE.items():
+        for name, info in IMAGE_QUEUE.items():
             rows.append(html.Plaintext(name, className='row-heading'))
-            rows.append(html.Div([img['elem'] for img in image_elems]))
+            rows.append(html.Div([img['elem'] for img in info['items'] if (img is not None)]))
         # display
         return rows if rows else html.Plaintext('No images uploaded!', className='no-images-message')
 
     # layout of the home page
     app.layout = html.Div([
         html.Div(id='image-list'),
-        dcc.Interval(id='interval-component', interval=REFRESH_MS)
+        dcc.Interval(id='interval-component', interval=REFRESH_MS+1)
     ])
 
     # start the server!!!

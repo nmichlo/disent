@@ -15,6 +15,7 @@ class GroundTruthDatasetPairs(GroundTruthDataset):
             self,
             ground_truth_data: GroundTruthData,
             transform=None,
+            augment=None,
             # factor sampling
             p_k_range=(1, -1),
             # radius sampling
@@ -27,7 +28,7 @@ class GroundTruthDatasetPairs(GroundTruthDataset):
         k: An integer (k), None (k=d-1), or "uniform" (random k in range 1 to d-1)
         variation_factor_indices: The indices of the factors of variation that are sampled between pairs, if None (all factors are sampled)
         """
-        super().__init__(ground_truth_data=ground_truth_data, transform=transform)
+        super().__init__(ground_truth_data=ground_truth_data, transform=transform, augment=augment)
         # DIFFERING FACTORS
         self.p_k_min, self.p_k_max = self._min_max_from_range(p_range=p_k_range, max_values=self.data.num_factors)
         # RADIUS SAMPLING
@@ -39,9 +40,12 @@ class GroundTruthDatasetPairs(GroundTruthDataset):
 
     def __getitem__(self, idx):
         f0, f1 = self.sample_factors(idx)
-        obs0 = self._getitem_transformed(self.data.pos_to_idx(f0))
-        obs1 = self._getitem_transformed(self.data.pos_to_idx(f1))
-        return obs0, obs1
+        x0, x0_targ = self._getitem_transformed(self.data.pos_to_idx(f0))
+        x1, x1_targ = self._getitem_transformed(self.data.pos_to_idx(f1))
+        return {
+            'x': (x0, x1),
+            'x_targ': (x0_targ, x1_targ),
+        }
 
     def sample_factors(self, idx):
         """
