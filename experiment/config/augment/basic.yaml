@@ -1,0 +1,10 @@
+# @package _group_
+name: basic
+transform:
+  _target_: torchvision.transforms.Compose
+  transforms:
+    - _target_: kornia.augmentation.RandomRotation
+      degrees: 10
+    - _target_: kornia.augmentation.RandomResizedCrop
+      size: [64, 64]
+      scale: [0.95, 1.0]

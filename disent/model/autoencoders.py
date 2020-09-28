@@ -57,6 +57,9 @@ class GaussianAutoEncoder(BaseModule):
         This is an implementation of the 'reparameterization trick'.
         ie. z ~ p(z|x)
         Gaussian Encoder Model Distribution - pg. 25 in Variational Auto Encoders
+
+        (✓) Visual inspection against reference implementation:
+            https://github.com/google-research/disentanglement_lib (sample_from_latent_distribution)
         """
         std = torch.exp(0.5 * z_logvar)  # std == var^0.5 == e^(log(var^0.5)) == e^(0.5*log(var))
         eps = torch.randn_like(std)      # N(0, 1)

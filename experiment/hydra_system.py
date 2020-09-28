@@ -1,21 +1,21 @@
 import os
 import logging
 
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 import hydra
 import pytorch_lightning as pl
 import torch
 import torch.utils.data
-import torchvision
 from pytorch_lightning.loggers import WandbLogger, CometLogger
 
-from disent.dataset.single import GroundTruthDataset
+from disent.dataset.groundtruth import GroundTruthDataset
 from disent.metrics import compute_dci, compute_factor_vae
 from disent.model import GaussianAutoEncoder
 from disent.util import make_box_str
 
 from experiment.util.callbacks import VaeDisentanglementLoggingCallback, VaeLatentCycleLoggingCallback, LoggerProgressCallback
 from experiment.util.callbacks.callbacks_vae import VaeLatentCorrelationLoggingCallback
+from experiment.util.hydra_utils import instantiate_recursive
 
 log = logging.getLogger(__name__)
 
@@ -30,6 +30,7 @@ class HydraDataModule(pl.LightningDataModule):
     def __init__(self, hparams: DictConfig):
         super().__init__()
         self.hparams = hparams
+        self.data = None
         self.dataset = None
         self.dataset_train = None
 
@@ -43,18 +44,22 @@ class HydraDataModule(pl.LightningDataModule):
         hydra.utils.instantiate(data)
 
     def setup(self, stage=None) -> None:
+        # ground truth data
+        self.data = hydra.utils.instantiate(self.hparams.dataset.data)
         # single observations
         self.dataset = GroundTruthDataset(
-            ground_truth_data=hydra.utils.instantiate(self.hparams.dataset.data),
-            transform=torchvision.transforms.Compose([
-                hydra.utils.instantiate(transform_cls)
-                for transform_cls in self.hparams.dataset.transforms
-            ])
+            ground_truth_data=self.data,
+            transform=instantiate_recursive(self.hparams.dataset.transform)
         )
-        # augment dataset if the framework requires
-        self.dataset_train = self.dataset
-        if 'augment' in self.hparams.framework:
-            self.dataset_train = hydra.utils.instantiate(self.hparams.framework.augment, self.dataset)
+        # wrap the data for the framework
+        # some datasets need triplets, pairs, etc.
+        self.dataset_train = hydra.utils.instantiate(
+            self.hparams.framework.data_wrapper,
+            ground_truth_data=self.data,
+            # augmentations
+            transform=self.dataset.transform,
+            augment=instantiate_recursive(self.hparams.augment.transform)
+        )
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Training Dataset:
@@ -184,7 +189,7 @@ def hydra_append_correlation_callback(callbacks, cfg):
 @hydra.main(config_path='config', config_name="config")
 def main(cfg: DictConfig):
     # print useful info
-    log.info(make_box_str(cfg.pretty()))
+    log.info(make_box_str(OmegaConf.to_yaml(cfg)))
     log.info(f"Current working directory : {os.getcwd()}")
     log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
 

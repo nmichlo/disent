@@ -23,15 +23,17 @@ def kl_normal_loss(mu, logvar):
     Calculates the KL divergence between a normal distribution with
     diagonal covariance and a unit normal distribution.
     FROM: https://github.com/Schlumberger/joint-vae/blob/master/jointvae/training.py
+
+    (✓) Visual inspection against reference implementation:
+        https://github.com/google-research/disentanglement_lib (compute_gaussian_kl)
     """
     # Calculate KL divergence
     kl_values = -0.5 * (1 + logvar - mu.pow(2) - logvar.exp())
-    # Mean KL divergence across batch for each latent variable
-    kl_means = torch.mean(kl_values, dim=0)
-    # KL loss is sum of mean KL of each latent variable
-    kl_loss = torch.sum(kl_means)
+    # Sum KL divergence across latent vector for each sample
+    kl_sums = torch.sum(kl_values, dim=1)
+    # KL loss is mean of the KL divergence sums
+    kl_loss = torch.mean(kl_sums)
     return kl_loss
-
 
 # ========================================================================= #
 # END                                                                       #

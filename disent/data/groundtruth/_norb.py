@@ -1,5 +1,5 @@
 import gzip
-from disent.dataset.ground_truth_data.base_data import DownloadableGroundTruthData
+from disent.data.groundtruth.base import DownloadableGroundTruthData
 import numpy as np
 
 # ========================================================================= #

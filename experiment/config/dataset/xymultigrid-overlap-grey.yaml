@@ -1,14 +1,14 @@
 # @package _group_
 name: xymultigrid-overlap-grey
 data:
-  _target_: disent.dataset.ground_truth_data.data_xymultigrid.XYMultiGridData
+  _target_: disent.data.groundtruth.XYMultiGridData
   square_size: 8
   grid_size: 64
   grid_spacing: 4
   num_squares: 3
   rgb: FALSE
-transforms:
-  - _target_: torchvision.transforms.ToTensor
+transform:
+  _target_: disent.transform.ToStandardisedTensor
 x_shape: [3, 64, 64]
 # CURRENT:     (floor((64-8) / 4) + 1) ** 6 == 11390625 // 256 = 44494 batches per epoch | overlap by half
 # ALTERNATIVE: (floor((64-14) / 7) + 1) ** 6 == 262144  // 256 = 1024 batches per epoch

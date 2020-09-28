@@ -18,8 +18,6 @@ def seed(long=777):
     """
     https://pytorch.org/docs/stable/notes/randomness.html
     """
-    # TODO: this is automatically handled by the sacred experiment manager if we transition to that.
-    #       just check... except for torch.backends?
     torch.manual_seed(long)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
@@ -195,6 +193,26 @@ def concat_lines(*strings, sep=' | '):
     list_of_lines = pad_height(list_of_lines)
     list_of_lines = [pad_width(lines) for lines in list_of_lines]
     return '\n'.join(sep.join(rows) for rows in zip(*list_of_lines))
+
+
+# ========================================================================= #
+# Iterable                                                                  #
+# ========================================================================= #
+
+
+class LengthIter(object):
+
+    def __iter__(self):
+        # this takes priority over __getitem__, otherwise __getitem__ would need to
+        # raise an IndexError if out of bounds to signal the end of iteration
+        for i in range(len(self)):
+            yield self[i]
+
+    def __len__(self):
+        raise NotImplemented()
+
+    def __getitem__(self, item):
+        raise NotImplemented()
 
 
 # ========================================================================= #
