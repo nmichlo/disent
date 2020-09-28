@@ -25,14 +25,14 @@ class AdaVae(BetaVae):
             'ml-vae': compute_average_ml_vae
         }[average_mode]
 
-    def compute_loss(self, batch, batch_idx):
+    def compute_training_loss(self, batch, batch_idx):
         """
         (✓) Visual inspection against reference implementation:
             https://github.com/google-research/disentanglement_lib (GroupVAEBase & MLVae)
             - only difference for GroupVAEBase & MLVae how the mean parameterisations are calculated
         """
+        (x0, x1), (x0_targ, x1_targ) = batch['x'], batch['x_targ']
 
-        x0, x1 = batch
         # FORWARD
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # latent distribution parametrisation
@@ -51,8 +51,8 @@ class AdaVae(BetaVae):
         # LOSS
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # reconstruction error
-        recon0_loss = bce_loss_with_logits(x0_recon, x0)  # E[log p(x|z)]
-        recon1_loss = bce_loss_with_logits(x1_recon, x1)  # E[log p(x|z)]
+        recon0_loss = bce_loss_with_logits(x0_recon, x0_targ)  # E[log p(x|z)]
+        recon1_loss = bce_loss_with_logits(x1_recon, x1_targ)  # E[log p(x|z)]
         ave_recon_loss = (recon0_loss + recon1_loss) / 2
         # KL divergence
         kl0_loss = kl_normal_loss(z0_mean, z0_logvar)     # D_kl(q(z|x) || p(z|x))
@@ -86,26 +86,13 @@ class AdaVae(BetaVae):
         (✓) Visual inspection against reference implementation:
             https://github.com/google-research/disentanglement_lib (aggregate_argmax)
         """
-
         # compute average posteriors
         ave_mu, ave_logvar = self.compute_average(z0_mean, z0_logvar, z1_mean, z1_logvar)
-        # apply average
-        z0_mean_OLD = (~share_mask * z0_mean) + (share_mask * ave_mu)
-        z1_mean_OLD = (~share_mask * z1_mean) + (share_mask * ave_mu)
-        z0_logvar_OLD = (~share_mask * z0_logvar) + (share_mask * ave_logvar)
-        z1_logvar_OLD = (~share_mask * z1_logvar) + (share_mask * ave_logvar)
-
-        # TODO: REMOVE \/
+        # select averages
         z0_mean = torch.where(share_mask, ave_mu, z0_mean)
         z1_mean = torch.where(share_mask, ave_mu, z1_mean)
-        z0_logvar = torch.where(share_mask, ave_mu, z0_logvar)
-        z1_logvar = torch.where(share_mask, ave_mu, z1_logvar)
-        assert torch.allclose(z0_mean, z0_mean_OLD), f'all not close z0_mean: (old) {z0_mean_OLD} (new) {z0_mean}'
-        assert torch.allclose(z1_mean, z1_mean_OLD), f'all not close z1_mean: (old) {z1_mean_OLD} (new) {z1_mean}'
-        assert torch.allclose(z0_logvar, z0_logvar_OLD), f'all not close z0_logvar: (old) {z0_logvar_OLD} (new) {z0_logvar}'
-        assert torch.allclose(z1_logvar, z1_logvar_OLD), f'all not close z1_logvar: (old) {z1_logvar_OLD} (new) {z1_logvar}'
-        # TODO: REMOVE /\
-
+        z0_logvar = torch.where(share_mask, ave_logvar, z0_logvar)
+        z1_logvar = torch.where(share_mask, ave_logvar, z1_logvar)
         # return values
         return z0_mean, z0_logvar, z1_mean, z1_logvar
 
@@ -220,23 +207,11 @@ def compute_average_ml_vae(z0_mean, z0_logvar, z1_mean, z1_logvar):
     # https://proofwiki.org/wiki/Inverse_of_Diagonal_Matrix
     z0_invvar, z1_invvar = z0_var.reciprocal(), z1_var.reciprocal()
     # average var: E^-1 = E1^-1 + E2^-1
-    ave_var = (z0_invvar + z1_invvar).reciprocal()
+    # disentanglement_lib: ave_var = 2 * z0_var * z1_var / (z0_var + z1_var)
+    ave_var = 2 * (z0_invvar + z1_invvar).reciprocal()
     # average mean: u^T = (u1^T E1^-1 + u2^T E2^-1) E
-    ave_mean = (z0_mean * z0_invvar + z1_mean * z1_invvar) * ave_var
-
-    # TODO: REMOVE \/
-    #     var_1, var_2 = tf.exp(z_logvar), tf.exp(z_logvar_2)
-    #     new_var = 2 * var_1 * var_2 / (var_1 + var_2)
-    #     new_mean = (z_mean/var_1 + z_mean_2/var_2) * new_var * 0.5
-    #     new_log_var = tf.math.log(new_var)
-    # averages from disentanglement_lib | I DONT THINK THERE SHOULD BE "2*" and "*0.5" here.
-    ave_var_NEW = 2 * z0_var * z1_var / (z0_var + z1_var)
-    ave_mean_NEW = (z0_mean/z0_var + z1_mean/z1_var) * ave_var_NEW * 0.5
-    assert torch.allclose(ave_var_NEW, ave_var) and torch.allclose(ave_mean_NEW, ave_mean),\
-        f'mean0: {z0_mean} mean1: {z1_mean}) mean var not close google: {ave_mean_NEW} mine: {ave_mean}\n' \
-        f'var0: {z0_var} var1: {z1_var}) mean var not close google: {ave_var_NEW} mine: {ave_var}'
-    # TODO: REMOVE /\
-
+    # disentanglement_lib: ave_mean = (z0_mean/z0_var + z1_mean/z1_var) * ave_var * 0.5
+    ave_mean = (z0_mean*z0_invvar + z1_mean*z1_invvar) * ave_var * 0.5
     # mean, logvar
     return ave_mean, ave_var.log()  # natural log
 

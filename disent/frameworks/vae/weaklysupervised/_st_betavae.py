@@ -15,18 +15,17 @@ class SwappedTargetBetaVae(BetaVae):
         assert swap_chance >= 0
         self.swap_chance = swap_chance
 
-    def compute_loss(self, batch, batch_idx):
-        x0, x1 = batch
+    def compute_training_loss(self, batch, batch_idx):
+        (x0, x1), (x0_targ, x1_targ) = batch['x'], batch['x_targ']
 
         # random change for the target not to be equal to the input
-        x_input, x_target = x0, x0
         if np.random.random() < self.swap_chance:
-            x_target = x1
+            x0_targ, x1_targ = x1_targ, x0_targ
 
         # FORWARD
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # latent distribution parametrisation
-        z_mean, z_logvar = self.encode_gaussian(x_input)
+        z_mean, z_logvar = self.encode_gaussian(x0)
         # sample from latent distribution
         z = self.reparameterize(z_mean, z_logvar)
         # reconstruct without the final activation
@@ -36,7 +35,7 @@ class SwappedTargetBetaVae(BetaVae):
         # LOSS
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # reconstruction error
-        recon_loss = bce_loss_with_logits(x_recon, x_target)  # E[log p(x|z)]
+        recon_loss = bce_loss_with_logits(x_recon, x0_targ)  # E[log p(x|z)]
         # KL divergence
         kl_loss = kl_normal_loss(z_mean, z_logvar)     # D_kl(q(z|x) || p(z|x))
         # compute kl regularisation

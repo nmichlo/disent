@@ -6,7 +6,6 @@ import hydra
 import pytorch_lightning as pl
 import torch
 import torch.utils.data
-import torchvision
 from pytorch_lightning.loggers import WandbLogger, CometLogger
 
 from disent.dataset.groundtruth import GroundTruthDataset

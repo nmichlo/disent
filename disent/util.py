@@ -18,8 +18,6 @@ def seed(long=777):
     """
     https://pytorch.org/docs/stable/notes/randomness.html
     """
-    # TODO: this is automatically handled by the sacred experiment manager if we transition to that.
-    #       just check... except for torch.backends?
     torch.manual_seed(long)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
