@@ -22,8 +22,8 @@ class Vae(BaseFramework):
         self._model: GaussianAutoEncoder = make_model_fn()
         assert isinstance(self._model, GaussianAutoEncoder)
 
-    def compute_loss(self, batch, batch_idx):
-        x = batch
+    def compute_training_loss(self, batch, batch_idx):
+        x, x_targ = batch['x'], batch['x_targ']
 
         # FORWARD
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -38,7 +38,7 @@ class Vae(BaseFramework):
         # LOSS
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # reconstruction error
-        recon_loss = bce_loss_with_logits(x_recon, x)  # E[log p(x|z)]
+        recon_loss = bce_loss_with_logits(x_recon, x_targ)  # E[log p(x|z)]
         # KL divergence
         kl_loss = kl_normal_loss(z_mean, z_logvar)     # D_kl(q(z|x) || p(z|x))
         # compute kl regularisation

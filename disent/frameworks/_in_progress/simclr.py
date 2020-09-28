@@ -20,7 +20,7 @@ class AdaSimCLR(SimCLR, BaseFramework):
     def __init__(self, make_optimizer_fn):
         super().__init__(make_optimizer_fn)
 
-    def compute_training_loss(self, train_data, batch_idx) -> dict:
+    def compute_training_loss(self, batch, batch_idx) -> dict:
         pass
 
     def shared_step(self, batch, batch_idx):

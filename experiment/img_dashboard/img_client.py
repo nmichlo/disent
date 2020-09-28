@@ -10,7 +10,7 @@ import hydra
 
 from disent.util import make_box_str
 from experiment.hydra_system import HydraDataModule, hydra_check_datadir
-from experiment.img_dashboard.server import send_images
+from experiment.img_dashboard.img_server import send_images, REFRESH_MS
 
 log = logging.getLogger(__name__)
 
@@ -37,27 +37,26 @@ def main(cfg: DictConfig):
     while True:
         # get random images
         idx = np.random.randint(len(datamodule.dataset))
-        raw_obs, aug_obs = datamodule.data[idx], datamodule.dataset_train[idx]
+        obs = datamodule.dataset_train[idx]
+        x, x_targ = obs['x'], obs['x_targ']
 
         # convert augmented images to observations
-        if not isinstance(aug_obs, (tuple, list)):
-            aug_obs = [aug_obs]
-        aug_obs = [kornia.tensor_to_image(obs) for obs in aug_obs]
+        if not isinstance(x, (tuple, list)):
+            x, x_targ = [x], [x_targ]
+        x = [kornia.tensor_to_image(obs) for obs in x]
+        x_targ = [kornia.tensor_to_image(obs) for obs in x_targ]
 
         # send images to server
         try:
             send_images({
-                'ground_truth': raw_obs,
-                **{
-                    f'obs{i}': obs
-                    for i, obs in enumerate(aug_obs)
-                }
+                **{f'x{i}': obs for i, obs in enumerate(x)},
+                **{f'x{i}_targ': obs for i, obs in enumerate(x_targ)},
             }, format='png')
         except Exception as e:
             pass
 
         # wait
-        time.sleep(1)
+        time.sleep(REFRESH_MS/1000)
 
 
 # ========================================================================= #

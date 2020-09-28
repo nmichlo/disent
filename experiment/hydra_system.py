@@ -6,7 +6,6 @@ import hydra
 import pytorch_lightning as pl
 import torch
 import torch.utils.data
-import torchvision
 from pytorch_lightning.loggers import WandbLogger, CometLogger
 
 from disent.dataset.groundtruth import GroundTruthDataset
@@ -50,7 +49,6 @@ class HydraDataModule(pl.LightningDataModule):
         # single observations
         self.dataset = GroundTruthDataset(
             ground_truth_data=self.data,
-            # ground truth data
             transform=instantiate_recursive(self.hparams.dataset.transform)
         )
         # wrap the data for the framework
@@ -59,10 +57,8 @@ class HydraDataModule(pl.LightningDataModule):
             self.hparams.framework.data_wrapper,
             ground_truth_data=self.data,
             # augmentations
-            transform=torchvision.transforms.Compose([
-                self.dataset.transform,
-                instantiate_recursive(self.hparams.augment.transform)
-            ]),
+            transform=self.dataset.transform,
+            augment=instantiate_recursive(self.hparams.augment.transform)
         )
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #

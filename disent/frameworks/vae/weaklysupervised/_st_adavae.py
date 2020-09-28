@@ -15,19 +15,18 @@ class SwappedTargetAdaVae(AdaVae):
         assert swap_chance >= 0
         self.swap_chance = swap_chance
 
-    def compute_loss(self, batch, batch_idx):
-        x0_input, x1_input = batch
+    def compute_training_loss(self, batch, batch_idx):
+        (x0, x1), (x0_targ, x1_targ) = batch['x'], batch['x_targ']
 
         # random change for the target not to be equal to the input
-        x0_target, x1_target = x0_input, x1_input
         if np.random.random() < self.swap_chance:
-            x0_target, x1_target = x1_input, x0_input
+            x0_targ, x1_targ = x1_targ, x0_targ
 
         # FORWARD
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # latent distribution parametrisation
-        z0_mean, z0_logvar = self.encode_gaussian(x0_input)
-        z1_mean, z1_logvar = self.encode_gaussian(x1_input)
+        z0_mean, z0_logvar = self.encode_gaussian(x0)
+        z1_mean, z1_logvar = self.encode_gaussian(x1)
         # intercept and mutate z [SPECIFIC TO ADAVAE]
         (z0_mean, z0_logvar, z1_mean, z1_logvar), intercept_logs = self.intercept_z(z0_mean, z0_logvar, z1_mean, z1_logvar)
         # sample from latent distribution
@@ -41,8 +40,8 @@ class SwappedTargetAdaVae(AdaVae):
         # LOSS
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # reconstruction error
-        recon0_loss = bce_loss_with_logits(x0_recon, x0_target)  # E[log p(x|z)]
-        recon1_loss = bce_loss_with_logits(x1_recon, x1_target)  # E[log p(x|z)]
+        recon0_loss = bce_loss_with_logits(x0_recon, x0_targ)  # E[log p(x|z)]
+        recon1_loss = bce_loss_with_logits(x1_recon, x1_targ)  # E[log p(x|z)]
         ave_recon_loss = (recon0_loss + recon1_loss) / 2
         # KL divergence
         kl0_loss = kl_normal_loss(z0_mean, z0_logvar)     # D_kl(q(z|x) || p(z|x))

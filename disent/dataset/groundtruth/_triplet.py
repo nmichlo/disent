@@ -18,6 +18,7 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
             self,
             ground_truth_data: GroundTruthData,
             transform=None,
+            augment=None,
             # factor sampling
             p_k_range=(1, -2),
             n_k_range=(1, -1),
@@ -30,7 +31,7 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
             # final checks
             swap_metric=None,
     ):
-        super().__init__(ground_truth_data=ground_truth_data, transform=transform)
+        super().__init__(ground_truth_data=ground_truth_data, transform=transform, augment=augment)
         # checks
         assert swap_metric in {None, 'factors', 'manhattan', 'manhattan_ratio', 'euclidean', 'euclidean_ratio'}
         assert n_k_sample_mode in {'offset', 'bounded_below', 'random'}
@@ -63,10 +64,13 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
 
     def __getitem__(self, idx):
         f0, f1, f2 = self.sample_factors(idx)
-        obs0 = self._getitem_transformed(self.data.pos_to_idx(f0))
-        obs1 = self._getitem_transformed(self.data.pos_to_idx(f1))
-        obs2 = self._getitem_transformed(self.data.pos_to_idx(f2))
-        return obs0, obs1, obs2
+        x0, x0_targ = self._getitem_transformed(self.data.pos_to_idx(f0))
+        x1, x1_targ = self._getitem_transformed(self.data.pos_to_idx(f1))
+        x2, x2_targ = self._getitem_transformed(self.data.pos_to_idx(f2))
+        return {
+            'x': (x0, x1, x2),
+            'x_targ': (x0_targ, x1_targ, x2_targ),
+        }
 
     def sample_factors(self, idx):
         # SAMPLE FACTOR INDICES

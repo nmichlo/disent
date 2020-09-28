@@ -13,7 +13,7 @@ class BaseFramework(pl.LightningModule):
         # optimiser
         assert callable(make_optimizer_fn)
         self._make_optimiser_fn = make_optimizer_fn
-    
+
     def configure_optimizers(self):
         return self._make_optimiser_fn(self.parameters())
 
@@ -24,16 +24,17 @@ class BaseFramework(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         """This is a pytorch-lightning function that should return the computed loss"""
         # compute loss
-        result_dict = self.compute_loss(batch, batch_idx)
-
+        logs_dict = self.compute_training_loss(batch, batch_idx)
         # return log loss components & return loss
-        return {
-            'loss': result_dict['train_loss'],
-            'log': result_dict,
-            'progress_bar': result_dict,
-        }
+        train_result = pl.TrainResult(minimize=logs_dict['train_loss'])
+        train_result.log_dict(logs_dict, on_step=True, on_epoch=False)
+        return train_result
 
-    def compute_loss(self, batch, batch_idx) -> dict:
+    def compute_training_loss(self, batch, batch_idx) -> dict:
+        """
+        should return a dictionary of items to log with the key 'train_loss'
+        as the variable to minimize
+        """
         raise NotImplementedError
 
     def _forward_unimplemented(self, *args, **kwargs):

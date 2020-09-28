@@ -33,16 +33,6 @@ def kl_normal_loss(mu, logvar):
     kl_sums = torch.sum(kl_values, dim=1)
     # KL loss is mean of the KL divergence sums
     kl_loss = torch.mean(kl_sums)
-
-    # TODO: REMOVE \/
-    kl_means_OLD = torch.mean(kl_values, dim=0)
-    kl_loss_OLD = torch.sum(kl_means_OLD)
-    assert torch.allclose(kl_loss, kl_loss_OLD), f'CHECK (new) {kl_loss} != (old) {kl_loss_OLD}'
-    kl_sums_NEW2 = 0.5 * torch.sum(mu.pow(2) + logvar.exp() - logvar - 1, dim=1)
-    kl_loss_NEW2 = torch.mean(kl_sums_NEW2)
-    assert torch.allclose(kl_loss, kl_loss_NEW2), f'CHECK (new) {kl_loss} != (new2) {kl_loss_NEW2}'
-    # TODO: REMOVE /\
-
     return kl_loss
 
 # ========================================================================= #
