@@ -3,85 +3,11 @@ from disent.util import LengthIter
 
 
 # ========================================================================= #
-# Abstract/Base State Space                                                 #
-# ========================================================================= #
-
-
-class _BaseStateSpace(LengthIter):
-    @property
-    def size(self):
-        """The number of permutations of factors handled by this state space"""
-        raise NotImplementedError
-
-    @property
-    def num_factors(self):
-        """The number of factors handled by this state space"""
-        raise NotImplementedError
-
-    @property
-    def factor_sizes(self):
-        """A list of sizes or dimensionality of factors handled by this state space"""
-        raise NotImplementedError
-
-    def __len__(self):
-        """Same as self.size"""
-        return self.size
-
-    def __getitem__(self, idx):
-        """same as self.idx_to_pos"""
-        return self.idx_to_pos(idx)
-
-    def pos_to_idx(self, positions):
-        """
-        Convert a position to an index (or convert a list of positions to a list of indices)
-        - positions are lists of integers, with each element < their corresponding factor size
-        - indices are integers < size
-        """
-        raise NotImplementedError
-
-    def idx_to_pos(self, indices):
-        """
-        Convert an index to a position (or convert a list of indices to a list of positions)
-        - indices are integers < size
-        - positions are lists of integers, with each element < their corresponding factor size
-        """
-        raise NotImplementedError
-
-    def sample_factors(self, num_samples=None, factor_indices=None):
-        """
-        sample randomly from all factors, otherwise the given factor_indices.
-        returned values must appear in the same order as factor_indices.
-
-        If factor factor_indices is None, all factors are sampled.
-        If num_samples=None then the array returned is the same shape as factor_sizes[factor_indices]
-        If num_samples is an integer or shape, the samples returned are that shape with the last dimension
-            the same size as factor_indices, ie (*num_samples, len(factor_indices))
-        """
-        raise NotImplementedError
-
-    def sample_missing_factors(self, known_factors, known_factor_indices):
-        """
-        Samples the remaining factors not given in the known_factor_indices.
-        ie. fills in the missing values by sampling from the unused dimensions.
-        returned values are ordered by increasing factor index and not factor_indices.
-        (known_factors must correspond to known_factor_indices)
-        """
-        raise NotImplementedError
-
-    def resample_factors(self, factors, fixed_factor_indices):
-        """
-        Resample across all the factors, keeping factor_indices constant.
-        returned values are ordered by increasing factor index and not factor_indices.
-        """
-        raise NotImplementedError
-
-
-# ========================================================================= #
 # Basic State Space                                                         #
 # ========================================================================= #
 
 
-class StateSpace(_BaseStateSpace):
+class StateSpace(LengthIter):
     """
     State space where an index corresponds to coordinates (factors/positions) in the factor space.
     ie. State space with multiple factors of variation, where each factor can be a different size.
@@ -94,30 +20,53 @@ class StateSpace(_BaseStateSpace):
         self._factor_sizes.flags.writeable = False
         # total permutations
         self._size = int(np.prod(factor_sizes))
-        # dimension sampling
-        self._factor_indices_set = set(range(self.num_factors))
+
+    def __len__(self):
+        """Same as self.size"""
+        return self.size
+
+    def __getitem__(self, idx):
+        """Data returned based on the idx"""
+        return self.idx_to_pos(idx)
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Properties                                                            #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     @property
-    def size(self):
+    def size(self) -> int:
+        """The number of permutations of factors handled by this state space"""
         return self._size
 
     @property
-    def num_factors(self):
+    def num_factors(self) -> int:
+        """The number of factors handled by this state space"""
         return len(self._factor_sizes)
 
     @property
-    def factor_sizes(self):
+    def factor_sizes(self) -> np.ndarray:
+        """A list of sizes or dimensionality of factors handled by this state space"""
         return self._factor_sizes
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Coordinate Transform - any dim array, only last axis counts!          #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def pos_to_idx(self, positions):
+    def pos_to_idx(self, positions) -> np.ndarray:
+        """
+        Convert a position to an index (or convert a list of positions to a list of indices)
+        - positions are lists of integers, with each element < their corresponding factor size
+        - indices are integers < size
+        """
         positions = np.array(positions).T
         return np.ravel_multi_index(positions, self._factor_sizes)
 
-    def idx_to_pos(self, indices):
+    def idx_to_pos(self, indices) -> np.ndarray:
+        """
+        Convert an index to a position (or convert a list of indices to a list of positions)
+        - indices are integers < size
+        - positions are lists of integers, with each element < their corresponding factor size
+        """
         positions = np.unravel_index(indices, self._factor_sizes)
         return np.array(positions).T
 
@@ -125,7 +74,16 @@ class StateSpace(_BaseStateSpace):
     # Sampling Functions - any dim array, only last axis counts!            #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def sample_factors(self, size=None, factor_indices=None):
+    def sample_factors(self, size=None, factor_indices=None) -> np.ndarray:
+        """
+        sample randomly from all factors, otherwise the given factor_indices.
+        returned values must appear in the same order as factor_indices.
+
+        If factor factor_indices is None, all factors are sampled.
+        If num_samples=None then the array returned is the same shape as factor_sizes[factor_indices]
+        If num_samples is an integer or shape, the samples returned are that shape with the last dimension
+            the same size as factor_indices, ie (*num_samples, len(factor_indices))
+        """
         # get factor sizes
         sizes = self._factor_sizes if (factor_indices is None) else self._factor_sizes[factor_indices]
         # get resample size
@@ -135,7 +93,13 @@ class StateSpace(_BaseStateSpace):
         # sample for factors
         return np.random.randint(0, sizes, size=size)
 
-    def sample_missing_factors(self, known_factors, known_factor_indices):
+    def sample_missing_factors(self, known_factors, known_factor_indices) -> np.ndarray:
+        """
+        Samples the remaining factors not given in the known_factor_indices.
+        ie. fills in the missing values by sampling from the unused dimensions.
+        returned values are ordered by increasing factor index and not factor_indices.
+        (known_factors must correspond to known_factor_indices)
+        """
         known_factors = np.array(known_factors)
         known_mask = np.zeros(self.num_factors, dtype='bool')
         known_mask[known_factor_indices] = True
@@ -144,7 +108,11 @@ class StateSpace(_BaseStateSpace):
         all_factors[..., ~known_mask] = self.sample_factors(size=known_factors.shape[:-1], factor_indices=~known_mask)
         return all_factors
 
-    def resample_factors(self, factors, fixed_factor_indices):
+    def resample_factors(self, factors, fixed_factor_indices) -> np.ndarray:
+        """
+        Resample across all the factors, keeping factor_indices constant.
+        returned values are ordered by increasing factor index and not factor_indices.
+        """
         return self.sample_missing_factors(np.array(factors)[..., fixed_factor_indices], fixed_factor_indices)
 
 

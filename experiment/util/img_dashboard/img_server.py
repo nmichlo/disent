@@ -2,7 +2,7 @@ import base64
 import io
 import os
 from uuid import uuid4
-from collections import defaultdict, deque
+from collections import defaultdict
 import imageio
 
 import flask

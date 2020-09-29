@@ -8,80 +8,16 @@ import torch
 import torch.utils.data
 from pytorch_lightning.loggers import WandbLogger, CometLogger
 
-from disent.dataset.groundtruth import GroundTruthDataset
 from disent.metrics import compute_dci, compute_factor_vae
 from disent.model import GaussianAutoEncoder
 from disent.util import make_box_str
+from experiment.hydra_data import HydraDataModule
 
 from experiment.util.callbacks import VaeDisentanglementLoggingCallback, VaeLatentCycleLoggingCallback, LoggerProgressCallback
 from experiment.util.callbacks.callbacks_vae import VaeLatentCorrelationLoggingCallback
-from experiment.util.hydra_utils import instantiate_recursive
+
 
 log = logging.getLogger(__name__)
-
-
-# ========================================================================= #
-# DATASET                                                                   #
-# ========================================================================= #
-
-
-class HydraDataModule(pl.LightningDataModule):
-
-    def __init__(self, hparams: DictConfig):
-        super().__init__()
-        self.hparams = hparams
-        self.data = None
-        self.dataset = None
-        self.dataset_train = None
-
-    def prepare_data(self) -> None:
-        # *NB* Do not set model parameters here.
-        # - Instantiate data once to download and prepare if needed.
-        # - trainer.prepare_data_per_node affects this functions behavior per node.
-        data = self.hparams.dataset.data.copy()
-        if 'in_memory' in data:
-            del data['in_memory']
-        hydra.utils.instantiate(data)
-
-    def setup(self, stage=None) -> None:
-        # ground truth data
-        self.data = hydra.utils.instantiate(self.hparams.dataset.data)
-        # single observations
-        self.dataset = GroundTruthDataset(
-            ground_truth_data=self.data,
-            transform=instantiate_recursive(self.hparams.dataset.transform)
-        )
-        # wrap the data for the framework
-        # some datasets need triplets, pairs, etc.
-        self.dataset_train = hydra.utils.instantiate(
-            self.hparams.framework.data_wrapper,
-            ground_truth_data=self.data,
-            # augmentations
-            transform=self.dataset.transform,
-            augment=instantiate_recursive(self.hparams.augment.transform)
-        )
-
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # Training Dataset:
-    #     The sample of data used to fit the model.
-    # Validation Dataset:
-    #     Data used to provide an unbiased evaluation of a model fit on the
-    #     training dataset while tuning model hyperparameters. The
-    #     evaluation becomes more biased as skill on the validation
-    #     dataset is incorporated into the model configuration.
-    # Test Dataset:
-    #     The sample of data used to provide an unbiased evaluation of a
-    #     final model fit on the training dataset.
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-
-    def train_dataloader(self):
-        """Training Dataset: Sample of data used to fit the model"""
-        return torch.utils.data.DataLoader(
-            self.dataset_train,
-            batch_size=self.hparams.dataset.batch_size,
-            num_workers=self.hparams.dataset.num_workers,
-            shuffle=True
-        )
 
 
 # ========================================================================= #
@@ -100,6 +36,7 @@ def hydra_check_cuda(cuda):
         if not cuda:
             log.warning('CUDA is available but is not being used!')
 
+
 def hydra_check_datadir(prepare_data_per_node, cfg):
     if not os.path.isabs(cfg.dataset.data_dir):
         log.warning(
@@ -116,6 +53,7 @@ def hydra_check_datadir(prepare_data_per_node, cfg):
                 f' absolute path that is guaranteed to be unique from each node, eg. dataset.data_dir=/tmp/dataset'
             )
         raise RuntimeError('dataset.data_dir={repr(cfg.dataset.data_dir)} is a relative path!')
+
 
 def hydra_make_logger(cfg):
     loggers = []
@@ -140,11 +78,13 @@ def hydra_make_logger(cfg):
         ))
     return loggers if loggers else None  # lists are turned into a LoggerCollection by pl
 
+
 def hydra_append_progress_callback(callbacks, cfg):
     if 'progress' in cfg.callbacks:
         callbacks.append(LoggerProgressCallback(
             interval=cfg.callbacks.progress.interval
         ))
+
 
 def hydra_append_latent_cycle_logger_callback(callbacks, cfg):
     if 'latent_cycle' in cfg.callbacks:
@@ -157,6 +97,7 @@ def hydra_append_latent_cycle_logger_callback(callbacks, cfg):
             ))
         else:
             log.warning('latent_cycle callback is not being used because wandb is not enabled!')
+
 
 def hydra_append_metric_callback(callbacks, cfg):
     if 'metrics' in cfg.callbacks:
@@ -173,6 +114,7 @@ def hydra_append_metric_callback(callbacks, cfg):
             ],
         ))
 
+
 def hydra_append_correlation_callback(callbacks, cfg):
     if 'correlation' in cfg.callbacks:
         callbacks.append(VaeLatentCorrelationLoggingCallback(
@@ -180,6 +122,7 @@ def hydra_append_correlation_callback(callbacks, cfg):
             every_n_steps=cfg.callbacks.correlation.every_n_steps,
             begin_first_step=False,
         ))
+
 
 # ========================================================================= #
 # RUNNER                                                                    #
@@ -211,6 +154,9 @@ def main(cfg: DictConfig):
     hydra_append_metric_callback(callbacks, cfg)
     hydra_append_correlation_callback(callbacks, cfg)
 
+    # DATA
+    datamodule = HydraDataModule(cfg)
+
     # FRAMEWORK
     framework = hydra.utils.instantiate(
         cfg.framework.module,
@@ -219,6 +165,8 @@ def main(cfg: DictConfig):
             encoder=hydra.utils.instantiate(cfg.model.encoder),
             decoder=hydra.utils.instantiate(cfg.model.decoder)
         ),
+        # apply augmentations to batch on GPU which is faster than on the dataloader
+        batch_augment=datamodule.batch_augment
     )
 
     # LOG ALL HYPER-PARAMETERS
@@ -236,12 +184,13 @@ def main(cfg: DictConfig):
         prepare_data_per_node=prepare_data_per_node,
         progress_bar_refresh_rate=0,  # ptl 0.9
     )
-    trainer.fit(framework, datamodule=HydraDataModule(cfg))
+    trainer.fit(framework, datamodule=datamodule)
 
 
 # ========================================================================= #
 # MAIN                                                                      #
 # ========================================================================= #
+
 
 if __name__ == '__main__':
     try:
@@ -250,6 +199,7 @@ if __name__ == '__main__':
         log.warning('Interrupted - Exited early!')
     except:
         log.error('A critical error occurred! Exiting safely...', exc_info=True)
+
 
 # ========================================================================= #
 # END                                                                       #

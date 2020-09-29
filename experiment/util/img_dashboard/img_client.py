@@ -10,7 +10,7 @@ import hydra
 
 from disent.util import make_box_str
 from experiment.hydra_system import HydraDataModule, hydra_check_datadir
-from experiment.img_dashboard.img_server import send_images, REFRESH_MS
+from experiment.util.img_dashboard.img_server import send_images, REFRESH_MS
 
 log = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-@hydra.main(config_path='../config', config_name="config")
+@hydra.main(config_path='../../config', config_name="config")
 def main(cfg: DictConfig):
     # print useful info
     log.info(make_box_str(OmegaConf.to_yaml(cfg)))
@@ -33,18 +33,16 @@ def main(cfg: DictConfig):
 
     datamodule = HydraDataModule(cfg)
     datamodule.setup()
+    dataset = datamodule.dataset_train_aug
 
     while True:
         # get random images
-        idx = np.random.randint(len(datamodule.dataset))
-        obs = datamodule.dataset_train[idx]
-        x, x_targ = obs['x'], obs['x_targ']
+        idx = np.random.randint(len(dataset))
+        obs = dataset[idx]
 
         # convert augmented images to observations
-        if not isinstance(x, (tuple, list)):
-            x, x_targ = [x], [x_targ]
-        x = [kornia.tensor_to_image(obs) for obs in x]
-        x_targ = [kornia.tensor_to_image(obs) for obs in x_targ]
+        x = [kornia.tensor_to_image(obs) for obs in obs['x']]
+        x_targ = [kornia.tensor_to_image(obs) for obs in obs['x_targ']]
 
         # send images to server
         try:

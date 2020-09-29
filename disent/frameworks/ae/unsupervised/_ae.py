@@ -14,8 +14,13 @@ class AutoEncoder(BaseFramework):
     Basic Auto Encoder
     """
 
-    def __init__(self, make_optimizer_fn, make_model_fn):
-        super().__init__(make_optimizer_fn)
+    def __init__(
+            self,
+            make_optimizer_fn,
+            make_model_fn,
+            batch_augment=None
+    ):
+        super().__init__(make_optimizer_fn, batch_augment=batch_augment)
         # vae model
         assert callable(make_model_fn)
         # TODO: convert to AE
@@ -23,7 +28,7 @@ class AutoEncoder(BaseFramework):
         assert isinstance(self._model, GaussianAutoEncoder)
 
     def compute_training_loss(self, batch, batch_idx):
-        x, x_targ = batch['x'], batch['x_targ']
+        (x,), (x_targ,) = batch['x'], batch['x_targ']
 
         # FORWARD
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #

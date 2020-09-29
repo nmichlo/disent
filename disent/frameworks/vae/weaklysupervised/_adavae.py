@@ -17,8 +17,15 @@ class AdaVae(BetaVae):
         - ML-AdaVAE: Averaging from https://arxiv.org/abs/1705.08841
     """
 
-    def __init__(self, make_optimizer_fn, make_model_fn, beta=4, average_mode='gvae'):
-        super().__init__(make_optimizer_fn, make_model_fn, beta=beta)
+    def __init__(
+            self,
+            make_optimizer_fn,
+            make_model_fn,
+            batch_augment=None,
+            beta=4,
+            average_mode='gvae'
+    ):
+        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, beta=beta)
         # averaging modes
         self.compute_average = {
             'gvae': compute_average_gvae,

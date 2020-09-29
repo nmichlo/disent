@@ -17,8 +17,8 @@ class AdaSimCLR(SimCLR, BaseFramework):
     # https://github.com/sthalles/SimCLR
     # https://github.com/sthalles/PyTorch-BYOL
 
-    def __init__(self, make_optimizer_fn):
-        super().__init__(make_optimizer_fn)
+    def __init__(self, make_optimizer_fn, batch_augment):
+        super().__init__(make_optimizer_fn, batch_augment=batch_augment)
 
     def compute_training_loss(self, batch, batch_idx) -> dict:
         pass

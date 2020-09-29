@@ -5,14 +5,21 @@ import pytorch_lightning as pl
 # framework                                                                 #
 # ========================================================================= #
 
-
 class BaseFramework(pl.LightningModule):
     
-    def __init__(self, make_optimizer_fn):
+    def __init__(
+            self,
+            make_optimizer_fn,
+            batch_augment=None,
+    ):
         super().__init__()
         # optimiser
         assert callable(make_optimizer_fn)
         self._make_optimiser_fn = make_optimizer_fn
+        # batch augmentations
+        # - not implemented as dataset transforms because we want to apply these on the GPU
+        self._batch_augment = batch_augment
+        assert (batch_augment is None) or callable(batch_augment)
 
     def configure_optimizers(self):
         return self._make_optimiser_fn(self.parameters())
@@ -23,6 +30,9 @@ class BaseFramework(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         """This is a pytorch-lightning function that should return the computed loss"""
+        # augment batch with GPU support
+        if self._batch_augment is not None:
+            batch = self._batch_augment(batch)
         # compute loss
         logs_dict = self.compute_training_loss(batch, batch_idx)
         # return log loss components & return loss

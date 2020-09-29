@@ -10,8 +10,16 @@ from disent.frameworks.vae.loss import bce_loss_with_logits, kl_normal_loss
 
 class GuidedAdaVae(AdaVae):
     
-    def __init__(self, make_optimizer_fn, make_model_fn, beta=4, average_mode='gvae', anchor_ave_mode='average'):
-        super().__init__(make_optimizer_fn, make_model_fn, beta=beta, average_mode=average_mode)
+    def __init__(
+            self,
+            make_optimizer_fn,
+            make_model_fn,
+            batch_augment=None,
+            beta=4,
+            average_mode='gvae',
+            anchor_ave_mode='average'
+    ):
+        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, beta=beta, average_mode=average_mode)
         # how the anchor is averaged
         assert anchor_ave_mode in {'thresh', 'average'}
         self.anchor_ave_mode = anchor_ave_mode

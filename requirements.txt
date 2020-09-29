@@ -4,6 +4,7 @@ numpy
 pandas
 
 opencv-python
+scipy
 scikit-learn
 xgboost
 lightgbm
@@ -35,8 +36,8 @@ pytorch-lightning
 pytorch-lightning-bolts
 
 kornia
-imgaug
-albumentations
+# imgaug
+# albumentations
 
 # tensorflow-gpu
 # tensorboard

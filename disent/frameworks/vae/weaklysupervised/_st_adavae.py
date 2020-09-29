@@ -10,8 +10,16 @@ from disent.frameworks.vae.weaklysupervised import AdaVae
 
 class SwappedTargetAdaVae(AdaVae):
 
-    def __init__(self, make_optimizer_fn, make_model_fn, beta=4, average_mode='gvae', swap_chance=0.1):
-        super().__init__(make_optimizer_fn, make_model_fn, beta=beta, average_mode=average_mode)
+    def __init__(
+            self,
+            make_optimizer_fn,
+            make_model_fn,
+            batch_augment=None,
+            beta=4,
+            average_mode='gvae',
+            swap_chance=0.1
+    ):
+        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, beta=beta, average_mode=average_mode)
         assert swap_chance >= 0
         self.swap_chance = swap_chance
 

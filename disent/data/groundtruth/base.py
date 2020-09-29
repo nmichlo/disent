@@ -1,11 +1,12 @@
 import logging
 import os
+from abc import ABCMeta
 from typing import List, Tuple
 import h5py
-import torch
-import numpy as np
+
 from disent.data.util.in_out import basename_from_url, download_file, ensure_dir_exists
 from disent.data.util.state_space import StateSpace
+
 
 log = logging.getLogger(__name__)
 
@@ -19,30 +20,12 @@ class GroundTruthData(StateSpace):
 
     def __init__(self):
         assert len(self.factor_names) == len(self.factor_sizes), 'Dimensionality mismatch of FACTOR_NAMES and FACTOR_DIMS'
-        super().__init__(self.factor_sizes)
-        
-    def sample_observations(self, num_samples):
-        """Sample a batch of observations X."""
-        factors, observations = self.sample(num_samples)
-        return observations
+        super().__init__(factor_sizes=self.factor_sizes)
 
-    def sample_observations_from_factors(self, factors):
-        """Sample a batch of observations X given a batch of factors Y."""
-        observations = [self[self.pos_to_idx(factor)] for factor in factors]
-        # TODO: this should be configurable
-        if torch.is_tensor(observations[0]):
-            observations = torch.stack(observations)
-        else:
-            observations = np.stack(observations)
-        # return
-        return observations
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Overrides                                                             #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def sample(self, num_samples):
-        """Sample a batch of factors Y and observations X."""
-        factors = self.sample_factors(num_samples)
-        observations = self.sample_observations_from_factors(factors)
-        return factors, observations
-    
     @property
     def factor_names(self) -> Tuple[str, ...]:
         raise NotImplementedError()
@@ -60,11 +43,11 @@ class GroundTruthData(StateSpace):
 
 
 # ========================================================================= #
-# paired factor of variation data                                        #
+# dataset helpers                                                           #
 # ========================================================================= #
 
 
-class DownloadableGroundTruthData(GroundTruthData):
+class DownloadableGroundTruthData(GroundTruthData, metaclass=ABCMeta):
 
     def __init__(self, data_dir='data/dataset', force_download=False):
         super().__init__()
@@ -85,7 +68,7 @@ class DownloadableGroundTruthData(GroundTruthData):
 
     @property
     def dataset_paths(self) -> List[str]:
-        '''path that the data should be loaded from in the child class'''
+        """path that the data should be loaded from in the child class"""
         return self._data_paths
 
     @property
@@ -93,7 +76,7 @@ class DownloadableGroundTruthData(GroundTruthData):
         raise NotImplementedError()
 
 
-class PreprocessedDownloadableGroundTruthData(DownloadableGroundTruthData):
+class PreprocessedDownloadableGroundTruthData(DownloadableGroundTruthData, metaclass=ABCMeta):
 
     def __init__(self, data_dir='data/dataset', force_download=False, force_preprocess=False):
         super().__init__(data_dir=data_dir, force_download=force_download)
@@ -153,7 +136,7 @@ class PreprocessedDownloadableGroundTruthData(DownloadableGroundTruthData):
 
     @property
     def dataset_path(self):
-        '''path that the dataset should be loaded from in the child class'''
+        """path that the dataset should be loaded from in the child class"""
         return self._proc_path
 
     @property
@@ -164,7 +147,7 @@ class PreprocessedDownloadableGroundTruthData(DownloadableGroundTruthData):
         raise NotImplementedError()
 
 
-class Hdf5PreprocessedGroundTruthData(PreprocessedDownloadableGroundTruthData):
+class Hdf5PreprocessedGroundTruthData(PreprocessedDownloadableGroundTruthData, metaclass=ABCMeta):
     """
     Automatically download and pre-process an hdf5 dataset into the specific chunk sizes.
     TODO: Only supports one dataset from the hdf5 file itself, labels etc need a custom implementation.

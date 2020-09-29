@@ -33,9 +33,9 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
     ):
         super().__init__(ground_truth_data=ground_truth_data, transform=transform, augment=augment)
         # checks
-        assert swap_metric in {None, 'factors', 'manhattan', 'manhattan_ratio', 'euclidean', 'euclidean_ratio'}
-        assert n_k_sample_mode in {'offset', 'bounded_below', 'random'}
-        assert n_radius_sample_mode in {'offset', 'bounded_below', 'random'}
+        assert swap_metric in {None, 'factors', 'manhattan', 'manhattan_ratio', 'euclidean', 'euclidean_ratio'}, f'Invalid {swap_metric=}'
+        assert n_k_sample_mode in {'offset', 'bounded_below', 'random'}, f'Invalid {n_k_sample_mode=}'
+        assert n_radius_sample_mode in {'offset', 'bounded_below', 'random'}, f'Invalid {n_radius_sample_mode=}'
         # DIFFERING FACTORS
         self.n_k_sample_mode = n_k_sample_mode
         self.n_k_is_shared = n_k_is_shared
@@ -58,21 +58,21 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
         # SWAP: if negative is not further than the positive
         self._swap_metric = swap_metric
 
-    # --------------------------------------------------------------------- #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # CORE                                                                  #
-    # --------------------------------------------------------------------- #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     def __getitem__(self, idx):
-        f0, f1, f2 = self.sample_factors(idx)
-        x0, x0_targ = self._getitem_transformed(self.data.pos_to_idx(f0))
-        x1, x1_targ = self._getitem_transformed(self.data.pos_to_idx(f1))
-        x2, x2_targ = self._getitem_transformed(self.data.pos_to_idx(f2))
+        f0, f1, f2 = self.datapoint_sample_factors_triplet(idx)
+        x0, x0_targ = self.dataset_get(self.data.pos_to_idx(f0), mode='pair')
+        x1, x1_targ = self.dataset_get(self.data.pos_to_idx(f1), mode='pair')
+        x2, x2_targ = self.dataset_get(self.data.pos_to_idx(f2), mode='pair')
         return {
             'x': (x0, x1, x2),
             'x_targ': (x0_targ, x1_targ, x2_targ),
         }
 
-    def sample_factors(self, idx):
+    def datapoint_sample_factors_triplet(self, idx):
         # SAMPLE FACTOR INDICES
         p_k, n_k = self._sample_num_factors()
         p_shared_indices, n_shared_indices = self._sample_shared_indices(p_k, n_k)
@@ -86,9 +86,9 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
             positive_factors, negative_factors = self._swap_factors(anchor_factors, positive_factors, negative_factors)
         return anchor_factors, positive_factors, negative_factors
 
-    # --------------------------------------------------------------------- #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # HELPER                                                                #
-    # --------------------------------------------------------------------- #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     def _min_max_from_range(self, p_range, n_range, max_values, n_sample_mode, is_radius=False):
         p_min, p_max = normalise_range_pair(p_range, max_values)
@@ -190,9 +190,9 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
         # return factors
         return positive_factors, negative_factors
 
-    # --------------------------------------------------------------------- #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # END CLASS                                                             #
-    # --------------------------------------------------------------------- #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
 
 # ========================================================================= #
