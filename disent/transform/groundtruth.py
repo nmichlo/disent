@@ -1,6 +1,6 @@
 
 
-class GroundTruthDatasetAugment(object):
+class GroundTruthDatasetBatchAugment(object):
     """
     Applies transforms to batches generated from dataloaders of
     datasets from: disent.dataset.groundtruth
@@ -19,6 +19,9 @@ class GroundTruthDatasetAugment(object):
             batch = _apply_transform_to_batch_dict(batch, 'x_targ', self.transform)
         # done!
         return batch
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(transform={repr(self.transform)}, transform_targ={repr(self.transform_targ)})'
 
 
 def _apply_transform_to_batch_dict(batch, key, transform):

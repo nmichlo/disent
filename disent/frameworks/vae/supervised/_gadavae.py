@@ -14,12 +14,12 @@ class GuidedAdaVae(AdaVae):
             self,
             make_optimizer_fn,
             make_model_fn,
-            make_augment_fn=None,
+            batch_augment=None,
             beta=4,
             average_mode='gvae',
             anchor_ave_mode='average'
     ):
-        super().__init__(make_optimizer_fn, make_model_fn, make_augment_fn=make_augment_fn, beta=beta, average_mode=average_mode)
+        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, beta=beta, average_mode=average_mode)
         # how the anchor is averaged
         assert anchor_ave_mode in {'thresh', 'average'}
         self.anchor_ave_mode = anchor_ave_mode

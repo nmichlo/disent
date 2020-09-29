@@ -21,11 +21,11 @@ class AdaVae(BetaVae):
             self,
             make_optimizer_fn,
             make_model_fn,
-            make_augment_fn=None,
+            batch_augment=None,
             beta=4,
             average_mode='gvae'
     ):
-        super().__init__(make_optimizer_fn, make_model_fn, make_augment_fn=make_augment_fn, beta=beta)
+        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, beta=beta)
         # averaging modes
         self.compute_average = {
             'gvae': compute_average_gvae,

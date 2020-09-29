@@ -18,4 +18,4 @@ data_wrapper:
   n_radius_range: ${dataset.n_k_radius},
   n_radius_sample_mode: ${dataset.n_k_radius_mode},
   # final checks
-  swap_metric: NONE,
+  swap_metric: NULL,

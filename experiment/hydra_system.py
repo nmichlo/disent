@@ -11,6 +11,7 @@ from pytorch_lightning.loggers import WandbLogger, CometLogger
 from disent.dataset.groundtruth import GroundTruthDataset
 from disent.metrics import compute_dci, compute_factor_vae
 from disent.model import GaussianAutoEncoder
+from disent.transform.groundtruth import GroundTruthDatasetBatchAugment
 from disent.util import make_box_str
 
 from experiment.util.callbacks import VaeDisentanglementLoggingCallback, VaeLatentCycleLoggingCallback, LoggerProgressCallback
@@ -30,9 +31,18 @@ class HydraDataModule(pl.LightningDataModule):
     def __init__(self, hparams: DictConfig):
         super().__init__()
         self.hparams = hparams
+        # raw ground truth data
         self.data = None
+        # data used for validation (with augmentations)
         self.dataset = None
+        # data used for training (without augmentations)
         self.dataset_train = None
+        # transform - prepares data from datasets
+        self.transform = instantiate_recursive(self.hparams.dataset.transform)
+        # augment - augments transformed data for inputs
+        self.augment = instantiate_recursive(self.hparams.augment.transform)
+        # augment - augments transformed data for inputs, should be applied across a batch, same as self.augment
+        self.batch_augment = GroundTruthDatasetBatchAugment(transform=self.augment) if (self.augment is not None) else None
 
     def prepare_data(self) -> None:
         # *NB* Do not set model parameters here.
@@ -49,16 +59,18 @@ class HydraDataModule(pl.LightningDataModule):
         # single observations
         self.dataset = GroundTruthDataset(
             ground_truth_data=self.data,
-            transform=instantiate_recursive(self.hparams.dataset.transform)
+            transform=self.transform,
+            augment=self.augment
         )
         # wrap the data for the framework
         # some datasets need triplets, pairs, etc.
         self.dataset_train = hydra.utils.instantiate(
             self.hparams.framework.data_wrapper,
             ground_truth_data=self.data,
-            # augmentations
-            transform=self.dataset.transform,
-            augment=instantiate_recursive(self.hparams.augment.dataset_transform) if ('dataset_transform' in self.hparams.augment) else None
+            transform=self.transform,
+            # Augmentation is done inside the frameworks so that it can be
+            # done on the GPU, otherwise things are very slow.
+            augment=None,
         )
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -211,6 +223,9 @@ def main(cfg: DictConfig):
     hydra_append_metric_callback(callbacks, cfg)
     hydra_append_correlation_callback(callbacks, cfg)
 
+    # DATA
+    datamodule = HydraDataModule(cfg)
+
     # FRAMEWORK
     framework = hydra.utils.instantiate(
         cfg.framework.module,
@@ -219,7 +234,7 @@ def main(cfg: DictConfig):
             encoder=hydra.utils.instantiate(cfg.model.encoder),
             decoder=hydra.utils.instantiate(cfg.model.decoder)
         ),
-        make_augment_fn=(lambda: instantiate_recursive(cfg.augment.batch_transform)) if ('batch_transform' in cfg.augment) else None
+        batch_augment=datamodule.batch_augment
     )
 
     # LOG ALL HYPER-PARAMETERS
@@ -237,7 +252,7 @@ def main(cfg: DictConfig):
         prepare_data_per_node=prepare_data_per_node,
         progress_bar_refresh_rate=0,  # ptl 0.9
     )
-    trainer.fit(framework, datamodule=HydraDataModule(cfg))
+    trainer.fit(framework, datamodule=datamodule)
 
 
 # ========================================================================= #

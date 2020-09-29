@@ -19,9 +19,9 @@ class Vae(BaseFramework):
             self,
             make_optimizer_fn,
             make_model_fn,
-            make_augment_fn=None
+            batch_augment=None
     ):
-        super().__init__(make_optimizer_fn, make_augment_fn=make_augment_fn)
+        super().__init__(make_optimizer_fn, batch_augment=batch_augment)
         # vae model
         assert callable(make_model_fn)
         self._model: GaussianAutoEncoder = make_model_fn()

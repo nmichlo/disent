@@ -1,13 +1,10 @@
 # @package _group_
 name: basic
-
-batch_transform:
-  _target_: disent.transform.groundtruth.GroundTruthDatasetAugment
-  transform:
-    _target_: torchvision.transforms.Compose
-    transforms:
-      - _target_: kornia.augmentation.RandomRotation
-        degrees: 10
-      - _target_: kornia.augmentation.RandomResizedCrop
-        size: [64, 64]
-        scale: [0.95, 1.0]
+transform:
+  _target_: torchvision.transforms.Compose
+  transforms:
+    - _target_: kornia.augmentation.RandomRotation
+      degrees: 10
+    - _target_: kornia.augmentation.RandomResizedCrop
+      size: [64, 64]
+      scale: [0.95, 1.0]

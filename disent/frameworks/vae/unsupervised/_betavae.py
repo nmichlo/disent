@@ -12,10 +12,10 @@ class BetaVae(Vae):
             self,
             make_optimizer_fn,
             make_model_fn,
-            make_augment_fn=None,
+            batch_augment=None,
             beta=4
     ):
-        super().__init__(make_optimizer_fn, make_model_fn, make_augment_fn=make_augment_fn)
+        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment)
         assert beta >= 0
         self.beta = beta
 
@@ -38,8 +38,8 @@ class BetaVaeH(BetaVae):
     (NOTE: BetaVAEB is from understanding disentanglement in Beta VAEs)
     """
 
-    def __init__(self, make_optimizer_fn, make_model_fn, make_augment_fn=None, anneal_end_steps=0, beta=4):
-        super().__init__(make_optimizer_fn, make_model_fn, make_augment_fn=make_augment_fn, beta=beta)
+    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, anneal_end_steps=0, beta=4):
+        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, beta=beta)
         self.anneal_end_steps = anneal_end_steps
 
     def kl_regularization(self, kl_loss):

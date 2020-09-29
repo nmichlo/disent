@@ -14,12 +14,12 @@ class SwappedTargetAdaVae(AdaVae):
             self,
             make_optimizer_fn,
             make_model_fn,
-            make_augment_fn=None,
+            batch_augment=None,
             beta=4,
             average_mode='gvae',
             swap_chance=0.1
     ):
-        super().__init__(make_optimizer_fn, make_model_fn, make_augment_fn=make_augment_fn, beta=beta, average_mode=average_mode)
+        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, beta=beta, average_mode=average_mode)
         assert swap_chance >= 0
         self.swap_chance = swap_chance
 

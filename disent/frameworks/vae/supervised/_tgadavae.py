@@ -13,14 +13,14 @@ class TripletGuidedAdaVae(GuidedAdaVae):
             self,
             make_optimizer_fn,
             make_model_fn,
-            make_augment_fn=None,
+            batch_augment=None,
             beta=4,
             average_mode='gvae',
             anchor_ave_mode='average',
             triplet_margin=0.1,
             triplet_scale=1,
     ):
-        super().__init__(make_optimizer_fn, make_model_fn, make_augment_fn=make_augment_fn, beta=beta, average_mode=average_mode, anchor_ave_mode=anchor_ave_mode)
+        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, beta=beta, average_mode=average_mode, anchor_ave_mode=anchor_ave_mode)
         self.triplet_margin = triplet_margin
         self.triplet_scale = triplet_scale
 

@@ -3,6 +3,7 @@ defaults:
   - model: conv64
   - optimizer: radam
   - dataset: xymultigrid
+  - augment: none
   # hydra plugins
   - hydra/job_logging: colorlog
   - hydra/hydra_logging: colorlog

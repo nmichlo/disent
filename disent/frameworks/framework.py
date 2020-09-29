@@ -10,7 +10,7 @@ class BaseFramework(pl.LightningModule):
     def __init__(
             self,
             make_optimizer_fn,
-            make_augment_fn=None
+            batch_augment=None,
     ):
         super().__init__()
         # optimiser
@@ -18,10 +18,8 @@ class BaseFramework(pl.LightningModule):
         self._make_optimiser_fn = make_optimizer_fn
         # batch augmentations
         # - not implemented as dataset transforms because we want to apply these on the GPU
-        self._augment = None
-        if make_augment_fn is not None:
-            assert callable(make_augment_fn)
-            self._augment = make_augment_fn()
+        self._batch_augment = batch_augment
+        assert (batch_augment is None) or callable(batch_augment)
 
     def configure_optimizers(self):
         return self._make_optimiser_fn(self.parameters())
@@ -33,8 +31,8 @@ class BaseFramework(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         """This is a pytorch-lightning function that should return the computed loss"""
         # augment batch with GPU support
-        if self._augment is not None:
-            batch = self._augment(batch)
+        if self._batch_augment is not None:
+            batch = self._batch_augment(batch)
         # compute loss
         logs_dict = self.compute_training_loss(batch, batch_idx)
         # return log loss components & return loss

@@ -20,6 +20,9 @@ class CheckTensor(object):
         # DONE!
         return obs
 
+    def __repr__(self):
+        return f'{self.__class__.__name__}(low={repr(self._low)}, high={repr(self._high)}, dtype={repr(self._dtype)})'
+
 
 class ToStandardisedTensor(object):
     """
@@ -33,6 +36,7 @@ class ToStandardisedTensor(object):
     def __init__(self, size=None):
         transforms = []
         # resize image
+        self._size = size
         if size is not None:
             transforms.append(torchvision.transforms.ToPILImage())
             transforms.append(torchvision.transforms.Resize(size=size))
@@ -43,6 +47,9 @@ class ToStandardisedTensor(object):
 
     def __call__(self, obs) -> torch.Tensor:
         return self._transform(obs)
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(size={repr(self._size)})'
 
 
 class NormalizeTensor(object):
@@ -62,5 +69,8 @@ class NormalizeTensor(object):
 
     def __call__(self, obs) -> torch.Tensor:
         return self._transform(obs)
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}()'
 
 
