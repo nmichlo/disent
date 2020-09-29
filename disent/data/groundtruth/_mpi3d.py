@@ -5,8 +5,9 @@ from disent.data.groundtruth.base import DownloadableGroundTruthData
 log = logging.getLogger(__name__)
 
 # ========================================================================= #
-# mpi3d                                                                   #
+# mpi3d                                                                     #
 # ========================================================================= #
+
 
 class Mpi3dData(DownloadableGroundTruthData):
     """
