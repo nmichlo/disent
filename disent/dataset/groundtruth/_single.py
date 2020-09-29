@@ -1,7 +1,11 @@
+import enum
 import logging
-from typing import Tuple
+from typing import Tuple, Union
+import numpy as np
 
 from torch.utils.data import Dataset
+from torch.utils.data.dataloader import default_collate
+
 from disent.data.groundtruth.base import GroundTruthData
 
 
@@ -39,7 +43,7 @@ class GroundTruthDataset(Dataset, GroundTruthData):
         return self.data.observation_shape
 
     def __getitem__(self, idx):
-        x0, x0_targ = self.datapoint_get_input_target_pair(idx)
+        x0, x0_targ = self.dataset_get(idx, mode='pair')
         return {
             'x': (x0,),            # wrapped in tuple to match pair and triplet
             'x_targ': (x0_targ,),  # wrapped in tuple to match pair and triplet
@@ -62,28 +66,47 @@ class GroundTruthDataset(Dataset, GroundTruthData):
             x = _batch_to_observation(batch=x, obs_shape=x_targ.shape)
         return x
 
-    def datapoint_get_raw(self, idx):
+
+    def dataset_get(self, idx, mode: str):
         try:
             idx = int(idx)
         except:
             raise TypeError(f'Indices must be integer-like ({type(idx)}): {idx}')
         # we do not support indexing by lists
-        return self.data[idx]
+        dat = self.data[idx]
+        # return correct data
+        if mode == 'pair':
+            x_targ = self._datapoint_raw_to_target(dat)
+            x = self._datapoint_target_to_input(x_targ)
+            return x, x_targ
+        elif mode == 'input':
+            x_targ = self._datapoint_raw_to_target(dat)
+            return self._datapoint_target_to_input(x_targ)
+        elif mode == 'target':
+            return self._datapoint_raw_to_target(dat)
+        elif mode == 'raw':
+            return dat
+        else:
+            raise KeyError(f'Invalid {mode=}')
 
-    def datapoint_get_target(self, idx):
-        dat = self.datapoint_get_raw(idx)
-        x_targ = self._datapoint_raw_to_target(dat)
-        return x_targ
+    def dataset_batch_from_factors(self, factors: np.ndarray, mode: str):
+        """Get a batch of observations X from a batch of factors Y."""
+        return default_collate([
+            self.dataset_get(idx, mode=mode)
+            for idx in self.pos_to_idx(factors)
+        ])
 
-    def datapoint_get_input(self, idx):
-        x, x_targ = self.datapoint_get_input_target_pair(idx)
-        return x
+    def dataset_sample_batch_with_factors(self, num_samples: int, mode: str):
+        """Sample a batch of observations X and factors Y."""
+        factors = self.sample_factors(num_samples)
+        batch = self.dataset_batch_from_factors(factors, mode=mode)
+        return batch, default_collate(factors)
 
-    def datapoint_get_input_target_pair(self, idx):
-        dat = self.datapoint_get_raw(idx)
-        x_targ = self._datapoint_raw_to_target(dat)
-        x = self._datapoint_target_to_input(x_targ)
-        return x, x_targ
+    def dataset_sample_batch(self, num_samples: int, mode: str):
+        """Sample a batch of observations X."""
+        factors = self.sample_factors(num_samples)
+        batch = self.dataset_batch_from_factors(factors, mode=mode)
+        return batch
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # End Class                                                             #

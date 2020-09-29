@@ -58,7 +58,7 @@ logging:
     offline: FALSE
     entity: 'n_michlo'
     project: 'vae-dataset-overlap'
-    name: '${framework.name}|${model.z_size}|1s-${dataset.name}-${dataset.data.grid_spacing}:${dataset.resample_radius}'
+    name: '${framework.name}|${model.z_size}|${dataset.name}:${augment.name}'
     group: null
     tags:
       - '${framework.name}'

@@ -64,9 +64,9 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
 
     def __getitem__(self, idx):
         f0, f1, f2 = self.datapoint_sample_factors_triplet(idx)
-        x0, x0_targ = self.datapoint_get_input_target_pair(self.data.pos_to_idx(f0))
-        x1, x1_targ = self.datapoint_get_input_target_pair(self.data.pos_to_idx(f1))
-        x2, x2_targ = self.datapoint_get_input_target_pair(self.data.pos_to_idx(f2))
+        x0, x0_targ = self.dataset_get(self.data.pos_to_idx(f0), mode='pair')
+        x1, x1_targ = self.dataset_get(self.data.pos_to_idx(f1), mode='pair')
+        x2, x2_targ = self.dataset_get(self.data.pos_to_idx(f2), mode='pair')
         return {
             'x': (x0, x1, x2),
             'x_targ': (x0_targ, x1_targ, x2_targ),

@@ -3,6 +3,7 @@ import os
 from abc import ABCMeta
 from typing import List, Tuple
 import h5py
+
 from disent.data.util.in_out import basename_from_url, download_file, ensure_dir_exists
 from disent.data.util.state_space import StateSpace
 
@@ -20,25 +21,6 @@ class GroundTruthData(StateSpace):
     def __init__(self):
         assert len(self.factor_names) == len(self.factor_sizes), 'Dimensionality mismatch of FACTOR_NAMES and FACTOR_DIMS'
         super().__init__(factor_sizes=self.factor_sizes)
-
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # Sampling                                                              #
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-
-    def sample_observations(self, num_samples):
-        """Sample a batch of observations X."""
-        factors, observations = self.sample_factors_and_observations(num_samples)
-        return observations
-
-    def get_observations_from_factors(self, factors):
-        """Sample a batch of observations X given a batch of factors Y."""
-        return [self[idx] for idx in self.pos_to_idx(factors)]
-
-    def sample_factors_and_observations(self, num_samples):
-        """Sample a batch of factors Y and observations X."""
-        factors = self.sample_factors(num_samples)
-        observations = self.get_observations_from_factors(factors)
-        return factors, observations
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Overrides                                                             #

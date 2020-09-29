@@ -4,12 +4,13 @@ import wandb
 import numpy as np
 import pytorch_lightning as pl
 
-from disent.data.groundtruth.base import GroundTruthData
-from disent.frameworks.vae.unsupervised._vae import Vae
+from disent.dataset.groundtruth import GroundTruthDataset
+from disent.frameworks.vae.unsupervised import Vae
 from disent.util import TempNumpySeed, chunked, to_numpy
 from disent.visualize.visualize_model import latent_cycle
 from disent.visualize.visualize_util import gridify_animation, reconstructions_to_images
 
+from experiment.hydra_data import HydraDataModule
 from experiment.util.callbacks.callbacks_base import _PeriodicCallback
 
 import matplotlib.pyplot as plt
@@ -23,12 +24,13 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def _get_dataset_and_vae(trainer: pl.Trainer, pl_module: pl.LightningModule) -> (GroundTruthData, Vae):
+def _get_dataset_and_vae(trainer: pl.Trainer, pl_module: pl.LightningModule) -> (GroundTruthDataset, Vae):
     assert isinstance(pl_module, Vae), f'{pl_module.__class__} is not an instance of {Vae}'
+    # check dataset
     assert hasattr(trainer, 'datamodule'), f'trainer was not run using a datamodule.'
-    assert hasattr(trainer.datamodule, 'dataset'), f'datamodule ({trainer.datamodule.__class__}) does not have a variable named dataset'
-    assert isinstance(trainer.datamodule.dataset, GroundTruthData), f'dataset ({trainer.datamodule.dataset.__class__}) on datamodule ({trainer.datamodule.__class__}) is not an instance of {GroundTruthData}'
-    return trainer.datamodule.dataset, pl_module
+    assert isinstance(trainer.datamodule, HydraDataModule)
+    # done checks
+    return trainer.datamodule.dataset_train_aug, pl_module
 
 
 # ========================================================================= #
@@ -48,7 +50,8 @@ class VaeLatentCycleLoggingCallback(_PeriodicCallback):
 
         # get random sample of z_means and z_logvars for computing the range of values for the latent_cycle
         with TempNumpySeed(self.seed):
-            obs = dataset.sample_observations(64).to(vae.device)
+            obs = dataset.dataset_sample_batch(64, mode='target').to(vae.device)
+
         z_means, z_logvars = vae.encode_gaussian(obs)
 
         # produce latent cycle animation & merge frames
@@ -114,7 +117,7 @@ class VaeLatentCorrelationLoggingCallback(_PeriodicCallback):
         factors = dataset.sample_factors(num_samples)
         # encode observations of factors
         zs = np.concatenate([
-            to_numpy(vae.encode(dataset.sample_observations_from_factors(factor_batch).to(pl_module.device)))
+            to_numpy(vae.encode(dataset.dataset_batch_from_factors(factor_batch, mode='target').to(vae.device)))
             for factor_batch in chunked(factors, 256)
         ])
         z_size = zs.shape[-1]

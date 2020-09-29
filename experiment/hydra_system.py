@@ -8,78 +8,16 @@ import torch
 import torch.utils.data
 from pytorch_lightning.loggers import WandbLogger, CometLogger
 
-from disent.dataset.groundtruth import GroundTruthDataset
 from disent.metrics import compute_dci, compute_factor_vae
 from disent.model import GaussianAutoEncoder
-from disent.transform.groundtruth import GroundTruthDatasetBatchAugment
 from disent.util import make_box_str
+from experiment.hydra_data import HydraDataModule
 
 from experiment.util.callbacks import VaeDisentanglementLoggingCallback, VaeLatentCycleLoggingCallback, LoggerProgressCallback
 from experiment.util.callbacks.callbacks_vae import VaeLatentCorrelationLoggingCallback
-from experiment.util.hydra_utils import instantiate_recursive
+
 
 log = logging.getLogger(__name__)
-
-
-# ========================================================================= #
-# DATASET                                                                   #
-# ========================================================================= #
-
-
-class HydraDataModule(pl.LightningDataModule):
-
-    def __init__(self, hparams: DictConfig):
-        super().__init__()
-        self.hparams = hparams
-        # transform: prepares data from datasets | augment: augments transformed data for inputs
-        self._transform = instantiate_recursive(self.hparams.dataset.transform)
-        self._augment = instantiate_recursive(self.hparams.augment.transform)
-        # batch_augment: augments transformed data for inputs, should be applied across a batch, same as self.augment
-        self.batch_augment = GroundTruthDatasetBatchAugment(transform=self._augment) if (self._augment is not None) else None
-        # datasets
-        self.dataset_train: GroundTruthDataset = None
-        self.dataset_train_aug: GroundTruthDataset = None
-
-    def prepare_data(self) -> None:
-        # *NB* Do not set model parameters here.
-        # - Instantiate data once to download and prepare if needed.
-        # - trainer.prepare_data_per_node affects this functions behavior per node.
-        data = self.hparams.dataset.data.copy()
-        if 'in_memory' in data:
-            del data['in_memory']
-        hydra.utils.instantiate(data)
-
-    def setup(self, stage=None) -> None:
-        # ground truth data
-        data = hydra.utils.instantiate(self.hparams.dataset.data)
-        # Wrap the data for the framework some datasets need triplets, pairs, etc.
-        # Augmentation is done inside the frameworks so that it can be done on the GPU, otherwise things are very slow.
-        self.dataset_train = hydra.utils.instantiate(self.hparams.framework.data_wrapper, ground_truth_data=data, transform=self._transform, augment=None)
-        self.dataset_train_aug = hydra.utils.instantiate(self.hparams.framework.data_wrapper, ground_truth_data=data, transform=self._transform, augment=self._augment)
-        assert isinstance(self.dataset_train, GroundTruthDataset)
-        assert isinstance(self.dataset_train_aug, GroundTruthDataset)
-
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # Training Dataset:
-    #     The sample of data used to fit the model.
-    # Validation Dataset:
-    #     Data used to provide an unbiased evaluation of a model fit on the
-    #     training dataset while tuning model hyperparameters. The
-    #     evaluation becomes more biased as skill on the validation
-    #     dataset is incorporated into the model configuration.
-    # Test Dataset:
-    #     The sample of data used to provide an unbiased evaluation of a
-    #     final model fit on the training dataset.
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-
-    def train_dataloader(self):
-        """Training Dataset: Sample of data used to fit the model"""
-        return torch.utils.data.DataLoader(
-            self.dataset_train,
-            batch_size=self.hparams.dataset.batch_size,
-            num_workers=self.hparams.dataset.num_workers,
-            shuffle=True
-        )
 
 
 # ========================================================================= #

@@ -57,6 +57,7 @@ def to_numpy(array):
     Handles converting any array like object to a numpy array.
     specifically with support for a tensor
     """
+    # TODO: replace... maybe with kornia
     if torch.is_tensor(array):
         return array.cpu().detach().numpy()
     # recursive conversion
