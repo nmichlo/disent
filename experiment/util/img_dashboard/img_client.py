@@ -10,7 +10,7 @@ import hydra
 
 from disent.util import make_box_str
 from experiment.hydra_system import HydraDataModule, hydra_check_datadir
-from experiment.img_dashboard.img_server import send_images, REFRESH_MS
+from experiment.util.img_dashboard.img_server import send_images, REFRESH_MS
 
 log = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-@hydra.main(config_path='../config', config_name="config")
+@hydra.main(config_path='../../config', config_name="config")
 def main(cfg: DictConfig):
     # print useful info
     log.info(make_box_str(OmegaConf.to_yaml(cfg)))
