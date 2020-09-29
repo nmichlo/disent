@@ -33,18 +33,16 @@ def main(cfg: DictConfig):
 
     datamodule = HydraDataModule(cfg)
     datamodule.setup()
+    dataset = datamodule.dataset_train_aug
 
     while True:
         # get random images
-        idx = np.random.randint(len(datamodule.dataset))
-        obs = datamodule.dataset_train[idx]
-        x, x_targ = obs['x'], obs['x_targ']
+        idx = np.random.randint(len(dataset))
+        obs = dataset[idx]
 
         # convert augmented images to observations
-        if not isinstance(x, (tuple, list)):
-            x, x_targ = [x], [x_targ]
-        x = [kornia.tensor_to_image(obs) for obs in x]
-        x_targ = [kornia.tensor_to_image(obs) for obs in x_targ]
+        x = [kornia.tensor_to_image(obs) for obs in obs['x']]
+        x_targ = [kornia.tensor_to_image(obs) for obs in obs['x_targ']]
 
         # send images to server
         try:

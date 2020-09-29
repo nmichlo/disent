@@ -31,18 +31,14 @@ class HydraDataModule(pl.LightningDataModule):
     def __init__(self, hparams: DictConfig):
         super().__init__()
         self.hparams = hparams
-        # raw ground truth data
-        self.data = None
-        # data used for validation (with augmentations)
-        self.dataset = None
-        # data used for training (without augmentations)
-        self.dataset_train = None
-        # transform - prepares data from datasets
-        self.transform = instantiate_recursive(self.hparams.dataset.transform)
-        # augment - augments transformed data for inputs
-        self.augment = instantiate_recursive(self.hparams.augment.transform)
-        # augment - augments transformed data for inputs, should be applied across a batch, same as self.augment
-        self.batch_augment = GroundTruthDatasetBatchAugment(transform=self.augment) if (self.augment is not None) else None
+        # transform: prepares data from datasets | augment: augments transformed data for inputs
+        self._transform = instantiate_recursive(self.hparams.dataset.transform)
+        self._augment = instantiate_recursive(self.hparams.augment.transform)
+        # batch_augment: augments transformed data for inputs, should be applied across a batch, same as self.augment
+        self.batch_augment = GroundTruthDatasetBatchAugment(transform=self._augment) if (self._augment is not None) else None
+        # datasets
+        self.dataset_train: GroundTruthDataset = None
+        self.dataset_train_aug: GroundTruthDataset = None
 
     def prepare_data(self) -> None:
         # *NB* Do not set model parameters here.
@@ -55,23 +51,13 @@ class HydraDataModule(pl.LightningDataModule):
 
     def setup(self, stage=None) -> None:
         # ground truth data
-        self.data = hydra.utils.instantiate(self.hparams.dataset.data)
-        # single observations
-        self.dataset = GroundTruthDataset(
-            ground_truth_data=self.data,
-            transform=self.transform,
-            augment=self.augment
-        )
-        # wrap the data for the framework
-        # some datasets need triplets, pairs, etc.
-        self.dataset_train = hydra.utils.instantiate(
-            self.hparams.framework.data_wrapper,
-            ground_truth_data=self.data,
-            transform=self.transform,
-            # Augmentation is done inside the frameworks so that it can be
-            # done on the GPU, otherwise things are very slow.
-            augment=None,
-        )
+        data = hydra.utils.instantiate(self.hparams.dataset.data)
+        # Wrap the data for the framework some datasets need triplets, pairs, etc.
+        # Augmentation is done inside the frameworks so that it can be done on the GPU, otherwise things are very slow.
+        self.dataset_train = hydra.utils.instantiate(self.hparams.framework.data_wrapper, ground_truth_data=data, transform=self._transform, augment=None)
+        self.dataset_train_aug = hydra.utils.instantiate(self.hparams.framework.data_wrapper, ground_truth_data=data, transform=self._transform, augment=self._augment)
+        assert isinstance(self.dataset_train, GroundTruthDataset)
+        assert isinstance(self.dataset_train_aug, GroundTruthDataset)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Training Dataset:
@@ -112,6 +98,7 @@ def hydra_check_cuda(cuda):
         if not cuda:
             log.warning('CUDA is available but is not being used!')
 
+
 def hydra_check_datadir(prepare_data_per_node, cfg):
     if not os.path.isabs(cfg.dataset.data_dir):
         log.warning(
@@ -128,6 +115,7 @@ def hydra_check_datadir(prepare_data_per_node, cfg):
                 f' absolute path that is guaranteed to be unique from each node, eg. dataset.data_dir=/tmp/dataset'
             )
         raise RuntimeError('dataset.data_dir={repr(cfg.dataset.data_dir)} is a relative path!')
+
 
 def hydra_make_logger(cfg):
     loggers = []
@@ -152,11 +140,13 @@ def hydra_make_logger(cfg):
         ))
     return loggers if loggers else None  # lists are turned into a LoggerCollection by pl
 
+
 def hydra_append_progress_callback(callbacks, cfg):
     if 'progress' in cfg.callbacks:
         callbacks.append(LoggerProgressCallback(
             interval=cfg.callbacks.progress.interval
         ))
+
 
 def hydra_append_latent_cycle_logger_callback(callbacks, cfg):
     if 'latent_cycle' in cfg.callbacks:
@@ -169,6 +159,7 @@ def hydra_append_latent_cycle_logger_callback(callbacks, cfg):
             ))
         else:
             log.warning('latent_cycle callback is not being used because wandb is not enabled!')
+
 
 def hydra_append_metric_callback(callbacks, cfg):
     if 'metrics' in cfg.callbacks:
@@ -185,6 +176,7 @@ def hydra_append_metric_callback(callbacks, cfg):
             ],
         ))
 
+
 def hydra_append_correlation_callback(callbacks, cfg):
     if 'correlation' in cfg.callbacks:
         callbacks.append(VaeLatentCorrelationLoggingCallback(
@@ -192,6 +184,7 @@ def hydra_append_correlation_callback(callbacks, cfg):
             every_n_steps=cfg.callbacks.correlation.every_n_steps,
             begin_first_step=False,
         ))
+
 
 # ========================================================================= #
 # RUNNER                                                                    #
@@ -234,6 +227,7 @@ def main(cfg: DictConfig):
             encoder=hydra.utils.instantiate(cfg.model.encoder),
             decoder=hydra.utils.instantiate(cfg.model.decoder)
         ),
+        # apply augmentations to batch on GPU which is faster than on the dataloader
         batch_augment=datamodule.batch_augment
     )
 
@@ -259,6 +253,7 @@ def main(cfg: DictConfig):
 # MAIN                                                                      #
 # ========================================================================= #
 
+
 if __name__ == '__main__':
     try:
         main()
@@ -266,6 +261,7 @@ if __name__ == '__main__':
         log.warning('Interrupted - Exited early!')
     except:
         log.error('A critical error occurred! Exiting safely...', exc_info=True)
+
 
 # ========================================================================= #
 # END                                                                       #

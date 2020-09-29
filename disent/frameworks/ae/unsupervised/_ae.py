@@ -28,7 +28,7 @@ class AutoEncoder(BaseFramework):
         assert isinstance(self._model, GaussianAutoEncoder)
 
     def compute_training_loss(self, batch, batch_idx):
-        x, x_targ = batch['x'], batch['x_targ']
+        (x,), (x_targ,) = batch['x'], batch['x_targ']
 
         # FORWARD
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #

@@ -34,20 +34,20 @@ class GroundTruthDatasetPairs(GroundTruthDataset):
         # RADIUS SAMPLING
         self.p_radius_min, self.p_radius_max = self._min_max_from_range(p_range=p_radius_range, max_values=self.data.factor_sizes)
 
-    # --------------------------------------------------------------------- #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # CORE                                                                  #
-    # --------------------------------------------------------------------- #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     def __getitem__(self, idx):
-        f0, f1 = self.sample_factors(idx)
-        x0, x0_targ = self._getitem_transformed(self.data.pos_to_idx(f0))
-        x1, x1_targ = self._getitem_transformed(self.data.pos_to_idx(f1))
+        f0, f1 = self.datapoint_sample_factors_pair(idx)
+        x0, x0_targ = self.datapoint_get_input_target_pair(self.data.pos_to_idx(f0))
+        x1, x1_targ = self.datapoint_get_input_target_pair(self.data.pos_to_idx(f1))
         return {
             'x': (x0, x1),
             'x_targ': (x0_targ, x1_targ),
         }
 
-    def sample_factors(self, idx):
+    def datapoint_sample_factors_pair(self, idx):
         """
         Excerpt from Weakly-Supervised Disentanglement Without Compromises:
         [section 5. Experimental results]
@@ -73,9 +73,9 @@ class GroundTruthDatasetPairs(GroundTruthDataset):
         positive_factors[p_shared_indices] = anchor_factors[p_shared_indices]
         return anchor_factors, positive_factors
 
-    # --------------------------------------------------------------------- #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # HELPER                                                                #
-    # --------------------------------------------------------------------- #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     def _min_max_from_range(self, p_range, max_values):
         p_min, p_max = normalise_range_pair(p_range, max_values)
