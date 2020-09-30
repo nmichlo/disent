@@ -14,9 +14,29 @@ transform:
       p: 0.5
       sharpness: 0.5
 
-    - _target_: kornia.augmentation.RandomAffine
+    - _target_: kornia.augmentation.RandomCrop
+      p: 0.5
+      size: [64, 64]
+      padding: 8
+
+    - _target_: kornia.augmentation.RandomPerspective
+      p: 0.5
+      distortion_scale: 0.2
+
+    - _target_: kornia.augmentation.RandomRotation
       p: 0.5
       degrees: 10
-      translate: [0.14, 0.14]
-      scale: [0.95, 1.05]
-      shear: 5
+
+#    - _target_: kornia.augmentation.RandomResizedCrop
+#      p: 0.5
+#      size: [64, 64]
+#      scale: [0.95, 1.05]
+#      ratio: [0.95, 1.05]
+
+# THIS REPLACES MOST OF THE ABOVE BUT IT IS BUGGY
+#    - _target_: kornia.augmentation.RandomAffine
+#      p: 0.5
+#      degrees: 10
+#      translate: [0.14, 0.14]
+#      scale: [0.95, 1.05]
+#      shear: 5

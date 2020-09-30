@@ -16,7 +16,7 @@ class GroundTruthDatasetBatchAugment(object):
             batch = _apply_transform_to_batch_dict(batch, 'x', self.transform)
         # transform targets
         if self.transform_targ:
-            batch = _apply_transform_to_batch_dict(batch, 'x_targ', self.transform)
+            batch = _apply_transform_to_batch_dict(batch, 'x_targ', self.transform_targ)
         # done!
         return batch
 
@@ -26,7 +26,9 @@ class GroundTruthDatasetBatchAugment(object):
 
 def _apply_transform_to_batch_dict(batch, key, transform):
     observations = batch[key]
-    if isinstance(observations, (list, tuple)):
+    if isinstance(observations, tuple):
+        observations = tuple([transform(obs) for obs in observations])
+    if isinstance(observations, list):
         observations = [transform(obs) for obs in observations]
     else:
         observations = transform(observations)

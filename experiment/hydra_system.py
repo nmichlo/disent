@@ -129,8 +129,7 @@ def hydra_append_correlation_callback(callbacks, cfg):
 # ========================================================================= #
 
 
-@hydra.main(config_path='config', config_name="config")
-def main(cfg: DictConfig):
+def run(cfg: DictConfig):
     # print useful info
     log.info(make_box_str(OmegaConf.to_yaml(cfg)))
     log.info(f"Current working directory : {os.getcwd()}")
@@ -187,6 +186,14 @@ def main(cfg: DictConfig):
     trainer.fit(framework, datamodule=datamodule)
 
 
+@hydra.main(config_path='config', config_name="config")
+def main(cfg: DictConfig):
+    try:
+        run(cfg)
+    except:
+        log.error('A critical error occurred!', exc_info=True)
+
+
 # ========================================================================= #
 # MAIN                                                                      #
 # ========================================================================= #
@@ -197,8 +204,6 @@ if __name__ == '__main__':
         main()
     except KeyboardInterrupt as e:
         log.warning('Interrupted - Exited early!')
-    except:
-        log.error('A critical error occurred! Exiting safely...', exc_info=True)
 
 
 # ========================================================================= #
