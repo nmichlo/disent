@@ -171,17 +171,14 @@ class Hdf5PreprocessedGroundTruthData(PreprocessedDownloadableGroundTruthData, m
                     # instantiating np.array from the dataset requires double memory.
                     self.__class__._DATA = db[self.hdf5_name][:]
                 log.info(f'[DATASET: {self.__class__.__name__}]: Loaded!')
-        else:
-            # TODO: this is weird
-            if not hasattr(self.__class__, '_DATASET'):
-                # swrm - single write, multiple read
-                self.__class__._DATASET = h5py.File(self.dataset_path, 'r', swmr=True)[self.hdf5_name]
 
     def __getitem__(self, idx):
         if self._in_memory:
             return self.__class__._DATA[idx]
         else:
-            return self.__class__._DATASET[idx]
+            # This actually doesnt seem too slow
+            with h5py.File(self.dataset_path, 'r', libver='latest', swmr=True) as f:
+                return f[self.hdf5_name][idx]
 
     def _preprocess_dataset(self, path_src, path_dst):
         import os

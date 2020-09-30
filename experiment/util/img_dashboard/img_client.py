@@ -4,6 +4,7 @@ import time
 
 import numpy as np
 import kornia
+import torch
 
 from omegaconf import DictConfig, OmegaConf
 import hydra
@@ -41,8 +42,8 @@ def main(cfg: DictConfig):
         obs = dataset[idx]
 
         # convert augmented images to observations
-        x = [kornia.tensor_to_image(obs) for obs in obs['x']]
-        x_targ = [kornia.tensor_to_image(obs) for obs in obs['x_targ']]
+        x = [(kornia.tensor_to_image(torch.clamp(obs, 0, 1))*255).astype('uint8') for obs in obs['x']]
+        x_targ = [(kornia.tensor_to_image(torch.clamp(obs, 0, 1))*255).astype('uint8') for obs in obs['x_targ']]
 
         # send images to server
         try:

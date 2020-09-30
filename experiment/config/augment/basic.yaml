@@ -1,10 +1,22 @@
 # @package _group_
 name: basic
 transform:
-  _target_: torchvision.transforms.Compose
+  _target_: torchvision.transforms.RandomOrder
   transforms:
-    - _target_: kornia.augmentation.RandomRotation
+    - _target_: kornia.augmentation.ColorJitter
+      p: 0.5
+      brightness: 0.25
+      contrast: 0.25
+      saturation: 0
+      hue: 0.15
+
+    - _target_: kornia.augmentation.RandomSharpness
+      p: 0.5
+      sharpness: 0.5
+
+    - _target_: kornia.augmentation.RandomAffine
+      p: 0.5
       degrees: 10
-    - _target_: kornia.augmentation.RandomResizedCrop
-      size: [64, 64]
-      scale: [0.95, 1.0]
+      translate: [0.14, 0.14]
+      scale: [0.95, 1.05]
+      shear: 5

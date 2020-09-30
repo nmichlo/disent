@@ -62,11 +62,14 @@ class InputNormalizeTensor(object):
     2. normalise tensor in range [-1, 1]
     """
 
-    def __init__(self):
-        self._transform = torchvision.transforms.Compose([
-            CheckTensor(low=0, high=1, dtype=torch.float32),
-            kornia.augmentation.Normalize(mean=0.5, std=0.5),
-        ])
+    def __init__(self, check=False):
+        if check:
+            self._transform = torchvision.transforms.Compose([
+                CheckTensor(low=0, high=1, dtype=torch.float32),
+                kornia.augmentation.Normalize(mean=0.5, std=0.5),
+            ])
+        else:
+            self._transform = kornia.augmentation.Normalize(mean=0.5, std=0.5)
 
     def __call__(self, obs) -> torch.Tensor:
         return self._transform(obs)

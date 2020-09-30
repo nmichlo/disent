@@ -35,7 +35,7 @@ torch-optimizer
 pytorch-lightning
 pytorch-lightning-bolts
 
-kornia
+kornia # $ pip install git+https://github.com/kornia/kornia
 # imgaug
 # albumentations
 
