@@ -1,3 +1,4 @@
 # @package _group_
 name: none
-transform: NULL
+transform:
+  _target_: disent.transform.Noop

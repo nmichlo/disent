@@ -30,7 +30,7 @@ def _get_dataset_and_vae(trainer: pl.Trainer, pl_module: pl.LightningModule) -> 
     assert hasattr(trainer, 'datamodule'), f'trainer was not run using a datamodule.'
     assert isinstance(trainer.datamodule, HydraDataModule)
     # done checks
-    return trainer.datamodule.dataset_train_aug, pl_module
+    return trainer.datamodule.dataset_train_noaug, pl_module
 
 
 # ========================================================================= #
@@ -50,7 +50,7 @@ class VaeLatentCycleLoggingCallback(_PeriodicCallback):
 
         # get random sample of z_means and z_logvars for computing the range of values for the latent_cycle
         with TempNumpySeed(self.seed):
-            obs = dataset.dataset_sample_batch(64, mode='target').to(vae.device)
+            obs = dataset.dataset_sample_batch(64, mode='input').to(vae.device)
 
         z_means, z_logvars = vae.encode_gaussian(obs)
 
@@ -117,7 +117,7 @@ class VaeLatentCorrelationLoggingCallback(_PeriodicCallback):
         factors = dataset.sample_factors(num_samples)
         # encode observations of factors
         zs = np.concatenate([
-            to_numpy(vae.encode(dataset.dataset_batch_from_factors(factor_batch, mode='target').to(vae.device)))
+            to_numpy(vae.encode(dataset.dataset_batch_from_factors(factor_batch, mode='input').to(vae.device)))
             for factor_batch in chunked(factors, 256)
         ])
         z_size = zs.shape[-1]

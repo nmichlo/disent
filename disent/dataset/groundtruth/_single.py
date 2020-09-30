@@ -1,11 +1,8 @@
-import enum
 import logging
-from typing import Tuple, Union
+from typing import Tuple
 import numpy as np
-
 from torch.utils.data import Dataset
 from torch.utils.data.dataloader import default_collate
-
 from disent.data.groundtruth.base import GroundTruthData
 
 

@@ -1,9 +1,11 @@
 import torch
 import pytorch_lightning as pl
 
+
 # ========================================================================= #
 # framework                                                                 #
 # ========================================================================= #
+
 
 class BaseFramework(pl.LightningModule):
     
@@ -16,10 +18,9 @@ class BaseFramework(pl.LightningModule):
         # optimiser
         assert callable(make_optimizer_fn)
         self._make_optimiser_fn = make_optimizer_fn
-        # batch augmentations
-        # - not implemented as dataset transforms because we want to apply these on the GPU
-        self._batch_augment = batch_augment
+        # batch augmentations: not implemented as dataset transforms because we want to apply these on the GPU
         assert (batch_augment is None) or callable(batch_augment)
+        self._batch_augment = batch_augment
 
     def configure_optimizers(self):
         return self._make_optimiser_fn(self.parameters())
@@ -56,5 +57,3 @@ class BaseFramework(pl.LightningModule):
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-
-

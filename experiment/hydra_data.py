@@ -1,6 +1,7 @@
 import hydra
 import torch.utils.data
 import pytorch_lightning as pl
+import torchvision
 from omegaconf import DictConfig
 
 from disent.dataset.groundtruth import GroundTruthDataset
@@ -18,13 +19,21 @@ class HydraDataModule(pl.LightningDataModule):
     def __init__(self, hparams: DictConfig):
         super().__init__()
         self.hparams = hparams
-        # transform: prepares data from datasets | augment: augments transformed data for inputs
-        self._transform = instantiate_recursive(self.hparams.dataset.transform)
-        self._augment = instantiate_recursive(self.hparams.augment.transform)
+        # transform: prepares data from datasets
+        self.data_transform = instantiate_recursive(self.hparams.dataset.transform)
+        # input_transform: applied to anything before being fed through the model
+        # input_transform_aug: augment data for inputs, then apply input_transform
+        augment = instantiate_recursive(self.hparams.augment.transform)
+        self.input_transform_noaug = instantiate_recursive(self.hparams.framework.input_transform)
+        self.input_transform_aug = torchvision.transforms.Compose([augment, self.input_transform_noaug])
+        assert callable(self.data_transform)
+        assert callable(augment)
+        assert callable(self.input_transform_noaug)
         # batch_augment: augments transformed data for inputs, should be applied across a batch, same as self.augment
-        self.batch_augment = GroundTruthDatasetBatchAugment(transform=self._augment) if (self._augment is not None) else None
+        self.batch_augment = GroundTruthDatasetBatchAugment(transform=self.input_transform_aug)
         # datasets
-        self.dataset_train: GroundTruthDataset = None
+        self._dataset_train: GroundTruthDataset = None
+        self.dataset_train_noaug: GroundTruthDataset = None
         self.dataset_train_aug: GroundTruthDataset = None
 
     def prepare_data(self) -> None:
@@ -41,9 +50,10 @@ class HydraDataModule(pl.LightningDataModule):
         data = hydra.utils.instantiate(self.hparams.dataset.data)
         # Wrap the data for the framework some datasets need triplets, pairs, etc.
         # Augmentation is done inside the frameworks so that it can be done on the GPU, otherwise things are very slow.
-        self.dataset_train = hydra.utils.instantiate(self.hparams.framework.data_wrapper, ground_truth_data=data, transform=self._transform, augment=None)
-        self.dataset_train_aug = hydra.utils.instantiate(self.hparams.framework.data_wrapper, ground_truth_data=data, transform=self._transform, augment=self._augment)
-        assert isinstance(self.dataset_train, GroundTruthDataset)
+        self._dataset_train = hydra.utils.instantiate(self.hparams.framework.data_wrapper, ground_truth_data=data, transform=self.data_transform, augment=None)
+        self.dataset_train_noaug = hydra.utils.instantiate(self.hparams.framework.data_wrapper, ground_truth_data=data, transform=self.data_transform, augment=self.input_transform_noaug)
+        self.dataset_train_aug = hydra.utils.instantiate(self.hparams.framework.data_wrapper, ground_truth_data=data, transform=self.data_transform, augment=self.input_transform_aug)
+        assert isinstance(self.dataset_train_noaug, GroundTruthDataset)
         assert isinstance(self.dataset_train_aug, GroundTruthDataset)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -62,7 +72,7 @@ class HydraDataModule(pl.LightningDataModule):
     def train_dataloader(self):
         """Training Dataset: Sample of data used to fit the model"""
         return torch.utils.data.DataLoader(
-            self.dataset_train,
+            self._dataset_train,
             batch_size=self.hparams.dataset.batch_size,
             num_workers=self.hparams.dataset.num_workers,
             shuffle=True
