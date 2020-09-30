@@ -10,9 +10,10 @@ transform:
       saturation: 0
       hue: 0.15
 
-    - _target_: kornia.augmentation.RandomSharpness
-      p: 0.5
-      sharpness: 0.5
+# THIS IS BUGGY ON BATCH
+#    - _target_: kornia.augmentation.RandomSharpness
+#      p: 0.5
+#      sharpness: 0.5
 
     - _target_: kornia.augmentation.RandomCrop
       p: 0.5
@@ -21,11 +22,11 @@ transform:
 
     - _target_: kornia.augmentation.RandomPerspective
       p: 0.5
-      distortion_scale: 0.2
+      distortion_scale: 0.15
 
     - _target_: kornia.augmentation.RandomRotation
       p: 0.5
-      degrees: 10
+      degrees: 9
 
 #    - _target_: kornia.augmentation.RandomResizedCrop
 #      p: 0.5
@@ -33,7 +34,7 @@ transform:
 #      scale: [0.95, 1.05]
 #      ratio: [0.95, 1.05]
 
-# THIS REPLACES MOST OF THE ABOVE BUT IT IS BUGGY
+# THIS REPLACES MOST OF THE ABOVE BUT IT IS BUGGY ON BATCH
 #    - _target_: kornia.augmentation.RandomAffine
 #      p: 0.5
 #      degrees: 10
