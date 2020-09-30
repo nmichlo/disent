@@ -40,7 +40,7 @@ class HydraDataModule(pl.LightningDataModule):
         # *NB* Do not set model parameters here.
         # - Instantiate data once to download and prepare if needed.
         # - trainer.prepare_data_per_node affects this functions behavior per node.
-        data = self.hparams.dataset.data.copy()
+        data = dict(self.hparams.dataset.data)
         if 'in_memory' in data:
             del data['in_memory']
         hydra.utils.instantiate(data)

@@ -1,5 +1,5 @@
 defaults:
-  - framework: adavae
+  - framework: betavae
   - model: conv64
   - optimizer: radam
   - dataset: xymultigrid
@@ -57,7 +57,7 @@ logging:
     enabled: TRUE
     offline: FALSE
     entity: 'n_michlo'
-    project: 'vae-dataset-overlap'
+    project: 'test-augmentations'
     name: '${framework.name}|${model.z_size}|${dataset.name}:${augment.name}'
     group: null
     tags:
