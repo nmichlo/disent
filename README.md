@@ -1,24 +1,56 @@
-# Disent
+# 🧶 Disent
 
-Disentanglement Library for pytorch and pytorch-lightning, based on
-Google's [disentanglement_lib](https://github.com/google-research/disentanglement_lib), but more notebook friendly.
+Disentanglement Library for pytorch and pytorch-lightning. With an easy to use configuration based on Hydra.
 
-**DISCLAIMER:** This project is mostly a fork of disentanglement_lib and much of the code is not my own except for changes to make it work with pytorch and notebooks, unfortunatly it didnt start out that way and is why the repo is not marked as such. I have left in the original copyrights above the files where appropriate.
+
 
 ## Another disentanglement library?
   
-- I needed to become more familiar with VAE's
+- I needed to become more familiar with VAE's (Currently working on my masters)
 
-- I wanted pretty visualisations in my notebooks.
+- **DISCLAIMER:** This project has its roots in the tensorflow [disentanglement_lib](https://github.com/google-research/disentanglement_lib) library.
 
-- [Weakly-Supervised Disentanglement Without Compromises](https://arxiv.org/abs/2002.02886) state they would release
-  their code as part of disentanglement_lib but so far nothing has happened, and I wanted to play with their techniques.
+- [Weakly-Supervised Disentanglement Without Compromises](https://arxiv.org/abs/2002.02886) stated they would release
+  their code as part of disentanglement_lib... I didn't have time to wait... As of September it has been released.
   
-- The original disentanglement_lib was written using Tensorflow 1, with
-  Gin configurations controlling execution. I was not a fan.
+- The disentanglement_lib still uses Tensorflow 1.0 and [Gin Config](https://github.com/google/gin-config) controls execution, **hiding** the flow of data in the library (I am not a fan).
+
+
+
+## Features
+
+### Frameworks
+- **Unsupervised**:
+  - <ins>VAE</ins>:
+  - <ins>BetaVAE</ins>:
+  - <ins>DFCVAE</ins>:
+- **Weakly Supervised**:
+    - <ins>Ada-GVAE</ins>: *`AdaVae(..., average_mode='gvae')`*
+    - <ins>Ada-ML-VAE</ins>: *`AdaVae(..., average_mode='ml-vae')`*
+- **Supervised**:
+    - <ins>TVAE</ins>:
+
+### Metrics
+- **Disentanglement**:
+    - <ins>FactorVAE score</ins>:
+    - <ins>DCI</ins>:
+
+### Datasets:
+- **Ground Truth**:
+    - <ins>Cars3D</ins>:
+    - <ins>dSprites</ins>:
+    - <ins>MPI3D</ins>:
+    - <ins>SmallNORB</ins>:
+    - <ins>Shapes3D</ins>:
+- **Ground Truth Non-Overlapping (Synthetic)**:
+    - <ins>XYBlocks</ins>: *3 blocks of decreasing size that move across a grid. Blocks can be one of three colors R, G, B. if a smaller block overlaps a larger one and is the same color, the block is xor'd to black.*
+    - <ins>XYSquares</ins>: *3 squares (R, G, B) that move across a non-overlapping grid. Obervations have no channel-wise loss overlap.*
+    - <ins>XYObject</ins>: *A simplistic version of dSprites with a single square.*
+
+
 
 ## Usage
 
-Disent is still under active development.
+Disent is still under active development (I an sorry there are no tests yet).
 
-If you still wish to use this library, take a look at the various notebooks for examples.
+The easiest way to use this library is by running `experiements/hydra_system.py` and changing the config in `experiements/config/config.yaml`. Configurations are managed by [Hydra Config](https://github.com/facebookresearch/hydra)
