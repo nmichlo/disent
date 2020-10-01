@@ -94,6 +94,7 @@ def hydra_append_latent_cycle_logger_callback(callbacks, cfg):
                 seed=cfg.callbacks.latent_cycle.seed,
                 every_n_steps=cfg.callbacks.latent_cycle.every_n_steps,
                 begin_first_step=False,
+                mode=cfg.callbacks.latent_cycle.mode,
             ))
         else:
             log.warning('latent_cycle callback is not being used because wandb is not enabled!')

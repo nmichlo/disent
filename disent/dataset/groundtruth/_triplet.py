@@ -107,6 +107,15 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
                     raise FactorSizeError(f'Factor dimensions are too small for given offset range:'
                                           f'\n\tUnsatisfied: p_max + offset_min <= max_size'
                                           f'\n\tUnsatisfied: {p_max} + {n_min} <= {np.array(max_values)}')
+        elif n_sample_mode == 'bounded_below':
+            if not (np.all(p_max <= n_max)):
+                raise FactorSizeError(f'Ranges are not staggered.'
+                                      f'\n\tUnsatisfied: p_max <= n_max'
+                                      f'\n\tUnsatisfied: {p_max} <= {n_max}')
+            if not (np.all(p_max <= max_values) and np.all(n_max <= max_values)):
+                raise FactorSizeError('Factor dimensions are too small for given range:'
+                                      f'\n\tUnsatisfied: p_max <= max_size and n_max <= max_size'
+                                      f'\n\tUnsatisfied: {p_max} <= {np.array(max_values)} and {n_max} <= {np.array(max_values)}')
         else:
             if not (np.all(p_min <= n_min) and np.all(p_max <= n_max)):
                 raise FactorSizeError(f'Ranges are not staggered. Should be p <= n:'

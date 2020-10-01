@@ -40,9 +40,10 @@ def _get_dataset_and_vae(trainer: pl.Trainer, pl_module: pl.LightningModule) -> 
 
 class VaeLatentCycleLoggingCallback(_PeriodicCallback):
 
-    def __init__(self, seed=7777, every_n_steps=None, begin_first_step=False):
+    def __init__(self, seed=7777, every_n_steps=None, begin_first_step=False, mode='fitted_gaussian_cycle'):
         super().__init__(every_n_steps, begin_first_step)
         self.seed = seed
+        self.mode = mode
 
     def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         # get dataset and vae framework from trainer and module
@@ -55,7 +56,7 @@ class VaeLatentCycleLoggingCallback(_PeriodicCallback):
         z_means, z_logvars = vae.encode_gaussian(obs)
 
         # produce latent cycle animation & merge frames
-        animation = latent_cycle(vae.decode, z_means, z_logvars, mode='fitted_gaussian_cycle', num_animations=1, num_frames=21)
+        animation = latent_cycle(vae.decode, z_means, z_logvars, mode=self.mode, num_animations=1, num_frames=21)
         animation = reconstructions_to_images(animation, mode='int', moveaxis=False)  # axis already moved above
         frames = np.transpose(gridify_animation(animation[0], padding_px=4, value=64), [0, 3, 1, 2])
 
@@ -66,7 +67,7 @@ class VaeLatentCycleLoggingCallback(_PeriodicCallback):
 
         # log video
         trainer.log_metrics({
-            'fitted_gaussian_cycle': wandb.Video(frames, fps=5, format='mp4'),
+            self.mode: wandb.Video(frames, fps=5, format='mp4'),
         }, {})
 
 
