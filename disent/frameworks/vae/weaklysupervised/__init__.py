@@ -1,3 +1,5 @@
-from disent.frameworks.vae.weaklysupervised._adavae import AdaVae
-from disent.frameworks.vae.weaklysupervised._st_betavae import SwappedTargetBetaVae
-from disent.frameworks.vae.weaklysupervised._st_adavae import SwappedTargetAdaVae
+from ._adavae import AdaVae
+
+# experimental frameworks
+from .experimental._st_adavae import SwappedTargetAdaVae
+from .experimental._st_betavae import SwappedTargetBetaVae

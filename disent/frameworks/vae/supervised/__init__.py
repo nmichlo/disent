@@ -1,5 +1,7 @@
-from disent.frameworks.vae.supervised._badavae import BoundedAdaVae
-from disent.frameworks.vae.supervised._gadavae import GuidedAdaVae
-from disent.frameworks.vae.supervised._tbadavae import TripletBoundedAdaVae
-from disent.frameworks.vae.supervised._tgadavae import TripletGuidedAdaVae
-from disent.frameworks.vae.supervised._tvae import TripletVae
+from ._tvae import TripletVae
+
+# experimental frameworks
+from .experimental._badavae import BoundedAdaVae
+from .experimental._gadavae import GuidedAdaVae
+from .experimental._tbadavae import TripletBoundedAdaVae
+from .experimental._tgadavae import TripletGuidedAdaVae
