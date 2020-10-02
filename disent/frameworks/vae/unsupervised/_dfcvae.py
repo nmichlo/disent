@@ -1,6 +1,7 @@
 from typing import List
 
 import torch
+from torchvision.transforms.functional import normalize
 from torch import Tensor
 from torchvision.models import vgg19_bn
 from torch.nn import functional as F
@@ -102,6 +103,11 @@ class DfcLossModule(torch.nn.Module):
         return self.compute_loss(x_recon, x_targ)
 
     def compute_loss(self, x_recon, x_targ):
+        """
+        x_recon and x_targ data should be an unnormalized RGB batch of
+        data [B x C x H x W] in the range [0, 1].
+        """
+
         features_recon = self._extract_features(x_recon)
         features_targ = self._extract_features(x_targ)
         # compute losses
@@ -114,11 +120,15 @@ class DfcLossModule(torch.nn.Module):
         """
         Extracts the features from the pretrained model
         at the layers indicated by feature_layers.
-        :param inputs: (Tensor) [B x C x H x W]
+        :param inputs: (Tensor) [B x C x H x W] unnormalised in the range [0, 1].
         :return: List of the extracted features
         """
+        # This adds inefficiency but I guess is needed...
+        assert torch.all(0 <= inputs) and torch.all(inputs <= 1)
+        # normalise: https://pytorch.org/docs/stable/torchvision/models.html
+        result = normalize(inputs, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        # calculate all features
         features = []
-        result = inputs
         for (key, module) in self.feature_network.features._modules.items():
             result = module(result)
             if key in self.feature_layers:
