@@ -2,8 +2,8 @@ defaults:
   - framework: adavae
   - model: conv64
   - optimizer: radam
-  - dataset: xymultigrid
-  - augment: basic
+  - dataset: xysquares
+  - augment: none
   # hydra plugins
   - hydra/job_logging: colorlog
   - hydra/hydra_logging: colorlog

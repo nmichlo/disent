@@ -8,7 +8,7 @@ import numpy as np
 # ========================================================================= #
 
 
-class XYGridData(GroundTruthData):
+class XYObjectData(GroundTruthData):
 
     """
     Dataset that generates all possible permutations of a square placed on a square grid,
@@ -82,9 +82,9 @@ class XYGridData(GroundTruthData):
         # generation
         self._rgb = rgb
         if rgb:
-            self._colors = np.array(XYGridData.COLOR_PALETTES_3[palette])
+            self._colors = np.array(XYObjectData.COLOR_PALETTES_3[palette])
         else:
-            self._colors = np.array(XYGridData.COLOR_PALETTES_1[palette])
+            self._colors = np.array(XYObjectData.COLOR_PALETTES_1[palette])
         # image sizes
         self._width = grid_size
         # square scales

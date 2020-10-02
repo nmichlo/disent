@@ -12,7 +12,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class XYMultiGridData(GroundTruthData):
+class XYSquaresData(GroundTruthData):
 
     """
     Dataset that generates all possible permutations of 3 (R, G, B) coloured
@@ -74,7 +74,7 @@ class XYMultiGridData(GroundTruthData):
 # ========================================================================= #
 
 # if __name__ == '__main__':
-#     data = XYMultiGridData(8, 64)
+#     data = XYSquaresData(8, 64)
 #     print(len(data))  # 262144
 #     for i in tqdm(data):
 #         pass

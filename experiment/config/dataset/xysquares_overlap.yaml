@@ -1,12 +1,12 @@
 # @package _group_
-name: xymultigrid-overlap-grey
+name: xysquares_overlap
 data:
-  _target_: disent.data.groundtruth.XYMultiGridData
+  _target_: disent.data.groundtruth.XYSquaresData
   square_size: 8
   grid_size: 64
   grid_spacing: 4
   num_squares: 3
-  rgb: FALSE
+  rgb: TRUE
 transform:
   _target_: disent.transform.ToStandardisedTensor
 x_shape: [3, 64, 64]

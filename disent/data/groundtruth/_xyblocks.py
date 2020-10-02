@@ -11,7 +11,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class XYSquaresData(GroundTruthData):
+class XYBlocksData(GroundTruthData):
 
     """
     Dataset that generates all possible permutations of xor'd squares of
@@ -73,11 +73,11 @@ class XYSquaresData(GroundTruthData):
         if palette != 'rgb':
             log.warning('rgb palette is not being used, might overlap for the reconstruction loss.')
         if rgb:
-            assert palette in XYSquaresData.COLOR_PALETTES_3, f'{palette=} must be one of {list(XYSquaresData.COLOR_PALETTES_3.keys())}'
-            self._colors = np.array(XYSquaresData.COLOR_PALETTES_3[palette])
+            assert palette in XYBlocksData.COLOR_PALETTES_3, f'{palette=} must be one of {list(XYBlocksData.COLOR_PALETTES_3.keys())}'
+            self._colors = np.array(XYBlocksData.COLOR_PALETTES_3[palette])
         else:
-            assert palette in XYSquaresData.COLOR_PALETTES_1, f'{palette=} must be one of {list(XYSquaresData.COLOR_PALETTES_1.keys())}'
-            self._colors = np.array(XYSquaresData.COLOR_PALETTES_1[palette])
+            assert palette in XYBlocksData.COLOR_PALETTES_1, f'{palette=} must be one of {list(XYBlocksData.COLOR_PALETTES_1.keys())}'
+            self._colors = np.array(XYBlocksData.COLOR_PALETTES_1[palette])
 
         # bg colors
         self._bg_color = 255 if invert_bg else 0  # we dont need rgb for this
@@ -122,7 +122,7 @@ class XYSquaresData(GroundTruthData):
 
 
 # if __name__ == '__main__':
-    # data = XYSquaresData(64, [1, 2, 3], rgb=True, palette='rgb', invert_bg=False)        # 110592 // 256 = 432
+    # data = XYBlocksData(64, [1, 2, 3], rgb=True, palette='rgb', invert_bg=False)        # 110592 // 256 = 432
     # print(len(data))
     # for obs in tqdm(data):
     #     pass

@@ -1,7 +1,7 @@
 # @package _group_
-name: xyscalecolorgrid
+name: xyobject
 data:
-  _target_: disent.data.groundtruth.XYGridData
+  _target_: disent.data.groundtruth.XYObjectData
   grid_size: 64
   grid_spacing: 1
   min_square_size: 3

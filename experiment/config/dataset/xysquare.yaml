@@ -1,13 +1,13 @@
 # @package _group_
-name: xymultigrid-grey
+name: xysquares
 data:
-  _target_: disent.data.groundtruth.XYMultiGridData
+  _target_: disent.data.groundtruth.XYSquaresData
   square_size: 8
   grid_size: 64
   grid_spacing: 8
   num_squares: 3
-  rgb: FALSE
+  rgb: TRUE
 transform:
   _target_: disent.transform.ToStandardisedTensor
 x_shape: [3, 64, 64]
-# (floor((64-8) / 8) + 1) ** 6 == 262144  // 256 = 1024 batches per epoch
+
