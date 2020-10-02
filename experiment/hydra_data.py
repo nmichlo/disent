@@ -1,7 +1,6 @@
 import hydra
 import torch.utils.data
 import pytorch_lightning as pl
-import torchvision
 from omegaconf import DictConfig
 
 from disent.dataset.groundtruth import GroundTruthDataset
@@ -21,18 +20,18 @@ class HydraDataModule(pl.LightningDataModule):
         self.hparams = hparams
         # transform: prepares data from datasets
         self.data_transform = instantiate_recursive(self.hparams.dataset.transform)
-        # input_transform: applied to anything before being fed through the model
-        # input_transform_aug: augment data for inputs, then apply input_transform
-        augment = instantiate_recursive(self.hparams.augment.transform)
-        self.input_transform_noaug = instantiate_recursive(self.hparams.framework.input_transform)
-        self.input_transform_aug = torchvision.transforms.Compose([augment, self.input_transform_noaug])
         assert callable(self.data_transform)
-        assert callable(augment)
-        assert callable(self.input_transform_noaug)
-        # batch_augment: augments transformed data for inputs, should be applied across a batch, same as self.augment
-        self.batch_augment = GroundTruthDatasetBatchAugment(transform=self.input_transform_aug)
-        # datasets
-        self._dataset_train: GroundTruthDataset = None
+        # input_transform_aug: augment data for inputs, then apply input_transform
+        self.input_transform = instantiate_recursive(self.hparams.augment.transform)
+        assert callable(self.input_transform)
+        # batch_augment: augments transformed data for inputs, should be applied across a batch
+        # which version of the dataset we need to use if GPU augmentation is enabled or not.
+        # - corresponds to below in train_dataloader()
+        if self.hparams.dataset.gpu_augment:
+            self.batch_augment = GroundTruthDatasetBatchAugment(transform=self.input_transform)
+        else:
+            self.batch_augment = None
+        # datasets initialised in setup()
         self.dataset_train_noaug: GroundTruthDataset = None
         self.dataset_train_aug: GroundTruthDataset = None
 
@@ -50,9 +49,8 @@ class HydraDataModule(pl.LightningDataModule):
         data = hydra.utils.instantiate(self.hparams.dataset.data)
         # Wrap the data for the framework some datasets need triplets, pairs, etc.
         # Augmentation is done inside the frameworks so that it can be done on the GPU, otherwise things are very slow.
-        self._dataset_train = hydra.utils.instantiate(self.hparams.framework.data_wrapper, ground_truth_data=data, transform=self.data_transform, augment=None)
-        self.dataset_train_noaug = hydra.utils.instantiate(self.hparams.framework.data_wrapper, ground_truth_data=data, transform=self.data_transform, augment=self.input_transform_noaug)
-        self.dataset_train_aug = hydra.utils.instantiate(self.hparams.framework.data_wrapper, ground_truth_data=data, transform=self.data_transform, augment=self.input_transform_aug)
+        self.dataset_train_noaug = hydra.utils.instantiate(self.hparams.framework.data_wrapper, ground_truth_data=data, transform=self.data_transform, augment=None)
+        self.dataset_train_aug = hydra.utils.instantiate(self.hparams.framework.data_wrapper, ground_truth_data=data, transform=self.data_transform, augment=self.input_transform)
         assert isinstance(self.dataset_train_noaug, GroundTruthDataset)
         assert isinstance(self.dataset_train_aug, GroundTruthDataset)
 
@@ -70,9 +68,18 @@ class HydraDataModule(pl.LightningDataModule):
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     def train_dataloader(self):
-        """Training Dataset: Sample of data used to fit the model"""
+        """
+        Training Dataset: Sample of data used to fit the model.
+        """
+        # Select which version of the dataset we need to use if GPU augmentation is enabled or not.
+        # - corresponds to above in __init__()
+        if self.hparams.dataset.gpu_augment:
+            dataset = self.dataset_train_noaug
+        else:
+            dataset = self.dataset_train_aug
+        # create dataloader
         return torch.utils.data.DataLoader(
-            self._dataset_train,
+            dataset=dataset,
             batch_size=self.hparams.dataset.batch_size,
             num_workers=self.hparams.dataset.num_workers,
             shuffle=True

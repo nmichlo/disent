@@ -1,10 +1,11 @@
+import torch
 from disent.frameworks.vae.loss import bce_loss_with_logits, kl_normal_loss
-from disent.frameworks.vae.supervised._tgadavae import triplet_loss
 from disent.frameworks.vae.unsupervised import BetaVae
 import torch.nn.functional as F
 
+
 # ========================================================================= #
-# tbadavae                                                                  #
+# tvae                                                                      #
 # ========================================================================= #
 
 
@@ -18,10 +19,13 @@ class TripletVae(BetaVae):
             beta=4,
             triplet_margin=0.1,
             triplet_scale=1,
+            detach_decoder=False,
     ):
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, beta=beta)
         self.triplet_margin = triplet_margin
         self.triplet_scale = triplet_scale
+        self.detach_decoder = detach_decoder
+        self.detach_logvar = -2.77  # std = 0.5, logvar = ln(std**2) ~= -2,77
 
     def compute_training_loss(self, batch, batch_idx):
         (a_x, p_x, n_x), (a_x_targ, p_x_targ, n_x_targ) = batch['x'], batch['x_targ']
@@ -32,10 +36,20 @@ class TripletVae(BetaVae):
         a_z_mean, a_z_logvar = self.encode_gaussian(a_x)
         p_z_mean, p_z_logvar = self.encode_gaussian(p_x)
         n_z_mean, n_z_logvar = self.encode_gaussian(n_x)
+        # get zeros
+        if self.detach_decoder:
+            a_z_logvar = torch.full_like(a_z_logvar, self.detach_logvar)
+            p_z_logvar = torch.full_like(p_z_logvar, self.detach_logvar)
+            n_z_logvar = torch.full_like(n_z_logvar, self.detach_logvar)
         # sample from latent distribution
         a_z_sampled = self.reparameterize(a_z_mean, a_z_logvar)
         p_z_sampled = self.reparameterize(p_z_mean, p_z_logvar)
         n_z_sampled = self.reparameterize(n_z_mean, n_z_logvar)
+        # detach samples so no gradient flows through them
+        if self.detach_decoder:
+            a_z_sampled = a_z_sampled.detach()
+            p_z_sampled = p_z_sampled.detach()
+            n_z_sampled = n_z_sampled.detach()
         # reconstruct without the final activation
         a_x_recon = self.decode_partial(a_z_sampled)
         p_x_recon = self.decode_partial(p_z_sampled)
@@ -72,12 +86,19 @@ class TripletVae(BetaVae):
         }
 
     def augment_loss(self, a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar):
-        loss_triplet = triplet_loss(a_z_mean, p_z_mean, n_z_mean, margin=self.triplet_margin)
-        augmented_loss = self.triplet_scale * loss_triplet
-        return augmented_loss, {
-            'triplet_loss': loss_triplet,
-            'triplet_loss_torch': F.triplet_margin_loss(a_z_mean, p_z_mean, n_z_mean, margin=self.triplet_margin)
-        }
+        return augment_loss_triplet(
+            a_z_mean, a_z_logvar,
+            p_z_mean, p_z_logvar,
+            n_z_mean, n_z_logvar,
+            scale=self.triplet_scale, margin=self.triplet_margin
+        )
+
+
+def augment_loss_triplet(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar, scale=1., margin=10.):
+    augmented_loss = scale * F.triplet_margin_loss(a_z_mean, p_z_mean, n_z_mean, margin=margin)
+    return augmented_loss, {
+        'triplet_loss': augmented_loss,
+    }
 
 
 # ========================================================================= #

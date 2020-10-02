@@ -29,11 +29,11 @@ dataset:
   batch_size: 256
   data_dir: '/tmp/${env:USER}/datasets'
   try_in_memory: FALSE
-  # varying factors (if applicable for pairs)
-  # - sample in range: [min, max]
+  gpu_augment: FALSE
+  # varying factors (if applicable for pairs) -- sample in range: [min, max]
   k: [1, 1]
   k_radius: [1, 1]
-  # varying factors (if applicable for triplets)
+  # varying factors (if applicable for triplets) -- sample in range: [min, max]
   # - sample in range: [min, max]
   n_k: [0, 0]
   n_k_mode: 'offset'

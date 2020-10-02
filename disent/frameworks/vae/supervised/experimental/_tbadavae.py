@@ -1,6 +1,6 @@
-from disent.frameworks.vae.supervised._tgadavae import triplet_loss
 from disent.frameworks.vae.supervised import BoundedAdaVae
-import torch.nn.functional as F
+from disent.frameworks.vae.supervised._tvae import augment_loss_triplet
+
 
 # ========================================================================= #
 # tbadavae                                                                  #
@@ -24,12 +24,12 @@ class TripletBoundedAdaVae(BoundedAdaVae):
         self.triplet_scale = triplet_scale
 
     def augment_loss(self, a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar):
-        loss_triplet = triplet_loss(a_z_mean, p_z_mean, n_z_mean, margin=self.triplet_margin)
-        augmented_loss = self.triplet_scale * loss_triplet
-        return augmented_loss, {
-            'triplet_loss': loss_triplet,
-            'triplet_loss_torch': F.triplet_margin_loss(a_z_mean, p_z_mean, n_z_mean, margin=self.triplet_margin)
-        }
+        return augment_loss_triplet(
+            a_z_mean, a_z_logvar,
+            p_z_mean, p_z_logvar,
+            n_z_mean, n_z_logvar,
+            scale=self.triplet_scale, margin=self.triplet_margin
+        )
 
 
 # ========================================================================= #

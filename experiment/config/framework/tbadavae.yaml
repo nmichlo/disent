@@ -4,7 +4,7 @@ module:
   _target_: disent.frameworks.vae.supervised.TripletBoundedAdaVae
   beta: 4
   average_mode: 'gvae'  # gvae or ml-vae
-  triplet_margin: 0.1
+  triplet_margin: 10
   triplet_scale: 1
 
 data_wrapper:
@@ -20,6 +20,3 @@ data_wrapper:
   n_radius_sample_mode: ${dataset.n_k_radius_mode}
   # final checks
   swap_metric: NULL
-
-input_transform:
-  _target_: disent.transform.InputNormalizeTensor
