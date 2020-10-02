@@ -23,8 +23,10 @@ class _PeriodicCallback(pl.Callback):
             self.every_n_steps = trainer.num_training_batches
             
     def on_batch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
-        # skip if need be
-        if 0 == (trainer.global_step + int(not self.begin_first_step)) % self.every_n_steps:
+        if 0 == trainer.global_step % self.every_n_steps:
+            # skip on the first step if required
+            if trainer.global_step == 0 and not self.begin_first_step:
+                return
             self.do_step(trainer, pl_module)
 
     def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
