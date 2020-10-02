@@ -2,7 +2,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 
-from disent.dataset import DEPRICATED_as_dataset
 from disent.systems.vae import VaeSystem
 from disent.util import TempNumpySeed, to_numpy
 from disent.visualize.visualize_dataset import sample_dataset_animations, sample_dataset_still_images

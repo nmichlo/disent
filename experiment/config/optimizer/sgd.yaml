@@ -1,0 +1,9 @@
+# @package _group_
+name: sgd
+cls:
+  _target_: torch.optim.SGD
+  lr: ${optimizer.lr}
+  momentum: 0
+  dampening: 0
+  weight_decay: 0
+  nesterov: False

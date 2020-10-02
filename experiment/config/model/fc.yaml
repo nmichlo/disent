@@ -1,0 +1,11 @@
+# @package _group_
+name: fc
+encoder:
+  _target_: disent.model.encoders_decoders.EncoderFC
+  x_shape: ${dataset.x_shape}
+  z_size: ${model.z_size}
+  z_multiplier: 2
+decoder:
+  _target_: disent.model.encoders_decoders.DecoderFC
+  x_shape: ${dataset.x_shape}
+  z_size: ${model.z_size}

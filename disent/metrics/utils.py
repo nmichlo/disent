@@ -18,13 +18,8 @@
 import numpy as np
 from tqdm import tqdm
 
-from disent.dataset.single import GroundTruthDataset
+from disent.dataset.groundtruth import GroundTruthDataset
 from disent.util import to_numpy
-
-# import sklearn
-# from sklearn.ensemble import GradientBoostingClassifier
-# from sklearn.linear_model import LogisticRegressionCV
-# from sklearn.model_selection import KFold
 
 
 # ========================================================================= #
@@ -56,38 +51,16 @@ def generate_batch_factor_code(
     with tqdm(total=num_points, disable=not show_progress) as bar:
         while i < num_points:
             num_points_iter = min(num_points - i, batch_size)
-            current_factors, current_observations = ground_truth_dataset.sample(num_points_iter)
-            current_factors, current_observations = current_factors, current_observations
+            current_observations, current_factors = ground_truth_dataset.dataset_sample_batch_with_factors(num_points_iter, mode='input')
             if i == 0:
                 factors = current_factors
-                representations = to_numpy(representation_function(current_observations))
+                representations = to_numpy(representation_function(current_observations.cuda()))
             else:
                 factors = np.vstack((factors, current_factors))
-                representations = np.vstack((representations, to_numpy(representation_function(current_observations))))
+                representations = np.vstack((representations, to_numpy(representation_function(current_observations.cuda()))))
             i += num_points_iter
             bar.update(num_points_iter)
     return np.transpose(representations), np.transpose(factors)
-
-
-# def split_train_test(observations, train_percentage):
-#     """Splits observations into a train and test set.
-#     Args:
-#       observations: Observations to split in train and test. They can be the
-#         representation or the observed factors of variation. The shape is
-#         (num_dimensions, num_points) and the split is over the points.
-#       train_percentage: Fraction of observations to be used for training.
-#     Returns:
-#       observations_train: Observations to be used for training.
-#       observations_test: Observations to be used for testing.
-#     """
-#     num_labelled_samples = observations.shape[1]
-#     num_labelled_samples_train = int(np.ceil(num_labelled_samples * train_percentage))
-#     num_labelled_samples_test = num_labelled_samples - num_labelled_samples_train
-#     observations_train = observations[:, :num_labelled_samples_train]
-#     observations_test = observations[:, num_labelled_samples_train:]
-#     assert observations_test.shape[1] == num_labelled_samples_test, "Wrong size of the test set."
-#     return observations_train, observations_test
-
 
 
 def obtain_representation(observations, representation_function, batch_size):
@@ -101,6 +74,7 @@ def obtain_representation(observations, representation_function, batch_size):
       representations: Codes (num_codes, num_points)-Numpy array.
     """
     representations = None
+    # TODO: use chunked
     num_points = observations.shape[0]
     i = 0
     while i < num_points:
@@ -112,48 +86,6 @@ def obtain_representation(observations, representation_function, batch_size):
             representations = np.vstack((representations, to_numpy(representation_function(current_observations))))
         i += num_points_iter
     return np.transpose(representations)
-
-
-# def discrete_mutual_info(mus, ys):
-#     """Compute discrete mutual information."""
-#     num_codes = mus.shape[0]
-#     num_factors = ys.shape[0]
-#     m = np.zeros([num_codes, num_factors])
-#     for i in range(num_codes):
-#         for j in range(num_factors):
-#             m[i, j] = sklearn.metrics.mutual_info_score(ys[j, :], mus[i, :])
-#     return m
-
-
-# def discrete_entropy(ys):
-#     """Compute discrete mutual information."""
-#     num_factors = ys.shape[0]
-#     h = np.zeros(num_factors)
-#     for j in range(num_factors):
-#         h[j] = sklearn.metrics.mutual_info_score(ys[j, :], ys[j, :])
-#     return h
-
-
-# def make_discretizer(target, num_bins=gin.REQUIRED, discretizer_fn=gin.REQUIRED):
-#     """Wrapper that creates discretizers."""
-#     return discretizer_fn(target, num_bins)
-
-
-# def _histogram_discretize(target, num_bins=gin.REQUIRED):
-#     """Discretization based on histograms."""
-#     discretized = np.zeros_like(target)
-#     for i in range(target.shape[0]):
-#         discretized[i, :] = np.digitize(target[i, :], np.histogram(
-#             target[i, :], num_bins)[1][:-1])
-#     return discretized
-
-
-def normalize_data(data, mean=None, stddev=None):
-    if mean is None:
-        mean = np.mean(data, axis=1)
-    if stddev is None:
-        stddev = np.std(data, axis=1)
-    return (data - mean[:, np.newaxis]) / stddev[:, np.newaxis], mean, stddev
 
 
 # ========================================================================= #

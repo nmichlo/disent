@@ -1,13 +1,19 @@
+pip
+
 numpy
 pandas
 
+opencv-python
+scipy
 scikit-learn
 xgboost
 lightgbm
 
 matplotlib
+plotly
 seaborn
 tqdm
+dash
 
 pillow
 imageio
@@ -27,7 +33,11 @@ torch
 torchvision
 torch-optimizer
 pytorch-lightning
+pytorch-lightning-bolts
 
-tensorflow-gpu
-tensorboard
+kornia # $ pip install git+https://github.com/kornia/kornia
+# imgaug
+# albumentations
 
+# tensorflow-gpu
+# tensorboard

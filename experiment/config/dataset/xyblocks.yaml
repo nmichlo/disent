@@ -1,0 +1,12 @@
+# @package _group_
+name: xyblocks
+data:
+  _target_: disent.data.groundtruth.XYBlocksData
+  grid_size: 64
+  grid_levels: [1, 2, 3]
+  rgb: True
+  palette: 'rgb'
+  invert_bg: False
+transform:
+  _target_: disent.transform.ToStandardisedTensor
+x_shape: [3, 64, 64]

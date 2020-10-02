@@ -1,0 +1,16 @@
+# @package _group_
+name: adavae
+module:
+  _target_: disent.frameworks.vae.weaklysupervised.AdaVae
+  beta: 4
+  average_mode: 'gvae'  # gvae or ml-vae
+
+data_wrapper:
+  _target_: disent.dataset.groundtruth.GroundTruthDatasetPairs
+  # factor sampling
+  p_k_range: ${dataset.k}
+  # radius sampling
+  p_radius_range: ${dataset.k_radius}
+
+input_transform:
+  _target_: disent.transform.InputNormalizeTensor

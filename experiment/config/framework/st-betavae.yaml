@@ -1,0 +1,16 @@
+# @package _group_
+name: st-betavae
+module:
+  _target_: disent.frameworks.vae.weaklysupervised.SwappedTargetBetaVae
+  beta: 4
+  swap_chance: 0.1
+
+data_wrapper:
+  _target_: disent.dataset.groundtruth.GroundTruthDatasetPairs
+  # factor sampling
+  p_k_range: ${dataset.k}
+  # radius sampling
+  p_radius_range: ${dataset.k_radius}
+
+input_transform:
+  _target_: disent.transform.InputNormalizeTensor

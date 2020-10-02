@@ -27,12 +27,11 @@ import os
 from typing import Union
 import numpy as np
 
-from disent.dataset.ground_truth_data.base_data import GroundTruthData
-from disent.frameworks.unsupervised.betavae import lerp_step
+from disent.data.groundtruth.base import GroundTruthData
+from disent.frameworks.vae.unsupervised._betavae import lerp_step
 from disent.util import TempNumpySeed, to_numpy
 from disent.visualize import visualize_util
-from disent.dataset.util.in_out import ensure_dir_exists
-from disent.dataset import DEPRICATED_as_data
+from disent.data.util.in_out import ensure_dir_exists
 
 log = logging.getLogger(__name__)
 
@@ -42,6 +41,7 @@ log = logging.getLogger(__name__)
 
 
 def sample_dataset_still_images(data: Union[str, GroundTruthData], num_samples=16, mode='spread', seed=None):
+    # convert string to data if needed
     data = DEPRICATED_as_data(data)
     # Create still images per factor of variation
     factor_images = []
@@ -70,6 +70,7 @@ def sample_dataset_still_images(data: Union[str, GroundTruthData], num_samples=1
 
 
 def sample_dataset_animations(data: Union[str, GroundTruthData], num_animations=5, num_frames=20, seed=None):
+    # convert string to data if needed
     data = DEPRICATED_as_data(data)
     # Create animations.
     animations = []
@@ -100,6 +101,7 @@ def save_dataset_visualisations(data: Union[str, GroundTruthData], output_path=N
       fps: Integer with frame rate for the animation.
       mode: still image mode, see function visualise_get_still_images
     """
+    # convert string to data if needed
     data = DEPRICATED_as_data(data)
     # Create output folder if necessary.
     path = ensure_dir_exists(output_path, data.__class__.__name__[:-4].lower())

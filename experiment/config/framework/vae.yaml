@@ -1,0 +1,10 @@
+# @package _group_
+name: vae
+module:
+  _target_: disent.frameworks.vae.unsupervised.Vae
+
+data_wrapper:
+  _target_: disent.dataset.groundtruth.GroundTruthDataset
+
+input_transform:
+  _target_: disent.transform.InputNormalizeTensor

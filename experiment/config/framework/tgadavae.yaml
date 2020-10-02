@@ -1,0 +1,26 @@
+# @package _group_
+name: tgadavae
+module:
+  _target_: disent.frameworks.vae.supervised.TripletGuidedAdaVae
+  beta: 4
+  average_mode: 'gvae'       # [gvae, ml-vae]
+  anchor_ave_mode: 'average' # [average, thresh]
+  triplet_margin: 0.1
+  triplet_scale: 1
+
+data_wrapper:
+  _target_: disent.dataset.groundtruth.GroundTruthDatasetTriples
+  # factor sampling
+  p_k_range: ${dataset.k}
+  n_k_range: ${dataset.n_k}
+  n_k_sample_mode: ${dataset.n_k_mode}
+  n_k_is_shared: TRUE
+  # radius sampling
+  p_radius_range: ${dataset.k_radius}
+  n_radius_range: ${dataset.n_k_radius}
+  n_radius_sample_mode: ${dataset.n_k_radius_mode}
+  # final checks
+  swap_metric: NULL
+
+input_transform:
+  _target_: disent.transform.InputNormalizeTensor

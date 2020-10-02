@@ -1,0 +1,14 @@
+# @package _group_
+name: xyobject
+data:
+  _target_: disent.data.groundtruth.XYObjectData
+  grid_size: 64
+  grid_spacing: 1
+  min_square_size: 3
+  max_square_size: 9
+  square_size_spacing: 2
+  rgb: TRUE
+  palette: 'colors'
+transform:
+  _target_: disent.transform.ToStandardisedTensor
+x_shape: [3, 64, 64]
