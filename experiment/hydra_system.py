@@ -165,7 +165,7 @@ def run(cfg: DictConfig):
             encoder=hydra.utils.instantiate(cfg.model.encoder),
             decoder=hydra.utils.instantiate(cfg.model.decoder)
         ),
-        # apply augmentations to batch on GPU which is faster than on the dataloader
+        # apply augmentations to batch on GPU which can be faster than via the dataloader
         batch_augment=datamodule.batch_augment
     )
 

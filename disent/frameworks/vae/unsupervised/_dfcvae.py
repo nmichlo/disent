@@ -8,6 +8,7 @@ from torch.nn import functional as F
 
 from disent.frameworks.vae.unsupervised import BetaVae
 from disent.frameworks.vae.loss import kl_normal_loss
+from disent.transform.functional import check_tensor
 
 
 # ========================================================================= #
@@ -124,7 +125,7 @@ class DfcLossModule(torch.nn.Module):
         :return: List of the extracted features
         """
         # This adds inefficiency but I guess is needed...
-        assert torch.all(0 <= inputs) and torch.all(inputs <= 1)
+        check_tensor(inputs, low=0, high=1, dtype=None)
         # normalise: https://pytorch.org/docs/stable/torchvision/models.html
         result = normalize(inputs, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         # calculate all features

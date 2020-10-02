@@ -6,6 +6,3 @@ module:
 
 data_wrapper:
   _target_: disent.dataset.groundtruth.GroundTruthDataset
-
-input_transform:
-  _target_: disent.transform.InputNormalizeTensor

@@ -11,6 +11,3 @@ data_wrapper:
   p_k_range: ${dataset.k}
   # radius sampling
   p_radius_range: ${dataset.k_radius}
-
-input_transform:
-  _target_: disent.transform.InputNormalizeTensor

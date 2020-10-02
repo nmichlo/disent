@@ -20,6 +20,3 @@ data_wrapper:
   n_radius_sample_mode: ${dataset.n_k_radius_mode}
   # final checks
   swap_metric: NULL
-
-input_transform:
-  _target_: disent.transform.InputNormalizeTensor
