@@ -89,8 +89,18 @@ class Vae(BaseFramework):
         return self._model.encode_gaussian(x)
 
     def reparameterize(self, z_mean, z_logvar):
-        """Sample from latent distribution parametrized by (z_mean, z_logvar) to get z (useful for training)"""
-        return self._model.reparameterize(z_mean, z_logvar)
+        """
+        Randomly sample for z based on the parametrization of the gaussian normal with diagonal covariance.
+        This is an implementation of the 'reparameterization trick'.
+        ie. z ~ p(z|x)
+        Gaussian Encoder Model Distribution - pg. 25 in Variational Auto Encoders
+
+        (✓) Visual inspection against reference implementation:
+            https://github.com/google-research/disentanglement_lib (sample_from_latent_distribution)
+        """
+        std = torch.exp(0.5 * z_logvar)  # std == var^0.5 == e^(log(var^0.5)) == e^(0.5*log(var))
+        eps = torch.randn_like(std)      # N(0, 1)
+        return z_mean + (std * eps)      # mu + dot(std, eps)
 
     def decode_partial(self, z):
         """Decode latent vector z into partial reconstruction x_recon, without the final activation (useful for training)"""

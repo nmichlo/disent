@@ -49,22 +49,6 @@ class GaussianAutoEncoder(BaseModule):
         self._encoder = encoder
         self._decoder = decoder
 
-
-    @staticmethod
-    def reparameterize(z_mean: Tensor, z_logvar: Tensor) -> Tensor:
-        """
-        Randomly sample for z based on the parametrization of the gaussian normal with diagonal covariance.
-        This is an implementation of the 'reparameterization trick'.
-        ie. z ~ p(z|x)
-        Gaussian Encoder Model Distribution - pg. 25 in Variational Auto Encoders
-
-        (✓) Visual inspection against reference implementation:
-            https://github.com/google-research/disentanglement_lib (sample_from_latent_distribution)
-        """
-        std = torch.exp(0.5 * z_logvar)  # std == var^0.5 == e^(log(var^0.5)) == e^(0.5*log(var))
-        eps = torch.randn_like(std)      # N(0, 1)
-        return z_mean + (std * eps)      # mu + dot(std, eps)
-
     def forward(self, x: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
         """
         reconstruct the input:
@@ -73,24 +57,7 @@ class GaussianAutoEncoder(BaseModule):
           -> decode  |
           -> x_recon | no final activation
         """
-        # TODO: cleanup
         raise RuntimeError('This has been disabled')
-        # encode
-        z_mean, z_logvar = self.encode_gaussian(x)
-        z = self.reparameterize(z_mean, z_logvar)
-        # decode
-        x_recon = self.decode(z)
-        return x_recon, z_mean, z_logvar, z
-
-    def forward_deterministic(self, x: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
-        # TODO: cleanup
-        raise RuntimeError('This has been disabled')
-        # encode
-        z_mean, z_logvar = self.encode_gaussian(x)
-        z = z_mean
-        # decode
-        x_recon = self.decode(z)
-        return x_recon, z_mean, z_logvar, z
 
     def encode_gaussian(self, x: Tensor) -> (Tensor, Tensor):
         """
@@ -106,27 +73,6 @@ class GaussianAutoEncoder(BaseModule):
         self.assert_z_valid(z_logvar)
         # return
         return z_mean, z_logvar
-
-    def encode_stochastic(self, x) -> Tensor:
-        # TODO: cleanup
-        raise RuntimeError('This has been disabled')
-        z_mean, z_logvar = self.encode_gaussian(x)
-        return self.reparameterize(z_mean, z_logvar)
-
-    def encode_deterministic(self, x) -> Tensor:
-        # TODO: cleanup
-        raise RuntimeError('This has been disabled')
-        z_mean, z_logvar = self.encode_gaussian(x)
-        return z_mean
-
-    def decode(self, z: Tensor) -> Tensor:
-        """
-        Compute the partial reconstruction of the input from a latent vector, the output is not passed
-        through the final activation which can cause numerical errors if it is sigmoid.
-        """
-        # TODO: cleanup
-        raise RuntimeError('This has been deprecated in favor of decode_partial')
-        return self._decoder(z)
 
     def decode_partial(self, z: Tensor) -> Tensor:
         return self._decoder(z)
