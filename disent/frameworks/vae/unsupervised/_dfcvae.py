@@ -22,6 +22,8 @@ class DfcVae(BetaVae):
     https://arxiv.org/abs/1610.00291
     - Uses features generated from a pretrained model as the loss.
 
+    Reference implementation is from: https://github.com/AntixK/PyTorch-VAE
+
     Difference:
         1. MSE loss changed to BCE loss
            Mean taken over (batch for sum of pixels) not mean over (batch & pixels)
@@ -89,7 +91,11 @@ class DfcLossModule(torch.nn.Module):
     """
     Loss function for the Deep Feature Consistent Variational Autoencoder.
     https://arxiv.org/abs/1610.00291
-    - reference implementation is from:
+
+    Reference implementation is from: https://github.com/AntixK/PyTorch-VAE
+
+    Difference:
+    - normalise data as torchvision.models require.
     """
 
     def __init__(self, feature_layers=None):
