@@ -50,9 +50,11 @@ class DfcVae(BetaVae):
 
         # LOSS
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+        # Deep Features
+        x_recon_sigmoid = torch.sigmoid(x_recon)
+        feature_loss = self._loss_module.compute_loss(x_recon_sigmoid, x_targ)
+        pixel_loss = F.mse_loss(x_recon_sigmoid, x_targ, reduction='mean')  # E[log p(x|z)] we typically use binary cross entropy with logits
         # reconstruction error
-        feature_loss = self._loss_module.compute_loss(x_recon, x_targ)
-        pixel_loss = F.mse_loss(torch.sigmoid(x_recon), x_targ, reduction='mean')  # E[log p(x|z)] we typically use binary cross entropy with logits
         recon_loss = (pixel_loss + feature_loss) * 0.5
         # KL divergence
         kl_loss = kl_normal_loss(z_mean, z_logvar)     # D_kl(q(z|x) || p(z|x))
