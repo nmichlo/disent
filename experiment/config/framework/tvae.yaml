@@ -3,8 +3,9 @@ name: tvae
 module:
   _target_: disent.frameworks.vae.supervised.TripletVae
   beta: 4
-  triplet_margin: 0.1
+  triplet_margin: 10
   triplet_scale: 1
+  detach_decoder: FALSE
 
 data_wrapper:
   _target_: disent.dataset.groundtruth.GroundTruthDatasetTriples
