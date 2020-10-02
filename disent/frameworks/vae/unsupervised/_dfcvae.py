@@ -1,13 +1,13 @@
 from typing import List
 
+import kornia
 import torch
-from torchvision.transforms.functional import normalize
 from torch import Tensor
 from torchvision.models import vgg19_bn
 from torch.nn import functional as F
 
 from disent.frameworks.vae.unsupervised import BetaVae
-from disent.frameworks.vae.loss import kl_normal_loss
+from disent.frameworks.vae.loss import kl_normal_loss, bce_loss_with_logits
 from disent.transform.functional import check_tensor
 
 
@@ -21,6 +21,10 @@ class DfcVae(BetaVae):
     Deep Feature Consistent Variational Autoencoder.
     https://arxiv.org/abs/1610.00291
     - Uses features generated from a pretrained model as the loss.
+
+    Difference:
+        1. MSE loss changed to BCE loss
+           Mean taken over (batch for sum of pixels) not mean over (batch & pixels)
     """
 
     def __init__(
@@ -33,7 +37,7 @@ class DfcVae(BetaVae):
     ):
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, beta=beta)
         # make dfc loss
-        self._loss_module = DfcLossModule(feature_layers=feature_layers)
+        self._loss = DfcLossModule(feature_layers=feature_layers)
 
     def compute_training_loss(self, batch, batch_idx):
         (x,), (x_targ,) = batch['x'], batch['x_targ']
@@ -51,13 +55,14 @@ class DfcVae(BetaVae):
         # LOSS
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # Deep Features
-        x_recon_sigmoid = torch.sigmoid(x_recon)
-        feature_loss = self._loss_module.compute_loss(x_recon_sigmoid, x_targ)
-        pixel_loss = F.mse_loss(x_recon_sigmoid, x_targ, reduction='mean')  # E[log p(x|z)] we typically use binary cross entropy with logits
+        feature_loss = self._loss.compute_loss(torch.sigmoid(x_recon), x_targ)
+        feature_loss *= (x.shape[-1] * x.shape[-2])         # (DIFFERENCE: 1)
+        # Pixel Loss
+        pixel_loss = bce_loss_with_logits(x_recon, x_targ)  # (DIFFERENCE: 1) E[log p(x|z)] | F.mse_loss(x_recon_sigmoid, x_targ, reduction='mean')
         # reconstruction error
         recon_loss = (pixel_loss + feature_loss) * 0.5
         # KL divergence
-        kl_loss = kl_normal_loss(z_mean, z_logvar)     # D_kl(q(z|x) || p(z|x))
+        kl_loss = kl_normal_loss(z_mean, z_logvar)  # D_kl(q(z|x) || p(z|x))
         # compute kl regularisation
         kl_reg_loss = self.kl_regularization(kl_loss)
         # compute combined loss
@@ -102,6 +107,10 @@ class DfcLossModule(torch.nn.Module):
         # Evaluation Mode
         self.feature_network.eval()
 
+    @property
+    def num(self):
+        return len(self.feature_layers)
+
     def __call__(self, x_recon, x_targ):
         return self.compute_loss(x_recon, x_targ)
 
@@ -129,7 +138,7 @@ class DfcLossModule(torch.nn.Module):
         # This adds inefficiency but I guess is needed...
         check_tensor(inputs, low=0, high=1, dtype=None)
         # normalise: https://pytorch.org/docs/stable/torchvision/models.html
-        result = normalize(inputs, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        result = kornia.normalize(inputs, mean=torch.tensor([0.485, 0.456, 0.406]), std=torch.tensor([0.229, 0.224, 0.225]))
         # calculate all features
         features = []
         for (key, module) in self.feature_network.features._modules.items():
