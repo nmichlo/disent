@@ -20,12 +20,14 @@ class TripletVae(BetaVae):
             triplet_margin=0.1,
             triplet_scale=1,
             detach_decoder=False,
+            detach_no_kl=False,
     ):
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, beta=beta)
         self.triplet_margin = triplet_margin
         self.triplet_scale = triplet_scale
         self.detach_decoder = detach_decoder
         self.detach_logvar = -2.77  # std = 0.5, logvar = ln(std**2) ~= -2,77
+        self.detach_no_kl = detach_no_kl
 
     def compute_training_loss(self, batch, batch_idx):
         (a_x, p_x, n_x), (a_x_targ, p_x_targ, n_x_targ) = batch['x'], batch['x_targ']
@@ -64,12 +66,16 @@ class TripletVae(BetaVae):
         n_recon_loss = bce_loss_with_logits(n_x_recon, n_x_targ)  # E[log p(x|z)]
         ave_recon_loss = (a_recon_loss + p_recon_loss + n_recon_loss) / 3
         # KL divergence
-        a_kl_loss = kl_normal_loss(a_z_mean, a_z_logvar)  # D_kl(q(z|x) || p(z|x))
-        p_kl_loss = kl_normal_loss(p_z_mean, p_z_logvar)  # D_kl(q(z|x) || p(z|x))
-        n_kl_loss = kl_normal_loss(n_z_mean, n_z_logvar)  # D_kl(q(z|x) || p(z|x))
-        ave_kl_loss = (a_kl_loss + p_kl_loss + n_kl_loss) / 3
-        # compute kl regularisation
-        ave_kl_reg_loss = self.kl_regularization(ave_kl_loss)
+        if self.detach_decoder and self.detach_no_kl:
+            ave_kl_loss = 0
+            ave_kl_reg_loss = 0
+        else:
+            a_kl_loss = kl_normal_loss(a_z_mean, a_z_logvar)  # D_kl(q(z|x) || p(z|x))
+            p_kl_loss = kl_normal_loss(p_z_mean, p_z_logvar)  # D_kl(q(z|x) || p(z|x))
+            n_kl_loss = kl_normal_loss(n_z_mean, n_z_logvar)  # D_kl(q(z|x) || p(z|x))
+            ave_kl_loss = (a_kl_loss + p_kl_loss + n_kl_loss) / 3
+            # compute kl regularisation
+            ave_kl_reg_loss = self.kl_regularization(ave_kl_loss)
         # augment loss (0 for this)
         augment_loss, augment_loss_logs = self.augment_loss(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar)
         # compute combined loss - must be same as the BetaVAE

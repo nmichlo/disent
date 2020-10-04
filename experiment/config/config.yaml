@@ -1,5 +1,18 @@
+# EXPERIMENT 1:
+# -m framework=tvae dataset=xysquares
+#    framework.module.triplet_scale=1,10,100
+#    framework.module.triplet_margin=1,10,100
+#    framework.module.detach_decoder=TRUE,FALSE
+#    framework.module.detach_no_kl=FALSE
+#
+# -m framework=tvae dataset=xysquares
+#    framework.module.triplet_scale=1,10,100
+#    framework.module.triplet_margin=1,10,100
+#    framework.module.detach_decoder=TRUE
+#    framework.module.detach_no_kl=TRUE
+
 defaults:
-  - framework: adavae
+  - framework: tvae
   - model: conv64
   - optimizer: radam
   - dataset: xysquares
@@ -15,8 +28,8 @@ defaults:
 
 # remember to set timeout limits below
 trainer:
-  epochs: 36000  # not resilient to change in dataset size, we rather limit by steps (len(dataset) / batch_size)
-  steps: 36001
+  epochs: 28800  # not resilient to change in dataset size, we rather limit by steps (len(dataset) / batch_size)
+  steps: 28800
   cuda: TRUE
   prepare_data_per_node: TRUE
 
@@ -31,14 +44,13 @@ dataset:
   try_in_memory: FALSE
   gpu_augment: FALSE
   # varying factors (if applicable for pairs) -- sample in range: [min, max]
-  k: [1, 1]
-  k_radius: [1, 1]
+  k: [0, -1]
+  k_radius: [0, -1]
   # varying factors (if applicable for triplets) -- sample in range: [min, max]
-  # - sample in range: [min, max]
-  n_k: [0, 0]
-  n_k_mode: 'offset'
-  n_k_radius: [1, -1]
-  n_k_radius_mode: 'offset'
+  n_k: [0, -1]
+  n_k_mode: 'bounded_below'
+  n_k_radius: [0, -1]
+  n_k_radius_mode: 'bounded_below'
 
 optimizer:
   lr: 1e-3
@@ -46,9 +58,6 @@ optimizer:
 # --------------- #
 # RUNTIME OPTIONS #
 # --------------- #
-
-# EXPERIMENT:
-# -m dataset=xymultigrid,xymultigrid-overlap,3dshapes framework=betavae,adavae augment=none,basic
 
 logging:
   logs_dir: 'logs'
@@ -60,8 +69,8 @@ logging:
     enabled: TRUE
     offline: FALSE
     entity: 'n_michlo'
-    project: 'vae-augmentations'
-    name: '${framework.name}|${model.z_size}|${dataset.name}:l-${augment.name}'
+    project: 'vae-ada-triplet-loss'
+    name: '${framework.name}|${model.name}:${model.z_size}|${dataset.name}:${augment.name}'
     group: null
     tags:
       - '${framework.name}'
@@ -74,7 +83,7 @@ callbacks:
     interval: 30
   latent_cycle:
     seed: 7777
-    every_n_steps: 1200
+    every_n_steps: 600
     mode: 'minmax_interval_cycle'  # 'minmax_interval_cycle', 'fitted_gaussian_cycle'
   metrics:
     every_n_steps: 3600
