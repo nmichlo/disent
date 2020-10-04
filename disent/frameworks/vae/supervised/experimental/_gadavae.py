@@ -91,15 +91,15 @@ class GuidedAdaVae(AdaVae):
         p_shared_mask, n_shared_mask = compute_constrained_masks(p_kl_deltas, old_p_shared_mask, n_kl_deltas, old_n_shared_mask)
         
         # make averaged variables
-        pa_z_mean, pa_z_logvar, p_z_mean, p_z_logvar = self.make_averaged(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, p_shared_mask)
-        na_z_mean, na_z_logvar, n_z_mean, n_z_logvar = self.make_averaged(a_z_mean, a_z_logvar, n_z_mean, n_z_logvar, n_shared_mask)
+        pa_z_mean, pa_z_logvar, p_z_mean, p_z_logvar = AdaVae.make_averaged(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, p_shared_mask, self.compute_average)
+        na_z_mean, na_z_logvar, n_z_mean, n_z_logvar = AdaVae.make_averaged(a_z_mean, a_z_logvar, n_z_mean, n_z_logvar, n_shared_mask, self.compute_average)
         ave_mean, ave_logvar = self.compute_average(pa_z_mean, pa_z_logvar, na_z_mean, na_z_logvar)
 
         anchor_ave_logs = {}
         if self.anchor_ave_mode == 'thresh':
             # compute anchor average using the adaptive threshold
             ave_shared_mask = p_shared_mask * n_shared_mask
-            ave_mean, ave_logvar, _, _ = self.make_averaged(a_z_mean, a_z_logvar, ave_mean, ave_logvar, ave_shared_mask)
+            ave_mean, ave_logvar, _, _ = AdaVae.make_averaged(a_z_mean, a_z_logvar, ave_mean, ave_logvar, ave_shared_mask, self.compute_average)
             anchor_ave_logs['ave_shared'] = ave_shared_mask.sum(dim=1).float().mean()
 
         new_args = ave_mean, ave_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar

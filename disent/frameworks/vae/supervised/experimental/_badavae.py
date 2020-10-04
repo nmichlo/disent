@@ -67,7 +67,7 @@ class BoundedAdaVae(AdaVae):
         p_shared_mask, n_shared_mask = BoundedAdaVae.compute_constrained_masks(p_kl_deltas, old_p_shared_mask, n_kl_deltas, old_n_shared_mask)
         
         # make averaged variables
-        new_args = self.make_averaged(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, p_shared_mask)
+        new_args = AdaVae.make_averaged(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, p_shared_mask, self.compute_average)
 
         # return new args & generate logs
         return new_args, {

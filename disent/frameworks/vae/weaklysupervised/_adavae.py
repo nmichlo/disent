@@ -83,25 +83,10 @@ class AdaVae(BetaVae):
     def intercept_z(self, z0_mean, z0_logvar, z1_mean, z1_logvar):
         # shared elements that need to be averaged, computed per pair in the batch.
         _, _, share_mask = AdaVae.estimate_shared(z0_mean, z0_logvar, z1_mean, z1_logvar)
-        # make averaged z parameters
-        new_args = self.make_averaged(z0_mean, z0_logvar, z1_mean, z1_logvar, share_mask)
+        # compute average posteriors
+        new_args = AdaVae.make_averaged(z0_mean, z0_logvar, z1_mean, z1_logvar, share_mask, self.compute_average)
         # return new args & generate logs
         return new_args, {'shared': share_mask.sum(dim=1).float().mean()}
-
-    def make_averaged(self, z0_mean, z0_logvar, z1_mean, z1_logvar, share_mask):
-        """
-        (✓) Visual inspection against reference implementation:
-            https://github.com/google-research/disentanglement_lib (aggregate_argmax)
-        """
-        # compute average posteriors
-        ave_mu, ave_logvar = self.compute_average(z0_mean, z0_logvar, z1_mean, z1_logvar)
-        # select averages
-        z0_mean = torch.where(share_mask, ave_mu, z0_mean)
-        z1_mean = torch.where(share_mask, ave_mu, z1_mean)
-        z0_logvar = torch.where(share_mask, ave_logvar, z0_logvar)
-        z1_logvar = torch.where(share_mask, ave_logvar, z1_logvar)
-        # return values
-        return z0_mean, z0_logvar, z1_mean, z1_logvar
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # HELPER                                                                #
@@ -127,9 +112,9 @@ class AdaVae(BetaVae):
         """
         # shared elements that need to be averaged, computed per pair in the batch.
         # [𝛿_i ...]
-        kl_deltas = kl_normal_loss_pair_elements(z0_mean, z0_logvar, z1_mean, z1_logvar)
+        kl_deltas = _kld_gaussian_elem_pairs(z0_mean, z0_logvar, z1_mean, z1_logvar)
         # threshold τ
-        kl_threshs = estimate_kl_threshold(kl_deltas)
+        kl_threshs = _estimate_kl_threshold(kl_deltas)
         # check shapes
         assert kl_threshs.shape == (z0_mean.shape[0], 1), f'{kl_threshs.shape} != {(z0_mean.shape[0], 1)}'
         # true if 'unchanged' and should be average
@@ -137,13 +122,41 @@ class AdaVae(BetaVae):
         # return
         return kl_deltas, kl_threshs, shared_mask
 
+    @staticmethod
+    def compute_averaged(z0_mean, z0_logvar, z1_mean, z1_logvar, ave_fn: callable):
+        """
+        (✓) Visual inspection against reference implementation:
+            https://github.com/google-research/disentanglement_lib (aggregate_argmax)
+        """
+        # shared elements that need to be averaged, computed per pair in the batch.
+        _, _, share_mask = AdaVae.estimate_shared(z0_mean, z0_logvar, z1_mean, z1_logvar)
+        # compute average posteriors
+        return AdaVae.make_averaged(z0_mean, z0_logvar, z1_mean, z1_logvar, share_mask, ave_fn)
+
+    @staticmethod
+    def make_averaged(z0_mean, z0_logvar, z1_mean, z1_logvar, share_mask, ave_fn: callable):
+        # compute average posteriors
+        ave_mean, ave_logvar = ave_fn(z0_mean, z0_logvar, z1_mean, z1_logvar)
+        # return values
+        return AdaVae.combine_into_averaged(z0_mean, z0_logvar, z1_mean, z1_logvar, share_mask, ave_mean, ave_logvar)
+
+    @staticmethod
+    def combine_into_averaged(z0_mean, z0_logvar, z1_mean, z1_logvar, share_mask, ave_mean, ave_logvar):
+        # select averages
+        z0_mean = torch.where(share_mask, ave_mean, z0_mean)
+        z1_mean = torch.where(share_mask, ave_mean, z1_mean)
+        z0_logvar = torch.where(share_mask, ave_logvar, z0_logvar)
+        z1_logvar = torch.where(share_mask, ave_logvar, z1_logvar)
+        # return values
+        return z0_mean, z0_logvar, z1_mean, z1_logvar
+
 
 # ========================================================================= #
 # HELPER                                                                    #
 # ========================================================================= #
 
 
-def kl_normal_loss_pair_elements(z0_mean, z0_logvar, z1_mean, z1_logvar):
+def _kld_gaussian_elem_pairs(z0_mean, z0_logvar, z1_mean, z1_logvar):
     """
     Compute the KL divergence for normal distributions between all corresponding elements of a pair of latent vectors
 
@@ -163,7 +176,8 @@ def kl_normal_loss_pair_elements(z0_mean, z0_logvar, z1_mean, z1_logvar):
     # compute
     return 0.5 * ((z0_var / z1_var) + (z1_mean - z0_mean).pow(2) / z1_var - 1 + (z1_logvar - z0_logvar))
 
-def estimate_kl_threshold(kl_deltas):
+
+def _estimate_kl_threshold(kl_deltas):
     """
     Compute the threshold for each image pair in a batch of kl divergences of all elements of the latent distributions.
     It should be noted that for a perfectly trained model, this threshold is always correct.
