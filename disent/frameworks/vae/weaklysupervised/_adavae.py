@@ -114,7 +114,7 @@ class AdaVae(BetaVae):
         # [𝛿_i ...]
         kl_deltas = _kld_gaussian_elem_pairs(z0_mean, z0_logvar, z1_mean, z1_logvar)
         # threshold τ
-        kl_threshs = _estimate_kl_threshold(kl_deltas)
+        kl_threshs = AdaVae.estimate_threshold(kl_deltas)
         # check shapes
         assert kl_threshs.shape == (z0_mean.shape[0], 1), f'{kl_threshs.shape} != {(z0_mean.shape[0], 1)}'
         # true if 'unchanged' and should be average
@@ -150,6 +150,22 @@ class AdaVae(BetaVae):
         # return values
         return z0_mean, z0_logvar, z1_mean, z1_logvar
 
+    @staticmethod
+    def estimate_threshold(kl_deltas):
+        """
+        Compute the threshold for each image pair in a batch of kl divergences of all elements of the latent distributions.
+        It should be noted that for a perfectly trained model, this threshold is always correct.
+
+        (✓) Visual inspection against reference implementation:
+            https://github.com/google-research/disentanglement_lib (aggregate_argmax)
+        """
+        # TODO: what would happen if you took the std across the batch and the std across the vector
+        #       and then took one less than the other for the thresh? What is that intuition?
+        # TODO: what would happen if you used a ratio between min and max instead of the mask and hard averaging
+        maximums = kl_deltas.max(axis=1, keepdim=True).values
+        minimums = kl_deltas.min(axis=1, keepdim=True).values
+        return 0.5 * (minimums + maximums)
+
 
 # ========================================================================= #
 # HELPER                                                                    #
@@ -175,22 +191,6 @@ def _kld_gaussian_elem_pairs(z0_mean, z0_logvar, z1_mean, z1_logvar):
     z0_var, z1_var = z0_logvar.exp(), z1_logvar.exp()
     # compute
     return 0.5 * ((z0_var / z1_var) + (z1_mean - z0_mean).pow(2) / z1_var - 1 + (z1_logvar - z0_logvar))
-
-
-def _estimate_kl_threshold(kl_deltas):
-    """
-    Compute the threshold for each image pair in a batch of kl divergences of all elements of the latent distributions.
-    It should be noted that for a perfectly trained model, this threshold is always correct.
-
-    (✓) Visual inspection against reference implementation:
-        https://github.com/google-research/disentanglement_lib (aggregate_argmax)
-    """
-    # TODO: what would happen if you took the std across the batch and the std across the vector
-    #       and then took one less than the other for the thresh? What is that intuition?
-    # TODO: what would happen if you used a ratio between min and max instead of the mask and hard averaging
-    maximums = kl_deltas.max(axis=1, keepdim=True).values
-    minimums = kl_deltas.min(axis=1, keepdim=True).values
-    return 0.5 * (minimums + maximums)
 
 
 # ========================================================================= #

@@ -7,6 +7,7 @@ module:
   triplet_scale: 100
   detach_decoder: TRUE
   detach_no_kl: FALSE
+  detach_logvar: -2  # can also be NULL to pass gradient
 
 data_wrapper:
   _target_: disent.dataset.groundtruth.GroundTruthDatasetTriples

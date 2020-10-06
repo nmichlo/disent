@@ -12,7 +12,7 @@
 #    framework.module.detach_no_kl=TRUE
 
 defaults:
-  - framework: tvae
+  - framework: adatvae
   - model: conv64
   - optimizer: radam
   - dataset: xysquares
@@ -28,8 +28,8 @@ defaults:
 
 # remember to set timeout limits below
 trainer:
-  epochs: 28800  # not resilient to change in dataset size, we rather limit by steps (len(dataset) / batch_size)
-  steps: 28800
+  epochs: 50400  # not resilient to change in dataset size, we rather limit by steps (len(dataset) / batch_size)
+  steps: 50400
   cuda: TRUE
   prepare_data_per_node: TRUE
 
@@ -70,7 +70,7 @@ logging:
     offline: FALSE
     entity: 'n_michlo'
     project: 'vae-ada-triplet-loss'
-    name: '${framework.name}|${model.name}:${model.z_size}|${dataset.name}:${augment.name}'
+    name: '${framework.name}:${framework.module.triplet_mode}|${model.name}:${model.z_size}|${dataset.name}:${augment.name}'
     group: null
     tags:
       - '${framework.name}'
@@ -83,7 +83,7 @@ callbacks:
     interval: 30
   latent_cycle:
     seed: 7777
-    every_n_steps: 600
+    every_n_steps: 1200
     mode: 'minmax_interval_cycle'  # 'minmax_interval_cycle', 'fitted_gaussian_cycle'
   metrics:
     every_n_steps: 3600

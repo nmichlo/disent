@@ -17,16 +17,17 @@ class TripletVae(BetaVae):
             make_model_fn,
             batch_augment=None,
             beta=4,
-            triplet_margin=0.1,
-            triplet_scale=1,
+            triplet_margin=10,
+            triplet_scale=100,
             detach_decoder=False,
             detach_no_kl=False,
+            detach_logvar=-2,  # std = 0.5, logvar = ln(std**2) ~= -2,77
     ):
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, beta=beta)
         self.triplet_margin = triplet_margin
         self.triplet_scale = triplet_scale
         self.detach_decoder = detach_decoder
-        self.detach_logvar = -2.77  # std = 0.5, logvar = ln(std**2) ~= -2,77
+        self.detach_logvar = detach_logvar
         self.detach_no_kl = detach_no_kl
 
     def compute_training_loss(self, batch, batch_idx):
@@ -39,7 +40,7 @@ class TripletVae(BetaVae):
         p_z_mean, p_z_logvar = self.encode_gaussian(p_x)
         n_z_mean, n_z_logvar = self.encode_gaussian(n_x)
         # get zeros
-        if self.detach_decoder:
+        if self.detach_decoder and (self.detach_logvar is not None):
             a_z_logvar = torch.full_like(a_z_logvar, self.detach_logvar)
             p_z_logvar = torch.full_like(p_z_logvar, self.detach_logvar)
             n_z_logvar = torch.full_like(n_z_logvar, self.detach_logvar)
@@ -77,7 +78,7 @@ class TripletVae(BetaVae):
             # compute kl regularisation
             ave_kl_reg_loss = self.kl_regularization(ave_kl_loss)
         # augment loss (0 for this)
-        augment_loss, augment_loss_logs = self.augment_loss(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar)
+        augment_loss, augment_loss_logs = self.augment_loss(z_means=(a_z_mean, p_z_mean, n_z_mean), z_logvars=(a_z_logvar, p_z_logvar, n_z_logvar), z_samples=(a_z_sampled, p_z_sampled, n_z_sampled))
         # compute combined loss - must be same as the BetaVAE
         loss = ave_recon_loss + ave_kl_reg_loss + augment_loss
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -91,16 +92,12 @@ class TripletVae(BetaVae):
             **augment_loss_logs,
         }
 
-    def augment_loss(self, a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar):
-        return augment_loss_triplet(
-            a_z_mean, a_z_logvar,
-            p_z_mean, p_z_logvar,
-            n_z_mean, n_z_logvar,
-            scale=self.triplet_scale, margin=self.triplet_margin
-        )
+    def augment_loss(self, z_means, z_logvars, z_samples):
+        a_z_mean, p_z_mean, n_z_mean = z_means
+        return augment_loss_triplet(a_z_mean, p_z_mean, n_z_mean, scale=self.triplet_scale, margin=self.triplet_margin)
 
 
-def augment_loss_triplet(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar, scale=1., margin=10.):
+def augment_loss_triplet(a_z_mean, p_z_mean, n_z_mean, scale=1., margin=10.):
     augmented_loss = scale * F.triplet_margin_loss(a_z_mean, p_z_mean, n_z_mean, margin=margin)
     return augmented_loss, {
         'triplet_loss': augmented_loss,
