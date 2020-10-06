@@ -5,9 +5,11 @@ module:
   beta: 4
   triplet_margin: 10
   triplet_scale: 100
+  # enable detaching
+  detach: FALSE
   detach_decoder: TRUE
   detach_no_kl: FALSE
-  detach_logvar: -2  # can also be NULL to pass gradient
+  detach_logvar: -2  # set to NULL to disable fixed value
 
 data_wrapper:
   _target_: disent.dataset.groundtruth.GroundTruthDatasetTriples

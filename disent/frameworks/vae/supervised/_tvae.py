@@ -19,13 +19,15 @@ class TripletVae(BetaVae):
             beta=4,
             triplet_margin=10,
             triplet_scale=100,
-            detach_decoder=False,
+            detach=False,
+            detach_decoder=True,
             detach_no_kl=False,
             detach_logvar=-2,  # std = 0.5, logvar = ln(std**2) ~= -2,77
     ):
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, beta=beta)
         self.triplet_margin = triplet_margin
         self.triplet_scale = triplet_scale
+        self.detach = detach
         self.detach_decoder = detach_decoder
         self.detach_logvar = detach_logvar
         self.detach_no_kl = detach_no_kl
@@ -40,7 +42,7 @@ class TripletVae(BetaVae):
         p_z_mean, p_z_logvar = self.encode_gaussian(p_x)
         n_z_mean, n_z_logvar = self.encode_gaussian(n_x)
         # get zeros
-        if self.detach_decoder and (self.detach_logvar is not None):
+        if self.detach and (self.detach_logvar is not None):
             a_z_logvar = torch.full_like(a_z_logvar, self.detach_logvar)
             p_z_logvar = torch.full_like(p_z_logvar, self.detach_logvar)
             n_z_logvar = torch.full_like(n_z_logvar, self.detach_logvar)
@@ -49,7 +51,7 @@ class TripletVae(BetaVae):
         p_z_sampled = self.reparameterize(p_z_mean, p_z_logvar)
         n_z_sampled = self.reparameterize(n_z_mean, n_z_logvar)
         # detach samples so no gradient flows through them
-        if self.detach_decoder:
+        if self.detach and self.detach_decoder:
             a_z_sampled = a_z_sampled.detach()
             p_z_sampled = p_z_sampled.detach()
             n_z_sampled = n_z_sampled.detach()
@@ -67,7 +69,7 @@ class TripletVae(BetaVae):
         n_recon_loss = bce_loss_with_logits(n_x_recon, n_x_targ)  # E[log p(x|z)]
         ave_recon_loss = (a_recon_loss + p_recon_loss + n_recon_loss) / 3
         # KL divergence
-        if self.detach_decoder and self.detach_no_kl:
+        if self.detach and self.detach_no_kl:
             ave_kl_loss = 0
             ave_kl_reg_loss = 0
         else:
