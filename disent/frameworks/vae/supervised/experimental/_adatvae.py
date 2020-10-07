@@ -76,8 +76,8 @@ class AdaTripletVae(TripletVae):
             p_thresh = (lerp * p_thresh) + ((1-lerp) * torch.min(delta_p, dim=-1, keepdim=True).values)
             n_thresh = (lerp * n_thresh) + ((1-lerp) * torch.min(delta_n, dim=-1, keepdim=True).values)
         # estimate shared elements, then compute averaged vectors
-        p_shared = delta_p < p_thresh
-        n_shared = delta_n < n_thresh
+        p_shared = (delta_p < p_thresh).detach()  # TODO: SHOULD THIS BE < OR <=, THIS WAS <
+        n_shared = (delta_n < n_thresh).detach()  # TODO: SHOULD THIS BE < OR <=, THIS WAS <
         # compute averaged
         ap_ave = (0.5 * a_z_mean) + (0.5 * p_z_mean)
         an_ave = (0.5 * a_z_mean) + (0.5 * n_z_mean)
