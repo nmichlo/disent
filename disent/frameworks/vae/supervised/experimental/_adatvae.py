@@ -12,19 +12,24 @@ from disent.frameworks.vae.weaklysupervised._adavae import AdaVae, compute_avera
 
 class AdaTripletVae(TripletVae):
 
-    def __init__(self, *args, triplet_mode='ada', lerp_steps=10000, **kwargs):
+    def __init__(self, *args, triplet_mode='ada', **kwargs):
         super().__init__(*args, **kwargs)
         # check modes
         # assert triplet_mode in {'ada', 'p_ada', 'n_ada', 'ada_p_orig', 'ada_and_trip', 'ada_p_orig_and_trip'}, f'Invalid triplet mode: {triplet_mode}'
-        assert triplet_mode in {'ada_p_orig_and_trip_lerp'}, f'Invalid triplet mode: {triplet_mode}'
+        # assert triplet_mode in {'ada_p_orig_and_trip_lerp'}, f'Invalid triplet mode: {triplet_mode}'
         self.triplet_mode = triplet_mode
-        self.lerp_steps = lerp_steps
+
+        self.lerp_steps = 10000
         self.steps = 0
+        self.steps_offset = 0
+        self.lerp_goal = 1
 
     def augment_loss(self, z_means, z_logvars, z_samples):
         a_z_mean, p_z_mean, n_z_mean = z_means
-        a_z_logvar, p_z_logvar, n_z_logvar = z_logvars
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+
+        # normal triplet
+        trip_loss = triplet_loss(a_z_mean, p_z_mean, n_z_mean, margin=self.triplet_margin) * self.triplet_scale
 
         # Adaptive Component
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
@@ -35,18 +40,27 @@ class AdaTripletVae(TripletVae):
         # Triplet Liss
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         self.steps += 1
-        lerp = np.clip(self.steps / self.lerp_steps, 0, 1)
+        lerp = np.clip((self.steps - self.steps_offset) / self.lerp_steps, 0, self.lerp_goal)
         ap_a_ave, ap_p_ave, an_a_ave, an_n_ave = self.compute_ave(a_z_mean, p_z_mean, n_z_mean, lerp=lerp)
         ada_p_orig_triplet_loss_lerp = dist_triplet_loss(p_delta=a_z_mean-p_z_mean, n_delta=an_a_ave-an_n_ave, margin=self.triplet_margin) * self.triplet_scale
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
-        loss = ada_p_orig_triplet_loss
-        return loss, {
-            'ada_p_orig_triplet_loss': ada_p_orig_triplet_loss,
-            'ada_p_orig_triplet_loss_lerp': ada_p_orig_triplet_loss_lerp,
+        losses = {
+            'ada_p_orig': ada_p_orig_triplet_loss,
+            'ada_p_orig_lerp': ada_p_orig_triplet_loss_lerp,
+            # OLD
+            'ada_p_orig_and_trip': (0.5 * ada_p_orig_triplet_loss) + (0.5 * trip_loss),
+            'ada_p_orig_and_trip_lerp': (0.5 * ada_p_orig_triplet_loss_lerp) + (0.5 * trip_loss),
+            # lerp
+            'trip_lerp_ada_p_orig': (lerp * ada_p_orig_triplet_loss) + ((1-lerp) * trip_loss),
+            'trip_lerp_ada_p_orig_lerp': (lerp * ada_p_orig_triplet_loss_lerp) + ((1-lerp) * trip_loss),
+        }
+
+        return losses[self.triplet_mode], {
+            'triplet_loss': trip_loss,
+            **losses,
             'lerp': lerp,
-            'lerp_step': self.steps,
-            'lerp_steps': self.lerp_steps,
+            'lerp_goal': self.lerp_goal,
         }
 
     def compute_ave(self, a_z_mean, p_z_mean, n_z_mean, lerp=None):
@@ -62,8 +76,8 @@ class AdaTripletVae(TripletVae):
             p_thresh = (lerp * p_thresh) + ((1-lerp) * torch.min(delta_p, dim=-1, keepdim=True).values)
             n_thresh = (lerp * n_thresh) + ((1-lerp) * torch.min(delta_n, dim=-1, keepdim=True).values)
         # estimate shared elements, then compute averaged vectors
-        p_shared = (delta_p <= p_thresh).detach()  # TODO: SHOULD THIS BE < OR <=, THIS WAS <
-        n_shared = (delta_n <= n_thresh).detach()  # TODO: SHOULD THIS BE < OR <=, THIS WAS <
+        p_shared = delta_p < p_thresh
+        n_shared = delta_n < n_thresh
         # compute averaged
         ap_ave = (0.5 * a_z_mean) + (0.5 * p_z_mean)
         an_ave = (0.5 * a_z_mean) + (0.5 * n_z_mean)
