@@ -22,7 +22,7 @@ class AdaTripletVae(TripletVae):
         self.lerp_steps = 10000
         self.steps = 0
         self.steps_offset = 0
-        self.lerp_goal = 1
+        self.lerp_goal = 0.8
 
     def augment_loss(self, z_means, z_logvars, z_samples):
         a_z_mean, p_z_mean, n_z_mean = z_means
@@ -47,10 +47,10 @@ class AdaTripletVae(TripletVae):
 
         losses = {
             'ada_p_orig': ada_p_orig_triplet_loss,
-            'ada_p_orig_lerp': ada_p_orig_triplet_loss_lerp,
+            'ada_p_orig_lerp': ada_p_orig_triplet_loss_lerp,  # BEST!
             # OLD
-            'ada_p_orig_and_trip': (0.5 * ada_p_orig_triplet_loss) + (0.5 * trip_loss),
-            'ada_p_orig_and_trip_lerp': (0.5 * ada_p_orig_triplet_loss_lerp) + (0.5 * trip_loss),
+            'ada_p_orig_and_trip': (self.lerp_goal * ada_p_orig_triplet_loss) + ((1-self.lerp_goal) * trip_loss),
+            'ada_p_orig_and_trip_lerp': (self.lerp_goal * ada_p_orig_triplet_loss_lerp) + ((1-self.lerp_goal) * trip_loss),
             # lerp
             'trip_lerp_ada_p_orig': (lerp * ada_p_orig_triplet_loss) + ((1-lerp) * trip_loss),
             'trip_lerp_ada_p_orig_lerp': (lerp * ada_p_orig_triplet_loss_lerp) + ((1-lerp) * trip_loss),
