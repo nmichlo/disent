@@ -164,7 +164,7 @@ class AdaVae(BetaVae):
         # TODO: what would happen if you used a ratio between min and max instead of the mask and hard averaging
         maximums = kl_deltas.max(axis=1, keepdim=True).values
         minimums = kl_deltas.min(axis=1, keepdim=True).values
-        return 0.5 * (minimums + maximums)
+        return (0.5 * minimums) + (0.5 * maximums)
 
 
 # ========================================================================= #

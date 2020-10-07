@@ -1,15 +1,21 @@
-# EXPERIMENT 1:
-# -m framework=tvae dataset=xysquares
-#    framework.module.triplet_scale=1,10,100
-#    framework.module.triplet_margin=1,10,100
-#    framework.module.detach_decoder=TRUE,FALSE
-#    framework.module.detach_no_kl=FALSE
+# EXPERIMENT:
+# -m framework=adatvae framework.module.triplet_mode=ada_and_trip,ada_p_orig_and_trip
+#    framework.module.detach=TRUE framework.module.detach_logvar=NULL framework.module.beta=0.1
+#    dataset.k="[1, 1]" dataset.k_radius="[1, 1]"
+#    dataset.n_k="[1, -1]" dataset.n_k_radius="[1, -1]"
+#    dataset.n_k_mode="offset" dataset.n_k_radius_mode="offset"
 #
-# -m framework=tvae dataset=xysquares
-#    framework.module.triplet_scale=1,10,100
-#    framework.module.triplet_margin=1,10,100
-#    framework.module.detach_decoder=TRUE
-#    framework.module.detach_no_kl=TRUE
+# -m framework=adatvae framework.module.triplet_mode=ada_and_trip,ada_p_orig_and_trip
+#    framework.module.detach=TRUE framework.module.detach_logvar=NULL framework.module.beta=0.1
+#    dataset.k="[1, 1]" dataset.k_radius="[1, 1]"
+#    dataset.n_k="[0, -1]" dataset.n_k_radius="[0, -1]"
+#    dataset.n_k_mode="bounded_below" dataset.n_k_radius_mode="bounded_below"
+
+# -m framework=adatvae framework.module.triplet_mode=ada_and_trip,ada_p_orig_and_trip
+#    framework.module.detach=TRUE framework.module.detach_logvar=NULL framework.module.beta=0.1
+#    dataset.k="[0, -1]" dataset.k_radius="[0, -1]"
+#    dataset.n_k="[0, -1]" dataset.n_k_radius="[0, -1]"
+#    dataset.n_k_mode="bounded_below" dataset.n_k_radius_mode="bounded_below"
 
 defaults:
   - framework: adatvae
@@ -69,7 +75,7 @@ logging:
     enabled: TRUE
     offline: FALSE
     entity: 'n_michlo'
-    project: 'vae-ada-triplet-loss'
+    project: 'vae-ada-triplet-loss-sampling'
     name: '${framework.name}:${framework.module.triplet_mode}|${model.name}:${model.z_size}|${dataset.name}:${augment.name}'
     group: null
     tags:

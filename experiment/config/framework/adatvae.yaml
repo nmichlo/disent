@@ -1,5 +1,5 @@
 # @package _group_
-name: tvae
+name: adatvae
 module:
   _target_: disent.frameworks.vae.supervised.AdaTripletVae
   beta: 4
