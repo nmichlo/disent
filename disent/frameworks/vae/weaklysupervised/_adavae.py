@@ -151,7 +151,7 @@ class AdaVae(BetaVae):
         return z0_mean, z0_logvar, z1_mean, z1_logvar
 
     @staticmethod
-    def estimate_threshold(kl_deltas):
+    def estimate_threshold(kl_deltas, keepdim=True):
         """
         Compute the threshold for each image pair in a batch of kl divergences of all elements of the latent distributions.
         It should be noted that for a perfectly trained model, this threshold is always correct.
@@ -162,8 +162,8 @@ class AdaVae(BetaVae):
         # TODO: what would happen if you took the std across the batch and the std across the vector
         #       and then took one less than the other for the thresh? What is that intuition?
         # TODO: what would happen if you used a ratio between min and max instead of the mask and hard averaging
-        maximums = kl_deltas.max(axis=1, keepdim=True).values
-        minimums = kl_deltas.min(axis=1, keepdim=True).values
+        maximums = kl_deltas.max(axis=1, keepdim=keepdim).values
+        minimums = kl_deltas.min(axis=1, keepdim=keepdim).values
         return (0.5 * minimums) + (0.5 * maximums)
 
 

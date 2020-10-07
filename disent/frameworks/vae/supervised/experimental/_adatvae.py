@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 
 from disent.frameworks.vae.supervised._tvae import TripletVae, augment_loss_triplet
 from disent.frameworks.vae.weaklysupervised._adavae import AdaVae, compute_average_gvae
@@ -11,13 +12,68 @@ from disent.frameworks.vae.weaklysupervised._adavae import AdaVae, compute_avera
 
 class AdaTripletVae(TripletVae):
 
-    def __init__(self, *args, triplet_mode='ada', **kwargs):
+    def __init__(self, *args, triplet_mode='ada', lerp_steps=10000, **kwargs):
         super().__init__(*args, **kwargs)
         # check modes
-        assert triplet_mode in {'ada', 'p_ada', 'n_ada', 'ada_p_orig', 'ada_and_trip', 'ada_p_orig_and_trip'}, f'Invalid triplet mode: {triplet_mode}'
+        # assert triplet_mode in {'ada', 'p_ada', 'n_ada', 'ada_p_orig', 'ada_and_trip', 'ada_p_orig_and_trip'}, f'Invalid triplet mode: {triplet_mode}'
+        assert triplet_mode in {'ada_p_orig_and_trip_lerp'}, f'Invalid triplet mode: {triplet_mode}'
         self.triplet_mode = triplet_mode
+        self.lerp_steps = lerp_steps
+        self.steps = 0
 
     def augment_loss(self, z_means, z_logvars, z_samples):
+        a_z_mean, p_z_mean, n_z_mean = z_means
+        a_z_logvar, p_z_logvar, n_z_logvar = z_logvars
+        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+
+        # Adaptive Component
+        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+        ap_a_ave, ap_p_ave, an_a_ave, an_n_ave = self.compute_ave(a_z_mean, p_z_mean, n_z_mean)
+        ada_p_orig_triplet_loss = dist_triplet_loss(p_delta=a_z_mean-p_z_mean, n_delta=an_a_ave-an_n_ave, margin=self.triplet_margin) * self.triplet_scale
+        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+
+        # Triplet Liss
+        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+        self.steps += 1
+        lerp = np.clip(self.steps / self.lerp_steps, 0, 1)
+        ap_a_ave, ap_p_ave, an_a_ave, an_n_ave = self.compute_ave(a_z_mean, p_z_mean, n_z_mean, lerp=lerp)
+        ada_p_orig_triplet_loss_lerp = dist_triplet_loss(p_delta=a_z_mean-p_z_mean, n_delta=an_a_ave-an_n_ave, margin=self.triplet_margin) * self.triplet_scale
+        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+
+        loss = ada_p_orig_triplet_loss
+        return loss, {
+            'ada_p_orig_triplet_loss': ada_p_orig_triplet_loss,
+            'ada_p_orig_triplet_loss_lerp': ada_p_orig_triplet_loss_lerp,
+            'lerp': lerp,
+            'lerp_step': self.steps,
+            'lerp_steps': self.lerp_steps,
+        }
+
+    def compute_ave(self, a_z_mean, p_z_mean, n_z_mean, lerp=None):
+        # ADAPTIVE COMPONENT
+        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+        delta_p = torch.abs(a_z_mean - p_z_mean)
+        delta_n = torch.abs(a_z_mean - n_z_mean)
+        # get thresholds
+        p_thresh = AdaVae.estimate_threshold(delta_p, keepdim=True)
+        n_thresh = AdaVae.estimate_threshold(delta_n, keepdim=True)
+        # interpolate threshold
+        if lerp is not None:
+            p_thresh = (lerp * p_thresh) + ((1-lerp) * torch.min(delta_p, dim=-1, keepdim=True).values)
+            n_thresh = (lerp * n_thresh) + ((1-lerp) * torch.min(delta_n, dim=-1, keepdim=True).values)
+        # estimate shared elements, then compute averaged vectors
+        p_shared = (delta_p <= p_thresh).detach()  # TODO: SHOULD THIS BE < OR <=, THIS WAS <
+        n_shared = (delta_n <= n_thresh).detach()  # TODO: SHOULD THIS BE < OR <=, THIS WAS <
+        # compute averaged
+        ap_ave = (0.5 * a_z_mean) + (0.5 * p_z_mean)
+        an_ave = (0.5 * a_z_mean) + (0.5 * n_z_mean)
+        ap_a_ave, ap_p_ave = torch.where(p_shared, ap_ave, a_z_mean), torch.where(p_shared, ap_ave, p_z_mean)
+        an_a_ave, an_n_ave = torch.where(n_shared, an_ave, a_z_mean), torch.where(n_shared, an_ave, n_z_mean)
+        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+        return ap_a_ave, ap_p_ave, an_a_ave, an_n_ave
+
+
+    def augment_loss_OLD(self, z_means, z_logvars, z_samples):
         a_z_mean, p_z_mean, n_z_mean = z_means
         a_z_logvar, p_z_logvar, n_z_logvar = z_logvars
         a_z_sampled, p_z_sampled, n_z_sampled = z_samples
@@ -43,16 +99,7 @@ class AdaTripletVae(TripletVae):
 
         # NEW TRIPLET
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        delta_p = torch.abs(a_z_mean - p_z_mean)
-        delta_n = torch.abs(a_z_mean - n_z_mean)
-        # estimate shared elements, then compute averaged vectors
-        p_shared = (delta_p < AdaVae.estimate_threshold(delta_p)).detach()
-        n_shared = (delta_n < AdaVae.estimate_threshold(delta_n)).detach()
-        # compute averaged
-        ap_ave = (0.5 * a_z_mean) + (0.5 * p_z_mean)
-        an_ave = (0.5 * a_z_mean) + (0.5 * n_z_mean)
-        ap_a_ave, ap_p_ave = torch.where(p_shared, ap_ave, a_z_mean), torch.where(p_shared, ap_ave, p_z_mean)
-        an_a_ave, an_n_ave = torch.where(n_shared, an_ave, a_z_mean), torch.where(n_shared, an_ave, n_z_mean)
+        ap_a_ave, ap_p_ave, an_a_ave, an_n_ave = self.compute_ave(a_z_mean, p_z_mean, n_z_mean)
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         # compute losses
         NEW_ada_triplet_loss = dist_triplet_loss(p_delta=ap_a_ave-ap_p_ave, n_delta=an_a_ave-an_n_ave, margin=self.triplet_margin) * self.triplet_scale
@@ -93,7 +140,6 @@ class AdaTripletVae(TripletVae):
             'p_var': torch.exp(p_z_logvar).mean(),
             'n_var': torch.exp(n_z_logvar).mean(),
         }
-
 
 def triplet_loss(a, p, n, margin=.1):
     return dist_triplet_loss(a-p, a-n, margin=margin)

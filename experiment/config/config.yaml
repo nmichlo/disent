@@ -75,7 +75,7 @@ logging:
     enabled: TRUE
     offline: FALSE
     entity: 'n_michlo'
-    project: 'vae-ada-triplet-loss-sampling'
+    project: 'vae-ada-triplet-loss-lerp'
     name: '${framework.name}:${framework.module.triplet_mode}|${model.name}:${model.z_size}|${dataset.name}:${augment.name}'
     group: null
     tags:
