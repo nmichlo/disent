@@ -12,9 +12,13 @@ from disent.frameworks.vae.loss import bce_loss_with_logits, kl_normal_loss
 class AdaVae(BetaVae):
 
     """
-    Beta-VAE model with averaging for weak supervision.
-        - GAdaVAE:   Averaging from https://arxiv.org/abs/1809.02383
-        - ML-AdaVAE: Averaging from https://arxiv.org/abs/1705.08841
+    Weakly Supervised Disentanglement Learning Without Compromises: https://arxiv.org/abs/2002.02886
+    - pretty much a beta-vae with averaging between decoder outputs to form weak supervision signal.
+    - GAdaVAE:   Averaging from https://arxiv.org/abs/1809.02383
+    - ML-AdaVAE: Averaging from https://arxiv.org/abs/1705.08841
+
+    MODIFICATION:
+    - Symmetric KL Calculation used by default, described in: https://openreview.net/pdf?id=8VXvj1QNRl1
     """
 
     def __init__(
@@ -23,7 +27,8 @@ class AdaVae(BetaVae):
             make_model_fn,
             batch_augment=None,
             beta=4,
-            average_mode='gvae'
+            average_mode='gvae',
+            symmetric_kl=True,
     ):
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, beta=beta)
         # averaging modes
@@ -31,6 +36,7 @@ class AdaVae(BetaVae):
             'gvae': compute_average_gvae,
             'ml-vae': compute_average_ml_vae
         }[average_mode]
+        self.symmetric_kl = symmetric_kl
 
     def compute_training_loss(self, batch, batch_idx):
         """
@@ -82,7 +88,7 @@ class AdaVae(BetaVae):
 
     def intercept_z(self, z0_mean, z0_logvar, z1_mean, z1_logvar):
         # shared elements that need to be averaged, computed per pair in the batch.
-        _, _, share_mask = AdaVae.estimate_shared(z0_mean, z0_logvar, z1_mean, z1_logvar)
+        _, _, share_mask = AdaVae.estimate_shared(z0_mean, z0_logvar, z1_mean, z1_logvar, symmetric_kl=self.symmetric_kl)
         # compute average posteriors
         new_args = AdaVae.make_averaged(z0_mean, z0_logvar, z1_mean, z1_logvar, share_mask, self.compute_average)
         # return new args & generate logs
@@ -93,7 +99,7 @@ class AdaVae(BetaVae):
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     @staticmethod
-    def estimate_shared(z0_mean, z0_logvar, z1_mean, z1_logvar):
+    def estimate_shared(z0_mean, z0_logvar, z1_mean, z1_logvar, symmetric_kl: bool):
         """
         Core of the adaptive VAE algorithm, estimating which factors
         have changed (or in this case which are shared and should remained unchanged
@@ -112,7 +118,13 @@ class AdaVae(BetaVae):
         """
         # shared elements that need to be averaged, computed per pair in the batch.
         # [𝛿_i ...]
-        kl_deltas = _kld_gaussian_elem_pairs(z0_mean, z0_logvar, z1_mean, z1_logvar)
+        if symmetric_kl:
+            # FROM: https://openreview.net/pdf?id=8VXvj1QNRl1
+            kl_deltas_A = _kld_gaussian_elem_pairs(z0_mean, z0_logvar, z1_mean, z1_logvar)
+            kl_deltas_B = _kld_gaussian_elem_pairs(z1_mean, z1_logvar, z0_mean, z0_logvar)
+            kl_deltas = (0.5 * kl_deltas_A) + (0.5 * kl_deltas_B)
+        else:
+            kl_deltas = _kld_gaussian_elem_pairs(z0_mean, z0_logvar, z1_mean, z1_logvar)
         # threshold τ
         kl_threshs = AdaVae.estimate_threshold(kl_deltas)
         # check shapes
@@ -123,13 +135,15 @@ class AdaVae(BetaVae):
         return kl_deltas, kl_threshs, shared_mask
 
     @staticmethod
-    def compute_averaged(z0_mean, z0_logvar, z1_mean, z1_logvar, ave_fn: callable):
+    def compute_averaged(z0_mean, z0_logvar, z1_mean, z1_logvar, symmetric_kl: bool, ave_fn: callable):
         """
+        This should match intercept_z(...) above
+
         (✓) Visual inspection against reference implementation:
             https://github.com/google-research/disentanglement_lib (aggregate_argmax)
         """
         # shared elements that need to be averaged, computed per pair in the batch.
-        _, _, share_mask = AdaVae.estimate_shared(z0_mean, z0_logvar, z1_mean, z1_logvar)
+        _, _, share_mask = AdaVae.estimate_shared(z0_mean, z0_logvar, z1_mean, z1_logvar, symmetric_kl=symmetric_kl)
         # compute average posteriors
         return AdaVae.make_averaged(z0_mean, z0_logvar, z1_mean, z1_logvar, share_mask, ave_fn)
 
@@ -137,18 +151,13 @@ class AdaVae(BetaVae):
     def make_averaged(z0_mean, z0_logvar, z1_mean, z1_logvar, share_mask, ave_fn: callable):
         # compute average posteriors
         ave_mean, ave_logvar = ave_fn(z0_mean, z0_logvar, z1_mean, z1_logvar)
-        # return values
-        return AdaVae.combine_into_averaged(z0_mean, z0_logvar, z1_mean, z1_logvar, share_mask, ave_mean, ave_logvar)
-
-    @staticmethod
-    def combine_into_averaged(z0_mean, z0_logvar, z1_mean, z1_logvar, share_mask, ave_mean, ave_logvar):
         # select averages
-        z0_mean = torch.where(share_mask, ave_mean, z0_mean)
-        z1_mean = torch.where(share_mask, ave_mean, z1_mean)
-        z0_logvar = torch.where(share_mask, ave_logvar, z0_logvar)
-        z1_logvar = torch.where(share_mask, ave_logvar, z1_logvar)
+        ave_z0_mean = torch.where(share_mask, ave_mean, z0_mean)
+        ave_z1_mean = torch.where(share_mask, ave_mean, z1_mean)
+        ave_z0_logvar = torch.where(share_mask, ave_logvar, z0_logvar)
+        ave_z1_logvar = torch.where(share_mask, ave_logvar, z1_logvar)
         # return values
-        return z0_mean, z0_logvar, z1_mean, z1_logvar
+        return ave_z0_mean, ave_z0_logvar, ave_z1_mean, ave_z1_logvar
 
     @staticmethod
     def estimate_threshold(kl_deltas, keepdim=True):
@@ -221,6 +230,8 @@ def compute_average_ml_vae(z0_mean, z0_logvar, z1_mean, z1_logvar):
 
     (✓) Visual inspection against reference implementation:
         https://github.com/google-research/disentanglement_lib (MLVae.model_fn)
+
+    # TODO: recheck
     """
     # helper
     z0_var, z1_var = z0_logvar.exp(), z1_logvar.exp()

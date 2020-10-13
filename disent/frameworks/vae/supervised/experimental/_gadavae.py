@@ -17,9 +17,10 @@ class GuidedAdaVae(AdaVae):
             batch_augment=None,
             beta=4,
             average_mode='gvae',
+            symmetric_kl=True,
             anchor_ave_mode='average'
     ):
-        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, beta=beta, average_mode=average_mode)
+        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, beta=beta, average_mode=average_mode, symmetric_kl=symmetric_kl)
         # how the anchor is averaged
         assert anchor_ave_mode in {'thresh', 'average'}
         self.anchor_ave_mode = anchor_ave_mode
@@ -83,8 +84,8 @@ class GuidedAdaVae(AdaVae):
           ie. l2 is the positive sample, l3 is the negative sample
         """
         # shared elements that need to be averaged, computed per pair in the batch.
-        p_kl_deltas, p_kl_threshs, old_p_shared_mask = AdaVae.estimate_shared(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar)
-        n_kl_deltas, n_kl_threshs, old_n_shared_mask = AdaVae.estimate_shared(a_z_mean, a_z_logvar, n_z_mean, n_z_logvar)
+        p_kl_deltas, p_kl_threshs, old_p_shared_mask = AdaVae.estimate_shared(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, symmetric_kl=self.symmetric_kl)
+        n_kl_deltas, n_kl_threshs, old_n_shared_mask = AdaVae.estimate_shared(a_z_mean, a_z_logvar, n_z_mean, n_z_logvar, symmetric_kl=self.symmetric_kl)
 
         # modify threshold based on criterion and recompute if necessary
         # CORE of this approach!

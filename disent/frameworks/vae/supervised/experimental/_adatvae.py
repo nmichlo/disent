@@ -4,6 +4,10 @@ import numpy as np
 from disent.frameworks.vae.supervised._tvae import TripletVae, augment_loss_triplet
 from disent.frameworks.vae.weaklysupervised._adavae import AdaVae, compute_average_gvae
 
+import logging
+
+log = logging.getLogger(__name__)
+
 
 # ========================================================================= #
 # Guided Ada Vae                                                            #
@@ -12,13 +16,26 @@ from disent.frameworks.vae.weaklysupervised._adavae import AdaVae, compute_avera
 
 class AdaTripletVae(TripletVae):
 
-    def __init__(self, *args, triplet_mode='ada', **kwargs):
+    # TODO: increase margin over time, maybe log
+    #       approach current max
+
+    # TODO: given reconstruction loss, can we use it as a signal if things are going badly.
+    #      validation signal? Intelligent way we can use this?
+
+    def __init__(self, *args, average_mode=None, symmetric_kl=None, triplet_mode='ada', **kwargs):
+        # check symmetric_kl arg
+        if symmetric_kl is not None:
+            log.warning(f'{symmetric_kl=} argument is unused, always symmetric for {AdaTripletVae.__name__}!')
+        if average_mode is not None:
+            log.warning(f'{average_mode=} argument is unused, always gvae averaging for {AdaTripletVae.__name__}!')
+
+        # initialise
         super().__init__(*args, **kwargs)
-        # check modes
-        # assert triplet_mode in {'ada', 'p_ada', 'n_ada', 'ada_p_orig', 'ada_and_trip', 'ada_p_orig_and_trip'}, f'Invalid triplet mode: {triplet_mode}'
-        # assert triplet_mode in {'ada_p_orig_and_trip_lerp'}, f'Invalid triplet mode: {triplet_mode}'
+
+        # triplet loss mode
         self.triplet_mode = triplet_mode
 
+        # triplet annealing
         self.lerp_steps = 10000
         self.steps = 0
         self.steps_offset = 0
@@ -101,8 +118,8 @@ class AdaTripletVae(TripletVae):
         # OLD LOSSES
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         # estimate shared elements, then compute averaged vectors
-        _, _, p_share_mask = AdaVae.estimate_shared(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar)
-        _, _, n_share_mask = AdaVae.estimate_shared(a_z_mean, a_z_logvar, n_z_mean, n_z_logvar)
+        _, _, p_share_mask = AdaVae.estimate_shared(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, symmetric_kl=True)
+        _, _, n_share_mask = AdaVae.estimate_shared(a_z_mean, a_z_logvar, n_z_mean, n_z_logvar, symmetric_kl=True)
         ap_ave_a_mean, ap_ave_a_logvar, ap_ave_p_mean, ap_ave_p_logvar = AdaVae.make_averaged(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, p_share_mask, compute_average_gvae)
         an_ave_a_mean, an_ave_a_logvar, an_ave_n_mean, an_ave_n_logvar = AdaVae.make_averaged(a_z_mean, a_z_logvar, n_z_mean, n_z_logvar, n_share_mask, compute_average_gvae)
         # get loss

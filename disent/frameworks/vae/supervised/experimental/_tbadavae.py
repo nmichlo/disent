@@ -16,10 +16,11 @@ class TripletBoundedAdaVae(BoundedAdaVae):
             batch_augment=None,
             beta=4,
             average_mode='gvae',
+            symmetric_kl=True,
             triplet_margin=0.1,
             triplet_scale=1,
     ):
-        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, beta=beta, average_mode=average_mode)
+        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, beta=beta, average_mode=average_mode, symmetric_kl=symmetric_kl)
         self.triplet_margin = triplet_margin
         self.triplet_scale = triplet_scale
 
