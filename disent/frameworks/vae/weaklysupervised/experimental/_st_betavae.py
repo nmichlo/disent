@@ -29,35 +29,10 @@ class SwappedTargetBetaVae(BetaVae):
         if np.random.random() < self.swap_chance:
             x0_targ, x1_targ = x1_targ, x0_targ
 
-        # FORWARD
-        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-        # latent distribution parametrisation
-        z_mean, z_logvar = self.encode_gaussian(x0)
-        # sample from latent distribution
-        z = self.reparameterize(z_mean, z_logvar)
-        # reconstruct without the final activation
-        x_recon = self.decode_partial(z)
-        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-
-        # LOSS
-        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-        # reconstruction error
-        recon_loss = bce_loss_with_logits(x_recon, x0_targ)  # E[log p(x|z)]
-        # KL divergence
-        kl_loss = kl_normal_loss(z_mean, z_logvar)     # D_kl(q(z|x) || p(z|x))
-        # compute kl regularisation
-        kl_reg_loss = self.kl_regularization(kl_loss)
-        # compute combined loss
-        loss = recon_loss + kl_reg_loss
-        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-
-        return {
-            'train_loss': loss,
-            'recon_loss': recon_loss,
-            'kl_reg_loss': kl_reg_loss,
-            'kl_loss': kl_loss,
-            'elbo': -(recon_loss + kl_loss),
-        }
+        return super(SwappedTargetBetaVae, self).compute_training_loss({
+            'x': (x0,),
+            'x_targ': (x0_targ,),
+        }, batch_idx)
 
 
 # ========================================================================= #
