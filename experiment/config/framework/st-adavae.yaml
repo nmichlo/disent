@@ -5,6 +5,7 @@ module:
   beta: 4
   swap_chance: 0.1
   average_mode: 'gvae'  # gvae or ml-vae
+  symmetric_kl: TRUE
 
 data_wrapper:
   _target_: disent.dataset.groundtruth.GroundTruthDatasetPairs

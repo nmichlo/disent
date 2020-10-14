@@ -1,8 +1,16 @@
+# EXPERIMENT:
+# -m dataset=3dshapes framework=adavae framework.module.symmetric_kl=TRUE,FALSE
+
+# -m dataset=3dshapes,smallnorb,dsprites,cars3d,xyobject,xyblocks,xysquares
+#    framework=adatvae framework.module.triplet_mode=ada_p_orig_lerp
+#    framework.module.detach=TRUE framework.module.detach_logvar=NULL
+#    framework.module.beta=0.1
+
 defaults:
   - framework: adavae
   - model: conv64
   - optimizer: radam
-  - dataset: xysquares
+  - dataset: 3dshapes
   - augment: none
   # hydra plugins
   - hydra/job_logging: colorlog
@@ -15,8 +23,8 @@ defaults:
 
 # remember to set timeout limits below
 trainer:
-  epochs: 36000  # not resilient to change in dataset size, we rather limit by steps (len(dataset) / batch_size)
-  steps: 36001
+  epochs: 50400  # not resilient to change in dataset size, we rather limit by steps (len(dataset) / batch_size)
+  steps: 50400
   cuda: TRUE
   prepare_data_per_node: TRUE
 
@@ -31,14 +39,13 @@ dataset:
   try_in_memory: FALSE
   gpu_augment: FALSE
   # varying factors (if applicable for pairs) -- sample in range: [min, max]
-  k: [1, 1]
-  k_radius: [1, 1]
+  k: [0, -1]
+  k_radius: [0, -1]
   # varying factors (if applicable for triplets) -- sample in range: [min, max]
-  # - sample in range: [min, max]
-  n_k: [0, 0]
-  n_k_mode: 'offset'
-  n_k_radius: [1, -1]
-  n_k_radius_mode: 'offset'
+  n_k: [0, -1]
+  n_k_mode: 'bounded_below'
+  n_k_radius: [0, -1]
+  n_k_radius_mode: 'bounded_below'
 
 optimizer:
   lr: 1e-3
@@ -46,9 +53,6 @@ optimizer:
 # --------------- #
 # RUNTIME OPTIONS #
 # --------------- #
-
-# EXPERIMENT:
-# -m dataset=xymultigrid,xymultigrid-overlap,3dshapes framework=betavae,adavae augment=none,basic
 
 logging:
   logs_dir: 'logs'
@@ -60,8 +64,8 @@ logging:
     enabled: TRUE
     offline: FALSE
     entity: 'n_michlo'
-    project: 'vae-augmentations'
-    name: '${framework.name}|${model.z_size}|${dataset.name}:l-${augment.name}'
+    project: 'adavae-ada-triplet-loss-lerp-datasets'
+    name: '${framework.name}:${framework.module.triplet_mode}|${model.name}:${model.z_size}|${dataset.name}:${augment.name}'
     group: null
     tags:
       - '${framework.name}'

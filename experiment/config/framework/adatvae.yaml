@@ -1,12 +1,16 @@
 # @package _group_
-name: tvae
+name: adatvae
 module:
-  _target_: disent.frameworks.vae.supervised.TripletVae
+  _target_: disent.frameworks.vae.supervised.AdaTripletVae
   beta: 4
+  average_mode: NULL  # always gvae (if used based on triplet_mode)
+  symmetric_kl: NULL  # always symmetric (if used based on triplet_mode)
+  # triplet stuffs
   triplet_margin: 10
   triplet_scale: 100
+  triplet_mode: 'ada' # ada, p_ada, n_ada
   # enable detaching
-  detach: FALSE
+  detach: TRUE
   detach_decoder: TRUE
   detach_no_kl: FALSE
   detach_logvar: -2  # set to NULL to disable fixed value

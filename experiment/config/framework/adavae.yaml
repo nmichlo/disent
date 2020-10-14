@@ -4,6 +4,7 @@ module:
   _target_: disent.frameworks.vae.weaklysupervised.AdaVae
   beta: 4
   average_mode: 'gvae'  # gvae or ml-vae
+  symmetric_kl: TRUE
 
 data_wrapper:
   _target_: disent.dataset.groundtruth.GroundTruthDatasetPairs
