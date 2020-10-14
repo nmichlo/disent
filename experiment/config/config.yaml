@@ -1,27 +1,16 @@
 # EXPERIMENT:
-# -m framework=adatvae framework.module.triplet_mode=ada_and_trip,ada_p_orig_and_trip
-#    framework.module.detach=TRUE framework.module.detach_logvar=NULL framework.module.beta=0.1
-#    dataset.k="[1, 1]" dataset.k_radius="[1, 1]"
-#    dataset.n_k="[1, -1]" dataset.n_k_radius="[1, -1]"
-#    dataset.n_k_mode="offset" dataset.n_k_radius_mode="offset"
-#
-# -m framework=adatvae framework.module.triplet_mode=ada_and_trip,ada_p_orig_and_trip
-#    framework.module.detach=TRUE framework.module.detach_logvar=NULL framework.module.beta=0.1
-#    dataset.k="[1, 1]" dataset.k_radius="[1, 1]"
-#    dataset.n_k="[0, -1]" dataset.n_k_radius="[0, -1]"
-#    dataset.n_k_mode="bounded_below" dataset.n_k_radius_mode="bounded_below"
+# -m dataset=3dshapes framework=adavae framework.module.symmetric_kl=TRUE,FALSE
 
-# -m framework=adatvae framework.module.triplet_mode=ada_and_trip,ada_p_orig_and_trip
-#    framework.module.detach=TRUE framework.module.detach_logvar=NULL framework.module.beta=0.1
-#    dataset.k="[0, -1]" dataset.k_radius="[0, -1]"
-#    dataset.n_k="[0, -1]" dataset.n_k_radius="[0, -1]"
-#    dataset.n_k_mode="bounded_below" dataset.n_k_radius_mode="bounded_below"
+# -m dataset=3dshapes,smallnorb,dsprites,cars3d,xyobject,xyblocks,xysquares
+#    framework=adatvae framework.module.triplet_mode=ada_p_orig_lerp
+#    framework.module.detach=TRUE framework.module.detach_logvar=NULL
+#    framework.module.beta=0.1
 
 defaults:
-  - framework: adatvae
+  - framework: adavae
   - model: conv64
   - optimizer: radam
-  - dataset: xysquares
+  - dataset: 3dshapes
   - augment: none
   # hydra plugins
   - hydra/job_logging: colorlog
@@ -75,7 +64,7 @@ logging:
     enabled: TRUE
     offline: FALSE
     entity: 'n_michlo'
-    project: 'vae-ada-triplet-loss-lerp'
+    project: 'adavae-ada-triplet-loss-lerp-datasets'
     name: '${framework.name}:${framework.module.triplet_mode}|${model.name}:${model.z_size}|${dataset.name}:${augment.name}'
     group: null
     tags:

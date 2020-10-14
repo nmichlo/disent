@@ -36,10 +36,10 @@ class AdaTripletVae(TripletVae):
         self.triplet_mode = triplet_mode
 
         # triplet annealing
-        self.lerp_steps = 10000
+        self.lerp_steps = 43200  # 12*3600 | 50400 = 14*3600
         self.steps = 0
-        self.steps_offset = 0
-        self.lerp_goal = 0.8
+        self.steps_offset = 3600
+        self.lerp_goal = 1.0
 
     def augment_loss(self, z_means, z_logvars, z_samples):
         a_z_mean, p_z_mean, n_z_mean = z_means
