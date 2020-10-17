@@ -1,4 +1,4 @@
-# 🧶 Disent
+# 🧶 Disent ⚠️ [W.I.P] 
 
 Disentanglement Library for pytorch and pytorch-lightning. With an easy to use configuration based on Hydra.
 
