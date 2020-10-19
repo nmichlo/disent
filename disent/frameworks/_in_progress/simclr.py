@@ -1,5 +1,4 @@
 import cv2
-import torch
 import numpy as np
 import torchvision
 from pl_bolts.models.self_supervised import SimCLR

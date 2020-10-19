@@ -1,7 +1,7 @@
 import logging
 from typing import Tuple
-from disent.data.groundtruth.base import GroundTruthData
 import numpy as np
+from disent.data.groundtruth.base import GroundTruthData
 
 log = logging.getLogger(__name__)
 
