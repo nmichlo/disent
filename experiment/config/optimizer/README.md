@@ -1,6 +1,14 @@
 # Optimizer Info
 
 **Disclaimer**: I by no means have much experience with optimizers and tuning optimizer parameters.
+                This is just what I found seems to work best on average with minimal tuning.
+
+**tl;dr:** if not using a lr schedule (investigate) stick to:
+   - adam or amsgrad for lower variance.
+   - radam for best performance.
+   - yogi or adabelief are possibilities too and arent much worst than the others over a long run, maybe worse/better initially, but with more variance initially (not at the end it seems).
+   - Extensive parameter tuning not done for other methods (sgd, adabound, amsbound), these performed badly and didnt converge with default settings.
+
 
 With default values (lr = 1e-3):
 - **bad in general** (possibly needs a lr schedule?):
