@@ -111,6 +111,7 @@ def hydra_append_metric_callback(callbacks, cfg):
                 lambda dat, fn: metrics.compute_factor_vae(dat, fn, num_train=1000, num_eval=500, num_variance_estimate=1000),
                 lambda dat, fn: metrics.compute_mig(dat, fn, num_train=1000),
                 lambda dat, fn: metrics.compute_sap(dat, fn, num_train=1000, num_test=500),
+                lambda dat, fn: metrics.compute_unsupervised(dat, fn, num_train=1000),
             ],
             train_end_metrics=[
                 # TODO: this needs to be configurable from the config
@@ -118,6 +119,7 @@ def hydra_append_metric_callback(callbacks, cfg):
                 metrics.compute_factor_vae,
                 metrics.compute_mig,
                 metrics.compute_sap,
+                metrics.compute_unsupervised,
             ],
         ))
 
