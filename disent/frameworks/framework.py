@@ -1,5 +1,5 @@
 import torch
-import pytorch_lightning as pl
+from disent.util import DisentLightningModule
 
 
 # ========================================================================= #
@@ -7,7 +7,7 @@ import pytorch_lightning as pl
 # ========================================================================= #
 
 
-class BaseFramework(pl.LightningModule):
+class BaseFramework(DisentLightningModule):
     
     def __init__(
             self,
@@ -47,11 +47,6 @@ class BaseFramework(pl.LightningModule):
         as the variable to minimize
         """
         raise NotImplementedError
-
-    def _forward_unimplemented(self, *args, **kwargs):
-        # Annoying fix applied by torch for Module.forward:
-        # https://github.com/python/mypy/issues/8795
-        raise RuntimeError('This should never run!')
 
 
 # ========================================================================= #
