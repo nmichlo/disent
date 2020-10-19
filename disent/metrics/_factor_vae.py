@@ -42,7 +42,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def compute_factor_vae(
+def metric_factor_vae(
         ground_truth_dataset: GroundTruthDataset,
         representation_function: callable,
         batch_size: int = 64,
@@ -97,7 +97,7 @@ def compute_factor_vae(
         eval_accuracy: Accuracy on evaluation set.
     """
 
-    log.info("Computing global variances to standardise.")
+    log.debug("Computing global variances to standardise.")
     global_variances = _compute_variances(ground_truth_dataset, representation_function, num_variance_estimate)
     active_dims = _prune_dims(global_variances)
 
@@ -108,21 +108,19 @@ def compute_factor_vae(
             "factor_vae.num_active_dims": 0
         }
 
-    log.info("Generating training set.")
+    log.debug("Generating training set.")
     training_votes = _generate_training_batch(ground_truth_dataset, representation_function, batch_size, num_train, global_variances, active_dims, show_progress=show_progress)
     classifier = np.argmax(training_votes, axis=0)
     other_index = np.arange(training_votes.shape[1])
 
-    log.info("Evaluate training set accuracy.")
+    # Evaluate training set accuracy
     train_accuracy = np.sum(training_votes[classifier, other_index]) * 1. / np.sum(training_votes)
-    log.info("Training set accuracy: %.2g", train_accuracy)
 
-    log.info("Generating evaluation set.")
+    log.debug("Generating evaluation set.")
     eval_votes = _generate_training_batch(ground_truth_dataset, representation_function, batch_size, num_eval, global_variances, active_dims, show_progress=show_progress)
 
-    log.info("Evaluate evaluation set accuracy.")
+    # Evaluate evaluation set accuracy
     eval_accuracy = np.sum(eval_votes[classifier, other_index]) * 1. / np.sum(eval_votes)
-    log.info("Evaluation set accuracy: %.2g", eval_accuracy)
 
     return {
         "factor_vae.train_accuracy": train_accuracy,

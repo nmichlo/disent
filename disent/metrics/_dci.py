@@ -44,7 +44,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def compute_dci(
+def metric_dci(
         ground_truth_dataset: GroundTruthDataset,
         representation_function: callable,
         num_train: int = 10000,
@@ -67,7 +67,7 @@ def compute_dci(
       Dictionary with average disentanglement score, completeness and
         informativeness (train and test).
     """
-    log.info("Generating training set.")
+    log.debug("Generating training set.")
     # mus_train are of shape [num_codes, num_train], while ys_train are of shape
     # [num_factors, num_train].
     mus_train, ys_train = utils.generate_batch_factor_code(ground_truth_dataset, representation_function, num_train, batch_size, show_progress=False)
@@ -75,7 +75,7 @@ def compute_dci(
     assert ys_train.shape[1] == num_train
     mus_test, ys_test = utils.generate_batch_factor_code(ground_truth_dataset, representation_function, num_test, batch_size, show_progress=False)
 
-    log.info("Computing DCI metric.")
+    log.debug("Computing DCI metric.")
     scores = _compute_dci(mus_train, ys_train, mus_test, ys_test, boost_mode=boost_mode, show_progress=show_progress)
 
     return scores

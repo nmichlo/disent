@@ -10,7 +10,7 @@ from pytorch_lightning.loggers import WandbLogger, CometLogger
 
 from disent import metrics
 from disent.model.ae.base import GaussianAutoEncoder
-from disent.util import make_box_str
+from disent.util import make_box_str, wrapped_partial
 
 from experiment.hydra_data import HydraDataModule
 from experiment.util.callbacks import VaeDisentanglementLoggingCallback, VaeLatentCycleLoggingCallback, LoggerProgressCallback
@@ -107,19 +107,19 @@ def hydra_append_metric_callback(callbacks, cfg):
             begin_first_step=False,
             step_end_metrics=[
                 # TODO: this needs to be configurable from the config
-                lambda dat, fn: metrics.compute_dci(dat, fn, num_train=1000, num_test=500, boost_mode='sklearn'),
-                lambda dat, fn: metrics.compute_factor_vae(dat, fn, num_train=1000, num_eval=500, num_variance_estimate=1000),
-                lambda dat, fn: metrics.compute_mig(dat, fn, num_train=1000),
-                lambda dat, fn: metrics.compute_sap(dat, fn, num_train=1000, num_test=500),
-                lambda dat, fn: metrics.compute_unsupervised(dat, fn, num_train=1000),
+                wrapped_partial(metrics.metric_dci, num_train=1000, num_test=500, boost_mode='sklearn'),
+                wrapped_partial(metrics.metric_factor_vae, num_train=1000, num_eval=500, num_variance_estimate=1000),
+                wrapped_partial(metrics.metric_mig, num_train=1000),
+                wrapped_partial(metrics.metric_sap, num_train=1000, num_test=500),
+                wrapped_partial(metrics.metric_unsupervised, num_train=1000),
             ],
             train_end_metrics=[
                 # TODO: this needs to be configurable from the config
-                metrics.compute_dci,
-                metrics.compute_factor_vae,
-                metrics.compute_mig,
-                metrics.compute_sap,
-                metrics.compute_unsupervised,
+                metrics.metric_dci,
+                metrics.metric_factor_vae,
+                metrics.metric_mig,
+                metrics.metric_sap,
+                metrics.metric_unsupervised,
             ],
         ))
 

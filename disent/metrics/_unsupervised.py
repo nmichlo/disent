@@ -38,7 +38,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def compute_unsupervised(
+def metric_unsupervised(
         ground_truth_data,
         representation_function,
         num_train=10000,
@@ -56,7 +56,7 @@ def compute_unsupervised(
     Returns:
       Dictionary with scores.
     """
-    log.info("Generating training set.")
+    log.debug("Generating training set.")
     mus_train, _ = utils.generate_batch_factor_code(ground_truth_data, representation_function, num_train, batch_size)
     num_codes = mus_train.shape[0]
     cov_mus = np.cov(mus_train)

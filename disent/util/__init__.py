@@ -1,4 +1,7 @@
+import functools
 import logging
+import time
+
 import torch
 import pytorch_lightning as pl
 import numpy as np
@@ -215,6 +218,84 @@ class LengthIter(object):
 
     def __getitem__(self, item):
         raise NotImplemented()
+
+
+# ========================================================================= #
+# Context Manager Timer                                                     #
+# ========================================================================= #
+
+
+class Timer:
+    def __init__(self):
+        self._start_time: int = None
+        self._end_time: int = None
+
+    def __enter__(self):
+        self._start_time = time.time_ns()
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        self._end_time = time.time_ns()
+
+    @property
+    def elapsed_ns(self) -> int:
+        if self._start_time is None:
+            return 0
+        if self._end_time is None:
+            return time.time_ns() - self._start_time
+        return self._end_time - self._start_time
+
+    @property
+    def elapsed_ms(self) -> float:
+        return self.elapsed_ns / 1_000_000
+
+    @property
+    def elapsed(self) -> float:
+        return self.elapsed_ns / 1_000_000_000
+
+    @property
+    def pretty(self) -> str:
+        return Timer.prettify_time(self.elapsed_ns)
+
+    def __int__(self): return self.elapsed_ns
+    def __float__(self): return self.elapsed
+    def __str__(self): return self.pretty
+    def __repr__(self): return self.pretty
+
+    @staticmethod
+    def prettify_time(ns: int) -> str:
+        # get power of 1000
+        pow = min(3, int(np.log10(ns) // 3))
+        time = ns / 1000**pow
+        # get pretty string!
+        if pow < 3 or time < 60:
+            # less than 1 minute
+            name = ['ns', 'µs', 'ms', 's'][pow]
+            return f'{time:.3f}{name}'
+        else:
+            # 1 or more minutes
+            s = int(time)
+            d, s = divmod(s, 86400)
+            h, s = divmod(s, 3600)
+            m, s = divmod(s, 60)
+            if d > 0:   return f'{d}d:{h}h:{m}m'
+            elif h > 0: return f'{h}h:{m}m:{s}s'
+            else:       return f'{m}m:{s}s'
+
+
+# ========================================================================= #
+# Function Helper                                                           #
+# ========================================================================= #
+
+
+def wrapped_partial(func, *args, **kwargs):
+    """
+    Like functools.partial but keeps the same __name__ and __doc__
+    on the returned function.
+    """
+    partial_func = functools.partial(func, *args, **kwargs)
+    functools.update_wrapper(partial_func, func)
+    return partial_func
 
 
 # ========================================================================= #
