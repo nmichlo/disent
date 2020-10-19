@@ -32,28 +32,26 @@ With default values (lr = 1e-3):
   - amsbound
   
 - **decent**
-  1. adabelief (slower/high variance initially but seems to catch up)
-  2. yogi \[default lr is actually 1e-2\]
-  3. RMSProp (very slow initial convergence, and spikes often)
+  - **1** (1x1) radam (higher variance for adavae but **better scores**, lower variance for beta but same scores) (sometimes decays if lr is too high or if plateaued, but generally the mean perfromance is good)
+  - **6** (2x3) adabelief (slower/high variance initially but seems to catch up)
+  - **8** (4x2) RMSProp (**very** slow initial convergence, and **spikes** often)
+  - **15** (3x5) adam (generally quite low variance for both beta and adavae)
+  - **24** (6x4) yogi \[default lr is actually 1e-2\]
+  - **30** (5x6) amsgrad (generally quite low variance for both beta and adavae)
 
-- **good**
-  1. radam (higher variance for adavae but **better scores**, lower variance for beta but same scores) (sometimes decays if lr is too high or if plateaued, but generally the mean perfromance is good)
-  2. adam (generally quite low variance for both beta and adavae)
-  3. amsgrad (generally quite low variance for both beta and adavae)
-  
 AdaVAE:
- 1. radam is generally best by a large margin (but higher variance)
- 2. adam (variance is generally low)
- 3. amsgrad (variance is generally slightly lower)
- 4. adabelief is generally slower initially, but converges to adam and amsgrad or might be better
- 5. yogi is generally slower initially, but converges to adam and amsgrad  or better
- 6. RMSProp has very slow initial convergence (much slower than others), and spikes often which is odd.
+ 1. radam (is generally best by a large margin, but higher variance)
+ 2. adabelief (is generally slower initially, but converges to adam and amsgrad or might be better)
+ 3. adam (variance is generally low)
+ 4. RMSProp (has very slow initial convergence, much slower than others, and spikes often which is odd)
+ 5. amsgrad (variance is generally slightly lower)
+ 6. yogi (is generally slower initially, but converges to adam and amsgrad  or better)
 
 BetaVAE:
- 1. radam is generally best by a small margin (low variance compared to adavae and other methods)
- 2. adam (variance is generally low)
- 3. amsgrad (variance is generally slightly lower)
- 4. adabelief (best initially but same as the rest after this, variance slightly high)
- 5. yogi is generally slower initially with high initial variance, but converges to adam and amsgrad or better
- 6. RMSProp has very slow initial convergence (much slower than others), and spikes often which is odd.
+ 1. radam (is generally best by a small margin, low variance compared to adavae and other methods)
+ 2. RMSProp has very slow initial convergence (much slower than others), and spikes often which is odd.
+ 3. adabelief (best initially but same as the rest after this, variance slightly high)
+ 4. yogi (is generally slower initially with high initial variance, but converges to adam and amsgrad or better)
+ 5. adam (variance is generally low)
+ 6. amsgrad (variance is generally slightly lower)
 
