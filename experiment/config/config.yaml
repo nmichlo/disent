@@ -80,9 +80,9 @@ callbacks:
     mode: 'minmax_interval_cycle'  # 'minmax_interval_cycle', 'fitted_gaussian_cycle'
   metrics:
     every_n_steps: 3600
-#  correlation:
-#    repeats_per_factor: 10
-#    every_n_steps: 7200
+  correlation:
+    repeats_per_factor: 10
+    every_n_steps: 7200
 
 hydra:
   job:

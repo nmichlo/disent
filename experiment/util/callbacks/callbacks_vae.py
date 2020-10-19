@@ -177,7 +177,7 @@ class VaeLatentCorrelationLoggingCallback(_PeriodicCallback):
 #
 # from disent.dataset import GroundTruthDataset
 # from disent.data.groundtruth._xygrid import XYGridData
-# from disent.model import DecoderConv64, EncoderConv64, GaussianAutoEncoder
+# from disent.model.ae import DecoderConv64, EncoderConv64, GaussianAutoEncoder
 # from disent.util import TempNumpySeed, chunked, to_numpy
 # import numpy as np
 #

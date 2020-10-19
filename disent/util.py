@@ -1,5 +1,6 @@
 import logging
 import torch
+import pytorch_lightning as pl
 import numpy as np
 
 
@@ -214,6 +215,30 @@ class LengthIter(object):
 
     def __getitem__(self, item):
         raise NotImplemented()
+
+
+# ========================================================================= #
+# Torch Helper                                                              #
+# ========================================================================= #
+
+
+class DisentModule(torch.nn.Module):
+
+    def _forward_unimplemented(self, *args):
+        # Annoying fix applied by torch for Module.forward:
+        # https://github.com/python/mypy/issues/8795
+        raise RuntimeError('This should never run!')
+
+    def forward(self, *args, **kwargs):
+        raise NotImplementedError
+
+
+class DisentLightningModule(pl.LightningModule):
+
+    def _forward_unimplemented(self, *args):
+        # Annoying fix applied by torch for Module.forward:
+        # https://github.com/python/mypy/issues/8795
+        raise RuntimeError('This should never run!')
 
 
 # ========================================================================= #

@@ -1,0 +1,18 @@
+[MASTER]
+
+ignore-patterns=__test__*
+
+[MESSAGES CONTROL]
+
+disable=line-too-long,
+        missing-function-docstring,
+        missing-module-docstring,
+        missing-class-docstring,
+        too-many-arguments,
+        too-many-ancestors,
+        too-many-locals,
+        invalid-name, # TODO RE-ENABLE
+
+[BASIC]
+
+good-names=x,y

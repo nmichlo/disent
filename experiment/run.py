@@ -1,18 +1,18 @@
 import os
 import logging
-
 from omegaconf import DictConfig, OmegaConf
 import hydra
+
 import pytorch_lightning as pl
 import torch
 import torch.utils.data
 from pytorch_lightning.loggers import WandbLogger, CometLogger
 
-from disent.metrics import compute_dci, compute_factor_vae
-from disent.model import GaussianAutoEncoder
+from disent import metrics
+from disent.model.ae.base import GaussianAutoEncoder
 from disent.util import make_box_str
-from experiment.hydra_data import HydraDataModule
 
+from experiment.hydra_data import HydraDataModule
 from experiment.util.callbacks import VaeDisentanglementLoggingCallback, VaeLatentCycleLoggingCallback, LoggerProgressCallback
 from experiment.util.callbacks.callbacks_vae import VaeLatentCorrelationLoggingCallback
 
@@ -106,12 +106,18 @@ def hydra_append_metric_callback(callbacks, cfg):
             every_n_steps=cfg.callbacks.metrics.every_n_steps,
             begin_first_step=False,
             step_end_metrics=[
-                lambda dat, fn: compute_dci(dat, fn, 1000, 500, boost_mode='sklearn'),
-                lambda dat, fn: compute_factor_vae(dat, fn, num_train=1000, num_eval=500, num_variance_estimate=1000),
+                # TODO: this needs to be configurable from the config
+                lambda dat, fn: metrics.compute_dci(dat, fn, num_train=1000, num_test=500, boost_mode='sklearn'),
+                lambda dat, fn: metrics.compute_factor_vae(dat, fn, num_train=1000, num_eval=500, num_variance_estimate=1000),
+                lambda dat, fn: metrics.compute_mig(dat, fn, num_train=1000),
+                lambda dat, fn: metrics.compute_sap(dat, fn, num_train=1000, num_test=500),
             ],
             train_end_metrics=[
-                compute_dci,
-                compute_factor_vae
+                # TODO: this needs to be configurable from the config
+                metrics.compute_dci,
+                metrics.compute_factor_vae,
+                metrics.compute_mig,
+                metrics.compute_sap,
             ],
         ))
 
