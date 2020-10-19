@@ -74,7 +74,7 @@ class Vae(BaseFramework):
 
     def decode(self, z):
         """Decode latent vector z into reconstruction x_recon (useful for visualisation)"""
-        return self._model.reconstruct(z)
+        return self._model.decode(z)
 
     def forward(self, batch) -> torch.Tensor:
         """The full deterministic model with the final activation (useful for visualisation)"""

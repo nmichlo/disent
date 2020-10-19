@@ -77,13 +77,11 @@ class GaussianAutoEncoder(BaseModule):
     def decode_partial(self, z: Tensor) -> Tensor:
         return self._decoder(z)
 
-    def reconstruct(self, z: Tensor) -> Tensor:
+    def decode(self, z: Tensor) -> Tensor:
         """
         Compute the full reconstruction of the input from a latent vector.
         Like decode but performs a final sigmoid activation.
         """
-        # TODO: cleanup
-        # TODO: REPLACE WITH DECODE!
         return torch.sigmoid(self._decoder(z))
 
 
