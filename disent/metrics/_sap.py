@@ -40,7 +40,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def compute_sap(
+def metric_sap(
         ground_truth_data,
         representation_function,
         num_train=10000,
@@ -60,10 +60,10 @@ def compute_sap(
     Returns:
       Dictionary with SAP score.
     """
-    log.info("Generating training set.")
+    log.debug("Generating training set.")
     mus, ys = utils.generate_batch_factor_code(ground_truth_data, representation_function, num_train, batch_size)
     mus_test, ys_test = utils.generate_batch_factor_code(ground_truth_data, representation_function, num_test, batch_size)
-    log.info("Computing score matrix.")
+    log.debug("Computing score matrix.")
     return _compute_sap(mus, ys, mus_test, ys_test, continuous_factors)
 
 
@@ -75,7 +75,7 @@ def _compute_sap(mus, ys, mus_test, ys_test, continuous_factors):
     assert score_matrix.shape[1] == ys.shape[0]
 
     sap_score = _compute_avg_diff_top_two(score_matrix)
-    log.info("SAP score: %.2g", sap_score)
+    log.debug("SAP score: %.2g", sap_score)
     return {
         "sap.score": sap_score
     }
