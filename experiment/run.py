@@ -9,7 +9,7 @@ import torch.utils.data
 from pytorch_lightning.loggers import WandbLogger, CometLogger
 
 from disent.metrics import compute_dci, compute_factor_vae
-from disent.model import GaussianAutoEncoder
+from disent.model.ae.base import GaussianAutoEncoder
 from disent.util import make_box_str
 from experiment.hydra_data import HydraDataModule
 

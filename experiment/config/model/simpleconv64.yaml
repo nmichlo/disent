@@ -1,11 +1,11 @@
 # @package _group_
 name: simpleconv64
 encoder:
-  _target_: disent.model.encoders_decoders.EncoderSimpleConv64
+  _target_: disent.model.ae.EncoderSimpleConv64
   x_shape: ${dataset.x_shape}
   z_size: ${model.z_size}
   z_multiplier: 2
 decoder:
-  _target_: disent.model.encoders_decoders.DecoderSimpleConv64
+  _target_: disent.model.ae.DecoderSimpleConv64
   x_shape: ${dataset.x_shape}
   z_size: ${model.z_size}

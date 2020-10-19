@@ -1,7 +1,7 @@
 import torch
-from disent.model import GaussianAutoEncoder
 from disent.frameworks.framework import BaseFramework
 from disent.frameworks.vae.loss import bce_loss_with_logits, kl_normal_loss
+from disent.model.ae.base import GaussianAutoEncoder
 
 
 # ========================================================================= #
