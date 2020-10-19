@@ -109,9 +109,9 @@ def hydra_append_metric_callback(callbacks, cfg):
                 # TODO: this needs to be configurable from the config
                 wrapped_partial(metrics.metric_dci, num_train=1000, num_test=500, boost_mode='sklearn'),
                 wrapped_partial(metrics.metric_factor_vae, num_train=1000, num_eval=500, num_variance_estimate=1000),
-                wrapped_partial(metrics.metric_mig, num_train=1000),
-                wrapped_partial(metrics.metric_sap, num_train=1000, num_test=500),
-                wrapped_partial(metrics.metric_unsupervised, num_train=1000),
+                wrapped_partial(metrics.metric_mig, num_train=2000),
+                wrapped_partial(metrics.metric_sap, num_train=2000, num_test=1000),
+                wrapped_partial(metrics.metric_unsupervised, num_train=2000),
             ],
             train_end_metrics=[
                 # TODO: this needs to be configurable from the config

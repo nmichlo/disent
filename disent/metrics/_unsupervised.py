@@ -76,10 +76,10 @@ def metric_unsupervised(
     mutual_info_score = np.sum(mutual_info_matrix) / (num_codes ** 2 - num_codes)
 
     return {
-        'unsupervised.mutual_info_score': mutual_info_score,
-        'unsupervised.gaussian_total_correlation': gaussian_total_correlation,
-        'unsupervised.gaussian_wasserstein_correlation': gaussian_wasserstein_correlation,
-        'unsupervised.gaussian_wasserstein_correlation_norm': gaussian_wasserstein_correlation_norm,
+        'unsup.mi_score': mutual_info_score,
+        'unsup.gauss_total_corr': gaussian_total_correlation,
+        'unsup.gauss_wasser_corr': gaussian_wasserstein_correlation,
+        'unsup.gauss_wasser_corr_norm': gaussian_wasserstein_correlation_norm,
     }
 
 

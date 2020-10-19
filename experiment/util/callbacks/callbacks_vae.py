@@ -87,10 +87,11 @@ class VaeDisentanglementLoggingCallback(_PeriodicCallback):
         dataset, vae = _get_dataset_and_vae(trainer, pl_module)
         # compute all metrics
         for metric in metrics:
-            log.info(f'{metric.__name__} - computing...')
+            log.info(f'| {metric.__name__} - computing...')
             with Timer() as timer:
                 scores = metric(dataset, lambda x: vae.encode(x.to(vae.device)))
-            log.info(f'{metric.__name__} - time={c.lCYN}{timer.pretty}{c.RST} - {" ".join("%s%s%s=%s" % (c.lRED, str(k), c.RST, str(v)) for k, v in scores.items())}')
+            metric_results = ' '.join(f'{k}{c.GRY}={c.lMGT}{v:.3f}{c.RST}' for k, v in scores.items())
+            log.info(f'| {metric.__name__} - time{c.GRY}={c.lYLW}{timer.pretty}{c.RST} - {metric_results}')
             trainer.logger.log_metrics({'final_metric' if is_final else 'epoch_metric': scores})
 
     def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
