@@ -36,10 +36,10 @@ class BaseFramework(pl.LightningModule):
             batch = self._batch_augment(batch)
         # compute loss
         logs_dict = self.compute_training_loss(batch, batch_idx)
+        assert 'loss' not in logs_dict
         # return log loss components & return loss
-        train_result = pl.TrainResult(minimize=logs_dict['train_loss'])
-        train_result.log_dict(logs_dict, on_step=True, on_epoch=False)
-        return train_result
+        self.log_dict(logs_dict)
+        return logs_dict['train_loss']
 
     def compute_training_loss(self, batch, batch_idx) -> dict:
         """

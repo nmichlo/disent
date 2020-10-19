@@ -13,7 +13,6 @@ matplotlib
 plotly
 seaborn
 tqdm
-dash
 
 pillow
 imageio

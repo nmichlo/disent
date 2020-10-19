@@ -66,9 +66,9 @@ class VaeLatentCycleLoggingCallback(_PeriodicCallback):
             frames = np.repeat(frames, 3, axis=1)
 
         # log video
-        trainer.log_metrics({
+        trainer.logger.log_metrics({
             self.mode: wandb.Video(frames, fps=5, format='mp4'),
-        }, {})
+        })
 
 
 class VaeDisentanglementLoggingCallback(_PeriodicCallback):
@@ -88,7 +88,7 @@ class VaeDisentanglementLoggingCallback(_PeriodicCallback):
         for metric in metrics:
             scores = metric(dataset, lambda x: vae.encode(x.to(vae.device)))
             log.info(f'metric (step: {trainer.global_step}): {scores}')
-            trainer.log_metrics({'final_metric' if is_final else 'epoch_metric': scores}, {})
+            trainer.logger.log_metrics({'final_metric' if is_final else 'epoch_metric': scores})
 
     def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         if self.step_end_metrics:
@@ -142,14 +142,14 @@ class VaeLatentCorrelationLoggingCallback(_PeriodicCallback):
         # log
         log.info(f'ave latent correlation: {ave_z_to_f_corr}')
         log.info(f'ave factor correlation: {ave_f_to_z_corr}')
-        trainer.log_metrics({
+        trainer.logger.log_metrics({
             'metric.ave_latent_correlation': ave_z_to_f_corr,
             'metric.ave_factor_correlation': ave_f_to_z_corr,
             'metric.correlation_heatmap': wandb.log({'correlation_heatmap': wandb.plots.HeatMap(
                 x_labels=[f'z{i}' for i in range(z_size)],
                 y_labels=list(dataset.factor_names),
                 matrix_values=fz_corr, show_text=False)}),
-        }, {})
+        })
 
         NUM = 1
         # generate traversal value graphs

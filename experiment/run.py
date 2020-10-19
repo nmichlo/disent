@@ -158,7 +158,7 @@ def run(cfg: DictConfig):
     datamodule = HydraDataModule(cfg)
 
     # FRAMEWORK
-    framework = hydra.utils.instantiate(
+    framework: pl.LightningModule = hydra.utils.instantiate(
         cfg.framework.module,
         make_optimizer_fn=lambda params: hydra.utils.instantiate(cfg.optimizer.cls, params),
         make_model_fn=lambda: GaussianAutoEncoder(
@@ -169,13 +169,10 @@ def run(cfg: DictConfig):
         batch_augment=datamodule.batch_augment
     )
 
-    # LOG ALL HYPER-PARAMETERS
-    framework.hparams = cfg
-
-    # TRAIN
+    # Setup Trainer
     trainer = pl.Trainer(
-        row_log_interval=cfg.logging.get('log_interval', 50),
-        log_save_interval=cfg.logging.get('save_log_interval', 100),
+        log_every_n_steps=cfg.logging.get('log_every_n_steps', 50),
+        flush_logs_every_n_steps=cfg.logging.get('flush_logs_every_n_steps', 100),
         logger=logger,
         callbacks=callbacks,
         gpus=1 if cuda else 0,
@@ -184,6 +181,12 @@ def run(cfg: DictConfig):
         prepare_data_per_node=prepare_data_per_node,
         progress_bar_refresh_rate=0,  # ptl 0.9
     )
+
+    # save hparams TODO: I think this is a pytorch lightning bug... The trainer should automatically save these if hparams is set.
+    framework.hparams = cfg
+    trainer.logger.log_hyperparams(framework.hparams)
+
+    # fit the model
     trainer.fit(framework, datamodule=datamodule)
 
 

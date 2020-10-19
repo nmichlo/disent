@@ -1,0 +1,11 @@
+# @package _group_
+name: rmsprop
+cls:
+  _target_: torch.optim.RMSprop
+  lr: ${optimizer.lr}  # default was 1e-2
+  alpha: 0.99
+  eps: 1e-8
+  weight_decay: 0
+
+  momentum: 0
+  centered: False
