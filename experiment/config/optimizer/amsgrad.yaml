@@ -1,5 +1,5 @@
 # @package _group_
-name: adam
+name: amsgrad
 cls:
   _target_: torch.optim.Adam
   lr: ${optimizer.lr}
@@ -7,4 +7,4 @@ cls:
   eps: 1e-8
   weight_decay: 0
 
-  amsgrad: False
+  amsgrad: True
