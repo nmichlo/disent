@@ -13,7 +13,6 @@ matplotlib
 plotly
 seaborn
 tqdm
-dash
 
 pillow
 imageio
@@ -31,11 +30,9 @@ hydra-submitit-launcher
 
 torch
 torchvision
+torch-optimizer
 pytorch-lightning
 pytorch-lightning-bolts
-
-torch-optimizer
-adabelief-pytorch
 
 kornia # $ pip install git+https://github.com/kornia/kornia
 # imgaug
