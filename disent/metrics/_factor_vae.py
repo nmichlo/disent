@@ -1,5 +1,6 @@
 # coding=utf-8
 # Copyright 2018 The DisentanglementLib Authors.  All rights reserved.
+# https://github.com/google-research/disentanglement_lib
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -31,6 +32,9 @@ from disent.dataset.groundtruth import GroundTruthDataset
 from disent.metrics import utils
 import numpy as np
 from disent.util import to_numpy
+
+
+log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
@@ -93,38 +97,38 @@ def compute_factor_vae(
         eval_accuracy: Accuracy on evaluation set.
     """
 
-    logging.info("Computing global variances to standardise.")
+    log.info("Computing global variances to standardise.")
     global_variances = _compute_variances(ground_truth_dataset, representation_function, num_variance_estimate)
     active_dims = _prune_dims(global_variances)
-    scores_dict = {}
 
     if not active_dims.any():
-        scores_dict["factor_vae.train_accuracy"] = 0.
-        scores_dict["factor_vae.eval_accuracy"] = 0.
-        scores_dict["factor_vae.num_active_dims"] = 0
-        return scores_dict
+        return {
+            "factor_vae.train_accuracy": 0.,
+            "factor_vae.eval_accuracy": 0.,
+            "factor_vae.num_active_dims": 0
+        }
 
-    logging.info("Generating training set.")
+    log.info("Generating training set.")
     training_votes = _generate_training_batch(ground_truth_dataset, representation_function, batch_size, num_train, global_variances, active_dims, show_progress=show_progress)
     classifier = np.argmax(training_votes, axis=0)
     other_index = np.arange(training_votes.shape[1])
 
-    logging.info("Evaluate training set accuracy.")
+    log.info("Evaluate training set accuracy.")
     train_accuracy = np.sum(training_votes[classifier, other_index]) * 1. / np.sum(training_votes)
-    logging.info("Training set accuracy: %.2g", train_accuracy)
+    log.info("Training set accuracy: %.2g", train_accuracy)
 
-    logging.info("Generating evaluation set.")
+    log.info("Generating evaluation set.")
     eval_votes = _generate_training_batch(ground_truth_dataset, representation_function, batch_size, num_eval, global_variances, active_dims, show_progress=show_progress)
 
-    logging.info("Evaluate evaluation set accuracy.")
+    log.info("Evaluate evaluation set accuracy.")
     eval_accuracy = np.sum(eval_votes[classifier, other_index]) * 1. / np.sum(eval_votes)
+    log.info("Evaluation set accuracy: %.2g", eval_accuracy)
 
-    logging.info("Evaluation set accuracy: %.2g", eval_accuracy)
-    scores_dict["factor_vae.train_accuracy"] = train_accuracy
-    scores_dict["factor_vae.eval_accuracy"] = eval_accuracy
-    scores_dict["factor_vae.num_active_dims"] = len(active_dims)
-
-    return scores_dict
+    return {
+        "factor_vae.train_accuracy": train_accuracy,
+        "factor_vae.eval_accuracy": eval_accuracy,
+        "factor_vae.num_active_dims": len(active_dims),
+    }
 
 
 def _prune_dims(variances, threshold=0.):

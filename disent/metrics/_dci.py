@@ -1,5 +1,6 @@
 # coding=utf-8
 # Copyright 2018 The DisentanglementLib Authors.  All rights reserved.
+# https://github.com/google-research/disentanglement_lib
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +20,8 @@
 # - uses disent objects and classes
 # - renamed functions
 
-"""Implementation of Disentanglement, Completeness and Informativeness.
+"""
+Implementation of Disentanglement, Completeness and Informativeness.
 Based on "A BaseFramework for the Quantitative Evaluation of Disentangled
 Representations" (https://openreview.net/forum?id=By-7dz-AZ).
 """
@@ -32,6 +34,9 @@ from disent.metrics import utils
 import numpy as np
 import scipy
 import scipy.stats
+
+
+log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
@@ -62,7 +67,7 @@ def compute_dci(
       Dictionary with average disentanglement score, completeness and
         informativeness (train and test).
     """
-    logging.info("Generating training set.")
+    log.info("Generating training set.")
     # mus_train are of shape [num_codes, num_train], while ys_train are of shape
     # [num_factors, num_train].
     mus_train, ys_train = utils.generate_batch_factor_code(ground_truth_dataset, representation_function, num_train, batch_size, show_progress=False)
@@ -70,7 +75,7 @@ def compute_dci(
     assert ys_train.shape[1] == num_train
     mus_test, ys_test = utils.generate_batch_factor_code(ground_truth_dataset, representation_function, num_test, batch_size, show_progress=False)
 
-    logging.info("Computing DCI metric.")
+    log.info("Computing DCI metric.")
     scores = _compute_dci(mus_train, ys_train, mus_test, ys_test, boost_mode=boost_mode, show_progress=show_progress)
 
     return scores
@@ -78,15 +83,15 @@ def compute_dci(
 
 def _compute_dci(mus_train, ys_train, mus_test, ys_test, boost_mode='sklearn', show_progress=False):
     """Computes score based on both training and testing codes and factors."""
-    scores = {}
     importance_matrix, train_err, test_err = _compute_importance_gbt(mus_train, ys_train, mus_test, ys_test, boost_mode=boost_mode, show_progress=show_progress)
     assert importance_matrix.shape[0] == mus_train.shape[0]
     assert importance_matrix.shape[1] == ys_train.shape[0]
-    scores["dci.informativeness_train"] = train_err
-    scores["dci.informativeness_test"] = test_err
-    scores["dci.disentanglement"] = _disentanglement(importance_matrix)
-    scores["dci.completeness"] = _completeness(importance_matrix)
-    return scores
+    return {
+        "dci.informativeness_train": train_err,
+        "dci.informativeness_test": test_err,
+        "dci.disentanglement": _disentanglement(importance_matrix),
+        "dci.completeness": _completeness(importance_matrix),
+    }
 
 
 def _compute_importance_gbt(x_train, y_train, x_test, y_test, boost_mode='sklearn', show_progress=False):

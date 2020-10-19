@@ -1,7 +1,7 @@
-import logging
-from typing import final
-import numpy as np
 from torch import Tensor
+from typing import final
+import logging
+import numpy as np
 
 from disent.util import DisentModule
 
