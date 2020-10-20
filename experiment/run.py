@@ -12,7 +12,7 @@ from disent import metrics
 from disent.model.ae.base import GaussianAutoEncoder
 from disent.util import make_box_str, wrapped_partial
 
-from experiment.hydra_data import HydraDataModule
+from experiment.util.hydra_data import HydraDataModule
 from experiment.util.callbacks import VaeDisentanglementLoggingCallback, VaeLatentCycleLoggingCallback, LoggerProgressCallback
 from experiment.util.callbacks.callbacks_vae import VaeLatentCorrelationLoggingCallback
 
@@ -29,7 +29,7 @@ def hydra_check_cuda(cuda):
     if not torch.cuda.is_available():
         if cuda:
             log.error('trainer.cuda=True but CUDA is not available on this machine!')
-            exit()
+            raise RuntimeError('CUDA not available!')
         else:
             log.warning('CUDA is not available on this machine!')
     else:
@@ -203,7 +203,7 @@ def main(cfg: DictConfig):
     try:
         run(cfg)
     except:
-        log.error('A critical error occurred!', exc_info=True)
+        log.error('A critical error occurred:', exc_info=True)
 
 
 # ========================================================================= #

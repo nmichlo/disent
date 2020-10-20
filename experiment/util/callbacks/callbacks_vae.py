@@ -11,7 +11,7 @@ from disent.util import TempNumpySeed, chunked, to_numpy, Timer
 from disent.visualize.visualize_model import latent_cycle
 from disent.visualize.visualize_util import gridify_animation, reconstructions_to_images
 
-from experiment.hydra_data import HydraDataModule
+from experiment.util.hydra_data import HydraDataModule
 from experiment.util.callbacks.callbacks_base import _PeriodicCallback
 
 import matplotlib.pyplot as plt

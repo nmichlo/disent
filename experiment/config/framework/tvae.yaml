@@ -14,13 +14,13 @@ module:
 data_wrapper:
   _target_: disent.dataset.groundtruth.GroundTruthDatasetTriples
   # factor sampling
-  p_k_range: ${dataset.k}
-  n_k_range: ${dataset.n_k}
-  n_k_sample_mode: ${dataset.n_k_mode}
+  p_k_range: ${sampling.k}
+  n_k_range: ${sampling.n_k}
+  n_k_sample_mode: ${sampling.n_k_mode}
   n_k_is_shared: TRUE
   # radius sampling
-  p_radius_range: ${dataset.k_radius}
-  n_radius_range: ${dataset.n_k_radius}
-  n_radius_sample_mode: ${dataset.n_k_radius_mode}
+  p_radius_range: ${sampling.k_radius}
+  n_radius_range: ${sampling.n_k_radius}
+  n_radius_sample_mode: ${sampling.n_k_radius_mode}
   # final checks
   swap_metric: NULL

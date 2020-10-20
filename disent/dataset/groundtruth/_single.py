@@ -63,7 +63,6 @@ class GroundTruthDataset(Dataset, GroundTruthData):
             x = _batch_to_observation(batch=x, obs_shape=x_targ.shape)
         return x
 
-
     def dataset_get(self, idx, mode: str):
         try:
             idx = int(idx)

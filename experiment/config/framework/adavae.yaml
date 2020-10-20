@@ -9,6 +9,6 @@ module:
 data_wrapper:
   _target_: disent.dataset.groundtruth.GroundTruthDatasetPairs
   # factor sampling
-  p_k_range: ${dataset.k}
+  p_k_range: ${sampling.k}
   # radius sampling
-  p_radius_range: ${dataset.k_radius}
+  p_radius_range: ${sampling.k_radius}
