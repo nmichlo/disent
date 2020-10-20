@@ -223,11 +223,10 @@ def latent_cycle(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', 
     return to_numpy(animations)
 
 
-def latent_cycle_grid_animation(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', num_frames=21, pad=4, bg_color=0.1, decoder_device=None):
+def latent_cycle_grid_animation(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', num_frames=21, pad=4, border=True, bg_color=0.5, decoder_device=None):
     # produce latent cycle animation & merge frames
     animation = latent_cycle(decoder_func, z_means, z_logvars, mode=mode, num_animations=1, num_frames=num_frames, decoder_device=decoder_device)
-    animation = reconstructions_to_images(animation, mode='int', moveaxis=False)  # axis already moved above
-    frames = np.transpose(make_animation_grid(animation[0], pad=pad, bg_color=bg_color), [0, 3, 1, 2])
+    frames = np.transpose(make_animation_grid(animation[0], pad=pad, border=border, bg_color=bg_color), [0, 3, 1, 2])
     # check and add missing channel if needed (convert greyscale to rgb images)
     assert frames.shape[1] in {1, 3}, f'Invalid number of image channels: {animation.shape} -> {frames.shape}'
     if frames.shape[1] == 1:

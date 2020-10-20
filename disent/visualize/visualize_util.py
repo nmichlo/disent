@@ -15,7 +15,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def make_image_grid(images, pad=8, is_border=True, bg_color=0.1, num_cols=None):
+def make_image_grid(images, pad=8, border=True, bg_color=0.5, num_cols=None):
     """
     Convert a list of images into a single image that is a grid of those images.
     :param images: list of input images (all the same size)
@@ -35,10 +35,10 @@ def make_image_grid(images, pad=8, is_border=True, bg_color=0.1, num_cols=None):
         assert (img_shape[2] == 1) or (img_shape[2] == 3), 'Invalid number of channels for an image.'
     # grid sizes
     num_rows, num_cols = _get_size(len(images), num_cols=num_cols)
-    grid_size = (img_size + pad) * [num_rows, num_cols] + (pad if is_border else -pad)
+    grid_size = (img_size + pad) * [num_rows, num_cols] + (pad if border else -pad)
     # image sizes including padding on one side
     deltas = img_size + pad
-    offset = pad if is_border else 0
+    offset = pad if border else 0
     # make image
     grid = np.full_like(images, fill_value=bg_color, shape=(*grid_size, *img_shape[2:]))
     # fill image
@@ -49,10 +49,10 @@ def make_image_grid(images, pad=8, is_border=True, bg_color=0.1, num_cols=None):
     return grid
 
 
-def make_animation_grid(list_of_animated_images, pad=8, bg_color=0.1, num_cols=None):
+def make_animation_grid(list_of_animated_images, pad=8, border=True, bg_color=0.5, num_cols=None):
     full_size_images = []
     for single_images in zip(*list_of_animated_images):
-        full_size_images.append(make_image_grid(single_images, pad=pad, bg_color=bg_color, num_cols=num_cols))
+        full_size_images.append(make_image_grid(single_images, pad=pad, border=border, bg_color=bg_color, num_cols=num_cols))
     return to_numpy(full_size_images)
 
 

@@ -59,7 +59,7 @@ class VaeLatentCycleLoggingCallback(_PeriodicCallback):
 
         # log video
         trainer.logger.log_metrics({
-            self.mode: wandb.Video(frames, fps=5, format='mp4'),
+            self.mode: wandb.Video(np.clip(frames*255, 0, 255).astype('uint8'), fps=5, format='mp4'),
         })
 
 
