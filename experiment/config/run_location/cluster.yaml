@@ -1,0 +1,9 @@
+# @package _global_
+hydra:
+  job:
+    name: 'disent'
+  run:
+    dir: '${logging.logs_dir}/hydra_run/${now:%Y-%m-%d_%H-%M-%S}_${hydra.job.name}'
+  sweep:
+    dir: '${logging.logs_dir}/hydra_sweep/${now:%Y-%m-%d_%H-%M-%S}_${hydra.job.name}'
+    subdir: '${hydra.job.id}' # hydra.job.id is not available for dir
