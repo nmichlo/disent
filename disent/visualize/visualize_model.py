@@ -26,6 +26,7 @@ Visualization module for disentangled representations.
 
 import logging
 import numbers
+
 from disent.visualize import visualize_util
 from disent.visualize.visualize_util import reconstructions_to_images, make_animation_grid
 from disent.util import to_numpy
@@ -45,7 +46,8 @@ def latent_traversal_1d_multi_dim(
         decoder_fn,
         latent_vector,
         dimensions=None,
-        values=None
+        values=None,
+        decoder_device=None
 ):
     """Creates latent traversals for a latent vector along multiple dimensions.
 
@@ -111,8 +113,7 @@ def latent_traversal_1d_multi_dim(
         # Intervenes in the latent space.
         latent_traversal_vectors[:, dimension] = values
         # Generate the batch of images
-        # TODO: cuda wont always be correct
-        latent_traversal_vectors = torch.as_tensor(latent_traversal_vectors).cuda()
+        latent_traversal_vectors = torch.as_tensor(latent_traversal_vectors, device=decoder_device)
         images = decoder_fn(latent_traversal_vectors)
         images = reconstructions_to_images(images)
         factor_images.append(images)
@@ -125,12 +126,10 @@ def latent_traversal_1d_multi_dim(
 # ========================================================================= #
 
 
-def latent_random_samples(decoder_fn, z_size, num_samples=16):
-    # TODO: cuda wont always be correct
-    z = torch.randn(num_samples, z_size).cuda()
+def latent_random_samples(decoder_fn, z_size, num_samples=16, decoder_device=None):
+    z = torch.randn(num_samples, z_size, device=decoder_device)
     images = decoder_fn(z)
-    images = reconstructions_to_images(images)
-    return to_numpy(images)
+    return reconstructions_to_images(images)
 
 
 # ========================================================================= #
@@ -138,12 +137,12 @@ def latent_random_samples(decoder_fn, z_size, num_samples=16):
 # ========================================================================= #
 
 
-def latent_traversals(decoder_fn, z_mean, dimensions=None, values=None):
+def latent_traversals(decoder_fn, z_mean, dimensions=None, values=None, decoder_device=None):
     # for each sample
     traversals = []
     for i in range(len(z_mean)):
         # TODO: add support for cycle methods from below? Is that actually useful?
-        grid = latent_traversal_1d_multi_dim(decoder_fn, z_mean[i, :], dimensions=dimensions, values=values)
+        grid = latent_traversal_1d_multi_dim(decoder_fn, z_mean[i, :], dimensions=dimensions, values=values, decoder_device=decoder_device)
         traversals.append(grid)
     # return
     return to_numpy(traversals)
@@ -205,10 +204,9 @@ _LATENT_CYCLE_MODES_MAP = {
 LATENT_CYCLE_MODES = list(_LATENT_CYCLE_MODES_MAP.keys())
 
 
-def latent_cycle(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', num_animations=4, num_frames=20):
+def latent_cycle(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', num_animations=4, num_frames=20, decoder_device=None):
     assert len(z_means) > 1 and len(z_logvars) > 1, 'not enough samples to average'
     # convert
-    t = z_means
     z_means, z_logvars = to_numpy(z_means), to_numpy(z_logvars)
     # get mode
     if mode not in _LATENT_CYCLE_MODES_MAP:
@@ -219,15 +217,15 @@ def latent_cycle(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', 
         frames = []
         for j in range(z_means.shape[1]):
             z = z_gen_func(base_z, z_means, z_logvars, j, num_frames)
-            z = torch.as_tensor(z).type_as(t)
+            z = torch.as_tensor(z, device=decoder_device)
             frames.append(reconstructions_to_images(decoder_func(z)))
         animations.append(frames)
     return to_numpy(animations)
 
 
-def latent_cycle_grid_animation(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', num_frames=21, pad=4, bg_color=0.1):
+def latent_cycle_grid_animation(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', num_frames=21, pad=4, bg_color=0.1, decoder_device=None):
     # produce latent cycle animation & merge frames
-    animation = latent_cycle(decoder_func, z_means, z_logvars, mode=mode, num_animations=1, num_frames=num_frames)
+    animation = latent_cycle(decoder_func, z_means, z_logvars, mode=mode, num_animations=1, num_frames=num_frames, decoder_device=decoder_device)
     animation = reconstructions_to_images(animation, mode='int', moveaxis=False)  # axis already moved above
     frames = np.transpose(make_animation_grid(animation[0], pad=pad, bg_color=bg_color), [0, 3, 1, 2])
     # check and add missing channel if needed (convert greyscale to rgb images)

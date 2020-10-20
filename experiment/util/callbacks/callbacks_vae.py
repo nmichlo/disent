@@ -55,7 +55,7 @@ class VaeLatentCycleLoggingCallback(_PeriodicCallback):
 
         # produce latent cycle grid animation
         z_means, z_logvars = vae.encode_gaussian(obs)
-        frames = latent_cycle_grid_animation(vae.decode, z_means, z_logvars, mode=self.mode, num_frames=21)
+        frames = latent_cycle_grid_animation(vae.decode, z_means, z_logvars, mode=self.mode, num_frames=21, decoder_device=vae.device)
 
         # log video
         trainer.logger.log_metrics({
