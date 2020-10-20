@@ -9,5 +9,6 @@ dataset:
   num_workers: 8
   batch_size: 256
   data_dir: '/tmp/${env:USER}/datasets'
+  pin_memory: ${trainer.cuda}
   try_in_memory: FALSE
   gpu_augment: FALSE

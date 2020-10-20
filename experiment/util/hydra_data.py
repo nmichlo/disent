@@ -82,5 +82,8 @@ class HydraDataModule(pl.LightningDataModule):
             dataset=dataset,
             batch_size=self.hparams.dataset.batch_size,
             num_workers=self.hparams.dataset.num_workers,
-            shuffle=True
+            shuffle=True,
+            # This should usually be TRUE if cuda is enabled.
+            # About 20% faster with the xysquares dataset, RTX 2060 Rev. A, and Intel i7-3930K
+            pin_memory=self.hparams.dataset.pin_memory,
         )
