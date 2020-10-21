@@ -1,5 +1,5 @@
 # @package _group_
-name: adavae
+name: adavae_os
 module:
   _target_: disent.frameworks.vae.weaklysupervised.AdaVae
   beta: 4

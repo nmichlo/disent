@@ -53,7 +53,11 @@ def _sample_k_differing(factors, ground_truth_data: GroundTruthData, k=1):
       - Based on simple_dynamics() from:
         https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/weak/train_weak_lib.py
     """
-    if k == -1:
+    # checks for factors
+    factors = np.array(factors)
+    assert factors.ndim == 1
+    # sample k
+    if k <= 0:
         k = np.random.randint(1, ground_truth_data.num_factors)
     # randomly choose 1 or k
     # TODO: This is in disentanglement lib, HOWEVER is this not a mistake?
@@ -61,11 +65,10 @@ def _sample_k_differing(factors, ground_truth_data: GroundTruthData, k=1):
     #       https://github.com/google-research/disentanglement_lib/issues/31
     k = np.random.choice([1, k])
     # generate list of differing indices
-    index_list = np.random.choice(factors.shape[1], k, replace=False)
+    index_list = np.random.choice(len(factors), k, replace=False)
     # randomly update factors
-    factors = factors.copy()
     for index in index_list:
-        factors[:, index] = np.random.choice(ground_truth_data.factor_sizes[index])
+        factors[index] = np.random.choice(ground_truth_data.factor_sizes[index])
     # return!
     return factors, k
 

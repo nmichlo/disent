@@ -18,7 +18,7 @@ defaults:
 
 job:
   user: 'n_michlo'
-  project: 'vae-optimizer'
+  project: 'reg-triplet-tests'
   name: '${framework.name}|${optimizer.name}|${model.name}:${model.z_size}|${dataset.name}:${augment.name}'
 
 model:

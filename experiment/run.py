@@ -192,7 +192,8 @@ def run(cfg: DictConfig):
 
     # save hparams TODO: I think this is a pytorch lightning bug... The trainer should automatically save these if hparams is set.
     framework.hparams = cfg
-    trainer.logger.log_hyperparams(framework.hparams)
+    if trainer.logger:
+        trainer.logger.log_hyperparams(framework.hparams)
 
     # fit the model
     trainer.fit(framework, datamodule=datamodule)
