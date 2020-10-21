@@ -46,13 +46,13 @@ class AdaTripletVae(TripletVae):
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
         # normal triplet
-        trip_loss = triplet_loss(a_z_mean, p_z_mean, n_z_mean, margin=self.triplet_margin) * self.triplet_scale
+        trip_loss = triplet_loss_l2(a_z_mean, p_z_mean, n_z_mean, margin=self.triplet_margin) * self.triplet_scale
 
         # Adaptive Component
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         # TODO: good reason why `ap_p_ave - ap_a_ave` this is bad?
         _, _, an_a_ave, an_n_ave = AdaTripletVae.compute_ave(a_z_mean, p_z_mean, n_z_mean)
-        ada_p_orig = dist_triplet_loss(p_delta=a_z_mean-p_z_mean, n_delta=an_a_ave-an_n_ave, margin=self.triplet_margin) * self.triplet_scale
+        ada_p_orig = dist_triplet_loss_l2(p_delta=a_z_mean - p_z_mean, n_delta=an_a_ave - an_n_ave, margin=self.triplet_margin) * self.triplet_scale
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
 
@@ -62,7 +62,7 @@ class AdaTripletVae(TripletVae):
         lerp = np.clip((self.steps - self.steps_offset) / self.lerp_steps, 0, self.lerp_goal)
         # TODO: good reason why `ap_p_ave - ap_a_ave` this is bad?
         _, _, an_a_ave, an_n_ave = AdaTripletVae.compute_ave(a_z_mean, p_z_mean, n_z_mean, lerp=lerp)
-        ada_p_orig_lerp = dist_triplet_loss(p_delta=a_z_mean-p_z_mean, n_delta=an_a_ave-an_n_ave, margin=self.triplet_margin) * self.triplet_scale
+        ada_p_orig_lerp = dist_triplet_loss_l2(p_delta=a_z_mean - p_z_mean, n_delta=an_a_ave - an_n_ave, margin=self.triplet_margin) * self.triplet_scale
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
         losses = {
@@ -123,7 +123,7 @@ class AdaTripletVae(TripletVae):
         # ORIG TRIPLET
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         trip_loss_old = augment_loss_triplet(a_z_mean, p_z_mean, n_z_mean, scale=self.triplet_scale, margin=self.triplet_margin)[0]
-        trip_loss = triplet_loss(a_z_mean, p_z_mean, n_z_mean, margin=self.triplet_margin) * self.triplet_scale
+        trip_loss = triplet_loss_l2(a_z_mean, p_z_mean, n_z_mean, margin=self.triplet_margin) * self.triplet_scale
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
         # OLD LOSSES
@@ -134,9 +134,9 @@ class AdaTripletVae(TripletVae):
         ap_ave_a_mean, ap_ave_a_logvar, ap_ave_p_mean, ap_ave_p_logvar = AdaVae.make_averaged(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, p_share_mask, compute_average_gvae)
         an_ave_a_mean, an_ave_a_logvar, an_ave_n_mean, an_ave_n_logvar = AdaVae.make_averaged(a_z_mean, a_z_logvar, n_z_mean, n_z_logvar, n_share_mask, compute_average_gvae)
         # get loss
-        ada_triplet_loss = dist_triplet_loss(p_delta=ap_ave_a_mean-ap_ave_p_mean, n_delta=an_ave_a_mean-an_ave_n_mean, margin=self.triplet_margin) * self.triplet_scale
-        p_ada_trip_loss = triplet_loss(a=ap_ave_a_mean, p=ap_ave_p_mean, n=n_z_mean, margin=self.triplet_margin) * self.triplet_scale
-        n_ada_trip_loss = triplet_loss(a=an_ave_a_mean, p=p_z_mean, n=an_ave_n_mean, margin=self.triplet_margin) * self.triplet_scale
+        ada_triplet_loss = dist_triplet_loss_l2(p_delta=ap_ave_a_mean - ap_ave_p_mean, n_delta=an_ave_a_mean - an_ave_n_mean, margin=self.triplet_margin) * self.triplet_scale
+        p_ada_trip_loss = triplet_loss_l2(a=ap_ave_a_mean, p=ap_ave_p_mean, n=n_z_mean, margin=self.triplet_margin) * self.triplet_scale
+        n_ada_trip_loss = triplet_loss_l2(a=an_ave_a_mean, p=p_z_mean, n=an_ave_n_mean, margin=self.triplet_margin) * self.triplet_scale
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
         # NEW TRIPLET
@@ -144,14 +144,14 @@ class AdaTripletVae(TripletVae):
         ap_a_ave, ap_p_ave, an_a_ave, an_n_ave = AdaTripletVae.compute_ave(a_z_mean, p_z_mean, n_z_mean)
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         # compute losses
-        NEW_ada_triplet_loss = dist_triplet_loss(p_delta=ap_a_ave-ap_p_ave, n_delta=an_a_ave-an_n_ave, margin=self.triplet_margin) * self.triplet_scale
-        NEW_p_ada_trip_loss = triplet_loss(a=ap_a_ave, p=ap_p_ave, n=n_z_mean, margin=self.triplet_margin) * self.triplet_scale
-        NEW_n_ada_trip_loss = triplet_loss(a=an_a_ave, p=p_z_mean, n=an_n_ave, margin=self.triplet_margin) * self.triplet_scale
+        NEW_ada_triplet_loss = dist_triplet_loss_l2(p_delta=ap_a_ave - ap_p_ave, n_delta=an_a_ave - an_n_ave, margin=self.triplet_margin) * self.triplet_scale
+        NEW_p_ada_trip_loss = triplet_loss_l2(a=ap_a_ave, p=ap_p_ave, n=n_z_mean, margin=self.triplet_margin) * self.triplet_scale
+        NEW_n_ada_trip_loss = triplet_loss_l2(a=an_a_ave, p=p_z_mean, n=an_n_ave, margin=self.triplet_margin) * self.triplet_scale
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
         # CUSTOM NEW TRIPLET
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        ada_p_orig_triplet_loss = dist_triplet_loss(p_delta=a_z_mean-p_z_mean, n_delta=an_a_ave-an_n_ave, margin=self.triplet_margin) * self.triplet_scale
+        ada_p_orig_triplet_loss = dist_triplet_loss_l2(p_delta=a_z_mean - p_z_mean, n_delta=an_a_ave - an_n_ave, margin=self.triplet_margin) * self.triplet_scale
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
         loss = {
@@ -184,13 +184,24 @@ class AdaTripletVae(TripletVae):
         }
 
 
-def triplet_loss(a, p, n, margin=.1):
-    return dist_triplet_loss(a-p, a-n, margin=margin)
+def triplet_loss_l2(a, p, n, margin=.1):
+    return dist_triplet_loss_l2(a - p, a - n, margin=margin)
 
 
-def dist_triplet_loss(p_delta, n_delta, margin=1.):
+def dist_triplet_loss_l2(p_delta, n_delta, margin=1.):
     p_dist = torch.norm(p_delta, dim=-1)
     n_dist = torch.norm(n_delta, dim=-1)
+    loss = torch.clamp_min(p_dist - n_dist + margin, 0)
+    return loss.mean()
+
+
+def triplet_loss_l1(a, p, n, margin=.1):
+    return dist_triplet_loss_l1(a-p, a-n, margin=margin)
+
+
+def dist_triplet_loss_l1(p_delta, n_delta, margin=1.):
+    p_dist = torch.sum(torch.abs(p_delta), dim=-1)
+    n_dist = torch.sum(torch.abs(n_delta), dim=-1)
     loss = torch.clamp_min(p_dist - n_dist + margin, 0)
     return loss.mean()
 
