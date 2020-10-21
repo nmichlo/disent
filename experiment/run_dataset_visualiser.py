@@ -1,5 +1,18 @@
+
+# ========================================================================= #
+# STREAMLIT RUNNER                                                          #
+# ========================================================================= #
+
+if __name__ == '__main__':
+    from experiment.util.streamlit_util import run_streamlit
+    run_streamlit(__file__)
+
+# ========================================================================= #
+# IMPORTS                                                                   #
+# ========================================================================= #
+
+
 import logging
-import sys
 from collections import defaultdict
 import time
 import copy
@@ -60,11 +73,11 @@ def visualise(cfg: DictConfig):
 
 
 # ========================================================================= #
-# HYDRA                                                                     #
+# MAIN                                                                      #
 # ========================================================================= #
 
 
-def launch_hydra():
+if __name__ == '__main__':
 
     @st.cache()
     def get_config():
@@ -72,57 +85,6 @@ def launch_hydra():
             return hydra.experimental.compose(config_name='config')
 
     visualise(copy.deepcopy(get_config()))
-
-
-# ========================================================================= #
-# STREAMLIT                                                                 #
-# ========================================================================= #
-
-
-STREAMLIT_COMMAND = 'streamlit'
-WRAP_COMMAND = 'wrapped'
-
-
-def launch_streamlit(python_file, args: list = None):
-    import click
-    import streamlit.cli
-
-    @click.group()
-    def main_streamlit():
-        pass
-
-    # For some reason I cant get streamlit to work without this subcommand?
-    @main_streamlit.command(STREAMLIT_COMMAND)
-    @streamlit.cli.configurator_options
-    def run_streamlit_subcommand(**kwargs):
-        streamlit.cli._apply_config_options_from_cli(kwargs)
-        streamlit.cli._main_run(python_file, args if args else [])
-
-    main_streamlit()
-
-
-# ========================================================================= #
-# MAIN                                                                      #
-# ========================================================================= #
-
-
-if __name__ == '__main__':
-    try:
-        # append streamlit command by default
-        if len(sys.argv) == 1:
-            sys.argv.append(STREAMLIT_COMMAND)
-        command = sys.argv[1]
-
-        # launch streamlit or hydra depending on command
-        if command == STREAMLIT_COMMAND:
-            launch_streamlit(__file__, [WRAP_COMMAND])
-        elif command == WRAP_COMMAND:
-            launch_hydra()
-        else:
-            raise KeyError(f'Unknown: {command=} | {sys.argv}')
-
-    except KeyboardInterrupt as e:
-        log.warning('Interrupted - Exited early!')
 
 
 # ========================================================================= #
