@@ -33,7 +33,7 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
     ):
         super().__init__(ground_truth_data=ground_truth_data, transform=transform, augment=augment)
         # checks
-        assert swap_metric in {None, 'factors', 'manhattan', 'manhattan_ratio', 'euclidean', 'euclidean_ratio'}, f'Invalid {swap_metric=}'
+        assert swap_metric in {None, 'k', 'manhattan', 'manhattan_norm', 'euclidean', 'euclidean_norm'}, f'Invalid {swap_metric=}'
         assert n_k_sample_mode in {'offset', 'bounded_below', 'random'}, f'Invalid {n_k_sample_mode=}'
         assert n_radius_sample_mode in {'offset', 'bounded_below', 'random'}, f'Invalid {n_radius_sample_mode=}'
         # DIFFERING FACTORS
@@ -175,19 +175,19 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
         return positive_factors, negative_factors
 
     def _swap_factors(self, anchor_factors, positive_factors, negative_factors):
-        if self._swap_metric == 'factors':
+        if self._swap_metric == 'k':
             p_dist = np.sum(anchor_factors == positive_factors)
             n_dist = np.sum(anchor_factors == negative_factors)
         elif self._swap_metric == 'manhattan':
             p_dist = np.sum(np.abs(anchor_factors - positive_factors))
             n_dist = np.sum(np.abs(anchor_factors - negative_factors))
-        elif self._swap_metric == 'manhattan_ratio':
+        elif self._swap_metric == 'manhattan_norm':
             p_dist = np.sum(np.abs((anchor_factors - positive_factors) / np.subtract(self.data.factor_sizes, 1)))
             n_dist = np.sum(np.abs((anchor_factors - negative_factors) / np.subtract(self.data.factor_sizes, 1)))
         elif self._swap_metric == 'euclidean':
             p_dist = np.linalg.norm(anchor_factors - positive_factors)
             n_dist = np.linalg.norm(anchor_factors - negative_factors)
-        elif self._swap_metric == 'euclidean_ratio':
+        elif self._swap_metric == 'euclidean_norm':
             p_dist = np.linalg.norm((anchor_factors - positive_factors) / np.subtract(self.data.factor_sizes, 1))
             n_dist = np.linalg.norm((anchor_factors - negative_factors) / np.subtract(self.data.factor_sizes, 1))
         else:

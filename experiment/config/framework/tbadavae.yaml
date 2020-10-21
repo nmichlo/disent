@@ -20,4 +20,4 @@ data_wrapper:
   n_radius_range: ${sampling.n_k_radius}
   n_radius_sample_mode: ${sampling.n_k_radius_mode}
   # final checks
-  swap_metric: NULL
+  swap_metric: ${sampling.swap_metric}
