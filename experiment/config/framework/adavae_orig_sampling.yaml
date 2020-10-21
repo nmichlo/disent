@@ -9,4 +9,4 @@ module:
 data_wrapper:
   _target_: disent.dataset.groundtruth.GroundTruthDatasetOrigWeakPairs
   # factor sampling
-  p_k: ${sampling.k.0}
+  p_k: ${sampling.k.1}
