@@ -4,7 +4,7 @@ import torch
 import torchvision
 
 from disent.frameworks.vae.supervised._tvae import TripletVae
-from disent.frameworks.vae.supervised.experimental._adatvae import triplet_loss_l2, triplet_loss_l1
+from disent.frameworks.vae.supervised.experimental._adatvae import triplet_loss
 
 log = logging.getLogger(__name__)
 
@@ -16,9 +16,10 @@ log = logging.getLogger(__name__)
 
 class AugPosTripletVae(TripletVae):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, triplet_l=2, **kwargs):
         super().__init__(*args, **kwargs)
         self._aug = None
+        self.triplet_l = triplet_l
 
     def compute_training_loss(self, batch, batch_idx):
         (a_x, n_x), (a_x_targ, n_x_targ) = batch['x'], batch['x_targ']
@@ -47,13 +48,10 @@ class AugPosTripletVae(TripletVae):
     def augment_loss(self, z_means, z_logvars, z_samples):
         a_z_mean, p_z_mean, n_z_mean = z_means
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        trip_loss_l2 = triplet_loss_l2(a_z_mean, p_z_mean, n_z_mean, margin=self.triplet_margin) * self.triplet_scale
-        trip_loss_l1 = triplet_loss_l1(a_z_mean, p_z_mean, n_z_mean, margin=self.triplet_margin) * self.triplet_scale
+        loss = triplet_loss(a_z_mean, p_z_mean, n_z_mean, margin=self.triplet_margin, l=self.triplet_l) * self.triplet_scale
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        loss = trip_loss_l1
         return loss, {
-            'triplet_loss_l2': trip_loss_l2,
-            'triplet_loss_l1': trip_loss_l1,
+            'triplet': loss,
         }
 
 
