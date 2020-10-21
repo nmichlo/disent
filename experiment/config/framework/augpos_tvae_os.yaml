@@ -1,0 +1,17 @@
+# @package _group_
+name: augpos_tvae_os
+module:
+  _target_: disent.frameworks.vae.weaklysupervised.AugPosTripletVae
+  beta: 4
+  triplet_margin: 10
+  triplet_scale: 100
+  # enable detaching
+  detach: TRUE
+  detach_decoder: TRUE
+  detach_no_kl: FALSE
+  detach_logvar: -2  # set to NULL to disable fixed value
+
+data_wrapper:
+  _target_: disent.dataset.groundtruth.GroundTruthDatasetOrigWeakPairs
+  # factor sampling
+  p_k: ${sampling.k.1}
