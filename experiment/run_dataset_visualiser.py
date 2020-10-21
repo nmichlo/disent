@@ -37,8 +37,13 @@ def get_dataset(cfg):
 
 @st.cache(allow_output_mutation=True)
 def get_config():
-    with hydra.experimental.initialize(config_path='config'):
-        return hydra.experimental.compose(config_name='config')
+    cfg = None
+    @hydra.main(config_path='config', config_name="config")
+    def main(config: DictConfig):
+        nonlocal cfg
+        cfg = config
+    main()
+    return cfg
 
 
 # ========================================================================= #
