@@ -151,7 +151,6 @@ def make_separator_str(text, header=None, width=100, char_v='#', char_h='=', cha
     assert len(char_h) == 1
     import textwrap
     import pprint
-    from tqdm import tqdm
 
     def append_wrapped(text):
         for line in text.splitlines():
@@ -226,9 +225,10 @@ class LengthIter(object):
 
 
 class Timer:
-    def __init__(self):
+    def __init__(self, print_name=None):
         self._start_time: int = None
         self._end_time: int = None
+        self._print_name = print_name
 
     def __enter__(self):
         self._start_time = time.time_ns()
@@ -236,6 +236,8 @@ class Timer:
 
     def __exit__(self, *args, **kwargs):
         self._end_time = time.time_ns()
+        if self._print_name:
+            log.info(f'{self._print_name}: {self.pretty}')
 
     @property
     def elapsed_ns(self) -> int:

@@ -8,8 +8,7 @@ import disent.util.colors as c
 from disent.dataset.groundtruth import GroundTruthDataset
 from disent.frameworks.vae.unsupervised import Vae
 from disent.util import TempNumpySeed, chunked, to_numpy, Timer
-from disent.visualize.visualize_model import latent_cycle
-from disent.visualize.visualize_util import gridify_animation, reconstructions_to_images
+from disent.visualize.visualize_model import latent_cycle_grid_animation
 
 from experiment.util.hydra_data import HydraDataModule
 from experiment.util.callbacks.callbacks_base import _PeriodicCallback
@@ -54,21 +53,13 @@ class VaeLatentCycleLoggingCallback(_PeriodicCallback):
         with TempNumpySeed(self.seed):
             obs = dataset.dataset_sample_batch(64, mode='input').to(vae.device)
 
+        # produce latent cycle grid animation
         z_means, z_logvars = vae.encode_gaussian(obs)
-
-        # produce latent cycle animation & merge frames
-        animation = latent_cycle(vae.decode, z_means, z_logvars, mode=self.mode, num_animations=1, num_frames=21)
-        animation = reconstructions_to_images(animation, mode='int', moveaxis=False)  # axis already moved above
-        frames = np.transpose(gridify_animation(animation[0], padding_px=4, value=64), [0, 3, 1, 2])
-
-        # check and add missing channel if needed (convert greyscale to rgb images)
-        assert frames.shape[1] in {1, 3}, f'Invalid number of image channels: {animation.shape} -> {frames.shape}'
-        if frames.shape[1] == 1:
-            frames = np.repeat(frames, 3, axis=1)
+        frames = latent_cycle_grid_animation(vae.decode, z_means, z_logvars, mode=self.mode, num_frames=21, decoder_device=vae.device)
 
         # log video
         trainer.logger.log_metrics({
-            self.mode: wandb.Video(frames, fps=5, format='mp4'),
+            self.mode: wandb.Video(np.clip(frames*255, 0, 255).astype('uint8'), fps=5, format='mp4'),
         })
 
 

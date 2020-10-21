@@ -23,17 +23,19 @@
 """
 Visualization module for disentangled representations.
 """
+
 import logging
 import numbers
-import os
-from disent.data.util.in_out import ensure_dir_exists
+
 from disent.visualize import visualize_util
-from disent.visualize.visualize_util import reconstructions_to_images
-from disent.util import TempNumpySeed, to_numpy
+from disent.visualize.visualize_util import reconstructions_to_images, make_animation_grid
+from disent.util import to_numpy
 import numpy as np
 import torch
 
+
 log = logging.getLogger(__name__)
+
 
 # ========================================================================= #
 # Visualise varying single factor for model                                 #
@@ -44,7 +46,8 @@ def latent_traversal_1d_multi_dim(
         decoder_fn,
         latent_vector,
         dimensions=None,
-        values=None
+        values=None,
+        decoder_device=None
 ):
     """Creates latent traversals for a latent vector along multiple dimensions.
 
@@ -110,8 +113,7 @@ def latent_traversal_1d_multi_dim(
         # Intervenes in the latent space.
         latent_traversal_vectors[:, dimension] = values
         # Generate the batch of images
-        # TODO: cuda wont always be correct
-        latent_traversal_vectors = torch.as_tensor(latent_traversal_vectors).cuda()
+        latent_traversal_vectors = torch.as_tensor(latent_traversal_vectors, device=decoder_device)
         images = decoder_fn(latent_traversal_vectors)
         images = reconstructions_to_images(images)
         factor_images.append(images)
@@ -124,12 +126,10 @@ def latent_traversal_1d_multi_dim(
 # ========================================================================= #
 
 
-def latent_random_samples(decoder_fn, z_size, num_samples=16):
-    # TODO: cuda wont always be correct
-    z = torch.randn(num_samples, z_size).cuda()
+def latent_random_samples(decoder_fn, z_size, num_samples=16, decoder_device=None):
+    z = torch.randn(num_samples, z_size, device=decoder_device)
     images = decoder_fn(z)
-    images = reconstructions_to_images(images)
-    return to_numpy(images)
+    return reconstructions_to_images(images)
 
 
 # ========================================================================= #
@@ -137,12 +137,12 @@ def latent_random_samples(decoder_fn, z_size, num_samples=16):
 # ========================================================================= #
 
 
-def latent_traversals(decoder_fn, z_mean, dimensions=None, values=None):
+def latent_traversals(decoder_fn, z_mean, dimensions=None, values=None, decoder_device=None):
     # for each sample
     traversals = []
     for i in range(len(z_mean)):
         # TODO: add support for cycle methods from below? Is that actually useful?
-        grid = latent_traversal_1d_multi_dim(decoder_fn, z_mean[i, :], dimensions=dimensions, values=values)
+        grid = latent_traversal_1d_multi_dim(decoder_fn, z_mean[i, :], dimensions=dimensions, values=values, decoder_device=decoder_device)
         traversals.append(grid)
     # return
     return to_numpy(traversals)
@@ -159,6 +159,7 @@ def _z_std_gaussian_cycle(base_z, z_means, z_logvars, z_idx, num_frames):
     zs[:, z_idx] = visualize_util.cycle_gaussian(base_z[z_idx], num_frames, loc=0, scale=1)
     return zs
 
+
 def _z_fitted_gaussian_cycle(base_z, z_means, z_logvars, z_idx, num_frames):
     # Cycle through quantiles of a fitted Gaussian.
     zs = np.repeat(np.expand_dims(base_z, 0), num_frames, axis=0)
@@ -167,11 +168,13 @@ def _z_fitted_gaussian_cycle(base_z, z_means, z_logvars, z_idx, num_frames):
     zs[:, z_idx] = visualize_util.cycle_gaussian(base_z[z_idx], num_frames, loc=loc, scale=np.sqrt(total_variance))
     return zs
 
+
 def _z_fixed_interval_cycle(base_z, z_means, z_logvars, z_idx, num_frames):
     # Cycle through [-2, 2] interval.
     zs = np.repeat(np.expand_dims(base_z, 0), num_frames, axis=0)
     zs[:, z_idx] = visualize_util.cycle_interval(base_z[z_idx], num_frames, -2., 2.)
     return zs
+
 
 def _z_conf_interval_cycle(base_z, z_means, z_logvars, z_idx, num_frames):
     # Cycle linearly through +-2 std dev of a fitted Gaussian.
@@ -182,11 +185,13 @@ def _z_conf_interval_cycle(base_z, z_means, z_logvars, z_idx, num_frames):
     zs[:, z_idx] = visualize_util.cycle_interval(base_z[z_idx], num_frames, loc - 2. * scale, loc + 2. * scale)
     return zs
 
+
 def _z_minmax_interval_cycle(base_z, z_means, z_logvars, z_idx, num_frames):
     # Cycle linearly through minmax of a fitted Gaussian.
     zs = np.repeat(np.expand_dims(base_z, 0), num_frames, axis=0)
     zs[:, z_idx] = visualize_util.cycle_interval(base_z[z_idx], num_frames, np.min(z_means[:, z_idx]), np.max(z_means[:, z_idx]))
     return zs
+
 
 _LATENT_CYCLE_MODES_MAP = {
     'std_gaussian_cycle': _z_std_gaussian_cycle,
@@ -198,10 +203,10 @@ _LATENT_CYCLE_MODES_MAP = {
 
 LATENT_CYCLE_MODES = list(_LATENT_CYCLE_MODES_MAP.keys())
 
-def latent_cycle(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', num_animations=4, num_frames=20):
+
+def latent_cycle(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', num_animations=4, num_frames=20, decoder_device=None):
     assert len(z_means) > 1 and len(z_logvars) > 1, 'not enough samples to average'
     # convert
-    t = z_means
     z_means, z_logvars = to_numpy(z_means), to_numpy(z_logvars)
     # get mode
     if mode not in _LATENT_CYCLE_MODES_MAP:
@@ -212,134 +217,23 @@ def latent_cycle(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', 
         frames = []
         for j in range(z_means.shape[1]):
             z = z_gen_func(base_z, z_means, z_logvars, j, num_frames)
-            z = torch.as_tensor(z).type_as(t)
+            z = torch.as_tensor(z, device=decoder_device)
             frames.append(reconstructions_to_images(decoder_func(z)))
         animations.append(frames)
     return to_numpy(animations)
 
 
-# ========================================================================= #
-# Visualise Reconstructions                                                 #
-# ========================================================================= #
-
-
-def sample_observations_and_reconstruct(gaussian_encoder_fn, decoder_fn, dataset, num_samples=16, seed=None):
-    with TempNumpySeed(seed):
-        obs = dataset.sample_observations(num_samples).cuda()
-    # reconstruct
-    z_mean, z_logvar = gaussian_encoder_fn(obs)
-    x_recon = decoder_fn(z_mean)
-    # get images
-    obs, x_recon = reconstructions_to_images(obs), reconstructions_to_images(x_recon)
-    return to_numpy(obs), to_numpy(x_recon)
-
-
-# ========================================================================= #
-# Visualise Latent Traversals                                               #
-# ========================================================================= #
-
-
-def save_model_visualisations(
-        gaussian_encoder_fn, decoder_fn, dataset, z_size,
-        output_dir,
-        overwrite=False,
-        num_images=64,
-        num_animations=5,
-        num_frames=20,
-        fps=10
-):
-    """Takes trained model from model_dir and visualizes it in output_dir.
-
-    Args:
-      model_dir: Path to directory where the trained model is saved.
-      output_dir: Path to output directory.
-      overwrite: Boolean indicating whether to overwrite output directory.
-      num_animations: Integer with number of distinct animations to create.
-      num_frames: Integer with number of frames in each animation.
-      fps: Integer with frame rate for the animation.
-      num_points_irs: Number of points to be used for the IRS plots.
-    """
-    # Create the output directory if necessary.
-    if os.path.isdir(output_dir):
-        if overwrite:
-            log.warning(f'Directory already exists... DELETING: {output_dir}')
-            import shutil
-            shutil.rmtree(output_dir)
-        else:
-            raise ValueError("Directory already exists and overwrite is False.")
-
-    # convert string to dataset if needed
-    dataset = DEPRICATED_as_dataset(dataset)
-
-    # TODO: get activation function | add support throughout disent
-    # activation = dict(logits=sigmoid, tanh=tanh)['logits']
-
-    # sample random observations & feed forward | used for visualisations
-    obs = dataset.sample_observations(num_images).cuda()  # TODO: cuda wont always be right
-    z_means, z_logvars = gaussian_encoder_fn(obs)
-    x_recons = decoder_fn(z_means)
-
-    # Save reconstructions.
-    results_dir = ensure_dir_exists(output_dir, "reconstructions")
-    visualize_util.minimal_square_save_images(reconstructions_to_images(obs), os.path.join(results_dir, "reconstructions_input.jpg"))
-    visualize_util.minimal_square_save_images(reconstructions_to_images(x_recons), os.path.join(results_dir, "reconstructions_output.jpg"))
-    visualize_util.minimal_square_save_images(np.concatenate([reconstructions_to_images(obs), reconstructions_to_images(x_recons)], axis=2), os.path.join(results_dir, "reconstructions.jpg"))
-
-    # Save samples.
-    results_dir = ensure_dir_exists(output_dir, "sampled")
-    images = latent_random_samples(decoder_fn, z_size, num_images)
-    visualize_util.minimal_square_save_images(images, os.path.join(results_dir, "samples.jpg"))
-
-    # Save latent traversals.
-    results_dir = ensure_dir_exists(output_dir, "traversals")
-    traversals = latent_traversals(decoder_fn, z_means)
-    for i, image_grid in enumerate(traversals):
-        visualize_util.grid_save_images(image_grid, os.path.join(results_dir, f"traversals_{i}.jpg"))
-
-    # Save the latent traversal animations.
-    results_dir = ensure_dir_exists(output_dir, "animated_traversals")
-    for mode in _LATENT_CYCLE_MODES_MAP:
-        animations = latent_cycle(decoder_fn, z_means, z_logvars, mode=mode, num_animations=num_animations, num_frames=num_frames)
-        animations = reconstructions_to_images(animations, mode='int', moveaxis=False)  # axis already moved above
-        for i, animation in enumerate(animations):
-            visualize_util.save_gridified_animation(animation, os.path.join(results_dir, f"{mode}_{i}.gif"), fps=fps)
-
-    # TODO: Interventional effects visualization.
-    # from disent.visualize.visualize_irs import vis_all_interventional_effects
-    # factors = data.sample_factors(num_points_irs)
-    # obs = data.sample_observations_from_factors(factors)
-    # latents = f(dict(images=obs), signature="gaussian_encoder", as_dict=True)["mean"]
-    # results_dir = os.path.join(output_dir, "interventional_effects")
-    # vis_all_interventional_effects(factors, latents, results_dir)
+def latent_cycle_grid_animation(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', num_frames=21, pad=4, border=True, bg_color=0.5, decoder_device=None):
+    # produce latent cycle animation & merge frames
+    animation = latent_cycle(decoder_func, z_means, z_logvars, mode=mode, num_animations=1, num_frames=num_frames, decoder_device=decoder_device)
+    frames = np.transpose(make_animation_grid(animation[0], pad=pad, border=border, bg_color=bg_color), [0, 3, 1, 2])
+    # check and add missing channel if needed (convert greyscale to rgb images)
+    assert frames.shape[1] in {1, 3}, f'Invalid number of image channels: {animation.shape} -> {frames.shape}'
+    if frames.shape[1] == 1:
+        frames = np.repeat(frames, 3, axis=1)
+    return frames
 
 
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-
-
-if __name__ == '__main__':
-
-    # MAKE SYSTEM
-    def make_system(load_path, loss='ada-gvae', dataset='dsprites', model='simple-fc', z_size=6) -> 'VaeSystem':
-        from disent.systems.vae import VaeSystem
-        from disent.util import load_model
-        system = VaeSystem(dataset_train=dataset, model=model, loss=loss, hparams=dict(lr=0.001, num_workers=8, batch_size=64, z_size=z_size))
-        system = load_model(system, load_path, cuda=True)
-        return system
-
-    # CELL
-    system = make_system(loss='beta-vae', dataset='3dshapes', model='simple-fc', load_path='data/model/trained-e1-3dshapes-simple-fc.ckpt')
-
-    save_model_visualisations(
-        system.model.encode_gaussian,
-        system.model.reconstruct,
-        system.dataset,
-        system.model.z_size,
-        output_dir='data/output/model',
-        overwrite=True,
-        num_images=16,
-        num_animations=5,
-        num_frames=30,
-        fps=10,
-    )
