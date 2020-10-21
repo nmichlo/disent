@@ -198,20 +198,20 @@ def run(cfg: DictConfig):
     trainer.fit(framework, datamodule=datamodule)
 
 
-@hydra.main(config_path='config', config_name="config")
-def main(cfg: DictConfig):
-    try:
-        run(cfg)
-    except:
-        log.error('A critical error occurred:', exc_info=True)
-
-
 # ========================================================================= #
 # MAIN                                                                      #
 # ========================================================================= #
 
 
 if __name__ == '__main__':
+
+    @hydra.main(config_path='config', config_name="config")
+    def main(cfg: DictConfig):
+        try:
+            run(cfg)
+        except:
+            log.error('A critical error occurred:', exc_info=True)
+
     try:
         main()
     except KeyboardInterrupt as e:
