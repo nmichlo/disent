@@ -6,54 +6,55 @@ import sys
 # ========================================================================= #
 
 
-STREAMLIT_COMMAND = 'streamlit'
-WRAP_COMMAND = 'wrapped'
-
-
-def _launch_streamlit(python_file, args: list = None):
-    import click
-    import streamlit.cli
-
-    @click.group()
-    def main_streamlit():
-        pass
-
-    # For some reason I cant get streamlit to work without this subcommand?
-    @main_streamlit.command(STREAMLIT_COMMAND)
-    @streamlit.cli.configurator_options
-    def run_streamlit_subcommand(**kwargs):
-        streamlit.cli._apply_config_options_from_cli(kwargs)
-        streamlit.cli._main_run(python_file, args if args else [])
-
-    main_streamlit()
+IS_WRAPPED = False
 
 
 def run_streamlit(python_file):
     """
-    This function requires that no command line arguments are being passed to the program.
-    # TODO: change to check last command line argument
+    IMPORTANT: import this function from a seperate file!
 
-    Use this function by placing a call to it at the top of your file
-    that you want to run with streamlit
+    Use this function by placing a call to it at the top of your
+    check for __main__
 
+    >>> # from run_streamlit import run_streamlit
+    >>>
     >>> if __name__ == '__main__':
-    >>>     from experiment.util.streamlit_util import run_streamlit
     >>>     run_streamlit(__file__)
+    >>>     st.title('Hello World!')
     """
 
-    # append streamlit command by default
-    if len(sys.argv) == 1:
-        sys.argv.append(STREAMLIT_COMMAND)
-    command = sys.argv[1]
-
-    # launch streamlit or hydra depending on command
-    if command == STREAMLIT_COMMAND:
-        _launch_streamlit(python_file, [WRAP_COMMAND])
-        exit(0)
-    elif command == WRAP_COMMAND:
+    # do not wrap if streamlit is already running!
+    global IS_WRAPPED
+    if IS_WRAPPED:
         return True
-    else:
-        raise KeyError(f'Unknown: {command=} | {sys.argv}')
+
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+
+    import click
+    import streamlit.cli
+
+    @click.group()
+    def run_streamlit():
+        pass
+
+    # For some reason I cant get streamlit to work without this subcommand?
+    @run_streamlit.command('streamlit')
+    @streamlit.cli.configurator_options
+    def run_streamlit_subcommand(**kwargs):
+        global IS_WRAPPED
+        IS_WRAPPED = True
+        streamlit.cli._apply_config_options_from_cli(kwargs)
+        streamlit.cli._main_run(python_file, args)
+
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+
+    # swap out arguments and keep arguments, first is the filename
+    args = sys.argv[1:]
+    sys.argv = [sys.argv[0], 'streamlit']
+
+    # run streamlit
+    run_streamlit()
+    exit(0)
 
 
 # ========================================================================= #
