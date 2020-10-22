@@ -3,8 +3,10 @@ name: gadavae
 module:
   _target_: disent.frameworks.vae.supervised.GuidedAdaVae
   beta: 4
+  # adavae
   average_mode: 'gvae'       # [gvae, ml-vae]
   symmetric_kl: TRUE
+  # guided adavae
   anchor_ave_mode: 'average' # [average, thresh]
 
 data_wrapper:

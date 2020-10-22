@@ -1,8 +1,8 @@
 import torch
 import numpy as np
 
-from disent.frameworks.vae.supervised._tvae import TripletVae, augment_loss_triplet
-from disent.frameworks.vae.weaklysupervised._adavae import AdaVae, compute_average_gvae
+from disent.frameworks.vae.supervised._tvae import TripletVae, triplet_loss, dist_triplet_loss
+from disent.frameworks.vae.weaklysupervised._adavae import AdaVae
 
 import logging
 
@@ -24,29 +24,45 @@ class AdaTripletVae(TripletVae):
 
     def __init__(
             self,
-            *args,
-            average_mode=None,
-            symmetric_kl=None,
+            make_optimizer_fn,
+            make_model_fn,
+            batch_augment=None,
+            beta=4,
+            # tvae: triplet stuffs
+            triplet_margin=10,
+            triplet_scale=100,
+            triplet_p=2,
+            # tvae: no loss from decoder -> encoder
+            detach=False,
+            detach_decoder=True,
+            detach_no_kl=False,
+            detach_logvar=-2,
+            # adatvae: what version of triplet to use
             triplet_mode='ada_p_orig_lerp',
-            triplet_l=1,
-            # lerp
+            # adatvae: annealing
             lerp_steps=10000,  # 12*3600 | 50400 = 14*3600
             steps_offset=0,
             lerp_goal=1.0,
-            **kwargs
     ):
-        # check symmetric_kl arg
-        if symmetric_kl is not None:
-            log.warning(f'{symmetric_kl=} argument is unused, always symmetric for {AdaTripletVae.__name__}!')
-        if average_mode is not None:
-            log.warning(f'{average_mode=} argument is unused, always gvae averaging for {AdaTripletVae.__name__}!')
 
         # initialise
-        super().__init__(*args, **kwargs)
+        super().__init__(
+            make_optimizer_fn,
+            make_model_fn,
+            batch_augment=batch_augment,
+            beta=beta,
+            triplet_margin=triplet_margin,
+            triplet_scale=triplet_scale,
+            triplet_p=triplet_p,
+            detach=detach,
+            detach_decoder=detach_decoder,
+            detach_no_kl=detach_no_kl,
+            detach_logvar=detach_logvar,
+        )
 
         # triplet loss mode
         self.triplet_mode = triplet_mode
-        self.triplet_l = triplet_l
+        self.triplet_p = triplet_p
 
         # triplet annealing
         self.lerp_steps = lerp_steps
@@ -58,13 +74,13 @@ class AdaTripletVae(TripletVae):
         a_z_mean, p_z_mean, n_z_mean = z_means
 
         # normal triplet
-        trip_loss = triplet_loss(a_z_mean, p_z_mean, n_z_mean, margin=self.triplet_margin, l=self.triplet_l) * self.triplet_scale
+        trip_loss = triplet_loss(a_z_mean, p_z_mean, n_z_mean, margin=self.triplet_margin, p=self.triplet_p) * self.triplet_scale
 
         # Adaptive Component
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         # TODO: good reason why `ap_p_ave - ap_a_ave` this is bad?
         _, _, an_a_ave, an_n_ave = AdaTripletVae.compute_ave(a_z_mean, p_z_mean, n_z_mean)
-        ada_p_orig = dist_triplet_loss(p_delta=a_z_mean - p_z_mean, n_delta=an_a_ave - an_n_ave, margin=self.triplet_margin, l=self.triplet_l) * self.triplet_scale
+        ada_p_orig = dist_triplet_loss(pos_delta=a_z_mean - p_z_mean, neg_delta=an_a_ave - an_n_ave, margin=self.triplet_margin, p=self.triplet_p) * self.triplet_scale
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
         # Triplet Lerp
@@ -73,7 +89,7 @@ class AdaTripletVae(TripletVae):
         lerp = np.clip((self.steps - self.steps_offset) / self.lerp_steps, 0, self.lerp_goal)
         # TODO: good reason why `ap_p_ave - ap_a_ave` this is bad?
         _, _, an_a_ave, an_n_ave = AdaTripletVae.compute_ave(a_z_mean, p_z_mean, n_z_mean, lerp=lerp)
-        ada_p_orig_lerp = dist_triplet_loss(p_delta=a_z_mean - p_z_mean, n_delta=an_a_ave - an_n_ave, margin=self.triplet_margin, l=self.triplet_l) * self.triplet_scale
+        ada_p_orig_lerp = dist_triplet_loss(pos_delta=a_z_mean - p_z_mean, neg_delta=an_a_ave - an_n_ave, margin=self.triplet_margin, p=self.triplet_p) * self.triplet_scale
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
         losses = {
@@ -129,23 +145,6 @@ class AdaTripletVae(TripletVae):
         return ap_a_ave, ap_p_ave, an_a_ave, an_n_ave
 
 
-def triplet_loss(a, p, n, margin=.1, l=1, top_k=None):
-    return dist_triplet_loss(a - p, a - n, margin=margin, l=l, top_k=top_k)
-
-
-def dist_triplet_loss(p_delta, n_delta, margin=1., l=1, top_k=None):
-    p_dist = torch.norm(p_delta, p=l, dim=-1)
-    n_dist = torch.norm(n_delta, p=l, dim=-1)
-    loss = torch.clamp_min(p_dist - n_dist + margin, 0)
-    if top_k is not None:
-        loss = torch.topk(loss, k=top_k).values
-    return loss.mean()
-
-
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-
-
-
-# -m dataset=xysquares framework=adatvae

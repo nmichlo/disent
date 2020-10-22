@@ -35,6 +35,7 @@ class DfcVae(BetaVae):
             make_model_fn,
             batch_augment=None,
             beta=4,
+            # dfcvae
             feature_layers=None
     ):
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, beta=beta)

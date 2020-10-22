@@ -3,19 +3,18 @@ name: adatvae
 module:
   _target_: disent.frameworks.vae.supervised.AdaTripletVae
   beta: 0.1
-  average_mode: NULL  # always gvae (if used based on triplet_mode)
-  symmetric_kl: NULL  # always symmetric (if used based on triplet_mode)
-  # triplet stuffs
+  # tvae: triplet stuffs
   triplet_margin: 10
   triplet_scale: 100
-  triplet_l: 1
-  triplet_mode: 'ada_p_orig_lerp'
-  # enable detaching
+  triplet_p: 1
+  # tvae: no loss from decoder -> encoder
   detach: TRUE
   detach_decoder: TRUE
   detach_no_kl: FALSE
   detach_logvar: NULL  # set to NULL to disable fixed value
-  # linear interpolation
+  # adatvae: what version of triplet to use
+  triplet_mode: 'ada_p_orig_lerp'
+  # adatvae: annealing
   lerp_steps: ${trainer.steps}
   steps_offset: 1000
   lerp_goal: 1.0

@@ -16,8 +16,10 @@ class SwappedTargetAdaVae(AdaVae):
             make_model_fn,
             batch_augment=None,
             beta=4,
+            # adavae
             average_mode='gvae',
             symmetric_kl=True,
+            # swapped target
             swap_chance=0.1
     ):
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, beta=beta, average_mode=average_mode, symmetric_kl=symmetric_kl)

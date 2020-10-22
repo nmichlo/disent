@@ -4,7 +4,7 @@ import torch
 import torchvision
 
 from disent.frameworks.vae.supervised._tvae import TripletVae
-from disent.frameworks.vae.supervised.experimental._adatvae import triplet_loss
+
 
 log = logging.getLogger(__name__)
 
@@ -16,10 +16,36 @@ log = logging.getLogger(__name__)
 
 class AugPosTripletVae(TripletVae):
 
-    def __init__(self, *args, triplet_l=2, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(
+            self,
+            make_optimizer_fn,
+            make_model_fn,
+            batch_augment=None,
+            beta=4,
+            # tvae: triplet stuffs
+            triplet_margin=10,
+            triplet_scale=100,
+            triplet_p=2,
+            # tvae: no loss from decoder -> encoder
+            detach=False,
+            detach_decoder=True,
+            detach_no_kl=False,
+            detach_logvar=-2,
+    ):
+        super().__init__(
+            make_optimizer_fn,
+            make_model_fn,
+            batch_augment=batch_augment,
+            beta=beta,
+            triplet_margin=triplet_margin,
+            triplet_scale=triplet_scale,
+            triplet_p=triplet_p,
+            detach=detach,
+            detach_decoder=detach_decoder,
+            detach_no_kl=detach_no_kl,
+            detach_logvar=detach_logvar,
+        )
         self._aug = None
-        self.triplet_l = triplet_l
 
     def compute_training_loss(self, batch, batch_idx):
         (a_x, n_x), (a_x_targ, n_x_targ) = batch['x'], batch['x_targ']
@@ -44,15 +70,6 @@ class AugPosTripletVae(TripletVae):
         batch['x'], batch['x_targ'] = (a_x, p_x, n_x), (a_x_targ, p_x_targ, n_x_targ)
         # compute!
         return super().compute_training_loss(batch, batch_idx)
-
-    def augment_loss(self, z_means, z_logvars, z_samples):
-        a_z_mean, p_z_mean, n_z_mean = z_means
-        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        loss = triplet_loss(a_z_mean, p_z_mean, n_z_mean, margin=self.triplet_margin, l=self.triplet_l) * self.triplet_scale
-        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        return loss, {
-            'triplet': loss,
-        }
 
 
 # ========================================================================= #

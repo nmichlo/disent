@@ -3,9 +3,11 @@ name: st-adavae
 module:
   _target_: disent.frameworks.vae.weaklysupervised.SwappedTargetAdaVae
   beta: 4
-  swap_chance: 0.1
+  # adavae
   average_mode: 'gvae'  # gvae or ml-vae
   symmetric_kl: TRUE
+  # swapped target
+  swap_chance: 0.1
 
 data_wrapper:
   _target_: disent.dataset.groundtruth.GroundTruthDatasetPairs
