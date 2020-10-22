@@ -107,6 +107,9 @@ class AdaTripletVae(TripletVae):
         shared_loss_lerp = AdaTripletVae.compute_shared_loss(a_z_mean, p_z_mean, n_z_mean, lerp=lerp, p=2) * self.triplet_scale
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
+        # TODO: try triplet but instead of adding MSE, multiply the shared deltas
+        #  elements so they are moved closer together. ie. 2x for a->p, and 0.5x for a->n
+
         losses = {
             # normal
             'triplet': trip_loss,
