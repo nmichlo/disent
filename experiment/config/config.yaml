@@ -7,7 +7,7 @@ defaults:
   - augment: none
   - sampling: full_bb
   # runtime
-  - run_trainer: medium
+  - run_trainer: short
   - run_callbacks: default
   - run_location: cluster
   - run_logging: wandb

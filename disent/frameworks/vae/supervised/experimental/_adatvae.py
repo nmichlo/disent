@@ -83,37 +83,63 @@ class AdaTripletVae(TripletVae):
         ada_p_orig = dist_triplet_loss(pos_delta=a_z_mean - p_z_mean, neg_delta=an_a_ave - an_n_ave, margin=self.triplet_margin, p=self.triplet_p) * self.triplet_scale
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
-        # Triplet Lerp
+        # Update Anneal Values
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         self.steps += 1
-        lerp = np.clip((self.steps - self.steps_offset) / self.lerp_steps, 0, self.lerp_goal)
+        lerp = (self.steps - self.steps_offset) / self.lerp_steps
+        lerp = np.clip(lerp, 0, self.lerp_goal)
+        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+
+        # Triplet Lerp
+        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         # TODO: good reason why `ap_p_ave - ap_a_ave` this is bad?
         _, _, an_a_ave, an_n_ave = AdaTripletVae.compute_ave(a_z_mean, p_z_mean, n_z_mean, lerp=lerp)
         ada_p_orig_lerp = dist_triplet_loss(pos_delta=a_z_mean - p_z_mean, neg_delta=an_a_ave - an_n_ave, margin=self.triplet_margin, p=self.triplet_p) * self.triplet_scale
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
+        # MSE Ada Triplet
+        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+        p_shared_mask, n_shared_mask = AdaTripletVae.compute_shared_masks(a_z_mean, p_z_mean, n_z_mean, lerp=None)
+        p_shared_mask_lerp, n_shared_mask_lerp = AdaTripletVae.compute_shared_masks(a_z_mean, p_z_mean, n_z_mean, lerp=lerp)
+        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+        # TODO: does p here affect things?
+        shared_loss = AdaTripletVae.compute_shared_loss(a_z_mean, p_z_mean, n_z_mean, lerp=None, p=2) * self.triplet_scale
+        shared_loss_lerp = AdaTripletVae.compute_shared_loss(a_z_mean, p_z_mean, n_z_mean, lerp=lerp, p=2) * self.triplet_scale
+        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+
         losses = {
             # normal
             'triplet': trip_loss,
+            # MSE adaptive triplet
+            'trip_and_mse_ada':          blend(trip_loss, shared_loss,      alpha=0.5),  # too strong
+            'trip_and_mse_ada_lerp':     blend(trip_loss, shared_loss_lerp, alpha=0.5),
+            'lerp_trip_to_mse_ada':      blend(trip_loss, shared_loss,      alpha=lerp),
+            'lerp_trip_to_mse_ada_lerp': blend(trip_loss, shared_loss_lerp, alpha=lerp),
             # best
-            'ada_p_orig': ada_p_orig,
+            'ada_p_orig':      ada_p_orig,
             'ada_p_orig_lerp': ada_p_orig_lerp,  # BEST!
             # OLD
-            'ada_p_orig_and_trip': (self.lerp_goal * ada_p_orig) + ((1-self.lerp_goal) * trip_loss),
-            'ada_p_orig_and_trip_lerp': (self.lerp_goal * ada_p_orig_lerp) + ((1-self.lerp_goal) * trip_loss),
-            # lerp
-            'trip_lerp_ada_p_orig': (lerp * ada_p_orig) + ((1-lerp) * trip_loss),
-            'trip_lerp_ada_p_orig_lerp': (lerp * ada_p_orig_lerp) + ((1-lerp) * trip_loss),
+            'trip_and_ada_p_orig':          blend(trip_loss, ada_p_orig,      alpha=0.5),
+            'trip_and_ada_p_orig_lerp':     blend(trip_loss, ada_p_orig_lerp, alpha=0.5),
+            'lerp_trip_to_ada_p_orig':      blend(trip_loss, ada_p_orig,      alpha=lerp),
+            'lerp_trip_to_ada_p_orig_lerp': blend(trip_loss, ada_p_orig_lerp, alpha=lerp),
         }
 
         return losses[self.triplet_mode], {
             **losses,
+            'triplet_chosen': losses[self.triplet_mode],
+            # lerp
             'lerp': lerp,
             'lerp_goal': self.lerp_goal,
+            # shared
+            'p_shared': p_shared_mask.sum(dim=1).float().mean(),
+            'n_shared': n_shared_mask.sum(dim=1).float().mean(),
+            'p_shared_lerp': p_shared_mask_lerp.sum(dim=1).float().mean(),
+            'n_shared_lerp': n_shared_mask_lerp.sum(dim=1).float().mean(),
         }
 
     @staticmethod
-    def compute_ave(a_z_mean, p_z_mean, n_z_mean, lerp=None):
+    def compute_shared_masks(a_z_mean, p_z_mean, n_z_mean, lerp=None):
         # ADAPTIVE COMPONENT
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         delta_p = torch.abs(a_z_mean - p_z_mean)
@@ -123,8 +149,8 @@ class AdaTripletVae(TripletVae):
         n_thresh = AdaVae.estimate_threshold(delta_n, keepdim=True)
         # interpolate threshold
         if lerp is not None:
-            p_thresh = (lerp * p_thresh) + ((1-lerp) * torch.min(delta_p, dim=-1, keepdim=True).values)
-            n_thresh = (lerp * n_thresh) + ((1-lerp) * torch.min(delta_n, dim=-1, keepdim=True).values)
+            p_thresh = blend(torch.min(delta_p, dim=-1, keepdim=True).values, p_thresh, alpha=lerp)
+            n_thresh = blend(torch.min(delta_n, dim=-1, keepdim=True).values, n_thresh, alpha=lerp)
             # -------------- #
             # # RANDOM LERP:
             # # This should average out to the value given above
@@ -136,6 +162,13 @@ class AdaTripletVae(TripletVae):
         # estimate shared elements, then compute averaged vectors
         p_shared = (delta_p < p_thresh).detach()
         n_shared = (delta_n < n_thresh).detach()
+        # done!
+        return p_shared, n_shared
+
+    @staticmethod
+    def compute_ave(a_z_mean, p_z_mean, n_z_mean, lerp=None):
+        # estimate shared elements, then compute averaged vectors
+        p_shared, n_shared = AdaTripletVae.compute_shared_masks(a_z_mean, p_z_mean, n_z_mean, lerp=lerp)
         # compute averaged
         ap_ave = (0.5 * a_z_mean) + (0.5 * p_z_mean)
         an_ave = (0.5 * a_z_mean) + (0.5 * n_z_mean)
@@ -143,6 +176,23 @@ class AdaTripletVae(TripletVae):
         an_a_ave, an_n_ave = torch.where(n_shared, an_ave, a_z_mean), torch.where(n_shared, an_ave, n_z_mean)
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         return ap_a_ave, ap_p_ave, an_a_ave, an_n_ave
+
+    @staticmethod
+    def compute_shared_loss(a_z_mean, p_z_mean, n_z_mean, lerp=None, p=2):
+        p_shared_mask, n_shared_mask = AdaTripletVae.compute_shared_masks(a_z_mean, p_z_mean, n_z_mean, lerp=lerp)
+        p_shared_loss = torch.norm(torch.where(p_shared_mask, a_z_mean-p_z_mean, torch.zeros_like(a_z_mean)), p=p, dim=-1).mean()
+        n_shared_loss = torch.norm(torch.where(n_shared_mask, a_z_mean-n_z_mean, torch.zeros_like(a_z_mean)), p=p, dim=-1).mean()
+        shared_loss = 0.5 * p_shared_loss + 0.5 * n_shared_loss
+        return shared_loss
+
+
+def blend(a, b, alpha):
+    """
+    if alpha == 0 then a is returned
+    if alpha == 1 then b is returned
+    """
+    alpha = np.clip(alpha, 0, 1)
+    return ((1-alpha) * a) + (alpha * b)
 
 
 # ========================================================================= #
