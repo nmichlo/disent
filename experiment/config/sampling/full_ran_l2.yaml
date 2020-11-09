@@ -11,3 +11,5 @@ sampling:
   n_k_radius_mode: 'random'
   # swap incorrect samples
   swap_metric: 'euclidean'
+  # swap positive and negative if possible
+  swap_chance: NULL

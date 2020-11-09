@@ -30,6 +30,7 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
             n_radius_sample_mode='offset',
             # final checks
             swap_metric=None,
+            swap_chance=None,
     ):
         super().__init__(ground_truth_data=ground_truth_data, transform=transform, augment=augment)
         # checks
@@ -57,6 +58,9 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
         )
         # SWAP: if negative is not further than the positive
         self._swap_metric = swap_metric
+        self._swap_chance = swap_chance
+        if swap_chance is not None:
+            assert 0 <= swap_chance <= 1, f'{swap_chance=} must be in range 0 to 1.'
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # CORE                                                                  #
@@ -84,6 +88,11 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
         # SWAP IF +VE FURTHER THAN -VE
         if self._swap_metric is not None:
             positive_factors, negative_factors = self._swap_factors(anchor_factors, positive_factors, negative_factors)
+        # RANDOMLY SWAP +ve AND -ve IF CHANCE:
+        if self._swap_chance is not None:
+            if np.random.random() < self._swap_chance:
+                positive_factors, negative_factors = negative_factors, positive_factors
+        # return factors!
         return anchor_factors, positive_factors, negative_factors
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #

@@ -11,3 +11,5 @@ sampling:
   n_k_radius_mode: 'bounded_below'
   # swap incorrect samples
   swap_metric: NULL
+  # swap positive and negative if possible
+  swap_chance: NULL
