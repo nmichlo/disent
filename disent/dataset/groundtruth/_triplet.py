@@ -30,10 +30,11 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
             n_radius_sample_mode='offset',
             # final checks
             swap_metric=None,
+            swap_chance=None,
     ):
         super().__init__(ground_truth_data=ground_truth_data, transform=transform, augment=augment)
         # checks
-        assert swap_metric in {None, 'factors', 'manhattan', 'manhattan_ratio', 'euclidean', 'euclidean_ratio'}, f'Invalid {swap_metric=}'
+        assert swap_metric in {None, 'k', 'manhattan', 'manhattan_norm', 'euclidean', 'euclidean_norm'}, f'Invalid {swap_metric=}'
         assert n_k_sample_mode in {'offset', 'bounded_below', 'random'}, f'Invalid {n_k_sample_mode=}'
         assert n_radius_sample_mode in {'offset', 'bounded_below', 'random'}, f'Invalid {n_radius_sample_mode=}'
         # DIFFERING FACTORS
@@ -57,6 +58,9 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
         )
         # SWAP: if negative is not further than the positive
         self._swap_metric = swap_metric
+        self._swap_chance = swap_chance
+        if swap_chance is not None:
+            assert 0 <= swap_chance <= 1, f'{swap_chance=} must be in range 0 to 1.'
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # CORE                                                                  #
@@ -84,6 +88,11 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
         # SWAP IF +VE FURTHER THAN -VE
         if self._swap_metric is not None:
             positive_factors, negative_factors = self._swap_factors(anchor_factors, positive_factors, negative_factors)
+        # RANDOMLY SWAP +ve AND -ve IF CHANCE:
+        if self._swap_chance is not None:
+            if np.random.random() < self._swap_chance:
+                positive_factors, negative_factors = negative_factors, positive_factors
+        # return factors!
         return anchor_factors, positive_factors, negative_factors
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -175,19 +184,19 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
         return positive_factors, negative_factors
 
     def _swap_factors(self, anchor_factors, positive_factors, negative_factors):
-        if self._swap_metric == 'factors':
+        if self._swap_metric == 'k':
             p_dist = np.sum(anchor_factors == positive_factors)
             n_dist = np.sum(anchor_factors == negative_factors)
         elif self._swap_metric == 'manhattan':
             p_dist = np.sum(np.abs(anchor_factors - positive_factors))
             n_dist = np.sum(np.abs(anchor_factors - negative_factors))
-        elif self._swap_metric == 'manhattan_ratio':
+        elif self._swap_metric == 'manhattan_norm':
             p_dist = np.sum(np.abs((anchor_factors - positive_factors) / np.subtract(self.data.factor_sizes, 1)))
             n_dist = np.sum(np.abs((anchor_factors - negative_factors) / np.subtract(self.data.factor_sizes, 1)))
         elif self._swap_metric == 'euclidean':
             p_dist = np.linalg.norm(anchor_factors - positive_factors)
             n_dist = np.linalg.norm(anchor_factors - negative_factors)
-        elif self._swap_metric == 'euclidean_ratio':
+        elif self._swap_metric == 'euclidean_norm':
             p_dist = np.linalg.norm((anchor_factors - positive_factors) / np.subtract(self.data.factor_sizes, 1))
             n_dist = np.linalg.norm((anchor_factors - negative_factors) / np.subtract(self.data.factor_sizes, 1))
         else:

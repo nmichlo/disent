@@ -27,6 +27,7 @@ class AdaVae(BetaVae):
             make_model_fn,
             batch_augment=None,
             beta=4,
+            # adavae
             average_mode='gvae',
             symmetric_kl=True,
     ):

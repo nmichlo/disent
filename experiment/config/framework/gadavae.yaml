@@ -3,8 +3,10 @@ name: gadavae
 module:
   _target_: disent.frameworks.vae.supervised.GuidedAdaVae
   beta: 4
+  # adavae
   average_mode: 'gvae'       # [gvae, ml-vae]
   symmetric_kl: TRUE
+  # guided adavae
   anchor_ave_mode: 'average' # [average, thresh]
 
 data_wrapper:
@@ -19,4 +21,5 @@ data_wrapper:
   n_radius_range: ${sampling.n_k_radius}
   n_radius_sample_mode: ${sampling.n_k_radius_mode}
   # final checks
-  swap_metric: NULL
+  swap_metric: ${sampling.swap_metric}
+  swap_chance: ${sampling.swap_chance}
