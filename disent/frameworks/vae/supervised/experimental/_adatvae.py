@@ -98,6 +98,7 @@ class AdaTripletVae(TripletVae):
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
         # MSE Ada Triplet
+        # - Triplet but instead of hard averading, use the MSE loss.
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         p_shared_mask, n_shared_mask = AdaTripletVae.compute_shared_masks(a_z_mean, p_z_mean, n_z_mean, lerp=None)
         p_shared_mask_lerp, n_shared_mask_lerp = AdaTripletVae.compute_shared_masks(a_z_mean, p_z_mean, n_z_mean, lerp=lerp)
@@ -107,9 +108,9 @@ class AdaTripletVae(TripletVae):
         shared_loss_lerp = AdaTripletVae.compute_shared_loss(a_z_mean, p_z_mean, n_z_mean, lerp=lerp, p=2) * self.triplet_scale
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
-        # TODO: try triplet but instead of adding MSE, multiply the shared deltas
-        #  elements so they are moved closer together. ie. 2x for a->p, and 0.5x for a->n
         # Ada Mul Triplet
+        # - Triplet but instead of adding MSE, multiply the shared deltas
+        #   elements so they are moved closer together. ie. 2x for a->p, and 0.5x for a->n
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         mul = torch.where(p_shared_mask, torch.full_like(a_z_mean, 2), torch.full_like(a_z_mean, 1))
         ada_mul_triplet = dist_triplet_loss(pos_delta=(p_z_mean-a_z_mean) * mul, neg_delta=(n_z_mean-a_z_mean) / mul, margin=self.triplet_margin, p=self.triplet_p) * self.triplet_scale
