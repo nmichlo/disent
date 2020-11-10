@@ -8,7 +8,7 @@ from disent.util import DisentLightningModule, DisentConfigurable
 # ========================================================================= #
 
 
-class BaseFramework(DisentLightningModule, DisentConfigurable):
+class BaseFramework(DisentConfigurable, DisentLightningModule):
 
     @dataclass
     class cfg(DisentConfigurable.cfg):

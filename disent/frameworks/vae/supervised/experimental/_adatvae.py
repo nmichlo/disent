@@ -25,11 +25,11 @@ class AdaTripletVae(TripletVae):
     @dataclass
     class cfg(TripletVae.cfg):
         # adatvae: what version of triplet to use
-        triplet_mode: str = 'ada_p_orig_lerp',
+        triplet_mode: str = 'ada_p_orig_lerp'
         # adatvae: annealing
-        lerp_steps: int = 10000,  # 12*3600 | 50400 = 14*3600
-        steps_offset: int = 0,
-        lerp_goal: float = 1.0,
+        lerp_steps: int = 10000  # 12*3600 | 50400 = 14*3600
+        steps_offset: int = 0
+        lerp_goal: float = 1.0
 
     def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = cfg()):
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Type, Union
-
 import torch
+import warnings
 
 
 # ========================================================================= #
@@ -20,7 +20,8 @@ def dist_triplet_loss(pos_delta, neg_delta, margin_min=None, margin_max=1., p=1)
     """
     Standard Triplet Loss
     """
-    assert margin_min is None, 'Triplet does not support margin_min. margin_min must be None.'
+    if margin_min is not None:
+        warnings.warn('triplet_loss does not support margin_min')
     p_dist = torch.norm(pos_delta, p=p, dim=-1)
     n_dist = torch.norm(neg_delta, p=p, dim=-1)
     loss = torch.clamp_min(p_dist - n_dist + margin_max, 0)
@@ -43,8 +44,10 @@ def dist_elem_triplet_loss(pos_delta, neg_delta, margin_min=None, margin_max=1.,
     Element-Wise Triplet Loss
     - THIS IS NOT EXPECTED TO WORK AT ALL!
     """
-    assert margin_min is None, 'Triplet does not support margin_min. margin_min must be None.'
-    assert p == 1, 'Element-wise triplet only supports p==1'
+    if margin_min is not None:
+        warnings.warn('elem_triplet_loss does not support margin_min')
+    if p != 1:
+        warnings.warn('elem_triplet_loss only supported p=1')
     p_dist = torch.abs(pos_delta)
     n_dist = torch.abs(neg_delta)
     loss = torch.clamp_min(p_dist - n_dist + margin_max, 0)
@@ -97,11 +100,11 @@ def dist_clamped_triplet_loss(pos_delta, neg_delta, margin_min=0.01, margin_max=
 
 @dataclass
 class TripletLossConfig(object):
-    triplet_loss: str = 'triplet',
-    triplet_margin_min: float = 0.1,
-    triplet_margin_max: float = 10,
-    triplet_scale: float = 100,
-    triplet_p: int = 2,
+    triplet_loss: str = 'triplet'
+    triplet_margin_min: float = 0.1
+    triplet_margin_max: float = 10
+    triplet_scale: float = 100
+    triplet_p: int = 2
 
 
 _TRIPLET_LOSSES = {

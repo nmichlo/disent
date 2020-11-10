@@ -17,10 +17,10 @@ class TripletVae(BetaVae):
     @dataclass
     class cfg(BetaVae.cfg, TripletLossConfig):
         # tvae: no loss from decoder -> encoder
-        detach: bool = False,
-        detach_decoder: bool = True,
-        detach_no_kl: bool = False,
-        detach_logvar: float = -2,  # std = 0.5, logvar = ln(std**2) ~= -2,77
+        detach: bool = False
+        detach_decoder: bool = True
+        detach_no_kl: bool = False
+        detach_logvar: float = -2  # std = 0.5, logvar = ln(std**2) ~= -2,77
 
     def compute_training_loss(self, batch, batch_idx):
         (a_x, p_x, n_x), (a_x_targ, p_x_targ, n_x_targ) = batch['x'], batch['x_targ']
