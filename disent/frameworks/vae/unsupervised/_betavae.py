@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from disent.frameworks.vae.unsupervised import Vae
 
 
@@ -8,16 +9,21 @@ from disent.frameworks.vae.unsupervised import Vae
 
 class BetaVae(Vae):
 
+    @dataclass
+    class Config(Vae.Config):
+        beta: float = 4
+
+    cfg: Config  # type hints
+
     def __init__(
             self,
             make_optimizer_fn,
             make_model_fn,
             batch_augment=None,
-            beta=4
+            cfg: Config = Config(),
     ):
-        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment)
-        assert beta >= 0
-        self.beta = beta
+        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
+        assert cfg.beta >= 0
 
     def kl_regularization(self, kl_loss):
         return self.beta * kl_loss

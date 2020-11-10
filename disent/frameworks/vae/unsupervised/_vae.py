@@ -1,4 +1,5 @@
 import torch
+from dataclasses import dataclass
 from disent.frameworks.framework import BaseFramework
 from disent.frameworks.vae.loss import bce_loss_with_logits, kl_normal_loss
 from disent.model.ae.base import GaussianAutoEncoder
@@ -15,13 +16,20 @@ class Vae(BaseFramework):
     https://arxiv.org/abs/1312.6114
     """
 
+    @dataclass
+    class Config(BaseFramework.Config):
+        pass
+
+    cfg: Config  # type hints
+
     def __init__(
             self,
             make_optimizer_fn,
             make_model_fn,
-            batch_augment=None
+            batch_augment=None,
+            cfg: Config = Config()
     ):
-        super().__init__(make_optimizer_fn, batch_augment=batch_augment)
+        super().__init__(make_optimizer_fn, batch_augment=batch_augment, cfg=cfg)
         # vae model
         assert callable(make_model_fn)
         self._model: GaussianAutoEncoder = make_model_fn()

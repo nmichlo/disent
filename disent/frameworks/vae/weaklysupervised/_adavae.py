@@ -1,5 +1,5 @@
 import torch
-
+from dataclasses import dataclass
 from disent.frameworks.vae.unsupervised import BetaVae
 from disent.frameworks.vae.loss import bce_loss_with_logits, kl_normal_loss
 
@@ -21,23 +21,26 @@ class AdaVae(BetaVae):
     - Symmetric KL Calculation used by default, described in: https://openreview.net/pdf?id=8VXvj1QNRl1
     """
 
+    @dataclass
+    class Config(BetaVae.Config):
+        average_mode: str = 'gvae'
+        symmetric_kl: bool = True
+
+    cfg: Config  # type hints
+
     def __init__(
             self,
             make_optimizer_fn,
             make_model_fn,
             batch_augment=None,
-            beta=4,
-            # adavae
-            average_mode='gvae',
-            symmetric_kl=True,
+            cfg: Config = Config(),
     ):
-        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, beta=beta)
+        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
         # averaging modes
         self.compute_average = {
             'gvae': compute_average_gvae,
             'ml-vae': compute_average_ml_vae
-        }[average_mode]
-        self.symmetric_kl = symmetric_kl
+        }[cfg.average_mode]
 
     def compute_training_loss(self, batch, batch_idx):
         """
@@ -89,7 +92,7 @@ class AdaVae(BetaVae):
 
     def intercept_z(self, z0_mean, z0_logvar, z1_mean, z1_logvar):
         # shared elements that need to be averaged, computed per pair in the batch.
-        _, _, share_mask = AdaVae.estimate_shared(z0_mean, z0_logvar, z1_mean, z1_logvar, symmetric_kl=self.symmetric_kl)
+        _, _, share_mask = AdaVae.estimate_shared(z0_mean, z0_logvar, z1_mean, z1_logvar, symmetric_kl=self.cfg.symmetric_kl)
         # compute average posteriors
         new_args = AdaVae.make_averaged(z0_mean, z0_logvar, z1_mean, z1_logvar, share_mask, self.compute_average)
         # return new args & generate logs

@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 import torch
 from disent.frameworks.vae.weaklysupervised import AdaVae
 from disent.frameworks.vae.loss import bce_loss_with_logits, kl_normal_loss
@@ -9,23 +11,23 @@ from disent.frameworks.vae.loss import bce_loss_with_logits, kl_normal_loss
 
 
 class GuidedAdaVae(AdaVae):
-    
+
+    @dataclass
+    class Config(AdaVae.Config):
+        anchor_ave_mode: str = 'average'
+
+    cfg: Config  # type hints
+
     def __init__(
             self,
             make_optimizer_fn,
             make_model_fn,
             batch_augment=None,
-            beta=4,
-            # adavae
-            average_mode='gvae',
-            symmetric_kl=True,
-            # guided adavae
-            anchor_ave_mode='average'
+            cfg: Config = Config(),
     ):
-        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, beta=beta, average_mode=average_mode, symmetric_kl=symmetric_kl)
+        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
         # how the anchor is averaged
-        assert anchor_ave_mode in {'thresh', 'average'}
-        self.anchor_ave_mode = anchor_ave_mode
+        assert cfg.anchor_ave_mode in {'thresh', 'average'}
 
     def compute_training_loss(self, batch, batch_idx):
         (a_x, p_x, n_x), (a_x_targ, p_x_targ, n_x_targ) = batch['x'], batch['x_targ']
@@ -86,8 +88,8 @@ class GuidedAdaVae(AdaVae):
           ie. l2 is the positive sample, l3 is the negative sample
         """
         # shared elements that need to be averaged, computed per pair in the batch.
-        p_kl_deltas, p_kl_threshs, old_p_shared_mask = AdaVae.estimate_shared(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, symmetric_kl=self.symmetric_kl)
-        n_kl_deltas, n_kl_threshs, old_n_shared_mask = AdaVae.estimate_shared(a_z_mean, a_z_logvar, n_z_mean, n_z_logvar, symmetric_kl=self.symmetric_kl)
+        p_kl_deltas, p_kl_threshs, old_p_shared_mask = AdaVae.estimate_shared(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, symmetric_kl=self.cfg.symmetric_kl)
+        n_kl_deltas, n_kl_threshs, old_n_shared_mask = AdaVae.estimate_shared(a_z_mean, a_z_logvar, n_z_mean, n_z_logvar, symmetric_kl=self.cfg.symmetric_kl)
 
         # modify threshold based on criterion and recompute if necessary
         # CORE of this approach!
@@ -99,7 +101,7 @@ class GuidedAdaVae(AdaVae):
         ave_mean, ave_logvar = self.compute_average(pa_z_mean, pa_z_logvar, na_z_mean, na_z_logvar)
 
         anchor_ave_logs = {}
-        if self.anchor_ave_mode == 'thresh':
+        if self.cfg.anchor_ave_mode == 'thresh':
             # compute anchor average using the adaptive threshold
             ave_shared_mask = p_shared_mask * n_shared_mask
             ave_mean, ave_logvar, _, _ = AdaVae.make_averaged(a_z_mean, a_z_logvar, ave_mean, ave_logvar, ave_shared_mask, self.compute_average)

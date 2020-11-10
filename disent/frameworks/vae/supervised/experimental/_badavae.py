@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 import torch
 from disent.frameworks.vae.weaklysupervised import AdaVae
 from disent.frameworks.vae.loss import bce_loss_with_logits, kl_normal_loss
@@ -9,6 +11,12 @@ from disent.frameworks.vae.loss import bce_loss_with_logits, kl_normal_loss
 
 
 class BoundedAdaVae(AdaVae):
+
+    @dataclass
+    class Config(AdaVae.Config):
+        pass
+
+    cfg: Config  # type hints
 
     def compute_training_loss(self, batch, batch_idx):
         (a_x, p_x, n_x), (a_x_targ, p_x_targ, n_x_targ) = batch['x'], batch['x_targ']
@@ -59,8 +67,8 @@ class BoundedAdaVae(AdaVae):
 
     def intercept_z(self, a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar):
         # shared elements that need to be averaged, computed per pair in the batch.
-        p_kl_deltas, p_kl_threshs, old_p_shared_mask = AdaVae.estimate_shared(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, symmetric_kl=self.symmetric_kl)
-        n_kl_deltas, n_kl_threshs, old_n_shared_mask = AdaVae.estimate_shared(a_z_mean, a_z_logvar, n_z_mean, n_z_logvar, symmetric_kl=self.symmetric_kl)
+        p_kl_deltas, p_kl_threshs, old_p_shared_mask = AdaVae.estimate_shared(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, symmetric_kl=self.cfg.symmetric_kl)
+        n_kl_deltas, n_kl_threshs, old_n_shared_mask = AdaVae.estimate_shared(a_z_mean, a_z_logvar, n_z_mean, n_z_logvar, symmetric_kl=self.cfg.symmetric_kl)
 
         # modify threshold based on criterion and recompute if necessary
         # CORE of this approach!
