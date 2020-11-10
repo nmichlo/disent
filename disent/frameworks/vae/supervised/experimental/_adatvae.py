@@ -21,7 +21,7 @@ log = logging.getLogger(__name__)
 class AdaTripletVae(TripletVae):
 
     @dataclass
-    class Config(TripletVae.Config):
+    class cfg(TripletVae.cfg):
         # adatvae: what version of triplet to use
         triplet_mode: str = 'ada_p_orig_lerp',
         # adatvae: annealing
@@ -29,15 +29,13 @@ class AdaTripletVae(TripletVae):
         steps_offset: int = 0,
         lerp_goal: float = 1.0,
 
-    cfg: Config  # type hints
-
     # TODO: increase margin over time, maybe log
     #       approach current max
 
     # TODO: given reconstruction loss, can we use it as a signal if things are going badly.
     #      validation signal? Intelligent way we can use this?
 
-    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: Config = Config()):
+    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = cfg()):
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
         # triplet annealing
         self.steps = 0

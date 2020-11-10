@@ -10,12 +10,10 @@ from disent.frameworks.vae.unsupervised import Vae
 class BetaVae(Vae):
 
     @dataclass
-    class Config(Vae.Config):
+    class cfg(Vae.cfg):
         beta: float = 4
 
-    cfg: Config  # type hints
-
-    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: Config = Config()):
+    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = cfg()):
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
         assert cfg.beta >= 0
 

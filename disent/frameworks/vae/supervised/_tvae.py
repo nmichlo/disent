@@ -14,7 +14,7 @@ from disent.loss.triplet import triplet_loss
 class TripletVae(BetaVae):
 
     @dataclass
-    class Config(BetaVae.Config):
+    class cfg(BetaVae.cfg):
         # tvae: triplet stuffs
         triplet_loss: str = 'triplet',
         triplet_margin_min: float = 0.1,
@@ -26,8 +26,6 @@ class TripletVae(BetaVae):
         detach_decoder: bool = True,
         detach_no_kl: bool = False,
         detach_logvar: float = -2,  # std = 0.5, logvar = ln(std**2) ~= -2,77
-
-    cfg: Config  # type hints
 
     def compute_training_loss(self, batch, batch_idx):
         (a_x, p_x, n_x), (a_x_targ, p_x_targ, n_x_targ) = batch['x'], batch['x_targ']

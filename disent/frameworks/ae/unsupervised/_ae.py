@@ -16,7 +16,11 @@ class AutoEncoder(BaseFramework):
     Basic Auto Encoder
     """
 
-    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: Config = Config()):
+    @dataclass
+    class cfg(BaseFramework.cfg):
+        pass
+
+    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = cfg()):
         super().__init__(make_optimizer_fn, batch_augment=batch_augment, cfg=cfg)
         # vae model
         assert callable(make_model_fn)

@@ -11,17 +11,10 @@ from disent.util import DisentLightningModule
 class BaseFramework(DisentLightningModule):
 
     @dataclass
-    class Config(object):
+    class cfg(object):
         pass
 
-    cfg: Config  # type hints
-
-    def __init__(
-            self,
-            make_optimizer_fn,
-            batch_augment=None,
-            cfg: Config = Config()
-    ):
+    def __init__(self, make_optimizer_fn, batch_augment=None, cfg: cfg = cfg()):
         super().__init__()
         # optimiser
         assert callable(make_optimizer_fn)
@@ -30,8 +23,8 @@ class BaseFramework(DisentLightningModule):
         assert (batch_augment is None) or callable(batch_augment)
         self._batch_augment = batch_augment
         # store the config
-        assert isinstance(cfg, self.Config), f'{cfg=} ({type(cfg)}) is not an instance of {self.Config}'
-        self.cfg: BaseFramework.Config = cfg
+        assert isinstance(cfg, self.__class__.cfg), f'{cfg=} ({type(cfg)}) is not an instance of {self.__class__.cfg}'
+        self.cfg: BaseFramework.cfg = cfg
 
     def configure_optimizers(self):
         return self._make_optimiser_fn(self.parameters())

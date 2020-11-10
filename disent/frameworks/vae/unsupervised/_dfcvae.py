@@ -31,12 +31,10 @@ class DfcVae(BetaVae):
     """
 
     @dataclass
-    class Config(BetaVae.Config):
+    class cfg(BetaVae.cfg):
         feature_layers: Optional[List[Union[str, int]]] = None
 
-    cfg: Config  # type hints
-
-    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: Config = Config()):
+    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = cfg()):
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
         # make dfc loss
         self._loss = DfcLossModule(feature_layers=cfg.feature_layers)
