@@ -68,6 +68,26 @@ def dist_min_margin_triplet_loss(pos_delta, neg_delta, margin_min=0.01, margin_m
     """
     Min Margin Triplet Loss
     """
+    p_dist = torch.norm(pos_delta + margin_min, p=p, dim=-1)
+    n_dist = torch.norm(neg_delta, p=p, dim=-1)
+    loss = torch.clamp_min(p_dist - n_dist + margin_max, 0)
+    return loss.mean()
+
+
+# -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+
+
+def min_clamp_triplet_loss(anc, pos, neg, margin_min=0.01, margin_max=1., p=1):
+    """
+    Min Margin Triplet Loss
+    """
+    return dist_min_clamp_triplet_loss(anc - pos, anc - neg, margin_min=margin_min, margin_max=margin_max, p=p)
+
+
+def dist_min_clamp_triplet_loss(pos_delta, neg_delta, margin_min=0.01, margin_max=1., p=1):
+    """
+    Min Margin Triplet Loss
+    """
     p_dist = torch.norm(pos_delta, p=p, dim=-1)
     n_dist = torch.norm(neg_delta, p=p, dim=-1)
     loss = torch.clamp_min(torch.clamp_min(p_dist, margin_min) - n_dist + margin_max, 0)
@@ -111,6 +131,7 @@ _TRIPLET_LOSSES = {
     'triplet': triplet_loss,
     'elem_triplet': elem_triplet_loss,
     'min_margin_triplet': min_margin_triplet_loss,
+    'min_clamp_triplet': min_clamp_triplet_loss,
     'clamped_triplet': clamped_triplet_loss,
 }
 
@@ -119,6 +140,7 @@ _DIST_TRIPLET_LOSSES = {
     'triplet': dist_triplet_loss,
     'elem_triplet': dist_elem_triplet_loss,
     'min_margin_triplet': dist_min_margin_triplet_loss,
+    'min_clamp_triplet': dist_min_clamp_triplet_loss,
     'clamped_triplet': dist_clamped_triplet_loss,
 }
 
