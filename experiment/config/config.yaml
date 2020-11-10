@@ -9,8 +9,8 @@ defaults:
   # runtime
   - run_trainer: short
   - run_callbacks: default
-  - run_location: cluster
   - run_logging: wandb
+  - run_location: cluster
   # plugins
   - hydra/job_logging: colorlog
   - hydra/hydra_logging: colorlog
@@ -19,7 +19,7 @@ defaults:
 job:
   user: 'n_michlo'
   project: 'triplet-modifications'
-  name: '${framework.name}:${framework.module.triplet_loss}|${dataset.name}:${sampling.name}'
+  name: '${framework.name}:${framework.module.triplet_loss}|${dataset.name}:${sampling.name}:${trainer.steps}'
   partition: ha
 
 model:

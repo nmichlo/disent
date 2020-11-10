@@ -7,3 +7,23 @@ hydra:
   sweep:
     dir: '${logging.logs_dir}/hydra_sweep/${now:%Y-%m-%d_%H-%M-%S}_${hydra.job.name}'
     subdir: '${hydra.job.id}' # hydra.job.id is not available for dir
+  launcher:
+    partition: ${job.partition}
+    mem_gb: 0
+    timeout_min: 1440  # minutes
+    submitit_folder: '${hydra.sweep.dir}/submitit/%j'
+
+logging:
+  logs_dir: 'logs'
+
+trainer:
+  cuda: TRUE
+  prepare_data_per_node: TRUE
+
+dataset:
+  num_workers: 8
+  batch_size: 256
+  data_dir: '/tmp/${env:USER}/datasets'
+  pin_memory: ${trainer.cuda}
+  try_in_memory: FALSE
+  gpu_augment: FALSE
