@@ -14,9 +14,9 @@ class TripletGuidedAdaVae(GuidedAdaVae):
     @dataclass
     class Config(GuidedAdaVae.Config):
         # TODO: convert to triplet mixin
-        triplet_margin = 0.1,
-        triplet_scale = 1,
-        triplet_p = 2,
+        triplet_margin: float = 0.1,
+        triplet_scale: float = 1,
+        triplet_p: int = 2,
 
     cfg: Config  # type hints
 

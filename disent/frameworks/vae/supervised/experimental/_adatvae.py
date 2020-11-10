@@ -23,11 +23,11 @@ class AdaTripletVae(TripletVae):
     @dataclass
     class Config(TripletVae.Config):
         # adatvae: what version of triplet to use
-        triplet_mode = 'ada_p_orig_lerp',
+        triplet_mode: str = 'ada_p_orig_lerp',
         # adatvae: annealing
-        lerp_steps = 10000,  # 12*3600 | 50400 = 14*3600
-        steps_offset = 0,
-        lerp_goal = 1.0,
+        lerp_steps: int = 10000,  # 12*3600 | 50400 = 14*3600
+        steps_offset: int = 0,
+        lerp_goal: float = 1.0,
 
     cfg: Config  # type hints
 

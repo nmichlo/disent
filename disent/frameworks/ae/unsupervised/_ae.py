@@ -16,12 +16,6 @@ class AutoEncoder(BaseFramework):
     Basic Auto Encoder
     """
 
-    @dataclass
-    class Config(BaseFramework.Config):
-        pass
-
-    cfg: Config  # type hints
-
     def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: Config = Config()):
         super().__init__(make_optimizer_fn, batch_augment=batch_augment, cfg=cfg)
         # vae model

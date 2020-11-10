@@ -12,12 +12,6 @@ from disent.frameworks.vae.loss import bce_loss_with_logits, kl_normal_loss
 
 class BoundedAdaVae(AdaVae):
 
-    @dataclass
-    class Config(AdaVae.Config):
-        pass
-
-    cfg: Config  # type hints
-
     def compute_training_loss(self, batch, batch_idx):
         (a_x, p_x, n_x), (a_x_targ, p_x_targ, n_x_targ) = batch['x'], batch['x_targ']
 
