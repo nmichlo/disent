@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import torch
-from disent.util import DisentLightningModule
+from disent.util import DisentLightningModule, DisentConfigurable
 
 
 # ========================================================================= #
@@ -8,23 +8,20 @@ from disent.util import DisentLightningModule
 # ========================================================================= #
 
 
-class BaseFramework(DisentLightningModule):
+class BaseFramework(DisentLightningModule, DisentConfigurable):
 
     @dataclass
-    class cfg(object):
+    class cfg(DisentConfigurable.cfg):
         pass
 
     def __init__(self, make_optimizer_fn, batch_augment=None, cfg: cfg = cfg()):
-        super().__init__()
+        super().__init__(cfg=cfg)
         # optimiser
         assert callable(make_optimizer_fn)
         self._make_optimiser_fn = make_optimizer_fn
         # batch augmentations: not implemented as dataset transforms because we want to apply these on the GPU
         assert (batch_augment is None) or callable(batch_augment)
         self._batch_augment = batch_augment
-        # store the config
-        assert isinstance(cfg, self.__class__.cfg), f'{cfg=} ({type(cfg)}) is not an instance of {self.__class__.cfg}'
-        self.cfg: BaseFramework.cfg = cfg
 
     def configure_optimizers(self):
         return self._make_optimiser_fn(self.parameters())

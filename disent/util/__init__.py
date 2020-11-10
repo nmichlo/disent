@@ -1,6 +1,7 @@
 import functools
 import logging
 import time
+from dataclasses import dataclass
 
 import torch
 import pytorch_lightning as pl
@@ -322,6 +323,18 @@ class DisentLightningModule(pl.LightningModule):
         # Annoying fix applied by torch for Module.forward:
         # https://github.com/python/mypy/issues/8795
         raise RuntimeError('This should never run!')
+
+
+class DisentConfigurable(object):
+
+    @dataclass
+    class cfg(object):
+        pass
+
+    def __init__(self, cfg: cfg = cfg()):
+        super().__init__()
+        assert isinstance(cfg, self.__class__.cfg), f'{cfg=} ({type(cfg)}) is not an instance of {self.__class__.cfg}'
+        self.cfg = cfg
 
 
 # ========================================================================= #
