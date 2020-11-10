@@ -1,6 +1,6 @@
 # @package _global_
 sampling:
-  name: full_bb
+  name: full_ran_l2
   # varying factors (if applicable for pairs) -- sample in range: [min, max]
   k: [0, -1]
   k_radius: [0, -1]

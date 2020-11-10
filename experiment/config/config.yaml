@@ -1,6 +1,6 @@
 defaults:
   # experiment
-  - framework: adavae
+  - framework: tvae
   - model: conv64
   - optimizer: radam
   - dataset: xysquares
@@ -18,12 +18,12 @@ defaults:
 
 job:
   user: 'n_michlo'
-  project: 'reg-triplet-tests'
-  name: '${framework.name}|${optimizer.name}|${model.name}:${model.z_size}|${dataset.name}:${augment.name}'
+  project: 'triplet-modifications'
+  name: '${framework.name}:${framework.module.triplet_loss}|${dataset.name}:${sampling.name}'
+  partition: ha
 
 model:
   z_size: 9
-  y_size: 9
 
 optimizer:
   lr: 1e-3

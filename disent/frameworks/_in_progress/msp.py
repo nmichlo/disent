@@ -36,7 +36,7 @@ class MatrixSubspaceProjection(BaseModule):
             self.M[:, :] = torch.as_tensor(ortho_group.rvs(dim=self.y_size))
         else:
             raise KeyError(f'Invalid {init_mode=}')
-        
+
     @property
     def msp_loss_weight(self):
         return np.prod(self.x_size) / (self.z_total + self.y_size)
