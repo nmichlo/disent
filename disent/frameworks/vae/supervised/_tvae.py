@@ -1,9 +1,10 @@
 from dataclasses import dataclass
+from typing import Type, Union
 
 import torch
 from disent.frameworks.vae.loss import bce_loss_with_logits, kl_normal_loss
 from disent.frameworks.vae.unsupervised import BetaVae
-from disent.loss.triplet import triplet_loss
+from disent.loss.triplet import configured_triplet, TripletLossConfig, TripletConfigTypeHint
 
 
 # ========================================================================= #
@@ -14,13 +15,7 @@ from disent.loss.triplet import triplet_loss
 class TripletVae(BetaVae):
 
     @dataclass
-    class cfg(BetaVae.cfg):
-        # tvae: triplet stuffs
-        triplet_loss: str = 'triplet',
-        triplet_margin_min: float = 0.1,
-        triplet_margin: float = 10,
-        triplet_scale: float = 100,
-        triplet_p: int = 2,
+    class cfg(BetaVae.cfg, TripletLossConfig):
         # tvae: no loss from decoder -> encoder
         detach: bool = False,
         detach_decoder: bool = True,
@@ -90,20 +85,18 @@ class TripletVae(BetaVae):
         }
 
     def augment_loss(self, z_means, z_logvars, z_samples):
-        a_z_mean, p_z_mean, n_z_mean = z_means
-        return augment_loss_triplet(a_z_mean, p_z_mean, n_z_mean, scale=self.cfg.triplet_scale, margin=self.cfg.triplet_margin, p=self.cfg.triplet_p)
+        return TripletVae.augment_loss_triplet(z_means, self.cfg)
 
+    @staticmethod
+    def augment_loss_triplet(z_means, cfg: TripletConfigTypeHint):
+        anc, pos, neg = z_means
+        # loss is scaled and everything
+        loss = configured_triplet(anc, pos, neg, cfg=cfg)
+        # return loss & log
+        return loss, {
+            f'{cfg.triplet_loss}_L{cfg.triplet_p}': loss
+        }
 
-# ========================================================================= #
-# Default Triplet                                                           #
-# ========================================================================= #
-
-
-def augment_loss_triplet(a_z_mean, p_z_mean, n_z_mean, scale=1., margin=10., p=2):
-    augmented_loss = scale * triplet_loss(a_z_mean, p_z_mean, n_z_mean, margin_min=None, margin_max=margin, p=p)
-    return augmented_loss, {
-        f'triplet_L{p}': augmented_loss,
-    }
 
 
 # ========================================================================= #

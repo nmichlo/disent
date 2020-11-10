@@ -4,8 +4,8 @@ import torch
 import numpy as np
 
 from disent.frameworks.vae.supervised._tvae import TripletVae
-from disent.frameworks.vae.supervised._tvae import triplet_loss as _triplet_loss
-from disent.frameworks.vae.supervised._tvae import dist_triplet_loss as _dist_triplet_loss
+from disent.loss.triplet import triplet_loss as _triplet_loss
+from disent.loss.triplet import dist_triplet_loss as _dist_triplet_loss
 from disent.frameworks.vae.weaklysupervised._adavae import AdaVae
 
 import logging

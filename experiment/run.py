@@ -165,16 +165,19 @@ def run(cfg: DictConfig):
     # DATA
     datamodule = HydraDataModule(cfg)
 
-    # FRAMEWORK
+    # FRAMEWORK - this is kinda hacky
     framework: pl.LightningModule = hydra.utils.instantiate(
-        cfg.framework.module,
+        dict(_target_=cfg.framework.module._target_),
         make_optimizer_fn=lambda params: hydra.utils.instantiate(cfg.optimizer.cls, params),
         make_model_fn=lambda: GaussianAutoEncoder(
             encoder=hydra.utils.instantiate(cfg.model.encoder),
             decoder=hydra.utils.instantiate(cfg.model.decoder)
         ),
         # apply augmentations to batch on GPU which can be faster than via the dataloader
-        batch_augment=datamodule.batch_augment
+        batch_augment=datamodule.batch_augment,
+        cfg=hydra.utils.instantiate(
+            {**cfg.framework.module, **dict(_target_=cfg.framework.module._target_ + '.cfg')},
+        )
     )
 
     # Setup Trainer
