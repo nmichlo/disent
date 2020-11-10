@@ -80,11 +80,11 @@
 #
 #         # MSP - triplet on labels
 #         # loss_y_triplet = torch.norm(a_y-p_y) - torch.norm(a_y-n_y)
-#         loss_y_triplet = triplet_loss(a_y, p_y, n_y, alpha=self.triplet_margin)
+#         loss_y_triplet = triplet_loss(a_y, p_y, n_y, alpha=self.cfg.triplet_margin)
 #
 #         # regularisation loss
 #         reg_loss = self.beta * ave_kl_loss
-#         t_loss = self.triplet_scale * loss_y_triplet
+#         t_loss = self.cfg.triplet_scale * loss_y_triplet
 #         msp_loss = self.msp_scale * loss_y_msp_ave
 #
 #         # compute combined loss

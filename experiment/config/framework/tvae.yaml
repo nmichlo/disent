@@ -4,9 +4,11 @@ module:
   _target_: disent.frameworks.vae.supervised.TripletVae
   beta: 4
   # tvae: triplet stuffs
-  triplet_margin: 10
+  triplet_loss: triplet
+  triplet_margin_min: 0.1
+  triplet_margin_max: 10
   triplet_scale: 100
-  triplet_p: 2
+  triplet_p: 1
   # tvae: no loss from decoder -> encoder
   detach: FALSE
   detach_decoder: TRUE

@@ -1,4 +1,5 @@
-from typing import List
+from dataclasses import dataclass
+from typing import List, Optional, Union
 
 import kornia
 import torch
@@ -29,18 +30,14 @@ class DfcVae(BetaVae):
            Mean taken over (batch for sum of pixels) not mean over (batch & pixels)
     """
 
-    def __init__(
-            self,
-            make_optimizer_fn,
-            make_model_fn,
-            batch_augment=None,
-            beta=4,
-            # dfcvae
-            feature_layers=None
-    ):
-        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, beta=beta)
+    @dataclass
+    class cfg(BetaVae.cfg):
+        feature_layers: Optional[List[Union[str, int]]] = None
+
+    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = cfg()):
+        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
         # make dfc loss
-        self._loss = DfcLossModule(feature_layers=feature_layers)
+        self._loss = DfcLossModule(feature_layers=cfg.feature_layers)
 
     def compute_training_loss(self, batch, batch_idx):
         (x,), (x_targ,) = batch['x'], batch['x_targ']
@@ -99,13 +96,13 @@ class DfcLossModule(torch.nn.Module):
     - normalise data as torchvision.models require.
     """
 
-    def __init__(self, feature_layers=None):
+    def __init__(self, feature_layers: Optional[List[Union[str, int]]] = None):
         """
         :param feature_layers: List of string of IDs of feature layers in pretrained model
         """
         super().__init__()
         # feature layers to use
-        self.feature_layers = set(['14', '24', '34', '43'] if (feature_layers is None) else feature_layers)
+        self.feature_layers = set(['14', '24', '34', '43'] if (feature_layers is None) else [str(l) for l in feature_layers])
         # feature network
         self.feature_network = vgg19_bn(pretrained=True)
         # Freeze the pretrained feature network

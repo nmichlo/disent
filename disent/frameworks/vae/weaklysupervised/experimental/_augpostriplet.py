@@ -1,4 +1,6 @@
 import logging
+from dataclasses import dataclass
+
 import kornia
 import torch
 import torchvision
@@ -16,35 +18,12 @@ log = logging.getLogger(__name__)
 
 class AugPosTripletVae(TripletVae):
 
-    def __init__(
-            self,
-            make_optimizer_fn,
-            make_model_fn,
-            batch_augment=None,
-            beta=4,
-            # tvae: triplet stuffs
-            triplet_margin=10,
-            triplet_scale=100,
-            triplet_p=2,
-            # tvae: no loss from decoder -> encoder
-            detach=False,
-            detach_decoder=True,
-            detach_no_kl=False,
-            detach_logvar=-2,
-    ):
-        super().__init__(
-            make_optimizer_fn,
-            make_model_fn,
-            batch_augment=batch_augment,
-            beta=beta,
-            triplet_margin=triplet_margin,
-            triplet_scale=triplet_scale,
-            triplet_p=triplet_p,
-            detach=detach,
-            detach_decoder=detach_decoder,
-            detach_no_kl=detach_no_kl,
-            detach_logvar=detach_logvar,
-        )
+    @dataclass
+    class cfg(TripletVae.cfg):
+        pass
+
+    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = cfg()):
+        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
         self._aug = None
 
     def compute_training_loss(self, batch, batch_idx):
