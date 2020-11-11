@@ -1,0 +1,4 @@
+# @package _global_
+trainer:
+  epochs: 115200
+  steps: 115200

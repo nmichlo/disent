@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from disent.frameworks.vae.unsupervised import Vae
 
 
@@ -8,19 +9,16 @@ from disent.frameworks.vae.unsupervised import Vae
 
 class BetaVae(Vae):
 
-    def __init__(
-            self,
-            make_optimizer_fn,
-            make_model_fn,
-            batch_augment=None,
-            beta=4
-    ):
-        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment)
-        assert beta >= 0
-        self.beta = beta
+    @dataclass
+    class cfg(Vae.cfg):
+        beta: float = 4
+
+    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = cfg()):
+        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
+        assert cfg.beta >= 0
 
     def kl_regularization(self, kl_loss):
-        return self.beta * kl_loss
+        return self.cfg.beta * kl_loss
 
 
 # ========================================================================= #
@@ -38,15 +36,15 @@ class BetaVaeH(BetaVae):
     (NOTE: BetaVAEB is from understanding disentanglement in Beta VAEs)
     """
 
-    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, anneal_end_steps=0, beta=4):
-        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, beta=beta)
-        self.anneal_end_steps = anneal_end_steps
+    @dataclass
+    class cfg(BetaVae.cfg):
+        anneal_end_steps: int = 0
 
     def kl_regularization(self, kl_loss):
         # anneal
         anneal_reg = lerp_step(0, 1, self.trainer.global_step, self.anneal_end_steps)
         # compute kl regularisation
-        return anneal_reg * self.beta * kl_loss
+        return anneal_reg * self.cfg.beta * kl_loss
 
 
 # ========================================================================= #

@@ -1,5 +1,6 @@
+from dataclasses import dataclass
 import torch
-from disent.util import DisentLightningModule
+from disent.util import DisentLightningModule, DisentConfigurable
 
 
 # ========================================================================= #
@@ -7,14 +8,14 @@ from disent.util import DisentLightningModule
 # ========================================================================= #
 
 
-class BaseFramework(DisentLightningModule):
-    
-    def __init__(
-            self,
-            make_optimizer_fn,
-            batch_augment=None,
-    ):
-        super().__init__()
+class BaseFramework(DisentConfigurable, DisentLightningModule):
+
+    @dataclass
+    class cfg(DisentConfigurable.cfg):
+        pass
+
+    def __init__(self, make_optimizer_fn, batch_augment=None, cfg: cfg = cfg()):
+        super().__init__(cfg=cfg)
         # optimiser
         assert callable(make_optimizer_fn)
         self._make_optimiser_fn = make_optimizer_fn

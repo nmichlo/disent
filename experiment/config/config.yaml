@@ -1,13 +1,13 @@
 defaults:
   # experiment
-  - framework: adavae
+  - framework: adatvae
   - model: conv64
   - optimizer: radam
   - dataset: xysquares
   - augment: none
   - sampling: full_bb
   # runtime
-  - run_trainer: short
+  - run_length: short
   - run_callbacks: default
   - run_location: cluster
   - run_logging: wandb
@@ -18,12 +18,12 @@ defaults:
 
 job:
   user: 'n_michlo'
-  project: 'reg-triplet-tests'
-  name: '${framework.name}|${optimizer.name}|${model.name}:${model.z_size}|${dataset.name}:${augment.name}'
+  project: 'adatriplet-sampling'
+  name: '${framework.name}:${framework.module.triplet_loss}|${dataset.name}:${sampling.name}:${trainer.steps}'
+  partition: ha
 
 model:
   z_size: 9
-  y_size: 9
 
 optimizer:
   lr: 1e-3

@@ -1,6 +1,5 @@
 # @package _global_
 logging:
-  logs_dir: 'logs'
   # logging frequency in number of batchers, default: log_every_n_steps=50, flush_logs_every_n_steps=100
   log_every_n_steps: 50
   flush_logs_every_n_steps: 100

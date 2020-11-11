@@ -7,9 +7,11 @@ module:
   average_mode: 'gvae'  # gvae or ml-vae
   symmetric_kl: TRUE
   # tvae: triplet stuffs
-  triplet_margin: 10
-  triplet_scale: 1
-  triplet_p: 2
+  triplet_loss: triplet
+  triplet_margin_min: 0.1
+  triplet_margin_max: 10
+  triplet_scale: 100
+  triplet_p: 1
 
 data_wrapper:
   _target_: disent.dataset.groundtruth.GroundTruthDatasetTriples
