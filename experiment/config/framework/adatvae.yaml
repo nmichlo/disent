@@ -19,7 +19,7 @@ module:
   # adatvae: annealing
   lerp_steps: ${trainer.steps}
   steps_offset: 5000
-  lerp_goal: 0.9
+  lerp_goal: 0.8
 
 data_wrapper:
   _target_: disent.dataset.groundtruth.GroundTruthDatasetTriples

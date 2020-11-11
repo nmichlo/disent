@@ -1,4 +1,4 @@
 # @package _global_
 trainer:
-  epochs: 50400
-  steps: 50400
+  epochs: 57600
+  steps: 57600
