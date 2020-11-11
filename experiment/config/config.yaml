@@ -7,10 +7,10 @@ defaults:
   - augment: none
   - sampling: full_bb
   # runtime
-  - run_trainer: short
+  - run_length: short
   - run_callbacks: default
-  - run_logging: wandb
   - run_location: cluster
+  - run_logging: wandb
   # plugins
   - hydra/job_logging: colorlog
   - hydra/hydra_logging: colorlog

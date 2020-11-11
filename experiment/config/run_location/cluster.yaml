@@ -1,18 +1,4 @@
 # @package _global_
-hydra:
-  job:
-    name: 'disent'
-  run:
-    dir: '${logging.logs_dir}/hydra_run/${now:%Y-%m-%d_%H-%M-%S}_${hydra.job.name}'
-  sweep:
-    dir: '${logging.logs_dir}/hydra_sweep/${now:%Y-%m-%d_%H-%M-%S}_${hydra.job.name}'
-    subdir: '${hydra.job.id}' # hydra.job.id is not available for dir
-  launcher:
-    partition: ${job.partition}
-    mem_gb: 0
-    timeout_min: 1440  # minutes
-    submitit_folder: '${hydra.sweep.dir}/submitit/%j'
-
 logging:
   logs_dir: 'logs'
 
@@ -27,3 +13,17 @@ dataset:
   pin_memory: ${trainer.cuda}
   try_in_memory: FALSE
   gpu_augment: FALSE
+
+hydra:
+  job:
+    name: 'disent'
+  run:
+    dir: '${logging.logs_dir}/hydra_run/${now:%Y-%m-%d_%H-%M-%S}_${hydra.job.name}'
+  sweep:
+    dir: '${logging.logs_dir}/hydra_sweep/${now:%Y-%m-%d_%H-%M-%S}_${hydra.job.name}'
+    subdir: '${hydra.job.id}' # hydra.job.id is not available for dir
+  launcher:
+    partition: ${job.partition}
+    mem_gb: 0
+    timeout_min: 1440  # minutes
+    submitit_folder: '${hydra.sweep.dir}/submitit/%j'
