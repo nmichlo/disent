@@ -1,6 +1,6 @@
 defaults:
   # experiment
-  - framework: tvae
+  - framework: adatvae
   - model: conv64
   - optimizer: radam
   - dataset: xysquares
@@ -18,7 +18,7 @@ defaults:
 
 job:
   user: 'n_michlo'
-  project: 'triplet-modifications'
+  project: 'adatriplet-sampling'
   name: '${framework.name}:${framework.module.triplet_loss}|${dataset.name}:${sampling.name}:${trainer.steps}'
   partition: ha
 

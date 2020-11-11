@@ -18,8 +18,8 @@ module:
   triplet_mode: 'ada_p_orig_lerp'
   # adatvae: annealing
   lerp_steps: ${trainer.steps}
-  steps_offset: 1000
-  lerp_goal: 1.0
+  steps_offset: 5000
+  lerp_goal: 0.9
 
 data_wrapper:
   _target_: disent.dataset.groundtruth.GroundTruthDatasetTriples
