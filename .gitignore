@@ -135,3 +135,4 @@ logs/
 
 # custom - root folder only
 /data/
+*.pkl
