@@ -15,7 +15,4 @@ module:
   detach_no_kl: FALSE
   detach_logvar: NULL  # set to NULL to disable fixed value
 
-data_wrapper:
-  _target_: disent.dataset.groundtruth.GroundTruthDatasetOrigWeakPairs
-  # factor sampling
-  p_k: ${sampling.k.1}
+data_wrap_mode: weak_pair

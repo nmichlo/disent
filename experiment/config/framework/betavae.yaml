@@ -4,5 +4,4 @@ module:
   _target_: disent.frameworks.vae.unsupervised.BetaVae
   beta: 4
 
-data_wrapper:
-  _target_: disent.dataset.groundtruth.GroundTruthDataset
+data_wrap_mode: single

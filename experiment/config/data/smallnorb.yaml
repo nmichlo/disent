@@ -9,3 +9,5 @@ transform:
   _target_: disent.transform.ToStandardisedTensor
   size: 64
 x_shape: [1, 64, 64]
+
+data_type: ground_truth

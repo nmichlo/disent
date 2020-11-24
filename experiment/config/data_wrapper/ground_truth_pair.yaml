@@ -1,0 +1,8 @@
+# @package _group_
+name: ground_truth_pair
+data_wrapper:
+  _target_: disent.dataset.groundtruth.GroundTruthDatasetPairs
+  # factor sampling
+  p_k_range: ${sampling.k}
+  # radius sampling
+  p_radius_range: ${sampling.k_radius}

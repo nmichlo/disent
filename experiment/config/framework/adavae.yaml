@@ -6,9 +6,4 @@ module:
   average_mode: 'gvae'  # gvae or ml-vae
   symmetric_kl: TRUE
 
-data_wrapper:
-  _target_: disent.dataset.groundtruth.GroundTruthDatasetPairs
-  # factor sampling
-  p_k_range: ${sampling.k}
-  # radius sampling
-  p_radius_range: ${sampling.k_radius}
+data_wrap_mode: pair
