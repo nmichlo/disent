@@ -27,8 +27,8 @@ class AdaTripletVae(TripletVae):
         # adatvae: what version of triplet to use
         triplet_mode: str = 'ada_p_orig_lerp'
         # adatvae: annealing
-        lerp_steps: int = 10000  # 12*3600 | 50400 = 14*3600
-        steps_offset: int = 0
+        lerp_step_start: int = 3600
+        lerp_step_end: int = 14400
         lerp_goal: float = 1.0
 
     def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = cfg()):
@@ -51,7 +51,7 @@ class AdaTripletVae(TripletVae):
         # Update Anneal Values
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         self.steps += 1
-        lerp = (self.steps - self.cfg.steps_offset) / self.cfg.lerp_steps
+        lerp = (self.steps - self.cfg.lerp_step_start) / (self.cfg.lerp_step_end - self.cfg.lerp_step_start)
         lerp = np.clip(lerp, 0, self.cfg.lerp_goal)
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
