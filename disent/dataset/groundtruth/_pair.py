@@ -40,12 +40,10 @@ class GroundTruthDatasetPairs(GroundTruthDataset):
 
     def __getitem__(self, idx):
         f0, f1 = self.datapoint_sample_factors_pair(idx)
-        x0, x0_targ = self.dataset_get(self.data.pos_to_idx(f0), mode='pair')
-        x1, x1_targ = self.dataset_get(self.data.pos_to_idx(f1), mode='pair')
-        return {
-            'x': (x0, x1),
-            'x_targ': (x0_targ, x1_targ),
-        }
+        return self.dataset_get_observation(
+            self.data.pos_to_idx(f0),
+            self.data.pos_to_idx(f1),
+        )
 
     def datapoint_sample_factors_pair(self, idx):
         """

@@ -302,6 +302,19 @@ def wrapped_partial(func, *args, **kwargs):
 
 
 # ========================================================================= #
+# Memory Usage                                                              #
+# ========================================================================= #
+
+
+def get_memory_usage():
+    import os
+    import psutil
+    process = psutil.Process(os.getpid())
+    num_bytes = process.memory_info().rss  # in bytes
+    return num_bytes
+
+
+# ========================================================================= #
 # Torch Helper                                                              #
 # ========================================================================= #
 

@@ -1,0 +1,5 @@
+# @package _group_
+name: episode_triplet
+wrapper:
+  _target_: disent.dataset.episodes.RandomEpisodeDataset
+  num_samples: 3

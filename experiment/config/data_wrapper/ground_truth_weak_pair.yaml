@@ -1,0 +1,6 @@
+# @package _group_
+name: ground_truth_weak_pair
+wrapper:
+  _target_: disent.dataset.groundtruth.GroundTruthDatasetOrigWeakPairs
+  # factor sampling
+  p_k: ${sampling.k.1}

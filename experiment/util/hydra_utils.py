@@ -1,9 +1,11 @@
 import hydra
-from omegaconf import ListConfig, DictConfig
+from omegaconf import ListConfig, DictConfig, OmegaConf
+
 
 # ========================================================================= #
 # Recursive Hydra Instantiation                                             #
 # TODO: use https://github.com/facebookresearch/hydra/pull/989              #
+#       I think this is quicker? Just doesn't perform checks...             #
 # ========================================================================= #
 
 
@@ -17,6 +19,44 @@ def call_recursive(config):
     return config
 
 instantiate_recursive = call_recursive
+
+
+# ========================================================================= #
+# Better Specializations                                                    #
+# TODO: this might be replaced by recursive instantiation                   #
+#       https://github.com/facebookresearch/hydra/pull/1044                 #
+# ========================================================================= #
+
+
+def merge_specializations(cfg: DictConfig, config_path: str, main_fn: callable):
+    # TODO: this should eventually be replaced with hydra recursive defaults
+
+    # skip if we do not have any specializations
+    if 'specializations' not in cfg:
+        return
+
+    # imports
+    import os
+    from hydra._internal.utils import detect_calling_file_or_module_from_task_function
+
+    # get hydra config root
+    calling_file, _, _ = detect_calling_file_or_module_from_task_function(main_fn)
+    assert not os.path.isabs(config_path), f'Only relative {config_path=} is currently supported!'
+    config_root = os.path.join(os.path.dirname(calling_file), config_path)
+
+    # set and update specializations
+    for group, specialization in cfg.specializations.items():
+        assert group not in cfg, f'{group=} already exists on cfg, merging is not yet supported!'
+        # load specialization config
+        specialization_cfg = OmegaConf.load(os.path.join(config_root, group, f'{specialization}.yaml'))
+        # create new config
+        cfg = OmegaConf.create({**cfg, group: specialization_cfg})
+
+    # remove specializations key
+    del cfg['specializations']
+
+    # done
+    return cfg
 
 
 # ========================================================================= #

@@ -17,21 +17,8 @@ module:
   # adatvae: what version of triplet to use
   triplet_mode: 'ada_p_orig_lerp'
   # adatvae: annealing
-   lerp_step_start: 5000
-   lerp_step_end: ${trainer.steps}
-   lerp_goal: 0.35
+  lerp_step_start: 5000
+  lerp_step_end: ${trainer.steps}
+  lerp_goal: 1.0
 
-data_wrapper:
-  _target_: disent.dataset.groundtruth.GroundTruthDatasetTriples
-  # factor sampling
-  p_k_range: ${sampling.k}
-  n_k_range: ${sampling.n_k}
-  n_k_sample_mode: ${sampling.n_k_mode}
-  n_k_is_shared: TRUE
-  # radius sampling
-  p_radius_range: ${sampling.k_radius}
-  n_radius_range: ${sampling.n_k_radius}
-  n_radius_sample_mode: ${sampling.n_k_radius_mode}
-  # final checks
-  swap_metric: ${sampling.swap_metric}
-  swap_chance: ${sampling.swap_chance}
+data_wrap_mode: triplet

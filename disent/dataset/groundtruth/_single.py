@@ -1,9 +1,10 @@
 import logging
-from typing import Tuple
+from typing import Tuple, Optional
 import numpy as np
 from torch.utils.data import Dataset
 from torch.utils.data.dataloader import default_collate
 from disent.data.groundtruth.base import GroundTruthData
+from disent.dataset._augment_util import AugmentableDataset
 
 
 log = logging.getLogger(__name__)
@@ -14,14 +15,32 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class GroundTruthDataset(Dataset, GroundTruthData):
+class GroundTruthDataset(Dataset, GroundTruthData, AugmentableDataset):
+
+    # TODO: these transformations should be a wrapper around any dataset.
+    #       for example: dataset = AugmentedDataset(GroundTruthDataset(XYGridData()))
 
     def __init__(self, ground_truth_data: GroundTruthData, transform=None, augment=None):
         assert isinstance(ground_truth_data, GroundTruthData), f'{ground_truth_data=} must be an instance of GroundTruthData!'
         self.data = ground_truth_data
         super().__init__()
-        self.transform = transform
-        self.augment = augment
+        self._transform = transform
+        self._augment = augment
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Augmentable Dataset Overrides                                         #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    @property
+    def transform(self):
+        return self._transform
+
+    @property
+    def augment(self):
+        return self._augment
+
+    def _get_augmentable_observation(self, idx):
+        return self.data[idx]
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # State Space Overrides                                                 #
@@ -40,57 +59,16 @@ class GroundTruthDataset(Dataset, GroundTruthData):
         return self.data.observation_shape
 
     def __getitem__(self, idx):
-        x0, x0_targ = self.dataset_get(idx, mode='pair')
-        return {
-            'x': (x0,),            # wrapped in tuple to match pair and triplet
-            'x_targ': (x0_targ,),  # wrapped in tuple to match pair and triplet
-        }
+        # wrapped in tuple to match pair and triplet
+        return self.dataset_get_observation(idx)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Single Datapoints                                                     #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def _datapoint_raw_to_target(self, dat):
-        x_targ = dat
-        if self.transform:
-            x_targ = self.transform(x_targ)
-        return x_targ
-
-    def _datapoint_target_to_input(self, x_targ):
-        x = x_targ
-        if self.augment:
-            x = self.augment(x)
-            x = _batch_to_observation(batch=x, obs_shape=x_targ.shape)
-        return x
-
-    def dataset_get(self, idx, mode: str):
-        try:
-            idx = int(idx)
-        except:
-            raise TypeError(f'Indices must be integer-like ({type(idx)}): {idx}')
-        # we do not support indexing by lists
-        dat = self.data[idx]
-        # return correct data
-        if mode == 'pair':
-            x_targ = self._datapoint_raw_to_target(dat)
-            x = self._datapoint_target_to_input(x_targ)
-            return x, x_targ
-        elif mode == 'input':
-            x_targ = self._datapoint_raw_to_target(dat)
-            return self._datapoint_target_to_input(x_targ)
-        elif mode == 'target':
-            return self._datapoint_raw_to_target(dat)
-        elif mode == 'raw':
-            return dat
-        else:
-            raise KeyError(f'Invalid {mode=}')
-
     def dataset_batch_from_factors(self, factors: np.ndarray, mode: str):
         """Get a batch of observations X from a batch of factors Y."""
-        return default_collate([
-            self.dataset_get(idx, mode=mode)
-            for idx in self.pos_to_idx(factors)
-        ])
+        return self.dataset_batch_from_indices(self.pos_to_idx(factors), mode=mode)
 
     def dataset_sample_batch_with_factors(self, num_samples: int, mode: str):
         """Sample a batch of observations X and factors Y."""
@@ -107,14 +85,6 @@ class GroundTruthDataset(Dataset, GroundTruthData):
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # End Class                                                             #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-
-
-def _batch_to_observation(batch, obs_shape):
-    if batch.shape != obs_shape:
-        assert batch.shape == (1, *obs_shape)
-        return batch.reshape(obs_shape)
-    return batch
-
 
 # ========================================================================= #
 # END                                                                       #
