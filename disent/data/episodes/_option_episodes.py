@@ -1,11 +1,13 @@
+import os
 from typing import List, Tuple
 import numpy as np
 from disent.data.episodes._base import BaseOptionEpisodesData
+from disent.data.util.in_out import download_file, basename_from_url
 
 
 class OptionEpisodesPickledData(BaseOptionEpisodesData):
 
-    def __init__(self, episodes_pickle_file: str = 'temp/monte.pkl'):
+    def __init__(self, episodes_pickle_file: str):
         self._episodes_pickle_file = episodes_pickle_file
         # load data
         super().__init__()
@@ -73,3 +75,38 @@ class OptionEpisodesPickledData(BaseOptionEpisodesData):
             raw_episodes[i] = None
         # done!
         return episodes
+
+
+class OptionEpisodesDownloadZippedPickledData(OptionEpisodesPickledData):
+
+    def __init__(self, episodes_pickle_file: str, download_url=None, force_download=False):
+        self._download_and_extract_if_needed(download_url=download_url, required_file=episodes_pickle_file, force_download=force_download)
+        super().__init__(episodes_pickle_file=episodes_pickle_file)
+
+    def _download_and_extract_if_needed(self, download_url: str, required_file: str, force_download: bool):
+        # TODO: this function should probably be moved to the io file.
+        # ~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+        assert os.path.isabs(required_file), f'{required_file=} must be an absolute path.'
+        # skip if no download url
+        if not isinstance(download_url, str):
+            return
+        # download file, but skip if file already exists
+        save_path = os.path.join(os.path.dirname(required_file), basename_from_url(download_url))
+        if force_download or not os.path.exists(save_path):
+            download_file(download_url, save_path=save_path)
+        # check that the downloaded file exists
+        assert os.path.exists(save_path), 'The file specified for download does not exist!'
+        # ~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+        # unzip data
+        if (save_path != required_file) and not os.path.exists(required_file):
+            if save_path.endswith('.tar.xz'):
+                import tarfile
+                with tarfile.open(save_path) as f:
+                    f.extractall(os.path.dirname(required_file))
+            else:
+                raise IOError(f'Unsupported extension for: {save_path}')
+        # check that everything exists
+        assert os.path.exists(required_file), 'The required file does not exist after downloading and extracting if necessary!'
+        # ~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+
+

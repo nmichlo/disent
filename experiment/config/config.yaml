@@ -3,7 +3,7 @@ defaults:
   - framework: adatvae
   - model: conv64
   - optimizer: radam
-  - dataset: xysquares
+  - dataset: monte_rollouts
   - augment: none
   - sampling: full_bb
   # runtime
