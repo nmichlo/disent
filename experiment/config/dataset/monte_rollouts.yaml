@@ -7,7 +7,7 @@ data:
   force_download: FALSE
 transform:
   _target_: disent.transform.ToStandardisedTensor
-  size: 64
+  size: [64, 64]
 x_shape: [3, 64, 64]  # [3, 210, 160]
 
 data_type: episodes
