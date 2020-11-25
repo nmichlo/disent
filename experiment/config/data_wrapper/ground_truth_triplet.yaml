@@ -1,6 +1,6 @@
 # @package _group_
 name: ground_truth_triplet
-data_wrapper:
+wrapper:
   _target_: disent.dataset.groundtruth.GroundTruthDatasetTriples
   # factor sampling
   p_k_range: ${sampling.k}

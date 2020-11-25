@@ -1,6 +1,6 @@
 # @package _group_
 name: episode_single
-data_wrapper:
+wrapper:
   _target_: disent.dataset.episodes.RandomEpisodeDataset
   num_samples: 1
   weight_episodes: TRUE
