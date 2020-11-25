@@ -1,0 +1,4 @@
+# @package _group_
+name: ground_truth_single
+wrapper:
+  _target_: disent.dataset.groundtruth.GroundTruthDataset

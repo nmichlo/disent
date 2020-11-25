@@ -6,5 +6,5 @@ module:
   # dfcvae
   feature_layers: ['14', '24', '34', '43']
 
-data_wrapper:
-  _target_: disent.dataset.groundtruth.GroundTruthDataset
+data_wrap_mode: single
+

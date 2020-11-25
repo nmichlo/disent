@@ -1,43 +1,19 @@
 from typing import List, Tuple
 import numpy as np
+from disent.data.episodes._base import BaseOptionEpisodesData
 
 
-class OptionEpisodesPickledData:
+class OptionEpisodesPickledData(BaseOptionEpisodesData):
 
-    def __init__(self, episodes_pickle_file: str):
-        self._episodes = self._load_episode_observations_from_options(episodes_pickle_file)
-        # total length
-        self._lengths = np.array([len(episode) for episode in self._episodes])
-        self._length = np.sum(self._lengths)
-        self._weights = self._lengths / self._length
+    def __init__(self, episodes_pickle_file: str = 'temp/monte.pkl'):
+        self._episodes_pickle_file = episodes_pickle_file
+        # load data
+        super().__init__()
 
-    @property
-    def episodes(self):
-        return self._episodes[:]
-
-    def get_random_episode(self, weighted=True) -> np.ndarray:
-        if weighted:
-            return np.random.choice(self._episodes, p=self._weights)
-        else:
-            return np.random.choice(self._episodes)
-
-    def get_random_observation(self, weighted=True, n=1):
-        episode = self.get_random_episode(weighted=weighted)
-        # choose observations
-        assert len(episode) >= n
-        # get list of random indices
-        indices = set()
-        while len(indices) < n:
-            indices.add(np.random.randint(0, len(episode)))
-        indices = sorted(indices)
-        # return indices
-        return tuple([episode[i] for i in indices])
-
-    @staticmethod
-    def _load_episode_observations_from_options(pickle_file_path='temp/monte.pkl') -> List[np.ndarray]:
+    def _load_episode_observations(self) -> List[np.ndarray]:
         import pickle
         # load the raw data!
-        with open(pickle_file_path, 'rb') as f:
+        with open(self._episodes_pickle_file, 'rb') as f:
             # ~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
             # - Each element in the root list represents an episode
             # - An episode is a list containing many executed options

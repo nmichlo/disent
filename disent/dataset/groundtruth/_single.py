@@ -16,6 +16,9 @@ log = logging.getLogger(__name__)
 
 class GroundTruthDataset(Dataset, GroundTruthData):
 
+    # TODO: these transformations should be a wrapper around any dataset.
+    #       for example: dataset = AugmentedDataset(GroundTruthDataset(XYGridData()))
+
     def __init__(self, ground_truth_data: GroundTruthData, transform=None, augment=None):
         assert isinstance(ground_truth_data, GroundTruthData), f'{ground_truth_data=} must be an instance of GroundTruthData!'
         self.data = ground_truth_data

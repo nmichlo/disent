@@ -15,7 +15,7 @@ from disent.util import make_box_str, wrapped_partial
 from experiment.util.hydra_data import HydraDataModule
 from experiment.util.callbacks import VaeDisentanglementLoggingCallback, VaeLatentCycleLoggingCallback, LoggerProgressCallback
 from experiment.util.callbacks.callbacks_vae import VaeLatentCorrelationLoggingCallback
-
+from experiment.util.hydra_utils import merge_specializations
 
 log = logging.getLogger(__name__)
 
@@ -132,13 +132,15 @@ def hydra_append_correlation_callback(callbacks, cfg):
             begin_first_step=False,
         ))
 
-
 # ========================================================================= #
 # RUNNER                                                                    #
 # ========================================================================= #
 
 
 def run(cfg: DictConfig):
+    # TODO: this is hacky and should be replaced!
+    cfg = merge_specializations(cfg, CONFIG_PATH, run)
+
     # print useful info
     log.info(make_box_str(OmegaConf.to_yaml(cfg)))
     log.info(f"Current working directory : {os.getcwd()}")
@@ -209,7 +211,10 @@ def run(cfg: DictConfig):
 
 if __name__ == '__main__':
 
-    @hydra.main(config_path='config', config_name="config")
+    CONFIG_PATH = 'config'
+    CONFIG_NAME = 'config'
+
+    @hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME)
     def main(cfg: DictConfig):
         try:
             run(cfg)
