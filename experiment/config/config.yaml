@@ -9,8 +9,8 @@ defaults:
   # runtime
   - run_length: short
   - run_callbacks: default
-  - run_location: local_cpu
-  - run_logging: none
+  - run_location: local
+  - run_logging: wandb
   # plugins
   - hydra/job_logging: colorlog
   - hydra/hydra_logging: colorlog
@@ -18,12 +18,12 @@ defaults:
 
 job:
   user: 'n_michlo'
-  project: 'adatriplet-sampling'
+  project: 'adatriplet-episode-data'
   name: '${framework.name}:${framework.module.triplet_loss}|${dataset.name}:${sampling.name}:${trainer.steps}'
   partition: ha
 
 model:
-  z_size: 9
+  z_size: 25
 
 optimizer:
   lr: 1e-3

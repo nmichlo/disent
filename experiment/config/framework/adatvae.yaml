@@ -17,8 +17,8 @@ module:
   # adatvae: what version of triplet to use
   triplet_mode: 'ada_p_orig_lerp'
   # adatvae: annealing
-  lerp_step_start: -5000
+  lerp_step_start: 5000
   lerp_step_end: ${trainer.steps}
-  lerp_goal: 0.05
+  lerp_goal: 1.0
 
 data_wrap_mode: triplet

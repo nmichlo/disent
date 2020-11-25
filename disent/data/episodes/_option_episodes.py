@@ -10,15 +10,16 @@ log = logging.getLogger(__file__)
 
 class OptionEpisodesPickledData(BaseOptionEpisodesData):
 
-    def __init__(self, episodes_pickle_file: str):
-        self._episodes_pickle_file = episodes_pickle_file
+    def __init__(self, required_file: str):
+        assert os.path.isabs(required_file), f'{required_file=} must be an absolute path.'
+        self._required_file = required_file
         # load data
         super().__init__()
 
     def _load_episode_observations(self) -> List[np.ndarray]:
         import pickle
         # load the raw data!
-        with open(self._episodes_pickle_file, 'rb') as f:
+        with open(self._required_file, 'rb') as f:
             # ~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
             # - Each element in the root list represents an episode
             # - An episode is a list containing many executed options
@@ -82,14 +83,13 @@ class OptionEpisodesPickledData(BaseOptionEpisodesData):
 
 class OptionEpisodesDownloadZippedPickledData(OptionEpisodesPickledData):
 
-    def __init__(self, episodes_pickle_file: str, download_url=None, force_download=False):
-        self._download_and_extract_if_needed(download_url=download_url, required_file=episodes_pickle_file, force_download=force_download)
-        super().__init__(episodes_pickle_file=episodes_pickle_file)
+    def __init__(self, required_file: str, download_url=None, force_download=False):
+        self._download_and_extract_if_needed(download_url=download_url, required_file=required_file, force_download=force_download)
+        super().__init__(required_file=required_file)
 
     def _download_and_extract_if_needed(self, download_url: str, required_file: str, force_download: bool):
         # TODO: this function should probably be moved to the io file.
         # ~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
-        assert os.path.isabs(required_file), f'{required_file=} must be an absolute path.'
         # skip if no download url
         if not isinstance(download_url, str):
             return

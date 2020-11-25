@@ -1,5 +1,8 @@
+import numpy as np
 from abc import abstractmethod
-from typing import Optional
+from typing import Optional, List
+
+from torch.utils.data.dataloader import default_collate
 
 
 class AugmentableDataset(object):
@@ -15,6 +18,9 @@ class AugmentableDataset(object):
         raise NotImplementedError
 
     def _get_augmentable_observation(self, idx):
+        raise NotImplementedError
+
+    def __len__(self):
         raise NotImplementedError
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -66,6 +72,23 @@ class AugmentableDataset(object):
             'x': tuple(xs),
             'x_targ': tuple(x_targs),
         }
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Batches                                                               #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    def dataset_batch_from_indices(self, indices: List[int], mode: str):
+        """Get a batch of observations X from a batch of factors Y."""
+        return default_collate([self.dataset_get(idx, mode=mode) for idx in indices])
+
+    def dataset_sample_batch(self, num_samples: int, mode: str):
+        """Sample a batch of observations X."""
+        # sample indices
+        indices = set()
+        while len(indices) < num_samples:
+            indices.add(np.random.randint(0, len(self)))
+        # done
+        return self.dataset_batch_from_indices(sorted(indices), mode=mode)
 
 
 def _batch_to_observation(batch, obs_shape):

@@ -68,10 +68,7 @@ class GroundTruthDataset(Dataset, GroundTruthData, AugmentableDataset):
 
     def dataset_batch_from_factors(self, factors: np.ndarray, mode: str):
         """Get a batch of observations X from a batch of factors Y."""
-        return default_collate([
-            self.dataset_get(idx, mode=mode)
-            for idx in self.pos_to_idx(factors)
-        ])
+        return self.dataset_batch_from_indices(self.pos_to_idx(factors), mode=mode)
 
     def dataset_sample_batch_with_factors(self, num_samples: int, mode: str):
         """Sample a batch of observations X and factors Y."""

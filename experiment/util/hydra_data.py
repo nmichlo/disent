@@ -3,8 +3,7 @@ import torch.utils.data
 import pytorch_lightning as pl
 from omegaconf import DictConfig
 
-from disent.dataset.episodes import RandomEpisodeDataset
-from disent.dataset.groundtruth import GroundTruthDataset
+from disent.dataset._augment_util import AugmentableDataset
 from disent.transform.groundtruth import GroundTruthDatasetBatchAugment
 from experiment.util.hydra_utils import instantiate_recursive
 
@@ -29,12 +28,13 @@ class HydraDataModule(pl.LightningDataModule):
         # which version of the dataset we need to use if GPU augmentation is enabled or not.
         # - corresponds to below in train_dataloader()
         if self.hparams.dataset.gpu_augment:
+            # TODO: this is outdated!
             self.batch_augment = GroundTruthDatasetBatchAugment(transform=self.input_transform)
         else:
             self.batch_augment = None
         # datasets initialised in setup()
-        self.dataset_train_noaug: GroundTruthDataset = None
-        self.dataset_train_aug: GroundTruthDataset = None
+        self.dataset_train_noaug: AugmentableDataset = None
+        self.dataset_train_aug: AugmentableDataset = None
 
     def prepare_data(self) -> None:
         # *NB* Do not set model parameters here.
@@ -53,8 +53,8 @@ class HydraDataModule(pl.LightningDataModule):
         self.dataset_train_noaug = hydra.utils.instantiate(self.hparams.data_wrapper.wrapper, data, transform=self.data_transform, augment=None)
         self.dataset_train_aug = hydra.utils.instantiate(self.hparams.data_wrapper.wrapper, data, transform=self.data_transform, augment=self.input_transform)
         # TODO: make these assertions more general with some base-class
-        assert isinstance(self.dataset_train_noaug, (GroundTruthDataset, RandomEpisodeDataset))
-        assert isinstance(self.dataset_train_aug, (GroundTruthDataset, RandomEpisodeDataset))
+        assert isinstance(self.dataset_train_noaug, AugmentableDataset)
+        assert isinstance(self.dataset_train_aug, AugmentableDataset)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Training Dataset:

@@ -3,8 +3,10 @@ import logging
 import wandb
 import numpy as np
 import pytorch_lightning as pl
+import warnings
 
 import disent.util.colors as c
+from disent.dataset._augment_util import AugmentableDataset
 from disent.dataset.groundtruth import GroundTruthDataset
 from disent.frameworks.vae.unsupervised import Vae
 from disent.util import TempNumpySeed, chunked, to_numpy, Timer
@@ -24,13 +26,21 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def _get_dataset_and_vae(trainer: pl.Trainer, pl_module: pl.LightningModule) -> (GroundTruthDataset, Vae):
+def _get_dataset_and_vae(trainer: pl.Trainer, pl_module: pl.LightningModule) -> (AugmentableDataset, Vae):
     assert isinstance(pl_module, Vae), f'{pl_module.__class__} is not an instance of {Vae}'
     # check dataset
     assert hasattr(trainer, 'datamodule'), f'trainer was not run using a datamodule.'
     assert isinstance(trainer.datamodule, HydraDataModule)
     # done checks
     return trainer.datamodule.dataset_train_noaug, pl_module
+
+
+def _should_skip_groundtruth_callback(callback, dataset):
+    # TODO: this might be a hack and should be implemented some other way?
+    if not isinstance(dataset, GroundTruthDataset):
+        warnings.warn(f'{dataset.__class__.__name__} is not an instance of {GroundTruthDataset.__name__}. Skipping callback: {callback.__class__.__name__}!')
+        return True
+    return False
 
 
 # ========================================================================= #
@@ -76,6 +86,9 @@ class VaeDisentanglementLoggingCallback(_PeriodicCallback):
     def _compute_metrics_and_log(self, trainer: pl.Trainer, pl_module: pl.LightningModule, metrics: list, is_final=False):
         # get dataset and vae framework from trainer and module
         dataset, vae = _get_dataset_and_vae(trainer, pl_module)
+        # check if we need to skip
+        if _should_skip_groundtruth_callback(self, dataset):
+            return
         # compute all metrics
         for metric in metrics:
             log.info(f'| {metric.__name__} - computing...')
@@ -109,9 +122,10 @@ class VaeLatentCorrelationLoggingCallback(_PeriodicCallback):
     def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         # get dataset and vae framework from trainer and module
         dataset, vae = _get_dataset_and_vae(trainer, pl_module)
-        
+        # check if we need to skip
+        if _should_skip_groundtruth_callback(self, dataset):
+            return
         # TODO: CONVERT THIS TO A METRIC!
-
         # log the correspondence between factors and the latent space.
         num_samples = np.sum(dataset.factor_sizes) * self._repeats_per_factor
         factors = dataset.sample_factors(num_samples)
