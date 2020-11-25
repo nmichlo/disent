@@ -3,6 +3,7 @@ import torch.utils.data
 import pytorch_lightning as pl
 from omegaconf import DictConfig
 
+from disent.dataset.episodes import RandomEpisodeDataset
 from disent.dataset.groundtruth import GroundTruthDataset
 from disent.transform.groundtruth import GroundTruthDatasetBatchAugment
 from experiment.util.hydra_utils import instantiate_recursive
@@ -51,8 +52,9 @@ class HydraDataModule(pl.LightningDataModule):
         # Augmentation is done inside the frameworks so that it can be done on the GPU, otherwise things are very slow.
         self.dataset_train_noaug = hydra.utils.instantiate(self.hparams.data_wrapper.wrapper, data, transform=self.data_transform, augment=None)
         self.dataset_train_aug = hydra.utils.instantiate(self.hparams.data_wrapper.wrapper, data, transform=self.data_transform, augment=self.input_transform)
-        assert isinstance(self.dataset_train_noaug, GroundTruthDataset)
-        assert isinstance(self.dataset_train_aug, GroundTruthDataset)
+        # TODO: make these assertions more general with some base-class
+        assert isinstance(self.dataset_train_noaug, (GroundTruthDataset, RandomEpisodeDataset))
+        assert isinstance(self.dataset_train_aug, (GroundTruthDataset, RandomEpisodeDataset))
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Training Dataset:

@@ -3,4 +3,3 @@ name: episode_triplet
 wrapper:
   _target_: disent.dataset.episodes.RandomEpisodeDataset
   num_samples: 3
-  weight_episodes: TRUE
