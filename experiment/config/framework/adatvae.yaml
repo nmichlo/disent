@@ -15,7 +15,7 @@ module:
   detach_no_kl: FALSE
   detach_logvar: NULL  # set to NULL to disable fixed value
   # adatvae: what version of triplet to use
-  triplet_mode: 'ada_p_orig_lerp'
+  triplet_mode: 'ada_lerp_mul_triplet'  # ada_lerp_mul_triplet, ada_lerp_mul_lerp_triplet, lerp_trip_to_mse_ada, lerp_trip_to_mse_ada_lerp, ada_p_orig_lerp
   # adatvae: annealing
   lerp_step_start: 5000
   lerp_step_end: ${trainer.steps}
