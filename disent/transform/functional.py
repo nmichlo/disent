@@ -26,7 +26,7 @@ def check_tensor(obs, low=0., high=1., dtype=torch.float32):
     return obs
 
 
-def to_standardised_tensor(obs, size=None):
+def to_standardised_tensor(obs, size=None, check=True):
     """
     Basic transform that should be applied to
     any dataset before augmentation.
@@ -41,5 +41,6 @@ def to_standardised_tensor(obs, size=None):
     # transform to tensor
     obs = F_tv.to_tensor(obs)
     # check that tensor is valid
-    obs = check_tensor(obs, low=0, high=1, dtype=torch.float32)
+    if check:
+        obs = check_tensor(obs, low=0, high=1, dtype=torch.float32)
     return obs

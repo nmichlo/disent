@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 import torch
-from disent.model.ae.base import GaussianAutoEncoder
+from disent.model.ae.base import AutoEncoder
 from disent.frameworks.framework import BaseFramework
 from disent.frameworks.vae.loss import bce_loss_with_logits
 
@@ -11,7 +11,7 @@ from disent.frameworks.vae.loss import bce_loss_with_logits
 # ========================================================================= #
 
 
-class AutoEncoder(BaseFramework):
+class AE(BaseFramework):
     """
     Basic Auto Encoder
     """
@@ -25,8 +25,8 @@ class AutoEncoder(BaseFramework):
         # vae model
         assert callable(make_model_fn)
         # TODO: convert to AE
-        self._model: GaussianAutoEncoder = make_model_fn()
-        assert isinstance(self._model, GaussianAutoEncoder)
+        self._model: AutoEncoder = make_model_fn()
+        assert isinstance(self._model, AutoEncoder)
 
     def compute_training_loss(self, batch, batch_idx):
         (x,), (x_targ,) = batch['x'], batch['x_targ']
@@ -58,8 +58,7 @@ class AutoEncoder(BaseFramework):
 
     def encode(self, x):
         """Get the deterministic latent representation z = z_mean of observation x (useful for visualisation)"""
-        z_mean, _ = self.encode_gaussian(x)
-        return z_mean
+        return self._model.encode(x)
 
     def decode(self, z):
         """Decode latent vector z into reconstruction x_recon (useful for visualisation)"""

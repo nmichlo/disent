@@ -40,11 +40,12 @@ class ToStandardisedTensor(object):
     See: disent.transform.functional.to_standardised_tensor
     """
 
-    def __init__(self, size=None):
+    def __init__(self, size=None, check=True):
         self._size = size
+        self._check = check
 
     def __call__(self, obs) -> torch.Tensor:
-        return F_d.to_standardised_tensor(obs, size=self._size)
+        return F_d.to_standardised_tensor(obs, size=self._size, check=self._check)
 
     def __repr__(self):
         return f'{self.__class__.__name__}(size={repr(self._size)})'
