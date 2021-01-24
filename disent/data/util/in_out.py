@@ -13,6 +13,7 @@ def ensure_dir_exists(*path):
     if not isinstance(path, str):
         path = os.path.join(*path)
     # remove file part of directory
+    # TODO: this function is useless
     if os.path.isfile(path):
         path = os.path.dirname(path)
     # create missing directory

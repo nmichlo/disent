@@ -1,5 +1,7 @@
 from typing import List, Tuple
 import numpy as np
+
+from disent.dataset.groundtruth._triplet import sample_radius
 from disent.util import LengthIter
 
 
@@ -38,10 +40,20 @@ class BaseOptionEpisodesData(LengthIter):
         return episode, idx, offset
 
     @staticmethod
-    def sample_episode_indices(episode, idx, n=1):
+    def sample_episode_indices(episode, idx, n=1, radius=None):
+        # TODO: update this to use the same API
+        #       as ground truth triplet and pair.
+        # default value
+        if radius is None:
+            radius = len(episode)
+        elif radius < 0:
+            radius = len(episode) + radius + 1
+        assert n <= len(episode)
+        assert n <= radius
+        # sample values
         indices = {idx}
         while len(indices) < n:
-            indices.add(np.random.randint(0, len(episode)))
+            indices.add(sample_radius(idx, low=0, high=len(episode), r_low=0, r_high=radius))
         # sort indices from highest to lowest.
         # - anchor is the newest
         # - positive is close in the past

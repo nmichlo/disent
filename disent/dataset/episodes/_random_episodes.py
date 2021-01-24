@@ -7,10 +7,18 @@ from disent.util import LengthIter
 
 class RandomEpisodeDataset(Dataset, LengthIter, AugmentableDataset):
 
-    def __init__(self, episodes_data: BaseOptionEpisodesData, transform=None, augment=None, num_samples=1):
+    def __init__(
+            self,
+            episodes_data: BaseOptionEpisodesData,
+            transform=None,
+            augment=None,
+            num_samples=1,
+            sample_radius=None
+    ):
         assert isinstance(episodes_data, BaseOptionEpisodesData), f'episodes_data ({type(episodes_data)}) is not an instance of {BaseOptionEpisodesData}'
         self._episodes = episodes_data
         self._num_samples = num_samples
+        self._sample_radius = sample_radius
         # augmentable dataset
         self._transform = transform
         self._augment = augment
@@ -40,7 +48,7 @@ class RandomEpisodeDataset(Dataset, LengthIter, AugmentableDataset):
     def __getitem__(self, idx):
         # sample for observations
         episode, idx, offset = self._episodes.get_episode_and_idx(idx)
-        indices = self._episodes.sample_episode_indices(episode, idx, n=self._num_samples)
+        indices = self._episodes.sample_episode_indices(episode, idx, n=self._num_samples, radius=self._sample_radius)
         # transform back to original indices
         indices = [i + offset for i in indices]
         # TODO: this is inefficient, we have to perform multiple searches for the same thing!
