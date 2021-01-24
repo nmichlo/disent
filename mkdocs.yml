@@ -17,16 +17,15 @@ plugins:
       type: date
       fallback_to_build_date: false
 markdown_extensions:
-  - pymdownx.superfences
-  - pymdownx.inlinehilite
-  - pymdownx.snippets
   - admonition
   - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.snippets
   - pymdownx.tabbed
-  - pymdownx.highlight:
-      linenums: false
   - pymdownx.arithmatex:
       generic: true
-  - pymdownx.emoji:
-      emoji_index: !!python/name:materialx.emoji.twemoji
-      emoji_generator: !!python/name:materialx.emoji.to_svg
+#  - pymdownx.emoji:
+#      emoji_index: !!python/name:materialx.emoji.twemoji
+#      emoji_generator: !!python/name:materialx.emoji.to_svg
