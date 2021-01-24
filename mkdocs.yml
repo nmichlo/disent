@@ -27,6 +27,7 @@ markdown_extensions:
   - pymdownx.arithmatex:
       generic: true
 # THE !! CURRENTLY BREAKS READTHEDOCS
+# https://github.com/readthedocs/readthedocs.org/issues/7865
 #  - pymdownx.emoji:
 #      emoji_index: !!python/name:materialx.emoji.twemoji
 #      emoji_generator: !!python/name:materialx.emoji.to_svg
