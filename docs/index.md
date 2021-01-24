@@ -1,5 +1,11 @@
 # Overview
 
+PyTorchLightning disentanglement library implementing various VAEs
+that can easily be run with Hydra Config.
+
+Various other unique optional features exist, including data augmentations,
+as well as the first (?) unofficial implementation of the tensorflow based [Ada-GVAE](https://github.com/google-research/disentanglement_lib).
+
 ## Goals
 
 - Easy configuration and running of custom experiments.
