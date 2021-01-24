@@ -1,0 +1,19 @@
+site_name: Disent
+
+theme:
+  name: material
+
+plugins:
+- mkdocstrings
+
+markdown_extensions:
+  - pymdownx.highlight:
+      linenums: false
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.arithmatex:
+      generic: true
+  - admonition
+  - pymdownx.details
+  - pymdownx.tabbed

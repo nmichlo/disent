@@ -13,8 +13,6 @@ class AutoEncoder(BaseModule):
     def __init__(self, encoder: BaseEncoderModule, decoder: BaseDecoderModule):
         assert isinstance(encoder, BaseEncoderModule)
         assert isinstance(decoder, BaseDecoderModule)
-        self.encode = encoder
-        self.decode = decoder
         # check sizes
         assert encoder.z_multiplier == 1, 'z_multiplier must be 1 for encoder'
         assert encoder.x_shape == decoder.x_shape, 'x_shape mismatch'
@@ -22,11 +20,25 @@ class AutoEncoder(BaseModule):
         assert encoder.z_size == decoder.z_size, 'z_size mismatch'
         # initialise
         super().__init__(x_shape=decoder.x_shape, z_size=decoder.z_size)
+        # assign
+        self._encoder = encoder
+        self._decoder = decoder
 
     def forward(self, x):
-        z = self.encode(x)
-        x_recon = self.decode(z)
-        return x_recon, z
+        raise RuntimeError('This has been disabled')
+
+    def encode(self, x):
+        return self._encoder(x)
+
+    def decode_partial(self, z: Tensor) -> Tensor:
+        return self._decoder(z)
+
+    def decode(self, z: Tensor) -> Tensor:
+        """
+        Compute the full reconstruction of the input from a latent vector.
+        Like decode but performs a final sigmoid activation.
+        """
+        return torch.sigmoid(self._decoder(z))
 
 # ========================================================================= #
 # gaussian encoder model                                                    #

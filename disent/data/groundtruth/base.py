@@ -36,7 +36,16 @@ class GroundTruthData(StateSpace):
 
     @property
     def observation_shape(self) -> Tuple[int, ...]:
+        # shape as would be for a non-batched observation
+        # eg. H x W x C
         raise NotImplementedError()
+
+    @property
+    def x_shape(self) -> Tuple[int, ...]:
+        # shape as would be for a single observation in a torch batch
+        # eg. C x H x W
+        shape = self.observation_shape
+        return shape[-1], *shape[:-1]
 
     def __getitem__(self, idx):
         raise NotImplementedError

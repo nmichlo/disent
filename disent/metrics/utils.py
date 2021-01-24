@@ -64,11 +64,11 @@ def generate_batch_factor_code(
                 num_points_iter, mode='input')
             if i == 0:
                 factors = current_factors
-                representations = to_numpy(representation_function(current_observations.cuda()))
+                representations = to_numpy(representation_function(current_observations))
             else:
                 factors = np.vstack((factors, current_factors))
                 representations = np.vstack(
-                    (representations, to_numpy(representation_function(current_observations.cuda()))))
+                    (representations, to_numpy(representation_function(current_observations))))
             i += num_points_iter
             bar.update(num_points_iter)
     return np.transpose(representations), np.transpose(factors)
