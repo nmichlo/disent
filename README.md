@@ -2,7 +2,7 @@
 
 Disentanglement Library for pytorch and pytorch-lightning. With an easy to use configuration based on Hydra.
 
-
+**Documentation**: Check out the [docs and examples](https://docs.disent.dontpanic.sh/en/latest/)!
 
 ## Another disentanglement library?
   
