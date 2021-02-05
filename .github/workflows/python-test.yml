@@ -12,13 +12,11 @@ on:
 
 jobs:
   build:
-
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest] # [ubuntu-latest, windows-latest, macos-latest]
         python-version: [3.8]
-
-    runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v2
@@ -27,7 +25,7 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
-    
+
     - name: Install dependencies
       run: |
         python3 -m pip install --upgrade pip
