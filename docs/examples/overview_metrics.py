@@ -7,6 +7,7 @@ from disent.frameworks.vae.unsupervised import BetaVae
 from disent.metrics import metric_dci, metric_mig
 from disent.model.ae import EncoderConv64, DecoderConv64, GaussianAutoEncoder
 from disent.transform import ToStandardisedTensor
+from disent.util import is_test_run, test_run_int
 
 data = XYObjectData()
 dataset = GroundTruthDataset(data, transform=ToStandardisedTensor())
@@ -23,7 +24,7 @@ def make_vae(beta):
     )
 
 def train(module):
-    trainer = pl.Trainer(logger=False, checkpoint_callback=False, max_steps=256)
+    trainer = pl.Trainer(logger=False, checkpoint_callback=False, max_steps=256, fast_dev_run=is_test_run())
     trainer.fit(module, dataloader)
 
     # we cannot guarantee which device the representation is on
@@ -31,8 +32,8 @@ def train(module):
 
     # evaluate
     return {
-        **metric_dci(dataset, get_repr, num_train=1000, num_test=500, boost_mode='sklearn'),
-        **metric_mig(dataset, get_repr, num_train=2000),
+        **metric_dci(dataset, get_repr, num_train=10 if is_test_run() else 1000, num_test=5 if is_test_run() else 500, boost_mode='sklearn'),
+        **metric_mig(dataset, get_repr, num_train=20 if is_test_run() else 2000),
     }
 
 a_results = train(make_vae(beta=4))

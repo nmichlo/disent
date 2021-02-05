@@ -1,5 +1,6 @@
 import functools
 import logging
+import os
 import time
 from dataclasses import dataclass
 
@@ -13,6 +14,31 @@ helpful functions that do not fit nicely into any other file.
 """
 
 log = logging.getLogger(__name__)
+
+# ========================================================================= #
+# seeds                                                                     #
+# ========================================================================= #
+
+
+def is_test_run():
+    """
+    This is used internally to test some scripts. There is no need
+    to use this function in your own scripts.
+    """
+    return bool(os.environ.get('DISENT_TEST_RUN', False))
+
+
+def test_run_int(integer: int, div=100):
+    """
+    This is used to test some scripts, by dividing the input number.
+    There is no need to use this function in your own scripts.
+    """
+    return ((integer + div - 1) // div) if is_test_run() else integer
+
+
+def _set_test_run():
+    os.environ['DISENT_TEST_RUN'] = 'True'
+
 
 # ========================================================================= #
 # seeds                                                                     #
