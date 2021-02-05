@@ -6,6 +6,7 @@ from disent.dataset.groundtruth import GroundTruthDatasetOrigWeakPairs
 from disent.frameworks.vae.weaklysupervised import AdaVae
 from disent.model.ae import EncoderConv64, DecoderConv64, GaussianAutoEncoder
 from disent.transform import ToStandardisedTensor
+from disent.util import is_test_run
 
 data: GroundTruthData = XYSquaresData()
 dataset: Dataset = GroundTruthDatasetOrigWeakPairs(data, transform=ToStandardisedTensor())
@@ -20,5 +21,5 @@ module: pl.LightningModule = AdaVae(
     cfg=AdaVae.cfg(beta=4, average_mode='gvae', symmetric_kl=False)
 )
 
-trainer = pl.Trainer(logger=False, checkpoint_callback=False)
+trainer = pl.Trainer(logger=False, checkpoint_callback=False, fast_dev_run=is_test_run())
 trainer.fit(module, dataloader)

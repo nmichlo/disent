@@ -6,6 +6,7 @@ from disent.dataset.groundtruth import GroundTruthDataset
 from disent.frameworks.ae.unsupervised import AE
 from disent.model.ae import EncoderConv64, DecoderConv64, AutoEncoder
 from disent.transform import ToStandardisedTensor
+from disent.util import is_test_run
 
 data: GroundTruthData = XYSquaresData()
 dataset: Dataset = GroundTruthDataset(data, transform=ToStandardisedTensor())
@@ -20,5 +21,5 @@ module: pl.LightningModule = AE(
     cfg=AE.cfg()
 )
 
-trainer = pl.Trainer(logger=False, checkpoint_callback=False)
+trainer = pl.Trainer(logger=False, checkpoint_callback=False, max_steps=1, fast_dev_run=is_test_run())
 trainer.fit(module, dataloader)

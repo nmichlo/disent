@@ -1,0 +1,44 @@
+# This workflow will install Python dependencies,
+# then run tests over a variety of Python versions.
+
+name: test
+
+on:
+  push:
+    branches: [ main, dev ]
+    tags: [ '*' ]
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest] # [ubuntu-latest, windows-latest, macos-latest]
+        python-version: [3.8]
+
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: |
+        python3 -m pip install --upgrade pip
+        python3 -m pip install -r requirements-test.txt
+        python3 -m pip install -r requirements.txt
+
+    - name: Test with pytest
+      run: |
+        python3 -m pytest --cov=disent tests/
+
+    - uses: codecov/codecov-action@v1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        fail_ci_if_error: true
+      # codecov automatically merges all generated files
+      # if: matrix.os == 'ubuntu-latest' && matrix.python-version == 3.9
