@@ -1,6 +1,6 @@
 # 🧶 Disent ⚠️ [W.I.P] 
 
-Disentanglement Library for pytorch and pytorch-lightning. With an easy to use configuration based on Hydra.
+Disentanglement Library for pytorch and pytorch-lightning.
 
 **Documentation**: Check out the [docs and examples](https://disent.dontpanic.sh/en/latest/)!
 
