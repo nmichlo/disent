@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import torch
 from disent.frameworks.vae.weaklysupervised import AdaVae
-from disent.frameworks.vae.loss import bce_loss_with_logits, kl_normal_loss
+from disent.loss.vae import bce_loss_with_logits, kl_normal_loss
 
 
 # ========================================================================= #

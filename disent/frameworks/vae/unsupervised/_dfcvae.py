@@ -8,7 +8,7 @@ from torchvision.models import vgg19_bn
 from torch.nn import functional as F
 
 from disent.frameworks.vae.unsupervised import BetaVae
-from disent.frameworks.vae.loss import kl_normal_loss, bce_loss_with_logits
+from disent.loss.vae import kl_normal_loss, bce_loss_with_logits
 from disent.transform.functional import check_tensor
 
 

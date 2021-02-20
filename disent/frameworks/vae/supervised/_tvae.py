@@ -1,8 +1,7 @@
 from dataclasses import dataclass
-from typing import Type, Union
 
 import torch
-from disent.frameworks.vae.loss import bce_loss_with_logits, kl_normal_loss
+from disent.loss.vae import bce_loss_with_logits, kl_normal_loss
 from disent.frameworks.vae.unsupervised import BetaVae
 from disent.loss.triplet import configured_triplet, TripletLossConfig, TripletConfigTypeHint
 

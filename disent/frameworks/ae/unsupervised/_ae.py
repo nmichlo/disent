@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import torch
 from disent.model.ae.base import AutoEncoder
 from disent.frameworks.framework import BaseFramework
-from disent.frameworks.vae.loss import bce_loss_with_logits
+from disent.loss.vae import bce_loss_with_logits
 
 
 # ========================================================================= #
