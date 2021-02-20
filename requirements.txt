@@ -32,8 +32,8 @@ kornia==0.4.1  # $ pip install git+https://github.com/kornia/kornia
 # ================
 # psutil==5.8.0
 # pillow==8.1.0
-# imageio==2.9.0
-# moviepy==1.0.3
+imageio==2.9.0  # required for wandb video logging
+moviepy==1.0.3  # required for wandb video logging
 h5py>=2.10.0  # as of tensorflow 2.4 it does not support h5py 3+
 
 # GRAPHING & DISPLAY

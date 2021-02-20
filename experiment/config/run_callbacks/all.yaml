@@ -1,7 +1,5 @@
 # @package _global_
 callbacks:
-  progress:
-    interval: 30
   latent_cycle:
     seed: 7777
     every_n_steps: 1200
