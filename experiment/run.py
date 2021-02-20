@@ -9,7 +9,7 @@ import torch.utils.data
 from pytorch_lightning.loggers import WandbLogger, CometLogger
 
 from disent import metrics
-from disent.model.ae.base import GaussianAutoEncoder
+from disent.model.ae.base import AutoEncoder
 from disent.util import make_box_str, wrapped_partial
 
 from experiment.util.hydra_data import HydraDataModule
@@ -171,7 +171,7 @@ def run(cfg: DictConfig):
     framework: pl.LightningModule = hydra.utils.instantiate(
         dict(_target_=cfg.framework.module._target_),
         make_optimizer_fn=lambda params: hydra.utils.instantiate(cfg.optimizer.cls, params),
-        make_model_fn=lambda: GaussianAutoEncoder(
+        make_model_fn=lambda: AutoEncoder(
             encoder=hydra.utils.instantiate(cfg.model.encoder),
             decoder=hydra.utils.instantiate(cfg.model.decoder)
         ),

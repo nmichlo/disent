@@ -14,7 +14,7 @@ class TripletBoundedAdaVae(BoundedAdaVae):
     class cfg(BoundedAdaVae.cfg, TripletLossConfig):
         pass
 
-    def augment_loss(self, z_means, z_logvars, z_samples):
+    def augment_loss(self, z_means):
         return TripletVae.augment_loss_triplet(z_means, self.cfg)
 
 

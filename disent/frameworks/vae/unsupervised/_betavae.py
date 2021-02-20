@@ -13,11 +13,11 @@ class BetaVae(Vae):
     class cfg(Vae.cfg):
         beta: float = 4
 
-    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = cfg()):
+    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
-        assert cfg.beta >= 0
+        assert self.cfg.beta >= 0
 
-    def kl_regularization(self, kl_loss):
+    def training_regularize_kl(self, kl_loss):
         return self.cfg.beta * kl_loss
 
 
@@ -40,9 +40,9 @@ class BetaVaeH(BetaVae):
     class cfg(BetaVae.cfg):
         anneal_end_steps: int = 0
 
-    def kl_regularization(self, kl_loss):
+    def training_regularize_kl(self, kl_loss):
         # anneal
-        anneal_reg = lerp_step(0, 1, self.trainer.global_step, self.anneal_end_steps)
+        anneal_reg = lerp_step(0, 1, self.trainer.global_step, self.cfg.anneal_end_steps)
         # compute kl regularisation
         return anneal_reg * self.cfg.beta * kl_loss
 

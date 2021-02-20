@@ -15,7 +15,7 @@ class BaseFramework(DisentConfigurable, DisentLightningModule):
     class cfg(DisentConfigurable.cfg):
         pass
 
-    def __init__(self, make_optimizer_fn, batch_augment=None, cfg: cfg = cfg()):
+    def __init__(self, make_optimizer_fn, batch_augment=None, cfg: cfg = None):
         super().__init__(cfg=cfg)
         # optimiser
         assert callable(make_optimizer_fn)

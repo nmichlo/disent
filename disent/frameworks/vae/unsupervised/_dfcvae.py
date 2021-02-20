@@ -8,7 +8,6 @@ from torchvision.models import vgg19_bn
 from torch.nn import functional as F
 
 from disent.frameworks.vae.unsupervised import BetaVae
-from disent.loss.vae import kl_normal_loss, bce_loss_with_logits
 from disent.transform.functional import check_tensor
 
 
@@ -24,47 +23,45 @@ class DfcVae(BetaVae):
     - Uses features generated from a pretrained model as the loss.
 
     Reference implementation is from: https://github.com/AntixK/PyTorch-VAE
-
-    Difference:
-        1. MSE loss changed to BCE loss
-           Mean taken over (batch for sum of pixels) not mean over (batch & pixels)
     """
 
     @dataclass
     class cfg(BetaVae.cfg):
         feature_layers: Optional[List[Union[str, int]]] = None
 
-    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = cfg()):
+    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
         # make dfc loss
-        self._loss = DfcLossModule(feature_layers=cfg.feature_layers)
+        self._dfc_loss = DfcLossModule(feature_layers=self.cfg.feature_layers)
+        # checks
+        if self.cfg.recon_loss != 'bce':
+            raise KeyError('dfcvae currently only supports bce loss. TODO: check why this is. The original implementation only supports mse.')
 
     def compute_training_loss(self, batch, batch_idx):
         (x,), (x_targ,) = batch['x'], batch['x_targ']
 
         # FORWARD
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-        # latent distribution parametrisation
-        z_mean, z_logvar = self.encode_gaussian(x)
+        # latent distribution parameterizations
+        z_params = self.training_encode_params(x)
         # sample from latent distribution
-        z = self.reparameterize(z_mean, z_logvar)
+        (d_posterior, d_prior), z_sampled = self.training_make_distributions_and_sample(z_params)
         # reconstruct without the final activation
-        x_recon = self.decode_partial(z)
+        x_partial_recon = self.training_decode_partial(z_sampled)
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
         # LOSS
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # Deep Features
-        feature_loss = self._loss.compute_loss(torch.sigmoid(x_recon), x_targ)
-        feature_loss *= (x.shape[-1] * x.shape[-2])         # (DIFFERENCE: 1)
+        feature_loss = self._dfc_loss.compute_loss(self._recon_loss.activate(x_partial_recon), x_targ)
         # Pixel Loss
-        pixel_loss = bce_loss_with_logits(x_recon, x_targ)  # (DIFFERENCE: 1) E[log p(x|z)] | F.mse_loss(x_recon_sigmoid, x_targ, reduction='mean')
+        pixel_loss = self.training_recon_loss(x_partial_recon, x_targ)  # E[log p(x|z)]
         # reconstruction error
         recon_loss = (pixel_loss + feature_loss) * 0.5
-        # KL divergence
-        kl_loss = kl_normal_loss(z_mean, z_logvar)  # D_kl(q(z|x) || p(z|x))
+        # KL divergence & regularisation
+        kl_loss = self.training_kl_loss(d_posterior, d_prior)  # D_kl(q(z|x) || p(z|x))
         # compute kl regularisation
-        kl_reg_loss = self.kl_regularization(kl_loss)
+        kl_reg_loss = self.training_regularize_kl(kl_loss)
         # compute combined loss
         loss = recon_loss + kl_reg_loss
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #

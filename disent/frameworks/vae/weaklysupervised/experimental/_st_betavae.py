@@ -15,7 +15,7 @@ class SwappedTargetBetaVae(BetaVae):
     class cfg(BetaVae.cfg):
         swap_chance: float = 0.1
 
-    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = cfg()):
+    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
         assert cfg.swap_chance >= 0
 
