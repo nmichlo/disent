@@ -6,4 +6,6 @@ module:
   average_mode: 'gvae'  # gvae or ml-vae
   symmetric_kl: TRUE
 
+# settings used elsewhere
 data_wrap_mode: triplet
+model_z_multiplier: 2

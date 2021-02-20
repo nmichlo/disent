@@ -1,6 +1,6 @@
 defaults:
   # experiment
-  - framework: vae
+  - framework: ae
   - model: conv64
   - optimizer: radam
   - dataset: cars3d
@@ -21,6 +21,10 @@ job:
   project: 'adatriplet-episode-data'
   name: '${framework.name}:${framework.module.triplet_loss}|${dataset.name}:${sampling.name}:${trainer.steps}'
   partition: ha
+
+framework:
+  module:
+    recon_loss: mse  # mse or bce
 
 model:
   z_size: 25

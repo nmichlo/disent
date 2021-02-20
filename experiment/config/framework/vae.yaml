@@ -3,4 +3,6 @@ name: vae
 module:
   _target_: disent.frameworks.vae.unsupervised.Vae
 
+# settings used elsewhere
 data_wrap_mode: single
+model_z_multiplier: 2

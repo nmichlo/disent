@@ -9,4 +9,6 @@ module:
   # guided adavae
   anchor_ave_mode: 'average' # [average, thresh]
 
+# settings used elsewhere
 data_wrap_mode: triplet
+model_z_multiplier: 2
