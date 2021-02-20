@@ -1,0 +1,8 @@
+# @package _group_
+name: ae
+module:
+  _target_: disent.frameworks.ae.unsupervised.AE
+
+# settings used elsewhere
+data_wrap_mode: single
+model_z_multiplier: 1

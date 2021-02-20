@@ -15,4 +15,6 @@ module:
   detach_no_kl: FALSE
   detach_logvar: NULL  # set to NULL to disable fixed value
 
+# settings used elsewhere
 data_wrap_mode: weak_pair
+model_z_multiplier: 2

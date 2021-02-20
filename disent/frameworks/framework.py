@@ -1,5 +1,6 @@
-from dataclasses import dataclass
+import warnings
 import torch
+from dataclasses import dataclass
 from disent.util import DisentLightningModule, DisentConfigurable
 
 
@@ -14,7 +15,7 @@ class BaseFramework(DisentConfigurable, DisentLightningModule):
     class cfg(DisentConfigurable.cfg):
         pass
 
-    def __init__(self, make_optimizer_fn, batch_augment=None, cfg: cfg = cfg()):
+    def __init__(self, make_optimizer_fn, batch_augment=None, cfg: cfg = None):
         super().__init__(cfg=cfg)
         # optimiser
         assert callable(make_optimizer_fn)
@@ -40,7 +41,12 @@ class BaseFramework(DisentConfigurable, DisentLightningModule):
         assert 'loss' not in logs_dict
         # return log loss components & return loss
         self.log_dict(logs_dict)
-        return logs_dict['train_loss']
+        train_loss = logs_dict['train_loss']
+        # check training loss
+        if train_loss != train_loss:
+            warnings.warn(f'training loss is NAN!')
+        # train
+        return train_loss
 
     def compute_training_loss(self, batch, batch_idx) -> dict:
         """

@@ -21,4 +21,6 @@ module:
   lerp_step_end: ${trainer.steps}
   lerp_goal: 1.0
 
+# settings used elsewhere
 data_wrap_mode: triplet
+model_z_multiplier: 2

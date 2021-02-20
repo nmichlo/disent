@@ -4,7 +4,7 @@ encoder:
   _target_: disent.model.ae.EncoderFC
   x_shape: ${dataset.x_shape}
   z_size: ${model.z_size}
-  z_multiplier: 2
+  z_multiplier: ${framework.model_z_multiplier}
 decoder:
   _target_: disent.model.ae.DecoderFC
   x_shape: ${dataset.x_shape}

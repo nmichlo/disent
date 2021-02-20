@@ -6,5 +6,7 @@ module:
   # dfcvae
   feature_layers: ['14', '24', '34', '43']
 
+# settings used elsewhere
 data_wrap_mode: single
+model_z_multiplier: 2
 

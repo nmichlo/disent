@@ -64,7 +64,7 @@ class VaeLatentCycleLoggingCallback(_PeriodicCallback):
             obs = dataset.dataset_sample_batch(64, mode='input').to(vae.device)
 
         # produce latent cycle grid animation
-        z_means, z_logvars = vae.encode_gaussian(obs)
+        z_means, z_logvars = vae.training_encode_params(obs)
         frames = latent_cycle_grid_animation(vae.decode, z_means, z_logvars, mode=self.mode, num_frames=21, decoder_device=vae.device)
 
         # log video
@@ -190,7 +190,7 @@ class VaeLatentCorrelationLoggingCallback(_PeriodicCallback):
 #
 # from disent.dataset import GroundTruthDataset
 # from disent.data.groundtruth._xygrid import XYGridData
-# from disent.model.ae import DecoderConv64, EncoderConv64, GaussianAutoEncoder
+# from disent.model.ae import DecoderConv64, EncoderConv64, AutoEncoder
 # from disent.util import TempNumpySeed, chunked, to_numpy
 # import numpy as np
 #
@@ -237,7 +237,7 @@ class VaeLatentCorrelationLoggingCallback(_PeriodicCallback):
 # # =========================== #
 #
 # # z_size = 6
-# # model = GaussianAutoEncoder(
+# # model = AutoEncoder(
 # #     encoder=EncoderConv64(x_shape=(3, 64, 64), z_size=z_size, z_multiplier=2),
 # #     decoder=DecoderConv64(x_shape=(3, 64, 64), z_size=z_size),
 # # )

@@ -373,7 +373,7 @@ class DisentConfigurable(object):
     def __init__(self, cfg: cfg = cfg()):
         if cfg is None:
             cfg = self.__class__.cfg()
-            print(f'Initialised default config {cfg=} for {self.__class__.__name__}')
+            log.info(f'Initialised default config {cfg=} for {self.__class__.__name__}')
         super().__init__()
         assert isinstance(cfg, self.__class__.cfg), f'{cfg=} ({type(cfg)}) is not an instance of {self.__class__.cfg}'
         self.cfg = cfg

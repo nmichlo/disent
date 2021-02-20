@@ -15,4 +15,6 @@ module:
   triplet_scale: 100
   triplet_p: 1
 
+# settings used elsewhere
 data_wrap_mode: triplet
+model_z_multiplier: 2

@@ -9,4 +9,6 @@ module:
   # swapped target
   swap_chance: 0.1
 
+# settings used elsewhere
 data_wrap_mode: pair
+model_z_multiplier: 2

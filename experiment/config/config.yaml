@@ -1,6 +1,6 @@
 defaults:
   # experiment
-  - framework: adatvae
+  - framework: ae
   - model: conv64
   - optimizer: radam
   - dataset: cars3d
@@ -8,9 +8,9 @@ defaults:
   - sampling: full_bb
   # runtime
   - run_length: short
-  - run_callbacks: all
-  - run_location: local
-  - run_logging: wandb
+  - run_callbacks: vis
+  - run_location: local_cpu
+  - run_logging: none
   # plugins
   - hydra/job_logging: colorlog
   - hydra/hydra_logging: colorlog
@@ -21,6 +21,10 @@ job:
   project: 'adatriplet-episode-data'
   name: '${framework.name}:${framework.module.triplet_loss}|${dataset.name}:${sampling.name}:${trainer.steps}'
   partition: ha
+
+framework:
+  module:
+    recon_loss: mse  # mse or bce
 
 model:
   z_size: 25
