@@ -56,3 +56,5 @@ hydra-colorlog==1.0.0
 hydra-submitit-launcher==1.1.0
 
 # submitit==1.1.5
+
+eunomia==0.0.1.dev17
