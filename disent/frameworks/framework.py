@@ -44,7 +44,7 @@ class BaseFramework(DisentConfigurable, DisentLightningModule):
         train_loss = logs_dict['train_loss']
         # check training loss
         if train_loss != train_loss:
-            warnings.warn(f'training loss is NAN!')
+            raise RuntimeError(f'training loss is NAN!')
         # train
         return train_loss
 

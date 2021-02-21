@@ -5,9 +5,12 @@ import numpy as np
 import pytorch_lightning as pl
 import warnings
 
+import torch
+
 import disent.util.colors as c
 from disent.dataset._augment_util import AugmentableDataset
 from disent.dataset.groundtruth import GroundTruthDataset
+from disent.frameworks.ae.unsupervised import AE
 from disent.frameworks.vae.unsupervised import Vae
 from disent.util import TempNumpySeed, chunked, to_numpy, Timer
 from disent.visualize.visualize_model import latent_cycle_grid_animation
@@ -26,8 +29,8 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def _get_dataset_and_vae(trainer: pl.Trainer, pl_module: pl.LightningModule) -> (AugmentableDataset, Vae):
-    assert isinstance(pl_module, Vae), f'{pl_module.__class__} is not an instance of {Vae}'
+def _get_dataset_and_vae(trainer: pl.Trainer, pl_module: pl.LightningModule) -> (AugmentableDataset, AE):
+    assert isinstance(pl_module, AE), f'{pl_module.__class__} is not an instance of {AE}'
     # check dataset
     assert hasattr(trainer, 'datamodule'), f'trainer was not run using a datamodule.'
     assert isinstance(trainer.datamodule, HydraDataModule)
@@ -63,8 +66,13 @@ class VaeLatentCycleLoggingCallback(_PeriodicCallback):
         with TempNumpySeed(self.seed):
             obs = dataset.dataset_sample_batch(64, mode='input').to(vae.device)
 
+        if isinstance(vae, Vae):
+            z_means, z_logvars = vae.training_encode_params(obs)
+        else:
+            z_means = vae.training_encode_params(obs)
+            z_logvars = torch.ones_like(z_means)
+
         # produce latent cycle grid animation
-        z_means, z_logvars = vae.training_encode_params(obs)
         frames = latent_cycle_grid_animation(vae.decode, z_means, z_logvars, mode=self.mode, num_frames=21, decoder_device=vae.device)
 
         # log video

@@ -2,7 +2,7 @@
 name: tvae
 module:
   _target_: disent.frameworks.vae.supervised.TripletVae
-  beta: 4
+  beta: ${framework.beta}
   # tvae: triplet stuffs
   triplet_loss: triplet
   triplet_margin_min: 0.1

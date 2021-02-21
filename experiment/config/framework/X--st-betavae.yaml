@@ -2,7 +2,7 @@
 name: st-betavae
 module:
   _target_: disent.frameworks.vae.weaklysupervised.SwappedTargetBetaVae
-  beta: 4
+  beta: ${framework.beta}
   # swapped target
   swap_chance: 0.1
 

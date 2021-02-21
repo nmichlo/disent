@@ -2,7 +2,7 @@
 name: st-adavae
 module:
   _target_: disent.frameworks.vae.weaklysupervised.SwappedTargetAdaVae
-  beta: 4
+  beta: ${framework.beta}
   # adavae
   average_mode: 'gvae'  # gvae or ml-vae
   symmetric_kl: TRUE

@@ -2,7 +2,7 @@
 name: badavae
 module:
   _target_: disent.frameworks.vae.supervised.BoundedAdaVae
-  beta: 4
+  beta: ${framework.beta}
   average_mode: 'gvae'  # gvae or ml-vae
   symmetric_kl: TRUE
 

@@ -1,6 +1,9 @@
+# RUN:
+# -m framework=betavae,adavae dataset=cars3d,xysquares framework.recon_loss=bce,mse framework.beta=0.1,0.25,1,4
+
 defaults:
   # experiment
-  - framework: adavae
+  - framework: betavae
   - model: conv64
   - optimizer: radam
   - dataset: cars3d
@@ -9,7 +12,7 @@ defaults:
   # runtime
   - run_length: short
   - run_callbacks: all
-  - run_location: local
+  - run_location: cluster
   - run_logging: wandb
   # plugins
   - hydra/job_logging: colorlog
@@ -24,9 +27,10 @@ job:
 
 framework:
     recon_loss: mse  # mse or bce
+    beta: 4  # majority of VAEs use this
 
 model:
-  z_size: 16
+  z_size: 9
 
 optimizer:
   lr: 1e-3

@@ -1,6 +1,8 @@
 
 
 import logging
+import warnings
+
 import numpy as np
 from PIL import Image
 import scipy.stats
@@ -156,7 +158,7 @@ def reconstructions_to_images(recon, mode='float', moveaxis=True):
     assert img.ndim >= 3
     assert img.dtype in (np.float32, np.float64)
     if np.min(img) < 0 or np.max(img) > 1:
-        log.warning('image has been clipped between 0 and 1')
+        warnings.warn('images are being clipped between 0 and 1')
     img = np.clip(img, 0, 1)
     # move channels axis
     if moveaxis:
