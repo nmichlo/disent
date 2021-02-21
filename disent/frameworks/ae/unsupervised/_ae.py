@@ -22,7 +22,7 @@ class AE(BaseFramework):
 
     @dataclass
     class cfg(BaseFramework.cfg):
-        recon_loss: str = 'bce'
+        recon_loss: str = 'mse'
         loss_reduction: str = 'batch_mean'
 
     def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):

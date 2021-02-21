@@ -7,6 +7,7 @@ from torch.distributions import Distribution
 from disent.frameworks.ae.unsupervised import AE
 from disent.distributions.vae import make_latent_distribution, LatentDistribution
 
+
 # ========================================================================= #
 # framework_vae                                                             #
 # ========================================================================= #
@@ -61,29 +62,12 @@ class Vae(AE):
         loss = recon_loss + kl_reg_loss
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
-        # CHECK AGAINST OLD
-        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-        LEGACY_kl_reg_loss = self._distributions.LEGACY_compute_kl_loss(
-            z_params.mean, z_params.logvar,
-            mode=self.cfg.kl_loss_mode,
-            reduction=self.cfg.loss_reduction,
-        )
-        LEGACY_recon_loss = self._recons.LEGACY_training_compute_loss(
-            x_partial_recon,
-            x_targ,
-            reduction=self.cfg.loss_reduction,
-        )
-        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-
         return {
             'train_loss': loss,
             'recon_loss': recon_loss,
             'kl_reg_loss': kl_reg_loss,
             'kl_loss': kl_loss,
             'elbo': -(recon_loss + kl_loss),
-            # old losses
-            'LEGACY_recon_loss': LEGACY_recon_loss,
-            'LEGACY_kl_reg_loss': LEGACY_kl_reg_loss,
         }
 
     # --------------------------------------------------------------------- #
