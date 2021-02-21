@@ -59,25 +59,32 @@ def hydra_check_datadir(prepare_data_per_node, cfg):
 
 def hydra_make_logger(cfg):
     loggers = []
-    if ('wandb' in cfg.logging) and cfg.logging.wandb.get('enabled', True):
+
+    if ('wandb' in cfg.logging) and cfg.logging.wandb.setdefault('enabled', True):
         loggers.append(WandbLogger(
-            offline=cfg.logging.wandb.get('offline', False),
-            entity=cfg.logging.wandb.get('entity', None),  # cometml: workspace
-            project=cfg.logging.wandb.project,             # cometml: project_name
-            name=cfg.logging.wandb.name,                   # cometml: experiment_name
-            group=cfg.logging.wandb.get('group', None),    # experiment group
-            tags=cfg.logging.wandb.get('tags', None),      # experiment tags
+            offline=cfg.logging.wandb.setdefault('offline', False),
+            entity=cfg.logging.wandb.setdefault('entity', None),  # cometml: workspace
+            project=cfg.logging.wandb.project,                    # cometml: project_name
+            name=cfg.logging.wandb.name,                          # cometml: experiment_name
+            group=cfg.logging.wandb.setdefault('group', None),    # experiment group
+            tags=cfg.logging.wandb.setdefault('tags', None),      # experiment tags
             save_dir=hydra.utils.to_absolute_path(cfg.logging.logs_dir),  # relative to hydra's original cwd
         ))
-    if ('cometml' in cfg.logging) and cfg.logging.cometml.get('enabled', True):
+    else:
+        cfg.logging.setdefault('wandb', dict(enabled=False))
+
+    if ('cometml' in cfg.logging) and cfg.logging.cometml.setdefault('enabled', True):
         loggers.append(CometLogger(
-            offline=cfg.logging.cometml.get('offline', False),
-            workspace=cfg.logging.cometml.get('workspace', None),  # wandb: entity
-            project_name=cfg.logging.cometml.project,              # wandb: project
-            experiment_name=cfg.logging.cometml.name,              # wandb: name
-            api_key=os.environ['COMET_API_KEY'],                   # TODO: use dotenv
+            offline=cfg.logging.cometml.setdefault('offline', False),
+            workspace=cfg.logging.cometml.setdefault('workspace', None),  # wandb: entity
+            project_name=cfg.logging.cometml.project,                     # wandb: project
+            experiment_name=cfg.logging.cometml.name,                     # wandb: name
+            api_key=os.environ['COMET_API_KEY'],                          # TODO: use dotenv
             save_dir=hydra.utils.to_absolute_path(cfg.logging.logs_dir),  # relative to hydra's original cwd
         ))
+    else:
+        cfg.logging.setdefault('cometml', dict(enabled=False))
+
     return loggers if loggers else None  # lists are turned into a LoggerCollection by pl
 
 
@@ -140,20 +147,27 @@ def hydra_append_correlation_callback(callbacks, cfg):
 
 
 def run(cfg: DictConfig):
-    # TODO: this is hacky and should be replaced!
-    cfg = merge_specializations(cfg, CONFIG_PATH, run)
-
     # print useful info
-    log.info(make_box_str(OmegaConf.to_yaml(cfg)))
     log.info(f"Current working directory : {os.getcwd()}")
     log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
 
+    # -~-~-~-~-~-~-~-~-~-~-~-~- #
+    # INITIALISE & SETDEFAULT IN CONFIG
+    # -~-~-~-~-~-~-~-~-~-~-~-~- #
+
+    # hydra config does not support variables in defaults lists, we handle this manually
+    cfg = merge_specializations(cfg, CONFIG_PATH, run)  # TODO: this is hacky and should be replaced!
+    # create framework config - this is also kinda hacky
+    framework_cfg = hydra.utils.instantiate({**cfg.framework.module, **dict(_target_=cfg.framework.module._target_ + '.cfg')})
+    # update config params in case we missed variables in the cfg
+    cfg.framework.module.update(dataclasses.asdict(framework_cfg))
+
     # check CUDA setting
-    cuda = cfg.trainer.get('cuda', torch.cuda.is_available())
+    cuda = cfg.trainer.setdefault('cuda', torch.cuda.is_available())
     hydra_check_cuda(cuda)
 
     # check data preparation
-    prepare_data_per_node = cfg.trainer.get('prepare_data_per_node', True)
+    prepare_data_per_node = cfg.trainer.setdefault('prepare_data_per_node', True)
     hydra_check_datadir(prepare_data_per_node, cfg)
 
     # create trainer loggers & callbacks
@@ -179,26 +193,28 @@ def run(cfg: DictConfig):
         ), mode=cfg.model.weight_init),
         # apply augmentations to batch on GPU which can be faster than via the dataloader
         batch_augment=datamodule.batch_augment,
-        cfg=hydra.utils.instantiate(
-            {**cfg.framework.module, **dict(_target_=cfg.framework.module._target_ + '.cfg')},
-        )
+        cfg=framework_cfg
     )
-
-    # update config params in case we missed variables in the cfg
-    cfg.framework.module.update(dataclasses.asdict(framework.cfg))
 
     # Setup Trainer
     trainer = pl.Trainer(
-        log_every_n_steps=cfg.logging.get('log_every_n_steps', 50),
-        flush_logs_every_n_steps=cfg.logging.get('flush_logs_every_n_steps', 100),
+        log_every_n_steps=cfg.logging.setdefault('log_every_n_steps', 50),
+        flush_logs_every_n_steps=cfg.logging.setdefault('flush_logs_every_n_steps', 100),
         logger=logger,
         callbacks=callbacks,
         gpus=1 if cuda else 0,
-        max_epochs=cfg.trainer.get('epochs', 100),
-        max_steps=cfg.trainer.get('steps', None),
+        max_epochs=cfg.trainer.setdefault('epochs', 100),
+        max_steps=cfg.trainer.setdefault('steps', None),
         prepare_data_per_node=prepare_data_per_node,
         progress_bar_refresh_rate=0,  # ptl 0.9
     )
+
+    # -~-~-~-~-~-~-~-~-~-~-~-~- #
+    # BEGIN TRAINING
+    # -~-~-~-~-~-~-~-~-~-~-~-~- #
+
+    # print the config
+    log.info(f'Final Config Is:\n{make_box_str(OmegaConf.to_yaml(cfg))}')
 
     # save hparams TODO: I think this is a pytorch lightning bug... The trainer should automatically save these if hparams is set.
     framework.hparams = cfg
