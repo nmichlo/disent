@@ -18,11 +18,13 @@ class Vae(AE):
     https://arxiv.org/abs/1312.6114
     """
 
+    # override required z from AE
     REQUIRED_Z_MULTIPLIER = 2
 
     @dataclass
     class cfg(AE.cfg):
         distribution: str = 'normal'
+        kl_mode: str = 'approximate'
 
     def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
         # required_z_multiplier
@@ -52,7 +54,7 @@ class Vae(AE):
         # reconstruction error
         recon_loss = self.training_recon_loss(x_partial_recon, x_targ)  # E[log p(x|z)]
         # KL divergence & regularization
-        kl_loss = self.training_kl_loss(d_posterior, d_prior)  # D_kl(q(z|x) || p(z|x))
+        kl_loss = self.training_kl_loss(d_posterior, d_prior, z_sampled)  # D_kl(q(z|x) || p(z|x))
         # compute kl regularisation
         kl_reg_loss = self.training_regularize_kl(kl_loss)
         # compute combined loss
@@ -91,15 +93,22 @@ class Vae(AE):
     def training_make_distributions(self, z_params: 'Params') -> Tuple[Distribution, Distribution]:
         return self._distributions.make(z_params)
 
-    def training_kl_loss(self, d_posterior: Distribution, d_prior: Distribution) -> torch.Tensor:
-        # This is how pytorch-lightning-bolts does it:
-        # See issue: https://github.com/PyTorchLightning/pytorch-lightning-bolts/issues/565
-        #     z_log_p = prior.log_prob(z_sampled)
-        #     z_log_q = posterior.log_prob(z_sampled)
-        #     kl = (z_log_q - z_log_p).mean()
-        # ------------------------------- #
-        # This is how the original VAE/BetaVAE papers do it:
-        return torch.distributions.kl_divergence(d_posterior, d_prior).mean()
+    def training_kl_loss(self, d_posterior: Distribution, d_prior: Distribution, z_sampled: torch.Tensor = None) -> torch.Tensor:
+        if self.cfg.kl_mode == 'analytical':
+            # This is how the original VAE/BetaVAE papers do it:
+            # - we compute the kl divergence directly instead of approximating it
+            kl = torch.distributions.kl_divergence(d_posterior, d_prior)
+        elif self.cfg.kl_mode == 'approximate':
+            # This is how pytorch-lightning-bolts does it:
+            # See issue: https://github.com/PyTorchLightning/pytorch-lightning-bolts/issues/565
+            # - we approximate the kl divergence instead of computing it analytically
+            assert z_sampled is not None, 'to compute the approximate kl loss, z_sampled needs to be defined (cfg.kl_mode="approximate")'
+            kl = d_posterior.log_prob(z_sampled) - d_prior.log_prob(z_sampled)
+        else:
+            raise KeyError(f'invalid kl_mode={repr(self.cfg.kl_mode)}')
+        # average and scale
+        kl = kl.mean() * self._model.z_size
+        return kl
 
     def training_regularize_kl(self, kl_loss):
         return kl_loss

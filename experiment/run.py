@@ -1,3 +1,4 @@
+import dataclasses
 import os
 import logging
 from omegaconf import DictConfig, OmegaConf
@@ -181,6 +182,9 @@ def run(cfg: DictConfig):
             {**cfg.framework.module, **dict(_target_=cfg.framework.module._target_ + '.cfg')},
         )
     )
+
+    # update config params in case we missed variables in the cfg
+    cfg.framework.module.update(dataclasses.asdict(framework.cfg))
 
     # Setup Trainer
     trainer = pl.Trainer(

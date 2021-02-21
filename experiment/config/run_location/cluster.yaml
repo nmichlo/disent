@@ -27,3 +27,4 @@ hydra:
     mem_gb: 0
     timeout_min: 1440  # minutes
     submitit_folder: '${hydra.sweep.dir}/submitit/%j'
+    array_parallelism: 8
