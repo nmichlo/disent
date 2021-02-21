@@ -31,13 +31,13 @@ class TripletVae(BetaVae):
         n_z_params = self.training_encode_params(n_x)
         # get zeros
         if self.cfg.detach and (self.cfg.detach_logvar is not None):
-            a_z_params.z_logvar = torch.full_like(a_z_params.z_logvar, self.cfg.detach_logvar)
-            p_z_params.z_logvar = torch.full_like(p_z_params.z_logvar, self.cfg.detach_logvar)
-            n_z_params.z_logvar = torch.full_like(n_z_params.z_logvar, self.cfg.detach_logvar)
+            a_z_params.logvar = torch.full_like(a_z_params.logvar, self.cfg.detach_logvar)
+            p_z_params.logvar = torch.full_like(p_z_params.logvar, self.cfg.detach_logvar)
+            n_z_params.logvar = torch.full_like(n_z_params.logvar, self.cfg.detach_logvar)
         # sample from latent distribution
-        (a_d_posterior, a_d_prior), a_z_sampled = self.training_make_distributions_and_sample(a_z_params)
-        (p_d_posterior, p_d_prior), p_z_sampled = self.training_make_distributions_and_sample(p_z_params)
-        (n_d_posterior, n_d_prior), n_z_sampled = self.training_make_distributions_and_sample(n_z_params)
+        (a_d_posterior, a_d_prior), a_z_sampled = self.training_params_to_distributions_and_sample(a_z_params)
+        (p_d_posterior, p_d_prior), p_z_sampled = self.training_params_to_distributions_and_sample(p_z_params)
+        (n_d_posterior, n_d_prior), n_z_sampled = self.training_params_to_distributions_and_sample(n_z_params)
         # detach samples so no gradient flows through them
         if self.cfg.detach and self.cfg.detach_decoder:
             a_z_sampled = a_z_sampled.detach()
@@ -67,7 +67,7 @@ class TripletVae(BetaVae):
         # compute kl regularisation
         ave_kl_reg_loss = self.training_regularize_kl(ave_kl_loss)
         # augment loss
-        augment_loss, augment_loss_logs = self.augment_loss(z_means=(a_z_params.z_mean, p_z_params.z_mean, n_z_params.z_mean))
+        augment_loss, augment_loss_logs = self.augment_loss(z_means=(a_z_params.mean, p_z_params.mean, n_z_params.mean))
         # compute combined loss - must be same as the BetaVAE
         loss = ave_recon_loss + ave_kl_reg_loss + augment_loss
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #

@@ -1,4 +1,5 @@
-import warnings
+from typing import final
+
 import torch
 from dataclasses import dataclass
 from disent.util import DisentLightningModule, DisentConfigurable
@@ -24,13 +25,11 @@ class BaseFramework(DisentConfigurable, DisentLightningModule):
         assert (batch_augment is None) or callable(batch_augment)
         self._batch_augment = batch_augment
 
+    @final
     def configure_optimizers(self):
         return self._make_optimiser_fn(self.parameters())
 
-    def forward(self, batch) -> torch.Tensor:
-        """this function should return the single final output of the model, including the final activation"""
-        raise NotImplementedError
-
+    @final
     def training_step(self, batch, batch_idx):
         """This is a pytorch-lightning function that should return the computed loss"""
         # augment batch with GPU support
@@ -47,6 +46,10 @@ class BaseFramework(DisentConfigurable, DisentLightningModule):
             raise RuntimeError(f'training loss is NAN!')
         # train
         return train_loss
+
+    def forward(self, batch) -> torch.Tensor:
+        """this function should return the single final output of the model, including the final activation"""
+        raise NotImplementedError
 
     def compute_training_loss(self, batch, batch_idx) -> dict:
         """

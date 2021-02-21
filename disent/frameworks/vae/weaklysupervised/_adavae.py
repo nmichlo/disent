@@ -52,8 +52,8 @@ class AdaVae(BetaVae):
         # intercept and mutate z [SPECIFIC TO ADAVAE]
         (z0_params, z1_params), intercept_logs = self.intercept_z(all_params=(z0_params, z1_params))
         # sample from latent distribution
-        (d0_posterior, d0_prior), z0_sampled = self.training_make_distributions_and_sample(z0_params)
-        (d1_posterior, d1_prior), z1_sampled = self.training_make_distributions_and_sample(z1_params)
+        (d0_posterior, d0_prior), z0_sampled = self.training_params_to_distributions_and_sample(z0_params)
+        (d1_posterior, d1_prior), z1_sampled = self.training_params_to_distributions_and_sample(z1_params)
         # reconstruct without the final activation
         x0_partial_recon = self.training_decode_partial(z0_sampled)
         x1_partial_recon = self.training_decode_partial(z1_sampled)
@@ -97,8 +97,8 @@ class AdaVae(BetaVae):
         """
         z0_params, z1_params = all_params
         # compute the deltas
-        d0_posterior, _ = self.training_make_distributions(z0_params)  # numerical accuracy errors
-        d1_posterior, _ = self.training_make_distributions(z1_params)  # numerical accuracy errors
+        d0_posterior, _ = self.training_params_to_distributions(z0_params)  # numerical accuracy errors
+        d1_posterior, _ = self.training_params_to_distributions(z1_params)  # numerical accuracy errors
         z_deltas = self.compute_kl_deltas(d0_posterior, d1_posterior, symmetric_kl=self.cfg.symmetric_kl)
         # shared elements that need to be averaged, computed per pair in the batch.
         share_mask = self.compute_shared_mask(z_deltas)
@@ -175,14 +175,14 @@ class AdaVae(BetaVae):
     def compute_averaged(cls, z0_params, z1_params, share_mask, compute_average_fn: callable):
         # compute average posteriors
         ave_mean, ave_logvar = compute_average_fn(
-            z0_params.z_mean, z0_params.z_logvar,
-            z1_params.z_mean, z1_params.z_logvar,
+            z0_params.mean, z0_params.logvar,
+            z1_params.mean, z1_params.logvar,
         )
         # select averages
-        ave_z0_mean = torch.where(share_mask, ave_mean, z0_params.z_mean)
-        ave_z1_mean = torch.where(share_mask, ave_mean, z1_params.z_mean)
-        ave_z0_logvar = torch.where(share_mask, ave_logvar, z0_params.z_logvar)
-        ave_z1_logvar = torch.where(share_mask, ave_logvar, z1_params.z_logvar)
+        ave_z0_mean = torch.where(share_mask, ave_mean, z0_params.mean)
+        ave_z1_mean = torch.where(share_mask, ave_mean, z1_params.mean)
+        ave_z0_logvar = torch.where(share_mask, ave_logvar, z0_params.logvar)
+        ave_z1_logvar = torch.where(share_mask, ave_logvar, z1_params.logvar)
         # return values
         return z0_params.__class__(ave_z0_mean, ave_z0_logvar), z1_params.__class__(ave_z1_mean, ave_z1_logvar)
 

@@ -7,6 +7,7 @@ from torch import Tensor
 from torchvision.models import vgg19_bn
 from torch.nn import functional as F
 
+from disent.frameworks.helper.reductions import get_mean_loss_scale
 from disent.frameworks.vae.unsupervised import BetaVae
 from disent.transform.functional import check_tensor
 
@@ -23,6 +24,11 @@ class DfcVae(BetaVae):
     - Uses features generated from a pretrained model as the loss.
 
     Reference implementation is from: https://github.com/AntixK/PyTorch-VAE
+
+
+    Difference:
+        1. MSE loss changed to BCE or MSE loss
+        2. Mean taken over (batch for sum of pixels) not mean over (batch & pixels)
     """
 
     @dataclass
@@ -45,7 +51,7 @@ class DfcVae(BetaVae):
         # latent distribution parameterizations
         z_params = self.training_encode_params(x)
         # sample from latent distribution
-        (d_posterior, d_prior), z_sampled = self.training_make_distributions_and_sample(z_params)
+        (d_posterior, d_prior), z_sampled = self.training_params_to_distributions_and_sample(z_params)
         # reconstruct without the final activation
         x_partial_recon = self.training_decode_partial(z_sampled)
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -53,9 +59,9 @@ class DfcVae(BetaVae):
         # LOSS
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # Deep Features
-        feature_loss = self._dfc_loss.compute_loss(self._recon_loss.activate(x_partial_recon), x_targ)
+        feature_loss = self._dfc_loss.compute_loss(self._recons.activate(x_partial_recon), x_targ, reduction=self.cfg.loss_reduction)
         # Pixel Loss
-        pixel_loss = self.training_recon_loss(x_partial_recon, x_targ)  # E[log p(x|z)]
+        pixel_loss = self.training_recon_loss(x_partial_recon, x_targ)  # E[log p(x|z)]  (DIFFERENCE: 1)
         # reconstruction error
         recon_loss = (pixel_loss + feature_loss) * 0.5
         # KL divergence & regularisation
@@ -115,7 +121,7 @@ class DfcLossModule(torch.nn.Module):
     def __call__(self, x_recon, x_targ):
         return self.compute_loss(x_recon, x_targ)
 
-    def compute_loss(self, x_recon, x_targ):
+    def compute_loss(self, x_recon, x_targ, reduction='batch_mean'):
         """
         x_recon and x_targ data should be an unnormalized RGB batch of
         data [B x C x H x W] in the range [0, 1].
@@ -127,7 +133,9 @@ class DfcLossModule(torch.nn.Module):
         feature_loss = 0.0
         for (f_recon, f_targ) in zip(features_recon, features_targ):
             feature_loss += F.mse_loss(f_recon, f_targ, reduction='mean')
-        return feature_loss
+        # scale the loss accordingly
+        # (DIFFERENCE: 2)
+        return feature_loss * get_mean_loss_scale(x_targ, reduction=reduction)
 
     def _extract_features(self, inputs: Tensor) -> List[Tensor]:
         """

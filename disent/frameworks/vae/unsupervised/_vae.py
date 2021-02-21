@@ -1,11 +1,11 @@
 from dataclasses import dataclass
-from typing import Tuple
+from typing import Tuple, final
 
 import torch
 from torch.distributions import Distribution
 
 from disent.frameworks.ae.unsupervised import AE
-from disent.distributions.vae import make_vae_distribution, VaeDistribution
+from disent.distributions.vae import make_latent_distribution, LatentDistribution
 
 # ========================================================================= #
 # framework_vae                                                             #
@@ -23,14 +23,14 @@ class Vae(AE):
 
     @dataclass
     class cfg(AE.cfg):
-        distribution: str = 'normal'
-        kl_mode: str = 'direct'
+        latent_distribution: str = 'normal'
+        kl_loss_mode: str = 'direct'
 
     def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
         # required_z_multiplier
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
         # vae distribution
-        self._distributions: VaeDistribution = make_vae_distribution(self.cfg.distribution)
+        self._distributions: LatentDistribution = make_latent_distribution(self.cfg.latent_distribution)
 
     # --------------------------------------------------------------------- #
     # VAE Training Step                                                     #
@@ -44,7 +44,7 @@ class Vae(AE):
         # latent distribution parameterizations
         z_params = self.training_encode_params(x)
         # sample from latent distribution
-        (d_posterior, d_prior), z_sampled = self.training_make_distributions_and_sample(z_params)
+        (d_posterior, d_prior), z_sampled = self.training_params_to_distributions_and_sample(z_params)
         # reconstruct without the final activation
         x_partial_recon = self.training_decode_partial(z_sampled)
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -61,54 +61,70 @@ class Vae(AE):
         loss = recon_loss + kl_reg_loss
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
+        # CHECK AGAINST OLD
+        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+        LEGACY_kl_reg_loss = self._distributions.LEGACY_compute_kl_loss(
+            z_params.mean, z_params.logvar,
+            mode=self.cfg.kl_loss_mode,
+            reduction=self.cfg.loss_reduction,
+        )
+        LEGACY_recon_loss = self._recons.LEGACY_training_compute_loss(
+            x_partial_recon,
+            x_targ,
+            reduction=self.cfg.loss_reduction,
+        )
+        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+
         return {
             'train_loss': loss,
             'recon_loss': recon_loss,
             'kl_reg_loss': kl_reg_loss,
             'kl_loss': kl_loss,
             'elbo': -(recon_loss + kl_loss),
+            # old losses
+            'LEGACY_recon_loss': LEGACY_recon_loss,
+            'LEGACY_kl_reg_loss': LEGACY_kl_reg_loss,
         }
 
     # --------------------------------------------------------------------- #
     # VAE - Overrides AE                                                    #
     # --------------------------------------------------------------------- #
 
+    @final
     def encode(self, x: torch.Tensor) -> torch.Tensor:
         """Get the deterministic latent representation (useful for visualisation)"""
-        z = self._distributions.params_to_z(self.training_encode_params(x))
+        z = self._distributions.params_to_representation(self.training_encode_params(x))
         return z
 
+    @final
     def training_encode_params(self, x: torch.Tensor) -> 'Params':
         """Get parametrisations of the latent distributions, which are sampled from during training."""
-        z_params = self._distributions.raw_to_params(self._model.encode(x))
+        z_params = self._distributions.encoding_to_params(self._model.encode(x))
         return z_params
 
     # --------------------------------------------------------------------- #
     # VAE Model Utility Functions (Training)                                #
     # --------------------------------------------------------------------- #
 
-    def training_make_distributions_and_sample(self, z_params: 'Params') -> Tuple[Tuple[Distribution, Distribution], torch.Tensor]:
-        return self._distributions.make_and_sample(z_params)
+    @final
+    def training_params_to_distributions_and_sample(self, z_params: 'Params') -> Tuple[Tuple[Distribution, Distribution], torch.Tensor]:
+        return self._distributions.params_to_distributions_and_sample(z_params)
 
-    def training_make_distributions(self, z_params: 'Params') -> Tuple[Distribution, Distribution]:
-        return self._distributions.make(z_params)
+    @final
+    def training_params_to_distributions(self, z_params: 'Params') -> Tuple[Distribution, Distribution]:
+        return self._distributions.params_to_distributions(z_params)
 
+    @final
     def training_kl_loss(self, d_posterior: Distribution, d_prior: Distribution, z_sampled: torch.Tensor = None) -> torch.Tensor:
-        if self.cfg.kl_mode == 'direct':
-            # This is how the original VAE/BetaVAE papers do it:s
-            # - we compute the kl divergence directly instead of approximating it
-            kl = torch.distributions.kl_divergence(d_posterior, d_prior)
-        elif self.cfg.kl_mode == 'approx':
-            # This is how pytorch-lightning-bolts does it:
-            # See issue: https://github.com/PyTorchLightning/pytorch-lightning-bolts/issues/565
-            # - we approximate the kl divergence instead of computing it analytically
-            assert z_sampled is not None, 'to compute the approximate kl loss, z_sampled needs to be defined (cfg.kl_mode="approx")'
-            kl = d_posterior.log_prob(z_sampled) - d_prior.log_prob(z_sampled)
-        else:
-            raise KeyError(f'invalid kl_mode={repr(self.cfg.kl_mode)}')
-        # average and scale
-        kl = kl.mean() * self._model.z_size
-        return kl
+        return self._distributions.compute_kl_loss(
+            d_posterior, d_prior, z_sampled,
+            mode=self.cfg.kl_loss_mode,
+            reduction=self.cfg.loss_reduction,
+        )
+
+    # --------------------------------------------------------------------- #
+    # VAE Model Utility Functions (Overridable)                             #
+    # --------------------------------------------------------------------- #
 
     def training_regularize_kl(self, kl_loss):
         return kl_loss
@@ -117,3 +133,4 @@ class Vae(AE):
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
+

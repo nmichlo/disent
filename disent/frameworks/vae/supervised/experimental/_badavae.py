@@ -27,8 +27,8 @@ class BoundedAdaVae(AdaVae):
         # intercept and mutate z [SPECIFIC TO ADAVAE]
         (a_z_params, p_z_params), intercept_logs = self.intercept_z(all_params=(a_z_params, p_z_params, n_z_params))
         # sample from latent distribution
-        (d0_posterior, d0_prior), a_z_sampled = self.training_make_distributions_and_sample(a_z_params)
-        (d1_posterior, d1_prior), p_z_sampled = self.training_make_distributions_and_sample(p_z_params)
+        (d0_posterior, d0_prior), a_z_sampled = self.training_params_to_distributions_and_sample(a_z_params)
+        (d1_posterior, d1_prior), p_z_sampled = self.training_params_to_distributions_and_sample(p_z_params)
         # reconstruct without the final activation
         a_x_partial_recon = self.training_decode_partial(a_z_sampled)
         p_x_partial_recon = self.training_decode_partial(p_z_sampled)
@@ -47,7 +47,7 @@ class BoundedAdaVae(AdaVae):
         # compute kl regularisation
         ave_kl_reg_loss = self.training_regularize_kl(ave_kl_loss)
         # augment loss (0 for this)
-        augment_loss, augment_loss_logs = self.augment_loss(z_means=(a_z_params.z_mean, p_z_params.z_mean, n_z_params.z_mean))
+        augment_loss, augment_loss_logs = self.augment_loss(z_means=(a_z_params.mean, p_z_params.mean, n_z_params.mean))
         # compute combined loss - must be same as the BetaVAE
         loss = ave_recon_loss + ave_kl_reg_loss + augment_loss
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -66,9 +66,9 @@ class BoundedAdaVae(AdaVae):
         a_z_params, p_z_params, n_z_params = all_params
 
         # get distributions
-        a_d_posterior, _ = self.training_make_distributions(a_z_params)
-        p_d_posterior, _ = self.training_make_distributions(p_z_params)
-        n_d_posterior, _ = self.training_make_distributions(n_z_params)
+        a_d_posterior, _ = self.training_params_to_distributions(a_z_params)
+        p_d_posterior, _ = self.training_params_to_distributions(p_z_params)
+        n_d_posterior, _ = self.training_params_to_distributions(n_z_params)
 
         # get deltas
         a_p_deltas = AdaVae.compute_kl_deltas(a_d_posterior, p_d_posterior, symmetric_kl=self.cfg.symmetric_kl)

@@ -2,7 +2,8 @@ import functools
 import logging
 import os
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
+from typing import Tuple
 
 import torch
 import pytorch_lightning as pl
@@ -377,6 +378,41 @@ class DisentConfigurable(object):
         super().__init__()
         assert isinstance(cfg, self.__class__.cfg), f'{cfg=} ({type(cfg)}) is not an instance of {self.__class__.cfg}'
         self.cfg = cfg
+
+
+# ========================================================================= #
+# Slot Tuple                                                                #
+# ========================================================================= #
+
+
+@dataclass
+class TupleDataClass:
+    """
+    Like a named tuple + dataclass combination, that is mutable.
+    -- requires that you still decorate the inherited class with @dataclass
+    """
+
+    __field_names_cache = None
+
+    @property
+    def __field_names(self):
+        # check for attribute and set on class only
+        if self.__class__.__field_names_cache is None:
+            self.__class__.__field_names_cache = tuple(f.name for f in fields(self))
+        return self.__class__.__field_names_cache
+
+    def __iter__(self):
+        for name in self.__field_names:
+            yield getattr(self, name)
+
+    def __len__(self):
+        return self.__field_names.__len__()
+
+    def __str__(self):
+        return str(tuple(self))
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}({", ".join(f"{name}={repr(getattr(self, name))}" for name in self.__field_names)})'
 
 
 # ========================================================================= #

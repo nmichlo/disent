@@ -1,7 +1,40 @@
-from typing import Tuple
+from dataclasses import dataclass
+from typing import Tuple, final
 
 import torch
 from torch.distributions import Normal, Distribution
+
+from disent.frameworks.helper.reductions import loss_reduction
+from disent.util import TupleDataClass
+
+
+# ========================================================================= #
+# Helper Functions                                                          #
+# ========================================================================= #
+
+
+def kl_loss_direct(posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None):
+    # This is how the original VAE/BetaVAE papers do it:s
+    # - we compute the kl divergence directly instead of approximating it
+    return torch.distributions.kl_divergence(posterior, prior)
+
+
+def kl_loss_approx(posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None):
+    # This is how pytorch-lightning-bolts does it:
+    # See issue: https://github.com/PyTorchLightning/pytorch-lightning-bolts/issues/565
+    # - we approximate the kl divergence instead of computing it analytically
+    assert z_sampled is not None, 'to compute the approximate kl loss, z_sampled needs to be defined (cfg.kl_mode="approx")'
+    return posterior.log_prob(z_sampled) - prior.log_prob(z_sampled)
+
+
+_KL_LOSS_MODES = {
+    'direct': kl_loss_direct,
+    'approx': kl_loss_approx,
+}
+
+
+def kl_loss(posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None, mode='direct'):
+    return _KL_LOSS_MODES[mode](posterior, prior, z_sampled)
 
 
 # ========================================================================= #
@@ -9,59 +42,53 @@ from torch.distributions import Normal, Distribution
 # ========================================================================= #
 
 
-class VaeDistribution(object):
+class LatentDistribution(object):
 
-    class Params:
-        __slots__ = ()
-
-        def __init__(self, *args):
-            assert len(args) == len(self.__slots__)
-            for name, arg in zip(self.__slots__, args):
-                setattr(self, name, arg)
-
-        def __iter__(self):
-            for name in self.__slots__:
-                yield getattr(self, name)
-
-        def __len__(self):
-            return len(self.__slots__)
-
-        def __str__(self):
-            return str(tuple(self))
-
-        def __repr__(self):
-            return f'{self.__class__.__name__}({", ".join(f"{k}={repr(getattr(self, k))}" for k in self.__slots__)})'
-
-    def raw_to_params(self, z: Tuple[torch.Tensor, ...]) -> Params:
+    @dataclass
+    class Params(TupleDataClass):
         """
-        Convert the raw z encoding to a params object
-        for this specific set of distributions.
+        We use a params object so frameworks can check
+        what kind of ops are supported, debug easier, and give type hints.
+        - its a bit less efficient memory wise, but hardly...
+        """
+
+    def encoding_to_params(self, z_raw):
+        raise NotImplementedError
+
+    def params_to_representation(self, z_params: Params) -> torch.Tensor:
+        raise NotImplementedError
+
+    def params_to_distributions(self, z_params: Params) -> Tuple[Distribution, Distribution]:
+        """
+        make the posterior and prior distributions
         """
         raise NotImplementedError
 
-    def params_to_z(self, params: Params) -> torch.Tensor:
-        """
-        Get the deterministic z values to pass to the encoder.
-        """
-        raise NotImplementedError
-
-    def make(self, z_params: Params) -> Tuple[Distribution, Distribution]:
-        """
-        make the prior and posterior distributions
-        """
-        raise NotImplementedError
-
-    def make_and_sample(self, z_params: Params) -> Tuple[Tuple[Distribution, Distribution], torch.Tensor]:
+    @final
+    def params_to_distributions_and_sample(self, z_params: Params) -> Tuple[Tuple[Distribution, Distribution], torch.Tensor]:
         """
         Return the parameterized prior and the approximate posterior distributions,
         as well as a sample from the approximate posterior using the 'reparameterization trick'.
         """
-        posterior, prior = self.make(z_params)
+        posterior, prior = self.params_to_distributions(z_params)
         # sample from posterior -- reparameterization trick!
         # ie. z ~ q(z|x)
         z_sampled = posterior.rsample()
         # return values
         return (posterior, prior), z_sampled
+
+    @staticmethod
+    @final
+    def compute_kl_loss(
+            posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None,
+            mode: str = 'direct', reduction='batch_mean'
+    ):
+        """
+        Compute the kl divergence
+        """
+        kl = kl_loss(posterior, prior, z_sampled, mode=mode)
+        kl = loss_reduction(kl, reduction=reduction)
+        return kl
 
 
 # ========================================================================= #
@@ -69,21 +96,29 @@ class VaeDistribution(object):
 # ========================================================================= #
 
 
-class VaeDistributionNormal(VaeDistribution):
+class LatentDistributionNormal(LatentDistribution):
+    """
+    Latent distributions with:
+    - posterior: normal distribution with diagonal covariance
+    - prior: unit normal distribution
+    """
 
-    class Params(VaeDistribution.Params):
-        __slots__ = ('z_mean', 'z_logvar')
-        def __init__(self, z_mean, z_logvar):
-            super().__init__(z_mean, z_logvar)
+    @dataclass
+    class Params(LatentDistribution.Params):
+        mean: torch.Tensor = None
+        logvar: torch.Tensor = None
 
-    def raw_to_params(self, raw_z: Tuple[torch.Tensor, torch.Tensor]) -> Params:
+    @final
+    def encoding_to_params(self, raw_z: Tuple[torch.Tensor, torch.Tensor]) -> Params:
         z_mean, z_logvar = raw_z
         return self.Params(z_mean, z_logvar)
 
-    def params_to_z(self, params: Params) -> torch.Tensor:
-        return params.z_mean
+    @final
+    def params_to_representation(self, z_params: Params) -> torch.Tensor:
+        return z_params.mean
 
-    def make(self, z_params: Params) -> Tuple[Normal, Normal]:
+    @final
+    def params_to_distributions(self, z_params: Params) -> Tuple[Normal, Normal]:
         """
         Return the parameterized prior and the approximate posterior distributions.
         - The standard VAE parameterizes the gaussian normal with diagonal covariance.
@@ -104,15 +139,35 @@ class VaeDistributionNormal(VaeDistribution):
         # return values
         return posterior, prior
 
+    @staticmethod
+    def LEGACY_compute_kl_loss(mu, logvar, mode: str = 'direct', reduction='batch_mean'):
+        """
+        Calculates the KL divergence between a normal distribution with
+        diagonal covariance and a unit normal distribution.
+        FROM: https://github.com/Schlumberger/joint-vae/blob/master/jointvae/training.py
+
+        (✓) Visual inspection against reference implementation:
+            https://github.com/google-research/disentanglement_lib (compute_gaussian_kl)
+        """
+        assert mode == 'direct', f'legacy reference implementation of KL loss only supports mode="direct", not {repr(mode)}'
+        assert reduction == 'batch_mean', f'legacy reference implementation of KL loss only supports reduction="batch_mean", not {repr(reduction)}'
+        # Calculate KL divergence
+        kl_values = -0.5 * (1 + logvar - mu.pow(2) - logvar.exp())
+        # Sum KL divergence across latent vector for each sample
+        kl_sums = torch.sum(kl_values, dim=1)
+        # KL loss is mean of the KL divergence sums
+        kl_loss = torch.mean(kl_sums)
+        return kl_loss
+
 
 # ========================================================================= #
 # Factory                                                                   #
 # ========================================================================= #
 
 
-def make_vae_distribution(name: str) -> VaeDistribution:
+def make_latent_distribution(name: str) -> LatentDistribution:
     if name == 'normal':
-        return VaeDistributionNormal()
+        return LatentDistributionNormal()
     else:
         raise KeyError(f'unknown vae distribution name: {name}')
 
@@ -120,4 +175,3 @@ def make_vae_distribution(name: str) -> VaeDistribution:
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-

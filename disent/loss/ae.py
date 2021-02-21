@@ -1,13 +1,16 @@
+from typing import final
+
 import torch
 import torch.nn.functional as F
+from disent.frameworks.helper.reductions import loss_reduction
 
 
 # ========================================================================= #
-# Vae Loss Functions                                                        #
+# Reconstruction Loss Base                                                  #
 # ========================================================================= #
 
 
-class AeLoss(object):
+class Reconstructions(object):
 
     def activate(self, x):
         """
@@ -16,38 +19,73 @@ class AeLoss(object):
         """
         raise NotImplementedError
 
-    def training_loss(self, x_partial_recon, x_targ):
+    @final
+    def training_compute_loss(self, x_partial_recon: torch.Tensor, x_targ: torch.Tensor, reduction: str = 'batch_mean') -> torch.Tensor:
         """
         Takes in an **unactivated** tensor from the model
         as well as an original target from the dataset.
         :return: The computed mean loss
         """
+        assert x_partial_recon.shape == x_targ.shape
+        batch_loss = self._compute_batch_loss(x_partial_recon, x_targ)
+        loss = loss_reduction(batch_loss, reduction=reduction)
+        return loss
+
+    def _compute_batch_loss(self, x_partial_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError
 
 
-class AeLossMse(AeLoss):
+# ========================================================================= #
+# Reconstruction Losses                                                     #
+# ========================================================================= #
+
+
+class ReconstructionLossMse(Reconstructions):
 
     def activate(self, x):
         return x
 
-    def training_loss(self, x_partial_recon, x_targ):
-        return F.mse_loss(x_partial_recon, x_targ, reduction='mean')
+    def _compute_batch_loss(self, x_partial_recon, x_targ):
+        return F.mse_loss(x_partial_recon, x_targ, reduction='none')
+
+    @staticmethod
+    def LEGACY_training_compute_loss(x_recon, x_target, reduction: str = 'batch_mean'):
+        raise NotImplementedError('LEGACY mse version does not exist!')
 
 
-class AeLossBce(AeLoss):
+class ReconstructionLossBce(Reconstructions):
 
     def activate(self, x):
         return torch.sigmoid(x)
 
-    def training_loss(self, x_partial_recon, x_targ):
-        return F.binary_cross_entropy_with_logits(x_partial_recon, x_targ, reduction='mean')
+    def _compute_batch_loss(self, x_partial_recon, x_targ):
+        return F.binary_cross_entropy_with_logits(x_partial_recon, x_targ, reduction='none')
+
+    @staticmethod
+    def LEGACY_training_compute_loss(x_recon, x_target, reduction: str = 'batch_mean'):
+        """
+        Computes the Bernoulli loss for the sigmoid activation function
+        FROM: https://github.com/google-research/disentanglement_lib/blob/76f41e39cdeff8517f7fba9d57b09f35703efca9/disentanglement_lib/methods/shared/losses.py
+        """
+        assert reduction == 'batch_mean', f'legacy reference implementation of BCE loss only supports reduction="batch_mean", not {repr(reduction)}'
+        # x, x_recon = x.view(x.shape[0], -1), x_recon.view(x.shape[0], -1)
+        # per_sample_loss = F.binary_cross_entropy_with_logits(x_recon, x, reduction='none').sum(axis=1)  # tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=x_recon, labels=x), axis=1)
+        # reconstruction_loss = per_sample_loss.mean()                                                    # tf.reduce_mean(per_sample_loss)
+        # ALTERNATIVE IMPLEMENTATION https://github.com/YannDubs/disentangling-vae/blob/master/disvae/models/losses.py
+        assert x_recon.shape == x_target.shape
+        return F.binary_cross_entropy_with_logits(x_recon, x_target, reduction="sum") / len(x_target)
 
 
-def make_vae_recon_loss(name) -> AeLoss:
+# ========================================================================= #
+# Factory                                                                   #
+# ========================================================================= #
+
+
+def make_reconstruction_loss(name) -> Reconstructions:
     if name == 'mse':
-        return AeLossMse()
+        return ReconstructionLossMse()
     elif name == 'bce':
-        return AeLossBce()
+        return ReconstructionLossBce()
     else:
         raise KeyError(f'Invalid vae reconstruction loss: {name}')
 
