@@ -24,7 +24,7 @@ class Vae(AE):
     @dataclass
     class cfg(AE.cfg):
         distribution: str = 'normal'
-        kl_mode: str = 'approximate'
+        kl_mode: str = 'direct'
 
     def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
         # required_z_multiplier
@@ -94,15 +94,15 @@ class Vae(AE):
         return self._distributions.make(z_params)
 
     def training_kl_loss(self, d_posterior: Distribution, d_prior: Distribution, z_sampled: torch.Tensor = None) -> torch.Tensor:
-        if self.cfg.kl_mode == 'analytical':
-            # This is how the original VAE/BetaVAE papers do it:
+        if self.cfg.kl_mode == 'direct':
+            # This is how the original VAE/BetaVAE papers do it:s
             # - we compute the kl divergence directly instead of approximating it
             kl = torch.distributions.kl_divergence(d_posterior, d_prior)
-        elif self.cfg.kl_mode == 'approximate':
+        elif self.cfg.kl_mode == 'approx':
             # This is how pytorch-lightning-bolts does it:
             # See issue: https://github.com/PyTorchLightning/pytorch-lightning-bolts/issues/565
             # - we approximate the kl divergence instead of computing it analytically
-            assert z_sampled is not None, 'to compute the approximate kl loss, z_sampled needs to be defined (cfg.kl_mode="approximate")'
+            assert z_sampled is not None, 'to compute the approximate kl loss, z_sampled needs to be defined (cfg.kl_mode="approx")'
             kl = d_posterior.log_prob(z_sampled) - d_prior.log_prob(z_sampled)
         else:
             raise KeyError(f'invalid kl_mode={repr(self.cfg.kl_mode)}')

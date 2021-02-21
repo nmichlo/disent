@@ -11,6 +11,7 @@ from pytorch_lightning.loggers import WandbLogger, CometLogger
 
 from disent import metrics
 from disent.model.ae.base import AutoEncoder
+from disent.model.init import init_model_weights
 from disent.util import make_box_str, wrapped_partial
 
 from experiment.util.hydra_data import HydraDataModule
@@ -172,10 +173,10 @@ def run(cfg: DictConfig):
     framework: pl.LightningModule = hydra.utils.instantiate(
         dict(_target_=cfg.framework.module._target_),
         make_optimizer_fn=lambda params: hydra.utils.instantiate(cfg.optimizer.cls, params),
-        make_model_fn=lambda: AutoEncoder(
+        make_model_fn=lambda: init_model_weights(AutoEncoder(
             encoder=hydra.utils.instantiate(cfg.model.encoder),
             decoder=hydra.utils.instantiate(cfg.model.decoder)
-        ),
+        ), mode=cfg.model.weight_init),
         # apply augmentations to batch on GPU which can be faster than via the dataloader
         batch_augment=datamodule.batch_augment,
         cfg=hydra.utils.instantiate(

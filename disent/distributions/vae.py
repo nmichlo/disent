@@ -1,4 +1,4 @@
-from typing import Tuple, NamedTuple, Type
+from typing import Tuple
 
 import torch
 from torch.distributions import Normal, Distribution
@@ -12,7 +12,7 @@ from torch.distributions import Normal, Distribution
 class VaeDistribution(object):
 
     class Params:
-        __slots__ = []
+        __slots__ = ()
 
         def __init__(self, *args):
             assert len(args) == len(self.__slots__)
@@ -22,6 +22,15 @@ class VaeDistribution(object):
         def __iter__(self):
             for name in self.__slots__:
                 yield getattr(self, name)
+
+        def __len__(self):
+            return len(self.__slots__)
+
+        def __str__(self):
+            return str(tuple(self))
+
+        def __repr__(self):
+            return f'{self.__class__.__name__}({", ".join(f"{k}={repr(getattr(self, k))}" for k in self.__slots__)})'
 
     def raw_to_params(self, z: Tuple[torch.Tensor, ...]) -> Params:
         """
@@ -34,7 +43,7 @@ class VaeDistribution(object):
         """
         Get the deterministic z values to pass to the encoder.
         """
-        return NotImplementedError
+        raise NotImplementedError
 
     def make(self, z_params: Params) -> Tuple[Distribution, Distribution]:
         """
@@ -55,11 +64,15 @@ class VaeDistribution(object):
         return (posterior, prior), z_sampled
 
 
+# ========================================================================= #
+# Normal Distribution                                                       #
+# ========================================================================= #
+
+
 class VaeDistributionNormal(VaeDistribution):
 
     class Params(VaeDistribution.Params):
-        __slots__ = ['z_mean', 'z_logvar']
-
+        __slots__ = ('z_mean', 'z_logvar')
         def __init__(self, z_mean, z_logvar):
             super().__init__(z_mean, z_logvar)
 
@@ -84,12 +97,17 @@ class VaeDistributionNormal(VaeDistribution):
         z_mean, z_logvar = z_params
         # compute required values
         z_std = torch.exp(0.5 * z_logvar)
-        # p: prior distribution
-        prior = Normal(torch.zeros_like(z_mean), torch.ones_like(z_std))
         # q: approximate posterior distribution
         posterior = Normal(z_mean, z_std)
+        # p: prior distribution
+        prior = Normal(torch.zeros_like(z_mean), torch.ones_like(z_std))
         # return values
         return posterior, prior
+
+
+# ========================================================================= #
+# Factory                                                                   #
+# ========================================================================= #
 
 
 def make_vae_distribution(name: str) -> VaeDistribution:

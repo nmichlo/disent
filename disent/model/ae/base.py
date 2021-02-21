@@ -29,13 +29,12 @@ class AutoEncoder(BaseModule):
     def encode(self, x):
         z_raw = self._encoder(x)
         # extract components if necessary
-        if self._z_multiplier > 1:
-            z_raw = tuple(
-                z_raw[..., i*self.z_size:(i+1)*self.z_size]
-                for i in range(self.z_multiplier)
-            )
-        # done
-        return z_raw
+        if self._z_multiplier == 1:
+            return z_raw
+        elif self.z_multiplier == 2:
+            return z_raw[..., :self.z_size], z_raw[..., self.z_size:]
+        else:
+            raise KeyError(f'z_multiplier={self.z_multiplier} is unsupported')
 
     def decode(self, z: Tensor) -> Tensor:
         """
