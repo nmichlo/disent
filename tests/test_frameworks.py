@@ -1,3 +1,5 @@
+from dataclasses import asdict
+
 import pytest
 from torch.optim import Adam
 from torch.utils.data import DataLoader
@@ -52,3 +54,13 @@ def test_frameworks(z_multiplier, DataWrapper, Framework, cfg_kwargs):
 
     trainer = pl.Trainer(logger=False, checkpoint_callback=False, max_steps=256, fast_dev_run=True)
     trainer.fit(framework, dataloader)
+
+
+def test_framrwork_config_defaults():
+    # we test that defaults are working recursively
+    assert asdict(Vae.cfg(kl_loss_mode='approx')) == dict(
+        recon_loss='mse',
+        loss_reduction='batch_mean',
+        latent_distribution='normal',
+        kl_loss_mode='approx'
+    )
