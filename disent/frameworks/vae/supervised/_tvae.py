@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import torch
 from disent.frameworks.vae.unsupervised import BetaVae
-from disent.loss.triplet import configured_triplet, TripletLossConfig, TripletConfigTypeHint
+from disent.frameworks.helper.triplet_loss import configured_triplet, TripletLossConfig, TripletConfigTypeHint
 
 
 # ========================================================================= #

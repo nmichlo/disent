@@ -10,7 +10,7 @@ from disent.frameworks.helper.reductions import loss_reduction
 # ========================================================================= #
 
 
-class Reconstructions(object):
+class ReconstructionLoss(object):
 
     def activate(self, x):
         """
@@ -40,7 +40,7 @@ class Reconstructions(object):
 # ========================================================================= #
 
 
-class ReconstructionLossMse(Reconstructions):
+class ReconstructionLossMse(ReconstructionLoss):
     """
     MSE loss should be used with continuous targets between [0, 1].
     - using BCE for such targets is a prevalent error in VAE research.
@@ -64,7 +64,7 @@ class ReconstructionLossMse(Reconstructions):
         raise NotImplementedError('LEGACY mse version does not exist!')
 
 
-class ReconstructionLossBce(Reconstructions):
+class ReconstructionLossBce(ReconstructionLoss):
     """
     BCE loss should only be used with binary targets {0, 1}.
     - ignoring this and not using MSE is a prevalent error in VAE research.
@@ -98,7 +98,7 @@ class ReconstructionLossBce(Reconstructions):
 # ========================================================================= #
 
 
-def make_reconstruction_loss(name) -> Reconstructions:
+def make_reconstruction_loss(name) -> ReconstructionLoss:
     if name == 'mse':
         return ReconstructionLossMse()
     elif name == 'bce':

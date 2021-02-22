@@ -77,9 +77,9 @@ class LatentDistribution(object):
         # return values
         return (posterior, prior), z_sampled
 
-    @staticmethod
-    @final
+    @classmethod
     def compute_kl_loss(
+            cls,
             posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None,
             mode: str = 'direct', reduction='batch_mean'
     ):
@@ -158,6 +158,29 @@ class LatentDistributionNormal(LatentDistribution):
         # KL loss is mean of the KL divergence sums
         kl_loss = torch.mean(kl_sums)
         return kl_loss
+
+    # @classmethod
+    # def compute_kl_loss(
+    #         cls,
+    #         posterior: Normal, prior: Normal, z_sampled: torch.Tensor = None,
+    #         mode: str = 'direct', reduction='batch_mean'
+    # ):
+    #     # check dtypes
+    #     dtype = posterior.loc.dtype
+    #     assert dtype == torch.float32
+    #     assert dtype == posterior.loc.dtype == posterior.scale.dtype == prior.loc.dtype == prior.scale.dtype
+    #     # convert to float64
+    #     posterior = Normal(posterior.loc.to(torch.float64), posterior.scale.to(torch.float64))
+    #     prior = Normal(prior.loc.to(torch.float64), prior.scale.to(torch.float64))
+    #     if z_sampled is not None:
+    #         assert dtype == z_sampled.dtype
+    #         z_sampled = z_sampled.to(torch.float64)
+    #     # compute kl like normal
+    #     kl = super().compute_kl_loss(posterior, prior, z_sampled, mode=mode, reduction=reduction)
+    #     # convert back to float32
+    #     return kl.to(torch.float32)
+
+
 
 
 # ========================================================================= #
