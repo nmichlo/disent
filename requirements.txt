@@ -44,7 +44,7 @@ matplotlib==3.3.4
 # tqdm==4.56.0
 
 # streamlit==0.75.0
-wandb==0.10.17
+wandb==0.10.19
 
 # UTILITY
 # =======
