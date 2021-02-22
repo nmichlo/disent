@@ -1,0 +1,4 @@
+# @package _global_
+callbacks:
+  metrics:
+    every_n_steps: 7200

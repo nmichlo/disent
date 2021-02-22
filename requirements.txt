@@ -39,7 +39,7 @@ h5py>=2.10.0  # as of tensorflow 2.4 it does not support h5py 3+
 # GRAPHING & DISPLAY
 # ==================
 matplotlib==3.3.4
-# plotly==4.14.3
+plotly==4.14.3
 # seaborn==0.11.1
 # tqdm==4.56.0
 
