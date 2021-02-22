@@ -31,12 +31,21 @@ instantiate_recursive = call_recursive
 # ========================================================================= #
 
 
-def merge_specializations(cfg: DictConfig, config_path: str, main_fn: callable):
+def make_non_strict(cfg: DictConfig):
+    return OmegaConf.create({**cfg})
+
+
+def merge_specializations(cfg: DictConfig, config_path: str, main_fn: callable, strict=True):
     # TODO: this should eventually be replaced with hydra recursive defaults
+    # TODO: this makes config non-strict, allows setdefault to work even if key does not exist in config
 
     # skip if we do not have any specializations
     if 'specializations' not in cfg:
         return
+
+    if not strict:
+        # we allow overwrites & missing values to be inserted
+        cfg = make_non_strict(cfg)
 
     # imports
     import os
@@ -48,12 +57,12 @@ def merge_specializations(cfg: DictConfig, config_path: str, main_fn: callable):
 
     # set and update specializations
     for group, specialization in cfg.specializations.items():
-        assert group not in cfg, f'{group=} already exists on cfg, merging is not yet supported!'
+        assert group not in cfg, f'{group=} already exists on cfg, specialization merging is not supported!'
         log.info(f'merging specialization: {repr(specialization)}')
         # load specialization config
         specialization_cfg = OmegaConf.load(os.path.join(config_root, group, f'{specialization}.yaml'))
         # create new config
-        cfg = OmegaConf.create({**cfg, group: specialization_cfg})
+        cfg = OmegaConf.merge(cfg, {group: specialization_cfg})
 
     # remove specializations key
     del cfg['specializations']

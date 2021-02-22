@@ -27,6 +27,7 @@ class BaseFramework(DisentConfigurable, DisentLightningModule):
 
     @final
     def configure_optimizers(self):
+        # return optimizers
         return self._make_optimiser_fn(self.parameters())
 
     @final
@@ -42,10 +43,15 @@ class BaseFramework(DisentConfigurable, DisentLightningModule):
         self.log_dict(logs_dict)
         train_loss = logs_dict['train_loss']
         # check training loss
-        if train_loss != train_loss:
-            raise RuntimeError(f'training loss is NAN!')
-        # train
+        self._assert_valid_loss(train_loss)
+        # return loss
         return train_loss
+
+    @final
+    def _assert_valid_loss(self, loss):
+        if self.trainer.terminate_on_nan:
+            if torch.isnan(loss) or torch.isinf(loss):
+                raise ValueError('The returned loss is nan or inf')
 
     def forward(self, batch) -> torch.Tensor:
         """this function should return the single final output of the model, including the final activation"""

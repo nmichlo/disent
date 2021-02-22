@@ -1,13 +1,15 @@
 import dataclasses
 import os
 import logging
+from typing import Optional
+
 from omegaconf import DictConfig, OmegaConf
 import hydra
 
 import pytorch_lightning as pl
 import torch
 import torch.utils.data
-from pytorch_lightning.loggers import WandbLogger, CometLogger
+from pytorch_lightning.loggers import WandbLogger, CometLogger, LoggerCollection
 
 from disent import metrics
 from disent.model.ae.base import AutoEncoder
@@ -17,9 +19,63 @@ from disent.util import make_box_str, wrapped_partial
 from experiment.util.hydra_data import HydraDataModule
 from experiment.util.callbacks import VaeDisentanglementLoggingCallback, VaeLatentCycleLoggingCallback, LoggerProgressCallback
 from experiment.util.callbacks.callbacks_vae import VaeLatentCorrelationLoggingCallback
-from experiment.util.hydra_utils import merge_specializations
+from experiment.util.hydra_utils import merge_specializations, make_non_strict
 
 log = logging.getLogger(__name__)
+
+
+# ========================================================================= #
+# HYDRA CONFIG HELPERS                                                      #
+# ========================================================================= #
+
+
+_PL_LOGGER: Optional[LoggerCollection] = None
+_PL_TRAINER: Optional[pl.Trainer] = None
+_PL_CAPTURED_SIGNAL = False
+
+
+def set_debug_trainer(trainer: Optional[pl.Trainer]):
+    global _PL_TRAINER
+    _PL_TRAINER = trainer
+    return trainer
+
+
+def set_debug_logger(logger: Optional[LoggerCollection]):
+    global _PL_LOGGER, _PL_CAPTURED_SIGNAL
+    _PL_LOGGER = logger
+    log_debug_error(err_type='N/A', err_msg='N/A', err_occurred=False)
+    # signal listeners in case we shutdown unexpectedly!
+    import signal
+    def signal_handler(signal_number, frame):
+        # remove callbacks from trainer so we aren't stuck running forever!
+        # TODO: this is a hack! is this not a bug?
+        if _PL_TRAINER is not None:
+            _PL_TRAINER.callbacks.clear()
+        # get the signal name
+        numbers_to_names = dict((k, v) for v, k in reversed(sorted(signal.__dict__.items())) if v.startswith('SIG') and not v.startswith('SIG_'))
+        signal_name = numbers_to_names.get(signal_number, signal_number)
+        # log everything!
+        log.error(f'Signal encountered: {signal_name} -- logging if possible!')
+        log_debug_error(err_type=f'received signal: {signal_name}', err_msg=f'{signal_name}', err_occurred=True)
+        _PL_CAPTURED_SIGNAL = True
+    # register signal listeners -- we can't capture SIGKILL!
+    signal.signal(signal.SIGINT, signal_handler)    # interrupted from the dialogue station
+    signal.signal(signal.SIGTERM, signal_handler)   # terminate the process in a soft way
+    signal.signal(signal.SIGABRT, signal_handler)   # abnormal termination
+    signal.signal(signal.SIGSEGV, signal_handler)   # segmentation fault
+    return logger
+
+
+def log_debug_error(err_type: str, err_msg: str, err_occurred: bool):
+    if _PL_CAPTURED_SIGNAL:
+        log.warning(f'signal already captured, but tried to log error after this: err_type={repr(err_type)}, err_msg={repr(err_msg)}, err_occurred={repr(err_occurred)}')
+        return
+    if _PL_LOGGER is not None:
+        _PL_LOGGER.log_metrics({
+            'error_type': err_type,
+            'error_msg': err_msg[:244] + ' <TRUNCATED>' if len(err_msg) > 244 else err_msg,
+            'error_occurred': err_occurred,
+        })
 
 
 # ========================================================================= #
@@ -66,6 +122,9 @@ def hydra_check_datadir(prepare_data_per_node, cfg):
 def hydra_make_logger(cfg):
     loggers = []
 
+    # initialise logging dict
+    cfg.setdefault('loggings', {})
+
     if ('wandb' in cfg.logging) and cfg.logging.wandb.setdefault('enabled', True):
         loggers.append(WandbLogger(
             offline=cfg.logging.wandb.setdefault('offline', False),
@@ -91,7 +150,7 @@ def hydra_make_logger(cfg):
     else:
         cfg.logging.setdefault('cometml', dict(enabled=False))
 
-    return loggers if loggers else None  # lists are turned into a LoggerCollection by pl
+    return LoggerCollection(loggers) if loggers else None  # lists are turned into a LoggerCollection by pl
 
 
 def hydra_append_progress_callback(callbacks, cfg):
@@ -153,16 +212,21 @@ def hydra_append_correlation_callback(callbacks, cfg):
 
 
 def run(cfg: DictConfig):
-    # print useful info
-    log.info(f"Current working directory : {os.getcwd()}")
-    log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
+    cfg = make_non_strict(cfg)
 
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
     # INITIALISE & SETDEFAULT IN CONFIG
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
 
+    # create trainer loggers & callbacks & initialise error messages
+    logger = set_debug_logger(hydra_make_logger(cfg))
+
+    # print useful info
+    log.info(f"Current working directory : {os.getcwd()}")
+    log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
+
     # hydra config does not support variables in defaults lists, we handle this manually
-    cfg = merge_specializations(cfg, CONFIG_PATH, run)  # TODO: this is hacky and should be replaced!
+    cfg = merge_specializations(cfg, CONFIG_PATH, run)
     # create framework config - this is also kinda hacky
     framework_cfg = hydra.utils.instantiate({**cfg.framework.module, **dict(_target_=cfg.framework.module._target_ + '.cfg')})
     # update config params in case we missed variables in the cfg
@@ -175,9 +239,6 @@ def run(cfg: DictConfig):
     # check data preparation
     prepare_data_per_node = cfg.trainer.setdefault('prepare_data_per_node', True)
     hydra_check_datadir(prepare_data_per_node, cfg)
-
-    # create trainer loggers & callbacks
-    logger = hydra_make_logger(cfg)
 
     # TRAINER CALLBACKS
     callbacks = []
@@ -203,7 +264,7 @@ def run(cfg: DictConfig):
     )
 
     # Setup Trainer
-    trainer = pl.Trainer(
+    trainer = set_debug_trainer(pl.Trainer(
         log_every_n_steps=cfg.logging.setdefault('log_every_n_steps', 50),
         flush_logs_every_n_steps=cfg.logging.setdefault('flush_logs_every_n_steps', 100),
         logger=logger,
@@ -213,7 +274,8 @@ def run(cfg: DictConfig):
         max_steps=cfg.trainer.setdefault('steps', None),
         prepare_data_per_node=prepare_data_per_node,
         progress_bar_refresh_rate=0,  # ptl 0.9
-    )
+        terminate_on_nan=True,  # we do this here so we don't run the final metrics
+    ))
 
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
     # BEGIN TRAINING
@@ -245,12 +307,13 @@ if __name__ == '__main__':
     def main(cfg: DictConfig):
         try:
             run(cfg)
-        except:
+        except Exception as e:
+            log_debug_error(err_type='critical', err_msg=str(e), err_occurred=True)
             log.error('A critical error occurred:', exc_info=True)
-
     try:
         main()
     except KeyboardInterrupt as e:
+        log_debug_error(err_type='early exit', err_msg=str(e), err_occurred=True)
         log.warning('Interrupted - Exited early!')
 
 
