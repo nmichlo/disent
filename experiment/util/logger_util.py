@@ -30,7 +30,7 @@ _SUMMARY_REDICTIONS = {
 }
 
 
-def wb_log_summaries(logger, summary_dct: dict, reduction='max'):
+def wb_log_reduced_summaries(logger, summary_dct: dict, reduction='max'):
     reduce_fn = _SUMMARY_REDICTIONS[reduction]
     wb_logger = None
     # iterate over loggers & update summaries

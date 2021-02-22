@@ -18,7 +18,7 @@ from disent.visualize.visualize_model import latent_cycle_grid_animation
 
 from experiment.util.hydra_data import HydraDataModule
 from experiment.util.callbacks.callbacks_base import _PeriodicCallback
-from experiment.util.logger_util import wb_log_metrics, wb_log_summaries, log_metrics
+from experiment.util.logger_util import wb_log_metrics, wb_log_reduced_summaries, log_metrics
 
 log = logging.getLogger(__name__)
 
@@ -108,7 +108,7 @@ class VaeDisentanglementLoggingCallback(_PeriodicCallback):
             log_metrics(trainer.logger, {prefix: scores})
             # log summary for WANDB
             # this is kinda hacky... the above should work for parallel coordinate plots
-            wb_log_summaries(trainer.logger, {f'{prefix}.{k}': v for k, v in scores.items()}, reduction='max')
+            wb_log_reduced_summaries(trainer.logger, {f'{prefix}.{k}': v for k, v in scores.items()}, reduction='max')
 
     def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         if self.step_end_metrics:

@@ -10,7 +10,7 @@ defaults:
   - augment: none
   - sampling: full_bb
   # runtime
-  - run_length: short
+  - run_length: tiny
   - run_location: cluster_many
   - run_callbacks: metrics_slow
   - run_logging: wandb_slow
