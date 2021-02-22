@@ -1,7 +1,6 @@
 import dataclasses
 import os
 import logging
-from typing import Optional
 
 from omegaconf import DictConfig, OmegaConf
 import hydra
@@ -20,62 +19,10 @@ from experiment.util.hydra_data import HydraDataModule
 from experiment.util.callbacks import VaeDisentanglementLoggingCallback, VaeLatentCycleLoggingCallback, LoggerProgressCallback
 from experiment.util.callbacks.callbacks_vae import VaeLatentCorrelationLoggingCallback
 from experiment.util.hydra_utils import merge_specializations, make_non_strict
+from experiment.util.run_utils import set_debug_logger, set_debug_trainer, log_debug_error, log_error
+
 
 log = logging.getLogger(__name__)
-
-
-# ========================================================================= #
-# HYDRA CONFIG HELPERS                                                      #
-# ========================================================================= #
-
-
-_PL_LOGGER: Optional[LoggerCollection] = None
-_PL_TRAINER: Optional[pl.Trainer] = None
-_PL_CAPTURED_SIGNAL = False
-
-
-def set_debug_trainer(trainer: Optional[pl.Trainer]):
-    global _PL_TRAINER
-    _PL_TRAINER = trainer
-    return trainer
-
-
-def set_debug_logger(logger: Optional[LoggerCollection]):
-    global _PL_LOGGER, _PL_CAPTURED_SIGNAL
-    _PL_LOGGER = logger
-    log_debug_error(err_type='N/A', err_msg='N/A', err_occurred=False)
-    # signal listeners in case we shutdown unexpectedly!
-    import signal
-    def signal_handler(signal_number, frame):
-        # remove callbacks from trainer so we aren't stuck running forever!
-        # TODO: this is a hack! is this not a bug?
-        if _PL_TRAINER is not None:
-            _PL_TRAINER.callbacks.clear()
-        # get the signal name
-        numbers_to_names = dict((k, v) for v, k in reversed(sorted(signal.__dict__.items())) if v.startswith('SIG') and not v.startswith('SIG_'))
-        signal_name = numbers_to_names.get(signal_number, signal_number)
-        # log everything!
-        log.error(f'Signal encountered: {signal_name} -- logging if possible!')
-        log_debug_error(err_type=f'received signal: {signal_name}', err_msg=f'{signal_name}', err_occurred=True)
-        _PL_CAPTURED_SIGNAL = True
-    # register signal listeners -- we can't capture SIGKILL!
-    signal.signal(signal.SIGINT, signal_handler)    # interrupted from the dialogue station
-    signal.signal(signal.SIGTERM, signal_handler)   # terminate the process in a soft way
-    signal.signal(signal.SIGABRT, signal_handler)   # abnormal termination
-    signal.signal(signal.SIGSEGV, signal_handler)   # segmentation fault
-    return logger
-
-
-def log_debug_error(err_type: str, err_msg: str, err_occurred: bool):
-    if _PL_CAPTURED_SIGNAL:
-        log.warning(f'signal already captured, but tried to log error after this: err_type={repr(err_type)}, err_msg={repr(err_msg)}, err_occurred={repr(err_occurred)}')
-        return
-    if _PL_LOGGER is not None:
-        _PL_LOGGER.log_metrics({
-            'error_type': err_type,
-            'error_msg': err_msg[:244] + ' <TRUNCATED>' if len(err_msg) > 244 else err_msg,
-            'error_occurred': err_occurred,
-        })
 
 
 # ========================================================================= #
@@ -290,6 +237,8 @@ def run(cfg: DictConfig):
         trainer.logger.log_hyperparams(framework.hparams)
 
     # fit the model
+    # -- if an error/signal occurs while pytorch lightning is
+    #    initialising the training process we cannot capture it!
     trainer.fit(framework, datamodule=datamodule)
 
 
@@ -299,7 +248,6 @@ def run(cfg: DictConfig):
 
 
 if __name__ == '__main__':
-
     CONFIG_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), 'config'))
     CONFIG_NAME = 'config'
 
@@ -309,12 +257,16 @@ if __name__ == '__main__':
             run(cfg)
         except Exception as e:
             log_debug_error(err_type='critical', err_msg=str(e), err_occurred=True)
-            log.error('A critical error occurred:', exc_info=True)
+            log_error(log, 'A critical error occurred inside main:')
+
     try:
         main()
     except KeyboardInterrupt as e:
         log_debug_error(err_type='early exit', err_msg=str(e), err_occurred=True)
         log.warning('Interrupted - Exited early!')
+    except Exception as e:
+        log_debug_error(err_type='unknown', err_msg=str(e), err_occurred=True)
+        log_error(log, 'An unknown error occurred outside of main:')
 
 
 # ========================================================================= #
