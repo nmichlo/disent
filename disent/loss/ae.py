@@ -41,12 +41,23 @@ class Reconstructions(object):
 
 
 class ReconstructionLossMse(Reconstructions):
+    """
+    MSE loss should be used with continuous targets between [0, 1].
+    - using BCE for such targets is a prevalent error in VAE research.
+    """
 
     def activate(self, x):
-        return x
+        # we allow the model output x to generally be in the range [-1, 1] and scale
+        # it to the range [0, 1] here to match the targets.
+        # - this lets it learn more easily as the output is naturally centered on 1
+        # - doing this here directly on the output is easier for visualisation etc.
+        # - TODO: the better alternative is that we rather calculate the MEAN and STD over the dataset
+        #         and normalise that.
+        # - sigmoid is numerically not suitable with MSE
+        return 0.5 * (x + 1)
 
     def _compute_batch_loss(self, x_partial_recon, x_targ):
-        return F.mse_loss(x_partial_recon, x_targ, reduction='none')
+        return F.mse_loss(self.activate(x_partial_recon), x_targ, reduction='none')
 
     @staticmethod
     def LEGACY_training_compute_loss(x_recon, x_target, reduction: str = 'batch_mean'):
@@ -54,8 +65,14 @@ class ReconstructionLossMse(Reconstructions):
 
 
 class ReconstructionLossBce(Reconstructions):
+    """
+    BCE loss should only be used with binary targets {0, 1}.
+    - ignoring this and not using MSE is a prevalent error in VAE research.
+    """
 
     def activate(self, x):
+        # we allow the model output x to generally be in the range [-1, 1] and scale
+        # it to the range [0, 1] here to match the targets.
         return torch.sigmoid(x)
 
     def _compute_batch_loss(self, x_partial_recon, x_targ):
