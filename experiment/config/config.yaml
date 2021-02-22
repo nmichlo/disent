@@ -22,12 +22,13 @@ defaults:
 job:
   user: 'n_michlo'
   project: 'validate-loss-and-distribution-changes'
-  name: '${framework.name}|${dataset.name}:${sampling.name}:${trainer.steps}'
+  name: '${framework.name}:${framework.module.recon_loss}|${dataset.name}:${sampling.name}|${trainer.steps}'
   partition: batch
 
 framework:
-    recon_loss: mse  # mse or bce
-    beta: 4  # majority of VAEs use this
+    beta: 4  # most VAEs use this
+    module:
+      recon_loss: mse
 
 model:
   z_size: 9
