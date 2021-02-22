@@ -45,10 +45,12 @@ def _debug_logger_signal_handler(signal_number, frame):
     # go through the various loggers and get urls if possible
     if _PL_LOGGER:
         for logger in _PL_LOGGER:
-            print(logger)
             if isinstance(logger, WandbLogger):
-                log.info(f'wandb: run url: {logger.experiment._get_run_url()}')
-                log.info(f'wandb: project url: {logger.experiment._get_project_url()}')
+                # so I dont have to scroll up... I'm lazy...
+                run_url = logger.experiment._get_run_url()
+                project_url = logger.experiment._get_project_url()
+                log.info(f'wandb: run url: {run_url if run_url else "N/A"}')
+                log.info(f'wandb: project url: {project_url if run_url else "N/A"}')
 
 
 def set_debug_logger(logger: Optional[LoggerCollection]):

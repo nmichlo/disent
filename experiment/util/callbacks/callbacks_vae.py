@@ -76,9 +76,10 @@ class VaeLatentCycleLoggingCallback(_PeriodicCallback):
         frames = latent_cycle_grid_animation(vae.decode, z_means, z_logvars, mode=self.mode, num_frames=21, decoder_device=vae.device)
 
         # log video
-        trainer.logger.log_metrics({
-            self.mode: wandb.Video(np.clip(frames*255, 0, 255).astype('uint8'), fps=5, format='mp4'),
-        })
+        if trainer.logger:
+            trainer.logger.log_metrics({
+                self.mode: wandb.Video(np.clip(frames*255, 0, 255).astype('uint8'), fps=5, format='mp4'),
+            })
 
 
 class VaeDisentanglementLoggingCallback(_PeriodicCallback):
@@ -104,7 +105,8 @@ class VaeDisentanglementLoggingCallback(_PeriodicCallback):
                 scores = metric(dataset, lambda x: vae.encode(x.to(vae.device)))
             metric_results = ' '.join(f'{k}{c.GRY}={c.lMGT}{v:.3f}{c.RST}' for k, v in scores.items())
             log.info(f'| {metric.__name__} - time{c.GRY}={c.lYLW}{timer.pretty}{c.RST} - {metric_results}')
-            trainer.logger.log_metrics({'final_metric' if is_final else 'epoch_metric': scores})
+            if trainer.logger:
+                trainer.logger.log_metrics({'final_metric' if is_final else 'epoch_metric': scores})
 
     def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         if self.step_end_metrics:
@@ -163,14 +165,15 @@ class VaeLatentCorrelationLoggingCallback(_PeriodicCallback):
         # log
         log.info(f'ave latent correlation: {ave_z_to_f_corr}')
         log.info(f'ave factor correlation: {ave_f_to_z_corr}')
-        trainer.logger.log_metrics({
-            'metric.ave_latent_correlation': ave_z_to_f_corr,
-            'metric.ave_factor_correlation': ave_f_to_z_corr,
-            'metric.correlation_heatmap': wandb.log({'correlation_heatmap': wandb.plots.HeatMap(
-                x_labels=[f'z{i}' for i in range(z_size)],
-                y_labels=list(dataset.factor_names),
-                matrix_values=fz_corr, show_text=False)}),
-        })
+        if trainer.logger:
+            trainer.logger.log_metrics({
+                'metric.ave_latent_correlation': ave_z_to_f_corr,
+                'metric.ave_factor_correlation': ave_f_to_z_corr,
+                'metric.correlation_heatmap': wandb.log({'correlation_heatmap': wandb.plots.HeatMap(
+                    x_labels=[f'z{i}' for i in range(z_size)],
+                    y_labels=list(dataset.factor_names),
+                    matrix_values=fz_corr, show_text=False)}),
+            })
 
         NUM = 1
         # generate traversal value graphs
