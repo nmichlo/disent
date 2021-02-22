@@ -2,6 +2,7 @@ import dataclasses
 import os
 import logging
 
+import signal
 from omegaconf import DictConfig, OmegaConf
 import hydra
 
@@ -19,7 +20,7 @@ from experiment.util.hydra_data import HydraDataModule
 from experiment.util.callbacks import VaeDisentanglementLoggingCallback, VaeLatentCycleLoggingCallback, LoggerProgressCallback
 from experiment.util.callbacks.callbacks_vae import VaeLatentCorrelationLoggingCallback
 from experiment.util.hydra_utils import merge_specializations, make_non_strict
-from experiment.util.run_utils import set_debug_logger, set_debug_trainer, log_debug_error, log_error
+from experiment.util.run_utils import set_debug_logger, set_debug_trainer, log_error_and_exit
 
 
 log = logging.getLogger(__name__)
@@ -256,17 +257,14 @@ if __name__ == '__main__':
         try:
             run(cfg)
         except Exception as e:
-            log_debug_error(err_type='critical', err_msg=str(e), err_occurred=True)
-            log_error(log, 'A critical error occurred inside main:')
+            log_error_and_exit(err_type='experiment error', err_msg=str(e))
 
     try:
         main()
     except KeyboardInterrupt as e:
-        log_debug_error(err_type='early exit', err_msg=str(e), err_occurred=True)
-        log.warning('Interrupted - Exited early!')
+        log_error_and_exit(err_type='interrupted', err_msg=str(e), exc_info=False)
     except Exception as e:
-        log_debug_error(err_type='unknown', err_msg=str(e), err_occurred=True)
-        log_error(log, 'An unknown error occurred outside of main:')
+        log_error_and_exit(err_type='hydra error', err_msg=str(e))
 
 
 # ========================================================================= #
