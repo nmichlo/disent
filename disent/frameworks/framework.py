@@ -33,19 +33,29 @@ class BaseFramework(DisentConfigurable, DisentLightningModule):
     @final
     def training_step(self, batch, batch_idx):
         """This is a pytorch-lightning function that should return the computed loss"""
-        # augment batch with GPU support
-        if self._batch_augment is not None:
-            batch = self._batch_augment(batch)
-        # compute loss
-        logs_dict = self.compute_training_loss(batch, batch_idx)
-        assert 'loss' not in logs_dict
-        # return log loss components & return loss
-        self.log_dict(logs_dict)
-        train_loss = logs_dict['train_loss']
-        # check training loss
-        self._assert_valid_loss(train_loss)
-        # return loss
-        return train_loss
+        try:
+            # augment batch with GPU support
+            if self._batch_augment is not None:
+                batch = self._batch_augment(batch)
+            # compute loss
+            logs_dict = self.compute_training_loss(batch, batch_idx)
+            assert 'loss' not in logs_dict
+            # return log loss components & return loss
+            self.log_dict(logs_dict)
+            train_loss = logs_dict['train_loss']
+            # check training loss
+            self._assert_valid_loss(train_loss)
+            # return loss
+            return train_loss
+        except Exception as e:
+            # call in all the child processes for the best chance of clearing this...
+            # remove callbacks from trainer so we aren't stuck running forever!
+            # TODO: this is a hack... there must be a better way to do this... could it be a pl bug?
+            #       this logic is duplicated in the run_utils
+            if self.trainer and self.trainer.callbacks:
+                self.trainer.callbacks.clear()
+            # continue propagating errors
+            raise e
 
     @final
     def _assert_valid_loss(self, loss):

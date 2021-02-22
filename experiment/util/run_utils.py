@@ -28,13 +28,17 @@ def set_debug_trainer(trainer: Optional[Trainer]):
 
 
 def _signal_handler_log_and_exit(signal_number, frame):
+    # call in all the child processes for the best chance of clearing this...
+    # remove callbacks from trainer so we aren't stuck running forever!
+    # TODO: this is a hack... there must be a better way to do this... could it be a pl bug?
+    #       this logic is duplicated in the framework training_step
+    if _PL_TRAINER and _PL_TRAINER.callbacks:
+        _PL_TRAINER.callbacks.clear()
+
+    # make sure that we only exit in the parent process
     if current_process().name != 'MainProcess':
         log.debug('Skipping signal handling for child process!')
         return
-    # remove callbacks from trainer so we aren't stuck running forever!
-    # TODO: this is a hack! is this not a bug?
-    if _PL_TRAINER is not None:
-        _PL_TRAINER.callbacks.clear()
     # get the signal name
     numbers_to_names = dict((k, v) for v, k in reversed(sorted(signal.__dict__.items())) if v.startswith('SIG') and not v.startswith('SIG_'))
     signal_name = numbers_to_names.get(signal_number, signal_number)
