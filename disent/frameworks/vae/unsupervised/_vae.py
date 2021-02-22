@@ -5,7 +5,7 @@ import torch
 from torch.distributions import Distribution
 
 from disent.frameworks.ae.unsupervised import AE
-from disent.distributions.vae import make_latent_distribution, LatentDistribution
+from disent.frameworks.helper.latent_distributions import make_latent_distribution, LatentDistribution
 
 
 # ========================================================================= #

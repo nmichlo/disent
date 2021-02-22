@@ -1,19 +1,19 @@
 # RUN:
-# -m optimizer.lr=0.01,0.0033,0.001,0.00033,0.0001 framework=betavae,adavae dataset=cars3d,xysquares framework.beta=0.1,0.25,1.0,4.0
+# -m optimizer=adam,radam optimizer.lr=0.0033,0.001,0.00033,0.0001 framework=betavae,adavae dataset=xysquares,cars3d framework.beta=0.1,0.25,1.0,4.0
 
 defaults:
   # experiment
   - framework: betavae
   - model: conv64
-  - optimizer: radam
-  - dataset: cars3d
+  - optimizer: adam
+  - dataset: xysquares
   - augment: none
   - sampling: full_bb
   # runtime
-  - run_length: short
-  - run_callbacks: all
-  - run_location: cluster
-  - run_logging: wandb
+  - run_length: tiny
+  - run_location: cluster_many
+  - run_callbacks: metrics_slow
+  - run_logging: wandb_slow
   # plugins
   - hydra/job_logging: colorlog
   - hydra/hydra_logging: colorlog

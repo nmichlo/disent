@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import torch
 import numpy as np
 from disent.frameworks.vae.supervised._tvae import TripletVae
-from disent.loss.triplet import configured_triplet, configured_dist_triplet
+from disent.frameworks.helper.triplet_loss import configured_triplet, configured_dist_triplet
 from disent.frameworks.vae.weaklysupervised._adavae import AdaVae
 import logging
 

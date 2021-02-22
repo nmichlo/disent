@@ -1,9 +1,10 @@
 import logging
+import warnings
 
 import wandb
 import numpy as np
 import pytorch_lightning as pl
-import warnings
+import matplotlib.pyplot as plt
 
 import torch
 
@@ -17,9 +18,7 @@ from disent.visualize.visualize_model import latent_cycle_grid_animation
 
 from experiment.util.hydra_data import HydraDataModule
 from experiment.util.callbacks.callbacks_base import _PeriodicCallback
-
-import matplotlib.pyplot as plt
-
+from experiment.util.logger_util import wb_log_metrics, wb_log_reduced_summaries, log_metrics
 
 log = logging.getLogger(__name__)
 
@@ -76,10 +75,9 @@ class VaeLatentCycleLoggingCallback(_PeriodicCallback):
         frames = latent_cycle_grid_animation(vae.decode, z_means, z_logvars, mode=self.mode, num_frames=21, decoder_device=vae.device)
 
         # log video
-        if trainer.logger:
-            trainer.logger.log_metrics({
-                self.mode: wandb.Video(np.clip(frames*255, 0, 255).astype('uint8'), fps=5, format='mp4'),
-            })
+        wb_log_metrics(trainer.logger, {
+            self.mode: wandb.Video(np.clip(frames*255, 0, 255).astype('uint8'), fps=5, format='mp4'),
+        })
 
 
 class VaeDisentanglementLoggingCallback(_PeriodicCallback):
@@ -105,8 +103,12 @@ class VaeDisentanglementLoggingCallback(_PeriodicCallback):
                 scores = metric(dataset, lambda x: vae.encode(x.to(vae.device)))
             metric_results = ' '.join(f'{k}{c.GRY}={c.lMGT}{v:.3f}{c.RST}' for k, v in scores.items())
             log.info(f'| {metric.__name__} - time{c.GRY}={c.lYLW}{timer.pretty}{c.RST} - {metric_results}')
-            if trainer.logger:
-                trainer.logger.log_metrics({'final_metric' if is_final else 'epoch_metric': scores})
+            # log to trainer
+            prefix = 'final_metric' if is_final else 'epoch_metric'
+            log_metrics(trainer.logger, {prefix: scores})
+            # log summary for WANDB
+            # this is kinda hacky... the above should work for parallel coordinate plots
+            wb_log_reduced_summaries(trainer.logger, {f'{prefix}.{k}': v for k, v in scores.items()}, reduction='max')
 
     def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         if self.step_end_metrics:
@@ -162,18 +164,22 @@ class VaeLatentCorrelationLoggingCallback(_PeriodicCallback):
         ave_f_to_z_corr = f_to_z_corr_maxs.mean()
         ave_z_to_f_corr = z_to_f_corr_maxs.mean()
 
-        # log
+        # print
         log.info(f'ave latent correlation: {ave_z_to_f_corr}')
         log.info(f'ave factor correlation: {ave_f_to_z_corr}')
-        if trainer.logger:
-            trainer.logger.log_metrics({
-                'metric.ave_latent_correlation': ave_z_to_f_corr,
-                'metric.ave_factor_correlation': ave_f_to_z_corr,
-                'metric.correlation_heatmap': wandb.log({'correlation_heatmap': wandb.plots.HeatMap(
-                    x_labels=[f'z{i}' for i in range(z_size)],
-                    y_labels=list(dataset.factor_names),
-                    matrix_values=fz_corr, show_text=False)}),
-            })
+        # log everything
+        log_metrics(trainer.logger, {
+            'metric.ave_latent_correlation': ave_z_to_f_corr,
+            'metric.ave_factor_correlation': ave_f_to_z_corr,
+        })
+        # make sure we only log the heatmap to WandB
+        wb_log_metrics(trainer.logger, {
+            'metric.correlation_heatmap': wandb.plots.HeatMap(
+                x_labels=[f'z{i}' for i in range(z_size)],
+                y_labels=list(dataset.factor_names),
+                matrix_values=fz_corr, show_text=False
+            ),
+        })
 
         NUM = 1
         # generate traversal value graphs

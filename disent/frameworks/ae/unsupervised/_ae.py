@@ -3,7 +3,7 @@ from typing import final
 
 import torch
 
-from disent.loss.ae import Reconstructions, make_reconstruction_loss
+from disent.frameworks.helper.reconstructions import ReconstructionLoss, make_reconstruction_loss
 from disent.model.ae.base import AutoEncoder
 from disent.frameworks.framework import BaseFramework
 
@@ -34,7 +34,7 @@ class AE(BaseFramework):
         assert isinstance(self._model, AutoEncoder)
         assert self._model.z_multiplier == self.REQUIRED_Z_MULTIPLIER, f'model z_multiplier is {repr(self._model.z_multiplier)} but {self.__class__.__name__} requires that it is: {repr(self.REQUIRED_Z_MULTIPLIER)}'
         # recon loss & activation fn
-        self._recons: Reconstructions = make_reconstruction_loss(self.cfg.recon_loss)
+        self._recons: ReconstructionLoss = make_reconstruction_loss(self.cfg.recon_loss)
 
     def compute_training_loss(self, batch, batch_idx):
         (x,), (x_targ,) = batch['x'], batch['x_targ']
