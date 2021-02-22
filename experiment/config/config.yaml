@@ -1,11 +1,11 @@
 # RUN:
-# -m framework=betavae,adavae dataset=cars3d,xysquares framework.recon_loss=bce,mse framework.beta=0.1,0.25,1,4
+# -m optimizer.lr=0.01,0.0033,0.001,0.00033,0.0001 framework=betavae,adavae dataset=cars3d,xysquares framework.beta=0.1,0.25,1.0,4.0
 
 defaults:
   # experiment
   - framework: betavae
   - model: conv64
-  - optimizer: adam
+  - optimizer: radam
   - dataset: cars3d
   - augment: none
   - sampling: full_bb
@@ -21,13 +21,14 @@ defaults:
 
 job:
   user: 'n_michlo'
-  project: 'validate-loss-and-distribution-changes'
-  name: '${framework.name}|${dataset.name}:${sampling.name}:${trainer.steps}'
+  project: 'validate-loss-and-dist-changes'
+  name: '${framework.name}:${framework.module.recon_loss}|${dataset.name}:${sampling.name}|${trainer.steps}'
   partition: batch
 
 framework:
-    recon_loss: mse  # mse or bce
-    beta: 4  # majority of VAEs use this
+    beta: 4  # most VAEs use this
+    module:
+      recon_loss: mse
 
 model:
   z_size: 9

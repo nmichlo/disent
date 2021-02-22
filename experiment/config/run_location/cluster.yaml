@@ -3,7 +3,10 @@ logging:
   logs_dir: 'logs'
 
 trainer:
-  cuda: TRUE
+  # NULL == auto detect cuda
+  # some nodes on the cluster don't have working cuda...
+  # revert to CPU so all the jobs don't fail
+  cuda: NULL
   prepare_data_per_node: TRUE
 
 dataset:
@@ -27,4 +30,4 @@ hydra:
     mem_gb: 0
     timeout_min: 1440  # minutes
     submitit_folder: '${hydra.sweep.dir}/submitit/%j'
-    array_parallelism: 8
+    array_parallelism: 10

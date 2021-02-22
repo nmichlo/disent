@@ -1,13 +1,15 @@
 import dataclasses
 import os
 import logging
+
+import signal
 from omegaconf import DictConfig, OmegaConf
 import hydra
 
 import pytorch_lightning as pl
 import torch
 import torch.utils.data
-from pytorch_lightning.loggers import WandbLogger, CometLogger
+from pytorch_lightning.loggers import WandbLogger, CometLogger, LoggerCollection
 
 from disent import metrics
 from disent.model.ae.base import AutoEncoder
@@ -17,7 +19,9 @@ from disent.util import make_box_str, wrapped_partial
 from experiment.util.hydra_data import HydraDataModule
 from experiment.util.callbacks import VaeDisentanglementLoggingCallback, VaeLatentCycleLoggingCallback, LoggerProgressCallback
 from experiment.util.callbacks.callbacks_vae import VaeLatentCorrelationLoggingCallback
-from experiment.util.hydra_utils import merge_specializations
+from experiment.util.hydra_utils import merge_specializations, make_non_strict
+from experiment.util.run_utils import set_debug_logger, set_debug_trainer, log_error_and_exit
+
 
 log = logging.getLogger(__name__)
 
@@ -27,16 +31,22 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def hydra_check_cuda(cuda):
-    if not torch.cuda.is_available():
-        if cuda:
-            log.error('trainer.cuda=True but CUDA is not available on this machine!')
-            raise RuntimeError('CUDA not available!')
-        else:
-            log.warning('CUDA is not available on this machine!')
+def hydra_check_cuda(cfg):
+    # set cuda
+    if cfg.trainer.cuda in {'try_cuda', None}:
+        cfg.trainer.cuda = torch.cuda.is_available()
+        if not cfg.trainer.cuda:
+            log.warning('CUDA was requested, but not found on this system... CUDA has been disabled!')
     else:
-        if not cuda:
-            log.warning('CUDA is available but is not being used!')
+        if not torch.cuda.is_available():
+            if cfg.trainer.cuda:
+                log.error('trainer.cuda=True but CUDA is not available on this machine!')
+                raise RuntimeError('CUDA not available!')
+            else:
+                log.warning('CUDA is not available on this machine!')
+        else:
+            if not cfg.trainer.cuda:
+                log.warning('CUDA is available but is not being used!')
 
 
 def hydra_check_datadir(prepare_data_per_node, cfg):
@@ -59,6 +69,9 @@ def hydra_check_datadir(prepare_data_per_node, cfg):
 
 def hydra_make_logger(cfg):
     loggers = []
+
+    # initialise logging dict
+    cfg.setdefault('loggings', {})
 
     if ('wandb' in cfg.logging) and cfg.logging.wandb.setdefault('enabled', True):
         loggers.append(WandbLogger(
@@ -85,7 +98,7 @@ def hydra_make_logger(cfg):
     else:
         cfg.logging.setdefault('cometml', dict(enabled=False))
 
-    return loggers if loggers else None  # lists are turned into a LoggerCollection by pl
+    return LoggerCollection(loggers) if loggers else None  # lists are turned into a LoggerCollection by pl
 
 
 def hydra_append_progress_callback(callbacks, cfg):
@@ -147,31 +160,33 @@ def hydra_append_correlation_callback(callbacks, cfg):
 
 
 def run(cfg: DictConfig):
-    # print useful info
-    log.info(f"Current working directory : {os.getcwd()}")
-    log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
+    cfg = make_non_strict(cfg)
 
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
     # INITIALISE & SETDEFAULT IN CONFIG
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
 
+    # create trainer loggers & callbacks & initialise error messages
+    logger = set_debug_logger(hydra_make_logger(cfg))
+
+    # print useful info
+    log.info(f"Current working directory : {os.getcwd()}")
+    log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
+
     # hydra config does not support variables in defaults lists, we handle this manually
-    cfg = merge_specializations(cfg, CONFIG_PATH, run)  # TODO: this is hacky and should be replaced!
+    cfg = merge_specializations(cfg, CONFIG_PATH, run)
     # create framework config - this is also kinda hacky
     framework_cfg = hydra.utils.instantiate({**cfg.framework.module, **dict(_target_=cfg.framework.module._target_ + '.cfg')})
     # update config params in case we missed variables in the cfg
     cfg.framework.module.update(dataclasses.asdict(framework_cfg))
 
     # check CUDA setting
-    cuda = cfg.trainer.setdefault('cuda', torch.cuda.is_available())
-    hydra_check_cuda(cuda)
+    cfg.trainer.setdefault('cuda', 'try_cuda')
+    hydra_check_cuda(cfg)
 
     # check data preparation
     prepare_data_per_node = cfg.trainer.setdefault('prepare_data_per_node', True)
     hydra_check_datadir(prepare_data_per_node, cfg)
-
-    # create trainer loggers & callbacks
-    logger = hydra_make_logger(cfg)
 
     # TRAINER CALLBACKS
     callbacks = []
@@ -197,17 +212,18 @@ def run(cfg: DictConfig):
     )
 
     # Setup Trainer
-    trainer = pl.Trainer(
+    trainer = set_debug_trainer(pl.Trainer(
         log_every_n_steps=cfg.logging.setdefault('log_every_n_steps', 50),
         flush_logs_every_n_steps=cfg.logging.setdefault('flush_logs_every_n_steps', 100),
         logger=logger,
         callbacks=callbacks,
-        gpus=1 if cuda else 0,
+        gpus=1 if cfg.trainer.cuda else 0,
         max_epochs=cfg.trainer.setdefault('epochs', 100),
         max_steps=cfg.trainer.setdefault('steps', None),
         prepare_data_per_node=prepare_data_per_node,
         progress_bar_refresh_rate=0,  # ptl 0.9
-    )
+        terminate_on_nan=True,  # we do this here so we don't run the final metrics
+    ))
 
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
     # BEGIN TRAINING
@@ -222,6 +238,8 @@ def run(cfg: DictConfig):
         trainer.logger.log_hyperparams(framework.hparams)
 
     # fit the model
+    # -- if an error/signal occurs while pytorch lightning is
+    #    initialising the training process we cannot capture it!
     trainer.fit(framework, datamodule=datamodule)
 
 
@@ -231,21 +249,22 @@ def run(cfg: DictConfig):
 
 
 if __name__ == '__main__':
-
-    CONFIG_PATH = 'config'
+    CONFIG_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), 'config'))
     CONFIG_NAME = 'config'
 
     @hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME)
     def main(cfg: DictConfig):
         try:
             run(cfg)
-        except:
-            log.error('A critical error occurred:', exc_info=True)
+        except Exception as e:
+            log_error_and_exit(err_type='experiment error', err_msg=str(e))
 
     try:
         main()
     except KeyboardInterrupt as e:
-        log.warning('Interrupted - Exited early!')
+        log_error_and_exit(err_type='interrupted', err_msg=str(e), exc_info=False)
+    except Exception as e:
+        log_error_and_exit(err_type='hydra error', err_msg=str(e))
 
 
 # ========================================================================= #
