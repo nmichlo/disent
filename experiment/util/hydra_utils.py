@@ -1,5 +1,8 @@
 import hydra
 from omegaconf import ListConfig, DictConfig, OmegaConf
+import logging
+
+log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
@@ -41,12 +44,12 @@ def merge_specializations(cfg: DictConfig, config_path: str, main_fn: callable):
 
     # get hydra config root
     calling_file, _, _ = detect_calling_file_or_module_from_task_function(main_fn)
-    assert not os.path.isabs(config_path), f'Only relative {config_path=} is currently supported!'
     config_root = os.path.join(os.path.dirname(calling_file), config_path)
 
     # set and update specializations
     for group, specialization in cfg.specializations.items():
         assert group not in cfg, f'{group=} already exists on cfg, merging is not yet supported!'
+        log.info(f'merging specialization: {repr(specialization)}')
         # load specialization config
         specialization_cfg = OmegaConf.load(os.path.join(config_root, group, f'{specialization}.yaml'))
         # create new config

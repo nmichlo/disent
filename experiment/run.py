@@ -238,7 +238,7 @@ def run(cfg: DictConfig):
 
 if __name__ == '__main__':
 
-    CONFIG_PATH = 'config'
+    CONFIG_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), 'config'))
     CONFIG_NAME = 'config'
 
     @hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME)
