@@ -27,16 +27,22 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def hydra_check_cuda(cuda):
-    if not torch.cuda.is_available():
-        if cuda:
-            log.error('trainer.cuda=True but CUDA is not available on this machine!')
-            raise RuntimeError('CUDA not available!')
-        else:
-            log.warning('CUDA is not available on this machine!')
+def hydra_check_cuda(cfg):
+    # set cuda
+    if cfg.trainer.cuda in {'try_cuda', None}:
+        cfg.trainer.cuda = torch.cuda.is_available()
+        if not cfg.trainer.cuda:
+            log.warning('CUDA was requested, but not found on this system... CUDA has been disabled!')
     else:
-        if not cuda:
-            log.warning('CUDA is available but is not being used!')
+        if not torch.cuda.is_available():
+            if cfg.trainer.cuda:
+                log.error('trainer.cuda=True but CUDA is not available on this machine!')
+                raise RuntimeError('CUDA not available!')
+            else:
+                log.warning('CUDA is not available on this machine!')
+        else:
+            if not cfg.trainer.cuda:
+                log.warning('CUDA is available but is not being used!')
 
 
 def hydra_check_datadir(prepare_data_per_node, cfg):
@@ -163,8 +169,8 @@ def run(cfg: DictConfig):
     cfg.framework.module.update(dataclasses.asdict(framework_cfg))
 
     # check CUDA setting
-    cuda = cfg.trainer.setdefault('cuda', torch.cuda.is_available())
-    hydra_check_cuda(cuda)
+    cfg.trainer.setdefault('cuda', 'try_cuda')
+    hydra_check_cuda(cfg)
 
     # check data preparation
     prepare_data_per_node = cfg.trainer.setdefault('prepare_data_per_node', True)
@@ -202,7 +208,7 @@ def run(cfg: DictConfig):
         flush_logs_every_n_steps=cfg.logging.setdefault('flush_logs_every_n_steps', 100),
         logger=logger,
         callbacks=callbacks,
-        gpus=1 if cuda else 0,
+        gpus=1 if cfg.trainer.cuda else 0,
         max_epochs=cfg.trainer.setdefault('epochs', 100),
         max_steps=cfg.trainer.setdefault('steps', None),
         prepare_data_per_node=prepare_data_per_node,
