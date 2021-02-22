@@ -5,8 +5,8 @@ defaults:
   # experiment
   - framework: betavae
   - model: conv64
-  - optimizer: radam
-  - dataset: cars3d
+  - optimizer: adam
+  - dataset: xysquares
   - augment: none
   - sampling: full_bb
   # runtime
