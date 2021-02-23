@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 
 import torch
 
+import disent.metrics
 import disent.util.colors as c
 from disent.dataset._augment_util import AugmentableDataset
 from disent.dataset.groundtruth import GroundTruthDataset
@@ -98,11 +99,13 @@ class VaeDisentanglementLoggingCallback(_PeriodicCallback):
             return
         # compute all metrics
         for metric in metrics:
-            log.info(f'| {metric.__name__} - computing...')
+            pad = max(7+len(k) for k in disent.metrics.DEFAULT_METRICS)  # I know this is a magic variable... im just OCD
+            if is_final:
+                log.info(f'| {metric.__name__:<{pad}} - computing...')
             with Timer() as timer:
                 scores = metric(dataset, lambda x: vae.encode(x.to(vae.device)))
             metric_results = ' '.join(f'{k}{c.GRY}={c.lMGT}{v:.3f}{c.RST}' for k, v in scores.items())
-            log.info(f'| {metric.__name__} - time{c.GRY}={c.lYLW}{timer.pretty}{c.RST} - {metric_results}')
+            log.info(f'| {metric.__name__:<{pad}} - time{c.GRY}={c.lYLW}{timer.pretty:<9}{c.RST} - {metric_results}')
             # log to trainer
             prefix = 'final_metric' if is_final else 'epoch_metric'
             log_metrics(trainer.logger, {prefix: scores})

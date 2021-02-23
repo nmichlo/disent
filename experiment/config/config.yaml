@@ -31,7 +31,7 @@ job:
   partition: batch
 
 framework:
-    beta: 1  # most VAEs use this
+    beta: 0.1  # most VAEs use this
     module:
       recon_loss: mse
 
