@@ -63,7 +63,7 @@ class BaseFramework(DisentConfigurable, DisentLightningModule):
             if torch.isnan(loss) or torch.isinf(loss):
                 raise ValueError('The returned loss is nan or inf')
         if loss > 1e+6:
-            raise ValueError(f'The returned loss is out of bounds > {1e+6}')
+            raise ValueError(f'The returned loss: {loss:.2e} is out of bounds: > {1e+6:.0e}')
 
     def forward(self, batch) -> torch.Tensor:
         """this function should return the single final output of the model, including the final activation"""

@@ -84,7 +84,7 @@ class TempNumpySeed(object):
 # ========================================================================= #
 
 
-def to_numpy(array):
+def to_numpy(array) -> np.ndarray:
     """
     Handles converting any array like object to a numpy array.
     specifically with support for a tensor

@@ -57,11 +57,12 @@ def set_debug_logger(logger: Optional[LoggerCollection]):
     assert _PL_LOGGER is None, 'debug logger has already been set'
     _PL_LOGGER = logger
     # set initial messages
-    _PL_LOGGER.log_metrics({
-        'error_type': 'N/A',
-        'error_msg': 'N/A',
-        'error_occurred': False,
-    })
+    if _PL_LOGGER is not None:
+        _PL_LOGGER.log_metrics({
+            'error_type': 'N/A',
+            'error_msg': 'N/A',
+            'error_occurred': False,
+        })
     # register signal listeners -- we can't capture SIGKILL!
     signal.signal(signal.SIGINT, _signal_handler_log_and_exit)    # interrupted from the dialogue station
     signal.signal(signal.SIGTERM, _signal_handler_log_and_exit)   # terminate the process in a soft way
