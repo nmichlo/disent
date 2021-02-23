@@ -4,8 +4,8 @@ Flatness Metric
 """
 
 import logging
-from pprint import pprint
-from typing import Tuple
+from dataclasses import dataclass
+from typing import Iterable, Union, Dict
 
 import torch
 import numpy as np
@@ -17,7 +17,37 @@ log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
-# dci                                                                       #
+# data storage                                                              #
+# ========================================================================= #
+
+
+@dataclass
+class FactorsAggregates:
+    # aggregates
+    factors_ave_width: np.ndarray
+    factors_ave_delta: np.ndarray
+    factors_ave_deltas: np.ndarray
+    # estimated version of factors_ave_width = factors_num_deltas * factors_ave_delta
+    factors_ave_length: np.ndarray
+    # metric
+    factors_flatness: np.ndarray
+    # extra
+    factors_num_deltas: np.ndarray
+# \/
+@dataclass
+class FactorAggregate:
+    ave_width: torch.Tensor
+    ave_delta: torch.Tensor
+    ave_deltas: torch.Tensor
+# \/
+@dataclass
+class FactorRepeats:
+    deltas: torch.Tensor
+    width: torch.Tensor
+
+
+# ========================================================================= #
+# flatness                                                                  #
 # ========================================================================= #
 
 
@@ -26,9 +56,6 @@ def metric_flatness(
         representation_function: callable,
         factor_repeats: int = 1024,
         batch_size: int = 64,
-        p='fro',
-        return_extra=False,
-        no_cycles=True
 ):
     """
     Computes the flatness metric:
@@ -58,87 +85,107 @@ def metric_flatness(
     # factors_mean_next_dists - an array for each factor, where each has the average distances to the next point for each factor index.
     # factors_ave_max_dist - a value for each factor, that is the average max width of the dimension
     # factors_ave_next_dist - a value for each factor, that is the average next dist of the dimension computed from factors_mean_next_dists
-    factors_mean_next_dists, factors_ave_max_dist, factors_ave_next_dist = aggregate_measure_distances_along_all_factors(
-        ground_truth_dataset, representation_function,
-        repeats=factor_repeats, batch_size=batch_size, p=p,
+    factor_aggregates = aggregate_measure_distances_along_all_factors(
+        ground_truth_dataset,
+        representation_function,
+        repeats=factor_repeats,
+        batch_size=batch_size,
+        ps=(1, 2),
     )
 
-    # compute flatness ratio:
-    # total_dim_width / (ave_point_dist_along_dim * num_points_along_dim)
-    factors_flatness: np.ndarray = (
-            factors_ave_max_dist / (factors_ave_next_dist * np.array(ground_truth_dataset.factor_sizes))
-    )
-
-    return {
-        'flatness': np.mean(factors_flatness),
-        'flatness.median': np.median(factors_flatness),
-        'flatness.max': np.max(factors_flatness),
-        'flatness.min': np.min(factors_flatness),
-        **({} if (not return_extra) else {
-            'flatness.factors.flatness': factors_flatness,
-            'flatness.factors.next_dists': [dists for dists in factors_mean_next_dists],
-            'flatness.factors.ave_max_dist': factors_ave_max_dist,
-            'flatness.factors.ave_next_dist': factors_ave_max_dist,
-        }),
+    results = {
+        # metrics
+        'flatness.ave_flatness_l1':  np.mean(factor_aggregates[1].factors_flatness),
+        'flatness.ave_flatness_l2':  np.mean(factor_aggregates[2].factors_flatness),
+        'flatness.ave_flatness':     np.mean(factor_aggregates[2].factors_ave_width / factor_aggregates[1].factors_ave_length),
+        'flatness.ave_flatness_alt': np.mean(factor_aggregates[2].factors_ave_width) / np.mean(factor_aggregates[1].factors_ave_length),
+        # sizes
+        'flatness.ave_width_l1':  np.mean(factor_aggregates[1].factors_ave_width),
+        'flatness.ave_width_l2':  np.mean(factor_aggregates[2].factors_ave_width),
+        'flatness.ave_length_l1': np.mean(factor_aggregates[1].factors_ave_length),
+        'flatness.ave_length_l2': np.mean(factor_aggregates[2].factors_ave_length),
     }
+
+    return {k: float(v) for k, v in results.items()}
 
 
 def aggregate_measure_distances_along_all_factors(
-        ground_truth_dataset, representation_function,
-        repeats: int, batch_size: int, p='fro',
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    factors_mean_next_dists = []
-    factors_ave_max_dist = []
-    factors_ave_next_dist = []
-    # append all
+        ground_truth_dataset,
+        representation_function,
+        repeats: int,
+        batch_size: int,
+        ps: Iterable[Union[str, int]] = (1, 2),
+) -> Dict[Union[str, int], FactorsAggregates]:
+    # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+    # COMPUTE AGGREGATES FOR EACH FACTOR
+    # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+    all_aggregates = {p: FactorsAggregates([], [], [], None, None, None) for p in ps}
+    # repeat for each factor
     for f_idx in range(ground_truth_dataset.num_factors):
         # repeatedly take measurements along a factor
-        mean_next_dists, ave_max_dist, ave_next_dist = aggregate_measure_distances_along_factor(
+        f_aggregates = aggregate_measure_distances_along_factor(
             ground_truth_dataset, representation_function,
-            f_idx=f_idx, repeats=repeats, batch_size=batch_size, p=p,
+            f_idx=f_idx, repeats=repeats, batch_size=batch_size, ps=ps,
         )
         # append all results
-        factors_mean_next_dists.append(mean_next_dists)
-        factors_ave_max_dist.append(ave_max_dist)
-        factors_ave_next_dist.append(ave_next_dist)
-    # combine everything
-    # we ignore "factors_mean_next_dists" because each dimension has different sizes (f_dims, f_size[i])
-    factors_ave_max_dist = torch.stack(factors_ave_max_dist, dim=0)  # (f_dims,)
-    factors_ave_next_dist = torch.stack(factors_ave_next_dist, dim=0)  # (f_dims,)
-    # done!
-    return to_numpy(factors_mean_next_dists), to_numpy(factors_ave_max_dist), to_numpy(factors_ave_next_dist)
+        for p, f_aggregate in f_aggregates.items():
+            all_aggregates[p].factors_ave_deltas.append(f_aggregate.ave_deltas)
+            all_aggregates[p].factors_ave_delta.append(f_aggregate.ave_delta)
+            all_aggregates[p].factors_ave_width.append(f_aggregate.ave_width)
+    # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+    # FINALIZE FOR EACH FACTOR
+    # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+    for p, aggregates in all_aggregates.items():
+        aggregates: FactorsAggregates
+        # convert everything to tensors
+        aggregates.factors_ave_width = to_numpy(torch.stack(aggregates.factors_ave_width, dim=0))  # (f_dims,)
+        aggregates.factors_ave_delta = to_numpy(torch.stack(aggregates.factors_ave_delta, dim=0))  # (f_dims,)
+        aggregates.factors_ave_deltas = [to_numpy(deltas) for deltas in aggregates.factors_ave_deltas]  # each dimension has different sizes ((f_dims,) -> (f_size[i],))
+        # check sizes
+        assert aggregates.factors_ave_width.shape == (ground_truth_dataset.num_factors,)
+        assert aggregates.factors_ave_delta.shape == (ground_truth_dataset.num_factors,)
+        assert len(aggregates.factors_ave_deltas) == ground_truth_dataset.num_factors
+        for i, factor_size in enumerate(ground_truth_dataset.factor_sizes):
+            assert aggregates.factors_ave_deltas[i].shape == (factor_size,)
+        # - - - - - - - - - - - - - - - - - #
+        # COMPUTE THE ACTUAL METRICS!
+        # get number of spaces, f_size[i] - 1
+        aggregates.factors_num_deltas = np.array(ground_truth_dataset.factor_sizes) - 1
+        assert np.all(aggregates.factors_num_deltas >= 1)
+        assert aggregates.factors_num_deltas.shape == (ground_truth_dataset.num_factors,)
+        # compute length
+        # estimated version of factors_ave_width = factors_num_deltas * factors_ave_delta
+        aggregates.factors_ave_length = aggregates.factors_num_deltas * aggregates.factors_ave_delta
+        assert aggregates.factors_ave_length.shape == (ground_truth_dataset.num_factors,)
+        # compute flatness ratio:
+        # total_dim_width / total_dim_length
+        aggregates.factors_flatness = aggregates.factors_ave_width / aggregates.factors_ave_length
+        assert aggregates.factors_flatness.shape == (ground_truth_dataset.num_factors,)
+        # - - - - - - - - - - - - - - - - - #
+        # return values
+    return all_aggregates
 
 
 def aggregate_measure_distances_along_factor(
-        ground_truth_dataset, representation_function,
-        f_idx: int, repeats: int, batch_size: int, p='fro',
-):
-    # repeatedly take measurements along a factor, and return all the results
-    # shapes: (repeats, f_sizes[i]) & (repeats,)
-    repeated_next_dists, repeated_max_dist = repeated_measure_distances_along_factor(
-        ground_truth_dataset, representation_function,
-        f_idx=f_idx, repeats=repeats, batch_size=batch_size, p=p,
-    )
-    # aggregate results
-    mean_next_dists = repeated_next_dists.mean(dim=0)
-    ave_max_dist = repeated_max_dist.mean(dim=0)
-    # we cant get the ave next dist directly because of cycles, so
-    # we remove the max dist from those before calculating the mean
-    ave_next_dist = torch.topk(repeated_next_dists, k=repeated_next_dists.shape[-1] - 1, dim=-1, largest=False, sorted=False)
-    ave_next_dist = ave_next_dist.values.mean(dim=0).mean(dim=0)
-    # return everything!
-    # mean_next_dists: (f_sizes[i],)
-    # ave_max_dist: (,)
-    # ave_next_dist: (,)
-    return mean_next_dists, ave_max_dist, ave_next_dist
-
-
-def repeated_measure_distances_along_factor(ground_truth_dataset, representation_function, f_idx: int, repeats: int, batch_size: int, p='fro'):
-    repeated_next_dists = []
-    repeated_max_dist = []
-    # calculate values
-    # TODO: repeats dont make use of the allowed batch size effectively
+        ground_truth_dataset,
+        representation_function,
+        f_idx: int,
+        repeats: int,
+        batch_size: int,
+        ps: Iterable[Union[str, int]] = (1, 2),
+) -> Dict[Union[str, int], FactorAggregate]:
+    # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+    # helper
+    factor_size = ground_truth_dataset.factor_sizes[f_idx]
+    # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+    # FEED FORWARD, COMPUTE ALL DELTAS & WIDTHS:
+    # TODO: repeats don't make use of the full allowed batch size effectively
     #       if a factors dimensions are too small, then the remaining space is not used.
+    # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+    # repeatedly take measurements along a factor, and return all the results
+    # shapes: p -> (repeats, f_sizes[i]) & (repeats,)
+    map_p_repeats = {p: FactorRepeats([], []) for p in ps}
+    # repeat the calculations multiple times
     for _ in range(repeats):
         # generate repeated factors, varying one factor over a range
         sequential_zs = encode_all_along_factor(
@@ -147,37 +194,54 @@ def repeated_measure_distances_along_factor(ground_truth_dataset, representation
             f_idx=f_idx,
             batch_size=batch_size,
         )
-        # calculating the distances of their representations to the next values.
-        next_dists = measure_distances_along_encodings(sequential_zs, p=p)
-        # distance between furthest two points
-        max_dist = knn(x=sequential_zs, y=sequential_zs, k=1, largest=True, p=p).values.max()
-        # append to lists
-        repeated_next_dists.append(next_dists)
-        repeated_max_dist.append(max_dist)
-    # combine everything
-    repeated_next_dists = torch.stack(repeated_next_dists, dim=0)  # shape (repeats, f_sizes[i])
-    repeated_max_dist = torch.stack(repeated_max_dist, dim=0)      # shape (repeats,)
-    # done!
-    return repeated_next_dists, repeated_max_dist
+        # for each distance measure compute everything
+        for p in ps:
+            # calculating the distances of their representations to the next values.
+            deltas = measure_next_distances_along_encodings(sequential_zs, p=p)
+            # calculate the distance between the furthest two points
+            width = knn(x=sequential_zs, y=sequential_zs, k=1, largest=True, p=p).values.max()
+            # append everyhing
+            map_p_repeats[p].deltas.append(deltas)
+            map_p_repeats[p].width.append(width)
+    # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+    # AGGREGATE DATA
+    # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+    aggregates = {}
+    for p, repeated in map_p_repeats.items():
+        # convert everything to tensors
+        repeated.deltas = torch.stack(repeated.deltas, dim=0)  # shape (repeats, f_sizes[i])
+        repeated.width = torch.stack(repeated.width, dim=0)    # shape (repeats,)
+        # check sizes
+        assert repeated.deltas.shape == (repeats, factor_size)
+        assert repeated.width.shape == (repeats,)
+        # aggregate results
+        ave_deltas = repeated.deltas.mean(dim=0)
+        ave_width = repeated.width.mean(dim=0)
+        assert ave_deltas.shape == (factor_size,)
+        assert ave_width.shape == ()
+        # we cant get the ave next dist directly because of cycles, so
+        # we remove the max dist from those before calculating the mean
+        smallest_deltas = repeated.deltas
+        smallest_deltas = torch.topk(smallest_deltas, k=smallest_deltas.shape[-1]-1, dim=-1, largest=False, sorted=False).values
+        assert smallest_deltas.shape == (repeats, factor_size - 1)
+        # compute average of smallest deltas
+        ave_delta = smallest_deltas.mean(dim=[0, 1])
+        assert ave_delta.shape == ()
+        # save the result
+        aggregates[p] = FactorAggregate(
+            ave_width=ave_width,    # (,)
+            ave_delta=ave_delta,    # (,)
+            ave_deltas=ave_deltas,  # (f_sizes[i],)
+        )
+    # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+    # we are done!
+    return aggregates
+    # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
 
-def measure_distances_along_encodings(sequential_zs, mode='next', p='fro'):
-    # find the distances to the next factors: z[i] - z[i+1]  (with wraparound)
-    if mode == 'next':
-        return _measure_distances_along_encodings(sequential_zs, shift=-1, p=p)
-    elif mode == 'prev':
-        return _measure_distances_along_encodings(sequential_zs, shift=1, p=p)
-    elif mode == 'ave_prev_next':
-        return torch.stack([
-            _measure_distances_along_encodings(sequential_zs, shift=-1, p=p),
-            _measure_distances_along_encodings(sequential_zs, shift=1, p=p),
-        ], dim=0).mean(dim=0)
-    else:
-        raise KeyError(f'invalid mode: {mode}')
-
-
-def _measure_distances_along_encodings(sequential_zs, shift: int, p='fro'):
-    return torch.norm(sequential_zs - torch.roll(sequential_zs, shift, dims=0), dim=-1, p=p)
+# ========================================================================= #
+# ENCODE                                                                    #
+# ========================================================================= #
 
 
 def encode_all_along_factor(ground_truth_dataset, representation_function, f_idx: int, batch_size: int):
@@ -212,58 +276,25 @@ def encode_all_factors(ground_truth_dataset, representation_function, factors, b
 
 
 # ========================================================================= #
-# KNN                                                                       #
+# DISTANCES                                                                 #
 # ========================================================================= #
 
 
-def knn(x, y=None, k: int=None, largest=False, p='fro'):
-    # set default values
-    if y is None:
-        y = x
-    if k is None:
-        k = y.shape[0]
-    if k < 0:
-        k = y.shape[0] + k
+def measure_next_distances_along_encodings(sequential_zs, p='fro'):
+    # find the distances to the next factors: z[i] - z[i+1]  (with wraparound)
+    return torch.norm(sequential_zs - torch.roll(sequential_zs, -1, dims=0), dim=-1, p=p)
+
+
+def knn(x, y, k: int = None, largest=False, p='fro'):
     assert 0 < k <= y.shape[0]
     # check input vectors, must be array of vectors
-    assert x.ndim == 2
-    assert y.ndim == 2
-    assert x.shape[1] == y.shape[1]
+    assert 2 == x.ndim == y.ndim
+    assert x.shape[1:] == y.shape[1:]
     # compute distances between each and every pair
-    dist_mat = sub_matrix(x, y)
+    dist_mat = x[:, None, ...] - y[None, :, ...]
     dist_mat = torch.norm(dist_mat, dim=-1, p=p)
     # return closest distances
     return torch.topk(dist_mat, k=k, dim=-1, largest=largest, sorted=True)
-
-
-def sub_matrix(a, b):
-    # check input sizes
-    assert a.ndim == b.ndim
-    assert a.shape[1:] == b.shape[1:]
-    # do pairwise subtract
-    result = a[:, None, ...] - b[None, :, ...]
-    # check output size
-    assert result.shape == (a.shape[0], b.shape[0], *a.shape[1:])
-    # done
-    return result
-
-
-# ========================================================================= #
-# Tests                                                                     #
-# ========================================================================= #
-
-
-def test_sub_matrix():
-    a = torch.randn(5, 2, 3)
-    b = torch.randn(7, 2, 3)
-    # subtract all from all
-    subs = sub_matrix(a, b)
-    # check that its working as intended
-    for i in range(a.shape[0]):
-        for j in range(b.shape[0]):
-            assert torch.all(torch.eq(subs[i, j], a[i] - b[j]))
-    # done
-    return subs
 
 
 # ========================================================================= #
@@ -275,43 +306,59 @@ if __name__ == '__main__':
     import pytorch_lightning as pl
     from torch.optim import Adam
     from torch.utils.data import DataLoader
-    from disent.data.groundtruth import XYObjectData
+    from disent.data.groundtruth import XYObjectData, XYSquaresData
     from disent.dataset.groundtruth import GroundTruthDataset
     from disent.frameworks.vae.unsupervised import BetaVae
-    from disent.metrics import metric_dci, metric_mig
     from disent.model.ae import EncoderConv64, DecoderConv64, AutoEncoder
     from disent.transform import ToStandardisedTensor
-    from disent.util import is_test_run, test_run_int
 
-    data = XYObjectData()
-    dataset = GroundTruthDataset(data, transform=ToStandardisedTensor())
-    dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True, pin_memory=True)
+    def get_str(r):
+        return ', '.join(f'{k}={v:6.4f}' for k, v in r.items())
 
-    module = BetaVae(
-        make_optimizer_fn=lambda params: Adam(params, lr=5e-4),
-        make_model_fn=lambda: AutoEncoder(
-            encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2),
-            decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
-        ),
-        cfg=BetaVae.cfg(beta=1)
-    )
+    def print_r(name, steps, result, clr=colors.lYLW):
+        print(f'{clr}{name:<13} ({steps:>04}): {get_str(result)}{colors.RST}')
 
-    # we cannot guarantee which device the representation is on
-    get_repr = lambda x: module.encode(x.to(module.device))
+    def calculate(name, steps, dataset, get_repr):
+        r = metric_flatness(dataset, get_repr, factor_repeats=64)
+        results.append((name, steps, r))
+        print_r(name, steps, r, colors.lRED)
+        print(colors.GRY, '='*100, colors.RST, sep='')
+        return r
 
-    # PHASE 1, UNTRAINED
-    print(colors.lRED, metric_flatness(dataset, get_repr), colors.RST, sep='')
-    print(colors.lRED, metric_flatness(dataset, get_repr), colors.RST, sep='')
-    print(colors.lRED, metric_flatness(dataset, get_repr), colors.RST, sep='')
+    class XYOverlapData(XYSquaresData):
+        def __init__(self, square_size=8, grid_size=64, grid_spacing=None, num_squares=3, rgb=True):
+            if grid_spacing is None:
+                grid_spacing = (square_size+1) // 2
+            super().__init__(square_size=square_size, grid_size=grid_size, grid_spacing=grid_spacing, num_squares=num_squares, rgb=rgb)
 
-    # PHASE 2, LITTLE TRAINING
-    pl.Trainer(logger=False, checkpoint_callback=False, max_steps=256, gpus=1).fit(module, dataloader)
-    print(colors.lRED, metric_flatness(dataset, get_repr), colors.RST, sep='')
-    print(colors.lRED, metric_flatness(dataset, get_repr), colors.RST, sep='')
-    print(colors.lRED, metric_flatness(dataset, get_repr), colors.RST, sep='')
+    results = []
+    for data in [XYSquaresData(), XYOverlapData(), XYObjectData()]:
+        dataset = GroundTruthDataset(data, transform=ToStandardisedTensor())
+        dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True, pin_memory=True)
+        module = BetaVae(
+            make_optimizer_fn=lambda params: Adam(params, lr=5e-4),
+            make_model_fn=lambda: AutoEncoder(
+                encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2),
+                decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
+            ),
+            cfg=BetaVae.cfg(beta=1)
+        )
+        # we cannot guarantee which device the representation is on
+        get_repr = lambda x: module.encode(x.to(module.device))
+        # PHASE 1, UNTRAINED
+        calculate(data.__class__.__name__, 0, dataset, get_repr)
+        # PHASE 2, LITTLE TRAINING
+        pl.Trainer(logger=False, checkpoint_callback=False, max_steps=256, gpus=1, weights_summary=None).fit(module, dataloader)
+        calculate(data.__class__.__name__, 256, dataset, get_repr)
+        # PHASE 3, MORE TRAINING
+        pl.Trainer(logger=False, checkpoint_callback=False, max_steps=2048, gpus=1, weights_summary=None).fit(module, dataloader)
+        calculate(data.__class__.__name__, 256+2048, dataset, get_repr)
+        results.append(None)
 
-    # PHASE 3, MORE TRAINING
-    pl.Trainer(logger=False, checkpoint_callback=False, max_steps=2048, gpus=1).fit(module, dataloader)
-    print(colors.lRED, metric_flatness(dataset, get_repr), colors.RST, sep='')
-    print(colors.lRED, metric_flatness(dataset, get_repr), colors.RST, sep='')
-    print(colors.lRED, metric_flatness(dataset, get_repr), colors.RST, sep='')
+    for result in results:
+        if result is None:
+            print()
+            continue
+        (name, steps, result) = result
+        print_r(name, steps, result, colors.lYLW)
+
