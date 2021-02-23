@@ -1,7 +1,9 @@
 # RUNS
-# Best Params Gridsearch (x256):
-# -m optimizer=adam,radam,amsgrad,rmsprop optimizer.lr=0.0033,0.001,0.00033,0.0001 framework=betavae,adavae dataset=xysquares,cars3d framework.beta=0.1,0.25,1.0,4.0
-# >>> decent settings: beta=1, optimizer=radam, lr=5e-4
+# * Best Params Gridsearch (x256):
+#   | -m optimizer=adam,radam,amsgrad,rmsprop optimizer.lr=0.0033,0.001,0.00033,0.0001 framework=betavae,adavae dataset=xysquares,cars3d framework.beta=0.1,0.25,1.0,4.0
+#   | >>> decent settings: beta=1, optimizer=radam, lr=5e-4
+# * Flatness Metric
+#   | optimizer=radam framework=ae,betavae,adavae_os,adavae,tvae dataset=xysquares,xysquares_overlap,xyblocks,cars3d,smallnorb,3dshapes
 
 defaults:
   # experiment
@@ -11,11 +13,12 @@ defaults:
   - dataset: xysquares
   - augment: none
   - sampling: full_bb
+  - metrics: all
   # runtime
   - run_length: tiny
-  - run_location: cluster_many
-  - run_callbacks: metrics_slow
-  - run_logging: wandb_slow
+  - run_location: cluster
+  - run_callbacks: vis
+  - run_logging: wandb
   # plugins
   - hydra/job_logging: colorlog
   - hydra/hydra_logging: colorlog
@@ -23,7 +26,7 @@ defaults:
 
 job:
   user: 'n_michlo'
-  project: 'experiment-gridsearch-best-mse-params'
+  project: 'experiment-flatness-metric'
   name: '${framework.name}:${framework.module.recon_loss}|${dataset.name}:${sampling.name}|${trainer.steps}'
   partition: batch
 

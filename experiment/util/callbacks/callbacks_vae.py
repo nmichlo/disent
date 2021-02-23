@@ -112,17 +112,17 @@ class VaeDisentanglementLoggingCallback(_PeriodicCallback):
 
     def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         if self.step_end_metrics:
-            log.info('Computing Epoch Metrics:')
+            log.debug('Computing Epoch Metrics:')
             with Timer() as timer:
                 self._compute_metrics_and_log(trainer, pl_module, metrics=self.step_end_metrics, is_final=False)
-            log.info(f'Computed Epoch Metrics! {timer.pretty}')
+            log.debug(f'Computed Epoch Metrics! {timer.pretty}')
 
     def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         if self.train_end_metrics:
-            log.info('Computing Final Metrics...')
+            log.debug('Computing Final Metrics...')
             with Timer() as timer:
                 self._compute_metrics_and_log(trainer, pl_module, metrics=self.train_end_metrics, is_final=True)
-            log.info(f'Computed Final Metrics! {timer.pretty}')
+            log.debug(f'Computed Final Metrics! {timer.pretty}')
 
 
 class VaeLatentCorrelationLoggingCallback(_PeriodicCallback):

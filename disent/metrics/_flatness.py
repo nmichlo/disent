@@ -5,6 +5,7 @@ Flatness Metric
 
 import logging
 from pprint import pprint
+from typing import Tuple
 
 import torch
 import numpy as np
@@ -23,18 +24,25 @@ log = logging.getLogger(__name__)
 def metric_flatness(
         ground_truth_dataset: GroundTruthDataset,
         representation_function: callable,
-        factor_repeats: int = 1024,  # can go all the way down to about 64 and still get decent results. 128 is accurate to about ~2 decimal places.
+        factor_repeats: int = 1024,
         batch_size: int = 64,
         p='fro',
         return_extra=False,
+        no_cycles=True
 ):
     """
     Computes the flatness metric:
-    approximately equal to: total_dim_width / (ave_point_dist_along_dim * num_points_along_dim)
+        approximately equal to: total_dim_width / (ave_point_dist_along_dim * num_points_along_dim)
 
     Complexity of this metric is:
-    O(num_factors * ave_factor_size * repeats)
-    eg. 9 factors * 64 indices on ave * 128 repeats = 73728 observations loaded from the dataset
+        O(num_factors * ave_factor_size * repeats)
+        eg. 9 factors * 64 indices on ave * 128 repeats = 73728 observations loaded from the dataset
+
+    factor_repeats:
+      - can go all the way down to about 64 and still get decent results.
+      - 64 is accurate to about +- 0.01
+      - 128 is accurate to about +- 0.003
+      - 1024 is accurate to about +- 0.001
 
     Args:
       ground_truth_dataset: GroundTruthData to be sampled from.
@@ -42,7 +50,6 @@ def metric_flatness(
       factor_repeats: how many times to repeat a traversal along each factors, these are then averaged together.
       batch_size: Batch size to process at any time while generating representations, should not effect metric results.
       p: how to calculate distances in the latent space, see torch.norm
-      show_progress: if a progress bar should be shown while computing the metric
     Returns:
       Dictionary with average disentanglement score, completeness and
         informativeness (train and test).
@@ -58,18 +65,20 @@ def metric_flatness(
 
     # compute flatness ratio:
     # total_dim_width / (ave_point_dist_along_dim * num_points_along_dim)
-    factors_flatness = factors_ave_max_dist / (factors_ave_next_dist * torch.tensor(ground_truth_dataset.factor_sizes))
+    factors_flatness: np.ndarray = (
+            factors_ave_max_dist / (factors_ave_next_dist * np.array(ground_truth_dataset.factor_sizes))
+    )
 
     return {
-        'flatness': float(factors_flatness.mean()),
-        'flatness.median': float(factors_flatness.median()),
-        'flatness.max': float(factors_flatness.max()),
-        'flatness.min': float(factors_flatness.min()),
+        'flatness': np.mean(factors_flatness),
+        'flatness.median': np.median(factors_flatness),
+        'flatness.max': np.max(factors_flatness),
+        'flatness.min': np.min(factors_flatness),
         **({} if (not return_extra) else {
-            'flatness.factors.flatness': to_numpy(factors_flatness),
-            'flatness.factors.next_dists': [to_numpy(dists) for dists in factors_mean_next_dists],
-            'flatness.factors.ave_max_dist': to_numpy(factors_ave_max_dist),
-            'flatness.factors.ave_next_dist': to_numpy(factors_ave_max_dist),
+            'flatness.factors.flatness': factors_flatness,
+            'flatness.factors.next_dists': [dists for dists in factors_mean_next_dists],
+            'flatness.factors.ave_max_dist': factors_ave_max_dist,
+            'flatness.factors.ave_next_dist': factors_ave_max_dist,
         }),
     }
 
@@ -77,7 +86,7 @@ def metric_flatness(
 def aggregate_measure_distances_along_all_factors(
         ground_truth_dataset, representation_function,
         repeats: int, batch_size: int, p='fro',
-):
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     factors_mean_next_dists = []
     factors_ave_max_dist = []
     factors_ave_next_dist = []
@@ -97,7 +106,7 @@ def aggregate_measure_distances_along_all_factors(
     factors_ave_max_dist = torch.stack(factors_ave_max_dist, dim=0)  # (f_dims,)
     factors_ave_next_dist = torch.stack(factors_ave_next_dist, dim=0)  # (f_dims,)
     # done!
-    return factors_mean_next_dists, factors_ave_max_dist, factors_ave_next_dist
+    return to_numpy(factors_mean_next_dists), to_numpy(factors_ave_max_dist), to_numpy(factors_ave_next_dist)
 
 
 def aggregate_measure_distances_along_factor(
