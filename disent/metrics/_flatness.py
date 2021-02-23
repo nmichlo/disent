@@ -4,7 +4,6 @@ Flatness Metric
 """
 
 import logging
-from collections import namedtuple
 from dataclasses import dataclass
 from typing import Iterable, Union, Dict
 
@@ -12,7 +11,7 @@ import torch
 import numpy as np
 
 from disent.dataset.groundtruth import GroundTruthDataset
-from disent.util import chunked, to_numpy, TupleDataClass, colors
+from disent.util import chunked, to_numpy, colors
 
 log = logging.getLogger(__name__)
 
@@ -55,7 +54,7 @@ class FactorRepeats:
 def metric_flatness(
         ground_truth_dataset: GroundTruthDataset,
         representation_function: callable,
-        factor_repeats: int = 64,
+        factor_repeats: int = 1024,
         batch_size: int = 64,
 ):
     """
@@ -95,16 +94,16 @@ def metric_flatness(
     )
 
     results = {
-        # sizes
-        'flatness.ave_width_l1':  np.mean(factor_aggregates[1].factors_ave_width),
-        'flatness.ave_width_l2':  np.mean(factor_aggregates[2].factors_ave_width),
-        'flatness.ave_length_l1': np.mean(factor_aggregates[1].factors_ave_length),
-        'flatness.ave_length_l2': np.mean(factor_aggregates[2].factors_ave_length),
         # metrics
         'flatness.ave_flatness_l1':  np.mean(factor_aggregates[1].factors_flatness),
         'flatness.ave_flatness_l2':  np.mean(factor_aggregates[2].factors_flatness),
         'flatness.ave_flatness':     np.mean(factor_aggregates[2].factors_ave_width / factor_aggregates[1].factors_ave_length),
         'flatness.ave_flatness_alt': np.mean(factor_aggregates[2].factors_ave_width) / np.mean(factor_aggregates[1].factors_ave_length),
+        # sizes
+        'flatness.ave_width_l1':  np.mean(factor_aggregates[1].factors_ave_width),
+        'flatness.ave_width_l2':  np.mean(factor_aggregates[2].factors_ave_width),
+        'flatness.ave_length_l1': np.mean(factor_aggregates[1].factors_ave_length),
+        'flatness.ave_length_l2': np.mean(factor_aggregates[2].factors_ave_length),
     }
 
     return {k: float(v) for k, v in results.items()}
@@ -141,11 +140,11 @@ def aggregate_measure_distances_along_all_factors(
         # convert everything to tensors
         aggregates.factors_ave_width = to_numpy(torch.stack(aggregates.factors_ave_width, dim=0))  # (f_dims,)
         aggregates.factors_ave_delta = to_numpy(torch.stack(aggregates.factors_ave_delta, dim=0))  # (f_dims,)
-        aggregates.factors_ave_deltas = to_numpy(aggregates.factors_ave_deltas)  # each dimension has different sizes ((f_dims,) -> (f_size[i],))
+        aggregates.factors_ave_deltas = [to_numpy(deltas) for deltas in aggregates.factors_ave_deltas]  # each dimension has different sizes ((f_dims,) -> (f_size[i],))
         # check sizes
         assert aggregates.factors_ave_width.shape == (ground_truth_dataset.num_factors,)
         assert aggregates.factors_ave_delta.shape == (ground_truth_dataset.num_factors,)
-        assert aggregates.factors_ave_deltas.shape == (ground_truth_dataset.num_factors,)
+        assert len(aggregates.factors_ave_deltas) == ground_truth_dataset.num_factors
         for i, factor_size in enumerate(ground_truth_dataset.factor_sizes):
             assert aggregates.factors_ave_deltas[i].shape == (factor_size,)
         # - - - - - - - - - - - - - - - - - #
@@ -307,33 +306,59 @@ if __name__ == '__main__':
     import pytorch_lightning as pl
     from torch.optim import Adam
     from torch.utils.data import DataLoader
-    from disent.data.groundtruth import XYObjectData
+    from disent.data.groundtruth import XYObjectData, XYSquaresData
     from disent.dataset.groundtruth import GroundTruthDataset
     from disent.frameworks.vae.unsupervised import BetaVae
     from disent.model.ae import EncoderConv64, DecoderConv64, AutoEncoder
     from disent.transform import ToStandardisedTensor
 
-    data = XYObjectData()
-    dataset = GroundTruthDataset(data, transform=ToStandardisedTensor())
-    dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True, pin_memory=True)
+    def get_str(r):
+        return ', '.join(f'{k}={v:6.4f}' for k, v in r.items())
 
-    module = BetaVae(
-        make_optimizer_fn=lambda params: Adam(params, lr=5e-4),
-        make_model_fn=lambda: AutoEncoder(
-            encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2),
-            decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
-        ),
-        cfg=BetaVae.cfg(beta=1)
-    )
+    def print_r(name, steps, result, clr=colors.lYLW):
+        print(f'{clr}{name:<13} ({steps:>04}): {get_str(result)}{colors.RST}')
 
-    # we cannot guarantee which device the representation is on
-    get_repr = lambda x: module.encode(x.to(module.device))
+    def calculate(name, steps, dataset, get_repr):
+        r = metric_flatness(dataset, get_repr, factor_repeats=64)
+        results.append((name, steps, r))
+        print_r(name, steps, r, colors.lRED)
+        print(colors.GRY, '='*100, colors.RST, sep='')
+        return r
 
-    # PHASE 1, UNTRAINED
-    print(colors.lRED, metric_flatness(dataset, get_repr), colors.RST, sep='')
-    # PHASE 2, LITTLE TRAINING
-    pl.Trainer(logger=False, checkpoint_callback=False, max_steps=256, gpus=1).fit(module, dataloader)
-    print(colors.lRED, metric_flatness(dataset, get_repr), colors.RST, sep='')
-    # PHASE 3, MORE TRAINING
-    pl.Trainer(logger=False, checkpoint_callback=False, max_steps=2048, gpus=1).fit(module, dataloader)
-    print(colors.lRED, metric_flatness(dataset, get_repr), colors.RST, sep='')
+    class XYOverlapData(XYSquaresData):
+        def __init__(self, square_size=8, grid_size=64, grid_spacing=None, num_squares=3, rgb=True):
+            if grid_spacing is None:
+                grid_spacing = (square_size+1) // 2
+            super().__init__(square_size=square_size, grid_size=grid_size, grid_spacing=grid_spacing, num_squares=num_squares, rgb=rgb)
+
+    results = []
+    for data in [XYSquaresData(), XYOverlapData(), XYObjectData()]:
+        dataset = GroundTruthDataset(data, transform=ToStandardisedTensor())
+        dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True, pin_memory=True)
+        module = BetaVae(
+            make_optimizer_fn=lambda params: Adam(params, lr=5e-4),
+            make_model_fn=lambda: AutoEncoder(
+                encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2),
+                decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
+            ),
+            cfg=BetaVae.cfg(beta=1)
+        )
+        # we cannot guarantee which device the representation is on
+        get_repr = lambda x: module.encode(x.to(module.device))
+        # PHASE 1, UNTRAINED
+        calculate(data.__class__.__name__, 0, dataset, get_repr)
+        # PHASE 2, LITTLE TRAINING
+        pl.Trainer(logger=False, checkpoint_callback=False, max_steps=256, gpus=1, weights_summary=None).fit(module, dataloader)
+        calculate(data.__class__.__name__, 256, dataset, get_repr)
+        # PHASE 3, MORE TRAINING
+        pl.Trainer(logger=False, checkpoint_callback=False, max_steps=2048, gpus=1, weights_summary=None).fit(module, dataloader)
+        calculate(data.__class__.__name__, 256+2048, dataset, get_repr)
+        results.append(None)
+
+    for result in results:
+        if result is None:
+            print()
+            continue
+        (name, steps, result) = result
+        print_r(name, steps, result, colors.lYLW)
+
