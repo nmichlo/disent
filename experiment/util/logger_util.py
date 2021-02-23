@@ -46,4 +46,5 @@ def wb_log_reduced_summaries(logger, summary_dct: dict, reduction='max'):
 def log_metrics(logger, metrics_dct: dict):
     if logger:
         logger.log_metrics(metrics_dct)
-    warnings.warn('no trainer.logger found!')
+    else:
+        warnings.warn('no trainer.logger found!')

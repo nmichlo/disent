@@ -2,7 +2,6 @@ import dataclasses
 import os
 import logging
 
-import signal
 from omegaconf import DictConfig, OmegaConf
 import hydra
 
@@ -14,7 +13,7 @@ from pytorch_lightning.loggers import WandbLogger, CometLogger, LoggerCollection
 from disent import metrics
 from disent.model.ae.base import AutoEncoder
 from disent.model.init import init_model_weights
-from disent.util import make_box_str, wrapped_partial
+from disent.util import make_box_str
 
 from experiment.util.hydra_data import HydraDataModule
 from experiment.util.callbacks import VaeDisentanglementLoggingCallback, VaeLatentCycleLoggingCallback, LoggerProgressCallback
@@ -123,27 +122,36 @@ def hydra_append_latent_cycle_logger_callback(callbacks, cfg):
 
 
 def hydra_append_metric_callback(callbacks, cfg):
-    if 'metrics' in cfg.callbacks:
-        callbacks.append(VaeDisentanglementLoggingCallback(
-            every_n_steps=cfg.callbacks.metrics.every_n_steps,
-            begin_first_step=False,
-            step_end_metrics=[
-                # TODO: this needs to be configurable from the config
-                wrapped_partial(metrics.metric_dci, num_train=1000, num_test=500, boost_mode='sklearn'),
-                wrapped_partial(metrics.metric_factor_vae, num_train=1000, num_eval=500, num_variance_estimate=1000),
-                wrapped_partial(metrics.metric_mig, num_train=2000),
-                wrapped_partial(metrics.metric_sap, num_train=2000, num_test=1000),
-                wrapped_partial(metrics.metric_unsupervised, num_train=2000),
-            ],
-            train_end_metrics=[
-                # TODO: this needs to be configurable from the config
-                metrics.metric_dci,
-                metrics.metric_factor_vae,
-                metrics.metric_mig,
-                metrics.metric_sap,
-                metrics.metric_unsupervised,
-            ],
-        ))
+    # set default values used later
+    default_every_n_steps = cfg.metrics.setdefault('default_every_n_steps', 3600)
+    default_on_final = cfg.metrics.setdefault('default_on_final', True)
+    default_on_train = cfg.metrics.setdefault('default_on_train', True)
+    # get metrics
+    metric_list = cfg.metrics.setdefault('metric_list', [])
+    if metric_list == 'all':
+        cfg.metrics.metric_list = metric_list = [{k: {}} for k in metrics.DEFAULT_METRICS]
+    # get metrics
+    new_metrics_list = []
+    for i, metric in enumerate(metric_list):
+        # fix the values
+        if isinstance(metric, str):
+            metric = {metric: {}}
+        ((name, settings),) = metric.items()
+        if settings is None:
+            settings = {}
+        new_metrics_list.append({name: settings})
+        # get metrics
+        every_n_steps = settings.get('every_n_steps', default_every_n_steps)
+        train_metric = [metrics.FAST_METRICS[name]] if settings.get('on_train', default_on_train) else None
+        final_metric = [metrics.DEFAULT_METRICS[name]] if settings.get('on_final', default_on_final) else None
+        # add the metric callback
+        if final_metric or train_metric:
+            callbacks.append(VaeDisentanglementLoggingCallback(
+                every_n_steps=every_n_steps,
+                step_end_metrics=train_metric,
+                train_end_metrics=final_metric,
+            ))
+    cfg.metrics.metric_list = new_metrics_list
 
 
 def hydra_append_correlation_callback(callbacks, cfg):
