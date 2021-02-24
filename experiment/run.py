@@ -1,25 +1,55 @@
+#  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+#  MIT License
+#
+#  Copyright (c) 2021 Nathan Juraj Michlo
+#
+#  Permission is hereby granted, free of charge, to any person obtaining a copy
+#  of this software and associated documentation files (the "Software"), to deal
+#  in the Software without restriction, including without limitation the rights
+#  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+#  copies of the Software, and to permit persons to whom the Software is
+#  furnished to do so, subject to the following conditions:
+#
+#  The above copyright notice and this permission notice shall be included in
+#  all copies or substantial portions of the Software.
+#
+#  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+#  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+#  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+#  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+#  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+#  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+#  SOFTWARE.
+#  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
 import dataclasses
-import os
 import logging
+import os
 
-from omegaconf import DictConfig, OmegaConf
 import hydra
-
 import pytorch_lightning as pl
 import torch
 import torch.utils.data
-from pytorch_lightning.loggers import WandbLogger, CometLogger, LoggerCollection
+from omegaconf import DictConfig
+from omegaconf import OmegaConf
+from pytorch_lightning.loggers import CometLogger
+from pytorch_lightning.loggers import LoggerCollection
+from pytorch_lightning.loggers import WandbLogger
 
 from disent import metrics
 from disent.model.ae.base import AutoEncoder
 from disent.model.init import init_model_weights
 from disent.util import make_box_str
-
-from experiment.util.hydra_data import HydraDataModule
-from experiment.util.callbacks import VaeDisentanglementLoggingCallback, VaeLatentCycleLoggingCallback, LoggerProgressCallback
+from experiment.util.callbacks import LoggerProgressCallback
+from experiment.util.callbacks import VaeDisentanglementLoggingCallback
+from experiment.util.callbacks import VaeLatentCycleLoggingCallback
 from experiment.util.callbacks.callbacks_vae import VaeLatentCorrelationLoggingCallback
-from experiment.util.hydra_utils import merge_specializations, make_non_strict
-from experiment.util.run_utils import set_debug_logger, set_debug_trainer, log_error_and_exit
+from experiment.util.hydra_data import HydraDataModule
+from experiment.util.hydra_utils import make_non_strict
+from experiment.util.hydra_utils import merge_specializations
+from experiment.util.run_utils import log_error_and_exit
+from experiment.util.run_utils import set_debug_logger
+from experiment.util.run_utils import set_debug_trainer
 
 
 log = logging.getLogger(__name__)
