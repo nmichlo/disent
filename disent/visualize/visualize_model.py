@@ -27,11 +27,13 @@ Visualization module for disentangled representations.
 import logging
 import numbers
 
-from disent.visualize import visualize_util
-from disent.visualize.visualize_util import reconstructions_to_images, make_animation_grid
-from disent.util import to_numpy
 import numpy as np
 import torch
+
+from disent.util import to_numpy
+from disent.visualize import visualize_util
+from disent.visualize.visualize_util import make_animation_grid
+from disent.visualize.visualize_util import reconstructions_to_images
 
 
 log = logging.getLogger(__name__)

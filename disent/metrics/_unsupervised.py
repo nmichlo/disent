@@ -25,10 +25,11 @@ Unsupervised scores based on code covariance and mutual information.
 """
 
 import logging
+
 import numpy as np
 import scipy
-from disent.metrics import utils
 
+from disent.metrics import utils
 
 log = logging.getLogger(__name__)
 
