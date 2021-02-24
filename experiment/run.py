@@ -1,21 +1,26 @@
+import dataclasses
 import os
 import logging
+
 from omegaconf import DictConfig, OmegaConf
 import hydra
 
 import pytorch_lightning as pl
 import torch
 import torch.utils.data
-from pytorch_lightning.loggers import WandbLogger, CometLogger
+from pytorch_lightning.loggers import WandbLogger, CometLogger, LoggerCollection
 
 from disent import metrics
-from disent.model.ae.base import GaussianAutoEncoder
-from disent.util import make_box_str, wrapped_partial
+from disent.model.ae.base import AutoEncoder
+from disent.model.init import init_model_weights
+from disent.util import make_box_str
 
 from experiment.util.hydra_data import HydraDataModule
 from experiment.util.callbacks import VaeDisentanglementLoggingCallback, VaeLatentCycleLoggingCallback, LoggerProgressCallback
 from experiment.util.callbacks.callbacks_vae import VaeLatentCorrelationLoggingCallback
-from experiment.util.hydra_utils import merge_specializations
+from experiment.util.hydra_utils import merge_specializations, make_non_strict
+from experiment.util.run_utils import set_debug_logger, set_debug_trainer, log_error_and_exit
+
 
 log = logging.getLogger(__name__)
 
@@ -25,16 +30,22 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def hydra_check_cuda(cuda):
-    if not torch.cuda.is_available():
-        if cuda:
-            log.error('trainer.cuda=True but CUDA is not available on this machine!')
-            raise RuntimeError('CUDA not available!')
-        else:
-            log.warning('CUDA is not available on this machine!')
+def hydra_check_cuda(cfg):
+    # set cuda
+    if cfg.trainer.cuda in {'try_cuda', None}:
+        cfg.trainer.cuda = torch.cuda.is_available()
+        if not cfg.trainer.cuda:
+            log.warning('CUDA was requested, but not found on this system... CUDA has been disabled!')
     else:
-        if not cuda:
-            log.warning('CUDA is available but is not being used!')
+        if not torch.cuda.is_available():
+            if cfg.trainer.cuda:
+                log.error('trainer.cuda=True but CUDA is not available on this machine!')
+                raise RuntimeError('CUDA not available!')
+            else:
+                log.warning('CUDA is not available on this machine!')
+        else:
+            if not cfg.trainer.cuda:
+                log.warning('CUDA is available but is not being used!')
 
 
 def hydra_check_datadir(prepare_data_per_node, cfg):
@@ -57,26 +68,36 @@ def hydra_check_datadir(prepare_data_per_node, cfg):
 
 def hydra_make_logger(cfg):
     loggers = []
-    if ('wandb' in cfg.logging) and cfg.logging.wandb.get('enabled', True):
+
+    # initialise logging dict
+    cfg.setdefault('loggings', {})
+
+    if ('wandb' in cfg.logging) and cfg.logging.wandb.setdefault('enabled', True):
         loggers.append(WandbLogger(
-            offline=cfg.logging.wandb.get('offline', False),
-            entity=cfg.logging.wandb.get('entity', None),  # cometml: workspace
-            project=cfg.logging.wandb.project,             # cometml: project_name
-            name=cfg.logging.wandb.name,                   # cometml: experiment_name
-            group=cfg.logging.wandb.get('group', None),    # experiment group
-            tags=cfg.logging.wandb.get('tags', None),      # experiment tags
+            offline=cfg.logging.wandb.setdefault('offline', False),
+            entity=cfg.logging.wandb.setdefault('entity', None),  # cometml: workspace
+            project=cfg.logging.wandb.project,                    # cometml: project_name
+            name=cfg.logging.wandb.name,                          # cometml: experiment_name
+            group=cfg.logging.wandb.setdefault('group', None),    # experiment group
+            tags=cfg.logging.wandb.setdefault('tags', None),      # experiment tags
             save_dir=hydra.utils.to_absolute_path(cfg.logging.logs_dir),  # relative to hydra's original cwd
         ))
-    if ('cometml' in cfg.logging) and cfg.logging.cometml.get('enabled', True):
+    else:
+        cfg.logging.setdefault('wandb', dict(enabled=False))
+
+    if ('cometml' in cfg.logging) and cfg.logging.cometml.setdefault('enabled', True):
         loggers.append(CometLogger(
-            offline=cfg.logging.cometml.get('offline', False),
-            workspace=cfg.logging.cometml.get('workspace', None),  # wandb: entity
-            project_name=cfg.logging.cometml.project,              # wandb: project
-            experiment_name=cfg.logging.cometml.name,              # wandb: name
-            api_key=os.environ['COMET_API_KEY'],                   # TODO: use dotenv
+            offline=cfg.logging.cometml.setdefault('offline', False),
+            workspace=cfg.logging.cometml.setdefault('workspace', None),  # wandb: entity
+            project_name=cfg.logging.cometml.project,                     # wandb: project
+            experiment_name=cfg.logging.cometml.name,                     # wandb: name
+            api_key=os.environ['COMET_API_KEY'],                          # TODO: use dotenv
             save_dir=hydra.utils.to_absolute_path(cfg.logging.logs_dir),  # relative to hydra's original cwd
         ))
-    return loggers if loggers else None  # lists are turned into a LoggerCollection by pl
+    else:
+        cfg.logging.setdefault('cometml', dict(enabled=False))
+
+    return LoggerCollection(loggers) if loggers else None  # lists are turned into a LoggerCollection by pl
 
 
 def hydra_append_progress_callback(callbacks, cfg):
@@ -101,27 +122,36 @@ def hydra_append_latent_cycle_logger_callback(callbacks, cfg):
 
 
 def hydra_append_metric_callback(callbacks, cfg):
-    if 'metrics' in cfg.callbacks:
-        callbacks.append(VaeDisentanglementLoggingCallback(
-            every_n_steps=cfg.callbacks.metrics.every_n_steps,
-            begin_first_step=False,
-            step_end_metrics=[
-                # TODO: this needs to be configurable from the config
-                wrapped_partial(metrics.metric_dci, num_train=1000, num_test=500, boost_mode='sklearn'),
-                wrapped_partial(metrics.metric_factor_vae, num_train=1000, num_eval=500, num_variance_estimate=1000),
-                wrapped_partial(metrics.metric_mig, num_train=2000),
-                wrapped_partial(metrics.metric_sap, num_train=2000, num_test=1000),
-                wrapped_partial(metrics.metric_unsupervised, num_train=2000),
-            ],
-            train_end_metrics=[
-                # TODO: this needs to be configurable from the config
-                metrics.metric_dci,
-                metrics.metric_factor_vae,
-                metrics.metric_mig,
-                metrics.metric_sap,
-                metrics.metric_unsupervised,
-            ],
-        ))
+    # set default values used later
+    default_every_n_steps = cfg.metrics.setdefault('default_every_n_steps', 3600)
+    default_on_final = cfg.metrics.setdefault('default_on_final', True)
+    default_on_train = cfg.metrics.setdefault('default_on_train', True)
+    # get metrics
+    metric_list = cfg.metrics.setdefault('metric_list', [])
+    if metric_list == 'all':
+        cfg.metrics.metric_list = metric_list = [{k: {}} for k in metrics.DEFAULT_METRICS]
+    # get metrics
+    new_metrics_list = []
+    for i, metric in enumerate(metric_list):
+        # fix the values
+        if isinstance(metric, str):
+            metric = {metric: {}}
+        ((name, settings),) = metric.items()
+        if settings is None:
+            settings = {}
+        new_metrics_list.append({name: settings})
+        # get metrics
+        every_n_steps = settings.get('every_n_steps', default_every_n_steps)
+        train_metric = [metrics.FAST_METRICS[name]] if settings.get('on_train', default_on_train) else None
+        final_metric = [metrics.DEFAULT_METRICS[name]] if settings.get('on_final', default_on_final) else None
+        # add the metric callback
+        if final_metric or train_metric:
+            callbacks.append(VaeDisentanglementLoggingCallback(
+                every_n_steps=every_n_steps,
+                step_end_metrics=train_metric,
+                train_end_metrics=final_metric,
+            ))
+    cfg.metrics.metric_list = new_metrics_list
 
 
 def hydra_append_correlation_callback(callbacks, cfg):
@@ -138,24 +168,33 @@ def hydra_append_correlation_callback(callbacks, cfg):
 
 
 def run(cfg: DictConfig):
-    # TODO: this is hacky and should be replaced!
-    cfg = merge_specializations(cfg, CONFIG_PATH, run)
+    cfg = make_non_strict(cfg)
+
+    # -~-~-~-~-~-~-~-~-~-~-~-~- #
+    # INITIALISE & SETDEFAULT IN CONFIG
+    # -~-~-~-~-~-~-~-~-~-~-~-~- #
+
+    # create trainer loggers & callbacks & initialise error messages
+    logger = set_debug_logger(hydra_make_logger(cfg))
 
     # print useful info
-    log.info(make_box_str(OmegaConf.to_yaml(cfg)))
     log.info(f"Current working directory : {os.getcwd()}")
     log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
 
+    # hydra config does not support variables in defaults lists, we handle this manually
+    cfg = merge_specializations(cfg, CONFIG_PATH, run)
+    # create framework config - this is also kinda hacky
+    framework_cfg = hydra.utils.instantiate({**cfg.framework.module, **dict(_target_=cfg.framework.module._target_ + '.cfg')})
+    # update config params in case we missed variables in the cfg
+    cfg.framework.module.update(dataclasses.asdict(framework_cfg))
+
     # check CUDA setting
-    cuda = cfg.trainer.get('cuda', torch.cuda.is_available())
-    hydra_check_cuda(cuda)
+    cfg.trainer.setdefault('cuda', 'try_cuda')
+    hydra_check_cuda(cfg)
 
     # check data preparation
-    prepare_data_per_node = cfg.trainer.get('prepare_data_per_node', True)
+    prepare_data_per_node = cfg.trainer.setdefault('prepare_data_per_node', True)
     hydra_check_datadir(prepare_data_per_node, cfg)
-
-    # create trainer loggers & callbacks
-    logger = hydra_make_logger(cfg)
 
     # TRAINER CALLBACKS
     callbacks = []
@@ -171,29 +210,35 @@ def run(cfg: DictConfig):
     framework: pl.LightningModule = hydra.utils.instantiate(
         dict(_target_=cfg.framework.module._target_),
         make_optimizer_fn=lambda params: hydra.utils.instantiate(cfg.optimizer.cls, params),
-        make_model_fn=lambda: GaussianAutoEncoder(
+        make_model_fn=lambda: init_model_weights(AutoEncoder(
             encoder=hydra.utils.instantiate(cfg.model.encoder),
             decoder=hydra.utils.instantiate(cfg.model.decoder)
-        ),
+        ), mode=cfg.model.weight_init),
         # apply augmentations to batch on GPU which can be faster than via the dataloader
         batch_augment=datamodule.batch_augment,
-        cfg=hydra.utils.instantiate(
-            {**cfg.framework.module, **dict(_target_=cfg.framework.module._target_ + '.cfg')},
-        )
+        cfg=framework_cfg
     )
 
     # Setup Trainer
-    trainer = pl.Trainer(
-        log_every_n_steps=cfg.logging.get('log_every_n_steps', 50),
-        flush_logs_every_n_steps=cfg.logging.get('flush_logs_every_n_steps', 100),
+    trainer = set_debug_trainer(pl.Trainer(
+        log_every_n_steps=cfg.logging.setdefault('log_every_n_steps', 50),
+        flush_logs_every_n_steps=cfg.logging.setdefault('flush_logs_every_n_steps', 100),
         logger=logger,
         callbacks=callbacks,
-        gpus=1 if cuda else 0,
-        max_epochs=cfg.trainer.get('epochs', 100),
-        max_steps=cfg.trainer.get('steps', None),
+        gpus=1 if cfg.trainer.cuda else 0,
+        max_epochs=cfg.trainer.setdefault('epochs', 100),
+        max_steps=cfg.trainer.setdefault('steps', None),
         prepare_data_per_node=prepare_data_per_node,
         progress_bar_refresh_rate=0,  # ptl 0.9
-    )
+        terminate_on_nan=True,  # we do this here so we don't run the final metrics
+    ))
+
+    # -~-~-~-~-~-~-~-~-~-~-~-~- #
+    # BEGIN TRAINING
+    # -~-~-~-~-~-~-~-~-~-~-~-~- #
+
+    # print the config
+    log.info(f'Final Config Is:\n{make_box_str(OmegaConf.to_yaml(cfg))}')
 
     # save hparams TODO: I think this is a pytorch lightning bug... The trainer should automatically save these if hparams is set.
     framework.hparams = cfg
@@ -201,6 +246,8 @@ def run(cfg: DictConfig):
         trainer.logger.log_hyperparams(framework.hparams)
 
     # fit the model
+    # -- if an error/signal occurs while pytorch lightning is
+    #    initialising the training process we cannot capture it!
     trainer.fit(framework, datamodule=datamodule)
 
 
@@ -210,21 +257,22 @@ def run(cfg: DictConfig):
 
 
 if __name__ == '__main__':
-
-    CONFIG_PATH = 'config'
+    CONFIG_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), 'config'))
     CONFIG_NAME = 'config'
 
     @hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME)
     def main(cfg: DictConfig):
         try:
             run(cfg)
-        except:
-            log.error('A critical error occurred:', exc_info=True)
+        except Exception as e:
+            log_error_and_exit(err_type='experiment error', err_msg=str(e))
 
     try:
         main()
     except KeyboardInterrupt as e:
-        log.warning('Interrupted - Exited early!')
+        log_error_and_exit(err_type='interrupted', err_msg=str(e), exc_info=False)
+    except Exception as e:
+        log_error_and_exit(err_type='hydra error', err_msg=str(e))
 
 
 # ========================================================================= #

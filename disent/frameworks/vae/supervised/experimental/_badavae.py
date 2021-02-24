@@ -2,7 +2,6 @@ from dataclasses import dataclass
 
 import torch
 from disent.frameworks.vae.weaklysupervised import AdaVae
-from disent.frameworks.vae.loss import bce_loss_with_logits, kl_normal_loss
 
 
 # ========================================================================= #
@@ -22,33 +21,33 @@ class BoundedAdaVae(AdaVae):
         # FORWARD
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # latent distribution parametrisation
-        a_z_mean, a_z_logvar = self.encode_gaussian(a_x)
-        p_z_mean, p_z_logvar = self.encode_gaussian(p_x)
-        n_z_mean, n_z_logvar = self.encode_gaussian(n_x)
+        a_z_params = self.training_encode_params(a_x)
+        p_z_params = self.training_encode_params(p_x)
+        n_z_params = self.training_encode_params(n_x)
         # intercept and mutate z [SPECIFIC TO ADAVAE]
-        (a_z_mean, a_z_logvar, p_z_mean, p_z_logvar), intercept_logs = self.intercept_z(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar)
+        (a_z_params, p_z_params), intercept_logs = self.intercept_z(all_params=(a_z_params, p_z_params, n_z_params))
         # sample from latent distribution
-        a_z_sampled = self.reparameterize(a_z_mean, a_z_logvar)
-        p_z_sampled = self.reparameterize(p_z_mean, p_z_logvar)
+        (d0_posterior, d0_prior), a_z_sampled = self.training_params_to_distributions_and_sample(a_z_params)
+        (d1_posterior, d1_prior), p_z_sampled = self.training_params_to_distributions_and_sample(p_z_params)
         # reconstruct without the final activation
-        a_x_recon = self.decode_partial(a_z_sampled)
-        p_x_recon = self.decode_partial(p_z_sampled)
+        a_x_partial_recon = self.training_decode_partial(a_z_sampled)
+        p_x_partial_recon = self.training_decode_partial(p_z_sampled)
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
         # LOSS
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # reconstruction error
-        a_recon_loss = bce_loss_with_logits(a_x_recon, a_x_targ)  # E[log p(x|z)]
-        p_recon_loss = bce_loss_with_logits(p_x_recon, p_x_targ)  # E[log p(x|z)]
+        a_recon_loss = self.training_recon_loss(a_x_partial_recon, a_x_targ)  # E[log p(x|z)]
+        p_recon_loss = self.training_recon_loss(p_x_partial_recon, p_x_targ)  # E[log p(x|z)]
         ave_recon_loss = (a_recon_loss + p_recon_loss) / 2
         # KL divergence
-        a_kl_loss = kl_normal_loss(a_z_mean, a_z_logvar)     # D_kl(q(z|x) || p(z|x))
-        p_kl_loss = kl_normal_loss(p_z_mean, p_z_logvar)     # D_kl(q(z|x) || p(z|x))
+        a_kl_loss = self.training_kl_loss(d0_posterior, d0_prior)     # D_kl(q(z|x) || p(z|x))
+        p_kl_loss = self.training_kl_loss(d1_posterior, d1_prior)     # D_kl(q(z|x) || p(z|x))
         ave_kl_loss = (a_kl_loss + p_kl_loss) / 2
         # compute kl regularisation
-        ave_kl_reg_loss = self.kl_regularization(ave_kl_loss)
+        ave_kl_reg_loss = self.training_regularize_kl(ave_kl_loss)
         # augment loss (0 for this)
-        augment_loss, augment_loss_logs = self.augment_loss(z_means=(a_z_mean, p_z_mean, n_z_mean), z_logvars=(a_z_logvar, p_z_logvar, n_z_logvar), z_samples=(a_z_sampled, p_z_sampled))
+        augment_loss, augment_loss_logs = self.augment_loss(z_means=(a_z_params.mean, p_z_params.mean, n_z_params.mean))
         # compute combined loss - must be same as the BetaVAE
         loss = ave_recon_loss + ave_kl_reg_loss + augment_loss
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -63,17 +62,28 @@ class BoundedAdaVae(AdaVae):
             **augment_loss_logs,
         }
 
-    def intercept_z(self, a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, n_z_mean, n_z_logvar):
+    def intercept_z(self, all_params):
+        a_z_params, p_z_params, n_z_params = all_params
+
+        # get distributions
+        a_d_posterior, _ = self.training_params_to_distributions(a_z_params)
+        p_d_posterior, _ = self.training_params_to_distributions(p_z_params)
+        n_d_posterior, _ = self.training_params_to_distributions(n_z_params)
+
+        # get deltas
+        a_p_deltas = AdaVae.compute_kl_deltas(a_d_posterior, p_d_posterior, symmetric_kl=self.cfg.symmetric_kl)
+        a_n_deltas = AdaVae.compute_kl_deltas(a_d_posterior, n_d_posterior, symmetric_kl=self.cfg.symmetric_kl)
+
         # shared elements that need to be averaged, computed per pair in the batch.
-        p_kl_deltas, p_kl_threshs, old_p_shared_mask = AdaVae.estimate_shared(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, symmetric_kl=self.cfg.symmetric_kl)
-        n_kl_deltas, n_kl_threshs, old_n_shared_mask = AdaVae.estimate_shared(a_z_mean, a_z_logvar, n_z_mean, n_z_logvar, symmetric_kl=self.cfg.symmetric_kl)
+        old_p_shared_mask = AdaVae.compute_shared_mask(a_p_deltas)
+        old_n_shared_mask = AdaVae.compute_shared_mask(a_n_deltas)
 
         # modify threshold based on criterion and recompute if necessary
         # CORE of this approach!
-        p_shared_mask, n_shared_mask = BoundedAdaVae.compute_constrained_masks(p_kl_deltas, old_p_shared_mask, n_kl_deltas, old_n_shared_mask)
+        p_shared_mask, n_shared_mask = BoundedAdaVae.compute_constrained_masks(a_p_deltas, old_p_shared_mask, a_n_deltas, old_n_shared_mask)
         
         # make averaged variables
-        new_args = AdaVae.make_averaged(a_z_mean, a_z_logvar, p_z_mean, p_z_logvar, p_shared_mask, self.compute_average)
+        new_args = AdaVae.compute_averaged(a_z_params, p_z_params, p_shared_mask, self._compute_average_fn)
 
         # return new args & generate logs
         return new_args, {
@@ -83,7 +93,7 @@ class BoundedAdaVae(AdaVae):
             'n_shared_after':      n_shared_mask.sum(dim=1).float().mean(),
         }
     
-    def augment_loss(self, z_means, z_logvars, z_samples):
+    def augment_loss(self, z_means):
         return 0, {}
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #

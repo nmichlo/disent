@@ -4,7 +4,7 @@ from torch.utils.data import Dataset, DataLoader
 from disent.data.groundtruth import XYSquaresData, GroundTruthData
 from disent.dataset.groundtruth import GroundTruthDatasetOrigWeakPairs
 from disent.frameworks.vae.weaklysupervised import AdaVae
-from disent.model.ae import EncoderConv64, DecoderConv64, GaussianAutoEncoder
+from disent.model.ae import EncoderConv64, DecoderConv64, AutoEncoder
 from disent.transform import ToStandardisedTensor
 from disent.util import is_test_run
 
@@ -14,7 +14,7 @@ dataloader = DataLoader(dataset=dataset, batch_size=4, shuffle=True)
 
 module: pl.LightningModule = AdaVae(
     make_optimizer_fn=lambda params: Adam(params, lr=1e-3),
-    make_model_fn=lambda: GaussianAutoEncoder(
+    make_model_fn=lambda: AutoEncoder(
         encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2),
         decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
     ),

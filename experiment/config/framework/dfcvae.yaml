@@ -2,9 +2,11 @@
 name: dfcvae
 module:
   _target_: disent.frameworks.vae.unsupervised.DfcVae
-  beta: 0.001  # 4 / (64*64)
+  beta: ${framework.beta}
   # dfcvae
   feature_layers: ['14', '24', '34', '43']
 
+# settings used elsewhere
 data_wrap_mode: single
+model_z_multiplier: 2
 

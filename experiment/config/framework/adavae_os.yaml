@@ -2,8 +2,10 @@
 name: adavae_os
 module:
   _target_: disent.frameworks.vae.weaklysupervised.AdaVae
-  beta: 4
+  beta: ${framework.beta}
   average_mode: 'gvae'  # gvae or ml-vae
   symmetric_kl: TRUE
 
+# settings used elsewhere
 data_wrap_mode: weak_pair
+model_z_multiplier: 2

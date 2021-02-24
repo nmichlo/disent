@@ -1,13 +1,11 @@
 # @package _group_
-name: tgadavae
+name: tbadavae
 module:
-  _target_: disent.frameworks.vae.supervised.TripletGuidedAdaVae
-  beta: 4
+  _target_: disent.frameworks.vae.supervised.TripletBoundedAdaVae
+  beta: ${framework.beta}
   # adavae
-  average_mode: 'gvae'       # [gvae, ml-vae]
+  average_mode: 'gvae'  # gvae or ml-vae
   symmetric_kl: TRUE
-  # guided adavae
-  anchor_ave_mode: 'average' # [average, thresh]
   # tvae: triplet stuffs
   triplet_loss: triplet
   triplet_margin_min: 0.1
@@ -15,4 +13,6 @@ module:
   triplet_scale: 100
   triplet_p: 1
 
+# settings used elsewhere
 data_wrap_mode: triplet
+model_z_multiplier: 2

@@ -1,22 +1,25 @@
 import logging
+import warnings
 
 import wandb
 import numpy as np
 import pytorch_lightning as pl
-import warnings
+import matplotlib.pyplot as plt
 
+import torch
+
+import disent.metrics
 import disent.util.colors as c
 from disent.dataset._augment_util import AugmentableDataset
 from disent.dataset.groundtruth import GroundTruthDataset
+from disent.frameworks.ae.unsupervised import AE
 from disent.frameworks.vae.unsupervised import Vae
 from disent.util import TempNumpySeed, chunked, to_numpy, Timer
 from disent.visualize.visualize_model import latent_cycle_grid_animation
 
 from experiment.util.hydra_data import HydraDataModule
 from experiment.util.callbacks.callbacks_base import _PeriodicCallback
-
-import matplotlib.pyplot as plt
-
+from experiment.util.logger_util import wb_log_metrics, wb_log_reduced_summaries, log_metrics
 
 log = logging.getLogger(__name__)
 
@@ -26,8 +29,8 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def _get_dataset_and_vae(trainer: pl.Trainer, pl_module: pl.LightningModule) -> (AugmentableDataset, Vae):
-    assert isinstance(pl_module, Vae), f'{pl_module.__class__} is not an instance of {Vae}'
+def _get_dataset_and_vae(trainer: pl.Trainer, pl_module: pl.LightningModule) -> (AugmentableDataset, AE):
+    assert isinstance(pl_module, AE), f'{pl_module.__class__} is not an instance of {AE}'
     # check dataset
     assert hasattr(trainer, 'datamodule'), f'trainer was not run using a datamodule.'
     assert isinstance(trainer.datamodule, HydraDataModule)
@@ -63,12 +66,17 @@ class VaeLatentCycleLoggingCallback(_PeriodicCallback):
         with TempNumpySeed(self.seed):
             obs = dataset.dataset_sample_batch(64, mode='input').to(vae.device)
 
+        if isinstance(vae, Vae):
+            z_means, z_logvars = vae.training_encode_params(obs)
+        else:
+            z_means = vae.training_encode_params(obs)
+            z_logvars = torch.ones_like(z_means)
+
         # produce latent cycle grid animation
-        z_means, z_logvars = vae.encode_gaussian(obs)
         frames = latent_cycle_grid_animation(vae.decode, z_means, z_logvars, mode=self.mode, num_frames=21, decoder_device=vae.device)
 
         # log video
-        trainer.logger.log_metrics({
+        wb_log_metrics(trainer.logger, {
             self.mode: wandb.Video(np.clip(frames*255, 0, 255).astype('uint8'), fps=5, format='mp4'),
         })
 
@@ -91,26 +99,33 @@ class VaeDisentanglementLoggingCallback(_PeriodicCallback):
             return
         # compute all metrics
         for metric in metrics:
-            log.info(f'| {metric.__name__} - computing...')
+            pad = max(7+len(k) for k in disent.metrics.DEFAULT_METRICS)  # I know this is a magic variable... im just OCD
+            if is_final:
+                log.info(f'| {metric.__name__:<{pad}} - computing...')
             with Timer() as timer:
                 scores = metric(dataset, lambda x: vae.encode(x.to(vae.device)))
             metric_results = ' '.join(f'{k}{c.GRY}={c.lMGT}{v:.3f}{c.RST}' for k, v in scores.items())
-            log.info(f'| {metric.__name__} - time{c.GRY}={c.lYLW}{timer.pretty}{c.RST} - {metric_results}')
-            trainer.logger.log_metrics({'final_metric' if is_final else 'epoch_metric': scores})
+            log.info(f'| {metric.__name__:<{pad}} - time{c.GRY}={c.lYLW}{timer.pretty:<9}{c.RST} - {metric_results}')
+            # log to trainer
+            prefix = 'final_metric' if is_final else 'epoch_metric'
+            log_metrics(trainer.logger, {prefix: scores})
+            # log summary for WANDB
+            # this is kinda hacky... the above should work for parallel coordinate plots
+            wb_log_reduced_summaries(trainer.logger, {f'{prefix}.{k}': v for k, v in scores.items()}, reduction='max')
 
     def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         if self.step_end_metrics:
-            log.info('Computing Epoch Metrics:')
+            log.debug('Computing Epoch Metrics:')
             with Timer() as timer:
                 self._compute_metrics_and_log(trainer, pl_module, metrics=self.step_end_metrics, is_final=False)
-            log.info(f'Computed Epoch Metrics! {timer.pretty}')
+            log.debug(f'Computed Epoch Metrics! {timer.pretty}')
 
     def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         if self.train_end_metrics:
-            log.info('Computing Final Metrics...')
+            log.debug('Computing Final Metrics...')
             with Timer() as timer:
                 self._compute_metrics_and_log(trainer, pl_module, metrics=self.train_end_metrics, is_final=True)
-            log.info(f'Computed Final Metrics! {timer.pretty}')
+            log.debug(f'Computed Final Metrics! {timer.pretty}')
 
 
 class VaeLatentCorrelationLoggingCallback(_PeriodicCallback):
@@ -152,16 +167,21 @@ class VaeLatentCorrelationLoggingCallback(_PeriodicCallback):
         ave_f_to_z_corr = f_to_z_corr_maxs.mean()
         ave_z_to_f_corr = z_to_f_corr_maxs.mean()
 
-        # log
+        # print
         log.info(f'ave latent correlation: {ave_z_to_f_corr}')
         log.info(f'ave factor correlation: {ave_f_to_z_corr}')
-        trainer.logger.log_metrics({
+        # log everything
+        log_metrics(trainer.logger, {
             'metric.ave_latent_correlation': ave_z_to_f_corr,
             'metric.ave_factor_correlation': ave_f_to_z_corr,
-            'metric.correlation_heatmap': wandb.log({'correlation_heatmap': wandb.plots.HeatMap(
+        })
+        # make sure we only log the heatmap to WandB
+        wb_log_metrics(trainer.logger, {
+            'metric.correlation_heatmap': wandb.plots.HeatMap(
                 x_labels=[f'z{i}' for i in range(z_size)],
                 y_labels=list(dataset.factor_names),
-                matrix_values=fz_corr, show_text=False)}),
+                matrix_values=fz_corr, show_text=False
+            ),
         })
 
         NUM = 1
@@ -190,7 +210,7 @@ class VaeLatentCorrelationLoggingCallback(_PeriodicCallback):
 #
 # from disent.dataset import GroundTruthDataset
 # from disent.data.groundtruth._xygrid import XYGridData
-# from disent.model.ae import DecoderConv64, EncoderConv64, GaussianAutoEncoder
+# from disent.model.ae import DecoderConv64, EncoderConv64, AutoEncoder
 # from disent.util import TempNumpySeed, chunked, to_numpy
 # import numpy as np
 #
@@ -237,7 +257,7 @@ class VaeLatentCorrelationLoggingCallback(_PeriodicCallback):
 # # =========================== #
 #
 # # z_size = 6
-# # model = GaussianAutoEncoder(
+# # model = AutoEncoder(
 # #     encoder=EncoderConv64(x_shape=(3, 64, 64), z_size=z_size, z_multiplier=2),
 # #     decoder=DecoderConv64(x_shape=(3, 64, 64), z_size=z_size),
 # # )

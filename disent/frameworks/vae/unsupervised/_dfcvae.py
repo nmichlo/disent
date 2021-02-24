@@ -7,8 +7,8 @@ from torch import Tensor
 from torchvision.models import vgg19_bn
 from torch.nn import functional as F
 
+from disent.frameworks.helper.reductions import get_mean_loss_scale
 from disent.frameworks.vae.unsupervised import BetaVae
-from disent.frameworks.vae.loss import kl_normal_loss, bce_loss_with_logits
 from disent.transform.functional import check_tensor
 
 
@@ -25,46 +25,49 @@ class DfcVae(BetaVae):
 
     Reference implementation is from: https://github.com/AntixK/PyTorch-VAE
 
+
     Difference:
-        1. MSE loss changed to BCE loss
-           Mean taken over (batch for sum of pixels) not mean over (batch & pixels)
+        1. MSE loss changed to BCE or MSE loss
+        2. Mean taken over (batch for sum of pixels) not mean over (batch & pixels)
     """
 
     @dataclass
     class cfg(BetaVae.cfg):
         feature_layers: Optional[List[Union[str, int]]] = None
 
-    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = cfg()):
+    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
         # make dfc loss
-        self._loss = DfcLossModule(feature_layers=cfg.feature_layers)
+        self._dfc_loss = DfcLossModule(feature_layers=self.cfg.feature_layers)
+        # checks
+        if self.cfg.recon_loss != 'bce':
+            raise KeyError('dfcvae currently only supports bce loss. TODO: check why this is. The original implementation only supports mse.')
 
     def compute_training_loss(self, batch, batch_idx):
         (x,), (x_targ,) = batch['x'], batch['x_targ']
 
         # FORWARD
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-        # latent distribution parametrisation
-        z_mean, z_logvar = self.encode_gaussian(x)
+        # latent distribution parameterizations
+        z_params = self.training_encode_params(x)
         # sample from latent distribution
-        z = self.reparameterize(z_mean, z_logvar)
+        (d_posterior, d_prior), z_sampled = self.training_params_to_distributions_and_sample(z_params)
         # reconstruct without the final activation
-        x_recon = self.decode_partial(z)
+        x_partial_recon = self.training_decode_partial(z_sampled)
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
         # LOSS
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # Deep Features
-        feature_loss = self._loss.compute_loss(torch.sigmoid(x_recon), x_targ)
-        feature_loss *= (x.shape[-1] * x.shape[-2])         # (DIFFERENCE: 1)
+        feature_loss = self._dfc_loss.compute_loss(self._recons.activate(x_partial_recon), x_targ, reduction=self.cfg.loss_reduction)
         # Pixel Loss
-        pixel_loss = bce_loss_with_logits(x_recon, x_targ)  # (DIFFERENCE: 1) E[log p(x|z)] | F.mse_loss(x_recon_sigmoid, x_targ, reduction='mean')
+        pixel_loss = self.training_recon_loss(x_partial_recon, x_targ)  # E[log p(x|z)]  (DIFFERENCE: 1)
         # reconstruction error
         recon_loss = (pixel_loss + feature_loss) * 0.5
-        # KL divergence
-        kl_loss = kl_normal_loss(z_mean, z_logvar)  # D_kl(q(z|x) || p(z|x))
+        # KL divergence & regularisation
+        kl_loss = self.training_kl_loss(d_posterior, d_prior)  # D_kl(q(z|x) || p(z|x))
         # compute kl regularisation
-        kl_reg_loss = self.kl_regularization(kl_loss)
+        kl_reg_loss = self.training_regularize_kl(kl_loss)
         # compute combined loss
         loss = recon_loss + kl_reg_loss
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -118,7 +121,7 @@ class DfcLossModule(torch.nn.Module):
     def __call__(self, x_recon, x_targ):
         return self.compute_loss(x_recon, x_targ)
 
-    def compute_loss(self, x_recon, x_targ):
+    def compute_loss(self, x_recon, x_targ, reduction='batch_mean'):
         """
         x_recon and x_targ data should be an unnormalized RGB batch of
         data [B x C x H x W] in the range [0, 1].
@@ -130,7 +133,9 @@ class DfcLossModule(torch.nn.Module):
         feature_loss = 0.0
         for (f_recon, f_targ) in zip(features_recon, features_targ):
             feature_loss += F.mse_loss(f_recon, f_targ, reduction='mean')
-        return feature_loss
+        # scale the loss accordingly
+        # (DIFFERENCE: 2)
+        return feature_loss * get_mean_loss_scale(x_targ, reduction=reduction)
 
     def _extract_features(self, inputs: Tensor) -> List[Tensor]:
         """

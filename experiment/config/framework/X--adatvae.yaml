@@ -2,7 +2,7 @@
 name: adatvae
 module:
   _target_: disent.frameworks.vae.supervised.AdaTripletVae
-  beta: 0.1
+  beta: ${framework.beta}
   # tvae: triplet stuffs
   triplet_loss: triplet
   triplet_margin_min: 0.1
@@ -21,4 +21,6 @@ module:
   lerp_step_end: ${trainer.steps}
   lerp_goal: 1.0
 
+# settings used elsewhere
 data_wrap_mode: triplet
+model_z_multiplier: 2

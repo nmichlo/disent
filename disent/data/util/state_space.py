@@ -80,9 +80,9 @@ class StateSpace(LengthIter):
         returned values must appear in the same order as factor_indices.
 
         If factor factor_indices is None, all factors are sampled.
-        If num_samples=None then the array returned is the same shape as factor_sizes[factor_indices]
-        If num_samples is an integer or shape, the samples returned are that shape with the last dimension
-            the same size as factor_indices, ie (*num_samples, len(factor_indices))
+        If size=None then the array returned is the same shape as (len(factor_indices),) or factor_sizes[factor_indices]
+        If size is an integer or shape, the samples returned are that shape with the last dimension
+            the same size as factor_indices, ie (*size, len(factor_indices))
         """
         # get factor sizes
         sizes = self._factor_sizes if (factor_indices is None) else self._factor_sizes[factor_indices]
@@ -99,10 +99,28 @@ class StateSpace(LengthIter):
         ie. fills in the missing values by sampling from the unused dimensions.
         returned values are ordered by increasing factor index and not factor_indices.
         (known_factors must correspond to known_factor_indices)
+
+        - eg. known_factors=A, known_factor_indices=1
+              BECOMES: known_factors=[A], known_factor_indices=[1]
+        - eg. known_factors=[A], known_factor_indices=[1]
+              = [..., A, ...]
+        - eg. known_factors=[[A]], known_factor_indices=[1]
+              = [[..., A, ...]]
+        - eg. known_factors=[A, B], known_factor_indices=[1, 2]
+              = [..., A, B, ...]
+        - eg. known_factors=[[A], [B]], known_factor_indices=[1]
+              = [[..., A, ...], [..., B, ...]]
+        - eg. known_factors=[[A, B], [C, D]], known_factor_indices=[1, 2]
+              = [[..., A, B, ...], [..., C, D, ...]]
         """
-        known_factors = np.array(known_factors)
+        # convert & check
+        known_factors = np.atleast_1d(known_factors)
+        known_factor_indices = np.atleast_1d(known_factor_indices)
+        assert known_factor_indices.ndim == 1
+        # mask of known factors
         known_mask = np.zeros(self.num_factors, dtype='bool')
         known_mask[known_factor_indices] = True
+        # set values
         all_factors = np.zeros((*known_factors.shape[:-1], self.num_factors), dtype='int')
         all_factors[..., known_mask] = known_factors
         all_factors[..., ~known_mask] = self.sample_factors(size=known_factors.shape[:-1], factor_indices=~known_mask)

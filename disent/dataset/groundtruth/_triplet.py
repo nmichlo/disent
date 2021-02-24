@@ -20,14 +20,14 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
             transform=None,
             augment=None,
             # factor sampling
-            p_k_range=(1, -2),
-            n_k_range=(1, -1),
-            n_k_sample_mode='offset',
+            p_k_range=(0, -1),
+            n_k_range=(0, -1),
+            n_k_sample_mode='bounded_below',
             n_k_is_shared=True,
             # radius sampling
-            p_radius_range=(1, -2),
-            n_radius_range=(1, -1),
-            n_radius_sample_mode='offset',
+            p_radius_range=(0, -1),
+            n_radius_range=(0, -1),
+            n_radius_sample_mode='bounded_below',
             # final checks
             swap_metric=None,
             swap_chance=None,

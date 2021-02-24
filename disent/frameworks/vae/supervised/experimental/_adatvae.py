@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import torch
 import numpy as np
 from disent.frameworks.vae.supervised._tvae import TripletVae
-from disent.loss.triplet import configured_triplet, configured_dist_triplet
+from disent.frameworks.helper.triplet_loss import configured_triplet, configured_dist_triplet
 from disent.frameworks.vae.weaklysupervised._adavae import AdaVae
 import logging
 
@@ -31,12 +31,12 @@ class AdaTripletVae(TripletVae):
         lerp_step_end: int = 14400
         lerp_goal: float = 1.0
 
-    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = cfg()):
+    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
         # triplet annealing
         self.steps = 0
 
-    def augment_loss(self, z_means, z_logvars, z_samples):
+    def augment_loss(self, z_means):
         a_z_mean, p_z_mean, n_z_mean = z_means
 
         # normal triplet

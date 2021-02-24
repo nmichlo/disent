@@ -1,4 +1,2 @@
 # @package _global_
 callbacks:
-  progress:
-    interval: 5

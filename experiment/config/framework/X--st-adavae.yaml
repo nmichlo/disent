@@ -2,11 +2,13 @@
 name: st-adavae
 module:
   _target_: disent.frameworks.vae.weaklysupervised.SwappedTargetAdaVae
-  beta: 4
+  beta: ${framework.beta}
   # adavae
   average_mode: 'gvae'  # gvae or ml-vae
   symmetric_kl: TRUE
   # swapped target
   swap_chance: 0.1
 
+# settings used elsewhere
 data_wrap_mode: pair
+model_z_multiplier: 2

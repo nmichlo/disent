@@ -5,7 +5,7 @@ from disent.data.groundtruth import XYObjectData
 from disent.dataset.groundtruth import GroundTruthDataset
 from disent.frameworks.vae.unsupervised import BetaVae
 from disent.metrics import metric_dci, metric_mig
-from disent.model.ae import EncoderConv64, DecoderConv64, GaussianAutoEncoder
+from disent.model.ae import EncoderConv64, DecoderConv64, AutoEncoder
 from disent.transform import ToStandardisedTensor
 from disent.util import is_test_run, test_run_int
 
@@ -16,7 +16,7 @@ dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True)
 def make_vae(beta):
     return BetaVae(
         make_optimizer_fn=lambda params: Adam(params, lr=5e-3),
-        make_model_fn=lambda: GaussianAutoEncoder(
+        make_model_fn=lambda: AutoEncoder(
             encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2),
             decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
         ),

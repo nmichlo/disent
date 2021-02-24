@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from disent.frameworks.vae.supervised import GuidedAdaVae
 from disent.frameworks.vae.supervised._tvae import TripletVae
-from disent.loss.triplet import TripletLossConfig
+from disent.frameworks.helper.triplet_loss import TripletLossConfig
 
 
 # ========================================================================= #
@@ -15,7 +15,7 @@ class TripletGuidedAdaVae(GuidedAdaVae):
     class cfg(GuidedAdaVae.cfg, TripletLossConfig):
         pass
 
-    def augment_loss(self, z_means, z_logvars, z_samples):
+    def augment_loss(self, z_means):
         return TripletVae.augment_loss_triplet(z_means, self.cfg)
 
 

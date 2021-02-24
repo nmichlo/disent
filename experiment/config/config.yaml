@@ -1,15 +1,23 @@
+# RUNS
+# * Best Params Gridsearch (x256):
+#   | -m optimizer=adam,radam,amsgrad,rmsprop optimizer.lr=0.0033,0.001,0.00033,0.0001 framework=betavae,adavae dataset=xysquares,cars3d framework.beta=0.1,0.25,1.0,4.0
+#   | >>> decent settings: beta=1, optimizer=radam, lr=5e-4
+# * Flatness Metric (432)
+#   | -m optimizer.lr=0.001,0.0005 framework.beta=0.25,1.0,4.0 framework=ae,betavae,adavae_os,adavae,tvae,X--adatvae dataset=cars3d,smallnorb,3dshapes,monte_rollouts,xyblocks,xyblocks_grey,xyobject,xyobject_grey,xysquares,xysquares_grey,xysquares_overlap,xysquares_overlap_grey
+
 defaults:
   # experiment
-  - framework: adatvae
+  - framework: betavae
   - model: conv64
   - optimizer: radam
-  - dataset: monte_rollouts
+  - dataset: xysquares
   - augment: none
   - sampling: full_bb
+  - metrics: all
   # runtime
   - run_length: short
-  - run_callbacks: default
-  - run_location: local
+  - run_location: cluster_many
+  - run_callbacks: vis_slow
   - run_logging: wandb
   # plugins
   - hydra/job_logging: colorlog
@@ -18,15 +26,20 @@ defaults:
 
 job:
   user: 'n_michlo'
-  project: 'adatriplet-episode-data'
-  name: '${framework.name}:${framework.module.triplet_loss}|${dataset.name}:${sampling.name}:${trainer.steps}'
-  partition: ha
+  project: 'experiment-test-flatness-metric'
+  name: '${framework.name}:${framework.module.recon_loss}|${dataset.name}:${sampling.name}|${trainer.steps}'
+  partition: batch
+
+framework:
+    beta: 1  # most VAEs use this
+    module:
+      recon_loss: mse
 
 model:
-  z_size: 25
+  z_size: 9
 
 optimizer:
-  lr: 1e-3
+  lr: 4e-5
 
 # CUSTOM DEFAULTS SPECIALIZATION
 # - This key is deleted on load and the correct key on the root config is set similar to defaults.

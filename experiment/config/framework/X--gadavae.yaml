@@ -2,11 +2,13 @@
 name: gadavae
 module:
   _target_: disent.frameworks.vae.supervised.GuidedAdaVae
-  beta: 4
+  beta: ${framework.beta}
   # adavae
   average_mode: 'gvae'       # [gvae, ml-vae]
   symmetric_kl: TRUE
   # guided adavae
   anchor_ave_mode: 'average' # [average, thresh]
 
+# settings used elsewhere
 data_wrap_mode: triplet
+model_z_multiplier: 2
