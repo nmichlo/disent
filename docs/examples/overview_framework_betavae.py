@@ -21,5 +21,5 @@ module: pl.LightningModule = BetaVae(
     cfg=BetaVae.cfg(beta=4)
 )
 
-trainer = pl.Trainer(logger=False, checkpoint_callback=False, max_steps=1, fast_dev_run=is_test_run())
+trainer = pl.Trainer(logger=False, checkpoint_callback=False, fast_dev_run=is_test_run())
 trainer.fit(module, dataloader)

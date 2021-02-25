@@ -76,3 +76,15 @@ Various metrics used to evaluate representations learnt by AEs and VAEs.
     ```python3
     --8<-- "docs/examples/overview_metrics.py"
     ```
+
+### schedules
+
+Various hyper-parameter schedules can be applied if models reference
+their config values directly. Such as `beta` (`cfg.beta`) in all the BetaVAE derived classes.
+
+A warning will be printed if the hyper-parameter does not exist in the config, instead of crashing.
+
+??? example
+    ```python3
+    --8<-- "docs/examples/overview_framework_betavae_scheduled.py"
+    ```
