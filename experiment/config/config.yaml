@@ -14,10 +14,11 @@ defaults:
   - augment: none
   - sampling: full_bb
   - metrics: all
+  - schedule: none
   # runtime
   - run_length: short
   - run_location: cluster_many
-  - run_callbacks: vis_slow
+  - run_callbacks: vis
   - run_logging: wandb
   # plugins
   - hydra/job_logging: colorlog

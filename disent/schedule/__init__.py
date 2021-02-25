@@ -22,9 +22,14 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from disent.frameworks.vae.unsupervised._vae import Vae
-from disent.frameworks.vae.unsupervised._betavae import BetaVae
-from disent.frameworks.vae.unsupervised._dfcvae import DfcVae
+from ._schedule import Schedule
 
-# experimental frameworks
-# -- none --
+# schedules
+from ._schedule import LinearSchedule
+from ._schedule import CyclicSchedule
+from ._schedule import ClipSchedule
+
+# aliases
+from ._schedule import LinearSchedule as Linear
+from ._schedule import CyclicSchedule as Cyclic
+from ._schedule import ClipSchedule as Clip

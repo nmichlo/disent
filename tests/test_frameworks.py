@@ -54,7 +54,6 @@ from disent.transform import ToStandardisedTensor
     # VAE - unsupervised
     (2, GroundTruthDataset,        Vae,                  dict()),
     (2, GroundTruthDataset,        BetaVae,              dict()),
-    (2, GroundTruthDataset,        BetaVaeH,             dict()),
     (2, GroundTruthDataset,        DfcVae,               dict(recon_loss='bce')),
     # VAE - weakly supervised
     (2, GroundTruthDatasetPairs,   AdaVae,               dict()),
