@@ -25,11 +25,15 @@
 from ._schedule import Schedule
 
 # schedules
-from ._schedule import LinearSchedule
-from ._schedule import CyclicSchedule
 from ._schedule import ClipSchedule
+from ._schedule import CosineWaveSchedule
+from ._schedule import CyclicSchedule
+from ._schedule import LinearSchedule
+from ._schedule import NoopSchedule
 
 # aliases
-from ._schedule import LinearSchedule as Linear
-from ._schedule import CyclicSchedule as Cyclic
 from ._schedule import ClipSchedule as Clip
+from ._schedule import CosineWaveSchedule as CosineWave
+from ._schedule import CyclicSchedule as Cyclic
+from ._schedule import LinearSchedule as Linear
+from ._schedule import NoopSchedule as Noop

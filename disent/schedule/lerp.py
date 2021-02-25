@@ -33,6 +33,10 @@ import numpy as np
 # ========================================================================= #
 
 
+def scale(r, a, b):
+    return a + r * (b - a)
+
+
 def lerp(r, a, b):
     """Linear interpolation between parameters, respects bounds when t is out of bounds [0, 1]"""
     assert a < b

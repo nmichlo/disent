@@ -26,6 +26,7 @@ import numpy as np
 
 from disent.schedule.lerp import cyclical_anneal
 from disent.schedule.lerp import lerp_step
+from disent.schedule.lerp import scale
 
 
 # ========================================================================= #
@@ -47,6 +48,26 @@ class Schedule(object):
 # ========================================================================= #
 
 
+class NoopSchedule(Schedule):
+
+    def compute_value(self, step: int, value):
+        # does absolutely nothing!
+        return value
+
+
+# ========================================================================= #
+# Value Schedules                                                           #
+# ========================================================================= #
+
+
+def _common(value, ratio, a, b):
+    # scale the ratio (which should be in the range [0, 1]) between [r_min, r_max]
+    sratio = scale(ratio, a, b)
+    # multiply the value
+    result = value * sratio
+    return result
+
+
 class LinearSchedule(Schedule):
     """
     A simple lerp schedule based on some start and end ratio.
@@ -65,10 +86,10 @@ class LinearSchedule(Schedule):
         ratio = lerp_step(
             step=step,
             max_step=self.max_step,
-            a=self.r_start,
-            b=self.r_end,
+            a=0.0,
+            b=1.0,
         )
-        return value * ratio
+        return _common(value, ratio, a=self.r_start, b=self.r_end)
 
 
 class CyclicSchedule(Schedule):
@@ -81,7 +102,7 @@ class CyclicSchedule(Schedule):
     """
 
     # TODO: maybe move this api into cyclical_anneal
-    def __init__(self, period: int, repeats: int = None, r_start=0.0, r_end=1.0, end_value='end', mode='linear'):
+    def __init__(self, period: int, repeats: int = None, r_start=0.0, r_end=1.0, end_value='end', mode='linear', p_low=0.0, p_high=0.0):
         self.period = period
         self.repeats = repeats
         self.end_value = {'start': 'low', 'end': 'high'}[end_value]
@@ -89,24 +110,23 @@ class CyclicSchedule(Schedule):
         # scale values
         self.r_start = r_start
         self.r_end = r_end
+        # portions of low and high -- low + high <= 1.0 -- low + slope + high == 1.0
+        self.p_low = p_low
+        self.p_high = p_high
 
     def compute_value(self, step: int, value):
         # outputs value in range [0, 1]
         ratio = cyclical_anneal(
             step=step,
             period=self.period,
-            low_ratio=0.0,
-            high_ratio=0.0,
+            low_ratio=self.p_low,
+            high_ratio=self.p_high,
             repeats=self.repeats,
             start_low=True,
             end_value=self.end_value,
             mode=self.mode
         )
-        # scale value between [r_min, r_max]
-        sratio = self.r_start + ratio * (self.r_end - self.r_start)
-        result = value * sratio
-        # compute value!
-        return result
+        return _common(value, ratio, a=self.r_start, b=self.r_end)
 
 
 class SingleSchedule(CyclicSchedule):
@@ -129,6 +149,26 @@ class SingleSchedule(CyclicSchedule):
         )
 
 
+class CosineWaveSchedule(Schedule):
+    """
+    A simple cosine wave schedule based on some start and end ratio.
+    -- note this starts at zero by default
+
+    Multiples the value based on the step by some
+    computed value that is in the range [0, 1]
+    """
+
+    def __init__(self, period: int, r_start: float = 0.0, r_end: float = 1.0):
+        assert period > 0
+        self.period = period
+        self.r_start = r_start
+        self.r_end = r_end
+
+    def compute_value(self, step: int, value):
+        ratio = 0.5 * (1 + np.cos(step * (2 * np.pi / self.period) + np.pi))
+        return _common(value, ratio, a=self.r_start, b=self.r_end)
+
+
 # ========================================================================= #
 # Clip Schedules                                                            #
 # ========================================================================= #
@@ -139,17 +179,23 @@ class ClipSchedule(Schedule):
     This schedule shifts the step, or clips the value
     """
 
-    def __init__(self, schedule: Schedule, min_step=None, max_step=None, min_value=None, max_value=None):
+    def __init__(self, schedule: Schedule, min_step=None, max_step=None, shift_step=True, min_value=None, max_value=None):
         assert isinstance(schedule, Schedule)
         self.schedule = schedule
-        self.min_step = min_step
+        # step settings
+        self.min_step = min_step if (min_step is not None) else 0
         self.max_step = max_step
+        if isinstance(shift_step, bool):
+            shift_step = (-self.min_step) if shift_step else None
+        self.shift_step = shift_step
+        # value settings
         self.min_value = min_value
         self.max_value = max_value
 
     def compute_value(self, step: int, value):
         if self.max_step is not None: step = np.minimum(self.max_step, step)
-        if self.min_step is not None: step = np.maximum(self.min_step, step) - self.min_step
+        if self.min_step is not None: step = np.maximum(self.min_step, step)
+        if self.shift_step is not None: step += self.shift_step
         result = self.schedule(step, value)
         if self.max_value is not None: result = np.minimum(self.max_value, result)
         if self.min_value is not None: result = np.maximum(self.min_value, result)

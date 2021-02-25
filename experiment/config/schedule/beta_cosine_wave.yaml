@@ -1,0 +1,16 @@
+# @package _global_
+schedules:
+  beta:
+    # skip the first cycle
+    _target_: disent.schedule.Clip
+    min_step: 3600
+    max_step: NULL
+    shift_step: TRUE
+    min_value: NULL
+    max_value: NULL
+    # nested schedule
+    schedule:
+      _target_: disent.schedule.CosineWave
+      period: 7200
+      r_start: 0.005
+      r_end: 1.0
