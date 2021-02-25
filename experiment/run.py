@@ -37,6 +37,7 @@ from pytorch_lightning.loggers import LoggerCollection
 from pytorch_lightning.loggers import WandbLogger
 
 from disent import metrics
+from disent.frameworks.framework import BaseFramework
 from disent.model.ae.base import AutoEncoder
 from disent.model.init import init_model_weights
 from disent.util import make_box_str
@@ -45,6 +46,7 @@ from experiment.util.callbacks import VaeDisentanglementLoggingCallback
 from experiment.util.callbacks import VaeLatentCycleLoggingCallback
 from experiment.util.callbacks.callbacks_vae import VaeLatentCorrelationLoggingCallback
 from experiment.util.hydra_data import HydraDataModule
+from experiment.util.hydra_utils import instantiate_recursive
 from experiment.util.hydra_utils import make_non_strict
 from experiment.util.hydra_utils import merge_specializations
 from experiment.util.run_utils import log_error_and_exit
@@ -192,6 +194,15 @@ def hydra_append_correlation_callback(callbacks, cfg):
             begin_first_step=False,
         ))
 
+
+def hydra_register_schedules(module: BaseFramework, cfg):
+    if cfg.schedules is None:
+        cfg.schedules = {}
+    for target, schedule in cfg.schedules.items():
+        print('REGISTERING:', target)
+        module.register_schedule(target, instantiate_recursive(schedule))
+
+
 # ========================================================================= #
 # RUNNER                                                                    #
 # ========================================================================= #
@@ -237,7 +248,7 @@ def run(cfg: DictConfig):
     datamodule = HydraDataModule(cfg)
 
     # FRAMEWORK - this is kinda hacky
-    framework: pl.LightningModule = hydra.utils.instantiate(
+    framework: BaseFramework = hydra.utils.instantiate(
         dict(_target_=cfg.framework.module._target_),
         make_optimizer_fn=lambda params: hydra.utils.instantiate(cfg.optimizer.cls, params),
         make_model_fn=lambda: init_model_weights(AutoEncoder(
@@ -248,6 +259,9 @@ def run(cfg: DictConfig):
         batch_augment=datamodule.batch_augment,
         cfg=framework_cfg
     )
+
+    # register schedules
+    hydra_register_schedules(framework, cfg)
 
     # Setup Trainer
     trainer = set_debug_trainer(pl.Trainer(
