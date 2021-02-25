@@ -12,5 +12,5 @@ schedules:
     schedule:
       _target_: disent.schedule.CosineWave
       period: 7200
-      r_start: 0.005
+      r_start: 0.001
       r_end: 1.0

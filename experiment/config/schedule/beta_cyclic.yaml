@@ -13,7 +13,7 @@ schedules:
       _target_: disent.schedule.Cyclic
       period: 7200
       repeats: NULL
-      r_start: 0.005
+      r_start: 0.001
       r_end: 1.0
       end_value: 'end'  # start/end -- only used if repeats is set
       mode: 'cosine'
