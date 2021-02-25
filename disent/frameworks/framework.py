@@ -22,11 +22,19 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import warnings
+from dataclasses import dataclass
+from dataclasses import fields
+from typing import Any
+from typing import Dict
 from typing import final
+from typing import Tuple
 
 import torch
-from dataclasses import dataclass
-from disent.util import DisentLightningModule, DisentConfigurable
+
+from disent.schedule import Schedule
+from disent.util import DisentConfigurable
+from disent.util import DisentLightningModule
 
 
 # ========================================================================= #
@@ -48,6 +56,9 @@ class BaseFramework(DisentConfigurable, DisentLightningModule):
         # batch augmentations: not implemented as dataset transforms because we want to apply these on the GPU
         assert (batch_augment is None) or callable(batch_augment)
         self._batch_augment = batch_augment
+        # schedules
+        self._registered_schedules = set()
+        self._active_schedules: Dict[str, Tuple[Any, Schedule]] = {}
 
     @final
     def configure_optimizers(self):
@@ -61,6 +72,8 @@ class BaseFramework(DisentConfigurable, DisentLightningModule):
             # augment batch with GPU support
             if self._batch_augment is not None:
                 batch = self._batch_augment(batch)
+            # update the config values based on registered schedules
+            self._update_config_from_schedules()
             # compute loss
             logs_dict = self.compute_training_loss(batch, batch_idx)
             assert 'loss' not in logs_dict
@@ -99,6 +112,42 @@ class BaseFramework(DisentConfigurable, DisentLightningModule):
         as the variable to minimize
         """
         raise NotImplementedError
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Schedules                                                             #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    @final
+    def register_schedule(self, target: str, schedule: Schedule):
+        assert isinstance(target, str)
+        assert isinstance(schedule, Schedule)
+        assert type(schedule) is not Schedule
+        assert target not in self._registered_schedules, f'A schedule for target {repr(target)} has already been registered!'
+        # check the target exists!
+        possible_targets = {f.name for f in fields(self.cfg)}
+        # register this target
+        self._registered_schedules.add(target)
+        # activate this schedule
+        if target in possible_targets:
+            initial_val = getattr(self.cfg, target)
+            self._active_schedules[target] = (initial_val, schedule)
+        else:
+            warnings.warn(f'Skipping registering schedule for target {repr(target)} because key was not found in the config for {repr(self.__class__.__name__)}')
+
+    @final
+    def _update_config_from_schedules(self):
+        if not self._active_schedules:
+            return
+        # log the step value
+        self.log('scheduler/step', self.trainer.global_step)
+        # update the values
+        for target, (initial_val, scheduler) in self._active_schedules.items():
+            # get the scheduled value
+            new_value = scheduler.compute_value(step=self.trainer.global_step, value=initial_val)
+            # update it on the config
+            setattr(self.cfg, target, new_value)
+            # log that things changed
+            self.log(f'scheduled/{target}', new_value)
 
 
 # ========================================================================= #
