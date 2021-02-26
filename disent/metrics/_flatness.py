@@ -177,17 +177,20 @@ def aggregate_measure_distances_along_factor(
         # - deltas: calculating the distances of their representations to the next values.
         # - cycle_normalize: we cant get the ave next dist directly because of cycles, so we remove the largest dist
         for p in ps:
-            deltas_a = torch.norm(torch.roll(zs_traversal, -1, dims=0) - zs_traversal, dim=-1, p=p)  # next | shape: (factor_size, z_size)
-            deltas_b = torch.norm(torch.roll(zs_traversal,  1, dims=0) - zs_traversal, dim=-1, p=p)  # prev | shape: (factor_size, z_size)
+            deltas_next = torch.norm(torch.roll(zs_traversal, -1, dims=0) - zs_traversal, dim=-1, p=p)  # next | shape: (factor_size, z_size)
+            deltas_prev = torch.norm(torch.roll(zs_traversal,  1, dims=0) - zs_traversal, dim=-1, p=p)  # prev | shape: (factor_size, z_size)
+            # values needed for flatness
+            width  = knn(x=zs_traversal, y=zs_traversal, k=1, largest=True, p=p).values.max()           # shape: (,)
+            min_deltas = torch.topk(deltas_next, k=f_size-1, dim=-1, largest=False, sorted=False)       # shape: (factor_size-1, z_size)
+            # values needed for cosine angles
             # TODO: this should not be calculated per p
             # TODO: should we filter the cyclic value?
-            angles   = angles_between(deltas_a, deltas_b, dim=-1, nan_to_angle=0)                    # (factor_size,)
-            # values needed for flatness
-            width  = knn(x=zs_traversal, y=zs_traversal, k=1, largest=True, p=p).values.max()      # shape: (,)
-            deltas = torch.topk(deltas_a, k=f_size-1, dim=-1, largest=False, sorted=False).values  # shape: (factor_size-1, z_size)
-            # values needed for cosine angle metric
+            # a. if the point is an endpoint we set its value to pi indicating that it is flat
+            # b. [THIS] we do not allow less than 3 points, ie. a factor_size of at least 3, otherwise
+            #    we set the angle to pi (considered flat) and filter the factor from the metric
+            angles = angles_between(deltas_next, deltas_prev, dim=-1, nan_to_angle=0)                   # shape: (factor_size,)
             # save variables
-            measures[p] = {'widths': width, 'deltas': deltas, 'angles': angles}
+            measures[p] = {'widths': width, 'deltas': min_deltas.values, 'angles': angles}
 
     # AGGREGATE DATA - For each distance measure
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
