@@ -28,6 +28,7 @@ Flatness Metric
 """
 
 import logging
+import math
 from typing import Iterable
 from typing import Union
 
@@ -88,6 +89,8 @@ def metric_flatness(
         'flatness.ave_width_l2':    torch.mean(filter_inactive_factors(p_fs_measures[2]['fs_ave_widths'], factor_sizes=ground_truth_dataset.factor_sizes)),
         'flatness.ave_length_l1':   torch.mean(filter_inactive_factors(p_fs_measures[1]['fs_ave_lengths'], factor_sizes=ground_truth_dataset.factor_sizes)),
         'flatness.ave_length_l2':   torch.mean(filter_inactive_factors(p_fs_measures[2]['fs_ave_lengths'], factor_sizes=ground_truth_dataset.factor_sizes)),
+        # angles
+        'flatness.cosine_angles':   (1 / math.pi) * torch.mean(filter_inactive_factors(p_fs_measures[1]['fs_ave_angles'], factor_sizes=ground_truth_dataset.factor_sizes)),
     }
     # convert values from torch
     return {k: float(v) for k, v in results.items()}
@@ -136,11 +139,13 @@ def aggregate_measure_distances_along_all_factors(
         fs_ave_widths = fs_measures['ave_width']
         # get number of spaces deltas (number of points minus 1)
         # compute length: estimated version of factors_ave_width = factors_num_deltas * factors_ave_delta
-        fs_num_deltas = torch.as_tensor(ground_truth_dataset.factor_sizes, device=fs_ave_widths.device) - 1
-        fs_ave_deltas = fs_measures['ave_delta']
-        fs_ave_lengths = fs_num_deltas * fs_ave_deltas
+        _fs_num_deltas = torch.as_tensor(ground_truth_dataset.factor_sizes, device=fs_ave_widths.device) - 1
+        _fs_ave_deltas = fs_measures['ave_delta']
+        fs_ave_lengths = _fs_num_deltas * _fs_ave_deltas
+        # angles
+        fs_ave_angles = fs_measures['ave_angle']
         # update
-        p_fs_measures[p] = {'fs_ave_widths': fs_ave_widths, 'fs_ave_lengths': fs_ave_lengths}
+        p_fs_measures[p] = {'fs_ave_widths': fs_ave_widths, 'fs_ave_lengths': fs_ave_lengths, 'fs_ave_angles': fs_ave_angles}
     return p_fs_measures
 
 
@@ -158,8 +163,8 @@ def aggregate_measure_distances_along_factor(
     if f_size == 1:
         if cycle_fail:
             raise ValueError(f'dataset factor size is too small for flatness metric with cycle_normalize enabled! size={f_size} < 2')
-        device = get_device(ground_truth_dataset, representation_function)
-        return {p: {'ave_width': torch.as_tensor(0., device=device), 'ave_delta': torch.as_tensor(0., device=device)} for p in ps}
+        zero = torch.as_tensor(0., device=get_device(ground_truth_dataset, representation_function))
+        return {p: {'ave_width': zero.clone(), 'ave_delta': zero.clone(), 'ave_angle': zero.clone()} for p in ps}
 
     # FEED FORWARD, COMPUTE ALL DELTAS & WIDTHS - For each distance measure
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -172,17 +177,25 @@ def aggregate_measure_distances_along_factor(
         # - deltas: calculating the distances of their representations to the next values.
         # - cycle_normalize: we cant get the ave next dist directly because of cycles, so we remove the largest dist
         for p in ps:
-            width      = knn(x=zs_traversal, y=zs_traversal, k=1, largest=True, p=p).values.max()      # shape: (,)
-            deltas     = torch.norm(zs_traversal - torch.roll(zs_traversal, -1, dims=0), dim=-1, p=p)  # shape: (factor_size,)
-            deltas = torch.topk(deltas, k=f_size-1, dim=-1, largest=False, sorted=False).values        # shape: (factor_size-1,)
-            measures[p] = {'width': width, 'deltas': deltas}
+            deltas_a = torch.norm(torch.roll(zs_traversal, -1, dims=0) - zs_traversal, dim=-1, p=p)  # next | shape: (factor_size, z_size)
+            deltas_b = torch.norm(torch.roll(zs_traversal,  1, dims=0) - zs_traversal, dim=-1, p=p)  # prev | shape: (factor_size, z_size)
+            # TODO: this should not be calculated per p
+            # TODO: should we filter the cyclic value?
+            angles   = angles_between(deltas_a, deltas_b, dim=-1, nan_to_angle=0)                    # (factor_size,)
+            # values needed for flatness
+            width  = knn(x=zs_traversal, y=zs_traversal, k=1, largest=True, p=p).values.max()      # shape: (,)
+            deltas = torch.topk(deltas_a, k=f_size-1, dim=-1, largest=False, sorted=False).values  # shape: (factor_size-1, z_size)
+            # values needed for cosine angle metric
+            # save variables
+            measures[p] = {'widths': width, 'deltas': deltas, 'angles': angles}
 
     # AGGREGATE DATA - For each distance measure
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     return {
         p: {
-            'ave_width': measures['width'].mean(dim=0),        # shape: (repeats,) -> ()
+            'ave_width': measures['widths'].mean(dim=0),        # shape: (repeats,) -> ()
             'ave_delta': measures['deltas'].mean(dim=[0, 1]),  # shape: (repeats, factor_size - 1) -> ()
+            'ave_angle': measures['angles'].mean(dim=0),       # shape: (repeats,) -> ()
         } for p, measures in default_collate(p_measures).items()
     }
 
@@ -241,6 +254,21 @@ def knn(x, y, k: int = None, largest=False, p='fro'):
     dist_mat = torch.norm(dist_mat, dim=-1, p=p)
     # return closest distances
     return torch.topk(dist_mat, k=k, dim=-1, largest=largest, sorted=True)
+
+
+# ========================================================================= #
+# ANGLES                                                                    #
+# ========================================================================= #
+
+
+def angles_between(a, b, dim=-1, nan_to_angle=None):
+    a = a / torch.norm(a, dim=dim, keepdim=True)
+    b = b / torch.norm(b, dim=dim, keepdim=True)
+    dot = torch.sum(a * b, dim=dim)
+    angles = torch.acos(torch.clamp(dot, -1.0, 1.0))
+    if nan_to_angle is not None:
+        return torch.where(torch.isnan(angles), torch.full_like(angles, fill_value=nan_to_angle), angles)
+    return angles
 
 
 # ========================================================================= #
