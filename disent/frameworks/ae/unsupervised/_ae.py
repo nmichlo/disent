@@ -47,7 +47,11 @@ class AE(BaseFramework):
     @dataclass
     class cfg(BaseFramework.cfg):
         recon_loss: str = 'mse'
-        loss_reduction: str = 'batch_mean'
+        # multiple reduction modes exist for the various loss components.
+        # - 'sum': sum over the entire batch
+        # - 'mean': mean over the entire batch
+        # - 'mean_sum': sum each observation, returning the mean sum over the batch
+        loss_reduction: str = 'mean'
 
     def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
         super().__init__(make_optimizer_fn, batch_augment=batch_augment, cfg=cfg)

@@ -33,7 +33,7 @@ job:
   partition: batch
 
 framework:
-    beta: 0.001
+    beta: 0.003
     module:
       recon_loss: mse
       loss_reduction: mean

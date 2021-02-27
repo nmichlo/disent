@@ -193,6 +193,7 @@ def aggregate_measure_distances_along_factor(
             #       1. multivariate skewness
             #       2. normality measure
             #       3. independence
+            #       4. menger curvature (Cayley-Menger Determinant?)
             # save variables
             measures[p] = {'widths': width, 'deltas': min_deltas.values, 'angles': angles}
 
@@ -288,8 +289,9 @@ def angles_between(a, b, dim=-1, nan_to_angle=None):
 #     from torch.optim import Adam
 #     from torch.utils.data import DataLoader
 #     from disent.data.groundtruth import XYObjectData, XYSquaresData
-#     from disent.dataset.groundtruth import GroundTruthDataset
+#     from disent.dataset.groundtruth import GroundTruthDataset, GroundTruthDatasetPairs
 #     from disent.frameworks.vae.unsupervised import BetaVae
+#     from disent.frameworks.vae.weaklysupervised import AdaVae
 #     from disent.model.ae import EncoderConv64, DecoderConv64, AutoEncoder
 #     from disent.transform import ToStandardisedTensor
 #     from disent.util import colors
@@ -317,19 +319,19 @@ def angles_between(a, b, dim=-1, nan_to_angle=None):
 #             super().__init__(square_size=square_size, grid_size=grid_size, grid_spacing=grid_spacing, num_squares=num_squares, rgb=rgb)
 #
 #     # datasets = [XYObjectData(rgb=False, palette='white'), XYSquaresData(), XYOverlapData(), XYObjectData()]
-#     datasets = [XYOverlapData()]
+#     datasets = [XYObjectData()]
 #
 #     results = []
 #     for data in datasets:
-#         dataset = GroundTruthDataset(data, transform=ToStandardisedTensor())
+#         dataset = GroundTruthDatasetPairs(data, transform=ToStandardisedTensor())
 #         dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True, pin_memory=True)
-#         module = BetaVae(
+#         module = AdaVae(
 #             make_optimizer_fn=lambda params: Adam(params, lr=5e-4),
 #             make_model_fn=lambda: AutoEncoder(
 #                 encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2),
 #                 decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
 #             ),
-#             cfg=BetaVae.cfg(beta=1)
+#             cfg=AdaVae.cfg(beta=0.001, loss_reduction='mean')
 #         )
 #         # we cannot guarantee which device the representation is on
 #         get_repr = lambda x: module.encode(x.to(module.device))

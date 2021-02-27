@@ -105,7 +105,7 @@ class LatentDistribution(object):
     def compute_kl_loss(
             cls,
             posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None,
-            mode: str = 'direct', reduction='batch_mean'
+            mode: str = 'direct', reduction='mean'
     ):
         """
         Compute the kl divergence
@@ -164,7 +164,7 @@ class LatentDistributionNormal(LatentDistribution):
         return posterior, prior
 
     @staticmethod
-    def LEGACY_compute_kl_loss(mu, logvar, mode: str = 'direct', reduction='batch_mean'):
+    def LEGACY_compute_kl_loss(mu, logvar, mode: str = 'direct', reduction='mean_sum'):
         """
         Calculates the KL divergence between a normal distribution with
         diagonal covariance and a unit normal distribution.
@@ -174,7 +174,7 @@ class LatentDistributionNormal(LatentDistribution):
             https://github.com/google-research/disentanglement_lib (compute_gaussian_kl)
         """
         assert mode == 'direct', f'legacy reference implementation of KL loss only supports mode="direct", not {repr(mode)}'
-        assert reduction == 'batch_mean', f'legacy reference implementation of KL loss only supports reduction="batch_mean", not {repr(reduction)}'
+        assert reduction == 'mean_sum', f'legacy reference implementation of KL loss only supports reduction="mean_sum", not {repr(reduction)}'
         # Calculate KL divergence
         kl_values = -0.5 * (1 + logvar - mu.pow(2) - logvar.exp())
         # Sum KL divergence across latent vector for each sample
