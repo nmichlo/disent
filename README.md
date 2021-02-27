@@ -38,9 +38,16 @@
 
 ### Overview
 
-Disent is a modular disentangled representation learning framework for auto-encoders, built upon pytorch-lightning, with its early roots in Google's tensorflow based [disentanglement-lib](https://github.com/google-research/disentanglement_lib). This framework consists of various composable components that can be used to build and benchmark disentanglement pipelines.
+Disent is a modular disentangled representation learning framework for auto-encoders, built upon pytorch-lightning. This framework consists of various composable components that can be used to build and benchmark disentanglement pipelines.
 
 > The name of the framework is derived from both **disent**anglement and scientific **dissent**.
+
+#### Goals
+
+Disent aims to fill the following criteria:
+- Provide **high quality**, **readable** and **easily comparable** implementations of VAEs
+- Use **best practice** eg. `torch.distributions`
+- Be extremely **flexible** & configurable
 
 #### Citing Disent
 
