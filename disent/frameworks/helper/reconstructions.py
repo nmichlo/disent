@@ -22,10 +22,12 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import warnings
 from typing import final
 
 import torch
 import torch.nn.functional as F
+
 from disent.frameworks.helper.reductions import loss_reduction
 
 
@@ -44,18 +46,22 @@ class ReconstructionLoss(object):
         raise NotImplementedError
 
     @final
-    def training_compute_loss(self, x_partial_recon: torch.Tensor, x_targ: torch.Tensor, reduction: str = 'batch_mean') -> torch.Tensor:
+    def training_compute_loss(self, x_partial_recon: torch.Tensor, x_targ: torch.Tensor, reduction: str = 'mean') -> torch.Tensor:
         """
         Takes in an **unactivated** tensor from the model
         as well as an original target from the dataset.
-        :return: The computed mean loss
+        :return: The computed reduced loss
         """
         assert x_partial_recon.shape == x_targ.shape
-        batch_loss = self._compute_batch_loss(x_partial_recon, x_targ)
+        batch_loss = self._compute_unreduced_loss(x_partial_recon, x_targ)
         loss = loss_reduction(batch_loss, reduction=reduction)
         return loss
 
-    def _compute_batch_loss(self, x_partial_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
+    def _compute_unreduced_loss(self, x_partial_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
+        """
+        Compute the loss without applying a reduction.
+        - loss tensor should be the same shapes as the input tensors
+        """
         raise NotImplementedError
 
 
@@ -80,12 +86,8 @@ class ReconstructionLossMse(ReconstructionLoss):
         # - sigmoid is numerically not suitable with MSE
         return 0.5 * (x + 1)
 
-    def _compute_batch_loss(self, x_partial_recon, x_targ):
+    def _compute_unreduced_loss(self, x_partial_recon, x_targ):
         return F.mse_loss(self.activate(x_partial_recon), x_targ, reduction='none')
-
-    @staticmethod
-    def LEGACY_training_compute_loss(x_recon, x_target, reduction: str = 'batch_mean'):
-        raise NotImplementedError('LEGACY mse version does not exist!')
 
 
 class ReconstructionLossBce(ReconstructionLoss):
@@ -99,22 +101,49 @@ class ReconstructionLossBce(ReconstructionLoss):
         # it to the range [0, 1] here to match the targets.
         return torch.sigmoid(x)
 
-    def _compute_batch_loss(self, x_partial_recon, x_targ):
-        return F.binary_cross_entropy_with_logits(x_partial_recon, x_targ, reduction='none')
-
-    @staticmethod
-    def LEGACY_training_compute_loss(x_recon, x_target, reduction: str = 'batch_mean'):
+    def _compute_unreduced_loss(self, x_partial_recon, x_targ):
         """
         Computes the Bernoulli loss for the sigmoid activation function
-        FROM: https://github.com/google-research/disentanglement_lib/blob/76f41e39cdeff8517f7fba9d57b09f35703efca9/disentanglement_lib/methods/shared/losses.py
+
+        REFERENCE:
+            https://github.com/google-research/disentanglement_lib/blob/76f41e39cdeff8517f7fba9d57b09f35703efca9/disentanglement_lib/methods/shared/losses.py
+            - the same when reduction=='mean_sum' for super().training_compute_loss()
+        REFERENCE ALT:
+            https://github.com/YannDubs/disentangling-vae/blob/master/disvae/models/losses.py
         """
-        assert reduction == 'batch_mean', f'legacy reference implementation of BCE loss only supports reduction="batch_mean", not {repr(reduction)}'
-        # x, x_recon = x.view(x.shape[0], -1), x_recon.view(x.shape[0], -1)
-        # per_sample_loss = F.binary_cross_entropy_with_logits(x_recon, x, reduction='none').sum(axis=1)  # tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=x_recon, labels=x), axis=1)
-        # reconstruction_loss = per_sample_loss.mean()                                                    # tf.reduce_mean(per_sample_loss)
-        # ALTERNATIVE IMPLEMENTATION https://github.com/YannDubs/disentangling-vae/blob/master/disvae/models/losses.py
-        assert x_recon.shape == x_target.shape
-        return F.binary_cross_entropy_with_logits(x_recon, x_target, reduction="sum") / len(x_target)
+        return F.binary_cross_entropy_with_logits(x_partial_recon, x_targ, reduction='none')
+
+
+# ========================================================================= #
+# Reconstruction Distributions                                              #
+# ========================================================================= #
+
+
+class ReconstructionLossBernoulli(ReconstructionLossBce):
+    def _compute_unreduced_loss(self, x_partial_recon, x_targ):
+        # This is exactly the same as the BCE version, but more 'correct'.
+        return -torch.distributions.Bernoulli(logits=x_partial_recon).log_prob(x_targ)
+
+
+class ReconstructionLossContinuousBernoulli(ReconstructionLossBce):
+    """
+    The continuous Bernoulli: fixing a pervasive error in variational autoencoders
+    - Loaiza-Ganem G and Cunningham JP, NeurIPS 2019.
+    - https://arxiv.org/abs/1907.06845
+    """
+    def _compute_unreduced_loss(self, x_partial_recon, x_targ):
+        warnings.warn('Using continuous bernoulli distribution for reconstruction loss. This is not recommended!')
+        # I think there is something wrong with this...
+        # weird values...
+        return -torch.distributions.ContinuousBernoulli(logits=x_partial_recon, lims=(0.49, 0.51)).log_prob(x_targ)
+
+
+class ReconstructionLossNormal(ReconstructionLossMse):
+    def _compute_unreduced_loss(self, x_partial_recon, x_targ):
+        warnings.warn('Using normal distribution for reconstruction loss. This is not recommended!')
+        # this is almost the same as MSE, but scaled with a tiny offset
+        # A value for scale should actually be passed...
+        return -torch.distributions.Normal(self.activate(x_partial_recon), 1.0).log_prob(x_targ)
 
 
 # ========================================================================= #
@@ -124,9 +153,22 @@ class ReconstructionLossBce(ReconstructionLoss):
 
 def make_reconstruction_loss(name) -> ReconstructionLoss:
     if name == 'mse':
+        # from the normal distribution
+        # binary values only in the set {0, 1}
         return ReconstructionLossMse()
     elif name == 'bce':
+        # from the bernoulli distribution
         return ReconstructionLossBce()
+    elif name == 'bernoulli':
+        # reduces to bce
+        # binary values only in the set {0, 1}
+        return ReconstructionLossBernoulli()
+    elif name == 'continuous_bernoulli':
+        # bernoulli with a computed offset to handle values in the range [0, 1]
+        return ReconstructionLossContinuousBernoulli()
+    elif name == 'normal':
+        # handle all real values
+        return ReconstructionLossNormal()
     else:
         raise KeyError(f'Invalid vae reconstruction loss: {name}')
 

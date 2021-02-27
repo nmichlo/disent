@@ -35,7 +35,25 @@ class BetaVae(Vae):
 
     @dataclass
     class cfg(Vae.cfg):
-        beta: float = 4
+        # BETA SCALING:
+        # =============
+        # when using different loss reduction modes we need to scale beta to
+        # preserve the ratio between loss components, by scaling beta.
+        #   -- for loss_reduction='mean' we usually have:
+        #      loss = mean_recon_loss + beta * mean_kl_loss
+        #   -- for loss_reduction='mean_sum' we usually have:
+        #      loss = (H*W*C) * mean_recon_loss + beta * (z_size) * mean_kl_loss
+        # So when switching from one mode to the other, we need to scale beta to preserve these loss ratios.
+        #   -- 'mean_sum' to 'mean':
+        #      beta <- beta * (z_size) / (H*W*C)
+        #   -- 'mean' to 'mean_sum':
+        #      beta <- beta * (H*W*C) / (z_size)
+        # We obtain an equivalent beta for 'mean_sum' to 'mean':
+        #   -- given values: beta=4 for 'mean_sum', with (H*W*C)=(64*64*3) and z_size=9
+        #      beta = beta * ((z_size) / (H*W*C))
+        #          ~= 4 * 0.0007324
+        #          ~= 0,003
+        beta: float = 0.003  # approximately equal to mean_sum beta of 4
 
     def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)

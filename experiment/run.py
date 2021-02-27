@@ -275,6 +275,10 @@ def run(cfg: DictConfig):
         prepare_data_per_node=prepare_data_per_node,
         progress_bar_refresh_rate=0,  # ptl 0.9
         terminate_on_nan=True,  # we do this here so we don't run the final metrics
+        # TODO: re-enable this in future... something is not compatible
+        #       with saving/checkpointing models + allow enabling from the
+        #       config. Seems like something cannot be pickled?
+        checkpoint_callback=False,
     ))
 
     # -~-~-~-~-~-~-~-~-~-~-~-~- #

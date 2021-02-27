@@ -22,10 +22,20 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import logging
 import warnings
 from typing import Iterable
 
-from pytorch_lightning.loggers import WandbLogger, LoggerCollection
+from pytorch_lightning.loggers import LoggerCollection
+from pytorch_lightning.loggers import WandbLogger
+
+
+log = logging.getLogger(__name__)
+
+
+# ========================================================================= #
+# Logger Utils                                                              #
+# ========================================================================= #
 
 
 def yield_wandb_loggers(logger) -> Iterable[WandbLogger]:
@@ -59,9 +69,14 @@ def wb_log_reduced_summaries(logger, summary_dct: dict, reduction='max'):
     wb_logger = None
     # iterate over loggers & update summaries
     for wb_logger in yield_wandb_loggers(logger):
-        for key, current in summary_dct.items():
+        for key, val_current in summary_dct.items():
             key = f'{key}.{reduction}'
-            wb_logger.experiment.summary[key] = reduce_fn(wb_logger.experiment.summary.get(key, current), current)
+            try:
+                val_prev = wb_logger.experiment.summary.get(key, val_current)
+                val_next = reduce_fn(val_prev, val_current)
+                wb_logger.experiment.summary[key] = val_next
+            except:
+                log.error(f'W&B failed to update summary for: {repr(key)}', exc_info=True)
     # warn if nothing logged!
     if wb_logger is None:
         warnings.warn('no wandb logger found to log metrics to!')
@@ -72,3 +87,8 @@ def log_metrics(logger, metrics_dct: dict):
         logger.log_metrics(metrics_dct)
     else:
         warnings.warn('no trainer.logger found!')
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #

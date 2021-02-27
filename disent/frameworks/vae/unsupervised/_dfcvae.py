@@ -145,12 +145,11 @@ class DfcLossModule(torch.nn.Module):
     def __call__(self, x_recon, x_targ):
         return self.compute_loss(x_recon, x_targ)
 
-    def compute_loss(self, x_recon, x_targ, reduction='batch_mean'):
+    def compute_loss(self, x_recon, x_targ, reduction='mean'):
         """
         x_recon and x_targ data should be an unnormalized RGB batch of
         data [B x C x H x W] in the range [0, 1].
         """
-
         features_recon = self._extract_features(x_recon)
         features_targ = self._extract_features(x_targ)
         # compute losses
