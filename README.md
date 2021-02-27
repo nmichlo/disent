@@ -42,7 +42,7 @@ Disent is a modular disentangled representation learning framework for auto-enco
 
 > The name of the framework is derived from both **disent**anglement and scientific **dissent**.
 
-### Citing Disent
+#### Citing Disent
 
 Please use the following citation if you use Disent in your research:
 
@@ -55,6 +55,8 @@ Please use the following citation if you use Disent in your research:
   url =          {https://github.com/nmichlo/disent}
 }
 ```
+
+----------------------
 
 ### Getting Started
 
@@ -78,6 +80,8 @@ The easiest way to use disent is by running `experiements/hydra_system.py` and c
 
 4. Run the default experiment after configuring `experiments/config/config.yaml`
    by running `PYTHONPATH=. python3 experiments/run.py`
+
+----------------------
 
 ### Features
 
@@ -145,7 +149,7 @@ Various common datasets used in disentanglement research are implemented, as wel
   - Input based transforms are supported.
   - Input and Target CPU and GPU based augmentations are supported.
 
-
+----------------------
 
 ### Why?
   
@@ -159,3 +163,98 @@ Various common datasets used in disentanglement research are implemented, as wel
   their code as part of disentanglement_lib. (As of September 2020 it has been released, but has unresolved [discrepencies](https://github.com/google-research/disentanglement_lib/issues/31)).
 
 - disentanglement_lib still uses outdated Tensorflow 1.0, and the flow of data is unintuitive because of its use of [Gin Config](https://github.com/google/gin-config).
+
+----------------------
+
+### Architecture
+
+**disent**
+- `disent/data`: raw groundtruth datasets
+- `disent/dataset`: dataset wrappers & sampling strategies
+- `disent/framework`: frameworks, including Auto-Encoders and VAEs
+- `disent/metrics`: metrics for evaluating disentanglement using ground truth datasets
+- `disent/model`: common encoder and decoder models used for VAE research
+- `disent/schedule`: annealing schedules that can be registered to a framework
+- `disent/transform`: transform operations for processing & augmenting input and target data from datasets
+
+**experiment**
+- `experiment/run.py`: entrypoint for running basic experiments with [hydra](https://github.com/facebookresearch/hydra) config
+- `experiment/config`: root folder for [hydra](https://github.com/facebookresearch/hydra) config files
+- `experiment/util`: various helper code, pytorch lightning callbacks & visualisation tools for experiments
+
+----------------------
+
+### Example Code
+
+The following is a basic working example of disent that trains a BetaVAE with a cyclic
+beta schedule and evaluates the trained model with various metrics.
+
+<details><summary><b>Basic Example</b></summary>
+<p>
+
+```python3
+import pytorch_lightning as pl
+from torch.optim import Adam
+from torch.utils.data import DataLoader
+from disent.data.groundtruth import XYObjectData
+from disent.dataset.groundtruth import GroundTruthDataset
+from disent.frameworks.vae.unsupervised import BetaVae
+from disent.metrics import metric_dci, metric_mig
+from disent.model.ae import EncoderConv64, DecoderConv64, AutoEncoder
+from disent.schedule import CyclicSchedule
+from disent.transform import ToStandardisedTensor
+
+# We use this internally to test this script.
+# You can remove all references to this in your own code.
+from disent.util import is_test_run
+
+# create the dataset & dataloaders
+# - ToStandardisedTensor transforms images from numpy arrays to tensors and performs checks
+data = XYObjectData()
+dataset = GroundTruthDataset(data, transform=ToStandardisedTensor())
+dataloader = DataLoader(dataset=dataset, batch_size=4, shuffle=True)
+
+# create the BetaVAE model
+# - adjusting the beta, learning rate, and representation size.
+module = BetaVae(
+    make_optimizer_fn=lambda params: Adam(params, lr=5e-4),
+    make_model_fn=lambda: AutoEncoder(
+        # z_multiplier is needed to output mu & logvar when parameterising normal distribution
+        encoder=EncoderConv64(x_shape=dataset.x_shape, z_size=6, z_multiplier=2),
+        decoder=DecoderConv64(x_shape=dataset.x_shape, z_size=6),
+    ),
+    cfg=BetaVae.cfg(beta=0.004)
+)
+
+# cyclic schedule for target 'beta' in the config/cfg. The initial value from the
+# config is saved and multiplied by the ratio from the schedule on each step.
+# - based on: https://arxiv.org/abs/1903.10145
+module.register_schedule('beta', CyclicSchedule(
+    period=1024,  # repeat every: trainer.global_step % period
+))
+
+# train model
+# - for 65536 batches/steps
+trainer = pl.Trainer(logger=False, checkpoint_callback=False, max_steps=65536, fast_dev_run=is_test_run())
+trainer.fit(module, dataloader)
+
+# compute disentanglement metrics
+# - we cannot guarantee which device the representation is on
+# - this will take a while to run
+get_repr = lambda x: module.encode(x.to(module.device))
+
+metrics = {
+    **metric_dci(dataset, get_repr, num_train=10 if is_test_run() else 1000, num_test=5 if is_test_run() else 500, show_progress=True),
+    **metric_mig(dataset, get_repr, num_train=20 if is_test_run() else 2000),
+}
+
+# evaluate
+print('metrics:', metrics)
+```
+
+</p>
+</details>
+
+Visit the [docs](https://disent.dontpanic.sh) for more examples!
+
+----------------------
