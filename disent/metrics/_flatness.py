@@ -189,6 +189,10 @@ def aggregate_measure_distances_along_factor(
             # b. [THIS] we do not allow less than 3 points, ie. a factor_size of at least 3, otherwise
             #    we set the angle to pi (considered flat) and filter the factor from the metric
             angles = angles_between(deltas_next, deltas_prev, dim=-1, nan_to_angle=0)                   # shape: (factor_size,)
+            # TODO: other measures can be added:
+            #       1. multivariate skewness
+            #       2. normality measure
+            #       3. independence
             # save variables
             measures[p] = {'widths': width, 'deltas': min_deltas.values, 'angles': angles}
 
@@ -288,6 +292,8 @@ def angles_between(a, b, dim=-1, nan_to_angle=None):
 #     from disent.frameworks.vae.unsupervised import BetaVae
 #     from disent.model.ae import EncoderConv64, DecoderConv64, AutoEncoder
 #     from disent.transform import ToStandardisedTensor
+#     from disent.util import colors
+#     from disent.util import Timer
 #
 #     def get_str(r):
 #         return ', '.join(f'{k}={v:6.4f}' for k, v in r.items())
@@ -297,13 +303,12 @@ def angles_between(a, b, dim=-1, nan_to_angle=None):
 #
 #     def calculate(name, steps, dataset, get_repr):
 #         global aggregate_measure_distances_along_factor
-#         with Timer() as t_A: r_A = metric_flatness(dataset, get_repr, factor_repeats=64, batch_size=64)
-#         with Timer() as t_B: r_B = metric_flatness(dataset, get_repr, factor_repeats=64, batch_size=64)
-#         results.append((name, steps, r_A, r_B))
-#         print_r(name + '_A', steps, r_A, colors.lRED, t=t_A)
-#         print_r(name + '_B', steps, r_B, colors.lRED, t=t_B)
+#         with Timer() as t:
+#             r = metric_flatness(dataset, get_repr, factor_repeats=64, batch_size=64)
+#         results.append((name, steps, r))
+#         print_r(name, steps, r, colors.lRED, t=t)
 #         print(colors.GRY, '='*100, colors.RST, sep='')
-#         return r_A, r_B
+#         return r
 #
 #     class XYOverlapData(XYSquaresData):
 #         def __init__(self, square_size=8, grid_size=64, grid_spacing=None, num_squares=3, rgb=True):
@@ -311,8 +316,11 @@ def angles_between(a, b, dim=-1, nan_to_angle=None):
 #                 grid_spacing = (square_size+1) // 2
 #             super().__init__(square_size=square_size, grid_size=grid_size, grid_spacing=grid_spacing, num_squares=num_squares, rgb=rgb)
 #
+#     # datasets = [XYObjectData(rgb=False, palette='white'), XYSquaresData(), XYOverlapData(), XYObjectData()]
+#     datasets = [XYOverlapData()]
+#
 #     results = []
-#     for data in [XYObjectData(rgb=False, palette='white'), XYSquaresData(), XYOverlapData(), XYObjectData()]:
+#     for data in datasets:
 #         dataset = GroundTruthDataset(data, transform=ToStandardisedTensor())
 #         dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True, pin_memory=True)
 #         module = BetaVae(
@@ -341,6 +349,5 @@ def angles_between(a, b, dim=-1, nan_to_angle=None):
 #         if result is None:
 #             print()
 #             continue
-#         (name, steps, result_A, result_B) = result
-#         print_r(name + '_A', steps, result_A, colors.lYLW)
-#         print_r(name + '_B', steps, result_B, colors.lYLW)
+#         (name, steps, result) = result
+#         print_r(name, steps, result, colors.lYLW)

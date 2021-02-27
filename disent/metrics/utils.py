@@ -54,21 +54,21 @@ def generate_batch_factor_code(
       representations: Codes (num_codes, num_points)-np array.
       factors: Factors generating the codes (num_factors, num_points)-np array.
     """
+    # TODO: this can be cleaned up and simplified
+    #       maybe use chunked()
     representations = None
     factors = None
     i = 0
     with tqdm(total=num_points, disable=not show_progress) as bar:
         while i < num_points:
             num_points_iter = min(num_points - i, batch_size)
-            current_observations, current_factors = ground_truth_dataset.dataset_sample_batch_with_factors(
-                num_points_iter, mode='input')
+            current_observations, current_factors = ground_truth_dataset.dataset_sample_batch_with_factors(num_points_iter, mode='input')
             if i == 0:
                 factors = current_factors
                 representations = to_numpy(representation_function(current_observations))
             else:
                 factors = np.vstack((factors, current_factors))
-                representations = np.vstack(
-                    (representations, to_numpy(representation_function(current_observations))))
+                representations = np.vstack((representations, to_numpy(representation_function(current_observations))))
             i += num_points_iter
             bar.update(num_points_iter)
     return np.transpose(representations), np.transpose(factors)
