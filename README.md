@@ -111,13 +111,16 @@ Disent includes implementations of modules, metrics and datasets from various pa
 Many popular disentanglement frameworks still need to be added, please
 submit an issue if you have a request for an additional framework.
 
-- **todo**:
-  + FactorVAE
-  + InfoVAE
-  + BetaTCVAE
-  + DIPVAE
-  + GroupVAE
-  + MLVAE
+<details><summary><b>todo</b></summary><p>
+
++ FactorVAE
++ InfoVAE
++ BetaTCVAE
++ DIPVAE
++ GroupVAE
++ MLVAE
+
+</p></details>
 
 #### Metrics
 - **Disentanglement**:
@@ -130,10 +133,13 @@ submit an issue if you have a request for an additional framework.
 
 Some popular metrics still need to be added, please submit an issue if you wish to
 add your own or you have a request for an additional metric.
-- **todo**:
-  + [DCIMIG](https://arxiv.org/abs/1910.05587)
-  + [Modularity and Explicitness](https://arxiv.org/abs/1802.05312)
 
+<details><summary><b>todo</b></summary><p>
+
++ [DCIMIG](https://arxiv.org/abs/1910.05587)
++ [Modularity and Explicitness](https://arxiv.org/abs/1802.05312)
+
+</p></details>
 
 #### Datasets:
 
@@ -155,6 +161,15 @@ Various common datasets used in disentanglement research are implemented, as wel
   
   - Input based transforms are supported.
   - Input and Target CPU and GPU based augmentations are supported.
+
+#### Schedules/Annealing:
+
+Hyper-parameter annealing is supported through the use of schedules. The currently implemented schedules include:
+
+- Linear Schedule
+- [Cyclic](https://arxiv.org/abs/1903.10145) Schedule
+- Cosine Wave Schedule
+- *Various other wrapper schedules*
 
 ----------------------
 
