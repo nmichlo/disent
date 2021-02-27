@@ -5,6 +5,7 @@
 # * Flatness Metric (432)
 #   | -m optimizer.lr=0.001,0.0005 framework.beta=0.25,1.0,4.0 framework=ae,betavae,adavae_os,adavae,tvae,X--adatvae dataset=cars3d,smallnorb,3dshapes,monte_rollouts,xyblocks,xyblocks_grey,xyobject,xyobject_grey,xysquares,xysquares_grey,xysquares_overlap,xysquares_overlap_grey
 
+
 defaults:
   # experiment
   - framework: betavae
@@ -14,7 +15,7 @@ defaults:
   - augment: none
   - sampling: full_bb
   - metrics: all
-  - schedule: none
+  - schedule: beta_increase
   # runtime
   - run_length: short
   - run_location: cluster_many
@@ -27,20 +28,21 @@ defaults:
 
 job:
   user: 'n_michlo'
-  project: 'experiment-test-flatness-metric'
+  project: 'DELETE-test-schedules'
   name: '${framework.name}:${framework.module.recon_loss}|${dataset.name}:${sampling.name}|${trainer.steps}'
   partition: batch
 
 framework:
-    beta: 1  # most VAEs use this
+    beta: 0.003
     module:
       recon_loss: mse
+      loss_reduction: mean
 
 model:
   z_size: 9
 
 optimizer:
-  lr: 4e-5
+  lr: 5e-4
 
 # CUSTOM DEFAULTS SPECIALIZATION
 # - This key is deleted on load and the correct key on the root config is set similar to defaults.

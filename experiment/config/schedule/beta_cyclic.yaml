@@ -1,0 +1,19 @@
+# @package _global_
+schedules:
+  beta:
+    # skip the first cycle
+    _target_: disent.schedule.Clip
+    min_step: 3600
+    max_step: NULL
+    shift_step: TRUE
+    min_value: NULL
+    max_value: NULL
+    # nested schedule
+    schedule:
+      _target_: disent.schedule.Cyclic
+      period: 7200
+      repeats: NULL
+      r_start: 0.001
+      r_end: 1.0
+      end_value: 'end'  # start/end -- only used if repeats is set
+      mode: 'cosine'

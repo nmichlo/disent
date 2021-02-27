@@ -28,6 +28,7 @@ import os
 import time
 from dataclasses import dataclass
 from dataclasses import fields
+from itertools import islice
 
 import numpy as np
 import pytorch_lightning as pl
@@ -51,14 +52,6 @@ def is_test_run():
     to use this function in your own scripts.
     """
     return bool(os.environ.get('DISENT_TEST_RUN', False))
-
-
-def test_run_int(integer: int, div=100):
-    """
-    This is used to test some scripts, by dividing the input number.
-    There is no need to use this function in your own scripts.
-    """
-    return ((integer + div - 1) // div) if is_test_run() else integer
 
 
 def _set_test_run():
@@ -180,10 +173,33 @@ def load_model(model, path, cuda=True, fail_if_missing=True):
 # ========================================================================= #
 
 
-def chunked(arr, chunk_size=1, include_last=True):
-    size = (len(arr) + chunk_size - 1) if include_last else len(arr)
-    for i in range(size // chunk_size):
-        yield arr[chunk_size*i:chunk_size*(i+1)]
+def chunked(arr, chunk_size: int, include_remainder=True):
+    size = (len(arr) + chunk_size - 1) if include_remainder else len(arr)
+    return [arr[chunk_size*i:chunk_size*(i+1)] for i in range(size // chunk_size)]
+
+
+def iter_chunks(items, chunk_size: int, include_remainder=True):
+    """
+    iterable version of chunked.
+    that does not evaluate unneeded elements
+    """
+    items = iter(items)
+    for first in items:
+        chunk = [first, *islice(items, chunk_size-1)]
+        if len(chunk) >= chunk_size or include_remainder:
+            yield chunk
+
+
+def iter_rechunk(chunks, chunk_size: int, include_remainder=True):
+    """
+    takes in chunks and returns chunks of a new size.
+    - Does not evaluate unneeded chunks
+    """
+    return iter_chunks(
+        (item for chunk in chunks for item in chunk),  # flatten chunks
+        chunk_size=chunk_size,
+        include_remainder=include_remainder
+    )
 
 
 # ========================================================================= #

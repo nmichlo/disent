@@ -7,7 +7,7 @@ from disent.frameworks.vae.unsupervised import BetaVae
 from disent.metrics import metric_dci, metric_mig
 from disent.model.ae import EncoderConv64, DecoderConv64, AutoEncoder
 from disent.transform import ToStandardisedTensor
-from disent.util import is_test_run, test_run_int
+from disent.util import is_test_run
 
 data = XYObjectData()
 dataset = GroundTruthDataset(data, transform=ToStandardisedTensor())
