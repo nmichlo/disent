@@ -202,6 +202,25 @@ def iter_rechunk(chunks, chunk_size: int, include_remainder=True):
     )
 
 
+# not actually an iterator
+def map_all(fn, items, starmap: bool = False, collect_returned: bool = False):
+    assert items, 'an empty list of items was passed'
+    # map everything
+    if starmap:
+        results = (fn(*item) for item in items)
+    else:
+        results = (fn(item) for item in items)
+    # auto detect multireturn
+    # if multireturn is None:
+    #     if isinstance(results[0], tuple):
+    #         multireturn = True
+    # zip everything
+    if collect_returned:
+        return tuple(zip(*results))
+    else:
+        return tuple(results)
+
+
 # ========================================================================= #
 # STRINGS                                                                   #
 # ========================================================================= #

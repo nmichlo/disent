@@ -23,11 +23,12 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from dataclasses import dataclass
+from typing import Dict
 from typing import final
 
 import torch
 
-from disent.frameworks.helper.reconstructions import ReconstructionLoss, make_reconstruction_loss
+from disent.frameworks.helper.reconstructions import ReconLossHandler, make_reconstruction_loss
 from disent.model.ae.base import AutoEncoder
 from disent.frameworks.framework import BaseFramework
 
@@ -62,7 +63,11 @@ class AE(BaseFramework):
         assert isinstance(self._model, AutoEncoder)
         assert self._model.z_multiplier == self.REQUIRED_Z_MULTIPLIER, f'model z_multiplier is {repr(self._model.z_multiplier)} but {self.__class__.__name__} requires that it is: {repr(self.REQUIRED_Z_MULTIPLIER)}'
         # recon loss & activation fn
-        self._recons: ReconstructionLoss = make_reconstruction_loss(self.cfg.recon_loss)
+        self._recon_handler: ReconLossHandler = make_reconstruction_loss(self.cfg.recon_loss)
+
+    # --------------------------------------------------------------------- #
+    # AE Training Step -- Overridable                                       #
+    # --------------------------------------------------------------------- #
 
     def compute_training_loss(self, batch, batch_idx):
         (x,), (x_targ,) = batch['x'], batch['x_targ']
@@ -70,22 +75,32 @@ class AE(BaseFramework):
         # FORWARD
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # latent distribution parametrisation
-        z = self.training_encode_params(x)
+        z = self.encode_params(x)
         # reconstruct without the final activation
-        x_partial_recon = self.training_decode_partial(z)
+        x_partial_recon = self.decode_partial(z)
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
         # LOSS
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-        # reconstruction error
-        recon_loss = self.training_recon_loss(x_partial_recon, x_targ)  # E[log p(x|z)]
+        # reconstruction loss
+        recon_loss, logs_recon = self.compute_reconstruction_loss(x_partial_recon, x_targ)  # E[log p(x|z)]
         # compute combined loss
         loss = recon_loss
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
-        return {
-            'train_loss': loss,
+        return loss, {
+            # extra logs
+            **logs_recon,
+            # logs
             'recon_loss': recon_loss,
+        }
+
+    def compute_reconstruction_loss(self, x_partial_recon: torch.Tensor, x_targ: torch.Tensor) -> (torch.Tensor, Dict[str, float]):
+        # compute reconstruction loss
+        pixel_loss = self.recon_loss(x_partial_recon, x_targ)
+        # return logs
+        return pixel_loss, {
+            'pixel_loss': pixel_loss
         }
 
     # --------------------------------------------------------------------- #
@@ -100,7 +115,7 @@ class AE(BaseFramework):
     @final
     def decode(self, z: torch.Tensor) -> torch.Tensor:
         """Decode latent vector z into reconstruction x_recon (useful for visualisation)"""
-        return self._recons.activate(self._model.decode(z))
+        return self._recon_handler.activate(self._model.decode(z))
 
     @final
     def forward(self, batch: torch.Tensor) -> torch.Tensor:
@@ -112,18 +127,18 @@ class AE(BaseFramework):
     # --------------------------------------------------------------------- #
 
     @final
-    def training_encode_params(self, x: torch.Tensor) -> torch.Tensor:
+    def encode_params(self, x: torch.Tensor) -> torch.Tensor:
         """Get parametrisations of the latent distributions, which are sampled from during training."""
         return self._model.encode(x)
 
     @final
-    def training_decode_partial(self, z: torch.Tensor) -> torch.Tensor:
+    def decode_partial(self, z: torch.Tensor) -> torch.Tensor:
         """Decode latent vector z into partial reconstructions that exclude the final activation if there is one."""
         return self._model.decode(z)
 
     @final
-    def training_recon_loss(self, x_partial_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
-        return self._recons.training_compute_loss(
+    def recon_loss(self, x_partial_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
+        return self._recon_handler.training_compute_loss(
             x_partial_recon, x_targ, reduction=self.cfg.loss_reduction,
         )
 

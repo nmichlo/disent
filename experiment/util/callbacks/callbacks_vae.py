@@ -91,9 +91,9 @@ class VaeLatentCycleLoggingCallback(_PeriodicCallback):
             obs = dataset.dataset_sample_batch(64, mode='input').to(vae.device)
 
         if isinstance(vae, Vae):
-            z_means, z_logvars = vae.training_encode_params(obs)
+            z_means, z_logvars = vae.encode_params(obs)
         else:
-            z_means = vae.training_encode_params(obs)
+            z_means = vae.encode_params(obs)
             z_logvars = torch.ones_like(z_means)
 
         # produce latent cycle grid animation

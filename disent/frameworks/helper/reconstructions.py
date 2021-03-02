@@ -36,7 +36,7 @@ from disent.frameworks.helper.reductions import loss_reduction
 # ========================================================================= #
 
 
-class ReconstructionLoss(object):
+class ReconLossHandler(object):
 
     def activate(self, x):
         """
@@ -52,7 +52,7 @@ class ReconstructionLoss(object):
         as well as an original target from the dataset.
         :return: The computed reduced loss
         """
-        assert x_partial_recon.shape == x_targ.shape
+        assert x_partial_recon.shape == x_targ.shape, f'x_partial_recon.shape={x_partial_recon.shape} x_targ.shape={x_targ.shape}'
         batch_loss = self._compute_unreduced_loss(x_partial_recon, x_targ)
         loss = loss_reduction(batch_loss, reduction=reduction)
         return loss
@@ -70,7 +70,7 @@ class ReconstructionLoss(object):
 # ========================================================================= #
 
 
-class ReconstructionLossMse(ReconstructionLoss):
+class ReconLossHandlerMse(ReconLossHandler):
     """
     MSE loss should be used with continuous targets between [0, 1].
     - using BCE for such targets is a prevalent error in VAE research.
@@ -95,7 +95,7 @@ class ReconstructionLossMse(ReconstructionLoss):
 
 
 
-class ReconstructionLossBce(ReconstructionLoss):
+class ReconLossHandlerBce(ReconLossHandler):
     """
     BCE loss should only be used with binary targets {0, 1}.
     - ignoring this and not using MSE is a prevalent error in VAE research.
@@ -124,13 +124,13 @@ class ReconstructionLossBce(ReconstructionLoss):
 # ========================================================================= #
 
 
-class ReconstructionLossBernoulli(ReconstructionLossBce):
+class ReconLossHandlerBernoulli(ReconLossHandlerBce):
     def _compute_unreduced_loss(self, x_partial_recon, x_targ):
         # This is exactly the same as the BCE version, but more 'correct'.
         return -torch.distributions.Bernoulli(logits=x_partial_recon).log_prob(x_targ)
 
 
-class ReconstructionLossContinuousBernoulli(ReconstructionLossBce):
+class ReconLossHandlerContinuousBernoulli(ReconLossHandlerBce):
     """
     The continuous Bernoulli: fixing a pervasive error in variational autoencoders
     - Loaiza-Ganem G and Cunningham JP, NeurIPS 2019.
@@ -143,7 +143,7 @@ class ReconstructionLossContinuousBernoulli(ReconstructionLossBce):
         return -torch.distributions.ContinuousBernoulli(logits=x_partial_recon, lims=(0.49, 0.51)).log_prob(x_targ)
 
 
-class ReconstructionLossNormal(ReconstructionLossMse):
+class ReconLossHandlerNormal(ReconLossHandlerMse):
     def _compute_unreduced_loss(self, x_partial_recon, x_targ):
         # this is almost the same as MSE, but scaled with a tiny offset
         # A value for scale should actually be passed...
@@ -159,24 +159,24 @@ class ReconstructionLossNormal(ReconstructionLossMse):
 # ========================================================================= #
 
 
-def make_reconstruction_loss(name) -> ReconstructionLoss:
+def make_reconstruction_loss(name) -> ReconLossHandler:
     if name == 'mse':
         # from the normal distribution
         # binary values only in the set {0, 1}
-        return ReconstructionLossMse()
+        return ReconLossHandlerMse()
     elif name == 'bce':
         # from the bernoulli distribution
-        return ReconstructionLossBce()
+        return ReconLossHandlerBce()
     elif name == 'bernoulli':
         # reduces to bce
         # binary values only in the set {0, 1}
-        return ReconstructionLossBernoulli()
+        return ReconLossHandlerBernoulli()
     elif name == 'continuous_bernoulli':
         # bernoulli with a computed offset to handle values in the range [0, 1]
-        return ReconstructionLossContinuousBernoulli()
+        return ReconLossHandlerContinuousBernoulli()
     elif name == 'normal':
         # handle all real values
-        return ReconstructionLossNormal()
+        return ReconLossHandlerNormal()
     else:
         raise KeyError(f'Invalid vae reconstruction loss: {name}')
 
