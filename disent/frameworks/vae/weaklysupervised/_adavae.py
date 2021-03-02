@@ -60,7 +60,7 @@ class AdaVae(BetaVae):
             'ml-vae': compute_average_ml_vae
         }[self.cfg.average_mode]
 
-    def compute_training_loss(self, batch, batch_idx):
+    def do_training_step(self, batch, batch_idx):
         """
         (✓) Visual inspection against reference implementation:
             https://github.com/google-research/disentanglement_lib (GroupVAEBase & MLVae)
@@ -71,23 +71,23 @@ class AdaVae(BetaVae):
         # FORWARD
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # latent distribution parameterizations
-        z0_params = self.training_encode_params(x0)
-        z1_params = self.training_encode_params(x1)
+        z0_params = self.encode_params(x0)
+        z1_params = self.encode_params(x1)
         # intercept and mutate z [SPECIFIC TO ADAVAE]
         (z0_params, z1_params), intercept_logs = self.intercept_z(all_params=(z0_params, z1_params))
         # sample from latent distribution
-        (d0_posterior, d0_prior), z0_sampled = self.training_params_to_distributions_and_sample(z0_params)
-        (d1_posterior, d1_prior), z1_sampled = self.training_params_to_distributions_and_sample(z1_params)
+        d0_posterior, d0_prior, z0_sampled = self.params_to_dists_and_sample(z0_params)
+        d1_posterior, d1_prior, z1_sampled = self.params_to_dists_and_sample(z1_params)
         # reconstruct without the final activation
-        x0_partial_recon = self.training_decode_partial(z0_sampled)
-        x1_partial_recon = self.training_decode_partial(z1_sampled)
+        x0_partial_recon = self.decode_partial(z0_sampled)
+        x1_partial_recon = self.decode_partial(z1_sampled)
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
         # LOSS
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # reconstruction error
-        recon0_loss = self.training_recon_loss(x0_partial_recon, x0_targ)  # E[log p(x|z)]
-        recon1_loss = self.training_recon_loss(x1_partial_recon, x1_targ)  # E[log p(x|z)]
+        recon0_loss, _ = self.compute_reconstruction_loss(x0_partial_recon, x0_targ)  # E[log p(x|z)]
+        recon1_loss, _ = self.compute_reconstruction_loss(x1_partial_recon, x1_targ)  # E[log p(x|z)]
         ave_recon_loss = (recon0_loss + recon1_loss) / 2
         # KL divergence
         kl0_loss = self.training_kl_loss(d0_posterior, d0_prior)  # D_kl(q(z|x) || p(z|x), d0_prior)

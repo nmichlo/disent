@@ -25,12 +25,18 @@
 from dataclasses import dataclass
 from typing import Dict
 from typing import final
+from typing import Sequence
+from typing import Tuple
 
 import torch
 
 from disent.frameworks.helper.reconstructions import ReconLossHandler, make_reconstruction_loss
 from disent.model.ae.base import AutoEncoder
 from disent.frameworks.framework import BaseFramework
+from disent.util import aggregate_dict
+from disent.util import collect_dicts
+
+from disent.util import map_all
 
 
 # ========================================================================= #
@@ -69,33 +75,44 @@ class AE(BaseFramework):
     # AE Training Step -- Overridable                                       #
     # --------------------------------------------------------------------- #
 
-    def compute_training_loss(self, batch, batch_idx):
-        (x,), (x_targ,) = batch['x'], batch['x_targ']
+    @final
+    def do_training_step(self, batch, batch_idx):
+        xs, xs_targ, = batch['x'], batch['x_targ']
 
         # FORWARD
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-        # latent distribution parametrisation
-        z = self.encode_params(x)
+        # latent variables
+        zs = map_all(self.encode_params, xs)
+        # intercept latent variables
+        zs, logs_intercept = self.training_intercept_zs(zs)
         # reconstruct without the final activation
-        x_partial_recon = self.decode_partial(z)
+        xs_partial_recon = map_all(self.decode_partial, zs)
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
         # LOSS
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-        # reconstruction loss
-        recon_loss, logs_recon = self.compute_reconstruction_loss(x_partial_recon, x_targ)  # E[log p(x|z)]
+        # compute all the recon losses
+        recon_loss, logs_recon = map_all(self.compute_reconstruction_loss, xs_partial_recon, xs_targ, collect_returned=True)
+        recon_loss = sum(recon_loss) / len(recon_loss)
         # compute combined loss
         loss = recon_loss
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
+        # return values
         return loss, {
-            # extra logs
-            **logs_recon,
-            # logs
+            **logs_intercept,
+            **aggregate_dict(collect_dicts(logs_recon)),
             'recon_loss': recon_loss,
         }
 
-    def compute_reconstruction_loss(self, x_partial_recon: torch.Tensor, x_targ: torch.Tensor) -> (torch.Tensor, Dict[str, float]):
+    # --------------------------------------------------------------------- #
+    # Overrideable                                                          #
+    # --------------------------------------------------------------------- #
+
+    def training_intercept_zs(self, zs: Sequence[torch.Tensor]) -> Sequence[torch.Tensor]:
+        return zs
+
+    def compute_reconstruction_loss(self, x_partial_recon: torch.Tensor, x_targ: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
         # compute reconstruction loss
         pixel_loss = self.recon_loss(x_partial_recon, x_targ)
         # return logs

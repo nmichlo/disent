@@ -29,10 +29,12 @@ import time
 from dataclasses import dataclass
 from dataclasses import fields
 from itertools import islice
+from typing import List
 
 import numpy as np
 import pytorch_lightning as pl
 import torch
+from torch.utils.data.dataloader import default_collate
 
 
 """
@@ -203,22 +205,37 @@ def iter_rechunk(chunks, chunk_size: int, include_remainder=True):
 
 
 # not actually an iterator
-def map_all(fn, items, starmap: bool = False, collect_returned: bool = False):
-    assert items, 'an empty list of items was passed'
+def map_all(fn, *item_lists, starmap: bool = False, collect_returned: bool = False):
+    assert item_lists, 'an empty list of items was passed'
+    # check all lengths are the same
+    num = len(item_lists[0])
+    assert num > 0
+    assert all(len(items) == num for items in item_lists)
     # map everything
     if starmap:
-        results = (fn(*item) for item in items)
+        results = (fn(*items) for items in zip(*item_lists))
     else:
-        results = (fn(item) for item in items)
-    # auto detect multireturn
-    # if multireturn is None:
-    #     if isinstance(results[0], tuple):
-    #         multireturn = True
+        results = (fn(items) for items in zip(*item_lists))
     # zip everything
     if collect_returned:
         return tuple(zip(*results))
     else:
         return tuple(results)
+
+
+def collect_dicts(results: List[dict]):
+    # collect everything
+    keys = results[0].keys()
+    values = zip(*([result[k] for k in keys] for result in results))
+    return {k: list(v) for k, v in zip(keys, values)}
+
+
+def aggregate_dict(results: dict, reduction='mean'):
+    assert reduction == 'mean', 'mean is the only mode supported'
+    return {
+        k: sum(v) / len(v) for k, v in results.items()
+    }
+
 
 
 # ========================================================================= #

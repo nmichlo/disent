@@ -44,15 +44,15 @@ class TripletVae(BetaVae):
         detach_no_kl: bool = False
         detach_logvar: float = -2  # std = 0.5, logvar = ln(std**2) ~= -2,77
 
-    def compute_training_loss(self, batch, batch_idx):
+    def do_training_step(self, batch, batch_idx):
         (a_x, p_x, n_x), (a_x_targ, p_x_targ, n_x_targ) = batch['x'], batch['x_targ']
 
         # FORWARD
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # latent distribution parametrisation
-        a_z_params = self.training_encode_params(a_x)
-        p_z_params = self.training_encode_params(p_x)
-        n_z_params = self.training_encode_params(n_x)
+        a_z_params = self.encode_params(a_x)
+        p_z_params = self.encode_params(p_x)
+        n_z_params = self.encode_params(n_x)
         # get zeros
         if self.cfg.detach and (self.cfg.detach_logvar is not None):
             a_z_params.logvar = torch.full_like(a_z_params.logvar, self.cfg.detach_logvar)
@@ -68,25 +68,25 @@ class TripletVae(BetaVae):
             p_z_sampled = p_z_sampled.detach()
             n_z_sampled = n_z_sampled.detach()
         # reconstruct without the final activation
-        a_x_partial_recon = self.training_decode_partial(a_z_sampled)
-        p_x_partial_recon = self.training_decode_partial(p_z_sampled)
-        n_x_partial_recon = self.training_decode_partial(n_z_sampled)
+        a_x_partial_recon = self.decode_partial(a_z_sampled)
+        p_x_partial_recon = self.decode_partial(p_z_sampled)
+        n_x_partial_recon = self.decode_partial(n_z_sampled)
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
         # LOSS
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # reconstruction error
-        a_recon_loss = self.training_recon_loss(a_x_partial_recon, a_x_targ)  # E[log p(x|z)]
-        p_recon_loss = self.training_recon_loss(p_x_partial_recon, p_x_targ)  # E[log p(x|z)]
-        n_recon_loss = self.training_recon_loss(n_x_partial_recon, n_x_targ)  # E[log p(x|z)]
+        a_recon_loss = self.recon_loss(a_x_partial_recon, a_x_targ)  # E[log p(x|z)]
+        p_recon_loss = self.recon_loss(p_x_partial_recon, p_x_targ)  # E[log p(x|z)]
+        n_recon_loss = self.recon_loss(n_x_partial_recon, n_x_targ)  # E[log p(x|z)]
         ave_recon_loss = (a_recon_loss + p_recon_loss + n_recon_loss) / 3
         # KL divergence
         if self.cfg.detach and self.cfg.detach_no_kl:
             ave_kl_loss = 0
         else:
-            a_kl_loss = self.training_kl_loss(a_d_posterior, a_d_prior)  # D_kl(q(z|x) || p(z|x))
-            p_kl_loss = self.training_kl_loss(p_d_posterior, p_d_prior)  # D_kl(q(z|x) || p(z|x))
-            n_kl_loss = self.training_kl_loss(n_d_posterior, n_d_prior)  # D_kl(q(z|x) || p(z|x))
+            a_kl_loss = self.training_kl_loss(a_d_posterior, a_d_prior, a_z_sampled)  # D_kl(q(z|x) || p(z|x))
+            p_kl_loss = self.training_kl_loss(p_d_posterior, p_d_prior, p_z_sampled)  # D_kl(q(z|x) || p(z|x))
+            n_kl_loss = self.training_kl_loss(n_d_posterior, n_d_prior, n_z_sampled)  # D_kl(q(z|x) || p(z|x))
             ave_kl_loss = (a_kl_loss + p_kl_loss + n_kl_loss) / 3
         # compute kl regularisation
         ave_kl_reg_loss = self.training_regularize_kl(ave_kl_loss)

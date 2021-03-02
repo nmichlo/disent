@@ -39,34 +39,34 @@ class BoundedAdaVae(AdaVae):
     class cfg(AdaVae.cfg):
         pass
 
-    def compute_training_loss(self, batch, batch_idx):
+    def do_training_step(self, batch, batch_idx):
         (a_x, p_x, n_x), (a_x_targ, p_x_targ, n_x_targ) = batch['x'], batch['x_targ']
 
         # FORWARD
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # latent distribution parametrisation
-        a_z_params = self.training_encode_params(a_x)
-        p_z_params = self.training_encode_params(p_x)
-        n_z_params = self.training_encode_params(n_x)
+        a_z_params = self.encode_params(a_x)
+        p_z_params = self.encode_params(p_x)
+        n_z_params = self.encode_params(n_x)
         # intercept and mutate z [SPECIFIC TO ADAVAE]
-        (a_z_params, p_z_params), intercept_logs = self.intercept_z(all_params=(a_z_params, p_z_params, n_z_params))
+        (a_z_params, p_z_params), intercept_logs = self.training_intercept_z(all_params=(a_z_params, p_z_params, n_z_params))
         # sample from latent distribution
-        (d0_posterior, d0_prior), a_z_sampled = self.training_params_to_distributions_and_sample(a_z_params)
-        (d1_posterior, d1_prior), p_z_sampled = self.training_params_to_distributions_and_sample(p_z_params)
+        (a_d_posterior, a_d_prior), a_z_sampled = self.training_params_to_distributions_and_sample(a_z_params)
+        (p_d_posterior, p_d_prior), p_z_sampled = self.training_params_to_distributions_and_sample(p_z_params)
         # reconstruct without the final activation
-        a_x_partial_recon = self.training_decode_partial(a_z_sampled)
-        p_x_partial_recon = self.training_decode_partial(p_z_sampled)
+        a_x_partial_recon = self.decode_partial(a_z_sampled)
+        p_x_partial_recon = self.decode_partial(p_z_sampled)
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
         # LOSS
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # reconstruction error
-        a_recon_loss = self.training_recon_loss(a_x_partial_recon, a_x_targ)  # E[log p(x|z)]
-        p_recon_loss = self.training_recon_loss(p_x_partial_recon, p_x_targ)  # E[log p(x|z)]
+        a_recon_loss = self.recon_loss(a_x_partial_recon, a_x_targ)  # E[log p(x|z)]
+        p_recon_loss = self.recon_loss(p_x_partial_recon, p_x_targ)  # E[log p(x|z)]
         ave_recon_loss = (a_recon_loss + p_recon_loss) / 2
         # KL divergence
-        a_kl_loss = self.training_kl_loss(d0_posterior, d0_prior)     # D_kl(q(z|x) || p(z|x))
-        p_kl_loss = self.training_kl_loss(d1_posterior, d1_prior)     # D_kl(q(z|x) || p(z|x))
+        a_kl_loss = self.training_kl_loss(a_d_posterior, a_d_prior, a_z_sampled)     # D_kl(q(z|x) || p(z|x))
+        p_kl_loss = self.training_kl_loss(p_d_posterior, p_d_prior, p_z_sampled)     # D_kl(q(z|x) || p(z|x))
         ave_kl_loss = (a_kl_loss + p_kl_loss) / 2
         # compute kl regularisation
         ave_kl_reg_loss = self.training_regularize_kl(ave_kl_loss)
@@ -86,7 +86,7 @@ class BoundedAdaVae(AdaVae):
             **augment_loss_logs,
         }
 
-    def intercept_z(self, all_params):
+    def training_intercept_z(self, all_params):
         a_z_params, p_z_params, n_z_params = all_params
 
         # get distributions

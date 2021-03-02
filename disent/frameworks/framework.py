@@ -77,7 +77,7 @@ class BaseFramework(DisentConfigurable, DisentLightningModule):
             # update the config values based on registered schedules
             self._update_config_from_schedules()
             # compute loss
-            loss, logs_dict = self.compute_training_loss(batch, batch_idx)
+            loss, logs_dict = self.do_training_step(batch, batch_idx)
             # check returned values
             assert 'loss' not in logs_dict
             self._assert_valid_loss(loss)
@@ -108,7 +108,7 @@ class BaseFramework(DisentConfigurable, DisentLightningModule):
         """this function should return the single final output of the model, including the final activation"""
         raise NotImplementedError
 
-    def compute_training_loss(self, batch, batch_idx) -> Tuple[torch.Tensor, Dict[str, Union[Number, torch.Tensor]]]:
+    def do_training_step(self, batch, batch_idx) -> Tuple[torch.Tensor, Dict[str, Union[Number, torch.Tensor]]]:
         """
         should return a dictionary of items to log with the key 'train_loss'
         as the variable to minimize
