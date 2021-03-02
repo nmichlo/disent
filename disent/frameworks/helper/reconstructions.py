@@ -87,7 +87,12 @@ class ReconstructionLossMse(ReconstructionLoss):
         return 0.5 * (x + 1)
 
     def _compute_unreduced_loss(self, x_partial_recon, x_targ):
-        return F.mse_loss(self.activate(x_partial_recon), x_targ, reduction='none')
+        # NOTE: x_targ is in the range [0, 1]... we scale this to be in the range [-1, 1]
+        #       so that the MSE values are consistent. activating x_partial_recon instead
+        #       changes the scale of the loss
+        return F.mse_loss(x_partial_recon, (x_targ * 2) - 1, reduction='none')
+
+
 
 
 class ReconstructionLossBce(ReconstructionLoss):
@@ -132,7 +137,7 @@ class ReconstructionLossContinuousBernoulli(ReconstructionLossBce):
     - https://arxiv.org/abs/1907.06845
     """
     def _compute_unreduced_loss(self, x_partial_recon, x_targ):
-        warnings.warn('Using continuous bernoulli distribution for reconstruction loss. This is not recommended!')
+        warnings.warn('Using continuous bernoulli distribution for reconstruction loss. This is not yet recommended!')
         # I think there is something wrong with this...
         # weird values...
         return -torch.distributions.ContinuousBernoulli(logits=x_partial_recon, lims=(0.49, 0.51)).log_prob(x_targ)
@@ -140,10 +145,13 @@ class ReconstructionLossContinuousBernoulli(ReconstructionLossBce):
 
 class ReconstructionLossNormal(ReconstructionLossMse):
     def _compute_unreduced_loss(self, x_partial_recon, x_targ):
-        warnings.warn('Using normal distribution for reconstruction loss. This is not recommended!')
         # this is almost the same as MSE, but scaled with a tiny offset
         # A value for scale should actually be passed...
-        return -torch.distributions.Normal(self.activate(x_partial_recon), 1.0).log_prob(x_targ)
+        warnings.warn('Using normal distribution for reconstruction loss. This is not yet recommended!')
+        # NOTE: x_targ is in the range [0, 1]... we scale this to be in the range [-1, 1]
+        #       so that the MSE values are consistent. activating x_partial_recon instead
+        #       changes the scale of the loss
+        return -torch.distributions.Normal(x_partial_recon, 1.0).log_prob((x_targ * 2) - 1)
 
 
 # ========================================================================= #
