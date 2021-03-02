@@ -39,6 +39,19 @@ from disent.util import TupleDataClass
 # ========================================================================= #
 
 
+def short_dataclass_repr(self):
+    vals = {
+        k: v.shape if isinstance(v, (torch.Tensor, np.ndarray)) else v
+        for k, v in ((f.name, getattr(self, f.name)) for f in fields(self))
+    }
+    return f'{self.__class__.__name__}({", ".join(f"{k}={v}" for k, v in vals.items())})'
+
+
+# ========================================================================= #
+# Kl Loss                                                                   #
+# ========================================================================= #
+
+
 def kl_loss_direct(posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None):
     # This is how the original VAE/BetaVAE papers do it:s
     # - we compute the kl divergence directly instead of approximating it
@@ -66,13 +79,6 @@ def kl_loss(posterior: Distribution, prior: Distribution, z_sampled: torch.Tenso
 # ========================================================================= #
 # Vae Distributions                                                         #
 # ========================================================================= #
-
-def short_dataclass_repr(self):
-    vals = {
-        k: v.shape if isinstance(v, (torch.Tensor, np.ndarray)) else v
-        for k, v in ((f.name, getattr(self, f.name)) for f in fields(self))
-    }
-    return f'{self.__class__.__name__}({", ".join(f"{k}={v}" for k, v in vals.items())})'
 
 
 class LatentDistsHandler(object):
