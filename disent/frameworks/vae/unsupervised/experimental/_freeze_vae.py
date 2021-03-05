@@ -22,23 +22,14 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-#  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-#  MIT License
-#
-#
-#  Permission is hereby granted, free of charge, to any person obtaining a copy
-#  of this software and associated documentation files (the "Software"), to deal
-#  in the Software without restriction, including without limitation the rights
-#  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-#  copies of the Software, and to permit persons to whom the Software is
-#  furnished to do so, subject to the following conditions:
-#
-#
 from dataclasses import dataclass
 from typing import final
 import torch
 from disent.frameworks.vae.unsupervised import BetaVae
 from disent.util import DisentModule
+import logging
+
+log = logging.getLogger(__name__)
 
 
 class Noop(DisentModule):
@@ -89,12 +80,16 @@ class FreezeVae(BetaVae):
     def training_regularize_kl(self, kl_loss):
         # do stuff
         if self._steps == self.cfg.freeze_after_steps:
+            log.warning('Freezing weights and adding swap layers!')
             # replace beta
             self.cfg.beta = self.cfg.freeze_beta
             # replace models
             self._encoder_mu_swapper = self._NEW_encoder_mu_swapper
             self._encoder_logvar_swapper = self._NEW_encoder_logvar_swapper
             self._decoder_mu_swapper = self._NEW_decoder_mu_swapper
+            # freeze weights
+            for params in self._model.parameters():
+                params.requires_grad = False
         # update
         self._steps += 1
         # BETA VAE

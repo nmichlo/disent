@@ -8,7 +8,7 @@
 
 defaults:
   # experiment
-  - framework: X--recontvae
+  - framework: X--freezevae
   - model: conv64
   - optimizer: radam
   - dataset: cars3d
