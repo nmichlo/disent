@@ -89,11 +89,7 @@ class ReconTripletVae(AdaTripletVae):
             logs_triplet = {}
         elif self.cfg.recon_triplet_mode == 'ada_triplet':
             self.steps += 1
-            triplet_loss, logs_triplet = self.ada_triplet_loss(
-                zs_mean=(ds_posterior[0].mean, ds_posterior[1].mean, ds_posterior[2].mean),
-                step=self.steps,
-                cfg=self.cfg,
-            )
+            triplet_loss, logs_triplet = self.ada_triplet_loss(zs_mean=(a_z_mean, p_z_mean, n_z_mean), step=self.steps, cfg=self.cfg)
         else:
             raise KeyError
 
