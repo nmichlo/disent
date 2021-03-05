@@ -95,12 +95,12 @@ class AE(BaseFramework):
     @final
     def encode(self, x: torch.Tensor) -> torch.Tensor:
         """Get the deterministic latent representation (useful for visualisation)"""
-        return self._model.encode(x)
+        return self.training_encode_params(x)
 
     @final
     def decode(self, z: torch.Tensor) -> torch.Tensor:
         """Decode latent vector z into reconstruction x_recon (useful for visualisation)"""
-        return self._recons.activate(self._model.decode(z))
+        return self._recons.activate(self.training_decode_partial(z))
 
     @final
     def forward(self, batch: torch.Tensor) -> torch.Tensor:
