@@ -39,7 +39,7 @@ from dataclasses import dataclass
 import torch
 
 from disent.frameworks.helper.triplet_loss import configured_triplet
-from disent.frameworks.vae.supervised import TripletVae
+from disent.frameworks.vae.supervised.experimental._adatvae import AdaTripletVae
 
 
 # ========================================================================= #
@@ -47,37 +47,60 @@ from disent.frameworks.vae.supervised import TripletVae
 # ========================================================================= #
 
 
-class ReconTripletVae(TripletVae):
+class ReconTripletVae(AdaTripletVae):
 
     @dataclass
-    class cfg(TripletVae.cfg):
+    class cfg(AdaTripletVae.cfg):
         # OVERRIDE - triplet vae configs
         detach: bool = False
         detach_decoder: bool = False
         detach_no_kl: bool = False
         detach_logvar: float = 0  # std = 0.5, logvar = ln(std**2) ~= -2,77
         # OVERRIDE - triplet loss configs
-        triplet_scale = 0
+        triplet_scale: float = 0
+        # TRIPLET_MODE
+        recon_triplet_mode: str = 'triplet'
+        # OVERRIDE ADAVAE
+        # adatvae: what version of triplet to use
+        triplet_mode: str = 'ada_p_orig_lerp'
+        # adatvae: annealing
+        lerp_step_start: int = 3600
+        lerp_step_end: int = 14400
+        lerp_goal: float = 1.0
 
     def augment_loss(self, ds_posterior, xs_targ):
         # get values
         a_z_mean, p_z_mean_OLD, n_z_mean_OLD = ds_posterior[0].mean, ds_posterior[1].mean, ds_posterior[2].mean
         a_x_targ, p_x_targ, n_x_targ = xs_targ
 
+        # CORE OF THIS APPROACH
+        # ++++++++++++++++++++++++++++++++++++++++++ #
         # calculate which are wrong!
         a_p_losses = self._recons.training_compute_loss(a_x_targ, p_x_targ, reduction='none').mean(dim=(-3, -2, -1))
         a_n_losses = self._recons.training_compute_loss(a_x_targ, n_x_targ, reduction='none').mean(dim=(-3, -2, -1))
-
         # swap if wrong!
         swap_mask = (a_p_losses > a_n_losses)[:, None].repeat(1, a_z_mean.shape[-1])
         p_z_mean = torch.where(swap_mask, n_z_mean_OLD, p_z_mean_OLD)
         n_z_mean = torch.where(swap_mask, p_z_mean_OLD, n_z_mean_OLD)
+        # ++++++++++++++++++++++++++++++++++++++++++ #
 
-        triplet_loss = configured_triplet(a_z_mean, p_z_mean, n_z_mean, cfg=self.cfg)
+        if self.cfg.recon_triplet_mode == 'triplet':
+            triplet_loss = configured_triplet(a_z_mean, p_z_mean, n_z_mean, cfg=self.cfg)
+            logs_triplet = {}
+        elif self.cfg.recon_triplet_mode == 'ada_triplet':
+            self.steps += 1
+            triplet_loss, logs_triplet = self.ada_triplet_loss(
+                zs_mean=(ds_posterior[0].mean, ds_posterior[1].mean, ds_posterior[2].mean),
+                step=self.steps,
+                cfg=self.cfg,
+            )
+        else:
+            raise KeyError
 
         return triplet_loss, {
             'recon_triplet_loss': triplet_loss,
-            **self.measure_differences(ds_posterior, xs_targ)
+            **self.measure_differences(ds_posterior, xs_targ),
+            **logs_triplet,
         }
 
     def measure_differences(self, ds_posterior, xs_targ):

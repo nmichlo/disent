@@ -14,7 +14,7 @@ defaults:
   - dataset: cars3d
   - augment: none
   - sampling: full_bb
-  - metrics: none
+  - metrics: all
   - schedule: beta_cyclic
   # runtime
   - run_length: long
