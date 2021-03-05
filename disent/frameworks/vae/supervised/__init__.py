@@ -30,3 +30,5 @@ from .experimental._gadavae import GuidedAdaVae
 from .experimental._tbadavae import TripletBoundedAdaVae
 from .experimental._tgadavae import TripletGuidedAdaVae
 from .experimental._adatvae import AdaTripletVae
+from .experimental._triple_vae import TripleVae
+from .experimental._recon_triplet_vae import ReconTripletVae

@@ -1,0 +1,9 @@
+# @package _group_
+name: triplevae
+module:
+  _target_: disent.frameworks.vae.supervised.TripleVae
+  beta: ${framework.beta}
+
+# settings used elsewhere
+data_wrap_mode: triplet
+model_z_multiplier: 2

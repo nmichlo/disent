@@ -8,16 +8,16 @@
 
 defaults:
   # experiment
-  - framework: betavae
+  - framework: X--recontvae
   - model: conv64
   - optimizer: radam
-  - dataset: xysquares
+  - dataset: cars3d
   - augment: none
   - sampling: full_bb
-  - metrics: all
-  - schedule: beta_increase
+  - metrics: none
+  - schedule: beta_cyclic
   # runtime
-  - run_length: short
+  - run_length: long
   - run_location: cluster_many
   - run_callbacks: vis
   - run_logging: wandb
@@ -28,7 +28,7 @@ defaults:
 
 job:
   user: 'n_michlo'
-  project: 'DELETE-test-schedules'
+  project: 'test-invalid-kl-ordering'
   name: '${framework.name}:${framework.module.recon_loss}|${dataset.name}:${sampling.name}|${trainer.steps}'
   partition: batch
 

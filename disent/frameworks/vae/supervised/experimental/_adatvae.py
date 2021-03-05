@@ -60,8 +60,12 @@ class AdaTripletVae(TripletVae):
         # triplet annealing
         self.steps = 0
 
-    def augment_loss(self, z_means):
-        a_z_mean, p_z_mean, n_z_mean = z_means
+    def augment_loss(self, ds_posterior, xs_targ):
+        a_z_mean, p_z_mean, n_z_mean = (
+            ds_posterior[0].mean,
+            ds_posterior[1].mean,
+            ds_posterior[2].mean,
+        )
 
         # normal triplet
         trip_loss = self.triplet_loss(a_z_mean, p_z_mean, n_z_mean)

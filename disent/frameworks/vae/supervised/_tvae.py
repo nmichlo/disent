@@ -91,7 +91,7 @@ class TripletVae(BetaVae):
         # compute kl regularisation
         ave_kl_reg_loss = self.training_regularize_kl(ave_kl_loss)
         # augment loss
-        augment_loss, augment_loss_logs = self.augment_loss(z_means=(a_z_params.mean, p_z_params.mean, n_z_params.mean))
+        augment_loss, augment_loss_logs = self.augment_loss(ds_posterior=(a_d_posterior, p_d_posterior, n_d_posterior), xs_targ=(a_x_targ, p_x_targ, n_x_targ))
         # compute combined loss - must be same as the BetaVAE
         loss = ave_recon_loss + ave_kl_reg_loss + augment_loss
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -105,8 +105,15 @@ class TripletVae(BetaVae):
             **augment_loss_logs,
         }
 
-    def augment_loss(self, z_means):
-        return self.augment_loss_triplet(z_means, self.cfg)
+    def augment_loss(self, ds_posterior, xs_targ):
+        return self.augment_loss_triplet(
+            z_means=(
+                ds_posterior[0].mean,
+                ds_posterior[1].mean,
+                ds_posterior[2].mean,
+            ),
+            cfg=self.cfg,
+        )
 
     @staticmethod
     def augment_loss_triplet(z_means, cfg: TripletConfigTypeHint):

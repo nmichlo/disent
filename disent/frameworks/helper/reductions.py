@@ -44,7 +44,7 @@ def loss_reduction_mean_sum(x: torch.Tensor) -> torch.Tensor:
 
 
 _LOSS_REDUCTION_STRATEGIES = {
-    # 'none': lambda tensor: tensor,
+    'none': lambda tensor: tensor,
     'sum': loss_reduction_sum,
     'mean': loss_reduction_mean,
     'mean_sum': loss_reduction_mean_sum,
