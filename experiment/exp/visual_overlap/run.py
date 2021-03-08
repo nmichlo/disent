@@ -21,6 +21,8 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
+
 import os
 from collections import defaultdict
 from typing import List
@@ -97,7 +99,7 @@ def generate_data(data_name: str, batch_size=64, samples=100_000, plot_diffs=Fal
     if load_cache:
         if os.path.exists(file_path):
             print(f'loaded: {file_path}')
-            return pd.read_pickle(file_path)
+            return pd.read_pickle(file_path, compression='gzip')
 
     # generate
     with torch.no_grad():
@@ -148,7 +150,7 @@ def generate_data(data_name: str, batch_size=64, samples=100_000, plot_diffs=Fal
     # save into cache
     if save_cache:
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        df.to_pickle(file_path)
+        df.to_pickle(file_path, compression='gzip')
         print(f'cached: {file_path}')
 
     return df
@@ -223,10 +225,10 @@ if __name__ == '__main__':
     # generate data and plot!
     dfs = {}
     for data in ['DSprites', 'Cars3d', 'SmallNorb', 'Shapes3d', 'XYSquares']:
-        df = generate_data(data, batch_size=64, samples=25000, plot_diffs=False)
+        df = generate_data(data, batch_size=64, samples=50_000, plot_diffs=False)
         dfs[data] = df
         # plot ordered + shuffled
-        dual_plot_from_generated_data(df, save=True)
+        dual_plot_from_generated_data(df, data=data, save=True)
         plt.show()
 
     # all ordered plots
