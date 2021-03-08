@@ -4,9 +4,9 @@ module:
   _target_: disent.frameworks.vae.unsupervised.FreezeVae
   beta: ${framework.beta}
   # freezevae
-  freeze_after_steps: 7200
+  freeze_after_steps: 21600
   freeze_beta: 0.03
-  freeze_hidden_size: 256
+  freeze_hidden_size: 512
 
 # settings used elsewhere
 data_wrap_mode: single

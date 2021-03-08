@@ -15,7 +15,7 @@ defaults:
   - augment: none
   - sampling: full_bb
   - metrics: all
-  - schedule: beta_cyclic
+  - schedule: none
   # runtime
   - run_length: long
   - run_location: cluster_many
@@ -33,7 +33,7 @@ job:
   partition: batch
 
 framework:
-    beta: 0.003
+    beta: 0.00001
     module:
       recon_loss: mse
       loss_reduction: mean
