@@ -214,23 +214,11 @@ def aggregate_measure_distances_along_factor(
 
 
 def encode_all_along_factor(ground_truth_dataset, representation_function, f_idx: int, batch_size: int):
-    f_size = ground_truth_dataset.factor_sizes[f_idx]
     # generate repeated factors, varying one factor over a range (f_size, f_dims)
-    factors = range_along_repeated_factors(ground_truth_dataset, idx=f_idx, num=f_size)
+    factors = ground_truth_dataset.sample_random_traversal_factors(f_idx=f_idx)
     # get the representations of all the factors (f_size, z_size)
     sequential_zs = encode_all_factors(ground_truth_dataset, representation_function, factors=factors, batch_size=batch_size)
     return sequential_zs
-
-
-def range_along_repeated_factors(ground_truth_dataset, idx: int, num: int) -> np.ndarray:
-    # Aka. a traversal along a single factor
-    # make sequential factors, one randomly sampled list of
-    # factors, then repeated, with one index mutated as if set by range()
-    factors = ground_truth_dataset.sample_factors(size=1)
-    factors = factors.repeat(num, axis=0)
-    factors[:, idx] = np.arange(num)
-    return factors
-
 
 def encode_all_factors(ground_truth_dataset, representation_function, factors, batch_size: int) -> torch.Tensor:
     zs = []

@@ -157,6 +157,19 @@ class StateSpace(LengthIter):
         """
         return self.sample_missing_factors(np.array(factors)[..., fixed_factor_indices], fixed_factor_indices)
 
+    def sample_random_traversal_factors(self, f_idx: int = None) -> np.ndarray:
+        # choose a random factor if not given
+        if f_idx is None:
+            f_idx = np.random.randint(0, self.num_factors)
+        f_size = self.factor_sizes[f_idx]
+        # Aka. a traversal along a single factor
+        # make sequential factors, one randomly sampled list of
+        # factors, then repeated, with one index mutated as if set by range()
+        factors = self.sample_factors(size=1)
+        factors = factors.repeat(f_size, axis=0)
+        factors[:, f_idx] = np.arange(f_size)
+        return factors
+
 
 # ========================================================================= #
 # Hidden State Space                                                        #
