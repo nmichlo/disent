@@ -35,12 +35,15 @@ from disent.frameworks.helper.triplet_loss import TripletLossConfig
 
 class TripletGuidedAdaVae(GuidedAdaVae):
 
+    REQUIRED_OBS = 3
+
     @dataclass
     class cfg(GuidedAdaVae.cfg, TripletLossConfig):
         pass
 
-    def augment_loss(self, z_means):
-        return TripletVae.augment_loss_triplet(z_means, self.cfg)
+    def hook_compute_ave_aug_loss(self, ds_posterior, ds_prior, zs_sampled, xs_partial_recon, xs_targ):
+        d0_posterior, d1_posterior, d2_posterior = ds_posterior
+        return TripletVae.augment_loss_triplet(zs_means=(d0_posterior.mean, d1_posterior.mean, d2_posterior.mean), cfg=self.cfg)
 
 
 # ========================================================================= #

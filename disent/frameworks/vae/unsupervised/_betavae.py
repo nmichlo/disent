@@ -23,6 +23,12 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from dataclasses import dataclass
+from typing import Dict
+from typing import Optional
+
+import torch
+from torch.distributions import Distribution
+
 from disent.frameworks.vae.unsupervised import Vae
 
 
@@ -32,6 +38,8 @@ from disent.frameworks.vae.unsupervised import Vae
 
 
 class BetaVae(Vae):
+
+    REQUIRED_OBS = 1
 
     @dataclass
     class cfg(Vae.cfg):
@@ -59,8 +67,19 @@ class BetaVae(Vae):
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
         assert self.cfg.beta >= 0, 'beta must be >= 0'
 
-    def training_regularize_kl(self, kl_loss):
-        return self.cfg.beta * kl_loss
+    # --------------------------------------------------------------------- #
+    # Overrides                                                             #
+    # --------------------------------------------------------------------- #
+
+    def compute_reg_loss(self, d_posterior: Distribution, d_prior: Distribution, z_sampled: Optional[torch.Tensor]) -> (torch.Tensor, Dict[str, float]):
+        # BetaVAE - compute regularization loss
+        kl_loss = self.latents_handler.compute_kl_loss(d_posterior, d_prior, z_sampled)
+        kl_reg_loss = self.cfg.beta * kl_loss
+        # return logs
+        return kl_reg_loss, {
+            'kl_loss': kl_loss,
+            'kl_reg_loss': kl_reg_loss,
+        }
 
 
 # ========================================================================= #

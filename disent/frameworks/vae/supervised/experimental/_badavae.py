@@ -23,6 +23,10 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from dataclasses import dataclass
+from typing import Any
+from typing import Dict
+from typing import Sequence
+from typing import Tuple
 
 import torch
 from disent.frameworks.vae.weaklysupervised import AdaVae
@@ -35,64 +39,19 @@ from disent.frameworks.vae.weaklysupervised import AdaVae
 
 class BoundedAdaVae(AdaVae):
 
+    REQUIRED_OBS = 3
+
     @dataclass
     class cfg(AdaVae.cfg):
         pass
 
-    def compute_training_loss(self, batch, batch_idx):
-        (a_x, p_x, n_x), (a_x_targ, p_x_targ, n_x_targ) = batch['x'], batch['x_targ']
-
-        # FORWARD
-        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-        # latent distribution parametrisation
-        a_z_params = self.training_encode_params(a_x)
-        p_z_params = self.training_encode_params(p_x)
-        n_z_params = self.training_encode_params(n_x)
-        # intercept and mutate z [SPECIFIC TO ADAVAE]
-        (a_z_params, p_z_params), intercept_logs = self.intercept_z(all_params=(a_z_params, p_z_params, n_z_params))
-        # sample from latent distribution
-        (d0_posterior, d0_prior), a_z_sampled = self.training_params_to_distributions_and_sample(a_z_params)
-        (d1_posterior, d1_prior), p_z_sampled = self.training_params_to_distributions_and_sample(p_z_params)
-        # reconstruct without the final activation
-        a_x_partial_recon = self.training_decode_partial(a_z_sampled)
-        p_x_partial_recon = self.training_decode_partial(p_z_sampled)
-        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-
-        # LOSS
-        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-        # reconstruction error
-        a_recon_loss = self.training_recon_loss(a_x_partial_recon, a_x_targ)  # E[log p(x|z)]
-        p_recon_loss = self.training_recon_loss(p_x_partial_recon, p_x_targ)  # E[log p(x|z)]
-        ave_recon_loss = (a_recon_loss + p_recon_loss) / 2
-        # KL divergence
-        a_kl_loss = self.training_kl_loss(d0_posterior, d0_prior)     # D_kl(q(z|x) || p(z|x))
-        p_kl_loss = self.training_kl_loss(d1_posterior, d1_prior)     # D_kl(q(z|x) || p(z|x))
-        ave_kl_loss = (a_kl_loss + p_kl_loss) / 2
-        # compute kl regularisation
-        ave_kl_reg_loss = self.training_regularize_kl(ave_kl_loss)
-        # augment loss (0 for this)
-        augment_loss, augment_loss_logs = self.augment_loss(z_means=(a_z_params.mean, p_z_params.mean, n_z_params.mean))
-        # compute combined loss - must be same as the BetaVAE
-        loss = ave_recon_loss + ave_kl_reg_loss + augment_loss
-        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-
-        return {
-            'train_loss': loss,
-            'recon_loss': ave_recon_loss,
-            'kl_reg_loss': ave_kl_reg_loss,
-            'kl_loss': ave_kl_loss,
-            'elbo': -(ave_recon_loss + ave_kl_loss),
-            **intercept_logs,
-            **augment_loss_logs,
-        }
-
-    def intercept_z(self, all_params):
-        a_z_params, p_z_params, n_z_params = all_params
+    def hook_intercept_zs(self, zs_params: Sequence['Params']) -> Tuple[Sequence['Params'], Dict[str, Any]]:
+        a_z_params, p_z_params, n_z_params = zs_params
 
         # get distributions
-        a_d_posterior, _ = self.training_params_to_distributions(a_z_params)
-        p_d_posterior, _ = self.training_params_to_distributions(p_z_params)
-        n_d_posterior, _ = self.training_params_to_distributions(n_z_params)
+        a_d_posterior, _ = self.params_to_dists(a_z_params)
+        p_d_posterior, _ = self.params_to_dists(p_z_params)
+        n_d_posterior, _ = self.params_to_dists(n_z_params)
 
         # get deltas
         a_p_deltas = AdaVae.compute_kl_deltas(a_d_posterior, p_d_posterior, symmetric_kl=self.cfg.symmetric_kl)
@@ -109,7 +68,14 @@ class BoundedAdaVae(AdaVae):
         # make averaged variables
         new_args = AdaVae.compute_averaged(a_z_params, p_z_params, p_shared_mask, self._compute_average_fn)
 
+        # TODO: n_z_params should not be here! this does not match the original version
+        #       number of loss elements is not 2 like the original
+        #       - recons gets 2 items, p & a only
+        #       - reg gets 2 items, p & a only
+        new_args = (*new_args, n_z_params)
+
         # return new args & generate logs
+        # -- we only return 2 parameters a & p, not n
         return new_args, {
             'p_shared_before': old_p_shared_mask.sum(dim=1).float().mean(),
             'p_shared_after':      p_shared_mask.sum(dim=1).float().mean(),
@@ -117,9 +83,6 @@ class BoundedAdaVae(AdaVae):
             'n_shared_after':      n_shared_mask.sum(dim=1).float().mean(),
         }
     
-    def augment_loss(self, z_means):
-        return 0, {}
-
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # HELPER                                                                #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #

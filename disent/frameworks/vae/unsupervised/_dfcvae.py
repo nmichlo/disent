@@ -23,7 +23,12 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from dataclasses import dataclass
+from numbers import Number
+from typing import Any
+from typing import Dict
 from typing import List, Optional, Union
+from typing import Sequence
+from typing import Tuple
 
 import kornia
 import torch
@@ -55,6 +60,8 @@ class DfcVae(BetaVae):
         2. Mean taken over (batch for sum of pixels) not mean over (batch & pixels)
     """
 
+    REQUIRED_OBS = 1
+
     @dataclass
     class cfg(BetaVae.cfg):
         feature_layers: Optional[List[Union[str, int]]] = None
@@ -62,46 +69,27 @@ class DfcVae(BetaVae):
     def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
         # make dfc loss
+        # TODO: this should be converted to a reconstruction loss handler that wraps another handler
         self._dfc_loss = DfcLossModule(feature_layers=self.cfg.feature_layers)
-        # checks
-        if self.cfg.recon_loss != 'bce':
-            raise KeyError('dfcvae currently only supports bce loss. TODO: check why this is. The original implementation only supports mse.')
 
-    def compute_training_loss(self, batch, batch_idx):
-        (x,), (x_targ,) = batch['x'], batch['x_targ']
+    # --------------------------------------------------------------------- #
+    # Overrides                                                             #
+    # --------------------------------------------------------------------- #
 
-        # FORWARD
-        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-        # latent distribution parameterizations
-        z_params = self.training_encode_params(x)
-        # sample from latent distribution
-        (d_posterior, d_prior), z_sampled = self.training_params_to_distributions_and_sample(z_params)
-        # reconstruct without the final activation
-        x_partial_recon = self.training_decode_partial(z_sampled)
-        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-
-        # LOSS
-        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-        # Deep Features
-        feature_loss = self._dfc_loss.compute_loss(self._recons.activate(x_partial_recon), x_targ, reduction=self.cfg.loss_reduction)
-        # Pixel Loss
-        pixel_loss = self.training_recon_loss(x_partial_recon, x_targ)  # E[log p(x|z)]  (DIFFERENCE: 1)
+    def compute_ave_recon_loss(self, xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
+        # compute ave reconstruction loss
+        pixel_loss = self.recon_handler.compute_ave_loss(xs_partial_recon, xs_targ)  # (DIFFERENCE: 1)
+        # compute ave deep features loss
+        feature_loss = torch.stack([
+            self._dfc_loss.compute_loss(self.recon_handler.activate(x_partial_recon), x_targ, reduction=self.cfg.loss_reduction)
+            for x_partial_recon, x_targ in zip(xs_partial_recon, xs_targ)
+        ]).mean(dim=-1)
         # reconstruction error
+        # TODO: not in reference implementation, but terms should be weighted
+        # TODO: not in reference but feature loss is not scaled properly
         recon_loss = (pixel_loss + feature_loss) * 0.5
-        # KL divergence & regularisation
-        kl_loss = self.training_kl_loss(d_posterior, d_prior)  # D_kl(q(z|x) || p(z|x))
-        # compute kl regularisation
-        kl_reg_loss = self.training_regularize_kl(kl_loss)
-        # compute combined loss
-        loss = recon_loss + kl_reg_loss
-        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-
-        return {
-            'train_loss': loss,
-            'recon_loss': recon_loss,
-            'kl_reg_loss': kl_reg_loss,
-            'kl_loss': kl_loss,
-            'elbo': -(recon_loss + kl_loss),
+        # return logs
+        return recon_loss, {
             'pixel_loss': pixel_loss,
             'feature_loss': feature_loss,
         }
@@ -153,6 +141,7 @@ class DfcLossModule(torch.nn.Module):
         features_recon = self._extract_features(x_recon)
         features_targ = self._extract_features(x_targ)
         # compute losses
+        # TODO: not in reference implementation, but consider calculating mean feature loss rather than sum
         feature_loss = 0.0
         for (f_recon, f_targ) in zip(features_recon, features_targ):
             feature_loss += F.mse_loss(f_recon, f_targ, reduction='mean')
