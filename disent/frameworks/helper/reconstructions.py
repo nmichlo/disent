@@ -30,6 +30,7 @@ import torch
 import torch.nn.functional as F
 
 from disent.frameworks.helper.reductions import loss_reduction
+from disent.frameworks.helper.util import compute_ave_loss
 
 
 # ========================================================================= #
@@ -49,6 +50,9 @@ class ReconLossHandler(object):
         """
         raise NotImplementedError
 
+    def activate_all(self, xs):
+        return [self.activate(x) for x in xs]
+
     @final
     def compute_loss(self, x_partial_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
         """
@@ -63,11 +67,7 @@ class ReconLossHandler(object):
 
     @final
     def compute_ave_loss(self, xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> torch.Tensor:
-        assert len(xs_partial_recon) == len(xs_targ)
-        return torch.stack([
-            self.compute_loss(x_partial_recon, x_targ)
-            for x_partial_recon, x_targ in zip(xs_partial_recon, xs_targ)
-        ]).mean(dim=0)
+        return compute_ave_loss(self.compute_loss, xs_partial_recon, xs_targ)
 
     def _compute_unreduced_loss(self, x_partial_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
         """

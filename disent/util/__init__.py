@@ -205,17 +205,20 @@ def iter_rechunk(chunks, chunk_size: int, include_remainder=True):
 
 
 # TODO: not actually an iterator
-def map_all(fn, *arg_lists, starmap: bool = True, collect_returned: bool = False):
+def map_all(fn, *arg_lists, starmap: bool = True, collect_returned: bool = False, common_kwargs: dict = None):
     assert arg_lists, 'an empty list of args was passed'
     # check all lengths are the same
     num = len(arg_lists[0])
     assert num > 0
     assert all(len(items) == num for items in arg_lists)
+    # update kwargs
+    if common_kwargs is None:
+        common_kwargs = {}
     # map everything
     if starmap:
-        results = (fn(*args) for args in zip(*arg_lists))
+        results = (fn(*args, **common_kwargs) for args in zip(*arg_lists))
     else:
-        results = (fn(args) for args in zip(*arg_lists))
+        results = (fn(args, **common_kwargs) for args in zip(*arg_lists))
     # zip everything
     if collect_returned:
         return tuple(zip(*results))

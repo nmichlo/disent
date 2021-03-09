@@ -23,8 +23,13 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from dataclasses import dataclass
+from numbers import Number
+from typing import Any
 from typing import Dict
 from typing import Optional
+from typing import Sequence
+from typing import Tuple
+from typing import Union
 
 import torch
 from torch.distributions import Distribution
@@ -71,9 +76,9 @@ class BetaVae(Vae):
     # Overrides                                                             #
     # --------------------------------------------------------------------- #
 
-    def compute_reg_loss(self, d_posterior: Distribution, d_prior: Distribution, z_sampled: Optional[torch.Tensor]) -> (torch.Tensor, Dict[str, float]):
-        # BetaVAE - compute regularization loss
-        kl_loss = self.latents_handler.compute_kl_loss(d_posterior, d_prior, z_sampled)
+    def compute_ave_reg_loss(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
+        # BetaVAE: compute regularization loss (kl divergence)
+        kl_loss = self.latents_handler.compute_ave_kl_loss(ds_posterior, ds_prior, zs_sampled)
         kl_reg_loss = self.cfg.beta * kl_loss
         # return logs
         return kl_reg_loss, {

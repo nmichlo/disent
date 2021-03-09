@@ -25,6 +25,7 @@
 from disent.frameworks.vae.unsupervised._vae import Vae
 from disent.frameworks.vae.unsupervised._betavae import BetaVae
 from disent.frameworks.vae.unsupervised._dfcvae import DfcVae
+from disent.frameworks.vae.unsupervised._dipvae import DipVae
 
 # experimental frameworks
 # -- none --

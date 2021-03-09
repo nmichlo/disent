@@ -25,10 +25,12 @@
 from dataclasses import dataclass
 from typing import Dict
 from typing import Optional
+from typing import Sequence
 
 import torch
 from torch.distributions import Normal
 
+from disent.frameworks.helper.util import compute_ave_loss_and_logs
 from disent.frameworks.vae.unsupervised import BetaVae
 
 
@@ -66,17 +68,17 @@ class DipVae(BetaVae):
     # Overrides                                                             #
     # --------------------------------------------------------------------- #
 
-    def compute_reg_loss(self, d_posterior: Normal, d_prior: Normal, z_sampled: Optional[torch.Tensor]) -> (torch.Tensor, Dict[str, float]):
+    def compute_ave_reg_loss(self, ds_posterior: Sequence[Normal], ds_prior: Sequence[Normal], zs_sampled):
         # compute kl loss
-        kl_reg_loss, logs_kl_reg = super().compute_reg_loss(d_posterior, d_prior, z_sampled)
+        kl_reg_loss, logs_kl_reg = super().compute_ave_reg_loss(ds_posterior, ds_prior, zs_sampled)
         # compute dip loss
-        dip_reg_loss, logs_dip_reg = self._dip_compute_loss(d_posterior)
+        dip_reg_loss, logs_dip_reg = compute_ave_loss_and_logs(self._dip_compute_loss, ds_posterior)
         # combine
         combined_loss = kl_reg_loss + dip_reg_loss
         # return logs
         return combined_loss, {
-            *logs_kl_reg,  # kl_loss, kl_reg_loss
-            *logs_dip_reg,  # dip_loss_d, dip_loss_od, dip_loss, dip_reg_loss,
+            **logs_kl_reg,   # kl_loss, kl_reg_loss
+            **logs_dip_reg,  # dip_loss_d, dip_loss_od, dip_loss, dip_reg_loss,
         }
 
     # --------------------------------------------------------------------- #

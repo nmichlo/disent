@@ -32,6 +32,7 @@ import torch
 from torch.distributions import Normal, Distribution
 
 from disent.frameworks.helper.reductions import loss_reduction
+from disent.frameworks.helper.util import compute_ave_loss
 from disent.util import TupleDataClass
 
 
@@ -133,11 +134,7 @@ class LatentDistsHandler(object):
 
     @final
     def compute_ave_kl_loss(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled: Sequence[torch.Tensor]) -> torch.Tensor:
-        assert len(ds_posterior) == len(ds_prior) == len(zs_sampled)
-        return torch.stack([
-            self.compute_kl_loss(posterior, prior, z_sampled)
-            for posterior, prior, z_sampled in zip(ds_posterior, ds_prior, zs_sampled)
-        ]).mean(dim=0)
+        return compute_ave_loss(self.compute_kl_loss, ds_posterior, ds_prior, zs_sampled)
 
 
 # ========================================================================= #
