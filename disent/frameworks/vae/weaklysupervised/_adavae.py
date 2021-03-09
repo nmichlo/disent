@@ -21,6 +21,10 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+from typing import Any
+from typing import Dict
+from typing import Sequence
+from typing import Tuple
 
 import torch
 from dataclasses import dataclass
@@ -36,7 +40,6 @@ from disent.frameworks.vae.unsupervised import BetaVae
 
 
 class AdaVae(BetaVae):
-
     """
     Weakly Supervised Disentanglement Learning Without Compromises: https://arxiv.org/abs/2002.02886
     - pretty much a beta-vae with averaging between decoder outputs to form weak supervision signal.
@@ -46,6 +49,8 @@ class AdaVae(BetaVae):
     MODIFICATION:
     - Symmetric KL Calculation used by default, described in: https://openreview.net/pdf?id=8VXvj1QNRl1
     """
+
+    REQUIRED_OBS = 2
 
     @dataclass
     class cfg(BetaVae.cfg):
@@ -60,55 +65,7 @@ class AdaVae(BetaVae):
             'ml-vae': compute_average_ml_vae
         }[self.cfg.average_mode]
 
-    def do_training_step(self, batch, batch_idx):
-        """
-        (✓) Visual inspection against reference implementation:
-            https://github.com/google-research/disentanglement_lib (GroupVAEBase & MLVae)
-            - only difference for GroupVAEBase & MLVae how the mean parameterisations are calculated
-        """
-        (x0, x1), (x0_targ, x1_targ) = batch['x'], batch['x_targ']
-
-        # FORWARD
-        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-        # latent distribution parameterizations
-        z0_params = self.encode_params(x0)
-        z1_params = self.encode_params(x1)
-        # intercept and mutate z [SPECIFIC TO ADAVAE]
-        (z0_params, z1_params), intercept_logs = self.intercept_z(all_params=(z0_params, z1_params))
-        # sample from latent distribution
-        d0_posterior, d0_prior, z0_sampled = self.params_to_dists_and_sample(z0_params)
-        d1_posterior, d1_prior, z1_sampled = self.params_to_dists_and_sample(z1_params)
-        # reconstruct without the final activation
-        x0_partial_recon = self.decode_partial(z0_sampled)
-        x1_partial_recon = self.decode_partial(z1_sampled)
-        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-
-        # LOSS
-        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-        # reconstruction error
-        recon0_loss, _ = self.compute_reconstruction_loss(x0_partial_recon, x0_targ)  # E[log p(x|z)]
-        recon1_loss, _ = self.compute_reconstruction_loss(x1_partial_recon, x1_targ)  # E[log p(x|z)]
-        ave_recon_loss = (recon0_loss + recon1_loss) / 2
-        # KL divergence
-        kl0_loss = self.training_kl_loss(d0_posterior, d0_prior)  # D_kl(q(z|x) || p(z|x), d0_prior)
-        kl1_loss = self.training_kl_loss(d1_posterior, d1_prior)  # D_kl(q(z|x) || p(z|x), d1_prior)
-        ave_kl_loss = (kl0_loss + kl1_loss) / 2
-        # compute kl regularisation
-        ave_kl_reg_loss = self.training_regularize_kl(ave_kl_loss)
-        # compute combined loss - must be same as the BetaVAE
-        loss = ave_recon_loss + ave_kl_reg_loss
-        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-
-        return {
-            'train_loss': loss,
-            'recon_loss': ave_recon_loss,
-            'kl_reg_loss': ave_kl_reg_loss,
-            'kl_loss': ave_kl_loss,
-            'elbo': -(ave_recon_loss + ave_kl_loss),
-            **intercept_logs,
-        }
-
-    def intercept_z(self, all_params):
+    def hook_intercept_zs(self, zs_params: Sequence['Params']) -> Tuple[Sequence['Params'], Dict[str, Any]]:
         """
         Adaptive VAE Glue Method, putting the various components together
         1. find differences between deltas
@@ -119,10 +76,10 @@ class AdaVae(BetaVae):
         (✓) Visual inspection against reference implementation:
             https://github.com/google-research/disentanglement_lib (aggregate_argmax)
         """
-        z0_params, z1_params = all_params
+        z0_params, z1_params = zs_params
         # compute the deltas
-        d0_posterior, _ = self.training_params_to_distributions(z0_params)  # numerical accuracy errors
-        d1_posterior, _ = self.training_params_to_distributions(z1_params)  # numerical accuracy errors
+        d0_posterior, _ = self.params_to_dists(z0_params)  # numerical accuracy errors
+        d1_posterior, _ = self.params_to_dists(z1_params)  # numerical accuracy errors
         z_deltas = self.compute_kl_deltas(d0_posterior, d1_posterior, symmetric_kl=self.cfg.symmetric_kl)
         # shared elements that need to be averaged, computed per pair in the batch.
         share_mask = self.compute_shared_mask(z_deltas)
@@ -180,7 +137,6 @@ class AdaVae(BetaVae):
         shared_mask = z_deltas < z_threshs
         # return
         return shared_mask
-
 
     @classmethod
     def estimate_threshold(cls, kl_deltas, keepdim=True):

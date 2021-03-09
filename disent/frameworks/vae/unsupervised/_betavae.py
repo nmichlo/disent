@@ -39,6 +39,8 @@ from disent.frameworks.vae.unsupervised import Vae
 
 class BetaVae(Vae):
 
+    REQUIRED_OBS = 1
+
     @dataclass
     class cfg(Vae.cfg):
         # BETA SCALING:
@@ -69,9 +71,9 @@ class BetaVae(Vae):
     # Overrides                                                             #
     # --------------------------------------------------------------------- #
 
-    def compute_regularization_loss(self, d_posterior: Distribution, d_prior: Distribution, z_sampled: Optional[torch.Tensor]) -> (torch.Tensor, Dict[str, float]):
+    def compute_reg_loss(self, d_posterior: Distribution, d_prior: Distribution, z_sampled: Optional[torch.Tensor]) -> (torch.Tensor, Dict[str, float]):
         # BetaVAE - compute regularization loss
-        kl_loss = self.training_kl_loss(d_posterior, d_prior, z_sampled)
+        kl_loss = self.latents_handler.compute_kl_loss(d_posterior, d_prior, z_sampled)
         kl_reg_loss = self.cfg.beta * kl_loss
         # return logs
         return kl_reg_loss, {

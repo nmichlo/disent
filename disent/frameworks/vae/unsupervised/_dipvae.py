@@ -45,6 +45,8 @@ class DipVae(BetaVae):
     Reference implementation is from: https://github.com/AntixK/PyTorch-VAE
     """
 
+    REQUIRED_OBS = 1
+
     @dataclass
     class cfg(BetaVae.cfg):
         dip_mode: str = 'ii'
@@ -64,9 +66,9 @@ class DipVae(BetaVae):
     # Overrides                                                             #
     # --------------------------------------------------------------------- #
 
-    def compute_regularization_loss(self, d_posterior: Normal, d_prior: Normal, z_sampled: Optional[torch.Tensor]) -> (torch.Tensor, Dict[str, float]):
+    def compute_reg_loss(self, d_posterior: Normal, d_prior: Normal, z_sampled: Optional[torch.Tensor]) -> (torch.Tensor, Dict[str, float]):
         # compute kl loss
-        kl_reg_loss, logs_kl_reg = super().compute_regularization_loss(d_posterior, d_prior, z_sampled)
+        kl_reg_loss, logs_kl_reg = super().compute_reg_loss(d_posterior, d_prior, z_sampled)
         # compute dip loss
         dip_reg_loss, logs_dip_reg = self._dip_compute_loss(d_posterior)
         # combine

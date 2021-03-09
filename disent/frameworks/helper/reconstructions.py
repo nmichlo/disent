@@ -24,6 +24,7 @@
 
 import warnings
 from typing import final
+from typing import Sequence
 
 import torch
 import torch.nn.functional as F
@@ -38,6 +39,9 @@ from disent.frameworks.helper.reductions import loss_reduction
 
 class ReconLossHandler(object):
 
+    def __init__(self, reduction: str = 'mean'):
+        self._reduction = reduction
+
     def activate(self, x):
         """
         The final activation of the model.
@@ -46,7 +50,7 @@ class ReconLossHandler(object):
         raise NotImplementedError
 
     @final
-    def training_compute_loss(self, x_partial_recon: torch.Tensor, x_targ: torch.Tensor, reduction: str = 'mean') -> torch.Tensor:
+    def compute_loss(self, x_partial_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
         """
         Takes in an **unactivated** tensor from the model
         as well as an original target from the dataset.
@@ -54,8 +58,16 @@ class ReconLossHandler(object):
         """
         assert x_partial_recon.shape == x_targ.shape, f'x_partial_recon.shape={x_partial_recon.shape} x_targ.shape={x_targ.shape}'
         batch_loss = self._compute_unreduced_loss(x_partial_recon, x_targ)
-        loss = loss_reduction(batch_loss, reduction=reduction)
+        loss = loss_reduction(batch_loss, reduction=self._reduction)
         return loss
+
+    @final
+    def compute_ave_loss(self, xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> torch.Tensor:
+        assert len(xs_partial_recon) == len(xs_targ)
+        return torch.stack([
+            self.compute_loss(x_partial_recon, x_targ)
+            for x_partial_recon, x_targ in zip(xs_partial_recon, xs_targ)
+        ]).mean(dim=0)
 
     def _compute_unreduced_loss(self, x_partial_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
         """
@@ -91,8 +103,6 @@ class ReconLossHandlerMse(ReconLossHandler):
         #       so that the MSE values are consistent. activating x_partial_recon instead
         #       changes the scale of the loss
         return F.mse_loss(x_partial_recon, (x_targ * 2) - 1, reduction='none')
-
-
 
 
 class ReconLossHandlerBce(ReconLossHandler):
@@ -159,26 +169,28 @@ class ReconLossHandlerNormal(ReconLossHandlerMse):
 # ========================================================================= #
 
 
-def make_reconstruction_loss(name) -> ReconLossHandler:
+def make_reconstruction_loss(name: str, reduction: str) -> ReconLossHandler:
     if name == 'mse':
         # from the normal distribution
         # binary values only in the set {0, 1}
-        return ReconLossHandlerMse()
+        cls = ReconLossHandlerMse
     elif name == 'bce':
         # from the bernoulli distribution
-        return ReconLossHandlerBce()
+        cls = ReconLossHandlerBce
     elif name == 'bernoulli':
         # reduces to bce
         # binary values only in the set {0, 1}
-        return ReconLossHandlerBernoulli()
+        cls = ReconLossHandlerBernoulli
     elif name == 'continuous_bernoulli':
         # bernoulli with a computed offset to handle values in the range [0, 1]
-        return ReconLossHandlerContinuousBernoulli()
+        cls = ReconLossHandlerContinuousBernoulli
     elif name == 'normal':
         # handle all real values
-        return ReconLossHandlerNormal()
+        cls = ReconLossHandlerNormal
     else:
         raise KeyError(f'Invalid vae reconstruction loss: {name}')
+    # instantiate!
+    return cls(reduction=reduction)
 
 
 # ========================================================================= #

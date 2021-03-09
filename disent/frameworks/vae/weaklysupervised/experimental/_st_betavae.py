@@ -35,6 +35,8 @@ from disent.frameworks.vae.unsupervised import BetaVae
 
 class SwappedTargetBetaVae(BetaVae):
 
+    REQUIRED_OBS = 2
+
     @dataclass
     class cfg(BetaVae.cfg):
         swap_chance: float = 0.1

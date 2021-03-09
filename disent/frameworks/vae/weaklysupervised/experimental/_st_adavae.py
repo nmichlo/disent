@@ -35,6 +35,8 @@ from disent.frameworks.vae.weaklysupervised import AdaVae
 
 class SwappedTargetAdaVae(AdaVae):
 
+    REQUIRED_OBS = 2
+
     @dataclass
     class cfg(AdaVae.cfg):
         swap_chance: float = 0.1

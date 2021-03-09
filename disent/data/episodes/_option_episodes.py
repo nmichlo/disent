@@ -29,7 +29,7 @@ from disent.data.episodes._base import BaseOptionEpisodesData
 from disent.data.util.in_out import download_file, basename_from_url
 import logging
 
-log = logging.getLogger(__file__)
+log = logging.getLogger(__name__)
 
 
 class OptionEpisodesPickledData(BaseOptionEpisodesData):

@@ -204,18 +204,18 @@ def iter_rechunk(chunks, chunk_size: int, include_remainder=True):
     )
 
 
-# not actually an iterator
-def map_all(fn, *item_lists, starmap: bool = False, collect_returned: bool = False):
-    assert item_lists, 'an empty list of items was passed'
+# TODO: not actually an iterator
+def map_all(fn, *arg_lists, starmap: bool = True, collect_returned: bool = False):
+    assert arg_lists, 'an empty list of args was passed'
     # check all lengths are the same
-    num = len(item_lists[0])
+    num = len(arg_lists[0])
     assert num > 0
-    assert all(len(items) == num for items in item_lists)
+    assert all(len(items) == num for items in arg_lists)
     # map everything
     if starmap:
-        results = (fn(*items) for items in zip(*item_lists))
+        results = (fn(*args) for args in zip(*arg_lists))
     else:
-        results = (fn(items) for items in zip(*item_lists))
+        results = (fn(args) for args in zip(*arg_lists))
     # zip everything
     if collect_returned:
         return tuple(zip(*results))
@@ -235,7 +235,6 @@ def aggregate_dict(results: dict, reduction='mean'):
     return {
         k: sum(v) / len(v) for k, v in results.items()
     }
-
 
 
 # ========================================================================= #
@@ -489,6 +488,33 @@ class TupleDataClass:
 
     def __repr__(self):
         return f'{self.__class__.__name__}({", ".join(f"{name}={repr(getattr(self, name))}" for name in self.__field_names)})'
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #
+
+
+def debug_transform_tensors(obj):
+    """
+    recursively convert all tensors to their shapes for debugging
+    """
+    if isinstance(obj, (torch.Tensor, np.ndarray)):
+        return obj.shape
+    elif isinstance(obj, dict):
+        return {debug_transform_tensors(k): debug_transform_tensors(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return list(debug_transform_tensors(v) for v in obj)
+    elif isinstance(obj, tuple):
+        return tuple(debug_transform_tensors(v) for v in obj)
+    elif isinstance(obj, set):
+        return {debug_transform_tensors(k) for k in obj}
+    else:
+        return obj
+
+
+def pprint_tensors(*args, **kwargs):
+    print(*(debug_transform_tensors(arg) for arg in args), **kwargs)
 
 
 # ========================================================================= #

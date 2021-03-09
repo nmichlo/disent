@@ -23,6 +23,10 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from dataclasses import dataclass
+from typing import Any
+from typing import Dict
+from typing import Sequence
+from typing import Tuple
 
 import torch
 from disent.frameworks.vae.weaklysupervised import AdaVae
@@ -35,6 +39,8 @@ from disent.frameworks.vae.weaklysupervised import AdaVae
 
 class GuidedAdaVae(AdaVae):
 
+    REQUIRED_OBS = 3
+
     @dataclass
     class cfg(AdaVae.cfg):
         anchor_ave_mode: str = 'average'
@@ -44,70 +50,19 @@ class GuidedAdaVae(AdaVae):
         # how the anchor is averaged
         assert cfg.anchor_ave_mode in {'thresh', 'average'}
 
-    def do_training_step(self, batch, batch_idx):
-        (a_x, p_x, n_x), (a_x_targ, p_x_targ, n_x_targ) = batch['x'], batch['x_targ']
-
-        # FORWARD
-        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-        # latent distribution parametrisation
-        a_z_params = self.encode_params(a_x)
-        p_z_params = self.encode_params(p_x)
-        n_z_params = self.encode_params(n_x)
-        # intercept and mutate z [SPECIFIC TO ADAVAE]
-        (a_z_params, p_z_params, n_z_params), intercept_logs = self.training_intercept_z(all_params=(a_z_params, p_z_params, n_z_params))
-        # sample from latent distribution
-        (a_d_posterior, a_d_prior), a_z_sampled = self.training_params_to_distributions_and_sample(a_z_params)
-        (p_d_posterior, p_d_prior), p_z_sampled = self.training_params_to_distributions_and_sample(p_z_params)
-        (n_d_posterior, n_d_prior), n_z_sampled = self.training_params_to_distributions_and_sample(n_z_params)
-        # reconstruct without the final activation
-        a_x_partial_recon = self.decode_partial(a_z_sampled)
-        p_x_partial_recon = self.decode_partial(p_z_sampled)
-        n_x_partial_recon = self.decode_partial(n_z_sampled)
-        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-
-        # LOSS
-        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-        # reconstruction error
-        a_recon_loss = self.recon_loss(a_x_partial_recon, a_x_targ)  # E[log p(x|z)]
-        p_recon_loss = self.recon_loss(p_x_partial_recon, p_x_targ)  # E[log p(x|z)]
-        n_recon_loss = self.recon_loss(n_x_partial_recon, n_x_targ)  # E[log p(x|z)]
-        ave_recon_loss = (a_recon_loss + p_recon_loss + n_recon_loss) / 3
-        # KL divergence
-        a_kl_loss = self.training_kl_loss(a_d_posterior, a_d_prior, a_z_sampled)  # D_kl(q(z|x) || p(z|x))
-        p_kl_loss = self.training_kl_loss(p_d_posterior, p_d_prior, p_z_sampled)  # D_kl(q(z|x) || p(z|x))
-        n_kl_loss = self.training_kl_loss(n_d_posterior, n_d_prior, n_z_sampled)  # D_kl(q(z|x) || p(z|x))
-        ave_kl_loss = (a_kl_loss + p_kl_loss + n_kl_loss) / 3
-        # compute kl regularisation
-        ave_kl_reg_loss = self.training_regularize_kl(ave_kl_loss)
-        # augment loss (0 for this)
-        augment_loss, augment_loss_logs = self.augment_loss(z_means=(a_z_params.mean, p_z_params.mean, n_z_params.mean))
-        # compute combined loss - must be same as the BetaVAE
-        loss = ave_recon_loss + ave_kl_reg_loss + augment_loss
-        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-
-        return {
-            'train_loss': loss,
-            'recon_loss': ave_recon_loss,
-            'kl_reg_loss': ave_kl_reg_loss,
-            'kl_loss': ave_kl_loss,
-            'elbo': -(ave_recon_loss + ave_kl_loss),
-            **intercept_logs,
-            **augment_loss_logs,
-        }
-
-    def training_intercept_z(self, all_params):
+    def hook_intercept_zs(self, zs_params: Sequence['Params']) -> Tuple[Sequence['Params'], Dict[str, Any]]:
         """
         *NB* arguments must satisfy: d(l, l2) < d(l, l3) [positive dist < negative dist]
         - This function assumes that the distance between labels l, l2, l3
           corresponding to z, z2, z3 satisfy the criteria d(l, l2) < d(l, l3)
           ie. l2 is the positive sample, l3 is the negative sample
         """
-        a_z_params, p_z_params, n_z_params = all_params
+        a_z_params, p_z_params, n_z_params = zs_params
 
         # get distributions
-        a_d_posterior, _ = self.training_params_to_distributions(a_z_params)
-        p_d_posterior, _ = self.training_params_to_distributions(p_z_params)
-        n_d_posterior, _ = self.training_params_to_distributions(n_z_params)
+        a_d_posterior, _ = self.params_to_dists(a_z_params)
+        p_d_posterior, _ = self.params_to_dists(p_z_params)
+        n_d_posterior, _ = self.params_to_dists(n_z_params)
 
         # get deltas
         a_p_deltas = AdaVae.compute_kl_deltas(a_d_posterior, p_d_posterior, symmetric_kl=self.cfg.symmetric_kl)
@@ -124,7 +79,7 @@ class GuidedAdaVae(AdaVae):
         # make averaged variables
         pa_z_params, p_z_params = AdaVae.compute_averaged(a_z_params, p_z_params, p_shared_mask, self._compute_average_fn)
         na_z_params, n_z_params = AdaVae.compute_averaged(a_z_params, n_z_params, n_shared_mask, self._compute_average_fn)
-        ave_params = self._latents_handler.encoding_to_params(self._compute_average_fn(pa_z_params.mean, pa_z_params.logvar, pa_z_params.mean, pa_z_params.logvar))
+        ave_params = self.latents_handler.encoding_to_params(self._compute_average_fn(pa_z_params.mean, pa_z_params.logvar, pa_z_params.mean, pa_z_params.logvar))
 
         anchor_ave_logs = {}
         if self.cfg.anchor_ave_mode == 'thresh':
@@ -142,9 +97,6 @@ class GuidedAdaVae(AdaVae):
             **anchor_ave_logs,
         }
     
-    def augment_loss(self, z_means):
-        return 0, {}
-
 
 # ========================================================================= #
 # HELPER                                                                    #

@@ -24,6 +24,7 @@
 
 from dataclasses import dataclass
 from dataclasses import fields
+from typing import Sequence
 from typing import Tuple, final
 
 import numpy as np
@@ -83,6 +84,10 @@ def kl_loss(posterior: Distribution, prior: Distribution, z_sampled: torch.Tenso
 
 class LatentDistsHandler(object):
 
+    def __init__(self,  kl_mode: str = 'direct', reduction='mean'):
+        self._kl_mode = kl_mode
+        self._reduction = reduction
+
     @dataclass
     class Params(TupleDataClass):
         """
@@ -118,18 +123,21 @@ class LatentDistsHandler(object):
         return posterior, prior, z_sampled
 
     @final
-    @classmethod
-    def compute_kl_loss(
-            cls,
-            posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None,
-            mode: str = 'direct', reduction='mean'
-    ):
+    def compute_kl_loss(self, posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None) -> torch.Tensor:
         """
         Compute the kl divergence
         """
-        kl = kl_loss(posterior, prior, z_sampled, mode=mode)
-        kl = loss_reduction(kl, reduction=reduction)
+        kl = kl_loss(posterior, prior, z_sampled, mode=self._kl_mode)
+        kl = loss_reduction(kl, reduction=self._reduction)
         return kl
+
+    @final
+    def compute_ave_kl_loss(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled: Sequence[torch.Tensor]) -> torch.Tensor:
+        assert len(ds_posterior) == len(ds_prior) == len(zs_sampled)
+        return torch.stack([
+            self.compute_kl_loss(posterior, prior, z_sampled)
+            for posterior, prior, z_sampled in zip(ds_posterior, ds_prior, zs_sampled)
+        ]).mean(dim=0)
 
 
 # ========================================================================= #
@@ -207,11 +215,13 @@ class LatentDistsHandlerNormal(LatentDistsHandler):
 # ========================================================================= #
 
 
-def make_latent_distribution(name: str) -> LatentDistsHandler:
+def make_latent_distribution(name: str, kl_mode: str, reduction: str) -> LatentDistsHandler:
     if name == 'normal':
-        return LatentDistsHandlerNormal()
+        cls = LatentDistsHandlerNormal
     else:
         raise KeyError(f'unknown vae distribution name: {name}')
+    # make instance
+    return cls(kl_mode=kl_mode, reduction=reduction)
 
 
 # ========================================================================= #

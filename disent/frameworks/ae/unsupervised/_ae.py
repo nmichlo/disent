@@ -23,20 +23,26 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from dataclasses import dataclass
+from numbers import Number
+from typing import Any
 from typing import Dict
 from typing import final
 from typing import Sequence
 from typing import Tuple
+
+import logging
+from typing import Union
 
 import torch
 
 from disent.frameworks.helper.reconstructions import ReconLossHandler, make_reconstruction_loss
 from disent.model.ae.base import AutoEncoder
 from disent.frameworks.framework import BaseFramework
-from disent.util import aggregate_dict
-from disent.util import collect_dicts
 
 from disent.util import map_all
+
+
+log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
@@ -50,6 +56,7 @@ class AE(BaseFramework):
     """
 
     REQUIRED_Z_MULTIPLIER = 1
+    REQUIRED_OBS = 1
 
     @dataclass
     class cfg(BaseFramework.cfg):
@@ -64,27 +71,42 @@ class AE(BaseFramework):
         super().__init__(make_optimizer_fn, batch_augment=batch_augment, cfg=cfg)
         # vae model
         assert callable(make_model_fn)
-        self._model: AutoEncoder = make_model_fn()
+        self._model: AutoEncoder = make_model_fn()  # TODO: move into property
         # check the model
         assert isinstance(self._model, AutoEncoder)
         assert self._model.z_multiplier == self.REQUIRED_Z_MULTIPLIER, f'model z_multiplier is {repr(self._model.z_multiplier)} but {self.__class__.__name__} requires that it is: {repr(self.REQUIRED_Z_MULTIPLIER)}'
         # recon loss & activation fn
-        self._recon_handler: ReconLossHandler = make_reconstruction_loss(self.cfg.recon_loss)
+        self.__recon_handler: ReconLossHandler = make_reconstruction_loss(self.cfg.recon_loss, reduction=self.cfg.loss_reduction)
+
+    @final
+    @property
+    def recon_handler(self) -> ReconLossHandler:
+        return self.__recon_handler
 
     # --------------------------------------------------------------------- #
     # AE Training Step -- Overridable                                       #
     # --------------------------------------------------------------------- #
 
     @final
+    def _get_xs_and_targs(self, batch, batch_idx) -> Tuple[Tuple[torch.Tensor, ...], Tuple[torch.Tensor, ...]]:
+        # TODO: maybe this should be moved into BaseFramework?
+        xs, xs_targ = batch['x'], batch['x_targ']
+        # check that we have the correct number of inputs
+        if (len(xs) != self.REQUIRED_OBS) or (len(xs_targ) != self.REQUIRED_OBS):
+            log.warning(f'batch len(xs)={len(xs)} and len(xs_targ)={len(xs_targ)} observation count mismatch, requires: {self.REQUIRED_OBS}')
+        # done
+        return xs, xs_targ
+
+    @final
     def do_training_step(self, batch, batch_idx):
-        xs, xs_targ, = batch['x'], batch['x_targ']
+        xs, xs_targ = self._get_xs_and_targs(batch, batch_idx)
 
         # FORWARD
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # latent variables
         zs = map_all(self.encode_params, xs)
         # intercept latent variables
-        zs, logs_intercept = self.training_intercept_zs(zs)
+        zs, logs_intercept_zs = self.hook_intercept_zs(zs)
         # reconstruct without the final activation
         xs_partial_recon = map_all(self.decode_partial, zs)
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -92,16 +114,15 @@ class AE(BaseFramework):
         # LOSS
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # compute all the recon losses
-        recon_loss, logs_recon = map_all(self.compute_reconstruction_loss, xs_partial_recon, xs_targ, collect_returned=True)
-        recon_loss = sum(recon_loss) / len(recon_loss)
+        recon_loss, logs_recon = self.compute_ave_recon_loss(xs_partial_recon, xs_targ)
         # compute combined loss
         loss = recon_loss
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
         # return values
         return loss, {
-            **logs_intercept,
-            **aggregate_dict(collect_dicts(logs_recon)),
+            **logs_intercept_zs,
+            **logs_recon,
             'recon_loss': recon_loss,
         }
 
@@ -109,12 +130,12 @@ class AE(BaseFramework):
     # Overrideable                                                          #
     # --------------------------------------------------------------------- #
 
-    def training_intercept_zs(self, zs: Sequence[torch.Tensor]) -> Sequence[torch.Tensor]:
-        return zs
+    def hook_intercept_zs(self, zs: Sequence[torch.Tensor]) -> Tuple[Sequence[torch.Tensor], Dict[str, Any]]:
+        return zs, {}
 
-    def compute_reconstruction_loss(self, x_partial_recon: torch.Tensor, x_targ: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
+    def compute_ave_recon_loss(self, xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
         # compute reconstruction loss
-        pixel_loss = self.recon_loss(x_partial_recon, x_targ)
+        pixel_loss = self.recon_handler.compute_ave_loss(xs_partial_recon, xs_targ)
         # return logs
         return pixel_loss, {
             'pixel_loss': pixel_loss
@@ -132,7 +153,7 @@ class AE(BaseFramework):
     @final
     def decode(self, z: torch.Tensor) -> torch.Tensor:
         """Decode latent vector z into reconstruction x_recon (useful for visualisation)"""
-        return self._recon_handler.activate(self._model.decode(z))
+        return self.recon_handler.activate(self._model.decode(z))
 
     @final
     def forward(self, batch: torch.Tensor) -> torch.Tensor:
@@ -152,12 +173,6 @@ class AE(BaseFramework):
     def decode_partial(self, z: torch.Tensor) -> torch.Tensor:
         """Decode latent vector z into partial reconstructions that exclude the final activation if there is one."""
         return self._model.decode(z)
-
-    @final
-    def recon_loss(self, x_partial_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
-        return self._recon_handler.training_compute_loss(
-            x_partial_recon, x_targ, reduction=self.cfg.loss_reduction,
-        )
 
 
 # ========================================================================= #

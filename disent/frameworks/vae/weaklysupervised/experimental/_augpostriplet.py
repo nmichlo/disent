@@ -42,6 +42,8 @@ log = logging.getLogger(__name__)
 
 class AugPosTripletVae(TripletVae):
 
+    REQUIRED_OBS = 2  # third obs is generated from augmentations
+
     @dataclass
     class cfg(TripletVae.cfg):
         pass

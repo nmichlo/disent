@@ -41,6 +41,8 @@ log = logging.getLogger(__name__)
 
 class AdaTripletVae(TripletVae):
 
+    REQUIRED_OBS = 3
+
     # TODO: increase margin over time, maybe log
     #       approach current max
     # TODO: given reconstruction loss, can we use it as a signal if things are going badly.

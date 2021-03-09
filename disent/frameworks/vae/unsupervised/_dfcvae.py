@@ -23,8 +23,12 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from dataclasses import dataclass
+from numbers import Number
+from typing import Any
 from typing import Dict
 from typing import List, Optional, Union
+from typing import Sequence
+from typing import Tuple
 
 import kornia
 import torch
@@ -56,6 +60,8 @@ class DfcVae(BetaVae):
         2. Mean taken over (batch for sum of pixels) not mean over (batch & pixels)
     """
 
+    REQUIRED_OBS = 1
+
     @dataclass
     class cfg(BetaVae.cfg):
         feature_layers: Optional[List[Union[str, int]]] = None
@@ -70,11 +76,14 @@ class DfcVae(BetaVae):
     # Overrides                                                             #
     # --------------------------------------------------------------------- #
 
-    def compute_reconstruction_loss(self, x_partial_recon: torch.Tensor, x_targ: torch.Tensor) -> (torch.Tensor, Dict[str, float]):
-        # compute reconstruction loss
-        pixel_loss = self.recon_loss(x_partial_recon, x_targ)  # (DIFFERENCE: 1)
-        # Deep Features
-        feature_loss = self._dfc_loss.compute_loss(self._recon_handler.activate(x_partial_recon), x_targ, reduction=self.cfg.loss_reduction)
+    def compute_ave_recon_loss(self, xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
+        # compute ave reconstruction loss
+        pixel_loss = self.recon_handler.compute_ave_loss(xs_partial_recon, xs_targ)  # (DIFFERENCE: 1)
+        # compute ave deep features loss
+        feature_loss = torch.stack([
+            self._dfc_loss.compute_loss(self.recon_handler.activate(x_partial_recon), x_targ, reduction=self.cfg.loss_reduction)
+            for x_partial_recon, x_targ in zip(xs_partial_recon, xs_targ)
+        ]).mean(dim=-1)
         # reconstruction error
         # TODO: not in reference implementation, but terms should be weighted
         # TODO: not in reference but feature loss is not scaled properly
