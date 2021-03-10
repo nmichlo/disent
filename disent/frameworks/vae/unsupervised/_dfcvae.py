@@ -55,7 +55,6 @@ class DfcVae(BetaVae):
 
     Reference implementation is from: https://github.com/AntixK/PyTorch-VAE
 
-
     Difference:
         1. MSE loss changed to BCE or MSE loss
         2. Mean taken over (batch for sum of pixels) not mean over (batch & pixels)
