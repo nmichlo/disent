@@ -37,6 +37,7 @@ from torchvision.models import vgg19_bn
 from torch.nn import functional as F
 
 from disent.frameworks.helper.reductions import get_mean_loss_scale
+from disent.frameworks.helper.util import compute_ave_loss
 from disent.frameworks.vae.unsupervised import BetaVae
 from disent.transform.functional import check_tensor
 
@@ -53,7 +54,6 @@ class DfcVae(BetaVae):
     - Uses features generated from a pretrained model as the loss.
 
     Reference implementation is from: https://github.com/AntixK/PyTorch-VAE
-
 
     Difference:
         1. MSE loss changed to BCE or MSE loss
@@ -80,10 +80,8 @@ class DfcVae(BetaVae):
         # compute ave reconstruction loss
         pixel_loss = self.recon_handler.compute_ave_loss(xs_partial_recon, xs_targ)  # (DIFFERENCE: 1)
         # compute ave deep features loss
-        feature_loss = torch.stack([
-            self._dfc_loss.compute_loss(self.recon_handler.activate(x_partial_recon), x_targ, reduction=self.cfg.loss_reduction)
-            for x_partial_recon, x_targ in zip(xs_partial_recon, xs_targ)
-        ]).mean(dim=-1)
+        xs_recon = self.recon_handler.activate_all(xs_partial_recon)
+        feature_loss = compute_ave_loss(self._dfc_loss.compute_loss, xs_recon, xs_targ, reduction=self.cfg.loss_reduction)
         # reconstruction error
         # TODO: not in reference implementation, but terms should be weighted
         # TODO: not in reference but feature loss is not scaled properly
@@ -110,6 +108,8 @@ class DfcLossModule(torch.nn.Module):
     Difference:
     - normalise data as torchvision.models require.
     """
+
+    # TODO: this should be converted to a reconstruction loss handler
 
     def __init__(self, feature_layers: Optional[List[Union[str, int]]] = None):
         """
