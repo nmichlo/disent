@@ -29,7 +29,7 @@ from typing import Sequence
 from typing import Tuple
 
 import torch
-from disent.frameworks.vae.weaklysupervised import AdaVae
+from disent.frameworks.vae.weaklysupervised._adavae import AdaVae
 
 
 # ========================================================================= #

@@ -86,7 +86,7 @@ class BaseFramework(DisentConfigurable, DisentLightningModule):
             self.log_dict(logs_dict)
             # return loss
             return loss
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             # call in all the child processes for the best chance of clearing this...
             # remove callbacks from trainer so we aren't stuck running forever!
             # TODO: this is a hack... there must be a better way to do this... could it be a pl bug?
@@ -104,11 +104,11 @@ class BaseFramework(DisentConfigurable, DisentLightningModule):
         if loss > 1e+12:
             raise ValueError(f'The returned loss: {loss:.2e} is out of bounds: > {1e+12:.0e}')
 
-    def forward(self, batch) -> torch.Tensor:
+    def forward(self, batch) -> torch.Tensor:  # pragma: no cover
         """this function should return the single final output of the model, including the final activation"""
         raise NotImplementedError
 
-    def do_training_step(self, batch, batch_idx) -> Tuple[torch.Tensor, Dict[str, Union[Number, torch.Tensor]]]:
+    def do_training_step(self, batch, batch_idx) -> Tuple[torch.Tensor, Dict[str, Union[Number, torch.Tensor]]]:  # pragma: no cover
         """
         should return a dictionary of items to log with the key 'train_loss'
         as the variable to minimize

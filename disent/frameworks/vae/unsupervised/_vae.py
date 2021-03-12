@@ -34,7 +34,7 @@ from typing import Union
 import torch
 from torch.distributions import Distribution
 
-from disent.frameworks.ae.unsupervised import AE
+from disent.frameworks.ae.unsupervised._ae import AE
 from disent.frameworks.helper.latent_distributions import LatentDistsHandler
 from disent.frameworks.helper.latent_distributions import make_latent_distribution
 from disent.util import map_all

@@ -25,7 +25,7 @@
 from dataclasses import dataclass
 
 import numpy as np
-from disent.frameworks.vae.unsupervised import BetaVae
+from disent.frameworks.vae.unsupervised._betavae import BetaVae
 
 
 # ========================================================================= #

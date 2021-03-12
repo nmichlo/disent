@@ -38,7 +38,7 @@ from torch.nn import functional as F
 
 from disent.frameworks.helper.reductions import get_mean_loss_scale
 from disent.frameworks.helper.util import compute_ave_loss
-from disent.frameworks.vae.unsupervised import BetaVae
+from disent.frameworks.vae.unsupervised._betavae import BetaVae
 from disent.transform.functional import check_tensor
 
 
@@ -107,9 +107,9 @@ class DfcLossModule(torch.nn.Module):
 
     Difference:
     - normalise data as torchvision.models require.
-    """
 
     # TODO: this should be converted to a reconstruction loss handler
+    """
 
     def __init__(self, feature_layers: Optional[List[Union[str, int]]] = None):
         """
@@ -125,13 +125,6 @@ class DfcLossModule(torch.nn.Module):
             param.requires_grad = False
         # Evaluation Mode
         self.feature_network.eval()
-
-    @property
-    def num(self):
-        return len(self.feature_layers)
-
-    def __call__(self, x_recon, x_targ):
-        return self.compute_loss(x_recon, x_targ)
 
     def compute_loss(self, x_recon, x_targ, reduction='mean'):
         """

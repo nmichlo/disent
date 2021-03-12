@@ -29,4 +29,4 @@ from disent.frameworks.vae.unsupervised._dipvae import DipVae
 from disent.frameworks.vae.unsupervised._infovae import InfoVae
 
 # experimental frameworks
-# -- none --
+from disent.frameworks.vae.unsupervised.experimental._dovae import DataOverlapVae

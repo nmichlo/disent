@@ -30,7 +30,7 @@ import torch
 from torch import Tensor
 from torch.distributions import Normal
 
-from disent.frameworks.vae.unsupervised import Vae
+from disent.frameworks.vae.unsupervised._vae import Vae
 
 
 # ========================================================================= #
@@ -165,7 +165,7 @@ class InfoVae(Vae):
             kernel = self._kernel_rbf(z0, z1)
         # elif self.cfg.info_kernel == 'imq':
         #     kernel = self._kernel_imq(z0, z1)
-        else:
+        else:  # pragma: no cover
             raise KeyError(f'invalid cfg.info_kernel: {self.cfg.info_kernel}')
         # check result size
         assert kernel.shape == (batch_size, batch_size)
@@ -189,20 +189,20 @@ class InfoVae(Vae):
         kernel = torch.exp(-((x - y).pow(2).sum(dim=-1) / sigma))
         return kernel
 
-    def _kernel_imq(self, x: Tensor, y: Tensor, eps: float = 1e-7) -> Tensor:
-        """
-        Inverse Multi-Quadratics Kernel
-        k(x, y) = (c^2 + ||x - y||^2)^b
-            c ∈ R
-            b < 0 but better if b ∈ (0, 1)
-
-        TODO: This could be wrong?
-        # TODO: how do we arrive at the value for c
-        """
-        z_size = x.shape[-1]
-        c = 2 * self.cfg.z_var * z_size
-        kernel = c / (eps + c + (x - y).pow(2).sum(-1))
-        return kernel
+    # def _kernel_imq(self, x: Tensor, y: Tensor, eps: float = 1e-7) -> Tensor:
+    #     """
+    #     Inverse Multi-Quadratics Kernel
+    #     k(x, y) = (c^2 + ||x - y||^2)^b
+    #         c ∈ R
+    #         b < 0 but better if b ∈ (0, 1)
+    #
+    #     TODO: This could be wrong?
+    #     # TODO: how do we arrive at the value for c
+    #     """
+    #     z_size = x.shape[-1]
+    #     c = 2 * self.cfg.z_var * z_size
+    #     kernel = c / (eps + c + (x - y).pow(2).sum(-1))
+    #     return kernel
 
 
 # ========================================================================= #

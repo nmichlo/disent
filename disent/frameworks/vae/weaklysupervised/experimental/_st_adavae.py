@@ -25,7 +25,7 @@
 from dataclasses import dataclass
 
 import numpy as np
-from disent.frameworks.vae.weaklysupervised import AdaVae
+from disent.frameworks.vae.weaklysupervised._adavae import AdaVae
 
 
 # ========================================================================= #

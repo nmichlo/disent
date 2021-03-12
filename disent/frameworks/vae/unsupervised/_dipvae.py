@@ -23,15 +23,13 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from dataclasses import dataclass
-from typing import Dict
-from typing import Optional
 from typing import Sequence
 
 import torch
 from torch.distributions import Normal
 
 from disent.frameworks.helper.util import compute_ave_loss_and_logs
-from disent.frameworks.vae.unsupervised import BetaVae
+from disent.frameworks.vae.unsupervised._betavae import BetaVae
 
 
 # ========================================================================= #
@@ -124,7 +122,7 @@ class DipVae(BetaVae):
             # E[var]
             E_var = torch.mean(torch.diag(z_var), dim=0)
             cov_matrix = cov_z_mean + E_var
-        else:
+        else:  # pragma: no cover
             raise KeyError(f'Unknown DipVAE mode: {self.cfg.dip_mode}')
         # shape: (Z, Z)
         return cov_matrix
