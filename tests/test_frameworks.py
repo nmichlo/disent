@@ -60,7 +60,6 @@ from disent.transform import ToStandardisedTensor
     (DfcVae,               dict()),
     (DataOverlapVae,       dict()),
     (DataOverlapVae,       dict(overlap_triplet_mode='ada_triplet')),
-    (DataOverlapAltVae,    dict()),
     # VAE - weakly supervised
     (AdaVae,               dict()),
     (AdaVae,               dict(average_mode='ml-vae')),

@@ -38,7 +38,7 @@ from disent.frameworks.vae.supervised.experimental._adatvae import AdaTripletVae
 
 class DataOverlapVae(AdaTripletVae):
 
-    REQUIRED_OBS = 3
+    REQUIRED_OBS = 1
 
     @dataclass
     class cfg(AdaTripletVae.cfg):
@@ -49,8 +49,6 @@ class DataOverlapVae(AdaTripletVae):
         detach_logvar: float = 0  # std = 0.5, logvar = ln(std**2) ~= -2,77
         # OVERRIDE - triplet loss configs
         triplet_scale: float = 0
-        # TRIPLET_MODE
-        overlap_triplet_mode: str = 'triplet'
         # OVERRIDE ADAVAE
         # adatvae: what version of triplet to use
         triplet_mode: str = 'lerp_trip_to_mse_ada'  # 'ada_p_orig_lerp'
@@ -58,17 +56,39 @@ class DataOverlapVae(AdaTripletVae):
         lerp_step_start: int = 3600
         lerp_step_end: int = 14400
         lerp_goal: float = 0.25
+        # OVERLAP VAE
+        overlap_triplet_mode: str = 'triplet'
+        overlap_num: int = 1024
+        overlap_z_mode: str = 'mean'
 
-    def hook_compute_ave_aug_loss(self, ds_posterior: Sequence[Normal], ds_prior: Sequence[Normal], zs_sampled: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]):
+    def hook_compute_ave_aug_loss(self, ds_posterior: Sequence[Normal], ds_prior, zs_sampled, xs_partial_recon, xs_targ: Sequence[torch.Tensor]):
+        # get values
+        (d_posterior,), (x_targ,) = ds_posterior, xs_targ
+        # adavae
         self.step += 1
-        loss, logs = self.compute_overlap_triplet_loss(zs_mean=[d.mean for d in ds_posterior], xs_targ=xs_targ, cfg=self.cfg, step=self.step, unreduced_loss_fn=self.recon_handler.compute_unreduced_loss)
+
+        # generate random triples -- TODO: this does not generate unique pairs
+        a_idxs, p_idxs, n_idxs = torch.randint(len(x_targ), size=(3, min(self.cfg.overlap_num, len(x_targ)**3)))
+        ds_posterior_NEW = [Normal(d_posterior.loc[idxs], d_posterior.scale[idxs]) for idxs in (a_idxs, p_idxs, n_idxs)]
+        xs_targ_NEW = [x_targ[idxs] for idxs in (a_idxs, p_idxs, n_idxs)]
+
+        if self.cfg.overlap_z_mode == 'means':
+            zs = [d.mean for d in ds_posterior_NEW]
+        elif self.cfg.overlap_z_mode == 'samples':
+            zs = [d.rsample() for d in ds_posterior_NEW]  # we resample here in case z_sampled is detached
+        else:
+            raise KeyError(f'invalid cfg.overlap_z_mode: {repr(self.cfg.overlap_z_mode)}')
+
+        # compute loss
+        loss, logs = self.compute_overlap_triplet_loss(zs_mean=zs, xs_targ=xs_targ_NEW, cfg=self.cfg, step=self.step, unreduced_loss_fn=self.recon_handler.compute_unreduced_loss)
+
         return loss, {
             **logs,
-            **DataOverlapVae.overlap_measure_differences(ds_posterior, xs_targ, unreduced_loss_fn=self.recon_handler.compute_unreduced_loss, unreduced_kl_loss_fn=self.latents_handler.compute_unreduced_kl_loss),
+            **DataOverlapVae.overlap_measure_differences(ds_posterior_NEW, xs_targ_NEW, unreduced_loss_fn=self.recon_handler.compute_unreduced_loss, unreduced_kl_loss_fn=self.latents_handler.compute_unreduced_kl_loss),
         }
 
     @staticmethod
-    def compute_overlap_triplet_loss(zs_mean, xs_targ, cfg: cfg, step: int, unreduced_loss_fn):
+    def compute_overlap_triplet_loss(zs_mean, xs_targ, cfg, step: int, unreduced_loss_fn):
         # check the recon loss
         assert cfg.recon_loss == 'mse', 'only mse loss is supported'
 
