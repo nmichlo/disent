@@ -69,6 +69,10 @@ class ReconLossHandler(object):
     def compute_ave_loss(self, xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> torch.Tensor:
         return compute_ave_loss(self.compute_loss, xs_partial_recon, xs_targ)
 
+    @final
+    def compute_unreduced_loss(self, x_partial_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
+        return self._compute_unreduced_loss(x_partial_recon, x_targ)
+
     def _compute_unreduced_loss(self, x_partial_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
         """
         Compute the loss without applying a reduction.

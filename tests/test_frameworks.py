@@ -34,9 +34,9 @@ from disent.dataset.groundtruth import GroundTruthDataset
 from disent.dataset.groundtruth import GroundTruthDatasetPairs
 from disent.dataset.groundtruth import GroundTruthDatasetTriples
 from disent.frameworks.ae.unsupervised import *
-from disent.frameworks.vae.supervised import *
 from disent.frameworks.vae.unsupervised import *
 from disent.frameworks.vae.weaklysupervised import *
+from disent.frameworks.vae.supervised import *
 from disent.model.ae import AutoEncoder
 from disent.model.ae import DecoderConv64
 from disent.model.ae import EncoderConv64
@@ -48,29 +48,38 @@ from disent.transform import ToStandardisedTensor
 # ========================================================================= #
 
 
-@pytest.mark.parametrize(['z_multiplier', 'DataWrapper', 'Framework', 'cfg_kwargs'], [
+@pytest.mark.parametrize(['Framework', 'cfg_kwargs'], [
     # AE - unsupervised
-    (1, GroundTruthDataset,        AE,                   dict()),
+    (AE,                   dict()),
     # VAE - unsupervised
-    (2, GroundTruthDataset,        Vae,                  dict()),
-    (2, GroundTruthDataset,        BetaVae,              dict()),
-    (2, GroundTruthDataset,        DipVae,               dict()),
-    (2, GroundTruthDataset,        InfoVae,              dict()),
-    (2, GroundTruthDataset,        DfcVae,               dict()),
+    (Vae,                  dict()),
+    (BetaVae,              dict()),
+    (DipVae,               dict()),
+    (DipVae,               dict(dip_mode='i')),
+    (InfoVae,              dict()),
+    (DfcVae,               dict()),
     # VAE - weakly supervised
-    (2, GroundTruthDatasetPairs,   AdaVae,               dict()),
-    (2, GroundTruthDatasetPairs,   SwappedTargetAdaVae,  dict()),
-    (2, GroundTruthDatasetPairs,   SwappedTargetBetaVae, dict()),
-    (2, GroundTruthDatasetPairs,   AugPosTripletVae,     dict()),
+    (AdaVae,               dict()),
+    (AdaVae,               dict(average_mode='ml-vae')),
+    (SwappedTargetAdaVae,  dict(swap_chance=1.0)),
+    (SwappedTargetBetaVae, dict(swap_chance=1.0)),
+    (AugPosTripletVae,     dict()),
     # VAE - supervised
-    (2, GroundTruthDatasetTriples, TripletVae,           dict()),
-    (2, GroundTruthDatasetTriples, BoundedAdaVae,        dict()),
-    (2, GroundTruthDatasetTriples, GuidedAdaVae,         dict()),
-    (2, GroundTruthDatasetTriples, TripletBoundedAdaVae, dict()),
-    (2, GroundTruthDatasetTriples, TripletGuidedAdaVae,  dict()),
-    (2, GroundTruthDatasetTriples, AdaTripletVae,        dict()),
+    (TripletVae,           dict()),
+    (TripletVae,           dict(detach=True, detach_decoder=True, detach_no_kl=True, detach_logvar=-2)),
+    (BoundedAdaVae,        dict()),
+    (GuidedAdaVae,         dict()),
+    (GuidedAdaVae,         dict(anchor_ave_mode='thresh')),
+    (TripletBoundedAdaVae, dict()),
+    (TripletGuidedAdaVae,  dict()),
+    (AdaTripletVae,        dict()),
 ])
-def test_frameworks(z_multiplier, DataWrapper, Framework, cfg_kwargs):
+def test_frameworks(Framework, cfg_kwargs):
+    DataWrapper = {
+        1: GroundTruthDataset,
+        2: GroundTruthDatasetPairs,
+        3: GroundTruthDatasetTriples,
+    }[Framework.REQUIRED_OBS]
 
     data = XYObjectData()
     dataset = DataWrapper(data, transform=ToStandardisedTensor())
@@ -79,7 +88,7 @@ def test_frameworks(z_multiplier, DataWrapper, Framework, cfg_kwargs):
     framework = Framework(
         make_optimizer_fn=lambda params: Adam(params, lr=1e-3),
         make_model_fn=lambda: AutoEncoder(
-            encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=z_multiplier),
+            encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2 if issubclass(Framework, Vae) else 1),
             decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
         ),
         cfg=Framework.cfg(**cfg_kwargs)

@@ -133,6 +133,10 @@ class LatentDistsHandler(object):
         return kl
 
     @final
+    def compute_unreduced_kl_loss(self, posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None) -> torch.Tensor:
+        return kl_loss(posterior, prior, z_sampled, mode=self._kl_mode)
+
+    @final
     def compute_ave_kl_loss(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled: Sequence[torch.Tensor]) -> torch.Tensor:
         return compute_ave_loss(self.compute_kl_loss, ds_posterior, ds_prior, zs_sampled)
 

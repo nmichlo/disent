@@ -32,8 +32,10 @@ from typing import Tuple
 from typing import Union
 
 import torch
-from disent.frameworks.vae.unsupervised import BetaVae
-from disent.frameworks.helper.triplet_loss import configured_triplet, TripletLossConfig, TripletConfigTypeHint
+from torch.distributions import Normal
+
+from disent.frameworks.vae.unsupervised._betavae import BetaVae
+from disent.frameworks.helper.triplet_loss import configured_triplet, TripletLossConfig
 
 
 # ========================================================================= #
@@ -73,13 +75,12 @@ class TripletVae(BetaVae):
         else:
             return super().compute_ave_reg_loss(ds_posterior, ds_prior, zs_sampled)
 
-    def hook_compute_ave_aug_loss(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
-        d0_posterior, d1_posterior, d2_posterior = ds_posterior
-        return self.augment_loss_triplet(zs_means=(d0_posterior.mean, d1_posterior.mean, d2_posterior.mean), cfg=self.cfg)
+    def hook_compute_ave_aug_loss(self, ds_posterior: Sequence[Normal], ds_prior: Sequence[Normal], zs_sampled: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
+        return self.compute_triplet_loss(zs_mean=[d.mean for d in ds_posterior], cfg=self.cfg)
 
     @staticmethod
-    def augment_loss_triplet(zs_means, cfg: TripletConfigTypeHint):
-        anc, pos, neg = zs_means
+    def compute_triplet_loss(zs_mean: Sequence[torch.Tensor], cfg: cfg):
+        anc, pos, neg = zs_mean
         # loss is scaled and everything
         loss = configured_triplet(anc, pos, neg, cfg=cfg)
         # return loss & log
