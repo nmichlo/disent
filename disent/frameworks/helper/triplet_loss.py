@@ -55,6 +55,30 @@ def dist_triplet_loss(pos_delta, neg_delta, margin_min=None, margin_max=1., p=1)
 # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
 
+def triplet_sigmoid_loss(anc, pos, neg, margin_min=None, margin_max=1., p=1):
+    """
+    Sigmoid Triplet Loss
+    https://arxiv.org/pdf/2003.14021.pdf
+    """
+    return dist_triplet_sigmoid_loss(anc - pos, anc - neg, margin_min=margin_min, margin_max=margin_max, p=p)
+
+
+def dist_triplet_sigmoid_loss(pos_delta, neg_delta, margin_min=None, margin_max=1., p=1):
+    """
+    Sigmoid Triplet Loss
+    https://arxiv.org/pdf/2003.14021.pdf
+    """
+    if margin_min is not None:
+        warnings.warn('triplet_loss does not support margin_min')
+    p_dist = torch.norm(pos_delta, p=p, dim=-1)
+    n_dist = torch.norm(neg_delta, p=p, dim=-1)
+    loss = torch.sigmoid((1/margin_max) * (p_dist - n_dist))
+    return loss.mean()
+
+
+# -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+
+
 # def elem_triplet_loss(anc, pos, neg, margin_min=None, margin_max=1., p=1):
 #     """
 #     Element-Wise Triplet Loss
@@ -192,6 +216,7 @@ class TripletLossConfig(object):
 
 _TRIPLET_LOSSES = {
     'triplet': triplet_loss,
+    'triplet_sigmoid': triplet_sigmoid_loss,
     # 'elem_triplet': elem_triplet_loss,
     # 'min_margin_triplet': min_margin_triplet_loss,
     'min_clamped_triplet': min_clamped_triplet_loss,
@@ -202,6 +227,7 @@ _TRIPLET_LOSSES = {
 
 _DIST_TRIPLET_LOSSES = {
     'triplet': dist_triplet_loss,
+    'triplet_sigmoid': dist_triplet_sigmoid_loss,
     # 'elem_triplet': dist_elem_triplet_loss,
     # 'min_margin_triplet': dist_min_margin_triplet_loss,
     'min_clamped_triplet': dist_min_clamped_triplet_loss,
