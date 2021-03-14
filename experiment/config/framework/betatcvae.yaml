@@ -1,0 +1,9 @@
+# @package _group_
+name: betatcvae
+module:
+  _target_: disent.frameworks.vae.unsupervised.BetaTcVae
+  beta: ${framework.beta}
+
+# settings used elsewhere
+data_wrap_mode: single
+model_z_multiplier: 2

@@ -58,6 +58,7 @@ from disent.transform import ToStandardisedTensor
     (DipVae,               dict(dip_mode='i')),
     (InfoVae,              dict()),
     (DfcVae,               dict()),
+    (BetaTcVae,            dict()),
     (DataOverlapVae,       dict()),
     (DataOverlapVae,       dict(overlap_triplet_mode='ada_triplet')),
     # VAE - weakly supervised
