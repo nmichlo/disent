@@ -97,8 +97,10 @@ Disent includes implementations of modules, metrics and datasets from various pa
 #### Frameworks
 - **Unsupervised**:
   + [VAE](https://arxiv.org/abs/1312.6114)
-  + [beta-VAE](https://openreview.net/forum?id=Sy2fzU9gl)
-  + [DFC-VAE](https://arxiv.org/abs/1906.01984)
+  + [Beta-VAE](https://openreview.net/forum?id=Sy2fzU9gl)
+  + [DFC-VAE](https://arxiv.org/abs/1610.00291)
+  + [DIP-VAE](https://arxiv.org/abs/1711.00848)
+  + [InfoVAE](https://arxiv.org/abs/1706.02262)
 - **Weakly Supervised**:
   + [Ada-GVAE](https://arxiv.org/abs/2002.02886) *`AdaVae(..., average_mode='gvae')`* Usually better than the Ada-ML-VAE
   + [Ada-ML-VAE](https://arxiv.org/abs/2002.02886) *`AdaVae(..., average_mode='ml-vae')`*
@@ -114,9 +116,7 @@ submit an issue if you have a request for an additional framework.
 <details><summary><b>todo</b></summary><p>
 
 + FactorVAE
-+ InfoVAE
 + BetaTCVAE
-+ DIPVAE
 + GroupVAE
 + MLVAE
 
@@ -128,7 +128,7 @@ submit an issue if you have a request for an additional framework.
   + [DCI](https://openreview.net/forum?id=By-7dz-AZ)
   + [MIG](https://arxiv.org/abs/1802.04942)
   + [SAP](https://arxiv.org/abs/1711.00848)
-  + Unsupervised Scores
+  + [Unsupervised Scores](https://github.com/google-research/disentanglement_lib)
   + 🧵 Flatness Score
 
 Some popular metrics still need to be added, please submit an issue if you wish to
