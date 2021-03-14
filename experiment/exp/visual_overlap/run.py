@@ -25,8 +25,8 @@
 
 import os
 from collections import defaultdict
+from typing import Dict
 from typing import List
-from typing import Union
 
 import seaborn as sns
 import numpy as np
@@ -34,6 +34,7 @@ import pandas as pd
 import torch
 import torch.nn.functional as F
 from matplotlib import pyplot as plt
+from matplotlib.ticker import MultipleLocator
 from tqdm import tqdm
 
 from disent.data.groundtruth import *
@@ -81,19 +82,7 @@ def plot_overlap(a, b, mode='abs'):
     plt.show()
 
 
-DATAS = {
-    'XYObject': lambda: XYObjectData(),
-    'XYBlocks': lambda: XYBlocksData(),
-    'XYSquares': lambda: XYSquaresData(),
-    'DSprites': lambda: DSpritesData(),
-    'Cars3d': lambda: Cars3dData(),
-    'SmallNorb': lambda: SmallNorbData(),
-    'Shapes3d': lambda: Shapes3dData(),
-    'Mpi3d': lambda: Mpi3dData(),
-}
-
-
-def generate_data(data_name: str, batch_size=64, samples=100_000, plot_diffs=False, load_cache=True, save_cache=True):
+def generate_data(gt_dataset, data_name: str, batch_size=64, samples=100_000, plot_diffs=False, load_cache=True, save_cache=True):
     # cache
     file_path = os.path.join(os.path.dirname(__file__), f'cache/{data_name}_{samples}.pkl')
     if load_cache:
@@ -103,10 +92,6 @@ def generate_data(data_name: str, batch_size=64, samples=100_000, plot_diffs=Fal
 
     # generate
     with torch.no_grad():
-        # dataset vars
-        data = DATAS[data_name]()
-        dataset = GroundTruthDataset(data, transform=ToStandardisedTensor())
-
         # dataframe
         df = defaultdict(lambda: defaultdict(list))
 
@@ -114,8 +99,8 @@ def generate_data(data_name: str, batch_size=64, samples=100_000, plot_diffs=Fal
         name = 'random'
         for i in tqdm(range((samples + (batch_size-1) - 1) // (batch_size-1)), desc=f'{data_name}: {name}'):
             # get random batch of unique elements
-            idxs = sample_indices(len(dataset), batch_size)
-            batch = dataset.dataset_batch_from_indices(idxs, mode='input')
+            idxs = sample_indices(len(gt_dataset), batch_size)
+            batch = gt_dataset.dataset_batch_from_indices(idxs, mode='input')
             # plot
             if plot_diffs and (i == 0): plot_overlap(batch[0], batch[1])
             # store overlap results
@@ -124,12 +109,12 @@ def generate_data(data_name: str, batch_size=64, samples=100_000, plot_diffs=Fal
             df[False][name].extend(o)
 
         # traversal overlaps
-        for f_idx in range(dataset.num_factors):
-            name = f'f_{dataset.factor_names[f_idx]}'
-            for i in tqdm(range((samples + (dataset.factor_sizes[f_idx] - 1) - 1) // (dataset.factor_sizes[f_idx] - 1)), desc=f'{data_name}: {name}'):
+        for f_idx in range(gt_dataset.num_factors):
+            name = f'f_{gt_dataset.factor_names[f_idx]}'
+            for i in tqdm(range((samples + (gt_dataset.factor_sizes[f_idx] - 1) - 1) // (gt_dataset.factor_sizes[f_idx] - 1)), desc=f'{data_name}: {name}'):
                 # get random batch that is a factor traversal
-                factors = dataset.sample_random_traversal_factors(f_idx)
-                batch = dataset.dataset_batch_from_factors(factors, mode='input')
+                factors = gt_dataset.sample_random_traversal_factors(f_idx)
+                batch = gt_dataset.dataset_batch_from_factors(factors, mode='input')
                 # shuffle indices
                 idxs = np.arange(len(factors))
                 np.random.shuffle(idxs)
@@ -141,10 +126,10 @@ def generate_data(data_name: str, batch_size=64, samples=100_000, plot_diffs=Fal
 
         # make dataframe!
         df = pd.DataFrame({
-            'overlap':  [d         for ordered, data in df.items() for name, dat in data.items() for d in dat],
-            'samples':  [name      for ordered, data in df.items() for name, dat in data.items() for d in dat],
-            'ordered':  [ordered   for ordered, data in df.items() for name, dat in data.items() for d in dat],
-            'data':     [data_name for ordered, data in df.items() for name, dat in data.items() for d in dat],
+            'overlap':   [d         for ordered, data in df.items() for name, dat in data.items() for d in dat],
+            'samples':   [name      for ordered, data in df.items() for name, dat in data.items() for d in dat],
+            'ordered':   [ordered   for ordered, data in df.items() for name, dat in data.items() for d in dat],
+            'data':      [data_name for ordered, data in df.items() for name, dat in data.items() for d in dat],
         })
 
     # save into cache
@@ -156,12 +141,12 @@ def generate_data(data_name: str, batch_size=64, samples=100_000, plot_diffs=Fal
     return df
 
 
-def dual_plot_from_generated_data(df, data: str = None, save: Union[str, bool] = True):
+def dual_plot_from_generated_data(df, data_name: str = None, save_name: str = None, tick_size: float = None, fig_l_pad=1, fig_w=7, fig_h=13):
     # make subplots
     cm = 1 / 2.54
-    fig, (ax0, ax1) = plt.subplots(1, 2, figsize=(1+9*2*cm, 13*cm))
-    if data is not None:
-        fig.suptitle(data, fontsize=20)
+    fig, (ax0, ax1) = plt.subplots(1, 2, figsize=((fig_l_pad+2*fig_w)*cm, fig_h*cm))
+    if data_name is not None:
+        fig.suptitle(data_name, fontsize=20)
     ax0.set_ylim(-0.025, 1.025)
     ax1.set_ylim(-0.025, 1.025)
     # plot
@@ -172,15 +157,19 @@ def dual_plot_from_generated_data(df, data: str = None, save: Union[str, bool] =
     # edit plots
     ax0.set_xlabel('Overlap')
     ax1.set_xlabel('Overlap')
+    if tick_size is not None:
+        ax0.xaxis.set_major_locator(MultipleLocator(base=tick_size))
+        ax1.xaxis.set_major_locator(MultipleLocator(base=tick_size))
+    # ax0.xaxis.set_major_formatter(FormatStrFormatter('%.2f'))
+    # ax1.xaxis.set_major_formatter(FormatStrFormatter('%.2f'))
     ax0.set_ylabel('Cumulative Proportion')
     ax1.set_ylabel(None)
     ax1.set_yticklabels([])
     ax1.get_legend().remove()
     plt.tight_layout()
     # save
-    if save:
-        name = save if isinstance(save, str) else f'overlap-cdf_{data}.png'
-        path = os.path.join(os.path.dirname(__file__), 'plots', name)
+    if save_name is not None:
+        path = os.path.join(os.path.dirname(__file__), 'plots', save_name)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         plt.savefig(path)
         print(f'saved: {path}')
@@ -188,29 +177,34 @@ def dual_plot_from_generated_data(df, data: str = None, save: Union[str, bool] =
     return fig
 
 
-def all_plot_from_all_generated_data(dfs: dict, ordered=True, save: Union[str, bool] = True):
+def all_plot_from_all_generated_data(dfs: dict, ordered=True, save_name: str = None, tick_sizes: Dict[str, float] = None, hide_extra_legends=False, fig_l_pad=1, fig_w=7, fig_h=13):
+    if not dfs:
+        return None
     # make subplots
     cm = 1 / 2.54
-    fig, axs = plt.subplots(1, len(dfs), figsize=(1+9*cm*len(dfs), 13*cm))
+    fig, axs = plt.subplots(1, len(dfs), figsize=((fig_l_pad+len(dfs)*fig_w)*cm, fig_h * cm))
     axs = np.array(axs, dtype=np.object).reshape((-1,))
     # plot all
-    for i, (ax, (data, df)) in enumerate(zip(axs, dfs.items())):
+    for i, (ax, (data_name, df)) in enumerate(zip(axs, dfs.items())):
         # plot
-        ax.set_title(data)
+        ax.set_title(data_name)
         sns.ecdfplot(ax=ax, data=df[df['ordered']==ordered], x="overlap", hue="samples")
         # edit plots
         ax.set_ylim(-0.025, 1.025)
         ax.set_xlabel('Overlap')
+        if (tick_sizes is not None) and (data_name in tick_sizes):
+            ax.xaxis.set_major_locator(MultipleLocator(base=tick_sizes[data_name]))
         if i == 0:
             ax.set_ylabel('Cumulative Proportion')
         else:
+            if hide_extra_legends:
+                ax.get_legend().remove()
             ax.set_ylabel(None)
             ax.set_yticklabels([])
     plt.tight_layout()
     # save
-    if save:
-        name = save if isinstance(save, str) else f'all-overlap-cdf_{"ordered" if ordered else "shuffled"}.png'
-        path = os.path.join(os.path.dirname(__file__), 'plots', name)
+    if save_name is not None:
+        path = os.path.join(os.path.dirname(__file__), 'plots', save_name)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         plt.savefig(path)
         print(f'saved: {path}')
@@ -218,31 +212,240 @@ def all_plot_from_all_generated_data(dfs: dict, ordered=True, save: Union[str, b
     return fig
 
 
-if __name__ == '__main__':
-
-    plt.style.use(os.path.join(os.path.dirname(__file__), 'gadfly.mplstyle'))
-
+def plot_all(exp_name, datas, tick_sizes, samples: int, load=True, save=True, show_plt=True, show_dual_plt=False, save_plt=True, hide_extra_legends=False, fig_l_pad=1, fig_w=7, fig_h=13):
     # generate data and plot!
     dfs = {}
-    for data in ['DSprites', 'Cars3d', 'SmallNorb', 'Shapes3d', 'XYSquares']:
-        df = generate_data(data, batch_size=64, samples=50_000, plot_diffs=False)
-        dfs[data] = df
+    for data_name, make_data_fn in datas.items():
+        gt_dataset = GroundTruthDataset(make_data_fn(), transform=ToStandardisedTensor())
+        df = generate_data(
+            gt_dataset,
+            data_name,
+            batch_size=64,
+            samples=samples,
+            plot_diffs=False,
+            load_cache=load,
+            save_cache=save,
+        )
+        dfs[data_name] = df
         # plot ordered + shuffled
-        dual_plot_from_generated_data(df, data=data, save=True)
-        plt.show()
+        fig = dual_plot_from_generated_data(
+            df,
+            data_name=data_name,
+            save_name=f'{exp_name}/{data_name}_{samples}.png' if save_plt else None,
+            tick_size=tick_sizes.get(data_name, None),
+            fig_l_pad=fig_l_pad,
+            fig_w=fig_w,
+            fig_h=fig_h,
+        )
+
+        if show_dual_plt:
+            plt.show()
+        else:
+            plt.close(fig)
+
+    def _all_plot_generated(dfs, ordered: bool, suffix: str):
+        fig = all_plot_from_all_generated_data(
+            dfs,
+            ordered=ordered,
+            save_name=f'{exp_name}/{exp_name}-{"ordered" if ordered else "shuffled"}{suffix}.png' if save_plt else None,
+            tick_sizes=tick_sizes,
+            hide_extra_legends=hide_extra_legends,
+            fig_l_pad=fig_l_pad,
+            fig_w=fig_w,
+            fig_h=fig_h,
+        )
+        if show_plt:
+            plt.show()
+        else:
+            plt.close(fig)
 
     # all ordered plots
-    all_plot_from_all_generated_data(dfs, ordered=True, save='all-overlap-ordered.png')
-    plt.show()
-    all_plot_from_all_generated_data({k: v for k, v in dfs.items() if k.lower().startswith('xy')}, ordered=True, save='all-overlap-ordered_xy.png')
-    plt.show()
-    all_plot_from_all_generated_data({k: v for k, v in dfs.items() if not k.lower().startswith('xy')}, ordered=True, save='all-overlap-ordered_normal.png')
-    plt.show()
-
+    _all_plot_generated(dfs, ordered=True, suffix='')
+    _all_plot_generated({k: v for k, v in dfs.items() if k.lower().startswith('xy')}, ordered=True, suffix='-xy')
+    _all_plot_generated({k: v for k, v in dfs.items() if not k.lower().startswith('xy')}, ordered=True, suffix='-normal')
     # all shuffled plots
-    all_plot_from_all_generated_data(dfs, ordered=True, save='all-overlap-shuffled.png')
-    plt.show()
-    all_plot_from_all_generated_data({k: v for k, v in dfs.items() if k.lower().startswith('xy')}, ordered=True, save='all-overlap-shuffled_xy.png')
-    plt.show()
-    all_plot_from_all_generated_data({k: v for k, v in dfs.items() if not k.lower().startswith('xy')}, ordered=True, save='all-overlap-shuffled_normal.png')
-    plt.show()
+    _all_plot_generated(dfs, ordered=False, suffix='')
+    _all_plot_generated({k: v for k, v in dfs.items() if k.lower().startswith('xy')}, ordered=False, suffix='-xy')
+    _all_plot_generated({k: v for k, v in dfs.items() if not k.lower().startswith('xy')}, ordered=False, suffix='-normal')
+    # done!
+    return dfs
+
+
+def plot_dfs_stacked(dfs, title: str, save_name: str = None, show_plt=True, tick_size: float = None, fig_l_pad=1, fig_w=7, fig_h=13, **kwargs):
+    # make new dataframe
+    df = pd.concat((df[df['samples']=='random'] for df in dfs.values()))
+    # make plot
+    cm = 1 / 2.54
+    fig, ax = plt.subplots(1, 1, figsize=((fig_l_pad+1*fig_w)*cm, fig_h*cm))
+    ax.set_title(title)
+    # plot
+    # sns.kdeplot(ax=ax, data=df, x="overlap", hue="data", bw_adjust=2)
+    sns.ecdfplot(ax=ax, data=df, x="overlap", hue="data")
+    # edit settins
+    # ax.set_ylim(-0.025, 1.025)
+    ax.set_xlabel('Overlap')
+    if tick_size is not None:
+        ax.xaxis.set_major_locator(MultipleLocator(base=tick_size))
+    ax.set_ylabel('Cumulative Proportion')
+    plt.tight_layout()
+    # save
+    if save_name is not None:
+        path = os.path.join(os.path.dirname(__file__), 'plots', save_name)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        plt.savefig(path)
+        print(f'saved: {path}')
+    # show
+    if show_plt:
+        plt.show()
+    else:
+        plt.close(fig)
+
+
+def plot_unique_count(dfs, save_name: str = None, show_plt: bool = True, fig_l_pad=1, fig_w=1.5*7, fig_h=13):
+    df_uniques = pd.DataFrame({
+        'Grid Spacing': ['/'.join(data_name.split('-')[1:]) for data_name, df in dfs.items()],
+        'Unique Overlap Values': [len(np.unique(df['overlap'].values, return_counts=True)[1]) for data_name, df in dfs.items()]
+    })
+    # make plot
+    cm = 1 / 2.54
+    fig, ax = plt.subplots(1, 1, figsize=((fig_l_pad+fig_w)*cm, fig_h*cm))
+    ax.set_title('Increasing Overlap')
+    sns.barplot(data=df_uniques, x='Grid Spacing', y='Unique Overlap Values')
+    plt.gca().invert_xaxis()
+    plt.tight_layout()
+    # save
+    if save_name is not None:
+        path = os.path.join(os.path.dirname(__file__), 'plots', save_name)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        plt.savefig(path)
+        print(f'saved: {path}')
+    # show
+    if show_plt:
+        plt.show()
+    else:
+        plt.close(fig)
+
+
+if __name__ == '__main__':
+
+    # matplotlib style
+    plt.style.use(os.path.join(os.path.dirname(__file__), 'gadfly.mplstyle'))
+
+    # common settings
+    SHARED_SETTINGS = dict(
+        samples=50_000,
+        load=True,
+        save=True,
+        show_plt=True,
+        save_plt=True,
+        show_dual_plt=False,
+        fig_l_pad=1,
+        fig_w=7,
+        fig_h=13,
+        tick_sizes={
+            'DSprites': 0.05,
+            'Shapes3d': 0.2,
+            'Cars3d': 0.05,
+            'XYSquares': 0.01,
+            # increasing levels of overlap
+            'XYSquares-1': 0.01,
+            'XYSquares-2': 0.01,
+            'XYSquares-3': 0.01,
+            'XYSquares-4': 0.01,
+            'XYSquares-5': 0.01,
+            'XYSquares-6': 0.01,
+            'XYSquares-7': 0.01,
+            'XYSquares-8': 0.01,
+            # increasing levels of overlap 2
+            'XYSquares-1-8': 0.01,
+            'XYSquares-2-8': 0.01,
+            'XYSquares-3-8': 0.01,
+            'XYSquares-4-8': 0.01,
+            'XYSquares-5-8': 0.01,
+            'XYSquares-6-8': 0.01,
+            'XYSquares-7-8': 0.01,
+            'XYSquares-8-8': 0.01,
+        },
+    )
+
+    # EXPERIMENT 0 -- visual overlap on existing datasets
+
+    dfs = plot_all(
+        exp_name='dataset-overlap',
+        datas={
+          # 'XYObject':  lambda: XYObjectData(),
+          # 'XYBlocks':  lambda: XYBlocksData(),
+            'XYSquares': lambda: XYSquaresData(),
+            'DSprites':  lambda: DSpritesData(),
+            'Shapes3d':  lambda: Shapes3dData(),
+            'Cars3d':    lambda: Cars3dData(),
+          # 'SmallNorb': lambda: SmallNorbData(),
+          # 'Mpi3d':     lambda: Mpi3dData(),
+        },
+        hide_extra_legends=False,
+        **SHARED_SETTINGS
+    )
+
+    # EXPERIMENT 1 -- increasing visual overlap
+
+    dfs = plot_all(
+        exp_name='increasing-overlap',
+        datas={
+            'XYSquares-1': lambda: XYSquaresData(grid_spacing=1),
+            'XYSquares-2': lambda: XYSquaresData(grid_spacing=2),
+            'XYSquares-3': lambda: XYSquaresData(grid_spacing=3),
+            'XYSquares-4': lambda: XYSquaresData(grid_spacing=4),
+            'XYSquares-5': lambda: XYSquaresData(grid_spacing=5),
+            'XYSquares-6': lambda: XYSquaresData(grid_spacing=6),
+            'XYSquares-7': lambda: XYSquaresData(grid_spacing=7),
+            'XYSquares-8': lambda: XYSquaresData(grid_spacing=8),
+        },
+        hide_extra_legends=True,
+        **SHARED_SETTINGS
+    )
+
+    plot_unique_count(
+        dfs=dfs,
+        save_name='increasing-overlap/xysquares-increasing-overlap-counts.png',
+    )
+
+    plot_dfs_stacked(
+        dfs=dfs,
+        title='Increasing Overlap',
+        exp_name='increasing-overlap',
+        save_name='increasing-overlap/xysquares-increasing-overlap.png',
+        tick_size=0.01,
+        fig_w=13
+    )
+
+    # EXPERIMENT 2 -- increasing visual overlap fixed dim size
+
+    dfs = plot_all(
+        exp_name='increasing-overlap-fixed',
+        datas={
+            'XYSquares-1-8': lambda: XYSquaresData(square_size=8, grid_spacing=1, max_placements=8),
+            'XYSquares-2-8': lambda: XYSquaresData(square_size=8, grid_spacing=2, max_placements=8),
+            'XYSquares-3-8': lambda: XYSquaresData(square_size=8, grid_spacing=3, max_placements=8),
+            'XYSquares-4-8': lambda: XYSquaresData(square_size=8, grid_spacing=4, max_placements=8),
+            'XYSquares-5-8': lambda: XYSquaresData(square_size=8, grid_spacing=5, max_placements=8),
+            'XYSquares-6-8': lambda: XYSquaresData(square_size=8, grid_spacing=6, max_placements=8),
+            'XYSquares-7-8': lambda: XYSquaresData(square_size=8, grid_spacing=7, max_placements=8),
+            'XYSquares-8-8': lambda: XYSquaresData(square_size=8, grid_spacing=8, max_placements=8),
+        },
+        hide_extra_legends=True,
+        **SHARED_SETTINGS
+    )
+
+    plot_unique_count(
+        dfs=dfs,
+        save_name='increasing-overlap-fixed/xysquares-increasing-overlap-fixed-counts.png',
+    )
+
+    plot_dfs_stacked(
+        dfs=dfs,
+        title='Increasing Overlap',
+        exp_name='increasing-overlap-fixed',
+        save_name='increasing-overlap-fixed/xysquares-increasing-overlap-fixed.png',
+        tick_size=0.01,
+        fig_w=13
+    )
