@@ -58,13 +58,16 @@ class XYSquaresData(GroundTruthData):
     def observation_shape(self) -> Tuple[int, ...]:
         return self._width, self._width, (3 if self._rgb else 1)
 
-    def __init__(self, square_size=8, grid_size=64, grid_spacing=None, num_squares=3, rgb=True):
+    def __init__(self, square_size=8, grid_size=64, grid_spacing=None, num_squares=3, rgb=True, no_warnings=False, fill_value=None, max_placements=None):
         if grid_spacing is None:
             grid_spacing = square_size
-        if grid_spacing < square_size:
+        if grid_spacing < square_size and not no_warnings:
             log.warning(f'overlap between squares for reconstruction loss, {grid_spacing} < {square_size}')
         # color
         self._rgb = rgb
+        self._fill_value = fill_value if (fill_value is not None) else 255
+        assert isinstance(self._fill_value, int)
+        assert 0 < self._fill_value <= 255, f'0 < {self._fill_value} <= 255'
         # image sizes
         self._width = grid_size
         # number of squares
@@ -75,7 +78,13 @@ class XYSquaresData(GroundTruthData):
         # x, y
         self._spacing = grid_spacing
         self._placements = (self._width - self._square_size) // grid_spacing + 1
-        self._offset = (self._width - (self._placements * self._spacing)) // 2
+        # maximum placements
+        if max_placements is not None:
+            assert isinstance(max_placements, int)
+            assert max_placements > 0
+            self._placements = min(self._placements, max_placements)
+        # center elements
+        self._offset = (self._width - (self._square_size + (self._placements-1)*self._spacing)) // 2
         super().__init__()
     
     def __getitem__(self, idx):
@@ -87,9 +96,9 @@ class XYSquaresData(GroundTruthData):
         for i, (fx, fy) in enumerate(chunked(factors, 2)):
             x, y = offset + space * fx, offset + space * fy
             if self._rgb:
-                obs[y:y+size, x:x+size, i] = 255
+                obs[y:y+size, x:x+size, i] = self._fill_value
             else:
-                obs[y:y+size, x:x+size, :] = 255
+                obs[y:y+size, x:x+size, :] = self._fill_value
         return obs
 
 

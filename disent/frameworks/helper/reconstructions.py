@@ -24,11 +24,13 @@
 
 import warnings
 from typing import final
+from typing import Sequence
 
 import torch
 import torch.nn.functional as F
 
 from disent.frameworks.helper.reductions import loss_reduction
+from disent.frameworks.helper.util import compute_ave_loss
 
 
 # ========================================================================= #
@@ -36,7 +38,10 @@ from disent.frameworks.helper.reductions import loss_reduction
 # ========================================================================= #
 
 
-class ReconstructionLoss(object):
+class ReconLossHandler(object):
+
+    def __init__(self, reduction: str = 'mean'):
+        self._reduction = reduction
 
     def activate(self, x):
         """
@@ -45,17 +50,28 @@ class ReconstructionLoss(object):
         """
         raise NotImplementedError
 
+    def activate_all(self, xs):
+        return [self.activate(x) for x in xs]
+
     @final
-    def training_compute_loss(self, x_partial_recon: torch.Tensor, x_targ: torch.Tensor, reduction: str = 'mean') -> torch.Tensor:
+    def compute_loss(self, x_partial_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
         """
         Takes in an **unactivated** tensor from the model
         as well as an original target from the dataset.
         :return: The computed reduced loss
         """
-        assert x_partial_recon.shape == x_targ.shape
+        assert x_partial_recon.shape == x_targ.shape, f'x_partial_recon.shape={x_partial_recon.shape} x_targ.shape={x_targ.shape}'
         batch_loss = self._compute_unreduced_loss(x_partial_recon, x_targ)
-        loss = loss_reduction(batch_loss, reduction=reduction)
+        loss = loss_reduction(batch_loss, reduction=self._reduction)
         return loss
+
+    @final
+    def compute_ave_loss(self, xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> torch.Tensor:
+        return compute_ave_loss(self.compute_loss, xs_partial_recon, xs_targ)
+
+    @final
+    def compute_unreduced_loss(self, x_partial_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
+        return self._compute_unreduced_loss(x_partial_recon, x_targ)
 
     def _compute_unreduced_loss(self, x_partial_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
         """
@@ -70,7 +86,7 @@ class ReconstructionLoss(object):
 # ========================================================================= #
 
 
-class ReconstructionLossMse(ReconstructionLoss):
+class ReconLossHandlerMse(ReconLossHandler):
     """
     MSE loss should be used with continuous targets between [0, 1].
     - using BCE for such targets is a prevalent error in VAE research.
@@ -93,9 +109,7 @@ class ReconstructionLossMse(ReconstructionLoss):
         return F.mse_loss(x_partial_recon, (x_targ * 2) - 1, reduction='none')
 
 
-
-
-class ReconstructionLossBce(ReconstructionLoss):
+class ReconLossHandlerBce(ReconLossHandler):
     """
     BCE loss should only be used with binary targets {0, 1}.
     - ignoring this and not using MSE is a prevalent error in VAE research.
@@ -124,13 +138,13 @@ class ReconstructionLossBce(ReconstructionLoss):
 # ========================================================================= #
 
 
-class ReconstructionLossBernoulli(ReconstructionLossBce):
+class ReconLossHandlerBernoulli(ReconLossHandlerBce):
     def _compute_unreduced_loss(self, x_partial_recon, x_targ):
         # This is exactly the same as the BCE version, but more 'correct'.
         return -torch.distributions.Bernoulli(logits=x_partial_recon).log_prob(x_targ)
 
 
-class ReconstructionLossContinuousBernoulli(ReconstructionLossBce):
+class ReconLossHandlerContinuousBernoulli(ReconLossHandlerBce):
     """
     The continuous Bernoulli: fixing a pervasive error in variational autoencoders
     - Loaiza-Ganem G and Cunningham JP, NeurIPS 2019.
@@ -143,7 +157,7 @@ class ReconstructionLossContinuousBernoulli(ReconstructionLossBce):
         return -torch.distributions.ContinuousBernoulli(logits=x_partial_recon, lims=(0.49, 0.51)).log_prob(x_targ)
 
 
-class ReconstructionLossNormal(ReconstructionLossMse):
+class ReconLossHandlerNormal(ReconLossHandlerMse):
     def _compute_unreduced_loss(self, x_partial_recon, x_targ):
         # this is almost the same as MSE, but scaled with a tiny offset
         # A value for scale should actually be passed...
@@ -159,26 +173,28 @@ class ReconstructionLossNormal(ReconstructionLossMse):
 # ========================================================================= #
 
 
-def make_reconstruction_loss(name) -> ReconstructionLoss:
+def make_reconstruction_loss(name: str, reduction: str) -> ReconLossHandler:
     if name == 'mse':
         # from the normal distribution
         # binary values only in the set {0, 1}
-        return ReconstructionLossMse()
+        cls = ReconLossHandlerMse
     elif name == 'bce':
         # from the bernoulli distribution
-        return ReconstructionLossBce()
+        cls = ReconLossHandlerBce
     elif name == 'bernoulli':
         # reduces to bce
         # binary values only in the set {0, 1}
-        return ReconstructionLossBernoulli()
+        cls = ReconLossHandlerBernoulli
     elif name == 'continuous_bernoulli':
         # bernoulli with a computed offset to handle values in the range [0, 1]
-        return ReconstructionLossContinuousBernoulli()
+        cls = ReconLossHandlerContinuousBernoulli
     elif name == 'normal':
         # handle all real values
-        return ReconstructionLossNormal()
+        cls = ReconLossHandlerNormal
     else:
         raise KeyError(f'Invalid vae reconstruction loss: {name}')
+    # instantiate!
+    return cls(reduction=reduction)
 
 
 # ========================================================================= #

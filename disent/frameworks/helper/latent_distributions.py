@@ -23,17 +23,34 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from dataclasses import dataclass
+from dataclasses import fields
+from typing import Sequence
 from typing import Tuple, final
 
+import numpy as np
 import torch
 from torch.distributions import Normal, Distribution
 
 from disent.frameworks.helper.reductions import loss_reduction
+from disent.frameworks.helper.util import compute_ave_loss
 from disent.util import TupleDataClass
 
 
 # ========================================================================= #
 # Helper Functions                                                          #
+# ========================================================================= #
+
+
+def short_dataclass_repr(self):
+    vals = {
+        k: v.shape if isinstance(v, (torch.Tensor, np.ndarray)) else v
+        for k, v in ((f.name, getattr(self, f.name)) for f in fields(self))
+    }
+    return f'{self.__class__.__name__}({", ".join(f"{k}={v}" for k, v in vals.items())})'
+
+
+# ========================================================================= #
+# Kl Loss                                                                   #
 # ========================================================================= #
 
 
@@ -66,7 +83,11 @@ def kl_loss(posterior: Distribution, prior: Distribution, z_sampled: torch.Tenso
 # ========================================================================= #
 
 
-class LatentDistribution(object):
+class LatentDistsHandler(object):
+
+    def __init__(self,  kl_mode: str = 'direct', reduction='mean'):
+        self._kl_mode = kl_mode
+        self._reduction = reduction
 
     @dataclass
     class Params(TupleDataClass):
@@ -75,6 +96,7 @@ class LatentDistribution(object):
         what kind of ops are supported, debug easier, and give type hints.
         - its a bit less efficient memory wise, but hardly...
         """
+        __repr__ = short_dataclass_repr
 
     def encoding_to_params(self, z_raw):
         raise NotImplementedError
@@ -82,37 +104,41 @@ class LatentDistribution(object):
     def params_to_representation(self, z_params: Params) -> torch.Tensor:
         raise NotImplementedError
 
-    def params_to_distributions(self, z_params: Params) -> Tuple[Distribution, Distribution]:
+    def params_to_dists(self, z_params: Params) -> Tuple[Distribution, Distribution]:
         """
         make the posterior and prior distributions
         """
         raise NotImplementedError
 
     @final
-    def params_to_distributions_and_sample(self, z_params: Params) -> Tuple[Tuple[Distribution, Distribution], torch.Tensor]:
+    def params_to_dists_and_sample(self, z_params: Params) -> Tuple[Distribution, Distribution, torch.Tensor]:
         """
         Return the parameterized prior and the approximate posterior distributions,
         as well as a sample from the approximate posterior using the 'reparameterization trick'.
         """
-        posterior, prior = self.params_to_distributions(z_params)
+        posterior, prior = self.params_to_dists(z_params)
         # sample from posterior -- reparameterization trick!
         # ie. z ~ q(z|x)
         z_sampled = posterior.rsample()
         # return values
-        return (posterior, prior), z_sampled
+        return posterior, prior, z_sampled
 
-    @classmethod
-    def compute_kl_loss(
-            cls,
-            posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None,
-            mode: str = 'direct', reduction='mean'
-    ):
+    @final
+    def compute_kl_loss(self, posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None) -> torch.Tensor:
         """
         Compute the kl divergence
         """
-        kl = kl_loss(posterior, prior, z_sampled, mode=mode)
-        kl = loss_reduction(kl, reduction=reduction)
+        kl = kl_loss(posterior, prior, z_sampled, mode=self._kl_mode)
+        kl = loss_reduction(kl, reduction=self._reduction)
         return kl
+
+    @final
+    def compute_unreduced_kl_loss(self, posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None) -> torch.Tensor:
+        return kl_loss(posterior, prior, z_sampled, mode=self._kl_mode)
+
+    @final
+    def compute_ave_kl_loss(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled: Sequence[torch.Tensor]) -> torch.Tensor:
+        return compute_ave_loss(self.compute_kl_loss, ds_posterior, ds_prior, zs_sampled)
 
 
 # ========================================================================= #
@@ -120,7 +146,7 @@ class LatentDistribution(object):
 # ========================================================================= #
 
 
-class LatentDistributionNormal(LatentDistribution):
+class LatentDistsHandlerNormal(LatentDistsHandler):
     """
     Latent distributions with:
     - posterior: normal distribution with diagonal covariance
@@ -128,9 +154,10 @@ class LatentDistributionNormal(LatentDistribution):
     """
 
     @dataclass
-    class Params(LatentDistribution.Params):
+    class Params(LatentDistsHandler.Params):
         mean: torch.Tensor = None
         logvar: torch.Tensor = None
+        __repr__ = short_dataclass_repr
 
     @final
     def encoding_to_params(self, raw_z: Tuple[torch.Tensor, torch.Tensor]) -> Params:
@@ -142,7 +169,7 @@ class LatentDistributionNormal(LatentDistribution):
         return z_params.mean
 
     @final
-    def params_to_distributions(self, z_params: Params) -> Tuple[Normal, Normal]:
+    def params_to_dists(self, z_params: Params) -> Tuple[Normal, Normal]:
         """
         Return the parameterized prior and the approximate posterior distributions.
         - The standard VAE parameterizes the gaussian normal with diagonal covariance.
@@ -189,11 +216,13 @@ class LatentDistributionNormal(LatentDistribution):
 # ========================================================================= #
 
 
-def make_latent_distribution(name: str) -> LatentDistribution:
+def make_latent_distribution(name: str, kl_mode: str, reduction: str) -> LatentDistsHandler:
     if name == 'normal':
-        return LatentDistributionNormal()
+        cls = LatentDistsHandlerNormal
     else:
         raise KeyError(f'unknown vae distribution name: {name}')
+    # make instance
+    return cls(kl_mode=kl_mode, reduction=reduction)
 
 
 # ========================================================================= #

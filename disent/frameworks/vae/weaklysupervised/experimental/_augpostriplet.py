@@ -42,6 +42,8 @@ log = logging.getLogger(__name__)
 
 class AugPosTripletVae(TripletVae):
 
+    REQUIRED_OBS = 2  # third obs is generated from augmentations
+
     @dataclass
     class cfg(TripletVae.cfg):
         pass
@@ -50,7 +52,7 @@ class AugPosTripletVae(TripletVae):
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
         self._aug = None
 
-    def compute_training_loss(self, batch, batch_idx):
+    def do_training_step(self, batch, batch_idx):
         (a_x, n_x), (a_x_targ, n_x_targ) = batch['x'], batch['x_targ']
 
         # make augmenter as it requires the image sizes
@@ -72,7 +74,7 @@ class AugPosTripletVae(TripletVae):
 
         batch['x'], batch['x_targ'] = (a_x, p_x, n_x), (a_x_targ, p_x_targ, n_x_targ)
         # compute!
-        return super().compute_training_loss(batch, batch_idx)
+        return super().do_training_step(batch, batch_idx)
 
 
 # ========================================================================= #

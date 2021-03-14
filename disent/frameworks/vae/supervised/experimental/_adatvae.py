@@ -23,10 +23,14 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from dataclasses import dataclass
+from typing import Sequence
+
 import torch
 import numpy as np
-from disent.frameworks.vae.supervised._tvae import TripletVae
+from torch.distributions import Normal
+
 from disent.frameworks.helper.triplet_loss import configured_triplet, configured_dist_triplet
+from disent.frameworks.vae.supervised._tvae import TripletVae
 from disent.frameworks.vae.weaklysupervised._adavae import AdaVae
 import logging
 
@@ -40,6 +44,8 @@ log = logging.getLogger(__name__)
 
 
 class AdaTripletVae(TripletVae):
+
+    REQUIRED_OBS = 3
 
     # TODO: increase margin over time, maybe log
     #       approach current max
@@ -58,31 +64,35 @@ class AdaTripletVae(TripletVae):
     def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
         # triplet annealing
-        self.steps = 0
+        self.step = 0
 
-    def augment_loss(self, z_means):
-        a_z_mean, p_z_mean, n_z_mean = z_means
+    def hook_compute_ave_aug_loss(self, ds_posterior: Sequence[Normal], ds_prior: Sequence[Normal], zs_sampled: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]):
+        self.step += 1
+        return self.compute_ada_triplet_loss(zs_mean=[d.mean for d in ds_posterior], cfg=self.cfg, step=self.step)
+
+    @staticmethod
+    def compute_ada_triplet_loss(zs_mean: Sequence[Normal], cfg: cfg, step: int):
+        a_z_mean, p_z_mean, n_z_mean = zs_mean
 
         # normal triplet
-        trip_loss = self.triplet_loss(a_z_mean, p_z_mean, n_z_mean)
+        trip_loss = configured_triplet(a_z_mean, p_z_mean, n_z_mean, cfg=cfg)
 
         # Adaptive Component
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         _, _, an_a_ave, an_n_ave = AdaTripletVae.compute_ave(a_z_mean, p_z_mean, n_z_mean)
-        ada_p_orig = self.dist_triplet_loss(pos_delta=p_z_mean-a_z_mean, neg_delta=an_n_ave-an_a_ave)  # TODO: good reason why `ap_p_ave - ap_a_ave` this is bad?
+        ada_p_orig = configured_dist_triplet(pos_delta=p_z_mean-a_z_mean, neg_delta=an_n_ave-an_a_ave, cfg=cfg)  # TODO: good reason why `ap_p_ave - ap_a_ave` this is bad?
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
         # Update Anneal Values
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        self.steps += 1
-        lerp = (self.steps - self.cfg.lerp_step_start) / (self.cfg.lerp_step_end - self.cfg.lerp_step_start)
-        lerp = np.clip(lerp, 0, self.cfg.lerp_goal)
+        lerp = (step - cfg.lerp_step_start) / (cfg.lerp_step_end - cfg.lerp_step_start)
+        lerp = np.clip(lerp, 0, cfg.lerp_goal)
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
         # Triplet Lerp
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         _, _, an_a_ave, an_n_ave = AdaTripletVae.compute_ave(a_z_mean, p_z_mean, n_z_mean, lerp=lerp)
-        ada_p_orig_lerp = self.dist_triplet_loss(pos_delta=p_z_mean-a_z_mean, neg_delta=an_n_ave-an_a_ave)  # TODO: good reason why `ap_p_ave - ap_a_ave` this is bad?
+        ada_p_orig_lerp = configured_dist_triplet(pos_delta=p_z_mean-a_z_mean, neg_delta=an_n_ave-an_a_ave, cfg=cfg)  # TODO: good reason why `ap_p_ave - ap_a_ave` this is bad?
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
         # MSE Ada Triplet
@@ -91,8 +101,8 @@ class AdaTripletVae(TripletVae):
         p_shared_mask, n_shared_mask = AdaTripletVae.compute_shared_masks(a_z_mean, p_z_mean, n_z_mean, lerp=None)
         p_shared_mask_lerp, n_shared_mask_lerp = AdaTripletVae.compute_shared_masks(a_z_mean, p_z_mean, n_z_mean, lerp=lerp)
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        shared_loss = AdaTripletVae.compute_shared_loss(a_z_mean, p_z_mean, n_z_mean, lerp=None, p=2) * self.cfg.triplet_scale       # TODO: does p here affect things?
-        shared_loss_lerp = AdaTripletVae.compute_shared_loss(a_z_mean, p_z_mean, n_z_mean, lerp=lerp, p=2) * self.cfg.triplet_scale  # TODO: does p here affect things?
+        shared_loss = AdaTripletVae.compute_shared_loss(a_z_mean, p_z_mean, n_z_mean, lerp=None, p=2) * cfg.triplet_scale       # TODO: does p here affect things?
+        shared_loss_lerp = AdaTripletVae.compute_shared_loss(a_z_mean, p_z_mean, n_z_mean, lerp=lerp, p=2) * cfg.triplet_scale  # TODO: does p here affect things?
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
         # Ada Mul Triplet
@@ -100,16 +110,16 @@ class AdaTripletVae(TripletVae):
         #   elements so they are moved closer together. ie. 2x for a->p, and 0.5x for a->n
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         mul = torch.where(p_shared_mask, torch.full_like(a_z_mean, 2), torch.full_like(a_z_mean, 1))
-        ada_mul_triplet = self.dist_triplet_loss(pos_delta=(p_z_mean-a_z_mean) * mul, neg_delta=(n_z_mean-a_z_mean) / mul)
+        ada_mul_triplet = configured_dist_triplet(pos_delta=(p_z_mean-a_z_mean) * mul, neg_delta=(n_z_mean-a_z_mean) / mul, cfg=cfg)
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         mul = torch.where(p_shared_mask, torch.full_like(a_z_mean, 1+lerp), torch.full_like(a_z_mean, 1))
-        ada_mul_lerp_triplet = self.dist_triplet_loss(pos_delta=(p_z_mean-a_z_mean) * mul, neg_delta=(n_z_mean-a_z_mean) / mul)
+        ada_mul_lerp_triplet = configured_dist_triplet(pos_delta=(p_z_mean-a_z_mean) * mul, neg_delta=(n_z_mean-a_z_mean) / mul, cfg=cfg)
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         mul = torch.where(p_shared_mask_lerp, torch.full_like(a_z_mean, 2), torch.full_like(a_z_mean, 1))
-        ada_lerp_mul_triplet = self.dist_triplet_loss(pos_delta=(p_z_mean-a_z_mean) * mul, neg_delta=(n_z_mean-a_z_mean) / mul)
+        ada_lerp_mul_triplet = configured_dist_triplet(pos_delta=(p_z_mean-a_z_mean) * mul, neg_delta=(n_z_mean-a_z_mean) / mul, cfg=cfg)
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         mul = torch.where(p_shared_mask_lerp, torch.full_like(a_z_mean, 1+lerp), torch.full_like(a_z_mean, 1))
-        ada_lerp_mul_lerp_triplet = self.dist_triplet_loss(pos_delta=(p_z_mean-a_z_mean) * mul, neg_delta=(n_z_mean-a_z_mean) / mul)
+        ada_lerp_mul_lerp_triplet = configured_dist_triplet(pos_delta=(p_z_mean-a_z_mean) * mul, neg_delta=(n_z_mean-a_z_mean) / mul, cfg=cfg)
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
         losses = {
@@ -135,24 +145,18 @@ class AdaTripletVae(TripletVae):
             'lerp_trip_to_ada_p_orig_lerp': blend(trip_loss, ada_p_orig_lerp, alpha=lerp),
         }
 
-        return losses[self.cfg.triplet_mode], {
+        return losses[cfg.triplet_mode], {
             **losses,
-            'triplet_chosen': losses[self.cfg.triplet_mode],
+            'triplet_chosen': losses[cfg.triplet_mode],
             # lerp
             'lerp': lerp,
-            'lerp_goal': self.cfg.lerp_goal,
+            'lerp_goal': cfg.lerp_goal,
             # shared
             'p_shared': p_shared_mask.sum(dim=1).float().mean(),
             'n_shared': n_shared_mask.sum(dim=1).float().mean(),
             'p_shared_lerp': p_shared_mask_lerp.sum(dim=1).float().mean(),
             'n_shared_lerp': n_shared_mask_lerp.sum(dim=1).float().mean(),
         }
-
-    def triplet_loss(self, anc, pos, neg):
-        return configured_triplet(anc, pos, neg, self.cfg)
-
-    def dist_triplet_loss(self, pos_delta, neg_delta):
-        return configured_dist_triplet(pos_delta, neg_delta, self.cfg)
 
     @staticmethod
     def compute_shared_masks(a_z_mean, p_z_mean, n_z_mean, lerp=None):

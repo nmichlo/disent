@@ -29,10 +29,12 @@ import time
 from dataclasses import dataclass
 from dataclasses import fields
 from itertools import islice
+from typing import List
 
 import numpy as np
 import pytorch_lightning as pl
 import torch
+from torch.utils.data.dataloader import default_collate
 
 
 """
@@ -200,6 +202,42 @@ def iter_rechunk(chunks, chunk_size: int, include_remainder=True):
         chunk_size=chunk_size,
         include_remainder=include_remainder
     )
+
+
+# TODO: not actually an iterator
+def map_all(fn, *arg_lists, starmap: bool = True, collect_returned: bool = False, common_kwargs: dict = None):
+    assert arg_lists, 'an empty list of args was passed'
+    # check all lengths are the same
+    num = len(arg_lists[0])
+    assert num > 0
+    assert all(len(items) == num for items in arg_lists)
+    # update kwargs
+    if common_kwargs is None:
+        common_kwargs = {}
+    # map everything
+    if starmap:
+        results = (fn(*args, **common_kwargs) for args in zip(*arg_lists))
+    else:
+        results = (fn(args, **common_kwargs) for args in zip(*arg_lists))
+    # zip everything
+    if collect_returned:
+        return tuple(zip(*results))
+    else:
+        return tuple(results)
+
+
+def collect_dicts(results: List[dict]):
+    # collect everything
+    keys = results[0].keys()
+    values = zip(*([result[k] for k in keys] for result in results))
+    return {k: list(v) for k, v in zip(keys, values)}
+
+
+def aggregate_dict(results: dict, reduction='mean'):
+    assert reduction == 'mean', 'mean is the only mode supported'
+    return {
+        k: sum(v) / len(v) for k, v in results.items()
+    }
 
 
 # ========================================================================= #
@@ -453,6 +491,33 @@ class TupleDataClass:
 
     def __repr__(self):
         return f'{self.__class__.__name__}({", ".join(f"{name}={repr(getattr(self, name))}" for name in self.__field_names)})'
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #
+
+
+def debug_transform_tensors(obj):
+    """
+    recursively convert all tensors to their shapes for debugging
+    """
+    if isinstance(obj, (torch.Tensor, np.ndarray)):
+        return obj.shape
+    elif isinstance(obj, dict):
+        return {debug_transform_tensors(k): debug_transform_tensors(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return list(debug_transform_tensors(v) for v in obj)
+    elif isinstance(obj, tuple):
+        return tuple(debug_transform_tensors(v) for v in obj)
+    elif isinstance(obj, set):
+        return {debug_transform_tensors(k) for k in obj}
+    else:
+        return obj
+
+
+def pprint_tensors(*args, **kwargs):
+    print(*(debug_transform_tensors(arg) for arg in args), **kwargs)
 
 
 # ========================================================================= #

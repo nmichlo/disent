@@ -22,29 +22,43 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from dataclasses import dataclass
+from typing import Any
+from typing import Dict
+from typing import Tuple
 
-from disent.frameworks.vae.supervised.experimental._gadavae import GuidedAdaVae
-from disent.frameworks.vae.supervised._tvae import TripletVae
-from disent.frameworks.helper.triplet_loss import TripletLossConfig
+import torch
+
+from disent.util import aggregate_dict
+from disent.util import collect_dicts
+from disent.util import map_all
 
 
 # ========================================================================= #
-# tgadavae                                                                  #
+# AVE LOSS HELPER                                                           #
 # ========================================================================= #
 
 
-class TripletGuidedAdaVae(GuidedAdaVae):
+def compute_ave_loss(loss_fn, *arg_list, **common_kwargs) -> torch.Tensor:
+    # compute all losses
+    losses = map_all(loss_fn, *arg_list, collect_returned=False, common_kwargs=common_kwargs)
+    # compute mean loss
+    loss = torch.stack(losses).mean(dim=0)
+    # return!
+    return loss
 
-    REQUIRED_OBS = 3
 
-    @dataclass
-    class cfg(GuidedAdaVae.cfg, TripletLossConfig):
-        pass
+def compute_ave_loss_and_logs(loss_and_logs_fn, *arg_list, **common_kwargs) -> Tuple[torch.Tensor, Dict[str, Any]]:
+    # compute all losses
+    losses, logs = map_all(loss_and_logs_fn, *arg_list, collect_returned=True, common_kwargs=common_kwargs)
+    # compute mean loss
+    loss = torch.stack(losses).mean(dim=0)
+    # compute mean logs
+    logs = aggregate_dict(collect_dicts(logs))
+    # return!
+    return loss, logs
 
-    def hook_compute_ave_aug_loss(self, ds_posterior, ds_prior, zs_sampled, xs_partial_recon, xs_targ):
-        return TripletVae.compute_triplet_loss(zs_mean=[d.mean for d in ds_posterior], cfg=self.cfg)
 
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
+

@@ -23,7 +23,9 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from dataclasses import dataclass
-from disent.frameworks.vae.supervised import BoundedAdaVae, TripletVae
+
+from disent.frameworks.vae.supervised.experimental._badavae import BoundedAdaVae
+from disent.frameworks.vae.supervised._tvae import TripletVae
 from disent.frameworks.helper.triplet_loss import TripletLossConfig
 
 
@@ -34,12 +36,14 @@ from disent.frameworks.helper.triplet_loss import TripletLossConfig
 
 class TripletBoundedAdaVae(BoundedAdaVae):
 
+    REQUIRED_OBS = 3
+
     @dataclass
     class cfg(BoundedAdaVae.cfg, TripletLossConfig):
         pass
 
-    def augment_loss(self, z_means):
-        return TripletVae.augment_loss_triplet(z_means, self.cfg)
+    def hook_compute_ave_aug_loss(self, ds_posterior, ds_prior, zs_sampled, xs_partial_recon, xs_targ):
+        return TripletVae.compute_triplet_loss(zs_mean=[d.mean for d in ds_posterior], cfg=self.cfg)
 
 
 # ========================================================================= #

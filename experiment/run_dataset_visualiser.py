@@ -33,10 +33,14 @@ import numpy as np
 import streamlit as st
 import torch
 from omegaconf import DictConfig
+from omegaconf import OmegaConf
 
+from disent.util import make_box_str
 from disent.visualize.visualize_util import make_image_grid
 from experiment.run import hydra_check_datadir
 from experiment.run import HydraDataModule
+from experiment.util.hydra_utils import make_non_strict
+from experiment.util.hydra_utils import merge_specializations
 from experiment.util.streamlit_util import run_streamlit
 
 
@@ -65,7 +69,11 @@ def get_config():
     @hydra.main(config_path='config', config_name="config")
     def main(config: DictConfig):
         nonlocal cfg
-        cfg = config
+        cfg = make_non_strict(config)
+        # hydra config does not support variables in defaults lists, we handle this manually
+        cfg = merge_specializations(cfg, 'config', visualise)
+        # print the config
+        log.info(f'Final Config Is:\n{make_box_str(OmegaConf.to_yaml(cfg))}')
     main()
     return cfg
 

@@ -23,10 +23,19 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from dataclasses import dataclass
+from distutils.dist import Distribution
+from numbers import Number
+from typing import Any
+from typing import Dict
+from typing import Sequence
+from typing import Tuple
+from typing import Union
 
 import torch
-from disent.frameworks.vae.unsupervised import BetaVae
-from disent.frameworks.helper.triplet_loss import configured_triplet, TripletLossConfig, TripletConfigTypeHint
+from torch.distributions import Normal
+
+from disent.frameworks.vae.unsupervised._betavae import BetaVae
+from disent.frameworks.helper.triplet_loss import configured_triplet, TripletLossConfig
 
 
 # ========================================================================= #
@@ -36,6 +45,8 @@ from disent.frameworks.helper.triplet_loss import configured_triplet, TripletLos
 
 class TripletVae(BetaVae):
 
+    REQUIRED_OBS = 3
+
     @dataclass
     class cfg(BetaVae.cfg, TripletLossConfig):
         # tvae: no loss from decoder -> encoder
@@ -44,73 +55,32 @@ class TripletVae(BetaVae):
         detach_no_kl: bool = False
         detach_logvar: float = -2  # std = 0.5, logvar = ln(std**2) ~= -2,77
 
-    def compute_training_loss(self, batch, batch_idx):
-        (a_x, p_x, n_x), (a_x_targ, p_x_targ, n_x_targ) = batch['x'], batch['x_targ']
-
-        # FORWARD
-        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-        # latent distribution parametrisation
-        a_z_params = self.training_encode_params(a_x)
-        p_z_params = self.training_encode_params(p_x)
-        n_z_params = self.training_encode_params(n_x)
-        # get zeros
+    def hook_intercept_zs(self, zs_params: Sequence['Params']) -> Tuple[Sequence['Params'], Dict[str, Any]]:
+        # replace logvar
         if self.cfg.detach and (self.cfg.detach_logvar is not None):
-            a_z_params.logvar = torch.full_like(a_z_params.logvar, self.cfg.detach_logvar)
-            p_z_params.logvar = torch.full_like(p_z_params.logvar, self.cfg.detach_logvar)
-            n_z_params.logvar = torch.full_like(n_z_params.logvar, self.cfg.detach_logvar)
-        # sample from latent distribution
-        (a_d_posterior, a_d_prior), a_z_sampled = self.training_params_to_distributions_and_sample(a_z_params)
-        (p_d_posterior, p_d_prior), p_z_sampled = self.training_params_to_distributions_and_sample(p_z_params)
-        (n_d_posterior, n_d_prior), n_z_sampled = self.training_params_to_distributions_and_sample(n_z_params)
+            for z_params in zs_params:
+                z_params.logvar = torch.full_like(z_params.logvar, self.cfg.detach_logvar)
+        # done
+        return zs_params, {}
+
+    def hook_intercept_zs_sampled(self, zs_sampled: Sequence[torch.Tensor]) -> Tuple[Sequence[torch.Tensor], Dict[str, Any]]:
         # detach samples so no gradient flows through them
         if self.cfg.detach and self.cfg.detach_decoder:
-            a_z_sampled = a_z_sampled.detach()
-            p_z_sampled = p_z_sampled.detach()
-            n_z_sampled = n_z_sampled.detach()
-        # reconstruct without the final activation
-        a_x_partial_recon = self.training_decode_partial(a_z_sampled)
-        p_x_partial_recon = self.training_decode_partial(p_z_sampled)
-        n_x_partial_recon = self.training_decode_partial(n_z_sampled)
-        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+            zs_sampled = tuple(z_sampled.detach() for z_sampled in zs_sampled)
+        return zs_sampled, {}
 
-        # LOSS
-        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-        # reconstruction error
-        a_recon_loss = self.training_recon_loss(a_x_partial_recon, a_x_targ)  # E[log p(x|z)]
-        p_recon_loss = self.training_recon_loss(p_x_partial_recon, p_x_targ)  # E[log p(x|z)]
-        n_recon_loss = self.training_recon_loss(n_x_partial_recon, n_x_targ)  # E[log p(x|z)]
-        ave_recon_loss = (a_recon_loss + p_recon_loss + n_recon_loss) / 3
-        # KL divergence
+    def compute_ave_reg_loss(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
         if self.cfg.detach and self.cfg.detach_no_kl:
-            ave_kl_loss = 0
+            return 0, {}
         else:
-            a_kl_loss = self.training_kl_loss(a_d_posterior, a_d_prior)  # D_kl(q(z|x) || p(z|x))
-            p_kl_loss = self.training_kl_loss(p_d_posterior, p_d_prior)  # D_kl(q(z|x) || p(z|x))
-            n_kl_loss = self.training_kl_loss(n_d_posterior, n_d_prior)  # D_kl(q(z|x) || p(z|x))
-            ave_kl_loss = (a_kl_loss + p_kl_loss + n_kl_loss) / 3
-        # compute kl regularisation
-        ave_kl_reg_loss = self.training_regularize_kl(ave_kl_loss)
-        # augment loss
-        augment_loss, augment_loss_logs = self.augment_loss(z_means=(a_z_params.mean, p_z_params.mean, n_z_params.mean))
-        # compute combined loss - must be same as the BetaVAE
-        loss = ave_recon_loss + ave_kl_reg_loss + augment_loss
-        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+            return super().compute_ave_reg_loss(ds_posterior, ds_prior, zs_sampled)
 
-        return {
-            'train_loss': loss,
-            'recon_loss': ave_recon_loss,
-            'kl_reg_loss': ave_kl_reg_loss,
-            'kl_loss': ave_kl_loss,
-            'elbo': -(ave_recon_loss + ave_kl_loss),
-            **augment_loss_logs,
-        }
-
-    def augment_loss(self, z_means):
-        return self.augment_loss_triplet(z_means, self.cfg)
+    def hook_compute_ave_aug_loss(self, ds_posterior: Sequence[Normal], ds_prior: Sequence[Normal], zs_sampled: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
+        return self.compute_triplet_loss(zs_mean=[d.mean for d in ds_posterior], cfg=self.cfg)
 
     @staticmethod
-    def augment_loss_triplet(z_means, cfg: TripletConfigTypeHint):
-        anc, pos, neg = z_means
+    def compute_triplet_loss(zs_mean: Sequence[torch.Tensor], cfg: cfg):
+        anc, pos, neg = zs_mean
         # loss is scaled and everything
         loss = configured_triplet(anc, pos, neg, cfg=cfg)
         # return loss & log

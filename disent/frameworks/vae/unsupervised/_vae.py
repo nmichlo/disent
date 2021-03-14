@@ -23,13 +23,21 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from dataclasses import dataclass
-from typing import Tuple, final
+from numbers import Number
+from typing import Any
+from typing import Dict
+from typing import final
+from typing import Sequence
+from typing import Tuple
+from typing import Union
 
 import torch
 from torch.distributions import Distribution
 
-from disent.frameworks.ae.unsupervised import AE
-from disent.frameworks.helper.latent_distributions import make_latent_distribution, LatentDistribution
+from disent.frameworks.ae.unsupervised._ae import AE
+from disent.frameworks.helper.latent_distributions import LatentDistsHandler
+from disent.frameworks.helper.latent_distributions import make_latent_distribution
+from disent.util import map_all
 
 
 # ========================================================================= #
@@ -45,6 +53,7 @@ class Vae(AE):
 
     # override required z from AE
     REQUIRED_Z_MULTIPLIER = 2
+    REQUIRED_OBS = 1
 
     @dataclass
     class cfg(AE.cfg):
@@ -55,87 +64,109 @@ class Vae(AE):
         # required_z_multiplier
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
         # vae distribution
-        self._distributions: LatentDistribution = make_latent_distribution(self.cfg.latent_distribution)
+        self.__latents_handler = make_latent_distribution(self.cfg.latent_distribution, kl_mode=self.cfg.kl_loss_mode, reduction=self.cfg.loss_reduction)
+
+    @final
+    @property
+    def latents_handler(self) -> LatentDistsHandler:
+        return self.__latents_handler
 
     # --------------------------------------------------------------------- #
     # VAE Training Step                                                     #
     # --------------------------------------------------------------------- #
 
-    def compute_training_loss(self, batch, batch_idx):
-        (x,), (x_targ,) = batch['x'], batch['x_targ']
+    @final
+    def do_training_step(self, batch, batch_idx):
+        xs, xs_targ = self._get_xs_and_targs(batch, batch_idx)
 
         # FORWARD
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # latent distribution parameterizations
-        z_params = self.training_encode_params(x)
-        # sample from latent distribution
-        (d_posterior, d_prior), z_sampled = self.training_params_to_distributions_and_sample(z_params)
+        zs_params = map_all(self.encode_params, xs)
+        # [HOOK] intercept latent parameterizations
+        zs_params, logs_intercept_zs = self.hook_intercept_zs(zs_params)
+        # make latent distributions & sample
+        ds_posterior, ds_prior, zs_sampled = map_all(self.params_to_dists_and_sample, zs_params, collect_returned=True)
+        # [HOOK] intercept zs_samples
+        zs_sampled, logs_intercept_zs_sampled = self.hook_intercept_zs_sampled(zs_sampled)
         # reconstruct without the final activation
-        x_partial_recon = self.training_decode_partial(z_sampled)
+        xs_partial_recon = map_all(self.decode_partial, zs_sampled)
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
         # LOSS
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-        # reconstruction error
-        recon_loss = self.training_recon_loss(x_partial_recon, x_targ)  # E[log p(x|z)]
-        # KL divergence & regularization
-        kl_loss = self.training_kl_loss(d_posterior, d_prior, z_sampled)  # D_kl(q(z|x) || p(z|x))
-        # compute kl regularisation
-        kl_reg_loss = self.training_regularize_kl(kl_loss)
+        # compute all the recon losses
+        recon_loss, logs_recon = self.compute_ave_recon_loss(xs_partial_recon, xs_targ)
+        # compute all the regularization losses
+        reg_loss, logs_reg = self.compute_ave_reg_loss(ds_posterior, ds_prior, zs_sampled)
+        # [HOOK] augment loss
+        aug_loss, logs_aug = self.hook_compute_ave_aug_loss(ds_posterior=ds_posterior, ds_prior=ds_prior, zs_sampled=zs_sampled, xs_partial_recon=xs_partial_recon, xs_targ=xs_targ)
         # compute combined loss
-        loss = recon_loss + kl_reg_loss
+        loss = recon_loss + reg_loss + aug_loss
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
-        return {
-            'train_loss': loss,
+        # return values
+        return loss, {
+            **logs_intercept_zs,
+            **logs_intercept_zs_sampled,
+            **logs_recon,
+            **logs_reg,
+            **logs_aug,
             'recon_loss': recon_loss,
-            'kl_reg_loss': kl_reg_loss,
-            'kl_loss': kl_loss,
-            'elbo': -(recon_loss + kl_loss),
+            'reg_loss': reg_loss,
+            'aug_loss': aug_loss,
         }
 
     # --------------------------------------------------------------------- #
-    # VAE - Overrides AE                                                    #
+    # Overrideable                                                          #
+    # --------------------------------------------------------------------- #
+
+    def hook_intercept_zs(self, zs_params: Sequence['Params']) -> Tuple[Sequence['Params'], Dict[str, Any]]:
+        return zs_params, {}
+
+    def hook_intercept_zs_sampled(self, zs_sampled: Sequence[torch.Tensor]) -> Tuple[Sequence[torch.Tensor], Dict[str, Any]]:
+        return zs_sampled, {}
+
+    def hook_compute_ave_aug_loss(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
+        return 0, {}
+
+    def compute_ave_reg_loss(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
+        # compute regularization loss (kl divergence)
+        kl_loss = self.latents_handler.compute_ave_kl_loss(ds_posterior, ds_prior, zs_sampled)
+        # return logs
+        return kl_loss, {
+            'kl_loss': kl_loss,
+        }
+
+    # --------------------------------------------------------------------- #
+    # VAE - Encoding - Overrides AE                                         #
     # --------------------------------------------------------------------- #
 
     @final
     def encode(self, x: torch.Tensor) -> torch.Tensor:
         """Get the deterministic latent representation (useful for visualisation)"""
-        z = self._distributions.params_to_representation(self.training_encode_params(x))
+        z_params = self.encode_params(x)
+        z = self.latents_handler.params_to_representation(z_params)
         return z
 
     @final
-    def training_encode_params(self, x: torch.Tensor) -> 'Params':
+    def encode_params(self, x: torch.Tensor) -> 'Params':
         """Get parametrisations of the latent distributions, which are sampled from during training."""
-        z_params = self._distributions.encoding_to_params(self._model.encode(x))
+        z_raw = self._model.encode(x)
+        z_params = self.latents_handler.encoding_to_params(z_raw)
         return z_params
 
     # --------------------------------------------------------------------- #
-    # VAE Model Utility Functions (Training)                                #
+    # VAE - Latent Distributions                                            #
     # --------------------------------------------------------------------- #
 
     @final
-    def training_params_to_distributions_and_sample(self, z_params: 'Params') -> Tuple[Tuple[Distribution, Distribution], torch.Tensor]:
-        return self._distributions.params_to_distributions_and_sample(z_params)
+    def params_to_dists(self, z_params: 'Params') -> Tuple[Distribution, Distribution]:
+        return self.latents_handler.params_to_dists(z_params)
 
     @final
-    def training_params_to_distributions(self, z_params: 'Params') -> Tuple[Distribution, Distribution]:
-        return self._distributions.params_to_distributions(z_params)
-
-    @final
-    def training_kl_loss(self, d_posterior: Distribution, d_prior: Distribution, z_sampled: torch.Tensor = None) -> torch.Tensor:
-        return self._distributions.compute_kl_loss(
-            d_posterior, d_prior, z_sampled,
-            mode=self.cfg.kl_loss_mode,
-            reduction=self.cfg.loss_reduction,
-        )
-
-    # --------------------------------------------------------------------- #
-    # VAE Model Utility Functions (Overridable)                             #
-    # --------------------------------------------------------------------- #
-
-    def training_regularize_kl(self, kl_loss):
-        return kl_loss
+    def params_to_dists_and_sample(self, z_params: 'Params') -> Tuple[Distribution, Distribution, torch.Tensor]:
+        return self.latents_handler.params_to_dists_and_sample(z_params)
 
 
 # ========================================================================= #

@@ -25,7 +25,7 @@
 from dataclasses import dataclass
 
 import numpy as np
-from disent.frameworks.vae.unsupervised import BetaVae
+from disent.frameworks.vae.unsupervised._betavae import BetaVae
 
 
 # ========================================================================= #
@@ -35,6 +35,8 @@ from disent.frameworks.vae.unsupervised import BetaVae
 
 class SwappedTargetBetaVae(BetaVae):
 
+    REQUIRED_OBS = 2
+
     @dataclass
     class cfg(BetaVae.cfg):
         swap_chance: float = 0.1
@@ -43,14 +45,14 @@ class SwappedTargetBetaVae(BetaVae):
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
         assert cfg.swap_chance >= 0
 
-    def compute_training_loss(self, batch, batch_idx):
+    def do_training_step(self, batch, batch_idx):
         (x0, x1), (x0_targ, x1_targ) = batch['x'], batch['x_targ']
 
         # random change for the target not to be equal to the input
         if np.random.random() < self.cfg.swap_chance:
             x0_targ, x1_targ = x1_targ, x0_targ
 
-        return super(SwappedTargetBetaVae, self).compute_training_loss({
+        return super(SwappedTargetBetaVae, self).do_training_step({
             'x': (x0,),
             'x_targ': (x0_targ,),
         }, batch_idx)

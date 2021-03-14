@@ -23,7 +23,17 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from dataclasses import dataclass
-from disent.frameworks.vae.unsupervised import Vae
+from numbers import Number
+from typing import Any
+from typing import Dict
+from typing import Sequence
+from typing import Tuple
+from typing import Union
+
+import torch
+from torch.distributions import Distribution
+
+from disent.frameworks.vae.unsupervised._vae import Vae
 
 
 # ========================================================================= #
@@ -32,6 +42,8 @@ from disent.frameworks.vae.unsupervised import Vae
 
 
 class BetaVae(Vae):
+
+    REQUIRED_OBS = 1
 
     @dataclass
     class cfg(Vae.cfg):
@@ -59,8 +71,19 @@ class BetaVae(Vae):
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
         assert self.cfg.beta >= 0, 'beta must be >= 0'
 
-    def training_regularize_kl(self, kl_loss):
-        return self.cfg.beta * kl_loss
+    # --------------------------------------------------------------------- #
+    # Overrides                                                             #
+    # --------------------------------------------------------------------- #
+
+    def compute_ave_reg_loss(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
+        # BetaVAE: compute regularization loss (kl divergence)
+        kl_loss = self.latents_handler.compute_ave_kl_loss(ds_posterior, ds_prior, zs_sampled)
+        kl_reg_loss = self.cfg.beta * kl_loss
+        # return logs
+        return kl_reg_loss, {
+            'kl_loss': kl_loss,
+            'kl_reg_loss': kl_reg_loss,
+        }
 
 
 # ========================================================================= #
