@@ -1,0 +1,13 @@
+# @package _group_
+name: infovae
+module:
+  _target_: disent.frameworks.vae.unsupervised.InfoVae
+  # info vae is not based off beta vae, but with
+  # the correct parameter choice this can equal the beta vae
+  info_alpha: -0.5
+  info_lambda: 5.0
+  info_kernel: "rbf"  # rbf kernel is the only kernel currently
+
+# settings used elsewhere
+data_wrap_mode: single
+model_z_multiplier: 2

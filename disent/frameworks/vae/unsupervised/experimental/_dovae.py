@@ -65,7 +65,7 @@ class DataOverlapVae(AdaTripletVae):
         # OVERLAP VAE
         overlap_triplet_mode: str = 'triplet'
         overlap_num: int = 1024
-        overlap_z_mode: str = 'mean'
+        overlap_z_mode: str = 'means'
         # TRIPLET MINING
         overlap_mine_triplet_mode: str = 'none'
         overlap_mine_ratio: float = 0.1

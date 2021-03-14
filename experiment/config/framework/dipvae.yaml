@@ -1,0 +1,15 @@
+# @package _group_
+name: dipvae
+module:
+  _target_: disent.frameworks.vae.unsupervised.DipVae
+  # Beta-VAE
+  beta: ${framework.beta}
+  # DIP-VAE
+  dip_mode: 'ii'  # "i" or "ii"
+  dip_beta: 1.0
+  lambda_d: 1.0  # diagonal weight
+  lambda_od: 0.5  # off diagonal weight
+
+# settings used elsewhere
+data_wrap_mode: single
+model_z_multiplier: 2
