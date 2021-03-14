@@ -23,14 +23,14 @@
 <!--     <a href="https://codecov.io/gh/nmichlo/disent/"> -->
 <!--         <img alt="code coverage" src="https://img.shields.io/codecov/c/gh/nmichlo/disent?token=86IZK3J038&style=flat-square"/> -->
 <!--     </a> -->
-    <a href="https://github.com/nmichlo/disent">
-        <img alt="last commit" src="https://img.shields.io/github/last-commit/nmichlo/disent?style=flat-square&color=lightgrey"/>
-    </a>
+<!--     <a href="https://github.com/nmichlo/disent"> -->
+<!--         <img alt="last commit" src="https://img.shields.io/github/last-commit/nmichlo/disent?style=flat-square&color=lightgrey"/> -->
+<!--     </a> -->
 </p>
 
 <p align="center">
     <p align="center">
-        Visit the <a href="https://disent.dontpanic.sh/">docs</a> for more info.
+        Visit the <a href="https://disent.dontpanic.sh/">docs</a> for more info, or browse the  <a href="https://github.com/nmichlo/disent/releases">releases</a>.
     </p>
 </p>
 
