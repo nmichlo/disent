@@ -5,6 +5,7 @@ module:
   beta: ${framework.beta}
   # dfcvae
   feature_layers: ['14', '24', '34', '43']
+  feature_inputs_mode: 'none'  # none, clamp, assert
 
 # settings used elsewhere
 data_wrap_mode: single

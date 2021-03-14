@@ -23,6 +23,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from dataclasses import asdict
+from functools import partial
 
 import pytest
 import pytorch_lightning as pl
@@ -48,42 +49,44 @@ from disent.transform import ToStandardisedTensor
 # ========================================================================= #
 
 
-@pytest.mark.parametrize(['Framework', 'cfg_kwargs'], [
+@pytest.mark.parametrize(['Framework', 'cfg_kwargs', 'Data'], [
     # AE - unsupervised
-    (AE,                   dict()),
+    (AE,                   dict(),                                                                      XYObjectData),
     # VAE - unsupervised
-    (Vae,                  dict()),
-    (BetaVae,              dict()),
-    (DipVae,               dict()),
-    (DipVae,               dict(dip_mode='i')),
-    (InfoVae,              dict()),
-    (DfcVae,               dict()),
-    (DataOverlapVae,       dict()),
-    (DataOverlapVae,       dict(overlap_triplet_mode='ada_triplet')),
+    (Vae,                  dict(),                                                                      XYObjectData),
+    (BetaVae,              dict(),                                                                      XYObjectData),
+    (DipVae,               dict(),                                                                      XYObjectData),
+    (DipVae,               dict(dip_mode='i'),                                                          XYObjectData),
+    (InfoVae,              dict(),                                                                      XYObjectData),
+    (DfcVae,               dict(),                                                                      XYObjectData),
+    (DfcVae,               dict(),                                                                      partial(XYObjectData, rgb=False)),
+    (BetaTcVae,            dict(),                                                                      XYObjectData),
+    (DataOverlapVae,       dict(),                                                                      XYObjectData),
+    (DataOverlapVae,       dict(overlap_triplet_mode='ada_triplet'),                                    XYObjectData),
     # VAE - weakly supervised
-    (AdaVae,               dict()),
-    (AdaVae,               dict(average_mode='ml-vae')),
-    (SwappedTargetAdaVae,  dict(swap_chance=1.0)),
-    (SwappedTargetBetaVae, dict(swap_chance=1.0)),
-    (AugPosTripletVae,     dict()),
+    (AdaVae,               dict(),                                                                      XYObjectData),
+    (AdaVae,               dict(average_mode='ml-vae'),                                                 XYObjectData),
+    (SwappedTargetAdaVae,  dict(swap_chance=1.0),                                                       XYObjectData),
+    (SwappedTargetBetaVae, dict(swap_chance=1.0),                                                       XYObjectData),
+    (AugPosTripletVae,     dict(),                                                                      XYObjectData),
     # VAE - supervised
-    (TripletVae,           dict()),
-    (TripletVae,           dict(detach=True, detach_decoder=True, detach_no_kl=True, detach_logvar=-2)),
-    (BoundedAdaVae,        dict()),
-    (GuidedAdaVae,         dict()),
-    (GuidedAdaVae,         dict(anchor_ave_mode='thresh')),
-    (TripletBoundedAdaVae, dict()),
-    (TripletGuidedAdaVae,  dict()),
-    (AdaTripletVae,        dict()),
+    (TripletVae,           dict(),                                                                      XYObjectData),
+    (TripletVae,           dict(detach=True, detach_decoder=True, detach_no_kl=True, detach_logvar=-2), XYObjectData),
+    (BoundedAdaVae,        dict(),                                                                      XYObjectData),
+    (GuidedAdaVae,         dict(),                                                                      XYObjectData),
+    (GuidedAdaVae,         dict(anchor_ave_mode='thresh'),                                              XYObjectData),
+    (TripletBoundedAdaVae, dict(),                                                                      XYObjectData),
+    (TripletGuidedAdaVae,  dict(),                                                                      XYObjectData),
+    (AdaTripletVae,        dict(),                                                                      XYObjectData),
 ])
-def test_frameworks(Framework, cfg_kwargs):
+def test_frameworks(Framework, cfg_kwargs, Data):
     DataWrapper = {
         1: GroundTruthDataset,
         2: GroundTruthDatasetPairs,
         3: GroundTruthDatasetTriples,
     }[Framework.REQUIRED_OBS]
 
-    data = XYObjectData()
+    data = XYObjectData() if (Data is None) else Data()
     dataset = DataWrapper(data, transform=ToStandardisedTensor())
     dataloader = DataLoader(dataset=dataset, batch_size=4, shuffle=True)
 

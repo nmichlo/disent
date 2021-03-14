@@ -65,12 +65,13 @@ class DfcVae(BetaVae):
     @dataclass
     class cfg(BetaVae.cfg):
         feature_layers: Optional[List[Union[str, int]]] = None
+        feature_inputs_mode: str = 'none'
 
     def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
         # make dfc loss
         # TODO: this should be converted to a reconstruction loss handler that wraps another handler
-        self._dfc_loss = DfcLossModule(feature_layers=self.cfg.feature_layers)
+        self._dfc_loss = DfcLossModule(feature_layers=self.cfg.feature_layers, input_mode=self.cfg.feature_inputs_mode)
 
     # --------------------------------------------------------------------- #
     # Overrides                                                             #
@@ -111,7 +112,7 @@ class DfcLossModule(torch.nn.Module):
     # TODO: this should be converted to a reconstruction loss handler
     """
 
-    def __init__(self, feature_layers: Optional[List[Union[str, int]]] = None):
+    def __init__(self, feature_layers: Optional[List[Union[str, int]]] = None, input_mode: str = 'none'):
         """
         :param feature_layers: List of string of IDs of feature layers in pretrained model
         """
@@ -125,6 +126,9 @@ class DfcLossModule(torch.nn.Module):
             param.requires_grad = False
         # Evaluation Mode
         self.feature_network.eval()
+        # input node
+        assert input_mode in {'none', 'clamp', 'assert'}
+        self.input_mode = input_mode
 
     def compute_loss(self, x_recon, x_targ, reduction='mean'):
         """
@@ -149,8 +153,7 @@ class DfcLossModule(torch.nn.Module):
         :param inputs: (Tensor) [B x C x H x W] unnormalised in the range [0, 1].
         :return: List of the extracted features
         """
-        # This adds inefficiency but I guess is needed...
-        check_tensor(inputs, low=0, high=1, dtype=None)
+        inputs = self._process_inputs(inputs)
         # normalise: https://pytorch.org/docs/stable/torchvision/models.html
         result = kornia.normalize(inputs, mean=torch.tensor([0.485, 0.456, 0.406]), std=torch.tensor([0.229, 0.224, 0.225]))
         # calculate all features
@@ -160,6 +163,22 @@ class DfcLossModule(torch.nn.Module):
             if key in self.feature_layers:
                 features.append(result)
         return features
+
+    def _process_inputs(self, inputs: torch.Tensor) -> torch.Tensor:
+        # check the input tensor
+        if self.input_mode == 'assert':
+            inputs = check_tensor(inputs, low=0, high=1, dtype=None)
+        elif self.input_mode == 'clamp':
+            inputs = torch.clamp(inputs, 0, 1)
+        elif self.input_mode != 'none':
+            raise KeyError(f'invalid input_mode={repr(self.input_mode)}')
+        # repeat if missing dimensions, supports C in [1, 3]
+        B, C, H, W = inputs.shape
+        if C == 1:
+            inputs = inputs.repeat(1, 3, 1, 1)
+        assert (B, 3, H, W) == inputs.shape
+        # done
+        return inputs
 
 
 # ========================================================================= #

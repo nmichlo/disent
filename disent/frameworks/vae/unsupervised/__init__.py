@@ -27,6 +27,7 @@ from disent.frameworks.vae.unsupervised._betavae import BetaVae
 from disent.frameworks.vae.unsupervised._dfcvae import DfcVae
 from disent.frameworks.vae.unsupervised._dipvae import DipVae
 from disent.frameworks.vae.unsupervised._infovae import InfoVae
+from disent.frameworks.vae.unsupervised._betatcvae import BetaTcVae
 
 # experimental frameworks
 from disent.frameworks.vae.unsupervised.experimental._dovae import DataOverlapVae

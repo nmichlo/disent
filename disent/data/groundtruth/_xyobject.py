@@ -56,6 +56,12 @@ class XYObjectData(GroundTruthData):
             [192],
             [255],
         ],
+        'colors': [
+            [64],
+            [128],
+            [192],
+            [255],
+        ],
     }
 
     COLOR_PALETTES_3 = {
