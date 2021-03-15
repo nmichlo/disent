@@ -157,19 +157,40 @@ class StateSpace(LengthIter):
         """
         return self.sample_missing_factors(np.array(factors)[..., fixed_factor_indices], fixed_factor_indices)
 
-    def sample_random_traversal_factors(self, f_idx: int = None) -> np.ndarray:
+    def _get_f_idx_and_factors_and_size(self, f_idx: int = None, factors=None, num: int = None):
         # choose a random factor if not given
         if f_idx is None:
             f_idx = np.random.randint(0, self.num_factors)
-        f_size = self.factor_sizes[f_idx]
-        # Aka. a traversal along a single factor
-        # make sequential factors, one randomly sampled list of
-        # factors, then repeated, with one index mutated as if set by range()
-        factors = self.sample_factors(size=1)
-        factors = factors.repeat(f_size, axis=0)
+        # sample factors if not given
+        if factors is None:
+            factors = self.sample_factors(size=1)
+        else:
+            factors = factors.reshape((1, self.num_factors))
+        # get size if not given
+        if num is None:
+            num = self.factor_sizes[f_idx]
+        else:
+            assert num > 0
+        # generate a traversal
+        factors = factors.repeat(num, axis=0)
+        # return everything
+        return f_idx, factors, num
+
+    def sample_random_traversal_factors(self, f_idx: int = None, factors=None) -> np.ndarray:
+        f_idx, factors, f_size = self._get_f_idx_and_factors_and_size(f_idx=f_idx, factors=factors, num=None)
+        # generate traversal
         factors[:, f_idx] = np.arange(f_size)
+        # return factors
         return factors
 
+    def sample_random_cycle_factors(self, f_idx: int = None, factors=None, num: int = None):
+        f_idx, factors, num = self._get_f_idx_and_factors_and_size(f_idx=f_idx, factors=factors, num=num)
+        # generate traversal
+        grid = np.linspace(0, self.factor_sizes[f_idx]-1, num=num, endpoint=True)
+        grid = np.int64(np.around(grid))
+        factors[:, f_idx] = grid
+        # return factors
+        return factors
 
 # ========================================================================= #
 # Hidden State Space                                                        #
