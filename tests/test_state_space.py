@@ -37,7 +37,7 @@ FACTOR_SIZES = [
     [2, 3, 4, 5],
     [2, 3, 4],
     [1, 2, 3],
-    [1, 100, 1],
+    [1, 33, 1],
     [1, 1, 1],
     [1],
 ]
@@ -59,10 +59,13 @@ def test_discrete_state_space_one_to_one():
     for factor_sizes in FACTOR_SIZES:
         states = StateSpace(factor_sizes=factor_sizes)
         # check that entire range of values is generated
+        k = np.random.randint(1, 5)
         # chances of this failing are extremely low, but it could happen...
-        pos_0 = states.sample_factors(100_000)
-        assert np.all(pos_0.max(axis=0) == (states.factor_sizes - 1))
-        assert np.all(pos_0.min(axis=0) == 0)
+        pos_0 = states.sample_factors([int(100_000 ** (1/k))] * k)
+        # check random values are in the right ranges
+        all_dims = tuple(range(pos_0.ndim))
+        assert np.all(np.max(pos_0, axis=all_dims[:-1]) == (states.factor_sizes - 1))
+        assert np.all(np.min(pos_0, axis=all_dims[:-1]) == 0)
         # check that converting between them keeps values the same
         idx_0 = states.pos_to_idx(pos_0)
         pos_1 = states.idx_to_pos(idx_0)
