@@ -30,6 +30,7 @@ from torch.distributions import Normal
 
 from disent.frameworks.helper.util import compute_ave_loss_and_logs
 from disent.frameworks.vae.unsupervised._betavae import BetaVae
+from disent.util.math import torch_cov_matrix
 
 
 # ========================================================================= #
@@ -114,7 +115,7 @@ class DipVae(BetaVae):
     def _dip_estimate_cov_matrix(self, d_posterior: Normal):
         z_mean, z_var = d_posterior.mean, d_posterior.variance
         # compute covariance over batch
-        cov_z_mean = estimate_covariance(z_mean)
+        cov_z_mean = torch_cov_matrix(z_mean)
         # compute covariance matrix based on mode
         if self.cfg.dip_mode == "i":
             cov_matrix = cov_z_mean
@@ -126,27 +127,6 @@ class DipVae(BetaVae):
             raise KeyError(f'Unknown DipVAE mode: {self.cfg.dip_mode}')
         # shape: (Z, Z)
         return cov_matrix
-
-
-# ========================================================================= #
-# Helper                                                                    #
-# ========================================================================= #
-
-
-def estimate_covariance(xs):
-    """
-    Calculate the covariance of multivariate random variable from samples
-    over a batch (eg. z_mean(s) calculated from minibatch with shape (BxZ))
-    - Reference: https://github.com/paruby/DIP-VAE/blob/master/dip_vae.py
-    """
-    # E[mu mu.T]
-    E_x_x_t = torch.mean(xs.unsqueeze(2) * xs.unsqueeze(1), dim=0)
-    # E[mu] (mean of distributions)
-    E_x = torch.mean(xs, dim=0)
-    # covariance matrix of model mean
-    cov_x = E_x_x_t - (E_x.unsqueeze(1) * E_x.unsqueeze(0))
-    # done!
-    return cov_x
 
 
 # ========================================================================= #
