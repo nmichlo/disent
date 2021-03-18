@@ -82,7 +82,7 @@ class StateSpace(LengthIter):
         - positions are lists of integers, with each element < their corresponding factor size
         - indices are integers < size
         """
-        positions = np.array(positions).T
+        positions = np.moveaxis(positions, source=-1, destination=0)
         return np.ravel_multi_index(positions, self._factor_sizes)
 
     def idx_to_pos(self, indices) -> np.ndarray:
@@ -92,7 +92,7 @@ class StateSpace(LengthIter):
         - positions are lists of integers, with each element < their corresponding factor size
         """
         positions = np.unravel_index(indices, self._factor_sizes)
-        return np.array(positions).T
+        return np.moveaxis(positions, source=0, destination=-1)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Sampling Functions - any dim array, only last axis counts!            #
