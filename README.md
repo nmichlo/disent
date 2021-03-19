@@ -1,7 +1,6 @@
 
 <p align="center">
     <h1 align="center">🧶 Disent</h1>
-    <p align="center">⚠️ W.I.P</p>
     <p align="center">
         <i>A modular disentangled representation learning framework for pytorch</i>
     </p>
@@ -29,8 +28,12 @@
 </p>
 
 <p align="center">
+    <p align="center">⚠️ API is not yet stable</p>
     <p align="center">
         Visit the <a href="https://disent.dontpanic.sh/">docs</a> for more info, or browse the  <a href="https://github.com/nmichlo/disent/releases">releases</a>.
+    </p>
+    <p align="center">
+        <a href="https://github.com/nmichlo/disent/issues/new/choose">Contributions</a> are welcome!
     </p>
 </p>
 
@@ -133,10 +136,10 @@ submit an issue if you have a request for an additional framework.
   + [SAP](https://arxiv.org/abs/1711.00848)
   + [Unsupervised Scores](https://github.com/google-research/disentanglement_lib)
   + 🧵 Flatness Score
-    - Measures max width over path length of factor traversal embeddings, a combined measure of linearity and ordering.
-  + 🧵 Dual Flatness - Linearity & Ordering
+    - Measures max width (furthest two points) over path length (sum of distances between consecutive points) of factor traversal embeddings. A combined measure of linearity, monotonicity and ordering.
+  + 🧵 Flatness Components - Linearity, Monotonicity & Ordering
     - Measure **linearity** of factor traversal embeddings using average Pearson's correlation matrices
-    - Measure **ordering** of factor traversal embedding using average Spearman's rank correlation matrices
+    - Measure **monotonicity** of factor traversal embedding using average Spearman's rank correlation matrices
     - Measure **ordering** of embeddings by checking anchor-positive and anchor-negative distances correspond to ground-truth factors
 
 Some popular metrics still need to be added, please submit an issue if you wish to

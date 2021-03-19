@@ -50,7 +50,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def metric_dual_flatness(
+def metric_flatness_components(
         ground_truth_dataset: GroundTruthDataset,
         representation_function: callable,
         factor_repeats: int = 1024,
@@ -211,7 +211,7 @@ if __name__ == '__main__':
     def calculate(name, steps, dataset, get_repr):
         global aggregate_measure_distances_along_factor
         with Timer() as t:
-            r = metric_dual_flatness(dataset, get_repr, factor_repeats=64, batch_size=64)
+            r = metric_flatness_components(dataset, get_repr, factor_repeats=64, batch_size=64)
         results.append((name, steps, r))
         print_r(name, steps, r, colors.lRED, t=t)
         print(colors.GRY, '='*100, colors.RST, sep='')
