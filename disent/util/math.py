@@ -21,6 +21,7 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+import warnings
 from typing import List
 from typing import Optional
 from typing import Union
@@ -142,8 +143,13 @@ _GENERALIZED_MEAN_MAP = {
 
 def torch_mean_generalized(xs: torch.Tensor, dim: _DimTypeHint = None, p: Union[int, str] = 1):
     """
-    Generalised Mean
-    - is this implementation actually correct?
+    Compute the generalised mean.
+    - p is the power
+
+    harmonic mean ≤ geometric mean ≤ arithmetic mean
+    - If values have the same units: Use the arithmetic mean.
+    - If values have differing units: Use the geometric mean.
+    - If values are rates: Use the harmonic mean.
     """
     if isinstance(p, str):
         p = _GENERALIZED_MEAN_MAP[p]
@@ -182,6 +188,22 @@ def torch_mean_geometric(xs, dim: _DimTypeHint = None):
 
 def torch_mean_harmonic(xs, dim: _DimTypeHint = None):
     return torch_mean_generalized(xs, dim=dim, p='harmonic')
+
+
+# ========================================================================= #
+# polyfill - in later versions of pytorch                                   #
+# ========================================================================= #
+
+
+def torch_nan_to_num(input, nan=0.0, posinf=None, neginf=None):
+    output = input.clone()
+    if nan is not None:
+        output[torch.isnan(input)] = nan
+    if posinf is not None:
+        output[input == np.inf] = posinf
+    if neginf is not None:
+        output[input == -np.inf] = neginf
+    return output
 
 
 # ========================================================================= #
