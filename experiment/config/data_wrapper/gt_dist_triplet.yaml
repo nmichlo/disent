@@ -1,0 +1,6 @@
+# @package _group_
+name: gt_dist_single
+wrapper:
+  _target_: disent.dataset.groundtruth.GroundTruthDistDataset
+  num_samples: 3
+  triplet_sample_mode: 'manhattan' # random, factors, manhattan, combined
