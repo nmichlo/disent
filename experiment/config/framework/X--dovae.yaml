@@ -5,9 +5,9 @@ module:
   beta: ${framework.beta}
   # tvae: triplet stuffs
   triplet_loss: triplet  # triplet, triplet_sigmoid
-  triplet_margin_min: 0.01
+  triplet_margin_min: 0.001
   triplet_margin_max: 1
-  triplet_scale: 1
+  triplet_scale: 0.1
   triplet_p: 2
   # tvae: no loss from decoder -> encoder
   # TODO: investigate, very interesting result when detach=FALSE, triplet_margin_max=10, p=2, z_mode=samples and triplet_mode = triplet ||| latent factors are learnt in order of visual importance

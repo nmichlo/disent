@@ -1,0 +1,4 @@
+# @package _global_
+sampling:
+  name: dist_manhat
+  triplet_sample_mode: "manhattan" # random, factors, manhattan, combined

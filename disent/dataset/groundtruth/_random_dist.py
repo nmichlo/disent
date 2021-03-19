@@ -57,13 +57,13 @@ class GroundTruthDistDataset(GroundTruthDataset):
         indices = (idx, *np.random.randint(0, len(self), size=self._num_samples-1))
         # sort based on mode
         if self._num_samples == 3:
-            indices = self._swap_triple(*indices)
+            indices = self._swap_triple(indices)
         # get data
         return self.dataset_get_observation(*indices)
 
     def _swap_triple(self, indices):
         a_i, p_i, n_i = indices
-        a_f, p_f, n_f = self.pos_to_idx(indices)
+        a_f, p_f, n_f = self.idx_to_pos(indices)
         # SWAP: factors
         if self._sample_mode == 'factors':
             if factor_diff(a_f, p_f) > factor_diff(a_f, n_f):

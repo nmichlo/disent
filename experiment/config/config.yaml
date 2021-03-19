@@ -20,7 +20,7 @@ defaults:
 
 job:
   user: 'n_michlo'
-  project: 'exp-visual-overlap'
+  project: 'DELETE'
   name: '${framework.name}:${framework.module.recon_loss}|${dataset.name}:${sampling.name}|${trainer.steps}'
   partition: stampede
 

@@ -74,17 +74,17 @@ def metric_flatness_components(
     # get the means
     def multi_mean(name, ps=('arithmetic', 'geometric', 'harmonic')):
         return {
-            f'dual_flatness.{name}.{p}': to_numpy(torch_mean_generalized(fs_measures[name].to(torch.float64), dim=0, p=p).to(torch.float32))
+            f'flatness_components.{name}.{p}': to_numpy(torch_mean_generalized(fs_measures[name].to(torch.float64), dim=0, p=p).to(torch.float32))
             for p in ps
         }
     results = {
         **multi_mean('ave_corr',          ps=('arithmetic', 'geometric')),
         **multi_mean('ave_rank_corr',     ps=('arithmetic', 'geometric')),
         # traversals
-        # **multi_mean('swap_ratio_l1',     ps=('arithmetic', 'geometric')),
+        **multi_mean('swap_ratio_l1',     ps=('arithmetic', 'geometric')),
         **multi_mean('swap_ratio_l2',     ps=('arithmetic', 'geometric')),
         # any pairs
-        # **multi_mean('ran_swap_ratio_l1', ps=('arithmetic',)),
+        **multi_mean('ran_swap_ratio_l1', ps=('arithmetic',)),
         **multi_mean('ran_swap_ratio_l2', ps=('arithmetic',)),
     }
     # convert values from torch
