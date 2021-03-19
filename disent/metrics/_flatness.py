@@ -32,7 +32,6 @@ import math
 from typing import Iterable
 from typing import Union
 
-import numpy as np
 import torch
 from torch.utils.data.dataloader import default_collate
 
@@ -201,7 +200,7 @@ def aggregate_measure_distances_along_factor(
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     return {
         p: {
-            'ave_width': measures['widths'].mean(dim=0),        # shape: (repeats,) -> ()
+            'ave_width': measures['widths'].mean(dim=0),       # shape: (repeats,) -> ()
             'ave_delta': measures['deltas'].mean(dim=[0, 1]),  # shape: (repeats, factor_size - 1) -> ()
             'ave_angle': measures['angles'].mean(dim=0),       # shape: (repeats,) -> ()
         } for p, measures in default_collate(p_measures).items()
@@ -219,6 +218,7 @@ def encode_all_along_factor(ground_truth_dataset, representation_function, f_idx
     # get the representations of all the factors (f_size, z_size)
     sequential_zs = encode_all_factors(ground_truth_dataset, representation_function, factors=factors, batch_size=batch_size)
     return sequential_zs
+
 
 def encode_all_factors(ground_truth_dataset, representation_function, factors, batch_size: int) -> torch.Tensor:
     zs = []

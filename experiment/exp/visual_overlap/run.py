@@ -329,7 +329,7 @@ def plot_unique_count(dfs, save_name: str = None, show_plt: bool = True, fig_l_p
 if __name__ == '__main__':
 
     # matplotlib style
-    plt.style.use(os.path.join(os.path.dirname(__file__), 'gadfly.mplstyle'))
+    plt.style.use(os.path.join(os.path.dirname(__file__), '../gadfly.mplstyle'))
 
     # common settings
     SHARED_SETTINGS = dict(

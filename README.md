@@ -92,7 +92,7 @@ The easiest way to use disent is by running `experiements/hydra_system.py` and c
 
 ### Features
 
-Disent includes implementations of modules, metrics and datasets from various papers. However modules marked with a "🧵" are newly introduced in disent for [nmichlo](https://github.com/nmichlo)'s MSc. research!
+Disent includes implementations of modules, metrics and datasets from various papers. However modules marked with a "🧵" are introduced in disent for [my](https://github.com/nmichlo) MSc. research.
 
 #### Frameworks
 - **Unsupervised**:
@@ -109,6 +109,9 @@ Disent includes implementations of modules, metrics and datasets from various pa
   + [TVAE](https://arxiv.org/abs/1802.04403)
 - **Experimental**:
   + 🧵 Ada-TVAE
+    - Adaptive Triplet VAE
+  + 🧵 DO-TVE
+    - Data Overlap Triplet Variational Encoder
   + *various others not worth mentioning*
 
 Many popular disentanglement frameworks still need to be added, please
@@ -130,9 +133,14 @@ submit an issue if you have a request for an additional framework.
   + [SAP](https://arxiv.org/abs/1711.00848)
   + [Unsupervised Scores](https://github.com/google-research/disentanglement_lib)
   + 🧵 Flatness Score
+    - Measures max width over path length of factor traversal embeddings, a combined measure of linearity and ordering.
+  + 🧵 Dual Flatness - Linearity & Ordering
+    - Measure **linearity** of factor traversal embeddings using average Pearson's correlation matrices
+    - Measure **ordering** of factor traversal embedding using average Spearman's rank correlation matrices
+    - Measure **ordering** of embeddings by checking anchor-positive and anchor-negative distances correspond to ground-truth factors
 
 Some popular metrics still need to be added, please submit an issue if you wish to
-add your own or you have a request for an additional metric.
+add your own, or you have a request.
 
 <details><summary><b>todo</b></summary><p>
 
