@@ -31,6 +31,7 @@ from ._unsupervised import metric_unsupervised
 
 # Nathan Michlo et. al
 from ._flatness import metric_flatness
+from ._dual_flatness import metric_dual_flatness
 
 
 # ========================================================================= #
@@ -42,19 +43,21 @@ from disent.util import wrapped_partial as _wrapped_partial
 
 
 FAST_METRICS = {
-    'dci':          _wrapped_partial(metric_dci,          num_train=1000, num_test=500, boost_mode='sklearn'),  # takes
-    'factor_vae':   _wrapped_partial(metric_factor_vae,   num_train=700, num_eval=350, num_variance_estimate=1000),  # may not be accurate, but it just takes waay too long otherwise 20+ seconds
-    'flatness':     _wrapped_partial(metric_flatness,     factor_repeats=128),
-    'mig':          _wrapped_partial(metric_mig,          num_train=2000),
-    'sap':          _wrapped_partial(metric_sap,          num_train=2000, num_test=1000),
-    'unsupervised': _wrapped_partial(metric_unsupervised, num_train=2000),
+    'dci':           _wrapped_partial(metric_dci,           num_train=1000, num_test=500, boost_mode='sklearn'),  # takes
+    'factor_vae':    _wrapped_partial(metric_factor_vae,    num_train=700, num_eval=350, num_variance_estimate=1000),  # may not be accurate, but it just takes waay too long otherwise 20+ seconds
+    'flatness':      _wrapped_partial(metric_flatness,      factor_repeats=128),
+    'dual_flatness': _wrapped_partial(metric_dual_flatness, factor_repeats=128),
+    'mig':           _wrapped_partial(metric_mig,           num_train=2000),
+    'sap':           _wrapped_partial(metric_sap,           num_train=2000, num_test=1000),
+    'unsupervised':  _wrapped_partial(metric_unsupervised,  num_train=2000),
 }
 
 DEFAULT_METRICS = {
-    'dci':          metric_dci,
-    'factor_vae':   metric_factor_vae,
-    'flatness':     metric_flatness,
-    'mig':          metric_mig,
-    'sap':          metric_sap,
-    'unsupervised': metric_unsupervised,
+    'dci':           metric_dci,
+    'factor_vae':    metric_factor_vae,
+    'flatness':      metric_flatness,
+    'dual_flatness': metric_dual_flatness,
+    'mig':           metric_mig,
+    'sap':           metric_sap,
+    'unsupervised':  metric_unsupervised,
 }

@@ -1,6 +1,7 @@
 # @package _group_
 metric_list:
   - flatness:
+  - dual_flatness:
   - mig:
   - sap:
   - unsupervised:

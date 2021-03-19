@@ -226,6 +226,9 @@ if __name__ == '__main__':
     # datasets = [XYObjectData(rgb=False, palette='white'), XYSquaresData(), XYOverlapData(), XYObjectData()]
     datasets = [XYObjectData()]
 
+    # TODO: fix for dead dimensions
+    # datasets = [XYObjectData(rgb=False, palette='white')]
+
     results = []
     for data in datasets:
 
