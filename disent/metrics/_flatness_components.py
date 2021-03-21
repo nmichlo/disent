@@ -32,13 +32,10 @@ from torch.utils.data.dataloader import default_collate
 from disent.dataset.groundtruth import GroundTruthDataset
 from disent.metrics._flatness import encode_all_along_factor
 from disent.metrics._flatness import encode_all_factors
+from disent.metrics._flatness import filter_inactive_factors
 from disent.util import iter_chunks
 from disent.util import to_numpy
-from disent.util.math import torch_corr_matrix
 from disent.util.math import torch_mean_generalized
-from disent.util.math import torch_nan_to_num
-from disent.util.math import torch_rank_corr_matrix
-from disent.util.math import torch_tril_mean
 
 
 log = logging.getLogger(__name__)
@@ -70,29 +67,34 @@ def metric_flatness_components(
       Dictionary with metrics
     """
     fs_measures = aggregate_measure_distances_along_all_factors(ground_truth_dataset, representation_function, repeats=factor_repeats, batch_size=batch_size)
-    # get the means
-    def multi_mean(name, ps=('arithmetic', 'geometric', 'harmonic')):
-        return {
-            f'flatness_components.{name}.{p}': to_numpy(torch_mean_generalized(fs_measures[name].to(torch.float64), dim=0, p=p).to(torch.float32))
-            for p in ps
-        }
 
     results = {
-        **multi_mean('ave_align_softmax_10',  ps=('arithmetic', 'geometric',)),
-        **multi_mean('ave_align_softmax_1',   ps=('arithmetic', 'geometric',)),
-        **multi_mean('align_ratio',           ps=('arithmetic', 'geometric',)),
-        # corr
-        **multi_mean('ave_corr',          ps=('arithmetic', 'geometric')),
-        **multi_mean('ave_rank_corr',     ps=('arithmetic', 'geometric')),
+        'align_ratio.mean': filtered_mean(fs_measures['align_ratio'], p='arithmetic', factor_sizes=ground_truth_dataset.factor_sizes),
+        'align_ratio.gmean': filtered_mean(fs_measures['align_ratio'], p='geometric', factor_sizes=ground_truth_dataset.factor_sizes),
         # traversals
-        **multi_mean('swap_ratio_l1',     ps=('arithmetic', 'geometric')),
-        **multi_mean('swap_ratio_l2',     ps=('arithmetic', 'geometric')),
+        'swap_ratio_l1.mean': filtered_mean(fs_measures['swap_ratio_l1'], p='arithmetic', factor_sizes=ground_truth_dataset.factor_sizes),
+        'swap_ratio_l1.gmean': filtered_mean(fs_measures['swap_ratio_l1'], p='geometric', factor_sizes=ground_truth_dataset.factor_sizes),
+        'swap_ratio_l2.mean': filtered_mean(fs_measures['swap_ratio_l2'], p='arithmetic', factor_sizes=ground_truth_dataset.factor_sizes),
+        'swap_ratio_l2.gmean': filtered_mean(fs_measures['swap_ratio_l2'], p='geometric', factor_sizes=ground_truth_dataset.factor_sizes),
         # any pairs
-        **multi_mean('ran_swap_ratio_l1', ps=('arithmetic',)),
-        **multi_mean('ran_swap_ratio_l2', ps=('arithmetic',)),
+        'ran_swap_ratio_l1': fs_measures['ran_swap_ratio_l1'].mean(dim=0),  # this is not per-factor
+        'ran_swap_ratio_l2': fs_measures['ran_swap_ratio_l2'].mean(dim=0),  # this is not per-factor
     }
     # convert values from torch
-    return {k: float(v) for k, v in results.items()}
+    return {f'flatness_components.{k}': float(v) for k, v in results.items()}
+
+
+def filtered_mean(values, p, factor_sizes):
+    # increase precision
+    values = values.to(torch.float64)
+    # check size
+    assert values.shape == (len(factor_sizes),)
+    # filter
+    values = filter_inactive_factors(values, factor_sizes)
+    # compute mean
+    mean = torch_mean_generalized(values, dim=0, p=p)
+    # return decreased precision
+    return to_numpy(mean.to(torch.float32))
 
 
 def aggregate_measure_distances_along_all_factors(
@@ -137,15 +139,10 @@ def aggregate_measure_distances_along_all_factors(
 # ========================================================================= #
 
 
-def compute_single_axis_correlation(zs_traversal, softmax_scale=1.0, mode='softmax'):
+def compute_single_axis_correlation(zs_traversal):
     # variables
     stds = torch.std(zs_traversal, dim=0)
-    if mode == 'softmax':
-        values = torch.softmax(stds / torch.max(stds) * softmax_scale, dim=0)
-    elif mode == 'ratio':
-        values = stds / torch.sum(stds, dim=0)
-    else:
-        raise KeyError(f'invalid mode: {repr(mode)}')
+    values = stds / torch.sum(stds, dim=0)
     return torch.max(values)
 
 
@@ -182,6 +179,8 @@ def aggregate_measure_distances_along_factor(
         repeats: int,
         batch_size: int,
 ) -> dict:
+    # NOTE: this returns nan for all values if the factor size is 1
+
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     # FEED FORWARD, COMPUTE ALL
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -196,12 +195,8 @@ def aggregate_measure_distances_along_factor(
         swap_ratio_l1, swap_ratio_l2 = compute_swap_ratios(zs_traversal[:-2], zs_traversal[1:-1], zs_traversal[2:])
 
         # CORRELATIONS:
-        # correlations -- replace invalid values
-        corr_matrix = torch.abs(torch_nan_to_num(torch_corr_matrix(zs_traversal), nan=1.0, posinf=1.0, neginf=-1.0))
-        rank_corr_matrix = torch.abs(torch_nan_to_num(torch_rank_corr_matrix(zs_traversal), nan=1.0, posinf=1.0, neginf=-1.0))
-        align_softmax_10 = compute_single_axis_correlation(zs_traversal, mode='softmax', softmax_scale=10.0)
-        align_softmax_1 = compute_single_axis_correlation(zs_traversal, mode='softmax', softmax_scale=1.0)
-        align_ratio = compute_single_axis_correlation(zs_traversal, mode='ratio')
+        # correlation with single axis
+        align_ratio = compute_single_axis_correlation(zs_traversal)
 
         # LINEAR REGRESSION
         # x, y = to_numpy(zs_traversal), np.arange(len(zs_traversal))
@@ -216,10 +211,6 @@ def aggregate_measure_distances_along_factor(
         measures.append({
             'swap_ratio_l1': swap_ratio_l1,
             'swap_ratio_l2': swap_ratio_l2,
-            'ave_corr': torch_tril_mean(corr_matrix),
-            'ave_rank_corr': torch_tril_mean(rank_corr_matrix),
-            'ave_align_softmax_10': align_softmax_10,
-            'ave_align_softmax_1': align_softmax_1,
             'align_ratio': align_ratio,
         })
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -229,10 +220,6 @@ def aggregate_measure_distances_along_factor(
     return {
         'swap_ratio_l1': measures['swap_ratio_l1'].mean(dim=0),  # shape: (repeats,) -> ()
         'swap_ratio_l2': measures['swap_ratio_l2'].mean(dim=0),  # shape: (repeats,) -> ()
-        'ave_corr':      measures['ave_corr'].mean(dim=0),       # shape: (repeats,) -> ()
-        'ave_rank_corr': measures['ave_rank_corr'].mean(dim=0),  # shape: (repeats,) -> ()
-        'ave_align_softmax_10': measures['ave_align_softmax_10'].mean(dim=0),  # shape: (repeats,) -> ()
-        'ave_align_softmax_1': measures['ave_align_softmax_1'].mean(dim=0),  # shape: (repeats,) -> ()
         'align_ratio': measures['align_ratio'].mean(dim=0),  # shape: (repeats,) -> ()
     }
 
@@ -284,32 +271,32 @@ if __name__ == '__main__':
     datasets = [XYObjectData()]
 
     # TODO: fix for dead dimensions
-    # datasets = [XYObjectData(rgb=False, palette='white')]
+    datasets = [XYObjectData(rgb=False, palette='white')]
 
     results = []
     for data in datasets:
 
-        # dataset = GroundTruthDatasetPairs(data, transform=ToStandardisedTensor())
-        # dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True, pin_memory=True)
-        # module = AdaVae(
-        #     make_optimizer_fn=lambda params: Adam(params, lr=5e-4),
-        #     make_model_fn=lambda: AutoEncoder(
-        #         encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2),
-        #         decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
-        #     ),
-        #     cfg=AdaVae.cfg(beta=0.001, loss_reduction='mean')
-        # )
-
-        dataset = GroundTruthDistDataset(data, transform=ToStandardisedTensor(), num_samples=3, triplet_sample_mode='manhattan')
-        dataloader = DataLoader(dataset=dataset, batch_size=64, shuffle=True, pin_memory=True)
-        module = TripletVae(
+        dataset = GroundTruthDistDataset(data, transform=ToStandardisedTensor(), num_samples=2, triplet_sample_mode='manhattan')
+        dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True, pin_memory=True)
+        module = AdaVae(
             make_optimizer_fn=lambda params: Adam(params, lr=5e-4),
             make_model_fn=lambda: AutoEncoder(
                 encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2),
                 decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
             ),
-            cfg=TripletVae.cfg(beta=0.003, loss_reduction='mean', triplet_p=1, triplet_margin_max=1.0, triplet_scale=1.0)
+            cfg=AdaVae.cfg(beta=0.001, loss_reduction='mean')
         )
+
+        # dataset = GroundTruthDistDataset(data, transform=ToStandardisedTensor(), num_samples=3, triplet_sample_mode='manhattan')
+        # dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True, pin_memory=True)
+        # module = TripletVae(
+        #     make_optimizer_fn=lambda params: Adam(params, lr=5e-4),
+        #     make_model_fn=lambda: AutoEncoder(
+        #         encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2),
+        #         decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
+        #     ),
+        #     cfg=TripletVae.cfg(beta=0.003, loss_reduction='mean', triplet_p=1, triplet_margin_max=1.0, triplet_scale=1.0)
+        # )
 
         # we cannot guarantee which device the representation is on
         get_repr = lambda x: module.encode(x.to(module.device))
