@@ -15,14 +15,37 @@ source "$(dirname "$(dirname "$(realpath -s "$0")")")/helper.sh"
 # Experiment                                                                #
 # ========================================================================= #
 
-# 3*2*2*3*2 = 72
+# 2 * (3*2*3*2=36) = 72
 submit_sweep \
     framework=tvae \
     dataset=xysquares \
     specializations.data_wrapper='gt_dist_${framework.data_wrap_mode}' \
     \
+    +DUMMY.repeat=1,2 \
+    \
     sampling=gt_dist_factors,gt_dist_manhat,gt_dist_combined \
-    framework.module.triplet_margin_min=0.001,0.1 \
     framework.module.triplet_margin_max=1.0,10.0 \
     framework.module.triplet_scale=1.0,0.1,0.01 \
     framework.module.triplet_p=1,2
+
+# 2 * (3=3) = 6
+submit_sweep \
+    framework=tvae \
+    dataset=xysquares \
+    specializations.data_wrapper='gt_dist_${framework.data_wrap_mode}' \
+    \
+    +DUMMY.repeat=1,2 \
+    framework.name='tri-betavae' \
+    \
+    sampling=gt_dist_factors,gt_dist_manhat,gt_dist_combined \
+    framework.module.triplet_scale=0.0
+
+# 2 * (2*3=6) = 12
+submit_sweep \
+    framework=betavae,adavae \
+    dataset=xysquares \
+    specializations.data_wrapper='gt_dist_${framework.data_wrap_mode}' \
+    \
+    +DUMMY.repeat=1,2 \
+    \
+    sampling=gt_dist_factors,gt_dist_manhat,gt_dist_combined
