@@ -32,7 +32,6 @@ from torch.utils.data.dataloader import default_collate
 from disent.dataset.groundtruth import GroundTruthDataset
 from disent.metrics._flatness import encode_all_along_factor
 from disent.metrics._flatness import encode_all_factors
-from disent.metrics._flatness import get_device
 from disent.util import iter_chunks
 from disent.util import to_numpy
 from disent.util.math import torch_corr_matrix
@@ -77,7 +76,12 @@ def metric_flatness_components(
             f'flatness_components.{name}.{p}': to_numpy(torch_mean_generalized(fs_measures[name].to(torch.float64), dim=0, p=p).to(torch.float32))
             for p in ps
         }
+
     results = {
+        **multi_mean('ave_align_softmax_10',  ps=('arithmetic', 'geometric',)),
+        **multi_mean('ave_align_softmax_1',   ps=('arithmetic', 'geometric',)),
+        **multi_mean('align_ratio',           ps=('arithmetic', 'geometric',)),
+        # corr
         **multi_mean('ave_corr',          ps=('arithmetic', 'geometric')),
         **multi_mean('ave_rank_corr',     ps=('arithmetic', 'geometric')),
         # traversals
@@ -97,14 +101,15 @@ def aggregate_measure_distances_along_all_factors(
         repeats: int,
         batch_size: int,
 ) -> dict:
+    # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     # COMPUTE AGGREGATES FOR EACH FACTOR
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     fs_measures = default_collate([
         aggregate_measure_distances_along_factor(ground_truth_dataset, representation_function, f_idx=f_idx, repeats=repeats, batch_size=batch_size)
         for f_idx in range(ground_truth_dataset.num_factors)
     ])
-
-    # COMPUTE RANDOM
+    # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+    # COMPUTE RANDOM SWAP RATIO
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     values = []
     num_samples = int(np.mean(ground_truth_dataset.factor_sizes) * repeats)
@@ -118,11 +123,30 @@ def aggregate_measure_distances_along_all_factors(
         # check differences
         swap_ratio_l1, swap_ratio_l2 = compute_swap_ratios(zs[rai], zs[rpi], zs[rni])
         values.append({'ran_swap_ratio_l1': swap_ratio_l1, 'ran_swap_ratio_l2': swap_ratio_l2})
-    # return all
+    # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+    # RETURN
+    # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     return {
         **fs_measures,
         **default_collate(values),
     }
+
+
+# ========================================================================= #
+# HELPER                                                                    #
+# ========================================================================= #
+
+
+def compute_single_axis_correlation(zs_traversal, softmax_scale=1.0, mode='softmax'):
+    # variables
+    stds = torch.std(zs_traversal, dim=0)
+    if mode == 'softmax':
+        values = torch.softmax(stds / torch.max(stds) * softmax_scale, dim=0)
+    elif mode == 'ratio':
+        values = stds / torch.sum(stds, dim=0)
+    else:
+        raise KeyError(f'invalid mode: {repr(mode)}')
+    return torch.max(values)
 
 
 def reorder_by_factor_dist(factors, rai, rpi, rni):
@@ -146,6 +170,11 @@ def compute_swap_ratios(a_zs, p_zs, n_zs):
     return swap_ratio_l1, swap_ratio_l2
 
 
+# ========================================================================= #
+# TRAVERSAL FLATNESS                                                        #
+# ========================================================================= #
+
+
 def aggregate_measure_distances_along_factor(
         ground_truth_dataset,
         representation_function,
@@ -153,25 +182,47 @@ def aggregate_measure_distances_along_factor(
         repeats: int,
         batch_size: int,
 ) -> dict:
+    # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     # FEED FORWARD, COMPUTE ALL
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     measures = []
     for i in range(repeats):
+        # ENCODE TRAVERSAL:
         # generate repeated factors, varying one factor over the entire range
         zs_traversal = encode_all_along_factor(ground_truth_dataset, representation_function, f_idx=f_idx, batch_size=batch_size)
+
+        # SWAP RATIO:
         # check the number of swapped elements along a factor
         swap_ratio_l1, swap_ratio_l2 = compute_swap_ratios(zs_traversal[:-2], zs_traversal[1:-1], zs_traversal[2:])
+
+        # CORRELATIONS:
         # correlations -- replace invalid values
         corr_matrix = torch.abs(torch_nan_to_num(torch_corr_matrix(zs_traversal), nan=1.0, posinf=1.0, neginf=-1.0))
         rank_corr_matrix = torch.abs(torch_nan_to_num(torch_rank_corr_matrix(zs_traversal), nan=1.0, posinf=1.0, neginf=-1.0))
+        align_softmax_10 = compute_single_axis_correlation(zs_traversal, mode='softmax', softmax_scale=10.0)
+        align_softmax_1 = compute_single_axis_correlation(zs_traversal, mode='softmax', softmax_scale=1.0)
+        align_ratio = compute_single_axis_correlation(zs_traversal, mode='ratio')
+
+        # LINEAR REGRESSION
+        # x, y = to_numpy(zs_traversal), np.arange(len(zs_traversal))
+        # reg = linear_model.LinearRegression()
+        # reg.fit(x, y)
+        # x, residuals, rank, s = np.linalg.lstsq(x, y, rcond=None)
+        # print()
+        # print(reg.coef_, reg.intercept_)
+        # print(coef, unknown_1, rank, unknown_2)
+
         # save variables
         measures.append({
             'swap_ratio_l1': swap_ratio_l1,
             'swap_ratio_l2': swap_ratio_l2,
             'ave_corr': torch_tril_mean(corr_matrix),
             'ave_rank_corr': torch_tril_mean(rank_corr_matrix),
+            'ave_align_softmax_10': align_softmax_10,
+            'ave_align_softmax_1': align_softmax_1,
+            'align_ratio': align_ratio,
         })
-
+    # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     # AGGREGATE DATA - For each distance measure
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     measures = default_collate(measures)
@@ -180,8 +231,10 @@ def aggregate_measure_distances_along_factor(
         'swap_ratio_l2': measures['swap_ratio_l2'].mean(dim=0),  # shape: (repeats,) -> ()
         'ave_corr':      measures['ave_corr'].mean(dim=0),       # shape: (repeats,) -> ()
         'ave_rank_corr': measures['ave_rank_corr'].mean(dim=0),  # shape: (repeats,) -> ()
+        'ave_align_softmax_10': measures['ave_align_softmax_10'].mean(dim=0),  # shape: (repeats,) -> ()
+        'ave_align_softmax_1': measures['ave_align_softmax_1'].mean(dim=0),  # shape: (repeats,) -> ()
+        'align_ratio': measures['align_ratio'].mean(dim=0),  # shape: (repeats,) -> ()
     }
-
 
 # ========================================================================= #
 # END                                                                       #
@@ -189,6 +242,10 @@ def aggregate_measure_distances_along_factor(
 
 
 if __name__ == '__main__':
+    from sklearn import linear_model
+    from disent.dataset.groundtruth import GroundTruthDatasetTriples
+    from disent.dataset.groundtruth import GroundTruthDistDataset
+    from disent.metrics._flatness import get_device
     import pytorch_lightning as pl
     from torch.optim import Adam
     from torch.utils.data import DataLoader
@@ -232,27 +289,27 @@ if __name__ == '__main__':
     results = []
     for data in datasets:
 
-        dataset = GroundTruthDatasetPairs(data, transform=ToStandardisedTensor())
-        dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True, pin_memory=True)
-        module = AdaVae(
-            make_optimizer_fn=lambda params: Adam(params, lr=5e-4),
-            make_model_fn=lambda: AutoEncoder(
-                encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2),
-                decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
-            ),
-            cfg=AdaVae.cfg(beta=0.001, loss_reduction='mean')
-        )
-
-        # dataset = GroundTruthDatasetTriples(data, transform=ToStandardisedTensor(), swap_metric='manhattan')
+        # dataset = GroundTruthDatasetPairs(data, transform=ToStandardisedTensor())
         # dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True, pin_memory=True)
-        # module = TripletVae(
+        # module = AdaVae(
         #     make_optimizer_fn=lambda params: Adam(params, lr=5e-4),
         #     make_model_fn=lambda: AutoEncoder(
         #         encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2),
         #         decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
         #     ),
-        #     cfg=TripletVae.cfg(beta=0.001, loss_reduction='mean', triplet_p=2, triplet_scale=100)
+        #     cfg=AdaVae.cfg(beta=0.001, loss_reduction='mean')
         # )
+
+        dataset = GroundTruthDistDataset(data, transform=ToStandardisedTensor(), num_samples=3, triplet_sample_mode='manhattan')
+        dataloader = DataLoader(dataset=dataset, batch_size=64, shuffle=True, pin_memory=True)
+        module = TripletVae(
+            make_optimizer_fn=lambda params: Adam(params, lr=5e-4),
+            make_model_fn=lambda: AutoEncoder(
+                encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2),
+                decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
+            ),
+            cfg=TripletVae.cfg(beta=0.003, loss_reduction='mean', triplet_p=1, triplet_margin_max=1.0, triplet_scale=1.0)
+        )
 
         # we cannot guarantee which device the representation is on
         get_repr = lambda x: module.encode(x.to(module.device))
