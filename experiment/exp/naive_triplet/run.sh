@@ -23,9 +23,9 @@ submit_sweep \
     \
     +DUMMY.repeat=1,2 \
     \
-    sampling=gt_dist_factors,gt_dist_manhat,gt_dist_combined \
     framework.module.triplet_margin_max=1.0,10.0 \
-    framework.module.triplet_scale=1.0,0.1,0.01 \
+    framework.module.triplet_scale=0.1,1.0,0.01 \
+    sampling=gt_dist_factors,gt_dist_manhat,gt_dist_combined \
     framework.module.triplet_p=1,2
 
 # 2 * (3=3) = 6
@@ -33,9 +33,9 @@ submit_sweep \
     framework=tvae \
     dataset=xysquares \
     specializations.data_wrapper='gt_dist_${framework.data_wrap_mode}' \
+    framework.name='tri-betavae' \
     \
     +DUMMY.repeat=1,2 \
-    framework.name='tri-betavae' \
     \
     sampling=gt_dist_factors,gt_dist_manhat,gt_dist_combined \
     framework.module.triplet_scale=0.0
