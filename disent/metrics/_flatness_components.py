@@ -36,6 +36,7 @@ from disent.metrics._flatness import filter_inactive_factors
 from disent.util import iter_chunks
 from disent.util import to_numpy
 from disent.util.math import torch_mean_generalized
+from disent.util.math import torch_pca
 
 
 log = logging.getLogger(__name__)
@@ -69,13 +70,15 @@ def metric_flatness_components(
     fs_measures = aggregate_measure_distances_along_all_factors(ground_truth_dataset, representation_function, repeats=factor_repeats, batch_size=batch_size)
 
     results = {
-        'align_ratio.mean': filtered_mean(fs_measures['align_ratio'], p='arithmetic', factor_sizes=ground_truth_dataset.factor_sizes),
-        'align_ratio.gmean': filtered_mean(fs_measures['align_ratio'], p='geometric', factor_sizes=ground_truth_dataset.factor_sizes),
+        'linear_ratio.mean':  filtered_mean(fs_measures['linear_ratio'], p='arithmetic', factor_sizes=ground_truth_dataset.factor_sizes),
+        'linear_ratio.gmean': filtered_mean(fs_measures['linear_ratio'], p='geometric',  factor_sizes=ground_truth_dataset.factor_sizes),
+        'axis_ratio.mean':    filtered_mean(fs_measures['axis_ratio'],   p='arithmetic', factor_sizes=ground_truth_dataset.factor_sizes),
+        'axis_ratio.gmean':   filtered_mean(fs_measures['axis_ratio'],   p='geometric',  factor_sizes=ground_truth_dataset.factor_sizes),
         # traversals
-        'swap_ratio_l1.mean': filtered_mean(fs_measures['swap_ratio_l1'], p='arithmetic', factor_sizes=ground_truth_dataset.factor_sizes),
-        'swap_ratio_l1.gmean': filtered_mean(fs_measures['swap_ratio_l1'], p='geometric', factor_sizes=ground_truth_dataset.factor_sizes),
-        'swap_ratio_l2.mean': filtered_mean(fs_measures['swap_ratio_l2'], p='arithmetic', factor_sizes=ground_truth_dataset.factor_sizes),
-        'swap_ratio_l2.gmean': filtered_mean(fs_measures['swap_ratio_l2'], p='geometric', factor_sizes=ground_truth_dataset.factor_sizes),
+        'swap_ratio_l1.mean':  filtered_mean(fs_measures['swap_ratio_l1'], p='arithmetic', factor_sizes=ground_truth_dataset.factor_sizes),
+        'swap_ratio_l1.gmean': filtered_mean(fs_measures['swap_ratio_l1'], p='geometric',  factor_sizes=ground_truth_dataset.factor_sizes),
+        'swap_ratio_l2.mean':  filtered_mean(fs_measures['swap_ratio_l2'], p='arithmetic', factor_sizes=ground_truth_dataset.factor_sizes),
+        'swap_ratio_l2.gmean': filtered_mean(fs_measures['swap_ratio_l2'], p='geometric',  factor_sizes=ground_truth_dataset.factor_sizes),
         # any pairs
         'ran_swap_ratio_l1': fs_measures['ran_swap_ratio_l1'].mean(dim=0),  # this is not per-factor
         'ran_swap_ratio_l2': fs_measures['ran_swap_ratio_l2'].mean(dim=0),  # this is not per-factor
@@ -139,11 +142,9 @@ def aggregate_measure_distances_along_all_factors(
 # ========================================================================= #
 
 
-def compute_single_axis_correlation(zs_traversal):
-    # variables
-    stds = torch.std(zs_traversal, dim=0)
-    values = stds / torch.sum(stds, dim=0)
-    return torch.max(values)
+def max_ratio(values: torch.Tensor):
+    assert values.ndim == 1
+    return torch.max(values / values.sum())
 
 
 def reorder_by_factor_dist(factors, rai, rpi, rni):
@@ -195,23 +196,19 @@ def aggregate_measure_distances_along_factor(
         swap_ratio_l1, swap_ratio_l2 = compute_swap_ratios(zs_traversal[:-2], zs_traversal[1:-1], zs_traversal[2:])
 
         # CORRELATIONS:
-        # correlation with single axis
-        align_ratio = compute_single_axis_correlation(zs_traversal)
-
-        # LINEAR REGRESSION
-        # x, y = to_numpy(zs_traversal), np.arange(len(zs_traversal))
-        # reg = linear_model.LinearRegression()
-        # reg.fit(x, y)
-        # x, residuals, rank, s = np.linalg.lstsq(x, y, rcond=None)
-        # print()
-        # print(reg.coef_, reg.intercept_)
-        # print(coef, unknown_1, rank, unknown_2)
+        # correlation with standard basis (1, 0, 0, ...), (0, 1, 0, ...), ...
+        axis_var = torch.var(zs_traversal, dim=0)  # (z_size,)
+        axis_ratio = max_ratio(axis_var)
+        # correlation along arbitrary orthogonal basis
+        _, linear_var = torch_pca(zs_traversal, mode='svd')  # svd: (min(z_size, factor_size),) | eig: (z_size,)
+        linear_ratio = max_ratio(linear_var)
 
         # save variables
         measures.append({
             'swap_ratio_l1': swap_ratio_l1,
             'swap_ratio_l2': swap_ratio_l2,
-            'align_ratio': align_ratio,
+            'axis_ratio': axis_ratio,
+            'linear_ratio': linear_ratio,
         })
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     # AGGREGATE DATA - For each distance measure
@@ -220,7 +217,8 @@ def aggregate_measure_distances_along_factor(
     return {
         'swap_ratio_l1': measures['swap_ratio_l1'].mean(dim=0),  # shape: (repeats,) -> ()
         'swap_ratio_l2': measures['swap_ratio_l2'].mean(dim=0),  # shape: (repeats,) -> ()
-        'align_ratio': measures['align_ratio'].mean(dim=0),  # shape: (repeats,) -> ()
+        'axis_ratio': measures['axis_ratio'].mean(dim=0),        # shape: (repeats,) -> ()
+        'linear_ratio': measures['linear_ratio'].mean(dim=0),    # shape: (repeats,) -> ()
     }
 
 # ========================================================================= #
@@ -228,93 +226,125 @@ def aggregate_measure_distances_along_factor(
 # ========================================================================= #
 
 
-if __name__ == '__main__':
-    from sklearn import linear_model
-    from disent.dataset.groundtruth import GroundTruthDatasetTriples
-    from disent.dataset.groundtruth import GroundTruthDistDataset
-    from disent.metrics._flatness import get_device
-    import pytorch_lightning as pl
-    from torch.optim import Adam
-    from torch.utils.data import DataLoader
-    from disent.data.groundtruth import XYObjectData, XYSquaresData
-    from disent.dataset.groundtruth import GroundTruthDataset, GroundTruthDatasetPairs
-    from disent.frameworks.vae.unsupervised import BetaVae
-    from disent.frameworks.vae.weaklysupervised import AdaVae
-    from disent.frameworks.vae.supervised import TripletVae
-    from disent.model.ae import EncoderConv64, DecoderConv64, AutoEncoder
-    from disent.transform import ToStandardisedTensor
-    from disent.util import colors
-    from disent.util import Timer
 
-    def get_str(r):
-        return ', '.join(f'{k}={v:6.4f}' for k, v in r.items())
+def orthoregress(x, y):
+    from scipy.stats import linregress
+    from scipy.odr import Model, Data, ODR
 
-    def print_r(name, steps, result, clr=colors.lYLW, t: Timer = None):
-        print(f'{clr}{name:<13} ({steps:>04}){f" {colors.GRY}[{t.pretty}]{clr}" if t else ""}: {get_str(result)}{colors.RST}')
+    linreg = linregress(x, y)
 
-    def calculate(name, steps, dataset, get_repr):
-        global aggregate_measure_distances_along_factor
-        with Timer() as t:
-            r = metric_flatness_components(dataset, get_repr, factor_repeats=64, batch_size=64)
-        results.append((name, steps, r))
-        print_r(name, steps, r, colors.lRED, t=t)
-        print(colors.GRY, '='*100, colors.RST, sep='')
-        return r
+    mod = Model(f)
+    dat = Data(x, y)
+    od = ODR(dat, mod, beta0=linreg[0:2])
+    out = od.run()
 
-    class XYOverlapData(XYSquaresData):
-        def __init__(self, square_size=8, grid_size=64, grid_spacing=None, num_squares=3, rgb=True):
-            if grid_spacing is None:
-                grid_spacing = (square_size+1) // 2
-            super().__init__(square_size=square_size, grid_size=grid_size, grid_spacing=grid_spacing, num_squares=num_squares, rgb=rgb)
+    print(out)
 
-    # datasets = [XYObjectData(rgb=False, palette='white'), XYSquaresData(), XYOverlapData(), XYObjectData()]
-    datasets = [XYObjectData()]
+    return out.beta
 
-    # TODO: fix for dead dimensions
-    datasets = [XYObjectData(rgb=False, palette='white')]
+def f(p, x):
+    """Basic linear regression 'model' for use with ODR"""
+    return
 
-    results = []
-    for data in datasets:
+    return (p[0] * x) + p[1]
 
-        dataset = GroundTruthDistDataset(data, transform=ToStandardisedTensor(), num_samples=2, triplet_sample_mode='manhattan')
-        dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True, pin_memory=True)
-        module = AdaVae(
-            make_optimizer_fn=lambda params: Adam(params, lr=5e-4),
-            make_model_fn=lambda: AutoEncoder(
-                encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2),
-                decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
-            ),
-            cfg=AdaVae.cfg(beta=0.001, loss_reduction='mean')
-        )
 
-        # dataset = GroundTruthDistDataset(data, transform=ToStandardisedTensor(), num_samples=3, triplet_sample_mode='manhattan')
-        # dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True, pin_memory=True)
-        # module = TripletVae(
-        #     make_optimizer_fn=lambda params: Adam(params, lr=5e-4),
-        #     make_model_fn=lambda: AutoEncoder(
-        #         encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2),
-        #         decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
-        #     ),
-        #     cfg=TripletVae.cfg(beta=0.003, loss_reduction='mean', triplet_p=1, triplet_margin_max=1.0, triplet_scale=1.0)
-        # )
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #
 
-        # we cannot guarantee which device the representation is on
-        get_repr = lambda x: module.encode(x.to(module.device))
-        # PHASE 1, UNTRAINED
-        pl.Trainer(logger=False, checkpoint_callback=False, fast_dev_run=True, gpus=1, weights_summary=None).fit(module, dataloader)
-        module = module.to('cuda')
-        calculate(data.__class__.__name__, 0, dataset, get_repr)
-        # PHASE 2, LITTLE TRAINING
-        pl.Trainer(logger=False, checkpoint_callback=False, max_steps=256, gpus=1, weights_summary=None).fit(module, dataloader)
-        calculate(data.__class__.__name__, 256, dataset, get_repr)
-        # PHASE 3, MORE TRAINING
-        pl.Trainer(logger=False, checkpoint_callback=False, max_steps=2048, gpus=1, weights_summary=None).fit(module, dataloader)
-        calculate(data.__class__.__name__, 256+2048, dataset, get_repr)
-        results.append(None)
 
-    for result in results:
-        if result is None:
-            print()
-            continue
-        (name, steps, result) = result
-        print_r(name, steps, result, colors.lYLW)
+# if __name__ == '__main__':
+#     from disent.metrics import metric_flatness
+#     from sklearn import linear_model
+#     from disent.dataset.groundtruth import GroundTruthDatasetTriples
+#     from disent.dataset.groundtruth import GroundTruthDistDataset
+#     from disent.metrics._flatness import get_device
+#     import pytorch_lightning as pl
+#     from torch.optim import Adam
+#     from torch.utils.data import DataLoader
+#     from disent.data.groundtruth import XYObjectData, XYSquaresData
+#     from disent.dataset.groundtruth import GroundTruthDataset, GroundTruthDatasetPairs
+#     from disent.frameworks.vae.unsupervised import BetaVae
+#     from disent.frameworks.vae.weaklysupervised import AdaVae
+#     from disent.frameworks.vae.supervised import TripletVae
+#     from disent.model.ae import EncoderConv64, DecoderConv64, AutoEncoder
+#     from disent.transform import ToStandardisedTensor
+#     from disent.util import colors
+#     from disent.util import Timer
+#
+#     def get_str(r):
+#         return ', '.join(f'{k}={v:6.4f}' for k, v in r.items())
+#
+#     def print_r(name, steps, result, clr=colors.lYLW, t: Timer = None):
+#         print(f'{clr}{name:<13} ({steps:>04}){f" {colors.GRY}[{t.pretty}]{clr}" if t else ""}: {get_str(result)}{colors.RST}')
+#
+#     def calculate(name, steps, dataset, get_repr):
+#         global aggregate_measure_distances_along_factor
+#         with Timer() as t:
+#             r = {
+#                 **metric_flatness(dataset, get_repr, factor_repeats=64, batch_size=64),
+#                 **metric_flatness_components(dataset, get_repr, factor_repeats=64, batch_size=64),
+#             }
+#         results.append((name, steps, r))
+#         print_r(name, steps, r, colors.lRED, t=t)
+#         print(colors.GRY, '='*100, colors.RST, sep='')
+#         return r
+#
+#     class XYOverlapData(XYSquaresData):
+#         def __init__(self, square_size=8, grid_size=64, grid_spacing=None, num_squares=3, rgb=True):
+#             if grid_spacing is None:
+#                 grid_spacing = (square_size+1) // 2
+#             super().__init__(square_size=square_size, grid_size=grid_size, grid_spacing=grid_spacing, num_squares=num_squares, rgb=rgb)
+#
+#     # datasets = [XYObjectData(rgb=False, palette='white'), XYSquaresData(), XYOverlapData(), XYObjectData()]
+#     datasets = [XYObjectData()]
+#
+#     # TODO: fix for dead dimensions
+#     # datasets = [XYObjectData(rgb=False, palette='white')]
+#
+#     results = []
+#     for data in datasets:
+#
+#         # dataset = GroundTruthDistDataset(data, transform=ToStandardisedTensor(), num_samples=2, triplet_sample_mode='manhattan')
+#         # dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True, pin_memory=True)
+#         # module = AdaVae(
+#         #     make_optimizer_fn=lambda params: Adam(params, lr=5e-4),
+#         #     make_model_fn=lambda: AutoEncoder(
+#         #         encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2),
+#         #         decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
+#         #     ),
+#         #     cfg=AdaVae.cfg(beta=0.001, loss_reduction='mean')
+#         # )
+#
+#         dataset = GroundTruthDistDataset(data, transform=ToStandardisedTensor(), num_samples=3, triplet_sample_mode='manhattan')
+#         dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True, pin_memory=True)
+#         module = TripletVae(
+#             make_optimizer_fn=lambda params: Adam(params, lr=5e-4),
+#             make_model_fn=lambda: AutoEncoder(
+#                 encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2),
+#                 decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
+#             ),
+#             cfg=TripletVae.cfg(beta=0.003, loss_reduction='mean', triplet_p=1, triplet_margin_max=10.0, triplet_scale=10.0)
+#         )
+#
+#         # we cannot guarantee which device the representation is on
+#         get_repr = lambda x: module.encode(x.to(module.device))
+#         # PHASE 1, UNTRAINED
+#         pl.Trainer(logger=False, checkpoint_callback=False, fast_dev_run=True, gpus=1, weights_summary=None).fit(module, dataloader)
+#         module = module.to('cuda')
+#         calculate(data.__class__.__name__, 0, dataset, get_repr)
+#         # PHASE 2, LITTLE TRAINING
+#         pl.Trainer(logger=False, checkpoint_callback=False, max_steps=256, gpus=1, weights_summary=None).fit(module, dataloader)
+#         calculate(data.__class__.__name__, 256, dataset, get_repr)
+#         # PHASE 3, MORE TRAINING
+#         pl.Trainer(logger=False, checkpoint_callback=False, max_steps=2048, gpus=1, weights_summary=None).fit(module, dataloader)
+#         calculate(data.__class__.__name__, 256+2048, dataset, get_repr)
+#         results.append(None)
+#
+#     for result in results:
+#         if result is None:
+#             print()
+#             continue
+#         (name, steps, result) = result
+#         print_r(name, steps, result, colors.lYLW)
