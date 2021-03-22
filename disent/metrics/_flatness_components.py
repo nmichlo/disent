@@ -83,6 +83,11 @@ def metric_flatness_components(
         'ran_swap_ratio_l1': fs_measures['ran_swap_ratio_l1'].mean(dim=0),  # this is not per-factor
         'ran_swap_ratio_l2': fs_measures['ran_swap_ratio_l2'].mean(dim=0),  # this is not per-factor
     }
+
+    # combined flatness -- correlates well with the original flatness metric
+    results['combined_l1'] = results['linear_ratio.gmean'] * results['axis_ratio.gmean'] * results['ran_swap_ratio_l1']
+    results['combined_l2'] = results['linear_ratio.gmean'] * results['axis_ratio.gmean'] * results['ran_swap_ratio_l2']
+
     # convert values from torch
     return {f'flatness_components.{k}': float(v) for k, v in results.items()}
 
@@ -203,6 +208,12 @@ def aggregate_measure_distances_along_factor(
         _, linear_var = torch_pca(zs_traversal, mode='svd')  # svd: (min(z_size, factor_size),) | eig: (z_size,)
         linear_ratio = max_ratio(linear_var)
 
+        # ALTERNATIVES?
+        # + deming regression: https://en.wikipedia.org/wiki/Deming_regression
+        #   instead of simple linear regression: https://en.wikipedia.org/wiki/Simple_linear_regression
+        # + custom line fitting: https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line
+        # + pearsons correlation: https://en.wikipedia.org/wiki/Distance_correlation
+
         # save variables
         measures.append({
             'swap_ratio_l1': swap_ratio_l1,
@@ -220,33 +231,6 @@ def aggregate_measure_distances_along_factor(
         'axis_ratio': measures['axis_ratio'].mean(dim=0),        # shape: (repeats,) -> ()
         'linear_ratio': measures['linear_ratio'].mean(dim=0),    # shape: (repeats,) -> ()
     }
-
-# ========================================================================= #
-# END                                                                       #
-# ========================================================================= #
-
-
-
-def orthoregress(x, y):
-    from scipy.stats import linregress
-    from scipy.odr import Model, Data, ODR
-
-    linreg = linregress(x, y)
-
-    mod = Model(f)
-    dat = Data(x, y)
-    od = ODR(dat, mod, beta0=linreg[0:2])
-    out = od.run()
-
-    print(out)
-
-    return out.beta
-
-def f(p, x):
-    """Basic linear regression 'model' for use with ODR"""
-    return
-
-    return (p[0] * x) + p[1]
 
 
 # ========================================================================= #
@@ -283,8 +267,8 @@ def f(p, x):
 #         global aggregate_measure_distances_along_factor
 #         with Timer() as t:
 #             r = {
-#                 **metric_flatness(dataset, get_repr, factor_repeats=64, batch_size=64),
 #                 **metric_flatness_components(dataset, get_repr, factor_repeats=64, batch_size=64),
+#                 **metric_flatness(dataset, get_repr, factor_repeats=64, batch_size=64),
 #             }
 #         results.append((name, steps, r))
 #         print_r(name, steps, r, colors.lRED, t=t)
