@@ -136,10 +136,10 @@ submit an issue if you have a request for an additional framework.
   + [SAP](https://arxiv.org/abs/1711.00848)
   + [Unsupervised Scores](https://github.com/google-research/disentanglement_lib)
   + 🧵 Flatness Score
-    - Measures max width (furthest two points) over path length (sum of distances between consecutive points) of factor traversal embeddings. A combined measure of linearity, monotonicity and ordering.
+    - Measures max width (furthest two points) over path length (sum of distances between consecutive points) of factor traversal embeddings. A combined measure of linearity and ordering, (weighted towards axis alignment if l2 width over l1 path length is used).
   + 🧵 Flatness Components - Linearity, Monotonicity & Ordering
-    - Measure **linearity** of factor traversal embeddings using average Pearson's correlation matrices
-    - Measure **monotonicity** of factor traversal embedding using average Spearman's rank correlation matrices
+    - Measure **linearity** of factor traversal embeddings using softmax-style metric over PCA variances computed over embeddings
+    - Measure **axis-alignment** of factor traversal embeddings using softmax-style metric over embedding variances
     - Measure **ordering** of embeddings by checking anchor-positive and anchor-negative distances correspond to ground-truth factors
 
 Some popular metrics still need to be added, please submit an issue if you wish to
