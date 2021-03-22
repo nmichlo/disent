@@ -15,9 +15,9 @@
 # 3. exports a helper function that runs the script in the background, with
 #    the correct python path and settings
 
-if [ -z ${PROJECT+x} ]; then echo "PROJECT is not set"; exit 1; fi
-if [ -z ${PARTITION+x} ]; then echo "PARTITION is not set"; exit 1; fi
-if [ -z ${PARALLELISM+x} ]; then echo "PARALLELISM is not set"; exit 1; fi
+if [ -z "$PROJECT" ]; then echo "PROJECT is not set"; exit 1; fi
+if [ -z "$PARTITION" ]; then echo "PARTITION is not set"; exit 1; fi
+if [ -z "$PARALLELISM" ]; then echo "PARALLELISM is not set"; exit 1; fi
 
 # ========================================================================= #
 # Helper                                                                    #
@@ -52,6 +52,37 @@ function local_run() {
 export ROOT_DIR
 export submit_sweep
 export local_run
+
+
+# ========================================================================= #
+# Slurm Helper                                                              #
+# ========================================================================= #
+
+
+function num_idle_nodes() {
+  if [ -z "$1" ]; then echo "partition (first arg) is not set"; exit 1; fi
+  # number of idle nodes
+  num=$(sinfo --partition="$1" --noheader -O Nodes,Available,StateCompact | awk '{if($2 == "up" && $3 == "idle"){print $1}}')
+  if [ -z "$num" ]; then num=0; fi
+  echo $num
+}
+
+function clog_cudaless_nodes() {
+  if [ -z "$1" ]; then echo "partition is not set"; exit 1; fi
+  if [ -z "$2" ]; then echo wait=6; else wait="$2"; fi
+  # clog idle nodes
+  n=$(num_idle_nodes "$1")
+  if [ "$n" -lt "1" ]; then
+    echo -e "\e[93mclogging skipped! no idle nodes found on partition '$1'\e[0m";
+  else
+    echo -e "\e[92mclogging $n nodes on partition '$1' for ${wait}s if cuda is not available!\e[0m";
+    sbatch --array=1-"$n" --job-name="NO-CUDA" \
+           --wrap='python -c "import torch; import time; cuda=torch.cuda.is_available(); print(\"CUDA:\", cuda, flush=True); print(flush=True); time.sleep(10 if cuda else '"$wait"');"'
+  fi
+}
+
+export num_idle_nodes
+export clog_cudaless_nodes
 
 # ========================================================================= #
 # End                                                                       #
