@@ -1,0 +1,4 @@
+# @package _global_
+sampling:
+  name: dist_factors
+  triplet_sample_mode: "factors" # random, factors, manhattan, combined

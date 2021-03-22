@@ -5,15 +5,15 @@ module:
   beta: ${framework.beta}
   # tvae: triplet stuffs
   triplet_loss: triplet
-  triplet_margin_min: 0.1
-  triplet_margin_max: 10
-  triplet_scale: 100
-  triplet_p: 1
+  triplet_margin_min: 0.001
+  triplet_margin_max: 1
+  triplet_scale: 0.1
+  triplet_p: 2
   # tvae: no loss from decoder -> encoder
   detach: FALSE
-  detach_decoder: TRUE
+  detach_decoder: FALSE
   detach_no_kl: FALSE
-  detach_logvar: -2  # set to NULL to disable fixed value
+  detach_logvar: NULL  # set to NULL to disable fixed value
 
 # settings used elsewhere
 data_wrap_mode: triplet

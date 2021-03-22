@@ -21,63 +21,77 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-
 import numpy as np
-from torch.utils.data import Dataset
-from disent.dataset._augment_util import AugmentableDataset
-from disent.util import LengthIter
+
+from disent.data.groundtruth import GroundTruthData
+from disent.dataset.groundtruth import GroundTruthDataset
 
 
-# ========================================================================= #
-# Randomly Paired Dataset                                                   #
-# ========================================================================= #
-
-
-class RandomDataset(Dataset, LengthIter, AugmentableDataset):
+class GroundTruthDistDataset(GroundTruthDataset):
 
     def __init__(
             self,
-            data: LengthIter,
+            ground_truth_data: GroundTruthData,
             transform=None,
             augment=None,
             num_samples=1,
+            triplet_sample_mode='manhattan'
     ):
-        self._data = data
+        super().__init__(
+            ground_truth_data=ground_truth_data,
+            transform=transform,
+            augment=augment,
+        )
+        # checks
+        assert num_samples in {1, 2, 3}, f'num_samples ({repr(num_samples)}) must be 1, 2 or 3'
+        assert triplet_sample_mode in {'random', 'factors', 'manhattan', 'combined'}, f'sample_mode ({repr(triplet_sample_mode)}) must be one of {["random", "factors", "manhattan", "combined"]}'
         self._num_samples = num_samples
-        # augmentable dataset
-        self._transform = transform
-        self._augment = augment
-
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # Augmentable Dataset Overrides                                         #
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-
-    @property
-    def transform(self):
-        return self._transform
-
-    @property
-    def augment(self):
-        return self._augment
-
-    def _get_augmentable_observation(self, idx):
-        return self._data[idx]
+        self._sample_mode = triplet_sample_mode
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Sampling                                                              #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def __len__(self):
-        return len(self._data)
-
     def __getitem__(self, idx):
         # sample indices
         indices = (idx, *np.random.randint(0, len(self), size=self._num_samples-1))
+        # sort based on mode
+        if self._num_samples == 3:
+            indices = self._swap_triple(indices)
         # get data
         return self.dataset_get_observation(*indices)
 
+    def _swap_triple(self, indices):
+        a_i, p_i, n_i = indices
+        a_f, p_f, n_f = self.idx_to_pos(indices)
+        # SWAP: factors
+        if self._sample_mode == 'factors':
+            if factor_diff(a_f, p_f) > factor_diff(a_f, n_f):
+                return a_i, n_i, p_i
+        # SWAP: manhattan
+        elif self._sample_mode == 'manhattan':
+            if factor_dist(a_f, p_f) > factor_dist(a_f, n_f):
+                return a_i, n_i, p_i
+        # SWAP: combined
+        elif self._sample_mode == 'combined':
+            if factor_diff(a_f, p_f) > factor_diff(a_f, n_f):
+                return a_i, n_i, p_i
+            elif factor_diff(a_f, p_f) == factor_diff(a_f, n_f):
+                if factor_dist(a_f, p_f) > factor_dist(a_f, n_f):
+                    return a_i, n_i, p_i
+        # SWAP: random
+        elif self._sample_mode != 'random':
+            raise KeyError('invalid mode')
+        # done!
+        return indices
 
-# ========================================================================= #
-# End                                                                       #
-# ========================================================================= #
+
+def factor_diff(f0, f1):
+    return np.sum(f0 != f1)
+
+
+def factor_dist(f0, f1):
+    return np.sum(np.abs(f0 - f1))
+
+
 

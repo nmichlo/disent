@@ -8,10 +8,10 @@ module:
   symmetric_kl: TRUE
   # tvae: triplet stuffs
   triplet_loss: triplet
-  triplet_margin_min: 0.1
-  triplet_margin_max: 10
-  triplet_scale: 100
-  triplet_p: 1
+  triplet_margin_min: 0.001
+  triplet_margin_max: 1
+  triplet_scale: 0.1
+  triplet_p: 2
 
 # settings used elsewhere
 data_wrap_mode: triplet

@@ -3,7 +3,7 @@ defaults:
   - framework: betavae
   - model: conv64
   - optimizer: radam
-  - dataset: xysquares  # allow framework to override settings here, but placing it first in defaults
+  - dataset: xysquares  # allow framework to override settings here, but placing dataset before framework in defaults
   - augment: none
   - sampling: full_bb
   - metrics: all
@@ -20,7 +20,7 @@ defaults:
 
 job:
   user: 'n_michlo'
-  project: 'exp-visual-overlap'
+  project: 'DELETE'
   name: '${framework.name}:${framework.module.recon_loss}|${dataset.name}:${sampling.name}|${trainer.steps}'
   partition: stampede
 
