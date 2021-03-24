@@ -20,12 +20,12 @@ module:
   ada_triplet_ratio: 1.0
   ada_triplet_schedule: # TODO: this does not support referencing other variables
     _target_: disent.schedule.Clip
-    min_step: 14400
+    min_step: 7200
     shift_step: TRUE
     schedule:
       _target_: disent.schedule.LinearSchedule
       min_step: 0
-      max_step: 100800  # long_run - offset: 115200 - 14400 = 100800
+      max_step: 21600  # long_run - offset: 28800 - 14400 = 100800
   # dovae
   overlap_triplet_mode: 'ada_triplet'
   overlap_num: 4096

@@ -17,10 +17,10 @@ module:
   # adatvae: what version of triplet to use
   triplet_mode: 'trip_AND_softAve'
   # adatvae: annealing
-  ada_triplet_ratio: 0.25
+  ada_triplet_ratio: 1.0
   ada_triplet_schedule: # TODO: this does not support referencing other variables
     _target_: disent.schedule.Clip
-    min_step: 14400
+    min_step: 7200
     shift_step: TRUE
     schedule:
       _target_: disent.schedule.CyclicSchedule
