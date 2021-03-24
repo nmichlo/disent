@@ -1,0 +1,23 @@
+# @package _group_
+name: alt_adatvae
+module:
+  _target_: disent.frameworks.vae.supervised.AltAdaTripletVae
+  beta: ${framework.beta}
+  # tvae: triplet stuffs
+  triplet_loss: triplet
+  triplet_margin_min: 0.001
+  triplet_margin_max: 1
+  triplet_scale: 0.1
+  triplet_p: 2
+  # tvae: no loss from decoder -> encoder
+  detach: FALSE
+  detach_decoder: FALSE
+  detach_no_kl: FALSE
+  detach_logvar: NULL  # set to NULL to disable fixed value
+  # adavae
+  average_mode: 'gvae'  # gvae or ml-vae
+  symmetric_kl: TRUE
+
+# settings used elsewhere
+data_wrap_mode: triplet
+model_z_multiplier: 2

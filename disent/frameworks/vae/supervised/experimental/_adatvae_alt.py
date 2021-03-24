@@ -78,9 +78,9 @@ class AltAdaTripletVae(TripletVae):
         an_z_deltas = AdaVae.compute_kl_deltas(a_d_posterior, n_d_posterior, symmetric_kl=self.cfg.symmetric_kl)
         pn_z_deltas = AdaVae.compute_kl_deltas(p_d_posterior, n_d_posterior, symmetric_kl=self.cfg.symmetric_kl)
         # shared elements that need to be averaged, computed per pair in the batch.
-        ap_share_mask = AdaVae.compute_shared_mask(ap_z_deltas)
-        an_share_mask = AdaVae.compute_shared_mask(an_z_deltas)
-        pn_share_mask = AdaVae.compute_shared_mask(pn_z_deltas)
+        ap_share_mask = AdaVae.compute_shared_mask(ap_z_deltas, ratio=self.cfg.thresh_ratio)
+        an_share_mask = AdaVae.compute_shared_mask(an_z_deltas, ratio=self.cfg.thresh_ratio)
+        pn_share_mask = AdaVae.compute_shared_mask(pn_z_deltas, ratio=self.cfg.thresh_ratio)
         # compute all averages
         ave_ap_z_params, ave_pa_z_params = AdaVae.compute_averaged(a_z_params, p_z_params, ap_share_mask, average_mode=self.cfg.average_mode)
         ave_an_z_params, ave_na_z_params = AdaVae.compute_averaged(a_z_params, n_z_params, an_share_mask, average_mode=self.cfg.average_mode)

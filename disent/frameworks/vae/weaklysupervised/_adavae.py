@@ -56,6 +56,7 @@ class AdaVae(BetaVae):
     class cfg(BetaVae.cfg):
         average_mode: str = 'gvae'
         symmetric_kl: bool = True
+        thresh_ratio: float = 0.5
 
     def hook_intercept_zs(self, zs_params: Sequence['Params']) -> Tuple[Sequence['Params'], Dict[str, Any]]:
         """
@@ -74,7 +75,7 @@ class AdaVae(BetaVae):
         d1_posterior, _ = self.params_to_dists(z1_params)  # numerical accuracy errors
         z_deltas = self.compute_kl_deltas(d0_posterior, d1_posterior, symmetric_kl=self.cfg.symmetric_kl)
         # shared elements that need to be averaged, computed per pair in the batch.
-        share_mask = self.compute_shared_mask(z_deltas)
+        share_mask = self.compute_shared_mask(z_deltas, ratio=self.cfg.thresh_ratio)
         # compute average posteriors
         new_args = self.compute_averaged(z0_params, z1_params, share_mask, average_mode=self.cfg.average_mode)
         # return new args & generate logs
@@ -106,7 +107,7 @@ class AdaVae(BetaVae):
         return kl_deltas
 
     @classmethod
-    def compute_shared_mask(cls, z_deltas):
+    def compute_shared_mask(cls, z_deltas, ratio=0.5):
         """
         Core of the adaptive VAE algorithm, estimating which factors
         have changed (or in this case which are shared and should remained unchanged
@@ -124,14 +125,14 @@ class AdaVae(BetaVae):
                     dimension."
         """
         # threshold τ
-        z_threshs = cls.estimate_threshold(z_deltas)
+        z_threshs = cls.estimate_threshold(z_deltas, ratio=ratio)
         # true if 'unchanged' and should be average
         shared_mask = z_deltas < z_threshs
         # return
         return shared_mask
 
     @classmethod
-    def estimate_threshold(cls, kl_deltas, keepdim=True):
+    def estimate_threshold(cls, kl_deltas, keepdim=True, ratio=0.5):
         """
         Compute the threshold for each image pair in a batch of kl divergences of all elements of the latent distributions.
         It should be noted that for a perfectly trained model, this threshold is always correct.
@@ -141,7 +142,7 @@ class AdaVae(BetaVae):
         """
         maximums = kl_deltas.max(axis=1, keepdim=keepdim).values
         minimums = kl_deltas.min(axis=1, keepdim=keepdim).values
-        return (0.5 * minimums) + (0.5 * maximums)
+        return (ratio * minimums) + (ratio * maximums)
 
     @classmethod
     def compute_averaged(cls, z0_params, z1_params, share_mask, average_mode: str):

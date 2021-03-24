@@ -118,7 +118,7 @@ class AdaTripletVae(TripletVae):
         # - Triplet but multiply the shared deltas elements so they are
         #   moved closer together. ie. 2x for a->p, and 0.5x for a->n
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        p_shared_mask, n_shared_mask = AdaTripletVae.compute_shared_masks(a_z_mean, p_z_mean, n_z_mean, lerp=None)
+        p_shared_mask,      n_shared_mask      = AdaTripletVae.compute_shared_masks(a_z_mean, p_z_mean, n_z_mean, lerp=None)
         p_shared_mask_lerp, n_shared_mask_lerp = AdaTripletVae.compute_shared_masks(a_z_mean, p_z_mean, n_z_mean, lerp=cfg.ada_triplet_ratio)
         # - - - - - - - - - - - - - - - - #
         p_mul = torch.where(p_shared_mask, torch.full_like(a_z_mean, 2.0), torch.full_like(a_z_mean, 1.0))
@@ -181,28 +181,14 @@ class AdaTripletVae(TripletVae):
 
     @staticmethod
     def compute_shared_masks(a_z_mean, p_z_mean, n_z_mean, lerp=None):
+        ratio = 0.5 if (lerp is None) else (lerp * 0.5)
         # ADAPTIVE COMPONENT
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         delta_p = torch.abs(a_z_mean - p_z_mean)
         delta_n = torch.abs(a_z_mean - n_z_mean)
         # get thresholds
-        p_thresh = AdaVae.estimate_threshold(delta_p, keepdim=True)
-        n_thresh = AdaVae.estimate_threshold(delta_n, keepdim=True)
-        # interpolate threshold
-        if lerp is not None:
-            p_thresh = blend(torch.min(delta_p, dim=-1, keepdim=True).values, p_thresh, alpha=lerp)
-            n_thresh = blend(torch.min(delta_n, dim=-1, keepdim=True).values, n_thresh, alpha=lerp)
-            # -------------- #
-            # # RANDOM LERP:
-            # # This should average out to the value given above
-            # p_min, p_max = torch.min(delta_p, dim=-1, keepdim=True).values, torch.max(delta_p, dim=-1, keepdim=True).values
-            # n_min, n_max = torch.min(delta_n, dim=-1, keepdim=True).values, torch.max(delta_n, dim=-1, keepdim=True).values
-            # p_thresh = p_min + torch.rand_like(p_thresh) * (p_max - p_min) * lerp
-            # n_thresh = p_min + torch.rand_like(n_thresh) * (n_max - n_min) * lerp
-            # -------------- #
-        # estimate shared elements, then compute averaged vectors
-        p_shared = (delta_p < p_thresh).detach()
-        n_shared = (delta_n < n_thresh).detach()
+        p_shared = AdaVae.compute_shared_mask(delta_p, ratio=ratio)
+        n_shared = AdaVae.compute_shared_mask(delta_n, ratio=ratio)
         # done!
         return p_shared, n_shared
 

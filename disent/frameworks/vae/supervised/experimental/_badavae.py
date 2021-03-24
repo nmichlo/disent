@@ -58,8 +58,8 @@ class BoundedAdaVae(AdaVae):
         a_n_deltas = AdaVae.compute_kl_deltas(a_d_posterior, n_d_posterior, symmetric_kl=self.cfg.symmetric_kl)
 
         # shared elements that need to be averaged, computed per pair in the batch.
-        old_p_shared_mask = AdaVae.compute_shared_mask(a_p_deltas)
-        old_n_shared_mask = AdaVae.compute_shared_mask(a_n_deltas)
+        old_p_shared_mask = AdaVae.compute_shared_mask(a_p_deltas, ratio=self.cfg.thresh_ratio)
+        old_n_shared_mask = AdaVae.compute_shared_mask(a_n_deltas, ratio=self.cfg.thresh_ratio)
 
         # modify threshold based on criterion and recompute if necessary
         # CORE of this approach!
