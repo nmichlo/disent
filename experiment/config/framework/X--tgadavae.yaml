@@ -5,7 +5,7 @@ module:
   beta: ${framework.beta}
   # adavae
   average_mode: 'gvae'       # [gvae, ml-vae]
-  symmetric_kl: TRUE
+  thresh_mode: symmetric_kl
   # guided adavae
   anchor_ave_mode: 'average' # [average, thresh]
   # tvae: triplet stuffs
