@@ -40,15 +40,14 @@ def scale(r, a, b):
 def lerp(r, a, b):
     """Linear interpolation between parameters, respects bounds when t is out of bounds [0, 1]"""
     assert a < b
-    r = np.max(0, np.min(r, 1))
+    r = np.clip(r, 0., 1.)
     # precise method, guarantees v==b when t==1 | simplifies to: a + t*(b-a)
     return (1 - r) * a + r * b
 
 
 def lerp_step(step, max_step, a, b):
     """Linear interpolation based on a step count."""
-    if max_step <= 0:
-        return b
+    assert max_step > 0
     return lerp(step / max_step, a, b)
 
 

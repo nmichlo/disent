@@ -26,15 +26,16 @@ import functools
 import logging
 import os
 import time
+from dataclasses import asdict
 from dataclasses import dataclass
 from dataclasses import fields
 from itertools import islice
+from pprint import pformat
 from typing import List
 
 import numpy as np
 import pytorch_lightning as pl
 import torch
-from torch.utils.data.dataloader import default_collate
 
 
 """
@@ -447,7 +448,12 @@ class DisentConfigurable(object):
 
     @dataclass
     class cfg(object):
-        pass
+
+        def to_dict(self) -> dict:
+            return asdict(self)
+
+        def __str__(self):
+            return pformat(self.to_dict(), sort_dicts=False)
 
     def __init__(self, cfg: cfg = cfg()):
         if cfg is None:
