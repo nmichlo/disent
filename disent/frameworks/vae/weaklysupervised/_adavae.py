@@ -105,6 +105,8 @@ class AdaVae(BetaVae):
             deltas = torch.distributions.kl_divergence(d1_posterior, d0_posterior)
         elif thresh_mode == 'dist':
             deltas = torch.abs(d1_posterior.mean - d0_posterior.mean)
+        elif thresh_mode == 'sampled_dist':
+            deltas = torch.abs(d1_posterior.rsample() - d0_posterior.rsample())
         else:
             raise KeyError(f'invalid thresh_mode: {repr(thresh_mode)}')
 

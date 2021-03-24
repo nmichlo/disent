@@ -17,6 +17,7 @@ module:
   # adavae
   average_mode: 'gvae'  # gvae or ml-vae
   thresh_mode: symmetric_kl
+  thresh_ratio: 0.5
 
 # settings used elsewhere
 data_wrap_mode: triplet
