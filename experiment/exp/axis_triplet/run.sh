@@ -1,0 +1,58 @@
+#!/bin/bash
+
+# ========================================================================= #
+# Settings                                                                  #
+# ========================================================================= #
+
+export PROJECT="exp-axis-triplet"
+export PARTITION="batch"
+export PARALLELISM=32
+
+# source the helper file
+source "$(dirname "$(dirname "$(realpath -s "$0")")")/helper.sh"
+
+# ========================================================================= #
+# Experiment                                                                #
+# ========================================================================= #
+
+clog_cudaless_nodes batch 28800  # 8 hours
+
+# 3 * (2*19=19) = 114
+submit_sweep \
+    framework=X--adatvae,X--adatvae_cyclic \
+    dataset=xysquares \
+    \
+    +DUMMY.repeat=1,2,3 \
+    \
+    framework.module.triplet_margin_max=1.0 \
+    framework.module.triplet_scale=0.1 \
+    framework.module.triplet_p=1 \
+    sampling=gt_dist_manhat \
+    specializations.data_wrapper='gt_dist_${framework.data_wrap_mode}' \
+    \
+    framework.module.triplet_mode=triplet,trip_hardAveNeg,trip_hardAveNegLerp,trip_TO_trip_hardAveNeg,trip_TO_trip_hardAveNegLerp,CONST_trip_TO_trip_hardAveNeg,CONST_trip_TO_trip_hardAveNegLerp,trip_AND_softAve,trip_AND_softAveLerp,CONST_trip_AND_softAve,CONST_trip_AND_softAveLerp,trip_scaleAve,trip_scaleAveLerp,CONST_trip_scaleAve,CONST_trip_scaleAveLerp,BROKEN_trip_scaleAve,BROKEN_trip_scaleAveLerp,CONST_BROKEN_trip_scaleAve,CONST_BROKEN_trip_scaleAveLerp
+
+# ALL MODES:
+  # triplet
+  #
+  # trip_hardAveNeg
+  # trip_hardAveNegLerp
+  # trip_TO_trip_hardAveNeg
+  # trip_TO_trip_hardAveNegLerp
+  # CONST_trip_TO_trip_hardAveNeg
+  # CONST_trip_TO_trip_hardAveNegLerp
+  #
+  # trip_AND_softAve
+  # trip_AND_softAveLerp
+  # CONST_trip_AND_softAve
+  # CONST_trip_AND_softAveLerp
+  #
+  # trip_scaleAve
+  # trip_scaleAveLerp
+  # CONST_trip_scaleAve
+  # CONST_trip_scaleAveLerp
+  #
+  # BROKEN_trip_scaleAve
+  # BROKEN_trip_scaleAveLerp
+  # CONST_BROKEN_trip_scaleAve
+  # CONST_BROKEN_trip_scaleAveLerp
