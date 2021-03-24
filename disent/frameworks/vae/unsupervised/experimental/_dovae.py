@@ -52,16 +52,15 @@ class DataOverlapVae(AdaTripletVae):
         detach: bool = True
         detach_decoder: bool = True
         detach_no_kl: bool = False
-        detach_logvar: float = 0  # std = 0.5, logvar = ln(std**2) ~= -2,77
+        detach_logvar: float = None  # std = 0.5, logvar = ln(std**2) ~= -2,77
         # OVERRIDE - triplet loss configs
         triplet_scale: float = 0
         # OVERRIDE ADAVAE
         # adatvae: what version of triplet to use
-        triplet_mode: str = 'lerp_trip_to_mse_ada'  # 'ada_p_orig_lerp'
+        # triplet_mode: str # KEEP VALUES FROM PARENT
         # adatvae: annealing
-        lerp_step_start: int = 3600
-        lerp_step_end: int = 14400
-        lerp_goal: float = 0.25
+        # ada_triplet_ratio: float # KEEP VALUES FROM PARENT
+        # ada_triplet_schedule: dict # KEEP VALUES FROM PARENT
         # OVERLAP VAE
         overlap_triplet_mode: str = 'triplet'
         overlap_num: int = 1024
@@ -73,8 +72,6 @@ class DataOverlapVae(AdaTripletVae):
     def hook_compute_ave_aug_loss(self, ds_posterior: Sequence[Normal], ds_prior, zs_sampled, xs_partial_recon, xs_targ: Sequence[torch.Tensor]):
         # get values
         (d_posterior,), (x_targ,) = ds_posterior, xs_targ
-        # adavae
-        self.step += 1
 
         # generate random triples -- TODO: this does not generate unique pairs
         a_idxs, p_idxs, n_idxs = torch.randint(len(x_targ), size=(3, min(self.cfg.overlap_num, len(x_targ)**3)))
@@ -94,7 +91,7 @@ class DataOverlapVae(AdaTripletVae):
             raise KeyError(f'invalid cfg.overlap_z_mode: {repr(self.cfg.overlap_z_mode)}')
 
         # compute loss
-        loss, logs = self.compute_overlap_triplet_loss(zs_mean=zs, xs_targ=xs_targ_NEW, cfg=self.cfg, step=self.step, unreduced_loss_fn=self.recon_handler.compute_unreduced_loss)
+        loss, logs = self.compute_overlap_triplet_loss(zs_mean=zs, xs_targ=xs_targ_NEW, cfg=self.cfg, unreduced_loss_fn=self.recon_handler.compute_unreduced_loss)
 
         return loss, {
             **logs,
@@ -160,7 +157,7 @@ class DataOverlapVae(AdaTripletVae):
         return a_idxs, p_idxs, n_idxs
 
     @staticmethod
-    def compute_overlap_triplet_loss(zs_mean, xs_targ, cfg, step: int, unreduced_loss_fn):
+    def compute_overlap_triplet_loss(zs_mean, xs_targ, cfg: cfg, unreduced_loss_fn):
         # check the recon loss
         assert cfg.recon_loss == 'mse', 'only mse loss is supported'
 
@@ -171,7 +168,7 @@ class DataOverlapVae(AdaTripletVae):
         if cfg.overlap_triplet_mode == 'triplet':
             triplet_loss, logs_triplet = AdaTripletVae.compute_triplet_loss(zs_mean=zs_mean, cfg=cfg)
         elif cfg.overlap_triplet_mode == 'ada_triplet':
-            triplet_loss, logs_triplet = AdaTripletVae.compute_ada_triplet_loss(zs_mean=zs_mean, step=step, cfg=cfg)
+            triplet_loss, logs_triplet = AdaTripletVae.compute_ada_triplet_loss(zs_mean=zs_mean, cfg=cfg)
         else:  # pragma: no cover
             raise KeyError
 
