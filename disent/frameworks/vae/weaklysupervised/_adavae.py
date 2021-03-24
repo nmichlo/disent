@@ -57,14 +57,6 @@ class AdaVae(BetaVae):
         average_mode: str = 'gvae'
         symmetric_kl: bool = True
 
-    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
-        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
-        # averaging modes
-        self._compute_average_fn = {
-            'gvae': compute_average_gvae,
-            'ml-vae': compute_average_ml_vae
-        }[self.cfg.average_mode]
-
     def hook_intercept_zs(self, zs_params: Sequence['Params']) -> Tuple[Sequence['Params'], Dict[str, Any]]:
         """
         Adaptive VAE Glue Method, putting the various components together
@@ -84,7 +76,7 @@ class AdaVae(BetaVae):
         # shared elements that need to be averaged, computed per pair in the batch.
         share_mask = self.compute_shared_mask(z_deltas)
         # compute average posteriors
-        new_args = self.compute_averaged(z0_params, z1_params, share_mask, compute_average_fn=self._compute_average_fn)
+        new_args = self.compute_averaged(z0_params, z1_params, share_mask, average_mode=self.cfg.average_mode)
         # return new args & generate logs
         return new_args, {'shared': share_mask.sum(dim=1).float().mean()}
 
@@ -152,11 +144,12 @@ class AdaVae(BetaVae):
         return (0.5 * minimums) + (0.5 * maximums)
 
     @classmethod
-    def compute_averaged(cls, z0_params, z1_params, share_mask, compute_average_fn: callable):
+    def compute_averaged(cls, z0_params, z1_params, share_mask, average_mode: str):
         # compute average posteriors
-        ave_mean, ave_logvar = compute_average_fn(
+        ave_mean, ave_logvar = compute_average(
             z0_params.mean, z0_params.logvar,
             z1_params.mean, z1_params.logvar,
+            average_mode=average_mode,
         )
         # select averages
         ave_z0_mean = torch.where(share_mask, ave_mean, z0_params.mean)
@@ -188,6 +181,7 @@ def compute_average_gvae(z0_mean, z0_logvar, z1_mean, z1_logvar):
     # mean, logvar
     return ave_mean, ave_var.log()  # natural log
 
+
 def compute_average_ml_vae(z0_mean, z0_logvar, z1_mean, z1_logvar):
     """
     Compute the product of the encoder distributions.
@@ -211,6 +205,16 @@ def compute_average_ml_vae(z0_mean, z0_logvar, z1_mean, z1_logvar):
     ave_mean = (z0_mean*z0_invvar + z1_mean*z1_invvar) * ave_var * 0.5
     # mean, logvar
     return ave_mean, ave_var.log()  # natural log
+
+
+COMPUTE_AVE_FNS = {
+    'gvae': compute_average_gvae,
+    'ml-vae': compute_average_ml_vae,
+}
+
+
+def compute_average(z0_mean, z0_logvar, z1_mean, z1_logvar, average_mode: str):
+    return COMPUTE_AVE_FNS[average_mode](z0_mean, z0_logvar, z1_mean, z1_logvar)
 
 
 # ========================================================================= #

@@ -30,6 +30,7 @@ from typing import Tuple
 
 import torch
 from disent.frameworks.vae.weaklysupervised._adavae import AdaVae
+from disent.frameworks.vae.weaklysupervised._adavae import compute_average
 
 
 # ========================================================================= #
@@ -77,15 +78,15 @@ class GuidedAdaVae(AdaVae):
         p_shared_mask, n_shared_mask = compute_constrained_masks(a_p_deltas, old_p_shared_mask, a_n_deltas, old_n_shared_mask)
 
         # make averaged variables
-        pa_z_params, p_z_params = AdaVae.compute_averaged(a_z_params, p_z_params, p_shared_mask, self._compute_average_fn)
-        na_z_params, n_z_params = AdaVae.compute_averaged(a_z_params, n_z_params, n_shared_mask, self._compute_average_fn)
-        ave_params = self.latents_handler.encoding_to_params(self._compute_average_fn(pa_z_params.mean, pa_z_params.logvar, pa_z_params.mean, pa_z_params.logvar))
+        pa_z_params, p_z_params = AdaVae.compute_averaged(a_z_params, p_z_params, p_shared_mask, average_mode=self.cfg.average_mode)
+        na_z_params, n_z_params = AdaVae.compute_averaged(a_z_params, n_z_params, n_shared_mask, average_mode=self.cfg.average_mode)
+        ave_params = self.latents_handler.encoding_to_params(compute_average(pa_z_params.mean, pa_z_params.logvar, pa_z_params.mean, pa_z_params.logvar, average_mode=self.cfg.average_mode))
 
         anchor_ave_logs = {}
         if self.cfg.anchor_ave_mode == 'thresh':
             # compute anchor average using the adaptive threshold
             ave_shared_mask = p_shared_mask * n_shared_mask
-            ave_params, _ = AdaVae.compute_averaged(a_z_params, ave_params, ave_shared_mask, self._compute_average_fn)
+            ave_params, _ = AdaVae.compute_averaged(a_z_params, ave_params, ave_shared_mask, average_mode=self.cfg.average_mode)
             anchor_ave_logs['ave_shared'] = ave_shared_mask.sum(dim=1).float().mean()
 
         new_args = ave_params, p_z_params, n_z_params

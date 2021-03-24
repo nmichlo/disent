@@ -66,7 +66,7 @@ class BoundedAdaVae(AdaVae):
         p_shared_mask, n_shared_mask = BoundedAdaVae.compute_constrained_masks(a_p_deltas, old_p_shared_mask, a_n_deltas, old_n_shared_mask)
         
         # make averaged variables
-        new_args = AdaVae.compute_averaged(a_z_params, p_z_params, p_shared_mask, self._compute_average_fn)
+        new_args = AdaVae.compute_averaged(a_z_params, p_z_params, p_shared_mask, average_mode=self.cfg.average_mode)
 
         # TODO: n_z_params should not be here! this does not match the original version
         #       number of loss elements is not 2 like the original
