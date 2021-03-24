@@ -5,7 +5,7 @@ module:
   beta: ${framework.beta}
   # adavae
   average_mode: 'gvae'  # gvae or ml-vae
-  symmetric_kl: TRUE
+  thresh_mode: symmetric_kl
   # swapped target
   swap_chance: 0.1
 

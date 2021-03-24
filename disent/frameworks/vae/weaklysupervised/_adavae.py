@@ -55,7 +55,7 @@ class AdaVae(BetaVae):
     @dataclass
     class cfg(BetaVae.cfg):
         average_mode: str = 'gvae'
-        symmetric_kl: bool = True
+        thresh_mode: str = 'symmetric_kl'  # kl, symmetric_kl, dist
         thresh_ratio: float = 0.5
 
     def hook_intercept_zs(self, zs_params: Sequence['Params']) -> Tuple[Sequence['Params'], Dict[str, Any]]:
@@ -73,11 +73,11 @@ class AdaVae(BetaVae):
         # compute the deltas
         d0_posterior, _ = self.params_to_dists(z0_params)  # numerical accuracy errors
         d1_posterior, _ = self.params_to_dists(z1_params)  # numerical accuracy errors
-        z_deltas = self.compute_kl_deltas(d0_posterior, d1_posterior, symmetric_kl=self.cfg.symmetric_kl)
+        z_deltas = self.compute_deltas(d0_posterior, d1_posterior, thresh_mode=self.cfg.thresh_mode)
         # shared elements that need to be averaged, computed per pair in the batch.
-        share_mask = self.compute_shared_mask(z_deltas, ratio=self.cfg.thresh_ratio)
+        share_mask = self.estimate_shared_mask(z_deltas, ratio=self.cfg.thresh_ratio)
         # compute average posteriors
-        new_args = self.compute_averaged(z0_params, z1_params, share_mask, average_mode=self.cfg.average_mode)
+        new_args = self.make_averaged(z0_params, z1_params, share_mask, average_mode=self.cfg.average_mode)
         # return new args & generate logs
         return new_args, {'shared': share_mask.sum(dim=1).float().mean()}
 
@@ -86,7 +86,7 @@ class AdaVae(BetaVae):
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     @classmethod
-    def compute_kl_deltas(cls, d0_posterior: Distribution, d1_posterior: Distribution, symmetric_kl: bool):
+    def compute_deltas(cls, d0_posterior: Distribution, d1_posterior: Distribution, thresh_mode: str):
         """
         (✓) Visual inspection against reference implementation
         https://github.com/google-research/disentanglement_lib (compute_kl)
@@ -96,18 +96,23 @@ class AdaVae(BetaVae):
         """
         # shared elements that need to be averaged, computed per pair in the batch.
         # [𝛿_i ...]
-        if symmetric_kl:
+        if thresh_mode == 'symmetric_kl':
             # FROM: https://openreview.net/pdf?id=8VXvj1QNRl1
             kl_deltas_d1_d0 = torch.distributions.kl_divergence(d1_posterior, d0_posterior)
             kl_deltas_d0_d1 = torch.distributions.kl_divergence(d0_posterior, d1_posterior)
-            kl_deltas = (0.5 * kl_deltas_d1_d0) + (0.5 * kl_deltas_d0_d1)
+            deltas = (0.5 * kl_deltas_d1_d0) + (0.5 * kl_deltas_d0_d1)
+        elif thresh_mode == 'kl':
+            deltas = torch.distributions.kl_divergence(d1_posterior, d0_posterior)
+        elif thresh_mode == 'dist':
+            deltas = torch.abs(d1_posterior.mean - d0_posterior.mean)
         else:
-            kl_deltas = torch.distributions.kl_divergence(d1_posterior, d0_posterior)
+            raise KeyError(f'invalid thresh_mode: {repr(thresh_mode)}')
+
         # return values
-        return kl_deltas
+        return deltas
 
     @classmethod
-    def compute_shared_mask(cls, z_deltas, ratio=0.5):
+    def estimate_shared_mask(cls, z_deltas, ratio=0.5):
         """
         Core of the adaptive VAE algorithm, estimating which factors
         have changed (or in this case which are shared and should remained unchanged
@@ -145,7 +150,7 @@ class AdaVae(BetaVae):
         return (ratio * minimums) + (ratio * maximums)
 
     @classmethod
-    def compute_averaged(cls, z0_params, z1_params, share_mask, average_mode: str):
+    def make_averaged(cls, z0_params, z1_params, share_mask, average_mode: str):
         # compute average posteriors
         ave_mean, ave_logvar = compute_average(
             z0_params.mean, z0_params.logvar,

@@ -16,7 +16,7 @@ module:
   detach_logvar: NULL  # set to NULL to disable fixed value
   # adavae
   average_mode: 'gvae'  # gvae or ml-vae
-  symmetric_kl: TRUE
+  thresh_mode: symmetric_kl
 
 # settings used elsewhere
 data_wrap_mode: triplet

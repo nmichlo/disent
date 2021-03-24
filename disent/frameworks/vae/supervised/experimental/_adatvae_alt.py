@@ -74,17 +74,17 @@ class AltAdaTripletVae(TripletVae):
         # compute averaged triplet
         # ================================= #
         # compute the deltas
-        ap_z_deltas = AdaVae.compute_kl_deltas(a_d_posterior, p_d_posterior, symmetric_kl=self.cfg.symmetric_kl)
-        an_z_deltas = AdaVae.compute_kl_deltas(a_d_posterior, n_d_posterior, symmetric_kl=self.cfg.symmetric_kl)
-        pn_z_deltas = AdaVae.compute_kl_deltas(p_d_posterior, n_d_posterior, symmetric_kl=self.cfg.symmetric_kl)
+        ap_z_deltas = AdaVae.compute_deltas(a_d_posterior, p_d_posterior, thresh_mode=self.cfg.thresh_mode)
+        an_z_deltas = AdaVae.compute_deltas(a_d_posterior, n_d_posterior, thresh_mode=self.cfg.thresh_mode)
+        pn_z_deltas = AdaVae.compute_deltas(p_d_posterior, n_d_posterior, thresh_mode=self.cfg.thresh_mode)
         # shared elements that need to be averaged, computed per pair in the batch.
-        ap_share_mask = AdaVae.compute_shared_mask(ap_z_deltas, ratio=self.cfg.thresh_ratio)
-        an_share_mask = AdaVae.compute_shared_mask(an_z_deltas, ratio=self.cfg.thresh_ratio)
-        pn_share_mask = AdaVae.compute_shared_mask(pn_z_deltas, ratio=self.cfg.thresh_ratio)
+        ap_share_mask = AdaVae.estimate_shared_mask(ap_z_deltas, ratio=self.cfg.thresh_ratio)
+        an_share_mask = AdaVae.estimate_shared_mask(an_z_deltas, ratio=self.cfg.thresh_ratio)
+        pn_share_mask = AdaVae.estimate_shared_mask(pn_z_deltas, ratio=self.cfg.thresh_ratio)
         # compute all averages
-        ave_ap_z_params, ave_pa_z_params = AdaVae.compute_averaged(a_z_params, p_z_params, ap_share_mask, average_mode=self.cfg.average_mode)
-        ave_an_z_params, ave_na_z_params = AdaVae.compute_averaged(a_z_params, n_z_params, an_share_mask, average_mode=self.cfg.average_mode)
-        ave_pn_z_params, ave_np_z_params = AdaVae.compute_averaged(p_z_params, n_z_params, pn_share_mask, average_mode=self.cfg.average_mode)
+        ave_ap_z_params, ave_pa_z_params = AdaVae.make_averaged(a_z_params, p_z_params, ap_share_mask, average_mode=self.cfg.average_mode)
+        ave_an_z_params, ave_na_z_params = AdaVae.make_averaged(a_z_params, n_z_params, an_share_mask, average_mode=self.cfg.average_mode)
+        ave_pn_z_params, ave_np_z_params = AdaVae.make_averaged(p_z_params, n_z_params, pn_share_mask, average_mode=self.cfg.average_mode)
         # compute averages
         ave_a_mean, ave_a_logvar = compute_average(ave_ap_z_params.mean, ave_ap_z_params.logvar, ave_an_z_params.mean, ave_an_z_params.logvar, average_mode=self.cfg.average_mode)
         ave_p_mean, ave_p_logvar = compute_average(ave_pa_z_params.mean, ave_pa_z_params.logvar, ave_pn_z_params.mean, ave_pn_z_params.logvar, average_mode=self.cfg.average_mode)

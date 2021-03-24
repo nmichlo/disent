@@ -187,8 +187,8 @@ class AdaTripletVae(TripletVae):
         delta_p = torch.abs(a_z_mean - p_z_mean)
         delta_n = torch.abs(a_z_mean - n_z_mean)
         # get thresholds
-        p_shared = AdaVae.compute_shared_mask(delta_p, ratio=ratio)
-        n_shared = AdaVae.compute_shared_mask(delta_n, ratio=ratio)
+        p_shared = AdaVae.estimate_shared_mask(delta_p, ratio=ratio)
+        n_shared = AdaVae.estimate_shared_mask(delta_n, ratio=ratio)
         # done!
         return p_shared, n_shared
 

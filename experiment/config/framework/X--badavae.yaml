@@ -4,7 +4,7 @@ module:
   _target_: disent.frameworks.vae.supervised.BoundedAdaVae
   beta: ${framework.beta}
   average_mode: 'gvae'  # gvae or ml-vae
-  symmetric_kl: TRUE
+  thresh_mode: symmetric_kl
 
 # settings used elsewhere
 data_wrap_mode: triplet
