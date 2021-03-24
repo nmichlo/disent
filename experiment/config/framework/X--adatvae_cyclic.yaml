@@ -20,11 +20,11 @@ module:
   ada_triplet_ratio: 0.25
   ada_triplet_schedule: # TODO: this does not support referencing other variables
     _target_: disent.schedule.Clip
-    min_step: 500
+    min_step: 14400
     shift_step: TRUE
     schedule:
       _target_: disent.schedule.CyclicSchedule
-      period: 720
+      period: 7200
       mode: 'linear'
 
 # settings used elsewhere
