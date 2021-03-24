@@ -120,11 +120,25 @@ class BaseFramework(DisentConfigurable, DisentLightningModule):
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     @final
+    def has_schedule(self, target: str):
+        return target in self._registered_schedules
+
+    @final
+    def remove_schedule(self, target):
+        if self.has_schedule(target):
+            self._registered_schedules.remove(target)
+            self._active_schedules.pop(target)
+        else:
+            raise KeyError(f'Cannot remove schedule for target {repr(target)} that does not exist!')
+
+    @final
     def register_schedule(self, target: str, schedule: Schedule):
         assert isinstance(target, str)
         assert isinstance(schedule, Schedule)
         assert type(schedule) is not Schedule
-        assert target not in self._registered_schedules, f'A schedule for target {repr(target)} has already been registered!'
+        # handle the case where a schedule for the target already exists!
+        if self.has_schedule(target):
+            raise KeyError(f'A schedule for target {repr(target)} has already been registered!')
         # check the target exists!
         possible_targets = {f.name for f in fields(self.cfg)}
         # register this target
@@ -134,7 +148,7 @@ class BaseFramework(DisentConfigurable, DisentLightningModule):
             initial_val = getattr(self.cfg, target)
             self._active_schedules[target] = (initial_val, schedule)
         else:
-            warnings.warn(f'Skipping registering schedule for target {repr(target)} because key was not found in the config for {repr(self.__class__.__name__)}')
+            warnings.warn(f'Skipping activating schedule for target {repr(target)} because key was not found in the config for {repr(self.__class__.__name__)}')
 
     @final
     def _update_config_from_schedules(self):

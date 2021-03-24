@@ -76,16 +76,19 @@ class LinearSchedule(Schedule):
     computed value that is in the range [0, 1]
     """
 
-    def __init__(self, max_step: int, r_start: float = 0.0, r_end: float = 1.0):
+    def __init__(self, min_step: int, max_step: int, r_start: float = 0.0, r_end: float = 1.0):
         assert max_step > 0
+        assert min_step >= 0
+        assert min_step < max_step
+        self.min_step = min_step
         self.max_step = max_step
         self.r_start = r_start
         self.r_end = r_end
 
     def compute_value(self, step: int, value):
         ratio = lerp_step(
-            step=step,
-            max_step=self.max_step,
+            step=(step - self.min_step),
+            max_step=(self.max_step - self.min_step),
             a=0.0,
             b=1.0,
         )

@@ -205,7 +205,7 @@ def aggregate_measure_distances_along_factor(
         axis_var = torch.var(zs_traversal, dim=0)  # (z_size,)
         axis_ratio = max_ratio(axis_var)
         # correlation along arbitrary orthogonal basis
-        _, linear_var = torch_pca(zs_traversal, mode='svd')  # svd: (min(z_size, factor_size),) | eig: (z_size,)
+        _, linear_var = torch_pca(zs_traversal, center=True, mode='svd')  # svd: (min(z_size, factor_size),) | eig: (z_size,)
         linear_ratio = max_ratio(linear_var)
 
         # ALTERNATIVES?

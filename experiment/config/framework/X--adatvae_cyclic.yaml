@@ -1,5 +1,5 @@
 # @package _group_
-name: adatvae
+name: adatvae_cyclic
 module:
   _target_: disent.frameworks.vae.supervised.AdaTripletVae
   beta: ${framework.beta}
@@ -17,15 +17,15 @@ module:
   # adatvae: what version of triplet to use
   triplet_mode: 'trip_AND_softAve'
   # adatvae: annealing
-  ada_triplet_ratio: 1.0
+  ada_triplet_ratio: 0.25
   ada_triplet_schedule: # TODO: this does not support referencing other variables
     _target_: disent.schedule.Clip
     min_step: 14400
     shift_step: TRUE
     schedule:
-      _target_: disent.schedule.LinearSchedule
-      min_step: 0
-      max_step: 100800  # long_run - offset: 115200 - 14400 = 100800
+      _target_: disent.schedule.CyclicSchedule
+      period: 7200
+      mode: 'linear'
 
 # settings used elsewhere
 data_wrap_mode: triplet
