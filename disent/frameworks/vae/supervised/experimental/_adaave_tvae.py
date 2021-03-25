@@ -39,13 +39,13 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class AltAdaTripletVae(TripletVae):
+class AdaAveTripletVae(TripletVae):
 
     REQUIRED_OBS = 3
 
     @dataclass
     class cfg(TripletVae.cfg, AdaVae.cfg):
-        ada_mask_mode: str = 'kl'
+        adaave_mask_mode: str = 'kl'
 
     def hook_intercept_zs(self, zs_params: Sequence['Params']):
         # triplet vae intercept -- in case detached
@@ -61,21 +61,22 @@ class AltAdaTripletVae(TripletVae):
         # compute averaged triplet
         # ================================= #
         # shared elements that need to be averaged, computed per pair in the batch.
-        if self.cfg.ada_mask_mode == 'kl':
+        if self.cfg.adaave_mask_mode == 'kl':
             ap_share_mask = AdaVae.compute_posterior_shared_mask(a_d_posterior, p_d_posterior, thresh_mode=self.cfg.thresh_mode, ratio=self.cfg.thresh_ratio)
             an_share_mask = AdaVae.compute_posterior_shared_mask(a_d_posterior, n_d_posterior, thresh_mode=self.cfg.thresh_mode, ratio=self.cfg.thresh_ratio)
             pn_share_mask = AdaVae.compute_posterior_shared_mask(p_d_posterior, n_d_posterior, thresh_mode=self.cfg.thresh_mode, ratio=self.cfg.thresh_ratio)
-        elif self.cfg.ada_mask_mode == 'sample':
+        elif self.cfg.adaave_mask_mode == 'sample':
             a_z_sample, p_z_sample, n_z_sample = a_d_posterior.rsample(), p_d_posterior.rsample(), n_d_posterior.rsample()
             ap_share_mask = AdaVae.compute_z_shared_mask(a_z_sample, p_z_sample, ratio=self.cfg.thresh_ratio)
             an_share_mask = AdaVae.compute_z_shared_mask(a_z_sample, n_z_sample, ratio=self.cfg.thresh_ratio)
             pn_share_mask = AdaVae.compute_z_shared_mask(p_z_sample, n_z_sample, ratio=self.cfg.thresh_ratio)
-        elif self.cfg.ada_mask_mode == 'sample_each':
+        elif self.cfg.adaave_mask_mode == 'sample_each':
             ap_share_mask = AdaVae.compute_z_shared_mask(a_d_posterior.rsample(), p_d_posterior.rsample(), ratio=self.cfg.thresh_ratio)
             an_share_mask = AdaVae.compute_z_shared_mask(a_d_posterior.rsample(), n_d_posterior.rsample(), ratio=self.cfg.thresh_ratio)
             pn_share_mask = AdaVae.compute_z_shared_mask(p_d_posterior.rsample(), n_d_posterior.rsample(), ratio=self.cfg.thresh_ratio)
         else:
-            raise KeyError(f'Invalid cfg.ada_mask_mode={repr(self.cfg.ada_mask_mode)}')
+            raise KeyError(f'Invalid cfg.ada_mask_mode={repr(self.cfg.adaave_mask_mode)}')
+
         # compute all averages
         ave_ap_z_params, ave_pa_z_params = AdaVae.make_averaged_params(a_z_params, p_z_params, ap_share_mask, average_mode=self.cfg.average_mode)
         ave_an_z_params, ave_na_z_params = AdaVae.make_averaged_params(a_z_params, n_z_params, an_share_mask, average_mode=self.cfg.average_mode)
