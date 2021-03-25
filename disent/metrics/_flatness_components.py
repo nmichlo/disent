@@ -119,7 +119,7 @@ def aggregate_measure_distances_along_all_factors(
         rai, rpi, rni = reorder_by_factor_dist(factors, rai, rpi, rni)
         # check differences
         swap_ratio_l1, swap_ratio_l2 = compute_swap_ratios(zs[rai], zs[rpi], zs[rni])
-        values.append({'ran_swap_ratio_l1': swap_ratio_l1, 'ran_swap_ratio_l2': swap_ratio_l2})
+        values.append({'global_swap_ratio.l1': swap_ratio_l1, 'global_swap_ratio.l2': swap_ratio_l2})
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     # RETURN
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -199,8 +199,13 @@ def aggregate_measure_distances_along_factor(
         zs_traversal = encode_all_along_factor(ground_truth_dataset, representation_function, f_idx=f_idx, batch_size=batch_size)
 
         # SWAP RATIO:
+        idxs_a, idxs_p_OLD, idxs_n_OLD = torch.randint(0, len(zs_traversal), size=(3, len(zs_traversal)*2))
+        idx_mask = torch.abs(idxs_a - idxs_p_OLD) <= torch.abs(idxs_a - idxs_n_OLD)
+        idxs_p = torch.where(idx_mask, idxs_p_OLD, idxs_n_OLD)
+        idxs_n = torch.where(idx_mask, idxs_n_OLD, idxs_p_OLD)
         # check the number of swapped elements along a factor
-        swap_ratio_l1, swap_ratio_l2 = compute_swap_ratios(zs_traversal[:-2], zs_traversal[1:-1], zs_traversal[2:])
+        near_swap_ratio_l1, near_swap_ratio_l2 = compute_swap_ratios(zs_traversal[:-2], zs_traversal[1:-1], zs_traversal[2:])
+        factor_swap_ratio_l1, factor_swap_ratio_l2 = compute_swap_ratios(zs_traversal[idxs_a, :], zs_traversal[idxs_p, :], zs_traversal[idxs_n, :])
 
         # CORRELATIONS -- SORTED IN DESCENDING ORDER:
         # correlation with standard basis (1, 0, 0, ...), (0, 1, 0, ...), ...
@@ -218,8 +223,10 @@ def aggregate_measure_distances_along_factor(
 
         # save variables
         measures.append({
-            'swap_ratio_l1': swap_ratio_l1,
-            'swap_ratio_l2': swap_ratio_l2,
+            'factor_swap_ratio_near.l1': near_swap_ratio_l1,
+            'factor_swap_ratio_near.l2': near_swap_ratio_l2,
+            'factor_swap_ratio.l1': factor_swap_ratio_l1,
+            'factor_swap_ratio.l2': factor_swap_ratio_l2,
             # axis ratios
             'axis_ratio':      norm_ratio(axis_var[0] / torch.sum(axis_var),                      n=len(axis_var)),
             'axis_ratio_max':  norm_ratio(axis_var[0] / (axis_var[0] + torch.max(axis_var[1:])),  n=2),
