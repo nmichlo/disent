@@ -63,9 +63,6 @@ class AdaTripletVae(TripletVae):
         # warn if unsupported variables are used
         if self.cfg.average_mode is not None: warnings.warn(f'{self.__class__.__name__} does not support {AdaVae.__name__}.cfg.average_mode')
         if self.cfg.thresh_mode is not None:  warnings.warn(f'{self.__class__.__name__} does not support {AdaVae.__name__}.cfg.thresh_mode')
-        # warn if schedule do not exist!
-        if not self.has_schedule('thresh_ratio'):      warnings.warn(f'{self.__class__.__name__} has no schedule for thresh_ratio')
-        if not self.has_schedule('ada_triplet_ratio'): warnings.warn(f'{self.__class__.__name__} has no schedule for ada_triplet_ratio')
 
     def hook_compute_ave_aug_loss(self, ds_posterior: Sequence[Normal], ds_prior: Sequence[Normal], zs_sampled: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]):
         return self.compute_ada_triplet_loss(zs=self.get_representations(ds_posterior, cfg=self.cfg), cfg=self.cfg)
@@ -136,6 +133,7 @@ class AdaTripletVae(TripletVae):
         }
 
         return losses[cfg.ada_triplet_loss], {
+            'triplet': trip_loss,
             'triplet_chosen': losses[cfg.ada_triplet_loss],
             'ap_shared': ap_shared_mask.sum(dim=1).float().mean(),
             'an_shared': an_shared_mask.sum(dim=1).float().mean(),

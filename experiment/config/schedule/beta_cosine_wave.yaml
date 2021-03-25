@@ -1,4 +1,5 @@
 # @package _global_
+schedules_name: cosine_wave
 schedules:
   beta:
     # skip the first cycle
