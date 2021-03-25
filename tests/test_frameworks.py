@@ -61,8 +61,11 @@ from disent.transform import ToStandardisedTensor
     (DfcVae,               dict(),                                                                      XYObjectData),
     (DfcVae,               dict(),                                                                      partial(XYObjectData, rgb=False)),
     (BetaTcVae,            dict(),                                                                      XYObjectData),
-    (DataOverlapVae,       dict(),                                                                      XYObjectData),
-    (DataOverlapVae,       dict(overlap_triplet_mode='ada_triplet'),                                    XYObjectData),
+    (DataOverlapTripletVae,dict(overlap_mine_triplet_mode='none'),                                      XYObjectData),
+    (DataOverlapTripletVae,dict(overlap_mine_triplet_mode='semi_hard_neg'),                             XYObjectData),
+    (DataOverlapTripletVae,dict(overlap_mine_triplet_mode='hard_neg'),                                  XYObjectData),
+    (DataOverlapTripletVae,dict(overlap_mine_triplet_mode='hard_pos'),                                  XYObjectData),
+    (DataOverlapTripletVae,dict(overlap_mine_triplet_mode='easy_pos'),                                  XYObjectData),
     # VAE - weakly supervised
     (AdaVae,               dict(),                                                                      XYObjectData),
     (AdaVae,               dict(average_mode='ml-vae'),                                                 XYObjectData),
@@ -77,7 +80,11 @@ from disent.transform import ToStandardisedTensor
     (GuidedAdaVae,         dict(anchor_ave_mode='thresh'),                                              XYObjectData),
     (TripletBoundedAdaVae, dict(),                                                                      XYObjectData),
     (TripletGuidedAdaVae,  dict(),                                                                      XYObjectData),
-    (AdaTripletVae,        dict(),                                                                      XYObjectData),
+    (AdaTripletVae,        dict(ada_triplet_sample=True),                                              XYObjectData),
+    (AdaTripletVae,        dict(ada_triplet_sample=False),                                             XYObjectData),
+    (AdaAveTripletVae,     dict(ada_mask_mode='kl'),                                                    XYObjectData),
+    (AdaAveTripletVae,     dict(ada_mask_mode='sample'),                                                XYObjectData),
+    (AdaAveTripletVae,     dict(ada_mask_mode='sample_each'),                                           XYObjectData),
 ])
 def test_frameworks(Framework, cfg_kwargs, Data):
     DataWrapper = {

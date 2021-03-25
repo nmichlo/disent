@@ -4,7 +4,7 @@
 # Settings                                                                  #
 # ========================================================================= #
 
-export PROJECT="exp-axis-triplet"
+export PROJECT="exp-axis-triplet-3.0"
 export PARTITION="batch"
 export PARALLELISM=24
 
@@ -17,11 +17,11 @@ source "$(dirname "$(dirname "$(realpath -s "$0")")")/helper.sh"
 
 clog_cudaless_nodes batch 28800 "C-disent" # 8 hours
 
-# 2 * (2*19=19) = 76
+# 1 * 2 * (3*2*6=36) = 72
 submit_sweep \
     +DUMMY.repeat=1,2 \
     \
-    framework=X--adatvae,X--adatvae_cyclic \
+    framework=X--adatvae \
     dataset=xysquares \
     run_length=short \
     \
@@ -31,30 +31,10 @@ submit_sweep \
     sampling=gt_dist_manhat \
     specializations.data_wrapper='gt_dist_${framework.data_wrap_mode}' \
     \
-    framework.module.ada_triplet_ratio=1.0 \
-    framework.module.triplet_mode=triplet,trip_hardAveNeg,trip_hardAveNegLerp,trip_TO_trip_hardAveNeg,trip_TO_trip_hardAveNegLerp,CONST_trip_TO_trip_hardAveNeg,CONST_trip_TO_trip_hardAveNegLerp,trip_AND_softAve,trip_AND_softAveLerp,CONST_trip_AND_softAve,CONST_trip_AND_softAveLerp,trip_scaleAve,trip_scaleAveLerp,CONST_trip_scaleAve,CONST_trip_scaleAveLerp,BROKEN_trip_scaleAve,BROKEN_trip_scaleAveLerp,CONST_BROKEN_trip_scaleAve,CONST_BROKEN_trip_scaleAveLerp
-
-# ALL MODES:
-  # triplet
-  #
-  # trip_hardAveNeg
-  # trip_hardAveNegLerp
-  # trip_TO_trip_hardAveNeg
-  # trip_TO_trip_hardAveNegLerp
-  # CONST_trip_TO_trip_hardAveNeg
-  # CONST_trip_TO_trip_hardAveNegLerp
-  #
-  # trip_AND_softAve
-  # trip_AND_softAveLerp
-  # CONST_trip_AND_softAve
-  # CONST_trip_AND_softAveLerp
-  #
-  # trip_scaleAve
-  # trip_scaleAveLerp
-  # CONST_trip_scaleAve
-  # CONST_trip_scaleAveLerp
-  #
-  # BROKEN_trip_scaleAve
-  # BROKEN_trip_scaleAveLerp
-  # CONST_BROKEN_trip_scaleAve
-  # CONST_BROKEN_trip_scaleAveLerp
+    model.z_size=25,9 \
+    \
+    framework.module.thresh_ratio=0.5
+    framework.module.ada_triplet_ratio=1.0
+    schedule=none,adavae_ratio,adavae_thresh
+    framework.module.ada_triplet_sample=TRUE,FALSE
+    framework.module.ada_triplet_loss=triplet_soft_ave,triplet_soft_neg_ave,triplet_all_soft_ave,triplet_hard_ave,triplet_hard_neg_ave,triplet_all_hard_ave

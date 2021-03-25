@@ -70,23 +70,23 @@ class AdaVae(BetaVae):
             https://github.com/google-research/disentanglement_lib (aggregate_argmax)
         """
         z0_params, z1_params = zs_params
-        # compute the deltas
-        d0_posterior, _ = self.params_to_dists(z0_params)  # numerical accuracy errors
-        d1_posterior, _ = self.params_to_dists(z1_params)  # numerical accuracy errors
-        z_deltas = self.compute_deltas(d0_posterior, d1_posterior, thresh_mode=self.cfg.thresh_mode)
+        d0_posterior, _ = self.params_to_dists(z0_params)
+        d1_posterior, _ = self.params_to_dists(z1_params)
         # shared elements that need to be averaged, computed per pair in the batch.
-        share_mask = self.estimate_shared_mask(z_deltas, ratio=self.cfg.thresh_ratio)
+        share_mask = self.compute_posterior_shared_mask(d0_posterior, d1_posterior, thresh_mode=self.cfg.thresh_mode, ratio=self.cfg.thresh_ratio)
         # compute average posteriors
-        new_args = self.make_averaged(z0_params, z1_params, share_mask, average_mode=self.cfg.average_mode)
+        new_zs_params = self.make_averaged_params(z0_params, z1_params, share_mask, average_mode=self.cfg.average_mode)
         # return new args & generate logs
-        return new_args, {'shared': share_mask.sum(dim=1).float().mean()}
+        return new_zs_params, {
+            'shared': share_mask.sum(dim=1).float().mean()
+        }
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # HELPER                                                                #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     @classmethod
-    def compute_deltas(cls, d0_posterior: Distribution, d1_posterior: Distribution, thresh_mode: str):
+    def compute_posterior_deltas(cls, d0_posterior: Distribution, d1_posterior: Distribution, thresh_mode: str):
         """
         (✓) Visual inspection against reference implementation
         https://github.com/google-research/disentanglement_lib (compute_kl)
@@ -96,17 +96,17 @@ class AdaVae(BetaVae):
         """
         # shared elements that need to be averaged, computed per pair in the batch.
         # [𝛿_i ...]
-        if thresh_mode == 'symmetric_kl':
+        if thresh_mode == 'kl':
+            deltas = torch.distributions.kl_divergence(d1_posterior, d0_posterior)
+        elif thresh_mode == 'symmetric_kl':
             # FROM: https://openreview.net/pdf?id=8VXvj1QNRl1
             kl_deltas_d1_d0 = torch.distributions.kl_divergence(d1_posterior, d0_posterior)
             kl_deltas_d0_d1 = torch.distributions.kl_divergence(d0_posterior, d1_posterior)
             deltas = (0.5 * kl_deltas_d1_d0) + (0.5 * kl_deltas_d0_d1)
-        elif thresh_mode == 'kl':
-            deltas = torch.distributions.kl_divergence(d1_posterior, d0_posterior)
         elif thresh_mode == 'dist':
-            deltas = torch.abs(d1_posterior.mean - d0_posterior.mean)
+            deltas = cls.compute_z_deltas(d1_posterior.mean, d0_posterior.mean)
         elif thresh_mode == 'sampled_dist':
-            deltas = torch.abs(d1_posterior.rsample() - d0_posterior.rsample())
+            deltas = cls.compute_z_deltas(d1_posterior.rsample(), d0_posterior.rsample())
         else:
             raise KeyError(f'invalid thresh_mode: {repr(thresh_mode)}')
 
@@ -114,7 +114,19 @@ class AdaVae(BetaVae):
         return deltas
 
     @classmethod
-    def estimate_shared_mask(cls, z_deltas, ratio=0.5):
+    def compute_posterior_shared_mask(cls, d0_posterior: Distribution, d1_posterior: Distribution, thresh_mode: str, ratio=0.5):
+        return cls.estimate_shared_mask(z_deltas=cls.compute_posterior_deltas(d0_posterior, d1_posterior, thresh_mode=thresh_mode), ratio=ratio)
+
+    @classmethod
+    def compute_z_deltas(cls, z0: torch.Tensor, z1: torch.Tensor) -> torch.Tensor:
+        return torch.abs(z0 - z1)
+
+    @classmethod
+    def compute_z_shared_mask(cls, z0: torch.Tensor, z1: torch.Tensor, ratio: float = 0.5):
+        return cls.estimate_shared_mask(z_deltas=cls.compute_z_deltas(z0, z1), ratio=ratio)
+
+    @classmethod
+    def estimate_shared_mask(cls, z_deltas: torch.Tensor, ratio: float = 0.5):
         """
         Core of the adaptive VAE algorithm, estimating which factors
         have changed (or in this case which are shared and should remained unchanged
@@ -139,7 +151,7 @@ class AdaVae(BetaVae):
         return shared_mask
 
     @classmethod
-    def estimate_threshold(cls, kl_deltas, keepdim=True, ratio=0.5):
+    def estimate_threshold(cls, kl_deltas: torch.Tensor, keepdim: bool = True, ratio: float = 0.5):
         """
         Compute the threshold for each image pair in a batch of kl divergences of all elements of the latent distributions.
         It should be noted that for a perfectly trained model, this threshold is always correct.
@@ -149,10 +161,10 @@ class AdaVae(BetaVae):
         """
         maximums = kl_deltas.max(axis=1, keepdim=keepdim).values
         minimums = kl_deltas.min(axis=1, keepdim=keepdim).values
-        return (ratio * minimums) + (ratio * maximums)
+        return torch.lerp(minimums, maximums, weight=ratio)
 
     @classmethod
-    def make_averaged(cls, z0_params, z1_params, share_mask, average_mode: str):
+    def make_averaged_params(cls, z0_params, z1_params, share_mask, average_mode: str):
         # compute average posteriors
         ave_mean, ave_logvar = compute_average(
             z0_params.mean, z0_params.logvar,

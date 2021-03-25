@@ -4,8 +4,9 @@ module:
   _target_: disent.frameworks.vae.supervised.GuidedAdaVae
   beta: ${framework.beta}
   # adavae
-  average_mode: 'gvae'       # [gvae, ml-vae]
+  average_mode: gvae  # gvae or ml-vae
   thresh_mode: symmetric_kl
+  thresh_ratio: 0.5
   # guided adavae
   anchor_ave_mode: 'average' # [average, thresh]
 

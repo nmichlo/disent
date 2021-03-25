@@ -42,7 +42,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class DataOverlapVae(AdaTripletVae):
+class DataOverlapTripletVae(AdaTripletVae):
 
     REQUIRED_OBS = 1
 
@@ -53,50 +53,54 @@ class DataOverlapVae(AdaTripletVae):
         detach_decoder: bool = True
         detach_no_kl: bool = False
         detach_logvar: float = None  # std = 0.5, logvar = ln(std**2) ~= -2,77
-        # OVERRIDE - triplet loss configs
-        triplet_scale: float = 0
-        # OVERRIDE ADAVAE
-        # adatvae: what version of triplet to use
-        # triplet_mode: str # KEEP VALUES FROM PARENT
-        # adatvae: annealing
-        # ada_triplet_ratio: float # KEEP VALUES FROM PARENT
-        # ada_triplet_schedule: dict # KEEP VALUES FROM PARENT
         # OVERLAP VAE
-        overlap_triplet_mode: str = 'triplet'
         overlap_num: int = 1024
-        overlap_z_mode: str = 'means'
-        # TRIPLET MINING
-        overlap_mine_triplet_mode: str = 'none'
         overlap_mine_ratio: float = 0.1
+        overlap_mine_triplet_mode: str = 'none'
 
     def hook_compute_ave_aug_loss(self, ds_posterior: Sequence[Normal], ds_prior, zs_sampled, xs_partial_recon, xs_targ: Sequence[torch.Tensor]):
         # get values
         (d_posterior,), (x_targ,) = ds_posterior, xs_targ
-
-        # generate random triples -- TODO: this does not generate unique pairs
+        # generate & mine random triples from batch -- this does not generate unique pairs
         a_idxs, p_idxs, n_idxs = torch.randint(len(x_targ), size=(3, min(self.cfg.overlap_num, len(x_targ)**3)))
-        # mine triplets
         a_idxs, p_idxs, n_idxs = self.mine_triplets(x_targ, a_idxs, p_idxs, n_idxs)
-
         # make triples
-        xs_targ_NEW = [x_targ[idxs] for idxs in (a_idxs, p_idxs, n_idxs)]
-        ds_posterior_NEW = [Normal(d_posterior.loc[idxs], d_posterior.scale[idxs]) for idxs in (a_idxs, p_idxs, n_idxs)]
-
-        # make representation triples
-        if self.cfg.overlap_z_mode == 'means':
-            zs = [d.mean for d in ds_posterior_NEW]
-        elif self.cfg.overlap_z_mode == 'samples':
-            zs = [d.rsample() for d in ds_posterior_NEW]  # we resample here in case z_sampled is detached
-        else:
-            raise KeyError(f'invalid cfg.overlap_z_mode: {repr(self.cfg.overlap_z_mode)}')
-
+        new_xs_targ = [x_targ[idxs] for idxs in (a_idxs, p_idxs, n_idxs)]
+        new_ds_posterior = [Normal(d_posterior.loc[idxs], d_posterior.scale[idxs]) for idxs in (a_idxs, p_idxs, n_idxs)]
         # compute loss
-        loss, logs = self.compute_overlap_triplet_loss(zs_mean=zs, xs_targ=xs_targ_NEW, cfg=self.cfg, unreduced_loss_fn=self.recon_handler.compute_unreduced_loss)
-
+        loss, logs = self.compute_overlap_triplet_loss(ds_posterior=new_ds_posterior, xs_targ=new_xs_targ, cfg=self.cfg, unreduced_loss_fn=self.recon_handler.compute_unreduced_loss)
         return loss, {
             **logs,
-            **DataOverlapVae.overlap_measure_differences(ds_posterior_NEW, xs_targ_NEW, unreduced_loss_fn=self.recon_handler.compute_unreduced_loss, unreduced_kl_loss_fn=self.latents_handler.compute_unreduced_kl_loss),
+            **DataOverlapTripletVae.overlap_measure_differences(new_ds_posterior, new_xs_targ, unreduced_loss_fn=self.recon_handler.compute_unreduced_loss, unreduced_kl_loss_fn=self.latents_handler.compute_unreduced_kl_loss),
         }
+
+    @staticmethod
+    def compute_overlap_triplet_loss(ds_posterior, xs_targ, cfg: cfg, unreduced_loss_fn):
+        # check the recon loss
+        assert cfg.recon_loss == 'mse', 'only mse loss is supported'
+        # get representations
+        zs = AdaTripletVae.get_representations(ds_posterior, cfg=cfg)
+        # CORE: order the latent variables for triplet
+        zs = DataOverlapTripletVae.overlap_swap_zs(zs_mean=zs, xs_targ=xs_targ, unreduced_loss_fn=unreduced_loss_fn)
+        # compute loss
+        return AdaTripletVae.compute_ada_triplet_loss(zs=zs, cfg=cfg)
+
+    @staticmethod
+    def overlap_swap_zs(zs_mean, xs_targ, unreduced_loss_fn):
+        # get variables
+        a_z_mean_OLD, p_z_mean_OLD, n_z_mean_OLD = zs_mean
+        a_x_targ_OLD, p_x_targ_OLD, n_x_targ_OLD = xs_targ
+        # CORE OF THIS APPROACH
+        # ++++++++++++++++++++++++++++++++++++++++++ #
+        # calculate which are wrong!
+        a_p_losses = unreduced_loss_fn(a_x_targ_OLD, p_x_targ_OLD).mean(dim=(-3, -2, -1))
+        a_n_losses = unreduced_loss_fn(a_x_targ_OLD, n_x_targ_OLD).mean(dim=(-3, -2, -1))
+        # swap if wrong!
+        swap_mask = (a_p_losses > a_n_losses)[:, None].repeat(1, p_z_mean_OLD.shape[-1])
+        p_z_mean = torch.where(swap_mask, n_z_mean_OLD, p_z_mean_OLD)
+        n_z_mean = torch.where(swap_mask, p_z_mean_OLD, n_z_mean_OLD)
+        # ++++++++++++++++++++++++++++++++++++++++++ #
+        return a_z_mean_OLD, p_z_mean, n_z_mean
 
     def mine_triplets(self, x_targ, a_idxs, p_idxs, n_idxs):
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -155,46 +159,6 @@ class DataOverlapVae(AdaTripletVae):
             raise KeyError
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         return a_idxs, p_idxs, n_idxs
-
-    @staticmethod
-    def compute_overlap_triplet_loss(zs_mean, xs_targ, cfg: cfg, unreduced_loss_fn):
-        # check the recon loss
-        assert cfg.recon_loss == 'mse', 'only mse loss is supported'
-
-        # CORE: order the latent variables for triplet
-        zs_mean = DataOverlapVae.overlap_swap_zs(zs_mean=zs_mean, xs_targ=xs_targ, unreduced_loss_fn=unreduced_loss_fn)
-
-        # compute the triplet loss
-        if cfg.overlap_triplet_mode == 'triplet':
-            triplet_loss, logs_triplet = AdaTripletVae.compute_triplet_loss(zs_mean=zs_mean, cfg=cfg)
-        elif cfg.overlap_triplet_mode == 'ada_triplet':
-            triplet_loss, logs_triplet = AdaTripletVae.compute_ada_triplet_loss(zs_mean=zs_mean, cfg=cfg)
-        else:  # pragma: no cover
-            raise KeyError
-
-        return triplet_loss, {
-            'overlap_triplet_loss': triplet_loss,
-            **logs_triplet,
-        }
-
-    @staticmethod
-    def overlap_swap_zs(zs_mean, xs_targ, unreduced_loss_fn):
-        # get variables
-        a_z_mean_OLD, p_z_mean_OLD, n_z_mean_OLD = zs_mean
-        a_x_targ_OLD, p_x_targ_OLD, n_x_targ_OLD = xs_targ
-
-        # CORE OF THIS APPROACH
-        # ++++++++++++++++++++++++++++++++++++++++++ #
-        # calculate which are wrong!
-        a_p_losses = unreduced_loss_fn(a_x_targ_OLD, p_x_targ_OLD).mean(dim=(-3, -2, -1))
-        a_n_losses = unreduced_loss_fn(a_x_targ_OLD, n_x_targ_OLD).mean(dim=(-3, -2, -1))
-        # swap if wrong!
-        swap_mask = (a_p_losses > a_n_losses)[:, None].repeat(1, p_z_mean_OLD.shape[-1])
-        p_z_mean = torch.where(swap_mask, n_z_mean_OLD, p_z_mean_OLD)
-        n_z_mean = torch.where(swap_mask, p_z_mean_OLD, n_z_mean_OLD)
-        # ++++++++++++++++++++++++++++++++++++++++++ #
-
-        return a_z_mean_OLD, p_z_mean, n_z_mean
 
     @staticmethod
     def overlap_measure_differences(ds_posterior, xs_targ, unreduced_loss_fn, unreduced_kl_loss_fn):

@@ -1,5 +1,4 @@
-# @package _group_
-name: adatvae
+name: do_tvae
 module:
   _target_: disent.frameworks.vae.supervised.AdaTripletVae
   beta: ${framework.beta}
@@ -20,10 +19,14 @@ module:
   thresh_ratio: 0.5
   # adatvae
   ada_triplet_sample: FALSE
-  ada_triplet_loss: triplet_all_soft_ave
+  ada_triplet_loss: triplet_soft_ave
   ada_triplet_ratio: 1.0  # 0.5 is half of triplet and ada-triplet, 1.0 is all ada-triplet
   ada_triplet_soft_scale: 1.0
+  # dotvae
+  overlap_num: 4096
+  overlap_mine_ratio: 0.1
+  overlap_mine_triplet_mode: 'none'  # none, hard_neg, semi_hard, hard_pos, easy_pos, random_hard_neg_or_hard_pos <- etc, dynamically evaluated, can chain multiple "_or_"s
 
 # settings used elsewhere
-data_wrap_mode: triplet
+data_wrap_mode: single
 model_z_multiplier: 2
