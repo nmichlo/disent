@@ -61,8 +61,7 @@ from disent.transform import ToStandardisedTensor
     (DfcVae,               dict(),                                                                      XYObjectData),
     (DfcVae,               dict(),                                                                      partial(XYObjectData, rgb=False)),
     (BetaTcVae,            dict(),                                                                      XYObjectData),
-    (DataOverlapVae,       dict(),                                                                      XYObjectData),
-    (DataOverlapVae,       dict(overlap_triplet_mode='ada_triplet'),                                    XYObjectData),
+    (DataOverlapTripletVae,dict(),                                                                     XYObjectData),
     # VAE - weakly supervised
     (AdaVae,               dict(),                                                                      XYObjectData),
     (AdaVae,               dict(average_mode='ml-vae'),                                                 XYObjectData),

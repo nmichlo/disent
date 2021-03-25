@@ -66,8 +66,8 @@ class GuidedAdaVae(AdaVae):
         n_d_posterior, _ = self.params_to_dists(n_z_params)
 
         # get deltas
-        a_p_deltas = AdaVae.compute_deltas(a_d_posterior, p_d_posterior, thresh_mode=self.cfg.thresh_mode)
-        a_n_deltas = AdaVae.compute_deltas(a_d_posterior, n_d_posterior, thresh_mode=self.cfg.thresh_mode)
+        a_p_deltas = AdaVae.compute_posterior_deltas(a_d_posterior, p_d_posterior, thresh_mode=self.cfg.thresh_mode)
+        a_n_deltas = AdaVae.compute_posterior_deltas(a_d_posterior, n_d_posterior, thresh_mode=self.cfg.thresh_mode)
 
         # shared elements that need to be averaged, computed per pair in the batch.
         old_p_shared_mask = AdaVae.estimate_shared_mask(a_p_deltas, ratio=self.cfg.thresh_ratio)
@@ -78,15 +78,15 @@ class GuidedAdaVae(AdaVae):
         p_shared_mask, n_shared_mask = compute_constrained_masks(a_p_deltas, old_p_shared_mask, a_n_deltas, old_n_shared_mask)
 
         # make averaged variables
-        pa_z_params, p_z_params = AdaVae.make_averaged(a_z_params, p_z_params, p_shared_mask, average_mode=self.cfg.average_mode)
-        na_z_params, n_z_params = AdaVae.make_averaged(a_z_params, n_z_params, n_shared_mask, average_mode=self.cfg.average_mode)
+        pa_z_params, p_z_params = AdaVae.make_averaged_params(a_z_params, p_z_params, p_shared_mask, average_mode=self.cfg.average_mode)
+        na_z_params, n_z_params = AdaVae.make_averaged_params(a_z_params, n_z_params, n_shared_mask, average_mode=self.cfg.average_mode)
         ave_params = self.latents_handler.encoding_to_params(compute_average(pa_z_params.mean, pa_z_params.logvar, pa_z_params.mean, pa_z_params.logvar, average_mode=self.cfg.average_mode))
 
         anchor_ave_logs = {}
         if self.cfg.anchor_ave_mode == 'thresh':
             # compute anchor average using the adaptive threshold
             ave_shared_mask = p_shared_mask * n_shared_mask
-            ave_params, _ = AdaVae.make_averaged(a_z_params, ave_params, ave_shared_mask, average_mode=self.cfg.average_mode)
+            ave_params, _ = AdaVae.make_averaged_params(a_z_params, ave_params, ave_shared_mask, average_mode=self.cfg.average_mode)
             anchor_ave_logs['ave_shared'] = ave_shared_mask.sum(dim=1).float().mean()
 
         new_args = ave_params, p_z_params, n_z_params
