@@ -1,6 +1,6 @@
 # @package _global_
 framework:
-  name: adatvae
+  name: adatvae_lerp_all
   module:
     _target_: disent.frameworks.vae.supervised.AdaTripletVae
     beta: ${framework.beta}
@@ -28,3 +28,17 @@ framework:
   # settings used elsewhere
   data_wrap_mode: triplet
   model_z_multiplier: 2
+
+schedules:
+  ada_triplet_ratio:
+    _target_: disent.schedule.LinearSchedule
+    min_step: 0
+    max_step: ${trainer.steps}
+  ada_triplet_soft_scale:
+    _target_: disent.schedule.LinearSchedule
+    min_step: 0
+    max_step: ${trainer.steps}
+  thresh_ratio:
+    _target_: disent.schedule.LinearSchedule
+    min_step: 0
+    max_step: ${trainer.steps}

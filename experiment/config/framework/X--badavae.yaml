@@ -3,8 +3,10 @@ name: badavae
 module:
   _target_: disent.frameworks.vae.supervised.BoundedAdaVae
   beta: ${framework.beta}
-  average_mode: 'gvae'  # gvae or ml-vae
+  # adavae
+  average_mode: gvae  # gvae or ml-vae
   thresh_mode: symmetric_kl
+  thresh_ratio: 0.5
 
 # settings used elsewhere
 data_wrap_mode: triplet
