@@ -230,11 +230,9 @@ def aggregate_measure_distances_along_factor(
             # axis ratios
             'axis_ratio':      norm_ratio(axis_var[0] / torch.sum(axis_var),                      n=len(axis_var)),
             'axis_ratio_max':  norm_ratio(axis_var[0] / (axis_var[0] + torch.max(axis_var[1:])),  n=2),
-            'axis_ratio_mean': norm_ratio(axis_var[0] / (axis_var[0] + torch.mean(axis_var[1:])), n=2),
             # linear ratios
             'linear_ratio':      norm_ratio(linear_var[0] / torch.sum(linear_var),                        n=len(linear_var)),
             'linear_ratio_max':  norm_ratio(linear_var[0] / (linear_var[0] + torch.max(linear_var[1:])),  n=2),
-            'linear_ratio_mean': norm_ratio(linear_var[0] / (linear_var[0] + torch.mean(linear_var[1:])), n=2),
         })
 
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #

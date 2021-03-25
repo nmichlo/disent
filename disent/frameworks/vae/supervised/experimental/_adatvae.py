@@ -55,7 +55,7 @@ class AdaTripletVae(TripletVae):
         # adatvae
         ada_triplet_sample: bool = False
         ada_triplet_loss: str = 'triplet_soft_ave'
-        ada_triplet_ratio: float = 0.5
+        ada_triplet_ratio: float = 1.0
         ada_triplet_soft_scale: float = 1.0
 
     def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):

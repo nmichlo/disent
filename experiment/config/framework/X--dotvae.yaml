@@ -20,7 +20,7 @@ module:
   # adatvae
   ada_triplet_sample: FALSE
   ada_triplet_loss: triplet_soft_ave
-  ada_triplet_ratio: 0.5
+  ada_triplet_ratio: 1.0  # 0.5 is half of triplet and ada-triplet, 1.0 is all ada-triplet
   ada_triplet_soft_scale: 1.0
   # dotvae
   overlap_num: 4096
