@@ -153,18 +153,19 @@ def torch_mean_generalized(xs: torch.Tensor, dim: _DimTypeHint = None, p: Union[
     """
     if isinstance(p, str):
         p = _GENERALIZED_MEAN_MAP[p]
-    # warn if the type is wrong
-    if xs.dtype != torch.float64:
-        log.warning(f'Input tensor to generalised mean might not have the required precision, type is {xs.dtype} not {torch.float64}.')
     # compute the specific extreme cases
     if p == _POS_INF:
-        return torch.max(xs, dim=dim).values
+        return torch.max(xs, dim=dim).values if (dim is not None) else torch.max(xs)
     elif p == _NEG_INF:
-        return torch.min(xs, dim=dim).values
+        return torch.min(xs, dim=dim).values if (dim is not None) else torch.min(xs)
     # compute the number of elements being averaged
     if dim is None:
         dim = list(range(xs.ndim))
     n = torch.prod(torch.as_tensor(xs.shape)[dim])
+    # warn if the type is wrong
+    if p != 1:
+        if xs.dtype != torch.float64:
+            warnings.warn(f'Input tensor to generalised mean might not have the required precision, type is {xs.dtype} not {torch.float64}.')
     # compute the specific cases
     if p == 0:
         # geometric mean
