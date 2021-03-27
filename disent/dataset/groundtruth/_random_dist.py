@@ -37,7 +37,8 @@ class GroundTruthDistDataset(GroundTruthDataset):
             transform=None,
             augment=None,
             num_samples=1,
-            triplet_sample_mode='manhattan'
+            triplet_sample_mode='manhattan_scaled',
+            triplet_swap_chance=0.0,
     ):
         super().__init__(
             ground_truth_data=ground_truth_data,
@@ -54,9 +55,11 @@ class GroundTruthDistDataset(GroundTruthDataset):
             self._scaled = True
         # checks
         assert triplet_sample_mode in {'random', 'factors', 'manhattan', 'combined'}, 'It is a bug if this fails!'
+        assert 0 <= triplet_swap_chance <= 1, 'triplet_swap_chance must be in range [0, 1]'
         # set vars
         self._num_samples = num_samples
         self._sample_mode = triplet_sample_mode
+        self._swap_chance = triplet_swap_chance
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Sampling                                                              #
@@ -67,7 +70,12 @@ class GroundTruthDistDataset(GroundTruthDataset):
         indices = (idx, *np.random.randint(0, len(self), size=self._num_samples-1))
         # sort based on mode
         if self._num_samples == 3:
-            indices = self._swap_triple(indices)
+            a_i, p_i, n_i = self._swap_triple(indices)
+            # randomly swap positive and negative
+            if np.random.random() < self._swap_chance:
+                indices = (a_i, n_i, p_i)
+            else:
+                indices = (a_i, p_i, n_i)
         # get data
         return self.dataset_get_observation(*indices)
 
