@@ -22,8 +22,10 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 import numpy as np
+from torch.utils.data import DataLoader
 
 from disent.data.groundtruth import GroundTruthData
+from disent.data.groundtruth import XYSquaresData
 from disent.dataset.groundtruth import GroundTruthDataset
 
 
@@ -44,7 +46,15 @@ class GroundTruthDistDataset(GroundTruthDataset):
         )
         # checks
         assert num_samples in {1, 2, 3}, f'num_samples ({repr(num_samples)}) must be 1, 2 or 3'
-        assert triplet_sample_mode in {'random', 'factors', 'manhattan', 'combined'}, f'sample_mode ({repr(triplet_sample_mode)}) must be one of {["random", "factors", "manhattan", "combined"]}'
+        assert triplet_sample_mode in {'random', 'factors', 'manhattan', 'manhattan_scaled', 'combined', 'combined_scaled'}, f'sample_mode ({repr(triplet_sample_mode)}) must be one of {["random", "factors", "manhattan", "combined"]}'
+        # scaled
+        self._scaled = False
+        if triplet_sample_mode.endswith('_scaled'):
+            triplet_sample_mode = triplet_sample_mode[:-len('_scaled')]
+            self._scaled = True
+        # checks
+        assert triplet_sample_mode in {'random', 'factors', 'manhattan', 'combined'}, 'It is a bug if this fails!'
+        # set vars
         self._num_samples = num_samples
         self._sample_mode = triplet_sample_mode
 
@@ -64,20 +74,30 @@ class GroundTruthDistDataset(GroundTruthDataset):
     def _swap_triple(self, indices):
         a_i, p_i, n_i = indices
         a_f, p_f, n_f = self.idx_to_pos(indices)
+        a_d, p_d, n_d = a_f, p_f, n_f
+        # dists vars
+        if self._scaled:
+            # range of positions is [0, f_size - 1], to scale between 0 and 1 we need to
+            # divide by (f_size - 1), but if the factor size is 1, we can't divide by zero
+            # so we make the minimum 1.0
+            scale = np.maximum(1, np.array(self.factor_sizes) - 1)
+            a_d = a_d / scale
+            p_d = p_d / scale
+            n_d = n_d / scale
         # SWAP: factors
         if self._sample_mode == 'factors':
             if factor_diff(a_f, p_f) > factor_diff(a_f, n_f):
                 return a_i, n_i, p_i
         # SWAP: manhattan
         elif self._sample_mode == 'manhattan':
-            if factor_dist(a_f, p_f) > factor_dist(a_f, n_f):
+            if factor_dist(a_d, p_d) > factor_dist(a_d, n_d):
                 return a_i, n_i, p_i
         # SWAP: combined
         elif self._sample_mode == 'combined':
             if factor_diff(a_f, p_f) > factor_diff(a_f, n_f):
                 return a_i, n_i, p_i
             elif factor_diff(a_f, p_f) == factor_diff(a_f, n_f):
-                if factor_dist(a_f, p_f) > factor_dist(a_f, n_f):
+                if factor_dist(a_d, p_d) > factor_dist(a_d, n_d):
                     return a_i, n_i, p_i
         # SWAP: random
         elif self._sample_mode != 'random':
@@ -92,6 +112,3 @@ def factor_diff(f0, f1):
 
 def factor_dist(f0, f1):
     return np.sum(np.abs(f0 - f1))
-
-
-
