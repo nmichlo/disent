@@ -131,27 +131,19 @@ def aggregate_measure_distances_along_all_factors(
 # HELPER                                                                    #
 # ========================================================================= #
 
-
-# def sum_ratio(values: torch.Tensor):
-#     assert values.ndim == 1
-#     return torch.max(values / values.sum())
-
-
-# def p_ratio(values: torch.Tensor, p='arithmetic'):
-#     assert values.ndim == 1
-#     values = torch.sort(values, descending=True).values
-#     return values[0] / (values[0] + torch_mean_generalized(values[1:], p=p))
-
-
-def norm_ratio(r, n):
-    # (a - b) / (a + b)
-    # (n*r - 1) / (n - 1)
+def _norm_ratio(r, n):
+    # for: x/(x+a)
+    # normalised = (x/(x+a) - (1/n)) / (1 - (1/n))
+    # normalised = (x - 1/(n-1) * a) / (x + a)
     return (r - (1/n)) / (1 - (1/n))
-    # for:
-    #     x/(x+a)
-    # normalise:
-    #     (x/(x+a) - (1/n)) / (1 - (1/n))
-    #   = (x - 1/(n-1) * a) / (x + a)
+
+
+def _score_ratio_max(sorted_vars):
+    return _norm_ratio(sorted_vars[0] / (sorted_vars[0] + torch.max(sorted_vars[1:])),  n=2)
+
+
+def _score_ratio(sorted_vars):
+    return _norm_ratio(sorted_vars[0] / torch.sum(sorted_vars), n=len(sorted_vars))
 
 
 def reorder_by_factor_dist(factors, rai, rpi, rni):
@@ -228,21 +220,37 @@ def aggregate_measure_distances_along_factor(
             'factor_swap_ratio.l1': factor_swap_ratio_l1,
             'factor_swap_ratio.l2': factor_swap_ratio_l2,
             # axis ratios
-            'axis_ratio':      norm_ratio(axis_var[0] / torch.sum(axis_var),                      n=len(axis_var)),
-            'axis_ratio_max':  norm_ratio(axis_var[0] / (axis_var[0] + torch.max(axis_var[1:])),  n=2),
+            '_axis_var':       axis_var,
+            'axis_ratio':      _score_ratio(axis_var),
+            'axis_ratio_max':  _score_ratio_max(axis_var),
             # linear ratios
-            'linear_ratio':      norm_ratio(linear_var[0] / torch.sum(linear_var),                        n=len(linear_var)),
-            'linear_ratio_max':  norm_ratio(linear_var[0] / (linear_var[0] + torch.max(linear_var[1:])),  n=2),
+            '_linear_var':       linear_var,
+            'linear_ratio':     _score_ratio(linear_var),
+            'linear_ratio_max': _score_ratio_max(linear_var),
         })
 
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     # AGGREGATE DATA - For each distance measure
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     measures = default_collate(measures)
-    return {
+
+    a = measures['_axis_var']
+
+    # compute mean variances
+    ave_axis_vars = torch.sort(measures.pop('_axis_var').mean(dim=0), descending=True).values
+    ave_linear_vars = torch.sort(measures.pop('_linear_var').mean(dim=0), descending=True).values
+
+    results = {
         k: v.mean(dim=0)  # shape: (repeats,) -> ()
         for k, v in measures.items()
     }
+
+    results['ave_axis_ratio']       = _score_ratio(ave_axis_vars)
+    results['ave_axis_ratio_max']   = _score_ratio_max(ave_axis_vars)
+    results['ave_linear_ratio']     = _score_ratio(ave_linear_vars)
+    results['ave_linear_ratio_max'] = _score_ratio_max(ave_linear_vars)
+
+    return results
 
 
 # ========================================================================= #
