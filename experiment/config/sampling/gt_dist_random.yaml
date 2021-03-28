@@ -2,3 +2,4 @@
 sampling:
   name: dist_random
   triplet_sample_mode: "random" # random, factors, manhattan, manhattan_scaled, combined, combined_scaled
+  triplet_swap_chance: 0
