@@ -16,10 +16,11 @@ module:
   detach_logvar: NULL  # set to NULL to disable fixed value
   # adavae
   average_mode: gvae
-  thresh_mode:  symmetric_kl
+  thresh_mode:  symmetric_kl  # only works with adaave_mask_mode=posterior
   thresh_ratio: 0.5
   # adaave_tvae
-  adaave_mask_mode: kl  # kl, sample, sample_each
+  adaave_mask_mode: posterior  # posterior, sample, sample_each
+  adaave_ave_mode: all  # all, pos_neg, pos, neg
 
 # settings used elsewhere
 data_wrap_mode: triplet

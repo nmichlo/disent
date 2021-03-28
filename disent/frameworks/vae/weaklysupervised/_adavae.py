@@ -54,6 +54,7 @@ class AdaVae(BetaVae):
 
     @dataclass
     class cfg(BetaVae.cfg):
+        # TODO: prefix all variables with "ada_"
         average_mode: str = 'gvae'
         thresh_mode: str = 'symmetric_kl'  # kl, symmetric_kl, dist
         thresh_ratio: float = 0.5
@@ -185,7 +186,7 @@ class AdaVae(BetaVae):
 # ========================================================================= #
 
 
-def compute_average_gvae(z0_mean, z0_logvar, z1_mean, z1_logvar):
+def compute_average_gvae(z0_mean: torch.Tensor, z0_logvar: torch.Tensor, z1_mean: torch.Tensor, z1_logvar: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Compute the arithmetic mean of the encoder distributions.
     - Ada-GVAE Averaging function
@@ -202,7 +203,7 @@ def compute_average_gvae(z0_mean, z0_logvar, z1_mean, z1_logvar):
     return ave_mean, ave_var.log()  # natural log
 
 
-def compute_average_ml_vae(z0_mean, z0_logvar, z1_mean, z1_logvar):
+def compute_average_ml_vae(z0_mean: torch.Tensor, z0_logvar: torch.Tensor, z1_mean: torch.Tensor, z1_logvar: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Compute the product of the encoder distributions.
     - Ada-ML-VAE Averaging function
@@ -233,8 +234,13 @@ COMPUTE_AVE_FNS = {
 }
 
 
-def compute_average(z0_mean, z0_logvar, z1_mean, z1_logvar, average_mode: str):
+def compute_average(z0_mean: torch.Tensor, z0_logvar: torch.Tensor, z1_mean: torch.Tensor, z1_logvar: torch.Tensor, average_mode: str) -> Tuple[torch.Tensor, torch.Tensor]:
     return COMPUTE_AVE_FNS[average_mode](z0_mean, z0_logvar, z1_mean, z1_logvar)
+
+
+def compute_average_params(z0_params: 'Params', z1_params: 'Params', average_mode: str) -> 'Params':
+    ave_mean, ave_logvar = compute_average(z0_params.mean, z0_params.logvar, z1_params.mean, z1_params.logvar, average_mode=average_mode)
+    return z0_params.__class__(ave_mean, ave_logvar)
 
 
 # ========================================================================= #
