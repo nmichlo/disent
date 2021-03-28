@@ -202,10 +202,10 @@ def aggregate_measure_distances_along_factor(
         # CORRELATIONS -- SORTED IN DESCENDING ORDER:
         # correlation with standard basis (1, 0, 0, ...), (0, 1, 0, ...), ...
         axis_var = torch.std(zs_traversal, dim=0)  # (z_size,)
-        axis_var = torch.sort(axis_var, descending=True).values
+        sorted_axis_var = torch.sort(axis_var, descending=True).values
         # correlation along arbitrary orthogonal basis
         _, linear_var = torch_pca(zs_traversal, center=True, mode='svd')  # svd: (min(z_size, factor_size),) | eig: (z_size,)
-        linear_var = torch.sort(linear_var, descending=True).values
+        sorted_linear_var = torch.sort(linear_var, descending=True).values
 
         # ALTERNATIVES?
         # + deming regression: https://en.wikipedia.org/wiki/Deming_regression
@@ -220,13 +220,13 @@ def aggregate_measure_distances_along_factor(
             'factor_swap_ratio.l1': factor_swap_ratio_l1,
             'factor_swap_ratio.l2': factor_swap_ratio_l2,
             # axis ratios
-            '_axis_var':       axis_var,
-            'axis_ratio':      _score_ratio(axis_var),
-            'axis_ratio_max':  _score_ratio_max(axis_var),
+            '_axis_var':       axis_var,  # this should not be sorted!
+            'axis_ratio':      _score_ratio(sorted_axis_var),
+            'axis_ratio_max':  _score_ratio_max(sorted_axis_var),
             # linear ratios
-            '_linear_var':       linear_var,
-            'linear_ratio':     _score_ratio(linear_var),
-            'linear_ratio_max': _score_ratio_max(linear_var),
+            '_linear_var':       sorted_linear_var,
+            'linear_ratio':     _score_ratio(sorted_linear_var),
+            'linear_ratio_max': _score_ratio_max(sorted_linear_var),
         })
 
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -234,21 +234,19 @@ def aggregate_measure_distances_along_factor(
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     measures = default_collate(measures)
 
-    a = measures['_axis_var']
-
     # compute mean variances
-    ave_axis_vars = torch.sort(measures.pop('_axis_var').mean(dim=0), descending=True).values
-    ave_linear_vars = torch.sort(measures.pop('_linear_var').mean(dim=0), descending=True).values
+    sorted_ave_axis_vars = torch.sort(measures.pop('_axis_var').mean(dim=0), descending=True).values
+    sorted_ave_linear_vars = torch.sort(measures.pop('_linear_var').mean(dim=0), descending=True).values
 
     results = {
         k: v.mean(dim=0)  # shape: (repeats,) -> ()
         for k, v in measures.items()
     }
 
-    results['ave_axis_ratio']       = _score_ratio(ave_axis_vars)
-    results['ave_axis_ratio_max']   = _score_ratio_max(ave_axis_vars)
-    results['ave_linear_ratio']     = _score_ratio(ave_linear_vars)
-    results['ave_linear_ratio_max'] = _score_ratio_max(ave_linear_vars)
+    results['ave_axis_ratio']       = _score_ratio(sorted_ave_axis_vars)
+    results['ave_axis_ratio_max']   = _score_ratio_max(sorted_ave_axis_vars)
+    results['ave_linear_ratio']     = _score_ratio(sorted_ave_linear_vars)
+    results['ave_linear_ratio_max'] = _score_ratio_max(sorted_ave_linear_vars)
 
     return results
 
