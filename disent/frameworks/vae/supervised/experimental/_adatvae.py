@@ -91,7 +91,7 @@ class AdaTripletVae(TripletVae):
         # compute averaged
         ap_ave = (0.5 * a_z) + (0.5 * p_z)
         an_ave = (0.5 * a_z) + (0.5 * n_z)
-        pn_ave = (0.5 * a_z) + (0.5 * n_z)
+        pn_ave = (0.5 * p_z) + (0.5 * n_z)
         ap_a_ave, ap_p_ave = torch.where(ap_shared_mask, ap_ave, a_z), torch.where(ap_shared_mask, ap_ave, p_z)
         an_a_ave, an_n_ave = torch.where(an_shared_mask, an_ave, a_z), torch.where(an_shared_mask, an_ave, n_z)
         pn_p_ave, pn_n_ave = torch.where(pn_shared_mask, pn_ave, p_z), torch.where(pn_shared_mask, pn_ave, n_z)
