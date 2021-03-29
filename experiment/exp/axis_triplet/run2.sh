@@ -17,6 +17,8 @@ source "$(dirname "$(dirname "$(realpath -s "$0")")")/helper.sh"
 
 clog_cudaless_nodes "$PARTITION" 86400 "C-disent" # 24 hours
 
+# MED RUNS:
+# - test for best hparams for all soft ave loss
 # 2 * (2*3*3*3=54) = 104
 submit_sweep \
     +DUMMY.repeat=1,2 \
