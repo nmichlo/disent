@@ -110,6 +110,9 @@ class LatentDistsHandler(object):
         """
         raise NotImplementedError
 
+    def dist_to_params(self, d_posterior: Distribution) -> Params:
+        raise NotImplementedError
+
     @final
     def params_to_dists_and_sample(self, z_params: Params) -> Tuple[Distribution, Distribution, torch.Tensor]:
         """
@@ -189,6 +192,13 @@ class LatentDistsHandlerNormal(LatentDistsHandler):
         prior = Normal(torch.zeros_like(z_mean), torch.ones_like(z_std))
         # return values
         return posterior, prior
+
+    @final
+    def dist_to_params(self, d_posterior: Normal) -> Params:
+        return self.Params(
+            mean=d_posterior.mean,
+            logvar=d_posterior.variance.log()
+        )
 
     @staticmethod
     def LEGACY_compute_kl_loss(mu, logvar, mode: str = 'direct', reduction='mean_sum'):
