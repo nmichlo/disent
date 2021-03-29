@@ -131,18 +131,18 @@ def aggregate_measure_distances_along_all_factors(
 # HELPER                                                                    #
 # ========================================================================= #
 
-def _norm_ratio(r, n):
+def _norm_ratio(r: torch.Tensor, n: torch.Tensor) -> torch.Tensor:
     # for: x/(x+a)
     # normalised = (x/(x+a) - (1/n)) / (1 - (1/n))
     # normalised = (x - 1/(n-1) * a) / (x + a)
     return (r - (1/n)) / (1 - (1/n))
 
 
-def _score_ratio_max(sorted_vars):
+def _score_ratio_max(sorted_vars: torch.Tensor) -> torch.Tensor:
     return _norm_ratio(sorted_vars[0] / (sorted_vars[0] + torch.max(sorted_vars[1:])),  n=2)
 
 
-def _score_ratio(sorted_vars):
+def _score_ratio(sorted_vars: torch.Tensor) -> torch.Tensor:
     return _norm_ratio(sorted_vars[0] / torch.sum(sorted_vars), n=len(sorted_vars))
 
 
