@@ -1,11 +1,7 @@
 # @package _global_
 schedules_name: adavae_thresh
 schedules:
-  ada_triplet_ratio:
-    _target_: disent.schedule.LinearSchedule
-    min_step: 0
-    max_step: ${trainer.steps}
-  ada_triplet_soft_scale:
+  ada_thresh_ratio:
     _target_: disent.schedule.LinearSchedule
     min_step: 0
     max_step: ${trainer.steps}
