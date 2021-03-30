@@ -28,8 +28,10 @@ from typing import Sequence
 
 import logging
 
+import kornia
 import numpy as np
 import torch
+import torchvision
 from torch.distributions import Normal
 
 from disent.frameworks.vae.supervised.experimental._adatvae import AdaTripletVae
@@ -51,8 +53,8 @@ class DataOverlapTripletVae(AdaTripletVae):
     @dataclass
     class cfg(AdaTripletVae.cfg):
         # OVERRIDE - triplet vae configs
-        detach: bool = True
-        detach_decoder: bool = True
+        detach: bool = False
+        detach_decoder: bool = False
         detach_no_kl: bool = False
         detach_logvar: float = None  # std = 0.5, logvar = ln(std**2) ~= -2,77
         # OVERLAP VAE
@@ -141,12 +143,14 @@ class DataOverlapTripletVae(AdaTripletVae):
         if self.cfg.overlap_augment_mode == 'none':
             return xs_targ
         elif (self.cfg.overlap_augment_mode == 'augment') or (self.cfg.overlap_augment_mode == 'augment_each'):
-            a_xs_targ, p_xs_targ, n_xs_targ = xs_targ
             # recreate augment each time
             if self.cfg.overlap_augment_mode == 'augment_each':
                 self._augment = instantiate_recursive(self.cfg.augments)
             # augment on correct device
-            return self._augment(a_xs_targ), self._augment(p_xs_targ), self._augment(n_xs_targ)
+            aug_xs_targ = [self._augment(x_targ) for x_targ in xs_targ]
+            # checks
+            assert all(a.shape == b.shape for a, b in zip(xs_targ, aug_xs_targ))
+            return aug_xs_targ
         else:
             raise KeyError(f'invalid cfg.overlap_augment_mode={repr(self.cfg.overlap_augment_mode)}')
 
