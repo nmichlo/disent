@@ -448,6 +448,8 @@ class DisentConfigurable(object):
 
     @dataclass
     class cfg(object):
+        def get_keys(self) -> list:
+            return list(self.to_dict().keys())
 
         def to_dict(self) -> dict:
             return asdict(self)

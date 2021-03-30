@@ -55,9 +55,9 @@ class AdaVae(BetaVae):
     @dataclass
     class cfg(BetaVae.cfg):
         # TODO: prefix all variables with "ada_"
-        average_mode: str = 'gvae'
-        thresh_mode: str = 'symmetric_kl'  # kl, symmetric_kl, dist
-        thresh_ratio: float = 0.5
+        ada_average_mode: str = 'gvae'
+        ada_thresh_mode: str = 'symmetric_kl'  # kl, symmetric_kl, dist, sampled_dist
+        ada_thresh_ratio: float = 0.5
 
     def hook_intercept_zs(self, zs_params: Sequence['Params']) -> Tuple[Sequence['Params'], Dict[str, Any]]:
         """
@@ -74,9 +74,9 @@ class AdaVae(BetaVae):
         d0_posterior, _ = self.params_to_dists(z0_params)
         d1_posterior, _ = self.params_to_dists(z1_params)
         # shared elements that need to be averaged, computed per pair in the batch.
-        share_mask = self.compute_posterior_shared_mask(d0_posterior, d1_posterior, thresh_mode=self.cfg.thresh_mode, ratio=self.cfg.thresh_ratio)
+        share_mask = self.compute_posterior_shared_mask(d0_posterior, d1_posterior, thresh_mode=self.cfg.ada_thresh_mode, ratio=self.cfg.ada_thresh_ratio)
         # compute average posteriors
-        new_zs_params = self.make_averaged_params(z0_params, z1_params, share_mask, average_mode=self.cfg.average_mode)
+        new_zs_params = self.make_averaged_params(z0_params, z1_params, share_mask, average_mode=self.cfg.ada_average_mode)
         # return new args & generate logs
         return new_zs_params, {
             'shared': share_mask.sum(dim=1).float().mean()

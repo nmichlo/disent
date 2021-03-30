@@ -4,9 +4,9 @@ module:
   _target_: disent.frameworks.vae.weaklysupervised.AdaVae
   beta: ${framework.beta}
   # adavae
-  average_mode: gvae  # gvae or ml-vae
-  thresh_mode: symmetric_kl
-  thresh_ratio: 0.5
+  ada_average_mode: gvae  # gvae or ml-vae
+  ada_thresh_mode: symmetric_kl
+  ada_thresh_ratio: 0.5
 
 # settings used elsewhere
 data_wrap_mode: weak_pair
