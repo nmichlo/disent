@@ -23,16 +23,17 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from dataclasses import dataclass
+from typing import Optional
 from typing import Sequence
 
 import logging
 
 import numpy as np
 import torch
-from torch.distributions import Distribution
 from torch.distributions import Normal
 
 from disent.frameworks.vae.supervised.experimental._adatvae import AdaTripletVae
+from experiment.util.hydra_utils import instantiate_recursive
 
 
 log = logging.getLogger(__name__)
@@ -58,6 +59,17 @@ class DataOverlapTripletVae(AdaTripletVae):
         overlap_num: int = 1024
         overlap_mine_ratio: float = 0.1
         overlap_mine_triplet_mode: str = 'none'
+        # AUGMENT
+        overlap_augment_mode: str = 'none'
+        overlap_augment: Optional[dict] = None
+
+    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
+        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
+        # initialise
+        if self.cfg.overlap_augment_mode != 'none':
+            assert self.cfg.overlap_augment is not None, 'if cfg.overlap_augment_mode is not "none", then cfg.overlap_augment must be defined.'
+        if self.cfg.overlap_augment is not None:
+            self._augment = instantiate_recursive(self.cfg.overlap_augment)
 
     def hook_compute_ave_aug_loss(self, ds_posterior: Sequence[Normal], ds_prior, zs_sampled, xs_partial_recon, xs_targ: Sequence[torch.Tensor]):
         # get values
@@ -68,8 +80,10 @@ class DataOverlapTripletVae(AdaTripletVae):
         # make triples
         new_xs_targ = [x_targ[idxs] for idxs in (a_idxs, p_idxs, n_idxs)]
         new_ds_posterior = [Normal(d_posterior.loc[idxs], d_posterior.scale[idxs]) for idxs in (a_idxs, p_idxs, n_idxs)]
+        # augment targets
+        aug_xs_targ = self.augment_triplet_targets(new_xs_targ)
         # create new triplets
-        ds_posterior_NEW = self.overlap_create_triplets(ds_posterior=new_ds_posterior, xs_targ=new_xs_targ, cfg=self.cfg, unreduced_loss_fn=self.recon_handler.compute_unreduced_loss)
+        ds_posterior_NEW = self.overlap_create_triplets(ds_posterior=new_ds_posterior, xs_targ=aug_xs_targ, cfg=self.cfg, unreduced_loss_fn=self.recon_handler.compute_unreduced_loss)
         # compute loss
         loss, logs = AdaTripletVae.estimate_ada_triplet_loss(
             zs_params=self.all_dist_to_params(ds_posterior_NEW),
@@ -78,7 +92,7 @@ class DataOverlapTripletVae(AdaTripletVae):
         )
         return loss, {
             **logs,
-            **DataOverlapTripletVae.overlap_measure_differences(new_ds_posterior, new_xs_targ, unreduced_loss_fn=self.recon_handler.compute_unreduced_loss, unreduced_kl_loss_fn=self.latents_handler.compute_unreduced_kl_loss),
+            **DataOverlapTripletVae.overlap_measure_differences(new_ds_posterior, aug_xs_targ, unreduced_loss_fn=self.recon_handler.compute_unreduced_loss, unreduced_kl_loss_fn=self.latents_handler.compute_unreduced_kl_loss),
         }
 
     @staticmethod
@@ -98,6 +112,7 @@ class DataOverlapTripletVae(AdaTripletVae):
         # CORE OF THIS APPROACH
         # ++++++++++++++++++++++++++++++++++++++++++ #
         # calculate which are wrong!
+        # TODO: add more loss functions, like perceptual & others
         a_p_losses = unreduced_loss_fn(a_x_targ_OLD, p_x_targ_OLD).mean(dim=(-3, -2, -1))  # (B, C, H, W) -> (B,)
         a_n_losses = unreduced_loss_fn(a_x_targ_OLD, n_x_targ_OLD).mean(dim=(-3, -2, -1))  # (B, C, H, W) -> (B,)
         swap_mask = (a_p_losses > a_n_losses)
@@ -121,6 +136,19 @@ class DataOverlapTripletVae(AdaTripletVae):
         n_z_scale = torch.where(swap_mask, p_post_OLD.scale, n_post_OLD.scale)
         # return new distributions
         return a_post_OLD, Normal(loc=p_z_loc, scale=p_z_scale), Normal(loc=n_z_loc, scale=n_z_scale)
+
+    def augment_triplet_targets(self, xs_targ):
+        if self.cfg.overlap_augment_mode == 'none':
+            return xs_targ
+        elif (self.cfg.overlap_augment_mode == 'augment') or (self.cfg.overlap_augment_mode == 'augment_each'):
+            a_xs_targ, p_xs_targ, n_xs_targ = xs_targ
+            # recreate augment each time
+            if self.cfg.overlap_augment_mode == 'augment_each':
+                self._augment = instantiate_recursive(self.cfg.augments)
+            # augment on correct device
+            return self._augment(a_xs_targ), self._augment(p_xs_targ), self._augment(n_xs_targ)
+        else:
+            raise KeyError(f'invalid cfg.overlap_augment_mode={repr(self.cfg.overlap_augment_mode)}')
 
     def mine_triplets(self, x_targ, a_idxs, p_idxs, n_idxs):
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
