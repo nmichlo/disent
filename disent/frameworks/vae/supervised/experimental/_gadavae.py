@@ -44,12 +44,12 @@ class GuidedAdaVae(AdaVae):
 
     @dataclass
     class cfg(AdaVae.cfg):
-        anchor_ave_mode: str = 'average'
+        gada_anchor_ave_mode: str = 'average'
 
     def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
         # how the anchor is averaged
-        assert cfg.anchor_ave_mode in {'thresh', 'average'}
+        assert cfg.gada_anchor_ave_mode in {'thresh', 'average'}
 
     def hook_intercept_zs(self, zs_params: Sequence['Params']) -> Tuple[Sequence['Params'], Dict[str, Any]]:
         """
@@ -66,27 +66,27 @@ class GuidedAdaVae(AdaVae):
         n_d_posterior, _ = self.params_to_dists(n_z_params)
 
         # get deltas
-        a_p_deltas = AdaVae.compute_posterior_deltas(a_d_posterior, p_d_posterior, thresh_mode=self.cfg.thresh_mode)
-        a_n_deltas = AdaVae.compute_posterior_deltas(a_d_posterior, n_d_posterior, thresh_mode=self.cfg.thresh_mode)
+        a_p_deltas = AdaVae.compute_posterior_deltas(a_d_posterior, p_d_posterior, thresh_mode=self.cfg.ada_thresh_mode)
+        a_n_deltas = AdaVae.compute_posterior_deltas(a_d_posterior, n_d_posterior, thresh_mode=self.cfg.ada_thresh_mode)
 
         # shared elements that need to be averaged, computed per pair in the batch.
-        old_p_shared_mask = AdaVae.estimate_shared_mask(a_p_deltas, ratio=self.cfg.thresh_ratio)
-        old_n_shared_mask = AdaVae.estimate_shared_mask(a_n_deltas, ratio=self.cfg.thresh_ratio)
+        old_p_shared_mask = AdaVae.estimate_shared_mask(a_p_deltas, ratio=self.cfg.ada_thresh_ratio)
+        old_n_shared_mask = AdaVae.estimate_shared_mask(a_n_deltas, ratio=self.cfg.ada_thresh_ratio)
 
         # modify threshold based on criterion and recompute if necessary
         # CORE of this approach!
         p_shared_mask, n_shared_mask = compute_constrained_masks(a_p_deltas, old_p_shared_mask, a_n_deltas, old_n_shared_mask)
 
         # make averaged variables
-        pa_z_params, p_z_params = AdaVae.make_averaged_params(a_z_params, p_z_params, p_shared_mask, average_mode=self.cfg.average_mode)
-        na_z_params, n_z_params = AdaVae.make_averaged_params(a_z_params, n_z_params, n_shared_mask, average_mode=self.cfg.average_mode)
-        ave_params = self.latents_handler.encoding_to_params(compute_average(pa_z_params.mean, pa_z_params.logvar, pa_z_params.mean, pa_z_params.logvar, average_mode=self.cfg.average_mode))
+        pa_z_params, p_z_params = AdaVae.make_averaged_params(a_z_params, p_z_params, p_shared_mask, average_mode=self.cfg.ada_average_mode)
+        na_z_params, n_z_params = AdaVae.make_averaged_params(a_z_params, n_z_params, n_shared_mask, average_mode=self.cfg.ada_average_mode)
+        ave_params = self.latents_handler.encoding_to_params(compute_average(pa_z_params.mean, pa_z_params.logvar, pa_z_params.mean, pa_z_params.logvar, average_mode=self.cfg.ada_average_mode))
 
         anchor_ave_logs = {}
-        if self.cfg.anchor_ave_mode == 'thresh':
+        if self.cfg.gada_anchor_ave_mode == 'thresh':
             # compute anchor average using the adaptive threshold
             ave_shared_mask = p_shared_mask * n_shared_mask
-            ave_params, _ = AdaVae.make_averaged_params(a_z_params, ave_params, ave_shared_mask, average_mode=self.cfg.average_mode)
+            ave_params, _ = AdaVae.make_averaged_params(a_z_params, ave_params, ave_shared_mask, average_mode=self.cfg.ada_average_mode)
             anchor_ave_logs['ave_shared'] = ave_shared_mask.sum(dim=1).float().mean()
 
         new_args = ave_params, p_z_params, n_z_params

@@ -26,15 +26,9 @@ import logging
 from dataclasses import dataclass
 from typing import Sequence
 
-import torch
-from torch.distributions import Normal
-
-from disent.frameworks.vae.supervised import TripletVae
 from disent.frameworks.vae.supervised.experimental._adatvae import AdaTripletVae
 from disent.frameworks.vae.supervised.experimental._adatvae import compute_ave_shared_params
 from disent.frameworks.vae.supervised.experimental._adatvae import compute_triplet_shared_masks
-from disent.frameworks.vae.weaklysupervised import AdaVae
-
 
 log = logging.getLogger(__name__)
 
@@ -46,28 +40,18 @@ log = logging.getLogger(__name__)
 
 class AdaAveTripletVae(AdaTripletVae):
     """
-    This was a simplified attempt of the ada-tvae,
-    however, the weakly-supervised signal is too soft.
-
-    - This does not apply averaging with triplet, it uses the same
-      approach as the original AdaVAE, averaging the embeddings and
-      decoding them.
-
-    TODO: this might perform better than the ada-tvae if the averaging
-          is applied along with the triplet, not just for the triplet.
-
-    NOTES (take with a pinch of salt):
-        - adaave_triplet_over_orig = True -- performs better on average
-        - ada_share_ave_mode = 'all' and 'pos' seem to perform best. 'pos' learns quicker
-        - adaave_mask_mode = 'posterior' seems best
-        - performs a bit better with a schedule over thresh_ratio
-        - visually disentangles quite well, but some scores are low
+    This was a more general attempt of the ada-tvae,
+    that also averages representations passed to the decoder.
+    - just averaging in this way without augmenting the loss with
+      triplet, or ada_triplet is too weak of a supervision signal.
     """
 
     REQUIRED_OBS = 3
 
     @dataclass
     class cfg(AdaTripletVae.cfg):
+        # adavae
+        ada_thresh_mode: str = 'symmetric_kl'  # RESET OVERRIDEN VALUE
         # adaave_tvae
         adaave_augment_orig: bool = False  # triplet over original OR averaged embeddings
         adaave_decode_orig: bool = False  # decode & regularize original OR averaged embeddings
