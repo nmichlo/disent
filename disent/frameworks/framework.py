@@ -32,11 +32,14 @@ from typing import final
 from typing import Tuple
 from typing import Union
 
+import logging
 import torch
 
 from disent.schedule import Schedule
 from disent.util import DisentConfigurable
 from disent.util import DisentLightningModule
+
+log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
@@ -132,7 +135,11 @@ class BaseFramework(DisentConfigurable, DisentLightningModule):
             raise KeyError(f'Cannot remove schedule for target {repr(target)} that does not exist!')
 
     @final
-    def register_schedule(self, target: str, schedule: Schedule):
+    def register_schedule(self, target: str, schedule: Schedule, logging=True) -> bool:
+        """
+        returns True if schedule has been activated, False if the key is
+        not in the config and it has not be activated!
+        """
         assert isinstance(target, str)
         assert isinstance(schedule, Schedule)
         assert type(schedule) is not Schedule
@@ -147,8 +154,13 @@ class BaseFramework(DisentConfigurable, DisentLightningModule):
         if target in possible_targets:
             initial_val = getattr(self.cfg, target)
             self._active_schedules[target] = (initial_val, schedule)
+            if logging:
+                log.info(f'Activating schedule for target {repr(target)} on {repr(self.__class__.__name__)}.')
+            return True
         else:
-            warnings.warn(f'Skipping activating schedule for target {repr(target)} because key was not found in the config for {repr(self.__class__.__name__)}')
+            if logging:
+                log.warning(f'Unactivated schedule for target {repr(target)} on {repr(self.__class__.__name__)} because the key was not found in the config.')
+            return False
 
     @final
     def _update_config_from_schedules(self):

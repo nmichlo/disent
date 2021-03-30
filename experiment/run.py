@@ -40,6 +40,7 @@ from disent import metrics
 from disent.frameworks.framework import BaseFramework
 from disent.model.ae.base import AutoEncoder
 from disent.model.init import init_model_weights
+from disent.util import DisentConfigurable
 from disent.util import make_box_str
 from experiment.util.callbacks import LoggerProgressCallback
 from experiment.util.callbacks import VaeDisentanglementLoggingCallback
@@ -198,9 +199,44 @@ def hydra_append_correlation_callback(callbacks, cfg):
 def hydra_register_schedules(module: BaseFramework, cfg):
     if cfg.schedules is None:
         cfg.schedules = {}
-    for target, schedule in cfg.schedules.items():
-        print('REGISTERING:', target)
-        module.register_schedule(target, instantiate_recursive(schedule))
+    if cfg.schedules:
+        log.info(f'Registering Schedules:')
+        for target, schedule in cfg.schedules.items():
+            module.register_schedule(target, instantiate_recursive(schedule), logging=True)
+
+
+def hydra_create_framework_config(cfg):
+    # create framework config - this is also kinda hacky
+    framework_cfg: DisentConfigurable.cfg = hydra.utils.instantiate({
+        **cfg.framework.module,
+        **dict(_target_=cfg.framework.module._target_ + '.cfg')
+    })
+    # warn if some of the cfg variables were not overridden
+    missing_keys = sorted(set(framework_cfg.get_keys()) - set(cfg.framework.module.keys()))
+    if missing_keys:
+        log.error(f'Framework {repr(cfg.framework.name)} is missing config keys for:')
+        for k in missing_keys:
+            log.error(f'{repr(k)}')
+    # update config params in case we missed variables in the cfg
+    cfg.framework.module.update(framework_cfg.to_dict())
+    # return config
+    return framework_cfg
+
+
+def hydra_create_framework(framework_cfg, datamodule, cfg):
+    return hydra.utils.instantiate(
+        dict(_target_=cfg.framework.module._target_),
+        make_optimizer_fn=lambda params: hydra.utils.instantiate(cfg.optimizer.cls, params),
+        make_model_fn=lambda: init_model_weights(
+            AutoEncoder(
+                encoder=hydra.utils.instantiate(cfg.model.encoder),
+                decoder=hydra.utils.instantiate(cfg.model.decoder)
+            ), mode=cfg.model.weight_init
+        ),
+        # apply augmentations to batch on GPU which can be faster than via the dataloader
+        batch_augment=datamodule.batch_augment,
+        cfg=framework_cfg
+    )
 
 
 # ========================================================================= #
@@ -224,15 +260,10 @@ def run(cfg: DictConfig):
 
     # hydra config does not support variables in defaults lists, we handle this manually
     cfg = merge_specializations(cfg, CONFIG_PATH, run)
-    # create framework config - this is also kinda hacky
-    framework_cfg = hydra.utils.instantiate({**cfg.framework.module, **dict(_target_=cfg.framework.module._target_ + '.cfg')})
-    # update config params in case we missed variables in the cfg
-    cfg.framework.module.update(dataclasses.asdict(framework_cfg))
 
     # check CUDA setting
     cfg.trainer.setdefault('cuda', 'try_cuda')
     hydra_check_cuda(cfg)
-
     # check data preparation
     prepare_data_per_node = cfg.trainer.setdefault('prepare_data_per_node', True)
     hydra_check_datadir(prepare_data_per_node, cfg)
@@ -244,21 +275,10 @@ def run(cfg: DictConfig):
     hydra_append_metric_callback(callbacks, cfg)
     hydra_append_correlation_callback(callbacks, cfg)
 
-    # DATA
+    # HYDRA MODULES
     datamodule = HydraDataModule(cfg)
-
-    # FRAMEWORK - this is kinda hacky
-    framework: BaseFramework = hydra.utils.instantiate(
-        dict(_target_=cfg.framework.module._target_),
-        make_optimizer_fn=lambda params: hydra.utils.instantiate(cfg.optimizer.cls, params),
-        make_model_fn=lambda: init_model_weights(AutoEncoder(
-            encoder=hydra.utils.instantiate(cfg.model.encoder),
-            decoder=hydra.utils.instantiate(cfg.model.decoder)
-        ), mode=cfg.model.weight_init),
-        # apply augmentations to batch on GPU which can be faster than via the dataloader
-        batch_augment=datamodule.batch_augment,
-        cfg=framework_cfg
-    )
+    framework_cfg = hydra_create_framework_config(cfg)
+    framework = hydra_create_framework(framework_cfg, datamodule, cfg)
 
     # register schedules
     hydra_register_schedules(framework, cfg)
