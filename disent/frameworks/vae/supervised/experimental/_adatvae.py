@@ -52,15 +52,15 @@ class AdaTripletVae(TripletVae):
     @dataclass
     class cfg(TripletVae.cfg, AdaVae.cfg):
         # adavae
-        ada_thresh_mode: str = 'dist'  # OVERRIDE VALUE
+        ada_thresh_mode: str = 'dist'  # only works for: adat_share_mask_mode == "posterior"
         # ada_tvae - loss
         adat_triplet_loss: str = 'triplet_hard_neg_ave'  # should be used with a schedule!
         adat_triplet_ratio: float = 1.0
         adat_triplet_soft_scale: float = 1.0
-        adat_triplet_pull_weight: float = 0.1  # only works for: triplet_hard_neg_ave_pull
+        adat_triplet_pull_weight: float = 0.1  # only works for: adat_triplet_loss == "triplet_hard_neg_ave_pull"
         # ada_tvae - averaging
         adat_share_mask_mode: str = 'posterior'
-        adat_share_ave_mode: str = 'all'  # only works for: triplet_hard_ave_all
+        adat_share_ave_mode: str = 'all'  # only works for: adat_triplet_loss == "triplet_hard_ave_all"
 
     def hook_compute_ave_aug_loss(self, ds_posterior: Sequence[Normal], ds_prior: Sequence[Normal], zs_sampled: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]):
         return self.estimate_ada_triplet_loss(
