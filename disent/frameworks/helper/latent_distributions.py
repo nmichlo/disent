@@ -54,23 +54,62 @@ def short_dataclass_repr(self):
 # ========================================================================= #
 
 
-def kl_loss_direct(posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None):
-    # This is how the original VAE/BetaVAE papers do it:s
-    # - we compute the kl divergence directly instead of approximating it
+def kl_loss_direct_reverse(posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None):
+    # This is how the original VAE/BetaVAE papers do it.
+    # - we compute the reverse kl divergence directly instead of approximating it
+    # - kl(post|prior)
+    # FORWARD vs. REVERSE kl (https://www.tuananhle.co.uk/notes/reverse-forward-kl.html)
+    # - If we minimize the kl(post|prior) or the reverse/exclusive KL, the zero-forcing/mode-seeking behavior arises.
+    # - If we minimize the kl(prior|post) or the forward/inclusive KL, the mass-covering/mean-seeking behavior arises.
     return torch.distributions.kl_divergence(posterior, prior)
 
 
-def kl_loss_approx(posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None):
+def kl_loss_approx_reverse(posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None):
     # This is how pytorch-lightning-bolts does it:
+    # - kl(post|prior)
     # See issue: https://github.com/PyTorchLightning/pytorch-lightning-bolts/issues/565
-    # - we approximate the kl divergence instead of computing it analytically
+    # - we approximate the reverse kl divergence instead of computing it analytically
     assert z_sampled is not None, 'to compute the approximate kl loss, z_sampled needs to be defined (cfg.kl_mode="approx")'
     return posterior.log_prob(z_sampled) - prior.log_prob(z_sampled)
 
 
+def kl_loss_direct_forward(posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None):
+    # compute the forward kl
+    # - kl(prior|post)
+    return torch.distributions.kl_divergence(prior, posterior)
+
+
+def kl_loss_approx_forward(posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None):
+    # compute the approximate forward kl
+    # - kl(prior|post)
+    assert z_sampled is not None, 'to compute the approximate kl loss, z_sampled needs to be defined (cfg.kl_mode="approx")'
+    return prior.log_prob(z_sampled) - posterior.log_prob(z_sampled)
+
+
+def kl_loss_direct_symmetric(posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None):
+    # compute the (scaled) symmetric kl
+    # - 0.5 * kl(prior|post) + 0.5 * kl(prior|post)
+    return 0.5 * kl_loss_direct_reverse(posterior, prior, z_sampled) + 0.5 * kl_loss_direct_forward(posterior, prior, z_sampled)
+
+
+def kl_loss_approx_symmetric(posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None):
+    # compute the approximate (scaled) symmetric kl
+    # - 0.5 * kl(prior|post) + 0.5 * kl(prior|post)
+    return 0.5 * kl_loss_approx_reverse(posterior, prior, z_sampled) + 0.5 * kl_loss_approx_forward(posterior, prior, z_sampled)
+
+
 _KL_LOSS_MODES = {
-    'direct': kl_loss_direct,
-    'approx': kl_loss_approx,
+    # reverse kl -- how it should be done for VAEs
+    'direct':         kl_loss_direct_reverse,  # alias for reverse modes
+    'approx':         kl_loss_approx_reverse,  # alias for reverse modes
+    'direct_reverse': kl_loss_direct_reverse,
+    'approx_reverse': kl_loss_approx_reverse,
+    # forward kl
+    'direct_forward': kl_loss_direct_forward,
+    'approx_forward': kl_loss_approx_forward,
+    # symmetric kl
+    'direct_symmetric': kl_loss_direct_symmetric,
+    'approx_symmetric': kl_loss_approx_symmetric,
 }
 
 
