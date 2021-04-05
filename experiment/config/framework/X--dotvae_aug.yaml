@@ -1,5 +1,5 @@
 # @package _group_
-name: do_tvae
+name: do_tvae_aug
 module:
   _target_: disent.frameworks.vae.unsupervised.DataOverlapTripletVae
   beta: ${framework.beta}
@@ -29,10 +29,22 @@ module:
   # dotvae
   overlap_num: 4096
   overlap_mine_ratio: 0.1
-  overlap_mine_triplet_mode: 'none'  # none, hard_neg, semi_hard, hard_pos, easy_pos, random_hard_neg_or_hard_pos <- etc, dynamically evaluated, can chain multiple "_or_"s
+  overlap_mine_triplet_mode: 'random_hard_neg_or_hard_pos'  # none, hard_neg, semi_hard, hard_pos, easy_pos, random_hard_neg_or_hard_pos <- etc, dynamically evaluated, can chain multiple "_or_"s
   # dotvae -- augment
-  overlap_augment_mode: 'none'
-  overlap_augment: NULL
+  overlap_augment_mode: 'augment'
+  overlap_augment:
+    _target_: torchvision.transforms.RandomOrder
+    transforms:
+      - _target_: kornia.augmentation.RandomCrop
+        p: 1.0
+        size: [64, 64]
+        padding: 9
+#      - _target_: kornia.augmentation.RandomPerspective
+#        p: 0.5
+#        distortion_scale: 0.15
+#      - _target_: kornia.augmentation.RandomRotation
+#        p: 0.5
+#        degrees: 9
 
 # settings used elsewhere
 data_wrap_mode: single

@@ -53,8 +53,8 @@ class AdaAveTripletVae(AdaTripletVae):
         # adavae
         ada_thresh_mode: str = 'symmetric_kl'  # RESET OVERRIDEN VALUE
         # adaave_tvae
-        adaave_augment_orig: bool = False  # triplet over original OR averaged embeddings
-        adaave_decode_orig: bool = False  # decode & regularize original OR averaged embeddings
+        adaave_augment_orig: bool = True  # triplet over original OR averaged embeddings
+        adaave_decode_orig: bool = True  # decode & regularize original OR averaged embeddings
 
     def hook_intercept_zs(self, zs_params: Sequence['Params']):
         # triplet vae intercept -- in case detached
@@ -65,7 +65,8 @@ class AdaAveTripletVae(AdaTripletVae):
         share_masks, share_logs = compute_triplet_shared_masks(ds_posterior, cfg=self.cfg)
         zs_params_shared, zs_params_shared_ave = compute_ave_shared_params(zs_params, share_masks, cfg=self.cfg)
 
-        # get return values
+        # DIFFERENCE FROM ADAVAE | get return values
+        # adavae: adaave_augment_orig == True, adaave_decode_orig == False
         zs_params_augment = (zs_params if self.cfg.adaave_augment_orig else zs_params_shared_ave)
         zs_params_return = (zs_params if self.cfg.adaave_decode_orig else zs_params_shared_ave)
 
