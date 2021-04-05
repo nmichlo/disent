@@ -82,7 +82,10 @@ class AdaTripletVae(TripletVae):
 
         # compute loss
         ada_triplet_loss, ada_triplet_logs = AdaTripletVae.compute_ada_triplet_loss(
-            share_masks=share_masks, zs_params=zs_params, zs_params_shared=zs_params_shared, zs_params_shared_ave=zs_params_shared_ave,
+            share_masks=share_masks,
+            zs_params=zs_params,
+            zs_params_shared=zs_params_shared,
+            zs_params_shared_ave=zs_params_shared_ave,
             cfg=cfg,
         )
 
