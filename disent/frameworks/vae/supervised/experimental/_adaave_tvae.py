@@ -23,6 +23,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
+import warnings
 from dataclasses import dataclass
 from typing import Sequence
 
@@ -51,10 +52,21 @@ class AdaAveTripletVae(AdaTripletVae):
     @dataclass
     class cfg(AdaTripletVae.cfg):
         # adavae
-        ada_thresh_mode: str = 'symmetric_kl'  # RESET OVERRIDEN VALUE
+        ada_thresh_mode: str = 'dist'  # RESET OVERRIDEN VALUE
         # adaave_tvae
         adaave_augment_orig: bool = True  # triplet over original OR averaged embeddings
         adaave_decode_orig: bool = True  # decode & regularize original OR averaged embeddings
+
+    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg=cfg):
+        super().__init__(make_optimizer_fn=make_optimizer_fn, make_model_fn=make_model_fn, batch_augment=batch_augment, cfg=cfg)
+        # checks
+        if self.cfg.ada_thresh_mode != 'dist':
+            warnings.warn(f'cfg.ada_thresh_mode == {repr(self.cfg.ada_thresh_mode)}. Modes other than "dist" do not work well!')
+        val = (self.cfg.adat_triplet_loss != 'triplet_hard_ave_all')
+        if self.cfg.adaave_augment_orig == val:
+            warnings.warn(f'cfg.adaave_augment_orig == {repr(self.cfg.adaave_augment_orig)}. Modes other than {repr(val)} do not work well!')
+        if self.cfg.adaave_decode_orig == False:
+            warnings.warn(f'cfg.adaave_decode_orig == {repr(self.cfg.adaave_decode_orig)}. Modes other than True do not work well!')
 
     def hook_intercept_zs(self, zs_params: Sequence['Params']):
         # triplet vae intercept -- in case detached

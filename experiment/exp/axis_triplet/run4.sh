@@ -6,7 +6,7 @@
 
 export PROJECT="exp-axis-triplet-4.0"
 export PARTITION="stampede"
-export PARALLELISM=32
+export PARALLELISM=24
 
 # source the helper file
 source "$(dirname "$(dirname "$(realpath -s "$0")")")/helper.sh"
@@ -17,7 +17,18 @@ source "$(dirname "$(dirname "$(realpath -s "$0")")")/helper.sh"
 
 clog_cudaless_nodes "$PARTITION" 86400 "C-disent" # 24 hours
 
-## 3*2*5*2*2*2
+# RESULT:
+# - BAD: ada_thresh_mode=symmetric_kl, rather use "dist"
+# - BAD: framework.module.adaave_decode_orig=FALSE, rather use TRUE
+# - adat_share_ave_mode depends on other settings, but usually doesnt matter
+# - adaave_augment_orig depends on other settings, but usually doesnt matter
+# - GOOD: adat_triplet_loss=triplet_hard_neg_ave
+# - NOTE: schedule=adavae_up_ratio  usually converges sooner
+# - NOTE: schedule=adavae_up_all    usually converges later (makes sense because its a doubling effect a ^ 2)
+# - NOTE: schedule=adavae_up_thresh usually is worse at converging
+
+
+# 3*2*4*2*2*2 == 192
 submit_sweep \
     +DUMMY.repeat=1 \
     +EXTRA.tags='short-run__ada-best-loss-combo' \
@@ -27,7 +38,7 @@ submit_sweep \
     model.z_size=25 \
     \
     specializations.data_wrapper='gt_dist_${framework.data_wrap_mode}' \
-    schedule=adavae_all,adavae_thresh,adavae_ratio \
+    schedule=adavae_up_all,adavae_up_ratio,adavae_up_thresh \
     sampling=gt_dist_manhat \
     sampling.triplet_swap_chance=0 \
     dataset=xysquares \
@@ -57,7 +68,6 @@ submit_sweep \
     \
     framework.module.adaave_augment_orig=TRUE,FALSE \
     framework.module.adaave_decode_orig=TRUE,FALSE
-
 
 # TRY THESE TOO:
 # framework.module.adat_share_ave_mode=all,neg,pos,pos_neg \
