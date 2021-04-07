@@ -67,29 +67,16 @@ def metric_flatness_components(
     Returns:
       Dictionary with metrics
     """
-    fs_measures = aggregate_measure_distances_along_all_factors(ground_truth_dataset, representation_function, repeats=factor_repeats, batch_size=batch_size)
+    fs_measures, ran_measures = aggregate_measure_distances_along_all_factors(ground_truth_dataset, representation_function, repeats=factor_repeats, batch_size=batch_size)
 
-    results = {
-        'linear_ratio.mean':  filtered_mean(fs_measures['linear_ratio'], p='arithmetic', factor_sizes=ground_truth_dataset.factor_sizes),
-        'linear_ratio.gmean': filtered_mean(fs_measures['linear_ratio'], p='geometric',  factor_sizes=ground_truth_dataset.factor_sizes),
-        'axis_ratio.mean':    filtered_mean(fs_measures['axis_ratio'],   p='arithmetic', factor_sizes=ground_truth_dataset.factor_sizes),
-        'axis_ratio.gmean':   filtered_mean(fs_measures['axis_ratio'],   p='geometric',  factor_sizes=ground_truth_dataset.factor_sizes),
-        # traversals
-        'swap_ratio_l1.mean':  filtered_mean(fs_measures['swap_ratio_l1'], p='arithmetic', factor_sizes=ground_truth_dataset.factor_sizes),
-        'swap_ratio_l1.gmean': filtered_mean(fs_measures['swap_ratio_l1'], p='geometric',  factor_sizes=ground_truth_dataset.factor_sizes),
-        'swap_ratio_l2.mean':  filtered_mean(fs_measures['swap_ratio_l2'], p='arithmetic', factor_sizes=ground_truth_dataset.factor_sizes),
-        'swap_ratio_l2.gmean': filtered_mean(fs_measures['swap_ratio_l2'], p='geometric',  factor_sizes=ground_truth_dataset.factor_sizes),
-        # any pairs
-        'ran_swap_ratio_l1': fs_measures['ran_swap_ratio_l1'].mean(dim=0),  # this is not per-factor
-        'ran_swap_ratio_l2': fs_measures['ran_swap_ratio_l2'].mean(dim=0),  # this is not per-factor
-    }
-
-    # combined flatness -- correlates well with the original flatness metric
-    results['combined_l1'] = results['linear_ratio.gmean'] * results['axis_ratio.gmean'] * results['ran_swap_ratio_l1']
-    results['combined_l2'] = results['linear_ratio.gmean'] * results['axis_ratio.gmean'] * results['ran_swap_ratio_l2']
+    results = {}
+    for k, v in fs_measures.items():
+        results[f'flatness_components.{k}'] = float(filtered_mean(v, p='geometric', factor_sizes=ground_truth_dataset.factor_sizes))
+    for k, v in ran_measures.items():
+        results[f'flatness_components.{k}'] = float(v.mean(dim=0))
 
     # convert values from torch
-    return {f'flatness_components.{k}': float(v) for k, v in results.items()}
+    return results
 
 
 def filtered_mean(values, p, factor_sizes):
@@ -110,7 +97,7 @@ def aggregate_measure_distances_along_all_factors(
         representation_function,
         repeats: int,
         batch_size: int,
-) -> dict:
+) -> (dict, dict):
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     # COMPUTE AGGREGATES FOR EACH FACTOR
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -132,24 +119,31 @@ def aggregate_measure_distances_along_all_factors(
         rai, rpi, rni = reorder_by_factor_dist(factors, rai, rpi, rni)
         # check differences
         swap_ratio_l1, swap_ratio_l2 = compute_swap_ratios(zs[rai], zs[rpi], zs[rni])
-        values.append({'ran_swap_ratio_l1': swap_ratio_l1, 'ran_swap_ratio_l2': swap_ratio_l2})
+        values.append({'global_swap_ratio.l1': swap_ratio_l1, 'global_swap_ratio.l2': swap_ratio_l2})
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     # RETURN
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-    return {
-        **fs_measures,
-        **default_collate(values),
-    }
+    swap_measures = default_collate(values)
+    return fs_measures, swap_measures
 
 
 # ========================================================================= #
 # HELPER                                                                    #
 # ========================================================================= #
 
+def _norm_ratio(r: torch.Tensor, n: torch.Tensor) -> torch.Tensor:
+    # for: x/(x+a)
+    # normalised = (x/(x+a) - (1/n)) / (1 - (1/n))
+    # normalised = (x - 1/(n-1) * a) / (x + a)
+    return (r - (1/n)) / (1 - (1/n))
 
-def max_ratio(values: torch.Tensor):
-    assert values.ndim == 1
-    return torch.max(values / values.sum())
+
+def _score_ratio_max(sorted_vars: torch.Tensor) -> torch.Tensor:
+    return _norm_ratio(sorted_vars[0] / (sorted_vars[0] + torch.max(sorted_vars[1:])),  n=2)
+
+
+def _score_ratio(sorted_vars: torch.Tensor) -> torch.Tensor:
+    return _norm_ratio(sorted_vars[0] / torch.sum(sorted_vars), n=len(sorted_vars))
 
 
 def reorder_by_factor_dist(factors, rai, rpi, rni):
@@ -197,16 +191,21 @@ def aggregate_measure_distances_along_factor(
         zs_traversal = encode_all_along_factor(ground_truth_dataset, representation_function, f_idx=f_idx, batch_size=batch_size)
 
         # SWAP RATIO:
+        idxs_a, idxs_p_OLD, idxs_n_OLD = torch.randint(0, len(zs_traversal), size=(3, len(zs_traversal)*2))
+        idx_mask = torch.abs(idxs_a - idxs_p_OLD) <= torch.abs(idxs_a - idxs_n_OLD)
+        idxs_p = torch.where(idx_mask, idxs_p_OLD, idxs_n_OLD)
+        idxs_n = torch.where(idx_mask, idxs_n_OLD, idxs_p_OLD)
         # check the number of swapped elements along a factor
-        swap_ratio_l1, swap_ratio_l2 = compute_swap_ratios(zs_traversal[:-2], zs_traversal[1:-1], zs_traversal[2:])
+        near_swap_ratio_l1, near_swap_ratio_l2 = compute_swap_ratios(zs_traversal[:-2], zs_traversal[1:-1], zs_traversal[2:])
+        factor_swap_ratio_l1, factor_swap_ratio_l2 = compute_swap_ratios(zs_traversal[idxs_a, :], zs_traversal[idxs_p, :], zs_traversal[idxs_n, :])
 
-        # CORRELATIONS:
+        # CORRELATIONS -- SORTED IN DESCENDING ORDER:
         # correlation with standard basis (1, 0, 0, ...), (0, 1, 0, ...), ...
-        axis_var = torch.var(zs_traversal, dim=0)  # (z_size,)
-        axis_ratio = max_ratio(axis_var)
+        axis_var = torch.std(zs_traversal, dim=0)  # (z_size,)
+        sorted_axis_var = torch.sort(axis_var, descending=True).values
         # correlation along arbitrary orthogonal basis
-        _, linear_var = torch_pca(zs_traversal, mode='svd')  # svd: (min(z_size, factor_size),) | eig: (z_size,)
-        linear_ratio = max_ratio(linear_var)
+        _, linear_var = torch_pca(zs_traversal, center=True, mode='svd')  # svd: (min(z_size, factor_size),) | eig: (z_size,)
+        sorted_linear_var = torch.sort(linear_var, descending=True).values
 
         # ALTERNATIVES?
         # + deming regression: https://en.wikipedia.org/wiki/Deming_regression
@@ -216,21 +215,40 @@ def aggregate_measure_distances_along_factor(
 
         # save variables
         measures.append({
-            'swap_ratio_l1': swap_ratio_l1,
-            'swap_ratio_l2': swap_ratio_l2,
-            'axis_ratio': axis_ratio,
-            'linear_ratio': linear_ratio,
+            'factor_swap_ratio_near.l1': near_swap_ratio_l1,
+            'factor_swap_ratio_near.l2': near_swap_ratio_l2,
+            'factor_swap_ratio.l1': factor_swap_ratio_l1,
+            'factor_swap_ratio.l2': factor_swap_ratio_l2,
+            # axis ratios
+            '_axis_var':       axis_var,  # this should not be sorted!
+            'axis_ratio':      _score_ratio(sorted_axis_var),
+            'axis_ratio_max':  _score_ratio_max(sorted_axis_var),
+            # linear ratios
+            '_linear_var':       sorted_linear_var,
+            'linear_ratio':     _score_ratio(sorted_linear_var),
+            'linear_ratio_max': _score_ratio_max(sorted_linear_var),
         })
+
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     # AGGREGATE DATA - For each distance measure
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     measures = default_collate(measures)
-    return {
-        'swap_ratio_l1': measures['swap_ratio_l1'].mean(dim=0),  # shape: (repeats,) -> ()
-        'swap_ratio_l2': measures['swap_ratio_l2'].mean(dim=0),  # shape: (repeats,) -> ()
-        'axis_ratio': measures['axis_ratio'].mean(dim=0),        # shape: (repeats,) -> ()
-        'linear_ratio': measures['linear_ratio'].mean(dim=0),    # shape: (repeats,) -> ()
+
+    # compute mean variances
+    sorted_ave_axis_vars = torch.sort(measures.pop('_axis_var').mean(dim=0), descending=True).values
+    sorted_ave_linear_vars = torch.sort(measures.pop('_linear_var').mean(dim=0), descending=True).values
+
+    results = {
+        k: v.mean(dim=0)  # shape: (repeats,) -> ()
+        for k, v in measures.items()
     }
+
+    results['ave_axis_ratio']       = _score_ratio(sorted_ave_axis_vars)
+    results['ave_axis_ratio_max']   = _score_ratio_max(sorted_ave_axis_vars)
+    results['ave_linear_ratio']     = _score_ratio(sorted_ave_linear_vars)
+    results['ave_linear_ratio_max'] = _score_ratio_max(sorted_ave_linear_vars)
+
+    return results
 
 
 # ========================================================================= #

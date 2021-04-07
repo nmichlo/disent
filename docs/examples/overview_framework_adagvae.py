@@ -18,7 +18,7 @@ module: pl.LightningModule = AdaVae(
         encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2),
         decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
     ),
-    cfg=AdaVae.cfg(beta=4, average_mode='gvae', symmetric_kl=False)
+    cfg=AdaVae.cfg(beta=4, ada_average_mode='gvae', ada_thresh_mode='kl')
 )
 
 trainer = pl.Trainer(logger=False, checkpoint_callback=False, fast_dev_run=is_test_run())

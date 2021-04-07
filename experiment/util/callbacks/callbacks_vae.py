@@ -132,10 +132,11 @@ class VaeDisentanglementLoggingCallback(_PeriodicCallback):
             log.info(f'| {metric.__name__:<{pad}} - time{c.GRY}={c.lYLW}{timer.pretty:<9}{c.RST} - {metric_results}')
             # log to trainer
             prefix = 'final_metric' if is_final else 'epoch_metric'
-            log_metrics(trainer.logger, {prefix: scores})
+            prefixed_scores = {f'{prefix}/{k}': v for k, v in scores.items()}
+            log_metrics(trainer.logger, prefixed_scores)
             # log summary for WANDB
             # this is kinda hacky... the above should work for parallel coordinate plots
-            wb_log_reduced_summaries(trainer.logger, {f'{prefix}.{k}': v for k, v in scores.items()}, reduction='max')
+            wb_log_reduced_summaries(trainer.logger, prefixed_scores, reduction='max')
 
     def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         if self.step_end_metrics:

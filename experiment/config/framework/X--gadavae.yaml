@@ -4,10 +4,11 @@ module:
   _target_: disent.frameworks.vae.supervised.GuidedAdaVae
   beta: ${framework.beta}
   # adavae
-  average_mode: 'gvae'       # [gvae, ml-vae]
-  symmetric_kl: TRUE
+  ada_average_mode: gvae  # gvae or ml-vae
+  ada_thresh_mode: symmetric_kl
+  ada_thresh_ratio: 0.5
   # guided adavae
-  anchor_ave_mode: 'average' # [average, thresh]
+  gada_anchor_ave_mode: 'average' # [average, thresh]
 
 # settings used elsewhere
 data_wrap_mode: triplet

@@ -4,8 +4,9 @@ module:
   _target_: disent.frameworks.vae.supervised.TripletBoundedAdaVae
   beta: ${framework.beta}
   # adavae
-  average_mode: 'gvae'  # gvae or ml-vae
-  symmetric_kl: TRUE
+  ada_average_mode: gvae  # gvae or ml-vae
+  ada_thresh_mode: symmetric_kl
+  ada_thresh_ratio: 0.5
   # tvae: triplet stuffs
   triplet_loss: triplet
   triplet_margin_min: 0.001

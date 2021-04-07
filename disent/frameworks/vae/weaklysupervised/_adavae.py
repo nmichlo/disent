@@ -54,16 +54,10 @@ class AdaVae(BetaVae):
 
     @dataclass
     class cfg(BetaVae.cfg):
-        average_mode: str = 'gvae'
-        symmetric_kl: bool = True
-
-    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
-        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
-        # averaging modes
-        self._compute_average_fn = {
-            'gvae': compute_average_gvae,
-            'ml-vae': compute_average_ml_vae
-        }[self.cfg.average_mode]
+        # TODO: prefix all variables with "ada_"
+        ada_average_mode: str = 'gvae'
+        ada_thresh_mode: str = 'symmetric_kl'  # kl, symmetric_kl, dist, sampled_dist
+        ada_thresh_ratio: float = 0.5
 
     def hook_intercept_zs(self, zs_params: Sequence['Params']) -> Tuple[Sequence['Params'], Dict[str, Any]]:
         """
@@ -77,23 +71,23 @@ class AdaVae(BetaVae):
             https://github.com/google-research/disentanglement_lib (aggregate_argmax)
         """
         z0_params, z1_params = zs_params
-        # compute the deltas
-        d0_posterior, _ = self.params_to_dists(z0_params)  # numerical accuracy errors
-        d1_posterior, _ = self.params_to_dists(z1_params)  # numerical accuracy errors
-        z_deltas = self.compute_kl_deltas(d0_posterior, d1_posterior, symmetric_kl=self.cfg.symmetric_kl)
+        d0_posterior, _ = self.params_to_dists(z0_params)
+        d1_posterior, _ = self.params_to_dists(z1_params)
         # shared elements that need to be averaged, computed per pair in the batch.
-        share_mask = self.compute_shared_mask(z_deltas)
+        share_mask = self.compute_posterior_shared_mask(d0_posterior, d1_posterior, thresh_mode=self.cfg.ada_thresh_mode, ratio=self.cfg.ada_thresh_ratio)
         # compute average posteriors
-        new_args = self.compute_averaged(z0_params, z1_params, share_mask, compute_average_fn=self._compute_average_fn)
+        new_zs_params = self.make_averaged_params(z0_params, z1_params, share_mask, average_mode=self.cfg.ada_average_mode)
         # return new args & generate logs
-        return new_args, {'shared': share_mask.sum(dim=1).float().mean()}
+        return new_zs_params, {
+            'shared': share_mask.sum(dim=1).float().mean()
+        }
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # HELPER                                                                #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     @classmethod
-    def compute_kl_deltas(cls, d0_posterior: Distribution, d1_posterior: Distribution, symmetric_kl: bool):
+    def compute_posterior_deltas(cls, d0_posterior: Distribution, d1_posterior: Distribution, thresh_mode: str):
         """
         (✓) Visual inspection against reference implementation
         https://github.com/google-research/disentanglement_lib (compute_kl)
@@ -103,18 +97,37 @@ class AdaVae(BetaVae):
         """
         # shared elements that need to be averaged, computed per pair in the batch.
         # [𝛿_i ...]
-        if symmetric_kl:
+        if thresh_mode == 'kl':
+            deltas = torch.distributions.kl_divergence(d1_posterior, d0_posterior)
+        elif thresh_mode == 'symmetric_kl':
             # FROM: https://openreview.net/pdf?id=8VXvj1QNRl1
             kl_deltas_d1_d0 = torch.distributions.kl_divergence(d1_posterior, d0_posterior)
             kl_deltas_d0_d1 = torch.distributions.kl_divergence(d0_posterior, d1_posterior)
-            kl_deltas = (0.5 * kl_deltas_d1_d0) + (0.5 * kl_deltas_d0_d1)
+            deltas = (0.5 * kl_deltas_d1_d0) + (0.5 * kl_deltas_d0_d1)
+        elif thresh_mode == 'dist':
+            deltas = cls.compute_z_deltas(d1_posterior.mean, d0_posterior.mean)
+        elif thresh_mode == 'sampled_dist':
+            deltas = cls.compute_z_deltas(d1_posterior.rsample(), d0_posterior.rsample())
         else:
-            kl_deltas = torch.distributions.kl_divergence(d1_posterior, d0_posterior)
+            raise KeyError(f'invalid thresh_mode: {repr(thresh_mode)}')
+
         # return values
-        return kl_deltas
+        return deltas
 
     @classmethod
-    def compute_shared_mask(cls, z_deltas):
+    def compute_posterior_shared_mask(cls, d0_posterior: Distribution, d1_posterior: Distribution, thresh_mode: str, ratio=0.5):
+        return cls.estimate_shared_mask(z_deltas=cls.compute_posterior_deltas(d0_posterior, d1_posterior, thresh_mode=thresh_mode), ratio=ratio)
+
+    @classmethod
+    def compute_z_deltas(cls, z0: torch.Tensor, z1: torch.Tensor) -> torch.Tensor:
+        return torch.abs(z0 - z1)
+
+    @classmethod
+    def compute_z_shared_mask(cls, z0: torch.Tensor, z1: torch.Tensor, ratio: float = 0.5):
+        return cls.estimate_shared_mask(z_deltas=cls.compute_z_deltas(z0, z1), ratio=ratio)
+
+    @classmethod
+    def estimate_shared_mask(cls, z_deltas: torch.Tensor, ratio: float = 0.5):
         """
         Core of the adaptive VAE algorithm, estimating which factors
         have changed (or in this case which are shared and should remained unchanged
@@ -132,14 +145,14 @@ class AdaVae(BetaVae):
                     dimension."
         """
         # threshold τ
-        z_threshs = cls.estimate_threshold(z_deltas)
+        z_threshs = cls.estimate_threshold(z_deltas, ratio=ratio)
         # true if 'unchanged' and should be average
         shared_mask = z_deltas < z_threshs
         # return
         return shared_mask
 
     @classmethod
-    def estimate_threshold(cls, kl_deltas, keepdim=True):
+    def estimate_threshold(cls, kl_deltas: torch.Tensor, keepdim: bool = True, ratio: float = 0.5):
         """
         Compute the threshold for each image pair in a batch of kl divergences of all elements of the latent distributions.
         It should be noted that for a perfectly trained model, this threshold is always correct.
@@ -149,14 +162,15 @@ class AdaVae(BetaVae):
         """
         maximums = kl_deltas.max(axis=1, keepdim=keepdim).values
         minimums = kl_deltas.min(axis=1, keepdim=keepdim).values
-        return (0.5 * minimums) + (0.5 * maximums)
+        return torch.lerp(minimums, maximums, weight=ratio)
 
     @classmethod
-    def compute_averaged(cls, z0_params, z1_params, share_mask, compute_average_fn: callable):
+    def make_averaged_params(cls, z0_params, z1_params, share_mask, average_mode: str):
         # compute average posteriors
-        ave_mean, ave_logvar = compute_average_fn(
+        ave_mean, ave_logvar = compute_average(
             z0_params.mean, z0_params.logvar,
             z1_params.mean, z1_params.logvar,
+            average_mode=average_mode,
         )
         # select averages
         ave_z0_mean = torch.where(share_mask, ave_mean, z0_params.mean)
@@ -172,7 +186,7 @@ class AdaVae(BetaVae):
 # ========================================================================= #
 
 
-def compute_average_gvae(z0_mean, z0_logvar, z1_mean, z1_logvar):
+def compute_average_gvae(z0_mean: torch.Tensor, z0_logvar: torch.Tensor, z1_mean: torch.Tensor, z1_logvar: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Compute the arithmetic mean of the encoder distributions.
     - Ada-GVAE Averaging function
@@ -188,7 +202,8 @@ def compute_average_gvae(z0_mean, z0_logvar, z1_mean, z1_logvar):
     # mean, logvar
     return ave_mean, ave_var.log()  # natural log
 
-def compute_average_ml_vae(z0_mean, z0_logvar, z1_mean, z1_logvar):
+
+def compute_average_ml_vae(z0_mean: torch.Tensor, z0_logvar: torch.Tensor, z1_mean: torch.Tensor, z1_logvar: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Compute the product of the encoder distributions.
     - Ada-ML-VAE Averaging function
@@ -211,6 +226,21 @@ def compute_average_ml_vae(z0_mean, z0_logvar, z1_mean, z1_logvar):
     ave_mean = (z0_mean*z0_invvar + z1_mean*z1_invvar) * ave_var * 0.5
     # mean, logvar
     return ave_mean, ave_var.log()  # natural log
+
+
+COMPUTE_AVE_FNS = {
+    'gvae': compute_average_gvae,
+    'ml-vae': compute_average_ml_vae,
+}
+
+
+def compute_average(z0_mean: torch.Tensor, z0_logvar: torch.Tensor, z1_mean: torch.Tensor, z1_logvar: torch.Tensor, average_mode: str) -> Tuple[torch.Tensor, torch.Tensor]:
+    return COMPUTE_AVE_FNS[average_mode](z0_mean, z0_logvar, z1_mean, z1_logvar)
+
+
+def compute_average_params(z0_params: 'Params', z1_params: 'Params', average_mode: str) -> 'Params':
+    ave_mean, ave_logvar = compute_average(z0_params.mean, z0_params.logvar, z1_params.mean, z1_params.logvar, average_mode=average_mode)
+    return z0_params.__class__(ave_mean, ave_logvar)
 
 
 # ========================================================================= #

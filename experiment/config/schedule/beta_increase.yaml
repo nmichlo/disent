@@ -1,4 +1,5 @@
 # @package _global_
+schedules_name: beta_increase
 schedules:
   beta:
     # skip the first cycle

@@ -23,15 +23,19 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from dataclasses import dataclass
+from typing import Optional
 from typing import Sequence
 
 import logging
 
+import kornia
 import numpy as np
 import torch
+import torchvision
 from torch.distributions import Normal
 
 from disent.frameworks.vae.supervised.experimental._adatvae import AdaTripletVae
+from experiment.util.hydra_utils import instantiate_recursive
 
 
 log = logging.getLogger(__name__)
@@ -42,64 +46,113 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class DataOverlapVae(AdaTripletVae):
+class DataOverlapTripletVae(AdaTripletVae):
 
     REQUIRED_OBS = 1
 
     @dataclass
     class cfg(AdaTripletVae.cfg):
         # OVERRIDE - triplet vae configs
-        detach: bool = True
-        detach_decoder: bool = True
+        detach: bool = False
+        detach_decoder: bool = False
         detach_no_kl: bool = False
-        detach_logvar: float = 0  # std = 0.5, logvar = ln(std**2) ~= -2,77
-        # OVERRIDE - triplet loss configs
-        triplet_scale: float = 0
-        # OVERRIDE ADAVAE
-        # adatvae: what version of triplet to use
-        triplet_mode: str = 'lerp_trip_to_mse_ada'  # 'ada_p_orig_lerp'
-        # adatvae: annealing
-        lerp_step_start: int = 3600
-        lerp_step_end: int = 14400
-        lerp_goal: float = 0.25
+        detach_logvar: float = None  # std = 0.5, logvar = ln(std**2) ~= -2,77
         # OVERLAP VAE
-        overlap_triplet_mode: str = 'triplet'
         overlap_num: int = 1024
-        overlap_z_mode: str = 'means'
-        # TRIPLET MINING
-        overlap_mine_triplet_mode: str = 'none'
         overlap_mine_ratio: float = 0.1
+        overlap_mine_triplet_mode: str = 'none'
+        # AUGMENT
+        overlap_augment_mode: str = 'none'
+        overlap_augment: Optional[dict] = None
+
+    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
+        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
+        # initialise
+        if self.cfg.overlap_augment_mode != 'none':
+            assert self.cfg.overlap_augment is not None, 'if cfg.overlap_augment_mode is not "none", then cfg.overlap_augment must be defined.'
+        if self.cfg.overlap_augment is not None:
+            self._augment = instantiate_recursive(self.cfg.overlap_augment)
 
     def hook_compute_ave_aug_loss(self, ds_posterior: Sequence[Normal], ds_prior, zs_sampled, xs_partial_recon, xs_targ: Sequence[torch.Tensor]):
         # get values
         (d_posterior,), (x_targ,) = ds_posterior, xs_targ
-        # adavae
-        self.step += 1
-
-        # generate random triples -- TODO: this does not generate unique pairs
+        # generate & mine random triples from batch -- this does not generate unique pairs
         a_idxs, p_idxs, n_idxs = torch.randint(len(x_targ), size=(3, min(self.cfg.overlap_num, len(x_targ)**3)))
-        # mine triplets
         a_idxs, p_idxs, n_idxs = self.mine_triplets(x_targ, a_idxs, p_idxs, n_idxs)
-
         # make triples
-        xs_targ_NEW = [x_targ[idxs] for idxs in (a_idxs, p_idxs, n_idxs)]
-        ds_posterior_NEW = [Normal(d_posterior.loc[idxs], d_posterior.scale[idxs]) for idxs in (a_idxs, p_idxs, n_idxs)]
-
-        # make representation triples
-        if self.cfg.overlap_z_mode == 'means':
-            zs = [d.mean for d in ds_posterior_NEW]
-        elif self.cfg.overlap_z_mode == 'samples':
-            zs = [d.rsample() for d in ds_posterior_NEW]  # we resample here in case z_sampled is detached
-        else:
-            raise KeyError(f'invalid cfg.overlap_z_mode: {repr(self.cfg.overlap_z_mode)}')
-
+        new_xs_targ = [x_targ[idxs] for idxs in (a_idxs, p_idxs, n_idxs)]
+        new_ds_posterior = [Normal(d_posterior.loc[idxs], d_posterior.scale[idxs]) for idxs in (a_idxs, p_idxs, n_idxs)]
+        # augment targets
+        aug_xs_targ = self.augment_triplet_targets(new_xs_targ)
+        # create new triplets
+        ds_posterior_NEW = self.overlap_create_triplets(ds_posterior=new_ds_posterior, xs_targ=aug_xs_targ, cfg=self.cfg, unreduced_loss_fn=self.recon_handler.compute_unreduced_loss)
         # compute loss
-        loss, logs = self.compute_overlap_triplet_loss(zs_mean=zs, xs_targ=xs_targ_NEW, cfg=self.cfg, step=self.step, unreduced_loss_fn=self.recon_handler.compute_unreduced_loss)
-
+        loss, logs = AdaTripletVae.estimate_ada_triplet_loss(
+            zs_params=self.all_dist_to_params(ds_posterior_NEW),
+            ds_posterior=ds_posterior_NEW,
+            cfg=self.cfg,
+        )
         return loss, {
             **logs,
-            **DataOverlapVae.overlap_measure_differences(ds_posterior_NEW, xs_targ_NEW, unreduced_loss_fn=self.recon_handler.compute_unreduced_loss, unreduced_kl_loss_fn=self.latents_handler.compute_unreduced_kl_loss),
+            **DataOverlapTripletVae.overlap_measure_differences(new_ds_posterior, aug_xs_targ, unreduced_loss_fn=self.recon_handler.compute_unreduced_loss, unreduced_kl_loss_fn=self.latents_handler.compute_unreduced_kl_loss),
         }
+
+    @staticmethod
+    def overlap_create_triplets(ds_posterior, xs_targ, cfg: cfg, unreduced_loss_fn):
+        # check the recon loss
+        assert cfg.recon_loss == 'mse', 'only mse loss is supported'
+        # CORE: order the latent variables for triplet
+        swap_mask = DataOverlapTripletVae.overlap_swap_mask(xs_targ=xs_targ, unreduced_loss_fn=unreduced_loss_fn)
+        ds_posterior_NEW = DataOverlapTripletVae.overlap_get_swapped(ds_posterior=ds_posterior, swap_mask=swap_mask)
+        # return values
+        return ds_posterior_NEW
+
+    @staticmethod
+    def overlap_swap_mask(xs_targ: Sequence[torch.Tensor], unreduced_loss_fn: callable) -> torch.Tensor:
+        # get variables
+        a_x_targ_OLD, p_x_targ_OLD, n_x_targ_OLD = xs_targ
+        # CORE OF THIS APPROACH
+        # ++++++++++++++++++++++++++++++++++++++++++ #
+        # calculate which are wrong!
+        # TODO: add more loss functions, like perceptual & others
+        a_p_losses = unreduced_loss_fn(a_x_targ_OLD, p_x_targ_OLD).mean(dim=(-3, -2, -1))  # (B, C, H, W) -> (B,)
+        a_n_losses = unreduced_loss_fn(a_x_targ_OLD, n_x_targ_OLD).mean(dim=(-3, -2, -1))  # (B, C, H, W) -> (B,)
+        swap_mask = (a_p_losses > a_n_losses)
+        # ++++++++++++++++++++++++++++++++++++++++++ #
+        return swap_mask # (B,)
+
+    @staticmethod
+    def overlap_get_swapped(ds_posterior: Sequence[Normal], swap_mask: torch.Tensor) -> Sequence[Normal]:
+        # get variables
+        a_post_OLD, p_post_OLD, n_post_OLD = ds_posterior
+        # check variables
+        assert swap_mask.ndim == 1
+        assert a_post_OLD.mean.ndim == 2
+        assert len(swap_mask) == len(a_post_OLD.mean)
+        # repeat mask along latent dim
+        swap_mask = swap_mask[:, None].repeat(1, a_post_OLD.mean.shape[-1])  # (B,) -> (B, Z)
+        # swap if wrong!
+        p_z_loc   = torch.where(swap_mask, n_post_OLD.loc,   p_post_OLD.loc)
+        n_z_loc   = torch.where(swap_mask, p_post_OLD.loc,   n_post_OLD.loc)
+        p_z_scale = torch.where(swap_mask, n_post_OLD.scale, p_post_OLD.scale)
+        n_z_scale = torch.where(swap_mask, p_post_OLD.scale, n_post_OLD.scale)
+        # return new distributions
+        return a_post_OLD, Normal(loc=p_z_loc, scale=p_z_scale), Normal(loc=n_z_loc, scale=n_z_scale)
+
+    def augment_triplet_targets(self, xs_targ):
+        if self.cfg.overlap_augment_mode == 'none':
+            return xs_targ
+        elif (self.cfg.overlap_augment_mode == 'augment') or (self.cfg.overlap_augment_mode == 'augment_each'):
+            # recreate augment each time
+            if self.cfg.overlap_augment_mode == 'augment_each':
+                self._augment = instantiate_recursive(self.cfg.augments)
+            # augment on correct device
+            aug_xs_targ = [self._augment(x_targ) for x_targ in xs_targ]
+            # checks
+            assert all(a.shape == b.shape for a, b in zip(xs_targ, aug_xs_targ))
+            return aug_xs_targ
+        else:
+            raise KeyError(f'invalid cfg.overlap_augment_mode={repr(self.cfg.overlap_augment_mode)}')
 
     def mine_triplets(self, x_targ, a_idxs, p_idxs, n_idxs):
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -158,46 +211,6 @@ class DataOverlapVae(AdaTripletVae):
             raise KeyError
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         return a_idxs, p_idxs, n_idxs
-
-    @staticmethod
-    def compute_overlap_triplet_loss(zs_mean, xs_targ, cfg, step: int, unreduced_loss_fn):
-        # check the recon loss
-        assert cfg.recon_loss == 'mse', 'only mse loss is supported'
-
-        # CORE: order the latent variables for triplet
-        zs_mean = DataOverlapVae.overlap_swap_zs(zs_mean=zs_mean, xs_targ=xs_targ, unreduced_loss_fn=unreduced_loss_fn)
-
-        # compute the triplet loss
-        if cfg.overlap_triplet_mode == 'triplet':
-            triplet_loss, logs_triplet = AdaTripletVae.compute_triplet_loss(zs_mean=zs_mean, cfg=cfg)
-        elif cfg.overlap_triplet_mode == 'ada_triplet':
-            triplet_loss, logs_triplet = AdaTripletVae.compute_ada_triplet_loss(zs_mean=zs_mean, step=step, cfg=cfg)
-        else:  # pragma: no cover
-            raise KeyError
-
-        return triplet_loss, {
-            'overlap_triplet_loss': triplet_loss,
-            **logs_triplet,
-        }
-
-    @staticmethod
-    def overlap_swap_zs(zs_mean, xs_targ, unreduced_loss_fn):
-        # get variables
-        a_z_mean_OLD, p_z_mean_OLD, n_z_mean_OLD = zs_mean
-        a_x_targ_OLD, p_x_targ_OLD, n_x_targ_OLD = xs_targ
-
-        # CORE OF THIS APPROACH
-        # ++++++++++++++++++++++++++++++++++++++++++ #
-        # calculate which are wrong!
-        a_p_losses = unreduced_loss_fn(a_x_targ_OLD, p_x_targ_OLD).mean(dim=(-3, -2, -1))
-        a_n_losses = unreduced_loss_fn(a_x_targ_OLD, n_x_targ_OLD).mean(dim=(-3, -2, -1))
-        # swap if wrong!
-        swap_mask = (a_p_losses > a_n_losses)[:, None].repeat(1, p_z_mean_OLD.shape[-1])
-        p_z_mean = torch.where(swap_mask, n_z_mean_OLD, p_z_mean_OLD)
-        n_z_mean = torch.where(swap_mask, p_z_mean_OLD, n_z_mean_OLD)
-        # ++++++++++++++++++++++++++++++++++++++++++ #
-
-        return a_z_mean_OLD, p_z_mean, n_z_mean
 
     @staticmethod
     def overlap_measure_differences(ds_posterior, xs_targ, unreduced_loss_fn, unreduced_kl_loss_fn):

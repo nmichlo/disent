@@ -168,6 +168,19 @@ class Vae(AE):
     def params_to_dists_and_sample(self, z_params: 'Params') -> Tuple[Distribution, Distribution, torch.Tensor]:
         return self.latents_handler.params_to_dists_and_sample(z_params)
 
+    @final
+    def dist_to_params(self, d_posterior: Distribution) -> 'Params':
+        return self.latents_handler.dist_to_params(d_posterior)
+
+    @final
+    def all_params_to_dists(self, zs_params: Sequence['Params']) -> Tuple[Sequence[Distribution], Sequence[Distribution]]:
+        ds_posterior, ds_prior = zip(*(self.params_to_dists(z_params) for z_params in zs_params))
+        return ds_posterior, ds_prior
+
+    @final
+    def all_dist_to_params(self, ds_posterior: Sequence[Distribution]) -> Sequence['Params']:
+        return [self.dist_to_params(d) for d in ds_posterior]
+
 
 # ========================================================================= #
 # END                                                                       #

@@ -61,11 +61,14 @@ from disent.transform import ToStandardisedTensor
     (DfcVae,               dict(),                                                                      XYObjectData),
     (DfcVae,               dict(),                                                                      partial(XYObjectData, rgb=False)),
     (BetaTcVae,            dict(),                                                                      XYObjectData),
-    (DataOverlapVae,       dict(),                                                                      XYObjectData),
-    (DataOverlapVae,       dict(overlap_triplet_mode='ada_triplet'),                                    XYObjectData),
+    (DataOverlapTripletVae,dict(overlap_mine_triplet_mode='none'),                                      XYObjectData),
+    (DataOverlapTripletVae,dict(overlap_mine_triplet_mode='semi_hard_neg'),                             XYObjectData),
+    (DataOverlapTripletVae,dict(overlap_mine_triplet_mode='hard_neg'),                                  XYObjectData),
+    (DataOverlapTripletVae,dict(overlap_mine_triplet_mode='hard_pos'),                                  XYObjectData),
+    (DataOverlapTripletVae,dict(overlap_mine_triplet_mode='easy_pos'),                                  XYObjectData),
     # VAE - weakly supervised
     (AdaVae,               dict(),                                                                      XYObjectData),
-    (AdaVae,               dict(average_mode='ml-vae'),                                                 XYObjectData),
+    (AdaVae,               dict(ada_average_mode='ml-vae'),                                             XYObjectData),
     (SwappedTargetAdaVae,  dict(swap_chance=1.0),                                                       XYObjectData),
     (SwappedTargetBetaVae, dict(swap_chance=1.0),                                                       XYObjectData),
     (AugPosTripletVae,     dict(),                                                                      XYObjectData),
@@ -74,10 +77,13 @@ from disent.transform import ToStandardisedTensor
     (TripletVae,           dict(detach=True, detach_decoder=True, detach_no_kl=True, detach_logvar=-2), XYObjectData),
     (BoundedAdaVae,        dict(),                                                                      XYObjectData),
     (GuidedAdaVae,         dict(),                                                                      XYObjectData),
-    (GuidedAdaVae,         dict(anchor_ave_mode='thresh'),                                              XYObjectData),
+    (GuidedAdaVae,         dict(gada_anchor_ave_mode='thresh'),                                         XYObjectData),
     (TripletBoundedAdaVae, dict(),                                                                      XYObjectData),
     (TripletGuidedAdaVae,  dict(),                                                                      XYObjectData),
     (AdaTripletVae,        dict(),                                                                      XYObjectData),
+    (AdaAveTripletVae,     dict(adat_share_mask_mode='posterior'),                                      XYObjectData),
+    (AdaAveTripletVae,     dict(adat_share_mask_mode='sample'),                                         XYObjectData),
+    (AdaAveTripletVae,     dict(adat_share_mask_mode='sample_each'),                                    XYObjectData),
 ])
 def test_frameworks(Framework, cfg_kwargs, Data):
     DataWrapper = {
