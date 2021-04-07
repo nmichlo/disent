@@ -102,6 +102,20 @@ class AdaNegTripletVae(TripletVae):
         triplet_hard_neg_ave_pull = configured_dist_push_pull_triplet(pos_delta=a_z - p_z, neg_delta=neg_delta_push, neg_delta_pull=neg_delta_pull, cfg=cfg)
         triplet_hard_neg_ave_pull = torch.lerp(trip_loss, triplet_hard_neg_ave_pull, weight=cfg.adat_triplet_ratio)
 
+        # TODO: add mode where we scale the neg pull deltas by some values < 1
+        #       we dont use triplet lerp in this version
+        #       triplet_hard_neg_ave_pull = configured_dist_triplet(
+        #           pos_delta=a_z - p_z,
+        #           neg_delta=torch.where(an_share_mask, cfg.adat_triplet_ratio * (a_z - n_z), (a_z - n_z)),
+        #           cfg=cfg,
+        #       )
+
+        # triplet_hard_neg_ave_pull = configured_dist_triplet(
+        #     pos_delta=a_z - p_z,
+        #     neg_delta=torch.where(an_share_mask, (1.0 - cfg.adat_triplet_ratio) * (a_z - n_z), (a_z - n_z)),
+        #     cfg=cfg,
+        # )
+
         return triplet_hard_neg_ave_pull, {
             'triplet': trip_loss,
             'triplet_chosen': triplet_hard_neg_ave_pull,

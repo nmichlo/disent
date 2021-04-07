@@ -48,18 +48,19 @@ setuptools.setup(
     author="Nathan Juraj Michlo",
     author_email="NathanJMichlo@gmail.com",
 
-    version="0.0.1.dev9",
-    python_requires="==3.8",
+    version="0.0.1.dev10",
+    python_requires=">=3.8",
     packages=setuptools.find_packages(),
 
     install_requires=install_requires,
 
-    url="https://github.com/nmichlo/eunomia",
+    url="https://github.com/nmichlo/disent",
     description="Vae disentanglement framework built with pytorch lightning.",
     long_description=long_description,
     long_description_content_type="text/markdown",
 
     classifiers=[
+        "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3.8",
         "Intended Audience :: Science/Research",
