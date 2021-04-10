@@ -23,11 +23,16 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import numpy as np
+import pytest
 import torch
 from scipy.stats import gmean
 from scipy.stats import hmean
 
 from disent.util import to_numpy
+from disent.util.math import dct
+from disent.util.math import dct2
+from disent.util.math import idct
+from disent.util.math import idct2
 from disent.util.math import torch_corr_matrix
 from disent.util.math import torch_cov_matrix
 from disent.util.math import torch_mean_generalized
@@ -72,3 +77,42 @@ def test_generalised_mean():
     assert torch.allclose(torch_mean_generalized(xs, p=np.inf, dim=1), torch.max(xs, dim=1).values)
     assert torch.allclose(torch_mean_generalized(xs, p=-np.inf, dim=1), torch.min(xs, dim=1).values)
 
+
+
+def test_dct():
+    x = torch.randn(128, 3, 64, 32, dtype=torch.float64)
+
+    # chceck +ve dims
+    assert torch.allclose(x, idct(dct(x, dim=0), dim=0))
+    with pytest.raises(ValueError, match='does not support odd sized dimension'):
+        torch.allclose(x, idct(dct(x, dim=1), dim=1))
+    assert torch.allclose(x, idct(dct(x, dim=2), dim=2))
+    assert torch.allclose(x, idct(dct(x, dim=3), dim=3))
+
+    # chceck -ve dims
+    assert torch.allclose(x, idct(dct(x, dim=-4), dim=-4))
+    with pytest.raises(ValueError, match='does not support odd sized dimension'):
+        torch.allclose(x, idct(dct(x, dim=-3), dim=-3))
+    assert torch.allclose(x, idct(dct(x, dim=-2), dim=-2))
+    assert torch.allclose(x, idct(dct(x, dim=-1), dim=-1))
+
+    # check defaults
+    assert torch.allclose(dct(x), dct(x, dim=-1))
+    assert torch.allclose(idct(x), idct(x, dim=-1))
+
+    # check dct2
+    assert torch.allclose(x, idct2(dct2(x)))
+    assert torch.allclose(x, idct2(dct2(x)))
+
+    # check defaults dct2
+    assert torch.allclose(dct2(x), dct2(x, dim1=-1, dim2=-2))
+    assert torch.allclose(dct2(x), dct2(x, dim1=-2, dim2=-1))
+    assert torch.allclose(idct2(x), idct2(x, dim1=-1, dim2=-2))
+    assert torch.allclose(idct2(x), idct2(x, dim1=-2, dim2=-1))
+    # check order dct2
+    assert torch.allclose(dct2(x, dim1=-1, dim2=-2), dct2(x, dim1=-2, dim2=-1))
+    assert torch.allclose(dct2(x, dim1=-1, dim2=-4), dct2(x, dim1=-4, dim2=-1))
+    assert torch.allclose(dct2(x, dim1=-4, dim2=-1), dct2(x, dim1=-1, dim2=-4))
+    assert torch.allclose(idct2(x, dim1=-1, dim2=-2), idct2(x, dim1=-2, dim2=-1))
+    assert torch.allclose(idct2(x, dim1=-1, dim2=-4), idct2(x, dim1=-4, dim2=-1))
+    assert torch.allclose(idct2(x, dim1=-4, dim2=-1), idct2(x, dim1=-1, dim2=-4))
