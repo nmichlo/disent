@@ -28,13 +28,11 @@ from typing import Sequence
 
 import logging
 
-import kornia
 import numpy as np
 import torch
-import torchvision
 from torch.distributions import Normal
 
-from disent.frameworks.vae.supervised.experimental._adatvae import AdaTripletVae
+from disent.frameworks.vae.supervised import AdaNegTripletVae
 from experiment.util.hydra_utils import instantiate_recursive
 
 
@@ -46,12 +44,12 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class DataOverlapTripletVae(AdaTripletVae):
+class DataOverlapTripletVae(AdaNegTripletVae):
 
     REQUIRED_OBS = 1
 
     @dataclass
-    class cfg(AdaTripletVae.cfg):
+    class cfg(AdaNegTripletVae.cfg):
         # OVERRIDE - triplet vae configs
         detach: bool = False
         detach_decoder: bool = False
@@ -87,8 +85,7 @@ class DataOverlapTripletVae(AdaTripletVae):
         # create new triplets
         ds_posterior_NEW = self.overlap_create_triplets(ds_posterior=new_ds_posterior, xs_targ=aug_xs_targ, cfg=self.cfg, unreduced_loss_fn=self.recon_handler.compute_unreduced_loss)
         # compute loss
-        loss, logs = AdaTripletVae.estimate_ada_triplet_loss(
-            zs_params=self.all_dist_to_params(ds_posterior_NEW),
+        loss, logs = AdaNegTripletVae.estimate_ada_triplet_loss(
             ds_posterior=ds_posterior_NEW,
             cfg=self.cfg,
         )
@@ -208,7 +205,7 @@ class DataOverlapTripletVae(AdaTripletVae):
             # get indices
             a_idxs, p_idxs, n_idxs = a_idxs[easy_idxs], p_idxs[easy_idxs], n_idxs[easy_idxs]
         elif overlap_mine_triplet_mode != 'none':
-            raise KeyError
+            raise KeyError(f'invalid cfg.overlap_mine_triplet_mode=={repr(self.cfg.overlap_mine_triplet_mode)}')
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         return a_idxs, p_idxs, n_idxs
 

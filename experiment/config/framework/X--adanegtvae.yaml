@@ -19,8 +19,7 @@ module:
   ada_thresh_mode: symmetric_kl  # Only works for: adat_share_mask_mode == "posterior" --- kl, symmetric_kl, dist, sampled_dist
   ada_thresh_ratio: 0.5          # >> USE WITH A SCHEDULE <<
   # ada_tvae - loss
-  adat_triplet_ratio: 1.0        # >> USE WITH A SCHEDULE << 0.5 is half of triplet and ada-triplet, 1.0 is all ada-triplet
-  adat_triplet_pull_weight: 0.0  # Only works for: adat_triplet_loss == "triplet_hard_neg_ave_pull"
+  adat_triplet_share_scale: 0.75  # >> USE WITH A SCHEDULE << only works for: adat_triplet_loss == "triplet_hard_neg_ave_scaled"
   # ada_tvae - averaging
   adat_share_mask_mode: posterior
 
