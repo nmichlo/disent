@@ -106,7 +106,21 @@ class ReconLossHandlerMse(ReconLossHandler):
         # NOTE: x_targ is in the range [0, 1]... we scale this to be in the range [-1, 1]
         #       so that the MSE values are consistent. activating x_partial_recon instead
         #       changes the scale of the loss
-        return F.mse_loss(x_partial_recon, (x_targ * 2) - 1, reduction='none')
+        x_partial_targ = (x_targ * 2) - 1
+        return F.mse_loss(x_partial_recon, x_partial_targ, reduction='none')
+
+
+class ReconLossHandlerMae(ReconLossHandlerMse):
+    """
+    MAE loss should be used with continuous targets between [0, 1].
+    """
+
+    def _compute_unreduced_loss(self, x_partial_recon, x_targ):
+        # NOTE: x_targ is in the range [0, 1]... we scale this to be in the range [-1, 1]
+        #       so that the MSE values are consistent. activating x_partial_recon instead
+        #       changes the scale of the loss
+        x_partial_targ = (x_targ * 2) - 1
+        return torch.abs(x_partial_recon - x_partial_targ)
 
 
 class ReconLossHandlerBce(ReconLossHandler):
@@ -173,25 +187,33 @@ class ReconLossHandlerNormal(ReconLossHandlerMse):
 # ========================================================================= #
 
 
+
+_RECON_LOSSES = {
+    # ================================= #
+    # from the normal distribution
+    # binary values only in the set {0, 1}
+    'mse': ReconLossHandlerMse,
+    # mean absolute error
+    'mae': ReconLossHandlerMae,
+    # from the bernoulli distribution
+    'bce': ReconLossHandlerBce,
+    # reduces to bce
+    # binary values only in the set {0, 1}
+    'bernoulli': ReconLossHandlerBernoulli,
+    # bernoulli with a computed offset to handle values in the range [0, 1]
+    'continuous_bernoulli': ReconLossHandlerContinuousBernoulli,
+    # handle all real values
+    'normal': ReconLossHandlerNormal,
+    # ================================= #
+    # EXPERIMENTAL -- im just curious what would happen, haven't actually
+    #                 done the maths or thought about this much.
+}
+
+
 def make_reconstruction_loss(name: str, reduction: str) -> ReconLossHandler:
-    if name == 'mse':
-        # from the normal distribution
-        # binary values only in the set {0, 1}
-        cls = ReconLossHandlerMse
-    elif name == 'bce':
-        # from the bernoulli distribution
-        cls = ReconLossHandlerBce
-    elif name == 'bernoulli':
-        # reduces to bce
-        # binary values only in the set {0, 1}
-        cls = ReconLossHandlerBernoulli
-    elif name == 'continuous_bernoulli':
-        # bernoulli with a computed offset to handle values in the range [0, 1]
-        cls = ReconLossHandlerContinuousBernoulli
-    elif name == 'normal':
-        # handle all real values
-        cls = ReconLossHandlerNormal
-    else:
+    try:
+        cls = _RECON_LOSSES[name]
+    except KeyError:
         raise KeyError(f'Invalid vae reconstruction loss: {name}')
     # instantiate!
     return cls(reduction=reduction)
