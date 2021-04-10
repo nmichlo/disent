@@ -57,7 +57,7 @@ class AdaNegTripletVae(TripletVae):
         # adavae
         ada_thresh_mode: str = 'dist'  # only works for: adat_share_mask_mode == "posterior"
         # ada_tvae - loss
-        adat_triplet_share_scale: float = 0.75
+        adat_triplet_share_scale: float = 0.95
         # ada_tvae - averaging
         adat_share_mask_mode: str = 'posterior'
 

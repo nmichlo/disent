@@ -18,4 +18,4 @@ schedules:
     min_step: 0
     max_step: ${trainer.steps}
     r_start: 1.0
-    r_end: 0.0
+    r_end: 0.5

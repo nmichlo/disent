@@ -58,7 +58,7 @@ class AdaTripletVae(TripletVae):
         adat_triplet_ratio: float = 1.0
         adat_triplet_soft_scale: float = 1.0
         adat_triplet_pull_weight: float = 0.1  # only works for: adat_triplet_loss == "triplet_hard_neg_ave_pull"
-        adat_triplet_share_scale: float = 0.5  # only works for: adat_triplet_loss == "triplet_hard_neg_ave_scaled"
+        adat_triplet_share_scale: float = 0.95  # only works for: adat_triplet_loss == "triplet_hard_neg_ave_scaled"
         # ada_tvae - averaging
         adat_share_mask_mode: str = 'posterior'
         adat_share_ave_mode: str = 'all'  # only works for: adat_triplet_loss == "triplet_hard_ave_all"

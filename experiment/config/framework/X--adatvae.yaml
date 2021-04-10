@@ -23,7 +23,7 @@ module:
   adat_triplet_ratio: 1.0        # >> USE WITH A SCHEDULE << 0.5 is half of triplet and ada-triplet, 1.0 is all ada-triplet
   adat_triplet_soft_scale: 1.0   # >> USE WITH A SCHEDULE <<
   adat_triplet_pull_weight: 0.1  # Only works for: adat_triplet_loss == "triplet_hard_neg_ave_pull"
-  adat_triplet_share_scale: 0.75  # >> USE WITH A SCHEDULE << only works for: adat_triplet_loss == "triplet_hard_neg_ave_scaled"
+  adat_triplet_share_scale: 0.95  # >> USE WITH A SCHEDULE << only works for: adat_triplet_loss == "triplet_hard_neg_ave_scaled"
   # ada_tvae - averaging
   adat_share_mask_mode: posterior
   adat_share_ave_mode: all       # Only works for: adat_triplet_loss == "triplet_hard_ave_all"

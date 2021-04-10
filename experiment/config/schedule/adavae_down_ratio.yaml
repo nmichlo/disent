@@ -17,5 +17,5 @@ schedules:
     _target_: disent.schedule.LinearSchedule
     min_step: 0
     max_step: ${trainer.steps}
-    r_start: 0.0
+    r_start: 0.5
     r_end: 1.0
