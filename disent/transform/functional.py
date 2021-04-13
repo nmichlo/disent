@@ -118,21 +118,20 @@ def conv2d_channel_wise_fft(signal, kernel):
     """
     signal, kernel = _check_conv2d_inputs(signal, kernel)
     # get last dimension sizes
-    m = np.array(signal.shape[-2:])
-    n = np.array(kernel.shape[-2:])
+    sig_shape = np.array(signal.shape[-2:])
+    ker_shape = np.array(kernel.shape[-2:])
     # compute padding
-    truncate = np.maximum(m, n)
-    padded_size = m + n - 1
+    padded_shape = sig_shape + ker_shape - 1
     # Compute convolution using fft.
-    f_signal = torch.fft.rfft2(signal, s=tuple(padded_size))
-    f_kernel = torch.fft.rfft2(kernel, s=tuple(padded_size))
-    result = torch.fft.irfft2(f_signal * f_kernel, s=tuple(padded_size))
+    f_signal = torch.fft.rfft2(signal, s=tuple(padded_shape))
+    f_kernel = torch.fft.rfft2(kernel, s=tuple(padded_shape))
+    result = torch.fft.irfft2(f_signal * f_kernel, s=tuple(padded_shape))
     # crop final result
-    s = (padded_size - truncate) // 2
-    f = s + truncate
-    result = result[..., s[0]:f[0], s[1]:f[1]]
+    s = (padded_shape - sig_shape) // 2
+    f = s + sig_shape
+    crop = result[..., s[0]:f[0], s[1]:f[1]]
     # done...
-    return result
+    return crop
 
 
 # ========================================================================= #

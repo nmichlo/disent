@@ -83,6 +83,10 @@ class FftGaussianBlur(object):
         # randomly return original
         if np.random.random() < (1 - self.p):
             return obs
+        # add or remove batch dim
+        add_batch_dim = (obs.ndim == 3)
+        if add_batch_dim:
+            obs = obs[None, ...]
         # get batch shape
         B, C, H, W = obs.shape
         # sigma & truncate
@@ -98,7 +102,12 @@ class FftGaussianBlur(object):
             dtype=torch.float32, device=obs.device,
         )
         # apply kernel
-        return F_d.conv2d_channel_wise_fft(signal=obs, kernel=kernel)
+        result = F_d.conv2d_channel_wise_fft(signal=obs, kernel=kernel)
+        # remove batch dim
+        if add_batch_dim:
+            result = result[0]
+        # done!
+        return result
 
     def __repr__(self):
         return f'{self.__class__.__name__}(sigma={repr(self._orig_sigma)}, {repr(self._orig_truncate)}, p={repr(self._orig_p)}, random_mode={repr(self._orig_random_mode)}, random_same_xy={repr(self._orig_random_same_xy)})'
