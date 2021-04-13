@@ -29,13 +29,11 @@ module:
   # dotvae -- augment
   overlap_augment_mode: 'augment'
   overlap_augment:
-    _target_: torchvision.transforms.RandomOrder
-    transforms:
-      - _target_: disent.transform.FftBoxBlur
-        p: 1.0
-        radius: [61, 61]
-        random_mode: "same"
-        random_same_xy: TRUE
+    _target_: disent.transform.FftBoxBlur
+    p: 1.0
+    radius: [61, 61]
+    random_mode: "same"
+    random_same_xy: TRUE
 
 #      - _target_: disent.transform.FftGaussianBlur
 #        p: 1.0

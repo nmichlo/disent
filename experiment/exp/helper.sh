@@ -53,6 +53,9 @@ export ROOT_DIR
 export submit_sweep
 export local_run
 
+# debug hydra
+HYDRA_FULL_ERROR=1
+export HYDRA_FULL_ERROR
 
 # ========================================================================= #
 # Slurm Helper                                                              #
