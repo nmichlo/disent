@@ -29,6 +29,7 @@ from typing import Union
 import numpy as np
 import torch
 
+from disent.util.math import torch_box_kernel_2d
 from disent.util.math import torch_gaussian_kernel_2d
 import disent.transform.functional as F_d
 
@@ -49,16 +50,15 @@ def _expand_to_min_max_tuples(input: MmTuple) -> Tuple[Tuple[Number, Number], Tu
     return (xm, xM), (ym, yM)
 
 
-class FftGaussianBlur(object):
+
+class _BaseFftBlur(object):
     """
     randomly gaussian blur the input images.
     - similar api to kornia
     """
 
-    def __init__(self, sigma: MmTuple = 1.0, truncate: MmTuple = 3.0, p: float = 0.5, random_mode='batch', random_same_xy=True):
+    def __init__(self, p: float = 0.5, random_mode='batch', random_same_xy=True):
         assert 0 <= p <= 1, f'probability of applying transform p={repr(p)} must be in range [0, 1]'
-        self.sigma = _expand_to_min_max_tuples(sigma)
-        self.trunc = _expand_to_min_max_tuples(truncate)
         self.p = p
         # random modes
         self.ran_batch, self.ran_channels = {
@@ -68,16 +68,7 @@ class FftGaussianBlur(object):
             'channels': (False, True),
         }[random_mode]
         # same random value for x and y
-        if random_same_xy:
-            assert self.sigma[0] == self.sigma[1]
-            assert self.trunc[0] == self.trunc[1]
         self.b_idx = 0 if random_same_xy else 1
-        # original input values for self.__repr__()
-        self._orig_sigma = sigma
-        self._orig_truncate = truncate
-        self._orig_p = p
-        self._orig_random_mode = random_mode
-        self._orig_random_same_xy = random_same_xy
 
     def __call__(self, obs):
         # randomly return original
@@ -87,20 +78,8 @@ class FftGaussianBlur(object):
         add_batch_dim = (obs.ndim == 3)
         if add_batch_dim:
             obs = obs[None, ...]
-        # get batch shape
-        B, C, H, W = obs.shape
-        # sigma & truncate
-        sigma_m, sigma_M = torch.as_tensor(self.sigma, device=obs.device).T
-        trunc_m, trunc_M = torch.as_tensor(self.trunc, device=obs.device).T
-        # generate random values
-        sigma = sigma_m + torch.rand((B if self.ran_batch else 1), (C if self.ran_channels else 1), 2, dtype=torch.float32, device=obs.device) * (sigma_M - sigma_m)
-        trunc = trunc_m + torch.rand((B if self.ran_batch else 1), (C if self.ran_channels else 1), 2, dtype=torch.float32, device=obs.device) * (trunc_M - trunc_m)
-        # generate kernel
-        kernel = torch_gaussian_kernel_2d(
-            sigma=sigma[..., 0], truncate=trunc[..., 0],
-            sigma_b=sigma[..., self.b_idx], truncate_b=trunc[..., self.b_idx],  # TODO: we do generate unneeded random values if random_same_xy == True
-            dtype=torch.float32, device=obs.device,
-        )
+        # get kernel
+        kernel = self._make_kernel(obs.shape, obs.device)
         # apply kernel
         result = F_d.conv2d_channel_wise_fft(signal=obs, kernel=kernel)
         # remove batch dim
@@ -109,10 +88,88 @@ class FftGaussianBlur(object):
         # done!
         return result
 
-    def __repr__(self):
-        return f'{self.__class__.__name__}(sigma={repr(self._orig_sigma)}, {repr(self._orig_truncate)}, p={repr(self._orig_p)}, random_mode={repr(self._orig_random_mode)}, random_same_xy={repr(self._orig_random_same_xy)})'
+    def _make_kernel(self, shape, device):
+        raise NotImplementedError
+
+
+class FftGaussianBlur(_BaseFftBlur):
+    """
+    randomly gaussian blur the input images.
+    - similar api to kornia
+    """
+
+    def __init__(
+        self,
+        sigma: MmTuple = 1.0,
+        truncate: MmTuple = 3.0,
+        p: float = 0.5,
+        random_mode='batch',
+        random_same_xy=True
+    ):
+        super().__init__(p=p, random_mode=random_mode, random_same_xy=random_same_xy)
+        self.sigma = _expand_to_min_max_tuples(sigma)
+        self.trunc = _expand_to_min_max_tuples(truncate)
+        # same random value for x and y
+        if random_same_xy:
+            assert self.sigma[0] == self.sigma[1]
+            assert self.trunc[0] == self.trunc[1]
+
+    def _make_kernel(self, shape, device):
+        B, C, H, W = shape
+        # sigma & truncate
+        sigma_m, sigma_M = torch.as_tensor(self.sigma, device=device).T
+        trunc_m, trunc_M = torch.as_tensor(self.trunc, device=device).T
+        # generate random values
+        sigma = sigma_m + torch.rand((B if self.ran_batch else 1), (C if self.ran_channels else 1), 2, dtype=torch.float32, device=device) * (sigma_M - sigma_m)
+        trunc = trunc_m + torch.rand((B if self.ran_batch else 1), (C if self.ran_channels else 1), 2, dtype=torch.float32, device=device) * (trunc_M - trunc_m)
+        # generate kernel
+        return torch_gaussian_kernel_2d(
+            sigma=sigma[..., 0], truncate=trunc[..., 0],
+            sigma_b=sigma[..., self.b_idx], truncate_b=trunc[..., self.b_idx], # TODO: we do generate unneeded random values if random_same_xy == True
+            dtype=torch.float32, device=device,
+        )
+
+
+class FftBoxBlur(_BaseFftBlur):
+    """
+    randomly box blur the input images.
+    - similar api to kornia
+    """
+
+    def __init__(
+        self,
+        radius: MmTuple = 1,
+        p: float = 0.5,
+        random_mode='batch',
+        random_same_xy=True
+    ):
+        super().__init__(p=p, random_mode=random_mode, random_same_xy=random_same_xy)
+        self.radius: Tuple[Tuple[int, int], Tuple[int, int]] = _expand_to_min_max_tuples(radius)
+        # same random value for x and y
+        if random_same_xy:
+            assert self.radius[0] == self.radius[1]
+        # check values
+        values = np.array(self.radius).flatten().tolist()
+        assert all(isinstance(x, int) for x in values), 'radius values must be integers'
+        assert all((0 <= x) for x in values), 'radius values must be >= 0, resulting in diameter: 2*r+1'
+
+    def _make_kernel(self, shape, device):
+        B, C, H, W = shape
+        # sigma & truncate
+        (rym, ryM), (rxm, rxM) = self.radius
+        # generate random values
+        radius_y = torch.randint(low=rym, high=ryM+1, size=((B if self.ran_batch else 1), (C if self.ran_channels else 1)), device=device)
+        radius_x = torch.randint(low=rxm, high=rxM+1, size=((B if self.ran_batch else 1), (C if self.ran_channels else 1)), device=device)
+        # done computing kernel
+        return torch_box_kernel_2d(
+            radius=radius_y,
+            radius_b=radius_x if (self.b_idx == 1) else radius_y,
+            dtype=torch.float32, device=device
+        )
 
 
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
+
+

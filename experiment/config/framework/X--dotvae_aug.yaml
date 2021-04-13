@@ -31,12 +31,18 @@ module:
   overlap_augment:
     _target_: torchvision.transforms.RandomOrder
     transforms:
-      - _target_: disent.transform.FftGaussianBlur
+      - _target_: disent.transform.FftBoxBlur
         p: 1.0
-        sigma: 10.0
-        truncate: 3.0
-        random_mode: "batch"
+        radius: [61, 61]
+        random_mode: "same"
         random_same_xy: TRUE
+
+#      - _target_: disent.transform.FftGaussianBlur
+#        p: 1.0
+#        sigma: [0.1, 10.0]
+#        truncate: 3.0
+#        random_mode: "batch"
+#        random_same_xy: FALSE
 #      - _target_: kornia.augmentation.RandomCrop
 #        p: 1.0
 #        size: [64, 64]
