@@ -22,6 +22,11 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+# transforms
 from ._transforms import CheckTensor
 from ._transforms import Noop
 from ._transforms import ToStandardisedTensor
+
+# augments
+from ._augment import FftGaussianBlur
+from ._augment import FftBoxBlur

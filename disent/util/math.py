@@ -420,7 +420,7 @@ def get_kernel_size(sigma: TypeGenericTensor = 1.0, truncate: TypeGenericTensor 
 
 def torch_gaussian_kernel(
     sigma: TypeGenericTorch = 1.0, truncate: TypeGenericTorch = 4.0, size: int = None,
-    dtype=None, device=None,
+    dtype=torch.float32, device=None,
 ):
     # broadcast tensors together -- data may reference single memory locations
     sigma = torch.as_tensor(sigma, dtype=dtype, device=device)
@@ -441,7 +441,7 @@ def torch_gaussian_kernel(
 def torch_gaussian_kernel_2d(
     sigma: TypeGenericTorch = 1.0, truncate: TypeGenericTorch = 4.0, size: int = None,
     sigma_b: TypeGenericTorch = None, truncate_b: TypeGenericTorch = None, size_b: int = None,
-    dtype=None, device=None,
+    dtype=torch.float32, device=None,
 ):
     # set default values
     if sigma_b is None: sigma_b = sigma
@@ -450,6 +450,34 @@ def torch_gaussian_kernel_2d(
     # compute kernel
     kh = torch_gaussian_kernel(sigma=sigma,   truncate=truncate,   size=size,   dtype=dtype, device=device)
     kw = torch_gaussian_kernel(sigma=sigma_b, truncate=truncate_b, size=size_b, dtype=dtype, device=device)
+    return kh[..., :, None] * kw[..., None, :]
+
+
+def torch_box_kernel(radius: TypeGenericTorch = 1, dtype=torch.float32, device=None):
+    radius = torch.abs(torch.as_tensor(radius, device=device))
+    assert radius.dtype in {torch.int32, torch.int64}, f'box kernel radius must be of integer type: {radius.dtype}'
+    # box kernel values
+    radius_max = radius.max()
+    crange = torch.abs(torch.arange(radius_max * 2 + 1, dtype=dtype, device=device) - radius_max)
+    # pad everything
+    radius = radius[..., None]
+    crange = crange[None, ...]
+    # compute box kernel
+    kernel = (crange <= radius).to(dtype) / (radius * 2 + 1)
+    # done!
+    return kernel
+
+
+def torch_box_kernel_2d(
+    radius: TypeGenericTorch = 1,
+    radius_b: TypeGenericTorch = None,
+    dtype=torch.float32, device=None
+):
+    # set default values
+    if radius_b is None: radius_b = radius
+    # compute kernel
+    kh = torch_box_kernel(radius=radius,   dtype=dtype, device=device)
+    kw = torch_box_kernel(radius=radius_b, dtype=dtype, device=device)
     return kh[..., :, None] * kw[..., None, :]
 
 
