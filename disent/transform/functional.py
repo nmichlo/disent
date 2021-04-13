@@ -82,21 +82,29 @@ def to_standardised_tensor(obs, size=None, check=True):
 
 
 def _check_conv2d_inputs(signal, kernel):
-    assert signal.ndim == 4, 'signal must have 4 dimensions: BxCxHxW'
-    assert kernel.ndim == 2, 'kernel must have 2 dimensions: HxW'
-    kh, kw = kernel.shape
+    assert signal.ndim == 4, f'signal has {repr(signal.ndim)} dimensions, must have 4 dimensions instead: BxCxHxW'
+    assert kernel.ndim == 2 or kernel.ndim == 4, f'kernel has {repr(kernel.ndim)} dimensions, must have 2 or 4 dimensions instead: HxW or BxCxHxW'
+    # increase kernel size
+    if kernel.ndim == 2:
+        kernel = kernel[None, None, ...]
+    # check kernel is an odd size
+    kh, kw = kernel.shape[-2:]
     assert kh % 2 != 0 and kw % 2 != 0, f'kernel dimension sizes must be odd: ({kh}, {kw})'
+    # check that broadcasting does not adjust the signal shape... TODO: relax this limitation?
+    assert torch.broadcast_shapes(signal.shape[:2], kernel.shape[:2]) == signal.shape[:2]
+    # done!
+    return signal, kernel
 
 
 def conv2d_channel_wise(signal, kernel):
     """
     Apply the kernel to each channel separately!
     """
-    _check_conv2d_inputs(signal, kernel)
+    signal, kernel = _check_conv2d_inputs(signal, kernel)
     # split channels into singel images
     fsignal = signal.reshape(-1, 1, *signal.shape[2:])
     # convolve each channel image
-    out = torch.nn.functional.conv2d(fsignal, kernel[None, None, ...], padding=(kernel.size(-2) // 2, kernel.size(-1) // 2))
+    out = torch.nn.functional.conv2d(fsignal, kernel, padding=(kernel.size(-2) // 2, kernel.size(-1) // 2))
     # reshape into original
     return out.reshape(-1, signal.shape[1], *out.shape[2:])
 
@@ -108,7 +116,7 @@ def conv2d_channel_wise_fft(signal, kernel):
 
     Reference implementation is from: https://github.com/pyro-ppl/pyro/blob/ae55140acfdc6d4eade08b434195234e5ae8c261/pyro/ops/tensor_utils.py#L187
     """
-    _check_conv2d_inputs(signal, kernel)
+    signal, kernel = _check_conv2d_inputs(signal, kernel)
     # get last dimension sizes
     m = np.array(signal.shape[-2:])
     n = np.array(kernel.shape[-2:])

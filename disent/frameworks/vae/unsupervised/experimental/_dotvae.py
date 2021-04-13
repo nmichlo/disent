@@ -81,7 +81,8 @@ class DataOverlapTripletVae(AdaNegTripletVae):
         new_xs_targ = [x_targ[idxs] for idxs in (a_idxs, p_idxs, n_idxs)]
         new_ds_posterior = [Normal(d_posterior.loc[idxs], d_posterior.scale[idxs]) for idxs in (a_idxs, p_idxs, n_idxs)]
         # augment targets
-        aug_xs_targ = self.augment_triplet_targets(new_xs_targ)
+        with torch.no_grad():
+            aug_xs_targ = self.augment_triplet_targets(new_xs_targ)
         # create new triplets
         ds_posterior_NEW = self.overlap_create_triplets(ds_posterior=new_ds_posterior, xs_targ=aug_xs_targ, cfg=self.cfg, unreduced_loss_fn=self.recon_handler.compute_unreduced_loss)
         # compute loss
