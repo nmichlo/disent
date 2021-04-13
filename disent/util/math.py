@@ -30,6 +30,11 @@ import logging
 import numpy as np
 import torch
 
+from disent.util.math_generic import generic_as_int32
+from disent.util.math_generic import generic_max
+from disent.util.math_generic import TypeGenericTensor
+from disent.util.math_generic import TypeGenericTorch
+
 
 log = logging.getLogger(__name__)
 
@@ -90,7 +95,7 @@ def torch_rank_corr_matrix(xs: torch.Tensor):
     Spearman's correlation measures monotonic relationships (whether linear or not)
     - defined in terms of the pearson's correlation matrix of the rank variables
 
-    TODO: check, be careful of repeated values, this might not give the correct result?
+    TODO: check, be careful of repeated values, this might not give the correct input?
     """
     rs = torch.argsort(xs, dim=0, descending=False)
     return torch_corr_matrix(rs.to(xs.dtype))
@@ -291,7 +296,7 @@ def _unflatten_dim_to_end(input, dim, shape):
     return x
 
 
-def dct(x, dim=-1):
+def torch_dct(x, dim=-1):
     """
     Discrete Cosine Transform (DCT) Type II
     """
@@ -320,7 +325,7 @@ def dct(x, dim=-1):
     return _unflatten_dim_to_end(dct, dim, x_shape)
 
 
-def idct(dct, dim=-1):
+def torch_idct(dct, dim=-1):
     """
     Inverse Discrete Cosine Transform (Inverse DCT) Type III
     """
@@ -355,16 +360,97 @@ def idct(dct, dim=-1):
     return _unflatten_dim_to_end(x, dim, dct_shape)
 
 
-def dct2(x, dim1=-1, dim2=-2):
-    d = dct(x, dim=dim1)
-    d = dct(d, dim=dim2)
+def torch_dct2(x, dim1=-1, dim2=-2):
+    d = torch_dct(x, dim=dim1)
+    d = torch_dct(d, dim=dim2)
     return d
 
 
-def idct2(d, dim1=-1, dim2=-2):
-    x = idct(d, dim=dim2)
-    x = idct(x, dim=dim1)
+def torch_idct2(d, dim1=-1, dim2=-2):
+    x = torch_idct(d, dim=dim2)
+    x = torch_idct(x, dim=dim1)
     return x
+
+
+# ========================================================================= #
+# Torch Dim Helper                                                          #
+# ========================================================================= #
+
+
+def torch_unsqueeze_l(input: torch.Tensor, n: int):
+    """
+    Add n new axis to the left.
+
+    eg. a tensor with shape (2, 3) passed to this function
+        with n=2 will input in an output shape of (1, 1, 2, 3)
+    """
+    assert n >= 0, f'number of new axis cannot be less than zero, given: {repr(n)}'
+    return input[((None,)*n) + (...,)]
+
+
+def torch_unsqueeze_r(input: torch.Tensor, n: int):
+    """
+    Add n new axis to the right.
+
+    eg. a tensor with shape (2, 3) passed to this function
+        with n=2 will input in an output shape of (2, 3, 1, 1)
+    """
+    assert n >= 0, f'number of new axis cannot be less than zero, given: {repr(n)}'
+    return input[(...,) + ((None,)*n)]
+
+
+# ========================================================================= #
+# Kernels                                                                   #
+# ========================================================================= #
+
+
+def get_kernel_size(sigma: TypeGenericTensor = 1.0, truncate: TypeGenericTensor = 4.0):
+    """
+    This is how sklearn chooses kernel sizes.
+    - sigma is the standard deviation, and truncate is the number of deviations away to truncate
+    - our version broadcasts sigma and truncate together, returning the max kernel size needed over all values
+    """
+    # compute radius
+    radius = generic_as_int32(truncate * sigma + 0.5)
+    # get maximum value
+    radius = int(generic_max(radius))
+    # compute diameter
+    return 2 * radius + 1
+
+
+def torch_gaussian_kernel(
+    sigma: TypeGenericTorch = 1.0, truncate: TypeGenericTorch = 4.0, size: int = None,
+    dtype=None, device=None,
+):
+    # broadcast tensors together -- data may reference single memory locations
+    sigma = torch.as_tensor(sigma, dtype=dtype, device=device)
+    truncate = torch.as_tensor(truncate, dtype=dtype, device=device)
+    sigma, truncate = torch.broadcast_tensors(sigma, truncate)
+    # compute default size
+    if size is None:
+        size: int = get_kernel_size(sigma=sigma, truncate=truncate)
+    # compute kernel
+    x = torch.arange(size, dtype=sigma.dtype, device=sigma.device) - (size - 1) / 2
+    # pad tensors correctly
+    x = torch_unsqueeze_l(x, n=sigma.ndim)
+    s = torch_unsqueeze_r(sigma, n=1)
+    # compute
+    return torch.exp(-(x ** 2) / (2 * s ** 2)) / (np.sqrt(2 * np.pi) * s)
+
+
+def torch_gaussian_kernel_2d(
+    sigma: TypeGenericTorch = 1.0, truncate: TypeGenericTorch = 4.0, size: int = None,
+    sigma_b: TypeGenericTorch = None, truncate_b: TypeGenericTorch = None, size_b: int = None,
+    dtype=None, device=None,
+):
+    # set default values
+    if sigma_b is None: sigma_b = sigma
+    if truncate_b is None: truncate_b = truncate
+    if size_b is None: size_b = size
+    # compute kernel
+    kh = torch_gaussian_kernel(sigma=sigma,   truncate=truncate,   size=size,   dtype=dtype, device=device)
+    kw = torch_gaussian_kernel(sigma=sigma_b, truncate=truncate_b, size=size_b, dtype=dtype, device=device)
+    return kh[..., :, None] * kw[..., None, :]
 
 
 # ========================================================================= #

@@ -22,38 +22,28 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 import torch
-import numpy as np
+
+from disent.util.math import torch_gaussian_kernel
+from disent.util.math import torch_gaussian_kernel_2d
 
 
 # ========================================================================= #
-# Augment                                                                   #
+# TESTS                                                                     #
 # ========================================================================= #
 
 
-def get_kernel_size(sigma=1.0, truncate=4.0):
-    # HOW SKLEARN CHOOSES FILTER SIZES:
-    # sigma is the std, and truncate is the number of std, default for truncate is 4, default for sigma is 1
-    # radius = int(truncate * sigma + 0.5)
-    # size = 2*radius+1
-    return int(truncate * sigma + 0.5) * 2 + 1
+def test_gaussian_kernels():
 
+    r = lambda *shape: torch.stack(torch.meshgrid(*((torch.arange(s) + 1) for s in shape)), dim=-1).max(dim=-1).values
 
-def make_gaussian_kernel(sigma=1.0, truncate=4.0, size=None, device=None, dtype=None):
-    if size is None:
-        size = get_kernel_size(sigma=sigma, truncate=truncate)
-    # compute kernel
-    x = torch.arange(size, device=device, dtype=dtype) - (size - 1) / 2
-    return torch.exp(-(x ** 2) / (2 * sigma ** 2)) / (np.sqrt(2 * np.pi) * sigma)
+    assert (9,)       == torch_gaussian_kernel(sigma=1.0,     truncate=4.0).shape
+    assert (5, 41)    == torch_gaussian_kernel(sigma=r(5),    truncate=4.0).shape
+    assert (5, 3, 41) == torch_gaussian_kernel(sigma=r(5, 3), truncate=4.0).shape
+    assert (5, 7, 71) == torch_gaussian_kernel(sigma=r(5, 1), truncate=r(1, 7)).shape
 
-
-def make_gaussian_kernel_2d(sigma=1.0, truncate=4.0, size=None):
-    if not isinstance(sigma, (tuple, list)): sigma = (sigma, sigma)
-    if not isinstance(truncate, (tuple, list)): truncate = (truncate, truncate)
-    if not isinstance(size, (tuple, list)): size = (size, size)
-    # compute kernel
-    kh = make_gaussian_kernel(sigma=sigma[0], truncate=truncate[0], size=size[0])
-    kw = make_gaussian_kernel(sigma=sigma[1], truncate=truncate[1], size=size[1])
-    return kh[:, None] * kw[None, :]
+    assert (9, 7)         == torch_gaussian_kernel_2d(sigma=1.0,     truncate=4.0, sigma_b=1.0,     truncate_b=3.0).shape
+    assert (5, 41, 9)     == torch_gaussian_kernel_2d(sigma=r(5),    truncate=4.0, sigma_b=1.0,     truncate_b=4.0).shape
+    assert (5, 7, 41, 57) == torch_gaussian_kernel_2d(sigma=r(5, 1), truncate=4.0, sigma_b=r(1, 7), truncate_b=4.0).shape
 
 
 # ========================================================================= #
