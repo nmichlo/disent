@@ -19,13 +19,13 @@ module:
   ada_thresh_mode: dist          # Only works for: adat_share_mask_mode == "posterior" --- kl, symmetric_kl, dist, sampled_dist
   ada_thresh_ratio: 0.5          # >> USE WITH A SCHEDULE <<
   # ada_tvae - loss
-  adat_triplet_share_scale: 0.75  # >> USE WITH A SCHEDULE << only works for: adat_triplet_loss == "triplet_hard_neg_ave_scaled"
+  adat_triplet_share_scale: 0.95 # >> USE WITH A SCHEDULE << only works for: adat_triplet_loss == "triplet_hard_neg_ave_scaled"
   # ada_tvae - averaging
   adat_share_mask_mode: posterior
   # dotvae
   overlap_num: 4096
   overlap_mine_ratio: 0.1
-  overlap_mine_triplet_mode: 'random_hard_neg_or_hard_pos'  # none, hard_neg, semi_hard, hard_pos, easy_pos, random_hard_neg_or_hard_pos <- etc, dynamically evaluated, can chain multiple "_or_"s
+  overlap_mine_triplet_mode: 'none'  # none, hard_neg, semi_hard_neg, hard_pos, easy_pos, random_hard_neg_or_hard_pos <- etc, dynamically evaluated, can chain multiple "_or_"s
   # dotvae -- augment
   overlap_augment_mode: 'augment'
   overlap_augment:
@@ -33,8 +33,8 @@ module:
     transforms:
       - _target_: disent.transform.FftGaussianBlur
         p: 1.0
-        sigma: [0.1, 7.5]
-        truncate: 2.5
+        sigma: 10.0
+        truncate: 3.0
         random_mode: "batch"
         random_same_xy: TRUE
 #      - _target_: kornia.augmentation.RandomCrop
