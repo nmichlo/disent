@@ -21,7 +21,6 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-
 from dataclasses import dataclass
 from typing import Optional
 from typing import Sequence
@@ -74,21 +73,52 @@ class DataOverlapTripletVae(AdaNegTripletVae):
     def hook_compute_ave_aug_loss(self, ds_posterior: Sequence[Normal], ds_prior, zs_sampled, xs_partial_recon, xs_targ: Sequence[torch.Tensor]):
         # ++++++++++++++++++++++++++++++++++++++++++ #
         # 1. augment batch
+        (x_targ_orig,) = xs_targ
         with torch.no_grad():
             xs_targ = self.augment_triplet_targets(xs_targ)
         (d_posterior,), (x_targ,) = ds_posterior, xs_targ
         # 2. generate random triples -- this does not generate unique pairs
         a_idxs, p_idxs, n_idxs = torch.randint(len(x_targ), size=(3, min(self.cfg.overlap_num, len(x_targ)**3)), device=x_targ.device)
+        # ++++++++++++++++++++++++++++++++++++++++++ #
+        # self.debug(x_targ_orig, x_targ, a_idxs, p_idxs, n_idxs)
+        # ++++++++++++++++++++++++++++++++++++++++++ #
         # 3. reorder random triples
         a_idxs, p_idxs, n_idxs = self.overlap_swap_triplet_idxs(x_targ, a_idxs, p_idxs, n_idxs, cfg=self.cfg, unreduced_loss_fn=self.recon_handler.compute_unreduced_loss)
         # 4. mine random triples
-        a_idxs, p_idxs, n_idxs = self.mine_triplets(x_targ, a_idxs, p_idxs, n_idxs)
+        a_idxs, p_idxs, n_idxs = self.mine_triplets(x_targ_orig, x_targ, a_idxs, p_idxs, n_idxs)
         # ++++++++++++++++++++++++++++++++++++++++++ #
         # 5. compute triplet loss
-        return AdaNegTripletVae.estimate_ada_triplet_loss(
+        loss, loss_log = AdaNegTripletVae.estimate_ada_triplet_loss(
             ds_posterior=[Normal(d_posterior.loc[idxs], d_posterior.scale[idxs]) for idxs in (a_idxs, p_idxs, n_idxs)],
             cfg=self.cfg,
         )
+        return loss, {
+            **loss_log,
+        }
+
+    # def debug(self, x_targ_orig, x_targ, a_idxs, p_idxs, n_idxs):
+    #     a_p_overlap_orig = - self.recon_handler.compute_unreduced_loss(x_targ_orig[a_idxs], x_targ_orig[p_idxs]).mean(dim=(-3, -2, -1))  # (B, C, H, W) -> (B,)
+    #     a_n_overlap_orig = - self.recon_handler.compute_unreduced_loss(x_targ_orig[a_idxs], x_targ_orig[n_idxs]).mean(dim=(-3, -2, -1))  # (B, C, H, W) -> (B,)
+    #     a_p_overlap = - self.recon_handler.compute_unreduced_loss(x_targ[a_idxs], x_targ[p_idxs]).mean(dim=(-3, -2, -1))  # (B, C, H, W) -> (B,)
+    #     a_n_overlap = - self.recon_handler.compute_unreduced_loss(x_targ[a_idxs], x_targ[n_idxs]).mean(dim=(-3, -2, -1))  # (B, C, H, W) -> (B,)
+    #     a_p_overlap_mul = - (a_p_overlap_orig * a_p_overlap)
+    #     a_n_overlap_mul = - (a_n_overlap_orig * a_n_overlap)
+    #     # check number of things
+    #     (up_values_orig, up_counts_orig) = torch.unique(a_p_overlap_orig, sorted=True, return_inverse=False, return_counts=True)
+    #     (un_values_orig, un_counts_orig) = torch.unique(a_n_overlap_orig, sorted=True, return_inverse=False, return_counts=True)
+    #     (up_values, up_counts) = torch.unique(a_p_overlap, sorted=True, return_inverse=False, return_counts=True)
+    #     (un_values, un_counts) = torch.unique(a_n_overlap, sorted=True, return_inverse=False, return_counts=True)
+    #     (up_values_mul, up_counts_mul) = torch.unique(a_p_overlap_mul, sorted=True, return_inverse=False, return_counts=True)
+    #     (un_values_mul, un_counts_mul) = torch.unique(a_n_overlap_mul, sorted=True, return_inverse=False, return_counts=True)
+    #     # plot!
+    #     plt.scatter(up_values_orig.detach().cpu(), torch.cumsum(up_counts_orig, dim=-1).detach().cpu())
+    #     plt.scatter(un_values_orig.detach().cpu(), torch.cumsum(un_counts_orig, dim=-1).detach().cpu())
+    #     plt.scatter(up_values.detach().cpu(), torch.cumsum(up_counts, dim=-1).detach().cpu())
+    #     plt.scatter(un_values.detach().cpu(), torch.cumsum(un_counts, dim=-1).detach().cpu())
+    #     plt.scatter(up_values_mul.detach().cpu(), torch.cumsum(up_counts_mul, dim=-1).detach().cpu())
+    #     plt.scatter(un_values_mul.detach().cpu(), torch.cumsum(un_counts_mul, dim=-1).detach().cpu())
+    #     plt.show()
+    #     time.sleep(10)
 
     @staticmethod
     def overlap_swap_triplet_idxs(x_targ, a_idxs, p_idxs, n_idxs, cfg: cfg, unreduced_loss_fn):
@@ -115,13 +145,13 @@ class DataOverlapTripletVae(AdaNegTripletVae):
         # TODO: add more loss functions, like perceptual & others
         a_p_losses = unreduced_loss_fn(a_x_targ_OLD, p_x_targ_OLD).mean(dim=(-3, -2, -1))  # (B, C, H, W) -> (B,)
         a_n_losses = unreduced_loss_fn(a_x_targ_OLD, n_x_targ_OLD).mean(dim=(-3, -2, -1))  # (B, C, H, W) -> (B,)
-        swap_mask = (a_p_losses > a_n_losses)
+        swap_mask = (a_p_losses > a_n_losses)  # (B,)
         # ++++++++++++++++++++++++++++++++++++++++++ #
-        return swap_mask # (B,)
+        return swap_mask
 
     def augment_triplet_targets(self, xs_targ):
         if self.cfg.overlap_augment_mode == 'none':
-            return xs_targ
+            aug_xs_targ = xs_targ
         elif (self.cfg.overlap_augment_mode == 'augment') or (self.cfg.overlap_augment_mode == 'augment_each'):
             # recreate augment each time
             if self.cfg.overlap_augment_mode == 'augment_each':
@@ -130,69 +160,102 @@ class DataOverlapTripletVae(AdaNegTripletVae):
             aug_xs_targ = [self._augment(x_targ) for x_targ in xs_targ]
             # checks
             assert all(a.shape == b.shape for a, b in zip(xs_targ, aug_xs_targ))
-            return aug_xs_targ
         else:
             raise KeyError(f'invalid cfg.overlap_augment_mode={repr(self.cfg.overlap_augment_mode)}')
+        return aug_xs_targ
 
-    def mine_triplets(self, x_targ, a_idxs, p_idxs, n_idxs):
+    def mine_triplets(self, x_targ_orig, x_targ, a_idxs, p_idxs, n_idxs):
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # CUSTOM MODE
         overlap_mine_triplet_mode = self.cfg.overlap_mine_triplet_mode
         if overlap_mine_triplet_mode.startswith('random_'):
             overlap_mine_triplet_mode = np.random.choice(overlap_mine_triplet_mode[len('random_'):].split('_or_'))
-        # TRIPLET MINING - TODO: this can be moved into separate functions
-        # - Improved Embeddings with Easy Positive Triplet Mining (1904.04370v2)
-        # - https://stats.stackexchange.com/questions/475655
-        if overlap_mine_triplet_mode == 'semi_hard_neg':
-            # SEMI HARD NEGATIVE MINING
-            # "choose an anchor-negative pair that is farther than the anchor-positive pair, but within the margin, and so still contributes a positive loss"
-            # -- triples satisfy d(a, p) < d(a, n) < alpha
-            d_a_p = self.recon_handler.compute_unreduced_loss(x_targ[a_idxs], x_targ[p_idxs]).mean(dim=(-3, -2, -1))
-            d_a_n = self.recon_handler.compute_unreduced_loss(x_targ[a_idxs], x_targ[n_idxs]).mean(dim=(-3, -2, -1))
-            alpha = self.cfg.triplet_margin_max
-            # get hard negatives
-            semi_hard_mask = (d_a_p < d_a_n) & (d_a_n < alpha)
-            # get indices
-            if torch.sum(semi_hard_mask) > 0:
-                a_idxs, p_idxs, n_idxs = a_idxs[semi_hard_mask], p_idxs[semi_hard_mask], n_idxs[semi_hard_mask]
-            else:
-                log.warning('no semi_hard negatives found! using entire batch')
-        elif overlap_mine_triplet_mode == 'hard_neg':
-            # HARD NEGATIVE MINING
-            # "most similar images which have a different label from the anchor image"
-            # -- triples with smallest d(a, n)
-            d_a_n = self.recon_handler.compute_unreduced_loss(x_targ[a_idxs], x_targ[n_idxs]).mean(dim=(-3, -2, -1))
-            # get hard negatives
-            hard_idxs = torch.argsort(d_a_n, descending=False)[:int(self.cfg.overlap_num * self.cfg.overlap_mine_ratio)]
-            # get indices
-            a_idxs, p_idxs, n_idxs = a_idxs[hard_idxs], p_idxs[hard_idxs], n_idxs[hard_idxs]
-        elif overlap_mine_triplet_mode == 'easy_neg':
-            # EASY NEGATIVE MINING
-            # "least similar images which have the different label from the anchor image"
-            raise RuntimeError('This triplet mode is not useful! Choose another.')
-        elif overlap_mine_triplet_mode == 'hard_pos':
-            # HARD POSITIVE MINING -- this performs really well!
-            # "least similar images which have the same label to as anchor image"
-            # -- shown not to be suitable for all datasets
-            d_a_p = self.recon_handler.compute_unreduced_loss(x_targ[a_idxs], x_targ[p_idxs]).mean(dim=(-3, -2, -1))
-            # get hard positives
-            hard_idxs = torch.argsort(d_a_p, descending=True)[:int(self.cfg.overlap_num * self.cfg.overlap_mine_ratio)]
-            # get indices
-            a_idxs, p_idxs, n_idxs = a_idxs[hard_idxs], p_idxs[hard_idxs], n_idxs[hard_idxs]
-        elif overlap_mine_triplet_mode == 'easy_pos':
-            # EASY POSITIVE MINING
-            # "the most similar images that have the same label as the anchor image"
-            d_a_p = self.recon_handler.compute_unreduced_loss(x_targ[a_idxs], x_targ[p_idxs]).mean(dim=(-3, -2, -1))
-            # get easy positives
-            easy_idxs = torch.argsort(d_a_p, descending=False)[:int(self.cfg.overlap_num * self.cfg.overlap_mine_ratio)]
-            # get indices
-            a_idxs, p_idxs, n_idxs = a_idxs[easy_idxs], p_idxs[easy_idxs], n_idxs[easy_idxs]
-        elif overlap_mine_triplet_mode != 'none':
-            raise KeyError(f'invalid cfg.overlap_mine_triplet_mode=={repr(self.cfg.overlap_mine_triplet_mode)}')
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-        return a_idxs, p_idxs, n_idxs
+        # get mining function
+        try:
+            mine_fn = _TRIPLET_MINE_MODES[overlap_mine_triplet_mode]
+        except KeyError:
+            raise KeyError(f'invalid cfg.overlap_mine_triplet_mode=={repr(self.cfg.overlap_mine_triplet_mode)}')
+        # mine triplets -- can return array of indices or boolean mask array
+        return mine_fn(
+            x_targ_orig=x_targ_orig,
+            x_targ=x_targ,
+            a_idxs=a_idxs,
+            p_idxs=p_idxs,
+            n_idxs=n_idxs,
+            cfg=self.cfg,
+            unreduced_loss_fn=self.recon_handler.compute_unreduced_loss
+        )
 
 
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
+
+
+def mine_none(x_targ_orig, x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduced_loss_fn):
+    return a_idxs, p_idxs, n_idxs
+
+
+def mine_semi_hard_neg(x_targ_orig, x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduced_loss_fn):
+    # SEMI HARD NEGATIVE MINING
+    # "choose an anchor-negative pair that is farther than the anchor-positive pair, but within the margin, and so still contributes a positive loss"
+    # -- triples satisfy d(a, p) < d(a, n) < alpha
+    d_a_p = unreduced_loss_fn(x_targ[a_idxs], x_targ[p_idxs]).mean(dim=(-3, -2, -1))
+    d_a_n = unreduced_loss_fn(x_targ[a_idxs], x_targ[n_idxs]).mean(dim=(-3, -2, -1))
+    # get hard negatives
+    semi_hard_mask = (d_a_p < d_a_n) & (d_a_n < cfg.triplet_margin_max)
+    # get indices
+    if torch.sum(semi_hard_mask) > 0:
+        return a_idxs[semi_hard_mask], p_idxs[semi_hard_mask], n_idxs[semi_hard_mask]
+    else:
+        log.warning('no semi_hard negatives found! using entire batch')
+        return a_idxs, p_idxs, n_idxs
+
+
+def mine_hard_neg(x_targ_orig, x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduced_loss_fn):
+    # HARD NEGATIVE MINING
+    # "most similar images which have a different label from the anchor image"
+    # -- triples with smallest d(a, n)
+    d_a_n = unreduced_loss_fn(x_targ[a_idxs], x_targ[n_idxs]).mean(dim=(-3, -2, -1))
+    # get hard negatives
+    hard_idxs = torch.argsort(d_a_n, descending=False)[:int(cfg.overlap_num * cfg.overlap_mine_ratio)]
+    # get indices
+    return a_idxs[hard_idxs], p_idxs[hard_idxs], n_idxs[hard_idxs]
+
+
+def mine_easy_neg(x_targ_orig, x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduced_loss_fn):
+    # EASY NEGATIVE MINING
+    # "least similar images which have the different label from the anchor image"
+    raise RuntimeError('This triplet mode is not useful! Choose another.')
+
+
+def mine_hard_pos(x_targ_orig, x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduced_loss_fn):
+    # HARD POSITIVE MINING -- this performs really well!
+    # "least similar images which have the same label to as anchor image"
+    # -- shown not to be suitable for all datasets
+    d_a_p = unreduced_loss_fn(x_targ[a_idxs], x_targ[p_idxs]).mean(dim=(-3, -2, -1))
+    # get hard positives
+    hard_idxs = torch.argsort(d_a_p, descending=True)[:int(cfg.overlap_num * cfg.overlap_mine_ratio)]
+    # get indices
+    return a_idxs[hard_idxs], p_idxs[hard_idxs], n_idxs[hard_idxs]
+
+
+def mine_easy_pos(x_targ_orig, x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduced_loss_fn):
+    # EASY POSITIVE MINING
+    # "the most similar images that have the same label as the anchor image"
+    d_a_p = unreduced_loss_fn(x_targ[a_idxs], x_targ[p_idxs]).mean(dim=(-3, -2, -1))
+    # get easy positives
+    easy_idxs = torch.argsort(d_a_p, descending=False)[:int(cfg.overlap_num * cfg.overlap_mine_ratio)]
+    # get indices
+    return a_idxs[easy_idxs], p_idxs[easy_idxs], n_idxs[easy_idxs]
+
+
+_TRIPLET_MINE_MODES = {
+    'none': mine_none,
+    'semi_hard_neg': mine_semi_hard_neg,
+    'hard_neg': mine_hard_neg,
+    'easy_neg': mine_easy_neg,
+    'hard_pos': mine_hard_pos,
+    'easy_pos': mine_easy_pos,
+}

@@ -31,7 +31,7 @@ module:
   overlap_augment:
     _target_: disent.transform.FftBoxBlur
     p: 1.0
-    radius: [61, 61]
+    radius: [16, 16]
     random_mode: "same"
     random_same_xy: TRUE
 
