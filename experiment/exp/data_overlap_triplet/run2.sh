@@ -17,13 +17,13 @@ source "$(dirname "$(dirname "$(realpath -s "$0")")")/helper.sh"
 
 clog_cudaless_nodes "$PARTITION" 86400 "C-disent" # 24 hours
 
-# 1 * (2*1*5*9) == 120
+# 1 * (2*2*5*9) == 180
 submit_sweep \
     +DUMMY.repeat=1 \
     +EXTRA.tags='med-best--augment-strength' \
     \
     framework=X--dotvae_aug \
-    run_length=short \
+    run_length=short,medium \
     model.z_size=25 \
     \
     specializations.data_wrapper='gt_dist_${framework.data_wrap_mode}' \
