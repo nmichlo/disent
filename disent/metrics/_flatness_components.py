@@ -119,7 +119,10 @@ def aggregate_measure_distances_along_all_factors(
         rai, rpi, rni = reorder_by_factor_dist(factors, rai, rpi, rni)
         # check differences
         swap_ratio_l1, swap_ratio_l2 = compute_swap_ratios(zs[rai], zs[rpi], zs[rni])
-        values.append({'global_swap_ratio.l1': swap_ratio_l1, 'global_swap_ratio.l2': swap_ratio_l2})
+        values.append({
+            # 'global_swap_ratio.l1': swap_ratio_l1,
+            'global_swap_ratio.l2': swap_ratio_l2,
+        })
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     # RETURN
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -215,18 +218,18 @@ def aggregate_measure_distances_along_factor(
 
         # save variables
         measures.append({
-            'factor_swap_ratio_near.l1': near_swap_ratio_l1,
+            # 'factor_swap_ratio_near.l1': near_swap_ratio_l1,
             'factor_swap_ratio_near.l2': near_swap_ratio_l2,
-            'factor_swap_ratio.l1': factor_swap_ratio_l1,
+            # 'factor_swap_ratio.l1': factor_swap_ratio_l1,
             'factor_swap_ratio.l2': factor_swap_ratio_l2,
             # axis ratios
             '_axis_var':       axis_var,  # this should not be sorted!
             'axis_ratio':      _score_ratio(sorted_axis_var),
-            'axis_ratio_max':  _score_ratio_max(sorted_axis_var),
+            # 'axis_ratio_max':  _score_ratio_max(sorted_axis_var),
             # linear ratios
             '_linear_var':       sorted_linear_var,
             'linear_ratio':     _score_ratio(sorted_linear_var),
-            'linear_ratio_max': _score_ratio_max(sorted_linear_var),
+            # 'linear_ratio_max': _score_ratio_max(sorted_linear_var),
         })
 
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -244,9 +247,9 @@ def aggregate_measure_distances_along_factor(
     }
 
     results['ave_axis_ratio']       = _score_ratio(sorted_ave_axis_vars)
-    results['ave_axis_ratio_max']   = _score_ratio_max(sorted_ave_axis_vars)
+    # results['ave_axis_ratio_max']   = _score_ratio_max(sorted_ave_axis_vars)
     results['ave_linear_ratio']     = _score_ratio(sorted_ave_linear_vars)
-    results['ave_linear_ratio_max'] = _score_ratio_max(sorted_ave_linear_vars)
+    # results['ave_linear_ratio_max'] = _score_ratio_max(sorted_ave_linear_vars)
 
     return results
 
