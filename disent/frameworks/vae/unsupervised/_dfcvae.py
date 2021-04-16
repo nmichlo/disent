@@ -79,7 +79,7 @@ class DfcVae(BetaVae):
 
     def compute_ave_recon_loss(self, xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
         # compute ave reconstruction loss
-        pixel_loss = self.recon_handler.compute_ave_loss(xs_partial_recon, xs_targ)  # (DIFFERENCE: 1)
+        pixel_loss = self.recon_handler.compute_ave_loss_from_partial(xs_partial_recon, xs_targ)  # (DIFFERENCE: 1)
         # compute ave deep features loss
         xs_recon = self.recon_handler.activate_all(xs_partial_recon)
         feature_loss = compute_ave_loss(self._dfc_loss.compute_loss, xs_recon, xs_targ, reduction=self.cfg.loss_reduction)
