@@ -28,6 +28,7 @@ from typing import Union
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 
 
 # ========================================================================= #
@@ -43,8 +44,12 @@ def _get_2d_reshape_info(shape: Tuple[int, ...], dims: Union[int, Tuple[int, ...
     ndim = len(shape)
     dims = tuple((ndim + d) if d < 0 else d for d in dims)
     # check that we have at least 2 dims & that all values are valid
-    assert ndim >= 2
     assert all(0 <= d < ndim for d in dims)
+    # return new shape
+    if ndim == 1:
+        return [0], (1, *shape)
+    # check resulting shape
+    assert ndim >= 2
     # get dims
     dims_X = set(dims)
     dims_B = set(range(ndim)) - dims_X
@@ -56,20 +61,36 @@ def _get_2d_reshape_info(shape: Tuple[int, ...], dims: Union[int, Tuple[int, ...
     size_B = int(np.prod(shape[dims_B]))
     size_X = int(np.prod(shape[dims_X]))
     # variables
-    move_end_dims = dims_X[::-1]
+    moved_end_dims = tuple(dims_X[::-1])
     reshape_size = (size_B, size_X)
     # sort dims
-    return move_end_dims, reshape_size
+    return moved_end_dims, reshape_size
 
 
-def torch_dims_at_end_2d(tensor: torch.Tensor, dims: Union[int, Tuple[int, ...]] = -1):
+def torch_dims_at_end_2d(tensor: torch.Tensor, dims: Union[int, Tuple[int, ...]] = -1, return_undo_data=True):
     # get dim info
-    move_end_dims, reshape_size = _get_2d_reshape_info(tensor.shape, dims=dims)
+    moved_end_dims, reshape_size = _get_2d_reshape_info(tensor.shape, dims=dims)
     # move all axes
-    for d in move_end_dims:
+    for d in moved_end_dims:
         tensor = torch.moveaxis(tensor, d, -1)
+    moved_shape = tensor.shape
     # reshape
-    return torch.reshape(tensor, reshape_size)
+    tensor = torch.reshape(tensor, reshape_size)
+    # return all info
+    if return_undo_data:
+        return tensor, moved_shape, moved_end_dims
+    else:
+        return tensor
+
+
+def torch_undo_dims_at_end_2d(tensor: torch.Tensor, moved_shape, moved_end_dims):
+    # reshape
+    tensor = torch.reshape(tensor, moved_shape)
+    # undo moving of dims
+    for d in moved_end_dims[::-1]:
+        tensor = torch.moveaxis(tensor, -1, d)
+    # reshape
+    return tensor
 
 
 # ========================================================================= #
@@ -82,14 +103,18 @@ def torch_soft_sort(
     dims: Union[int, Tuple[int, ...]] = -1,
     regularization='l2',
     regularization_strength=1.0,
+    dims_at_end=False,
 ):
-    # TODO: convert back to original shape?
     # we import it locally so that we don't have to install this
     import torchsort
     # reorder the dimensions
-    tensor = torch_dims_at_end_2d(tensor, dims=dims)
+    tensor, moved_shape, moved_end_dims = torch_dims_at_end_2d(tensor, dims=dims, return_undo_data=True)
     # sort the last dimension of the 2D tensors
-    return torchsort.soft_sort(tensor, regularization=regularization, regularization_strength=regularization_strength)
+    tensor = torchsort.soft_sort(tensor, regularization=regularization, regularization_strength=regularization_strength)
+    # undo the reorder operation
+    if dims_at_end:
+        return tensor
+    return torch_undo_dims_at_end_2d(tensor, moved_shape=moved_shape, moved_end_dims=moved_end_dims)
 
 
 def torch_soft_rank(
@@ -97,14 +122,18 @@ def torch_soft_rank(
     dims: Union[int, Tuple[int, ...]] = -1,
     regularization='l2',
     regularization_strength=1.0,
+    dims_at_end=False,
 ):
-    # TODO: convert back to original shape?
     # we import it locally so that we don't have to install this
     import torchsort
     # reorder the dimensions
-    tensor = torch_dims_at_end_2d(tensor, dims=dims)
+    tensor, moved_shape, moved_end_dims = torch_dims_at_end_2d(tensor, dims=dims, return_undo_data=True)
     # sort the last dimension of the 2D tensors
-    return torchsort.soft_rank(tensor, regularization=regularization, regularization_strength=regularization_strength)
+    tensor = torchsort.soft_rank(tensor, regularization=regularization, regularization_strength=regularization_strength)
+    # undo the reorder operation
+    if dims_at_end:
+        return tensor
+    return torch_undo_dims_at_end_2d(tensor, moved_shape=moved_shape, moved_end_dims=moved_end_dims)
 
 
 # ========================================================================= #
@@ -131,8 +160,8 @@ def multi_spearman_rank_loss(
         passing the array to spearman_rank_loss and returning the mean loss.
     """
     assert pred.shape == targ.shape
-    pred = torch_dims_at_end_2d(pred.shape, dims=dims)
-    targ = torch_dims_at_end_2d(targ.shape, dims=dims)
+    pred = torch_dims_at_end_2d(pred.shape, dims=dims, return_undo_data=False)
+    targ = torch_dims_at_end_2d(targ.shape, dims=dims, return_undo_data=False)
     # compute
     assert reduction == 'mean', 'only supports reduction="mean"'
     return spearman_rank_loss(pred=pred, targ=targ, reduction=reduction, regularization=regularization, regularization_strength=regularization_strength, nan_to_num=nan_to_num)
@@ -191,6 +220,18 @@ def spearman_rank_loss(
 
 
 # ========================================================================= #
-# end                                                                       #
+# loss functions                                                            #
 # ========================================================================= #
 
+
+def torch_mse_rank_loss(pred, targ, dims=-1, regularization='l2', regularization_strength=1.0, reduction='mean'):
+    return F.mse_loss(
+        torch_soft_rank(pred, dims=dims, regularization=regularization, regularization_strength=regularization_strength, dims_at_end=False),
+        torch_soft_rank(targ, dims=dims, regularization=regularization, regularization_strength=regularization_strength, dims_at_end=False),
+        reduction=reduction,
+    )
+
+
+# ========================================================================= #
+# end                                                                       #
+# ========================================================================= #
