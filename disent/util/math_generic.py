@@ -32,7 +32,9 @@ log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
-# Torch Helper Functions                                                    #
+# Generic Helper Functions                                                  #
+# - torch, numpy, scalars                                                   #
+# - eagerpy is one solution to including this ourselves                     #
 # ========================================================================= #
 
 
