@@ -123,8 +123,6 @@ class DataOverlapTripletVae(AdaNegTripletVae):
     @staticmethod
     def overlap_swap_triplet_idxs(x_targ, a_idxs, p_idxs, n_idxs, cfg: cfg, unreduced_loss_fn):
         xs_targ = [x_targ[idxs] for idxs in (a_idxs, p_idxs, n_idxs)]
-        # check the recon loss
-        assert cfg.recon_loss == 'mse', 'only mse loss is supported'
         # CORE: order the latent variables for triplet
         swap_mask = DataOverlapTripletVae.overlap_swap_mask(xs_targ=xs_targ, unreduced_loss_fn=unreduced_loss_fn)
         # swap all idxs
@@ -143,9 +141,10 @@ class DataOverlapTripletVae(AdaNegTripletVae):
         # ++++++++++++++++++++++++++++++++++++++++++ #
         # calculate which are wrong!
         # TODO: add more loss functions, like perceptual & others
-        a_p_losses = unreduced_loss_fn(a_x_targ_OLD, p_x_targ_OLD).mean(dim=(-3, -2, -1))  # (B, C, H, W) -> (B,)
-        a_n_losses = unreduced_loss_fn(a_x_targ_OLD, n_x_targ_OLD).mean(dim=(-3, -2, -1))  # (B, C, H, W) -> (B,)
-        swap_mask = (a_p_losses > a_n_losses)  # (B,)
+        with torch.no_grad():
+            a_p_losses = unreduced_loss_fn(a_x_targ_OLD, p_x_targ_OLD).mean(dim=(-3, -2, -1))  # (B, C, H, W) -> (B,)
+            a_n_losses = unreduced_loss_fn(a_x_targ_OLD, n_x_targ_OLD).mean(dim=(-3, -2, -1))  # (B, C, H, W) -> (B,)
+            swap_mask = (a_p_losses > a_n_losses)  # (B,)
         # ++++++++++++++++++++++++++++++++++++++++++ #
         return swap_mask
 
@@ -201,8 +200,9 @@ def mine_semi_hard_neg(x_targ_orig, x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduc
     # SEMI HARD NEGATIVE MINING
     # "choose an anchor-negative pair that is farther than the anchor-positive pair, but within the margin, and so still contributes a positive loss"
     # -- triples satisfy d(a, p) < d(a, n) < alpha
-    d_a_p = unreduced_loss_fn(x_targ[a_idxs], x_targ[p_idxs]).mean(dim=(-3, -2, -1))
-    d_a_n = unreduced_loss_fn(x_targ[a_idxs], x_targ[n_idxs]).mean(dim=(-3, -2, -1))
+    with torch.no_grad():
+        d_a_p = unreduced_loss_fn(x_targ[a_idxs], x_targ[p_idxs]).mean(dim=(-3, -2, -1))
+        d_a_n = unreduced_loss_fn(x_targ[a_idxs], x_targ[n_idxs]).mean(dim=(-3, -2, -1))
     # get hard negatives
     semi_hard_mask = (d_a_p < d_a_n) & (d_a_n < cfg.triplet_margin_max)
     # get indices
@@ -217,7 +217,8 @@ def mine_hard_neg(x_targ_orig, x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduced_lo
     # HARD NEGATIVE MINING
     # "most similar images which have a different label from the anchor image"
     # -- triples with smallest d(a, n)
-    d_a_n = unreduced_loss_fn(x_targ[a_idxs], x_targ[n_idxs]).mean(dim=(-3, -2, -1))
+    with torch.no_grad():
+        d_a_n = unreduced_loss_fn(x_targ[a_idxs], x_targ[n_idxs]).mean(dim=(-3, -2, -1))
     # get hard negatives
     hard_idxs = torch.argsort(d_a_n, descending=False)[:int(cfg.overlap_num * cfg.overlap_mine_ratio)]
     # get indices
@@ -234,7 +235,8 @@ def mine_hard_pos(x_targ_orig, x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduced_lo
     # HARD POSITIVE MINING -- this performs really well!
     # "least similar images which have the same label to as anchor image"
     # -- shown not to be suitable for all datasets
-    d_a_p = unreduced_loss_fn(x_targ[a_idxs], x_targ[p_idxs]).mean(dim=(-3, -2, -1))
+    with torch.no_grad():
+        d_a_p = unreduced_loss_fn(x_targ[a_idxs], x_targ[p_idxs]).mean(dim=(-3, -2, -1))
     # get hard positives
     hard_idxs = torch.argsort(d_a_p, descending=True)[:int(cfg.overlap_num * cfg.overlap_mine_ratio)]
     # get indices
@@ -244,7 +246,8 @@ def mine_hard_pos(x_targ_orig, x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduced_lo
 def mine_easy_pos(x_targ_orig, x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduced_loss_fn):
     # EASY POSITIVE MINING
     # "the most similar images that have the same label as the anchor image"
-    d_a_p = unreduced_loss_fn(x_targ[a_idxs], x_targ[p_idxs]).mean(dim=(-3, -2, -1))
+    with torch.no_grad():
+        d_a_p = unreduced_loss_fn(x_targ[a_idxs], x_targ[p_idxs]).mean(dim=(-3, -2, -1))
     # get easy positives
     easy_idxs = torch.argsort(d_a_p, descending=False)[:int(cfg.overlap_num * cfg.overlap_mine_ratio)]
     # get indices
