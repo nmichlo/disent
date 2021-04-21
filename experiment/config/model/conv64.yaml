@@ -6,9 +6,7 @@ encoder:
   x_shape: ${dataset.x_shape}
   z_size: ${model.z_size}
   z_multiplier: ${framework.model_z_multiplier}
-  dropout: 0.0
 decoder:
   _target_: disent.model.ae.DecoderConv64
   x_shape: ${dataset.x_shape}
   z_size: ${model.z_size}
-  dropout: 0.0

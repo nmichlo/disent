@@ -24,6 +24,8 @@
 
 from ._conv64 import DecoderConv64
 from ._conv64 import EncoderConv64
+from ._conv64_alt import DecoderConv64Alt
+from ._conv64_alt import EncoderConv64Alt
 # components
 from ._fc import DecoderFC
 from ._fc import EncoderFC
