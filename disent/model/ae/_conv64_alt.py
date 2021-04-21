@@ -28,19 +28,47 @@ from disent.model.base import BaseEncoderModule, BaseDecoderModule
 from disent.model.common import Flatten3D, BatchView
 
 
+def _make_activations(activation='relu', inplace=True, norm='instance', num_features: int = None, norm_pre_act=True):
+    # get activation layer
+    if activation == 'relu':
+        a_layer = nn.ReLU(inplace=inplace)
+    elif activation == 'leaky_relu':
+        a_layer = nn.LeakyReLU(inplace=inplace)
+    else:
+        raise KeyError(f'invalid activation layer: {repr(activation)}')
+    # get norm layer
+    # https://www.programmersought.com/article/41731094913/
+    # nn.BatchNorm2d
+    # nn.InstanceNorm2d
+    # nn.GroupNorm
+    # nn.LayerNorm
+    if norm == 'batch':
+        n_layer = nn.BatchNorm2d(num_features=num_features)
+    elif norm == 'instance':
+        n_layer = nn.InstanceNorm2d(num_features=num_features)
+    elif norm in (None, 'none'):
+        n_layer = None
+    else:
+        raise KeyError(f'invalid norm layer: {repr(norm)}')
+    # order layers
+    layers = (n_layer, a_layer) if norm_pre_act else (a_layer, n_layer)
+    # return layers
+    return tuple(l for l in layers if l is not None)
+
+
 # ========================================================================= #
 # disentanglement_lib Conv models                                           #
 # ========================================================================= #
 
 
-class EncoderConv64(BaseEncoderModule):
+class EncoderConv64Alt(BaseEncoderModule):
     """
     Reference Implementation:
     https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/shared/architectures.py
     # TODO: verify, things have changed...
     """
 
-    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
+    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1, activation='leaky_relu', norm='instance', norm_pre_act=True):
         """
         Convolutional encoder used in beta-VAE paper for the chairs data.
         Based on row 3 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
@@ -54,16 +82,16 @@ class EncoderConv64(BaseEncoderModule):
 
         self.model = nn.Sequential(
             nn.Conv2d(in_channels=num_channels, out_channels=32, kernel_size=4, stride=2, padding=2),
-                nn.ReLU(inplace=True),
+                *_make_activations(activation=activation, norm=norm, num_features=32, norm_pre_act=norm_pre_act),
             nn.Conv2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=2),
-                nn.ReLU(inplace=True),
+                *_make_activations(activation=activation, norm=norm, num_features=32, norm_pre_act=norm_pre_act),
             nn.Conv2d(in_channels=32, out_channels=64, kernel_size=2, stride=2, padding=1),
-                nn.ReLU(inplace=True),
+                *_make_activations(activation=activation, norm=norm, num_features=64, norm_pre_act=norm_pre_act),
             nn.Conv2d(in_channels=64, out_channels=64, kernel_size=2, stride=2, padding=1),
-                nn.ReLU(inplace=True),
+                *_make_activations(activation=activation, norm=norm, num_features=64, norm_pre_act=norm_pre_act),
             Flatten3D(),
             nn.Linear(1600, 256),
-                nn.ReLU(inplace=True),
+                *_make_activations(activation=activation, norm='none'),
             nn.Linear(256, self.z_total),
         )
 
@@ -71,14 +99,14 @@ class EncoderConv64(BaseEncoderModule):
         return self.model(x)
 
 
-class DecoderConv64(BaseDecoderModule):
+class DecoderConv64Alt(BaseDecoderModule):
     """
     From:
     https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/shared/architectures.py
     # TODO: verify, things have changed...
     """
 
-    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
+    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1, activation='leaky_relu', norm='instance', norm_pre_act=True):
         """
         Convolutional decoder used in beta-VAE paper for the chairs data.
         Based on row 3 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
@@ -91,16 +119,16 @@ class DecoderConv64(BaseDecoderModule):
 
         self.model = nn.Sequential(
             nn.Linear(self.z_size, 256),
-                nn.ReLU(inplace=True),
+                *_make_activations(activation=activation, norm='none'),
             nn.Linear(256, 1024),
-                nn.ReLU(inplace=True),
+                *_make_activations(activation=activation, norm='none'),
             BatchView([64, 4, 4]),
             nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=4, stride=2, padding=1),
-                nn.ReLU(inplace=True),
+                *_make_activations(activation=activation, norm=norm, num_features=64, norm_pre_act=norm_pre_act),
             nn.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=4, stride=2, padding=1),
-                nn.ReLU(inplace=True),
+                *_make_activations(activation=activation, norm=norm, num_features=32, norm_pre_act=norm_pre_act),
             nn.ConvTranspose2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=1),
-                nn.ReLU(inplace=True),
+                *_make_activations(activation=activation, norm=norm, num_features=32, norm_pre_act=norm_pre_act),
             nn.ConvTranspose2d(in_channels=32, out_channels=num_channels, kernel_size=4, stride=2, padding=1),
         )
 

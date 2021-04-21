@@ -1,0 +1,19 @@
+# @package _group_
+name: dor_vae
+module:
+  _target_: disent.frameworks.vae.unsupervised.DataOverlapRankVae
+  beta: ${framework.beta}
+  # tvae: no loss from decoder -> encoder
+  detach: FALSE
+  detach_decoder: FALSE
+  detach_no_kl: FALSE
+  detach_logvar: NULL  # set to NULL to disable fixed value
+  # dotvae
+  overlap_num: 4096
+  # dotvae -- augment
+  overlap_augment_mode: 'none'
+  overlap_augment: NULL
+
+# settings used elsewhere
+data_wrap_mode: single
+model_z_multiplier: 2

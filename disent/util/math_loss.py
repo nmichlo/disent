@@ -160,8 +160,8 @@ def multi_spearman_rank_loss(
         passing the array to spearman_rank_loss and returning the mean loss.
     """
     assert pred.shape == targ.shape
-    pred = torch_dims_at_end_2d(pred.shape, dims=dims, return_undo_data=False)
-    targ = torch_dims_at_end_2d(targ.shape, dims=dims, return_undo_data=False)
+    pred = torch_dims_at_end_2d(pred, dims=dims, return_undo_data=False)
+    targ = torch_dims_at_end_2d(targ, dims=dims, return_undo_data=False)
     # compute
     assert reduction == 'mean', 'only supports reduction="mean"'
     return spearman_rank_loss(pred=pred, targ=targ, reduction=reduction, regularization=regularization, regularization_strength=regularization_strength, nan_to_num=nan_to_num)
