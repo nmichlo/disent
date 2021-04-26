@@ -145,8 +145,17 @@ class ReconLossHandlerMae(ReconLossHandlerMse):
     """
     MAE loss should be used with continuous targets between [0, 1].
     """
-    def compute_unreduced_loss(self, x_partial_recon, x_targ):
-        return torch.abs(x_partial_recon - x_targ)
+    def compute_unreduced_loss(self, x_recon, x_targ):
+        return torch.abs(x_recon - x_targ)
+
+
+class ReconLossHandlerMse4(ReconLossHandlerMse):
+    def compute_unreduced_loss(self, x_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
+        return super().compute_unreduced_loss(x_recon, x_targ) * 4
+
+class ReconLossHandlerMae2(ReconLossHandlerMae):
+    def compute_unreduced_loss(self, x_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
+        return super().compute_unreduced_loss(x_recon, x_targ) * 2
 
 
 class ReconLossHandlerBce(ReconLossHandler):
@@ -226,18 +235,15 @@ class ReconLossHandlerNormal(ReconLossHandlerMse):
 # ========================================================================= #
 
 
-
 _RECON_LOSSES = {
     # ================================= #
-    # from the normal distribution
-    # binary values only in the set {0, 1}
+    # from the normal distribution - real values in the range [0, 1]
     'mse': ReconLossHandlerMse,
     # mean absolute error
     'mae': ReconLossHandlerMae,
-    # from the bernoulli distribution
+    # from the bernoulli distribution - binary values in the set {0, 1}
     'bce': ReconLossHandlerBce,
-    # reduces to bce
-    # binary values only in the set {0, 1}
+    # reduces to bce - binary values in the set {0, 1}
     'bernoulli': ReconLossHandlerBernoulli,
     # bernoulli with a computed offset to handle values in the range [0, 1]
     'continuous_bernoulli': ReconLossHandlerContinuousBernoulli,
@@ -246,6 +252,8 @@ _RECON_LOSSES = {
     # ================================= #
     # EXPERIMENTAL -- im just curious what would happen, haven't actually
     #                 done the maths or thought about this much.
+    'mse4': ReconLossHandlerMse4,  # scaled as if computed over outputs of the range [-1, 1] instead of [0, 1]
+    'mae2': ReconLossHandlerMae2,  # scaled as if computed over outputs of the range [-1, 1] instead of [0, 1]
 }
 
 
