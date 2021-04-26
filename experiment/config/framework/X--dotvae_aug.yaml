@@ -32,7 +32,7 @@ module:
     _target_: disent.transform.FftBoxBlur
     p: 1.0
     radius: [16, 16]
-    random_mode: "same"
+    random_mode: "batch"
     random_same_xy: TRUE
 
 #      - _target_: disent.transform.FftGaussianBlur

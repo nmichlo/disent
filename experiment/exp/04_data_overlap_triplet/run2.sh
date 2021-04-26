@@ -5,7 +5,7 @@
 # ========================================================================= #
 
 export PROJECT="exp-data-overlap-triplet"
-export PARTITION="stampede"
+export PARTITION="batch"
 export PARALLELISM=32
 
 # source the helper file
@@ -20,14 +20,14 @@ clog_cudaless_nodes "$PARTITION" 86400 "C-disent" # 24 hours
 # 1 * (2*2*5*9) == 180
 submit_sweep \
     +DUMMY.repeat=1 \
-    +EXTRA.tags='med-best--augment-strength' \
+    +EXTRA.tags='best--augment-strength' \
     \
     framework=X--dotvae_aug \
     run_length=short,medium \
     model.z_size=25 \
     \
     specializations.data_wrapper='gt_dist_${framework.data_wrap_mode}' \
-    schedule=adavae_up_all,adavae_up_ratio \
+    schedule=adavae_up_all_full,adavae_up_ratio_full \
     sampling=gt_dist_manhat \
     sampling.triplet_swap_chance=0 \
     dataset=xysquares \
