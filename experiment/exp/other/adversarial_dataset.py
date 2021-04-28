@@ -267,6 +267,224 @@ def make_changed_mask(batch, masked=True):
     return mask
 
 
+def _make_dset(*path, dataset, overwrite=False) -> str:
+    path = ensure_parent_dir_exists(*path)
+    # open in read write mode
+    with h5py.File(path, 'w' if overwrite else 'a', libver='latest') as f:
+        # get data
+        num_obs = len(dataset)
+        obs_shape = dataset[0]['x_targ'][0].shape
+        # make dset
+        if 'data' not in f:
+            dset = f.create_dataset(
+                'data',
+                shape=(num_obs, *obs_shape),
+                dtype='float32',
+                chunks=(1, *obs_shape)
+            )
+        # make set_dset
+        if 'exists' not in f:
+            dexist = f.create_dataset(
+                'exists',
+                shape=(num_obs,),
+                dtype='bool',
+                chunks=(1,)
+            )
+    return path
+
+
+def _random_dset_idxs_chunks(dataset, obs_num: int, num_chunks: int):
+    idxs = np.random.randint(0, len(dataset), size=(obs_num,))
+    return np.array_split(idxs, num_chunks)
+
+
+def _load_random_dset_minibatch(dataset, h5py_path: str, obs_num: int):
+    idxs = np.random.randint(0, len(dataset), size=(obs_num,))
+    return _load_dset_minibatch(dataset=dataset, h5py_path=h5py_path, idxs=idxs)
+
+
+def _load_dset_minibatch(dataset, h5py_path: str, idxs):
+    batch = []
+    num_existing = 0
+    with h5py.File(h5py_path, 'r', libver='latest', swmr=True) as f:
+        for i in idxs:
+            if f['exists'][i]:
+                num_existing += 1
+                obs = torch.as_tensor(f['data'][i], dtype=torch.float32)
+            else:
+                (obs,) = dataset[i]['x_targ']
+            batch.append(obs)
+    existing_ratio = num_existing / len(idxs)
+    return torch.stack(batch, dim=0), idxs, existing_ratio
+
+
+# save random minibatches
+def _save_dset_minibatch(h5py_path: str, batch, idxs):
+    with h5py.File(h5py_path, 'r+', libver='latest') as f:
+        for obs, idx in zip(batch, idxs):
+            f['data'][idx] = obs
+            f['exists'][idx] = True
+
+
+def _get_caller_args_string(sort: bool = False, names: bool = False, sep: str = '_', exclude: Sequence[str] = None):
+    stack = inspect.stack()
+    fn_name = stack[1].function
+    fn_locals = stack[1].frame.f_locals
+    fn = stack[2].frame.f_locals[fn_name]  # this is hacky, there should be a better way?
+    fn_params = inspect.getfullargspec(fn).args
+    # check excluded
+    exclude = set() if (exclude is None) else set(exclude)
+    fn_params = [p for p in fn_params if (p not in exclude)]
+    # sort values
+    if sort:
+        fn_params = sorted(fn_params)
+    # get strings
+    if names:
+        return sep.join(f"{k}={fn_locals[k]}" for k in fn_params)
+    else:
+        return sep.join(f"{fn_locals[k]}" for k in fn_params)
+
+
+# TODO: replace this with some Pool or Future
+class CmdWorker(object):
+
+    def __init__(self, cmd_handler, **kwargs):
+        self.cmd_queue = Queue()
+        self.ret_queue = Queue()
+        self.proc = Process(target=cmd_handler, kwargs=dict(cmd_queue=self.cmd_queue, ret_queue=self.ret_queue, **kwargs))
+
+    def get(self):
+        return self.ret_queue.get()
+
+    def put(self, cmd: str, **kwargs):
+        self.cmd_queue.put((cmd, kwargs))
+
+    def force_kill(self):
+        self.proc.kill()
+        return self
+
+    def start(self):
+        self.proc.start()
+        return self
+
+
+# TODO: replace this with some Pool or Future
+class CmdWorkers(object):
+
+    def __init__(self, commands: dict, num_workers: int = psutil.cpu_count()):
+        assert 'kill' not in commands
+        self._workers = [CmdWorker(self._cmd_handler, commands=commands) for _ in range(num_workers)]
+
+    @property
+    def num_workers(self):
+        return len(self._workers)
+
+    def __enter__(self):
+        self.start()
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        self.kill()
+        self.force_kill()
+
+    def start(self):
+        for worker in self._workers:
+            worker.start()
+        return self
+
+    def get(self):
+        return [worker.get() for worker in self._workers]
+
+    def put(self, cmd: str, kwargs_list):
+        assert cmd != 'kill'
+        assert len(kwargs_list) == len(self._workers)
+        for worker, kwargs in zip(self._workers, kwargs_list):
+            worker.put(cmd, **kwargs)
+
+    def kill(self):
+        for worker in self._workers:
+            worker.put('kill')
+        return self
+
+    def force_kill(self):
+        for worker in self._workers:
+            worker.force_kill()
+        return self
+
+    def _cmd_handler(self, cmd_queue, ret_queue, commands):
+        while True:
+            cmd, kwargs = cmd_queue.get()
+            if cmd == 'kill':
+                return
+            result = commands[cmd](**kwargs)
+            ret_queue.put(result)
+
+def run_generate_and_save_adversarial_dataset_mp(
+    dataset_name: str = 'shapes3d',
+    optimizer: str = 'adam',
+    lr: float = 1e-2,
+    obs_num: int = 1024 * 10,
+    obs_masked: bool = True,
+    loss_fn: str = 'mse',
+    loss_num_pairs: int = 4096,
+    loss_num_samples: int = 4096*2,  # only applies if loss_const_targ=None
+    loss_top_k: int = None,
+    loss_const_targ: float = None,  # replace stochastic pairwise constant loss with deterministic loss target
+    loss_reg_out_of_bounds: bool = False,
+    train_minibatch_ratio: float = 100.0,
+    train_num_minibatch_steps: int = 100,
+    # skipped params
+    overwrite: bool = True,
+    seed_: int = None,
+):
+    seed(seed_)
+    # make dataset
+    dataset = make_dataset(dataset_name)
+    # save dataset
+    path = _make_dset(f'out/overlap/{_get_caller_args_string(exclude=["overwrite", "seed_"])}.hdf5', dataset=dataset, overwrite=overwrite)
+    # load fns
+    workers = CmdWorkers(commands=dict(load=lambda idxs: _load_dset_minibatch(dataset, h5py_path=path, idxs=idxs))).start()
+    def load_random_batch():
+        workers.put('load', [dict(idxs=idxs) for idxs in _random_dset_idxs_chunks(dataset, obs_num, workers.num_workers)])
+    def get_random_batch():
+        xs, idxss, existing_ratios = zip(*workers.get())
+        existing_ratio = np.sum([r * len(i) for r, i in zip(existing_ratios, idxss)]) / np.sum([len(i) for i in idxss])
+        x, idxs, existing_ratio = torch.cat(xs, dim=0), np.concatenate(idxss, axis=0), existing_ratio
+        return x, idxs, existing_ratio
+    # loop vars
+    num_minibatches = int((len(dataset) * train_minibatch_ratio) // obs_num)
+    prog = tqdm(total=num_minibatches * train_num_minibatch_steps, postfix={'loss': 0.0, 'exist_ratio': 0.0})
+    # start loading minibatch
+    load_random_batch()
+    # optimize random minibatches
+    for b in range(num_minibatches):
+        # get random minibatch
+        x, idxs, existing_ratio = get_random_batch()
+        x = x.cuda()
+        x.requires_grad = True
+        # queue loading an extra batch
+        load_random_batch()
+
+        # generate mask
+        mask = make_changed_mask(x, masked=obs_masked)
+        # make optimizer
+        optim = make_optimizer(x, name=optimizer, lr=lr)
+        # repeatedly optimize
+        for i in range(train_num_minibatch_steps):
+            # final loss
+            loss = stochastic_const_loss(x, mask, num_pairs=loss_num_pairs, num_samples=loss_num_samples, loss=loss_fn, reg_out_of_bounds=loss_reg_out_of_bounds, top_k=loss_top_k, constant_targ=loss_const_targ)
+            # update variables
+            step_optimizer(optim, loss)
+            # update progress bar
+            prog.update()
+            prog.set_postfix({'loss': float(loss), 'exist_ratio': existing_ratio})
+
+        # save optimized minibatch
+        x = x.detach().cpu()
+        # TODO: this should also be done in the background!
+        _save_dset_minibatch(h5py_path=path, batch=x, idxs=idxs)
+
+
 def run_generate_adversarial_data(
     dataset: str ='shapes3d',
     factor: str ='wall_hue',
@@ -502,7 +720,8 @@ def train_kernel_to_disentangle_xy(
 
 
 if __name__ == '__main__':
+    run_generate_and_save_adversarial_dataset_mp()
     # run_generate_adversarial_data()
     # run_differentiable_sorting_loss()
     # run_check_all_xy_squares_dists()
-    train_kernel_to_disentangle_xy()
+    # train_kernel_to_disentangle_xy()
