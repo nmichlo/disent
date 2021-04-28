@@ -21,7 +21,20 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+import inspect
+import time
+from collections import namedtuple
+from multiprocessing import Process
+from multiprocessing import Queue
+from typing import Sequence
+
+import cloudpickle
+import h5py
+import logging
 import numpy as np
+import os
+
+import psutil
 import torch_optimizer
 import torchsort
 from matplotlib import pyplot as plt
@@ -35,23 +48,25 @@ from disent.data.groundtruth import XYSquaresData
 import torch
 import torch.nn.functional as F
 
+from disent.data.util.in_out import ensure_dir_exists
+from disent.data.util.in_out import ensure_parent_dir_exists
 from disent.dataset.groundtruth import GroundTruthDataset
 from disent.transform import ToStandardisedTensor
 from disent.transform.functional import conv2d_channel_wise_fft
+from disent.util import chunked
 from disent.util import seed
-from disent.util.math import get_kernel_size
+from disent.util import Timer
 from disent.util.math import torch_box_kernel_2d
 from disent.util.math import torch_gaussian_kernel_2d
 from disent.util.math_loss import multi_spearman_rank_loss
 from disent.util.math_loss import spearman_rank_loss
 
+from disent.util.math_loss import torch_soft_rank
+
 
 # ========================================================================= #
 # helper                                                                    #
 # ========================================================================= #
-from disent.util.math_loss import torch_mse_rank_loss
-from disent.util.math_loss import torch_soft_rank
-from disent.util.math_loss import torch_soft_sort
 
 
 def make_optimizer(model: torch.nn.Module, name: str = 'sgd', lr=1e-3):
@@ -186,15 +201,20 @@ _LOSS_FN = {
 }
 
 
-def stochastic_const_loss(pred: torch.Tensor, targ: torch.Tensor, mask: torch.Tensor, num_obs, num_samples, loss='mse', reg_out_of_bounds=True, top_k: int = None) -> torch.Tensor:
-    ia, ib = torch.randint(0, num_obs, size=(2, num_samples), device=pred.device)
-    iA, iB = torch.randint(0, num_samples, size=(2, num_samples), device=pred.device)
+def stochastic_const_loss(pred: torch.Tensor, mask: torch.Tensor, num_pairs: int, num_samples: int, loss='mse', reg_out_of_bounds=True, top_k: int = None, constant_targ: float = None) -> torch.Tensor:
+    ia, ib = torch.randint(0, len(pred), size=(2, num_samples), device=pred.device)
     # constant dist loss
     x_ds = (unreduced_loss(pred[ia], pred[ib], mode=loss) * mask[None, ...]).mean(dim=(-3, -2, -1))
-    if top_k is None:
-        lcst = unreduced_loss(x_ds[iA], x_ds[iB], mode=loss).mean()
-    else:
+    # compute constant loss
+    if constant_targ is None:
+        iA, iB = torch.randint(0, len(x_ds), size=(2, num_pairs), device=pred.device)
         lcst = unreduced_loss(x_ds[iA], x_ds[iB], mode=loss)
+    else:
+        lcst = unreduced_loss(x_ds, torch.full_like(x_ds, constant_targ), mode=loss)
+    # aggregate constant loss
+    if top_k is None:
+        lcst = lcst.mean()
+    else:
         lcst = torch.topk(lcst, k=top_k, largest=True).values.mean()
     # values over the required range
     if reg_out_of_bounds:
@@ -248,44 +268,48 @@ def make_changed_mask(batch, masked=True):
 
 
 def run_generate_adversarial_data(
-    dataset='shapes3d',
-    factor='wall_hue',
-    factor_mode='sample_random',
-    optimizer='adam',
-    lr=1e-2,
-    num_obs=2048,
-    num_samples=1024,
-    noise_weight=0.01,
-    masked=True,
-    loss_fn='mse',
-    loss_top_k=128,
-    reg_out_of_bounds=False,
-    steps=2000,
-    display_period=500,
+    dataset: str ='shapes3d',
+    factor: str ='wall_hue',
+    factor_mode: str = 'sample_random',
+    optimizer: str ='radam',
+    lr: float = 1e-2,
+    obs_num: int = 1024 * 10,
+    obs_noise_weight: float = 0,
+    obs_masked: bool = True,
+    loss_fn: str = 'mse',
+    loss_num_pairs: int = 4096,
+    loss_num_samples: int = 4096*2,  # only applies if loss_const_targ=None
+    loss_top_k: int = None,
+    loss_const_targ: float = None,  # replace stochastic pairwise constant loss with deterministic loss target
+    loss_reg_out_of_bounds: bool = False,
+    train_steps: int = 2000,
+    display_period: int = 500,
 ):
     seed(777)
     # make dataset
     dataset = make_dataset(dataset)
+    print(len(dataset))
     # make batches
-    factors = sample_factors(dataset, num_obs=num_obs, factor_mode=factor_mode, factor=factor)
-    batch = dataset.dataset_batch_from_factors(factors, 'target')
+    factors = sample_factors(dataset, num_obs=obs_num, factor_mode=factor_mode, factor=factor)
+    x = dataset.dataset_batch_from_factors(factors, 'target')
+    # make tensors to optimize
     if torch.cuda.is_available():
-        batch = batch.cuda()
-    x = torch.tensor(batch + torch.randn_like(batch) * noise_weight, requires_grad=True)
+        x = x.cuda()
+    x = torch.tensor(x + torch.randn_like(x) * obs_noise_weight, requires_grad=True)
     # generate mask
-    mask = make_changed_mask(batch, masked=masked)
+    mask = make_changed_mask(x, masked=obs_masked)
     show_img(mask.to(torch.float32))
     # make optimizer
     optimizer = make_optimizer(x, name=optimizer, lr=lr)
 
     # optimize differences according to loss
-    prog = tqdm(range(steps+1), postfix={'loss': 0.0})
+    prog = tqdm(range(train_steps+1), postfix={'loss': 0.0})
     for i in prog:
         # final loss
-        loss = stochastic_const_loss(x, batch, mask, num_obs=num_obs, num_samples=num_samples, loss=loss_fn, reg_out_of_bounds=reg_out_of_bounds, top_k=loss_top_k)
+        loss = stochastic_const_loss(x, mask, num_pairs=loss_num_pairs, num_samples=loss_num_samples, loss=loss_fn, reg_out_of_bounds=loss_reg_out_of_bounds, top_k=loss_top_k, constant_targ=loss_const_targ)
         # update variables
         step_optimizer(optimizer, loss)
-        show_imgs(x[:9], i=i, step=display_period)
+        show_imgs(x[:9], i=i, scale=False, step=display_period)
         prog.set_postfix({'loss': float(loss)})
 
 
@@ -440,7 +464,6 @@ def train_kernel_to_disentangle_xy(
     kernel = torch.tensor(kernel, device=device, requires_grad=True)
     # make optimizer
     optimizer = make_optimizer(kernel, name=train_optimizer, lr=train_lr)
-    schedule = ReduceLROnPlateau(optimizer)
 
     # factor to optimise
     f_idx = get_factor_idx(dataset, batch_factor) if (batch_factor is not None) else None
