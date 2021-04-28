@@ -22,23 +22,16 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 import inspect
-import time
-from collections import namedtuple
-from multiprocessing import Process
-from multiprocessing import Queue
+from concurrent.futures import Future
+from concurrent.futures import ProcessPoolExecutor
 from typing import Sequence
 
-import cloudpickle
 import h5py
-import logging
 import numpy as np
-import os
 
 import psutil
 import torch_optimizer
-import torchsort
 from matplotlib import pyplot as plt
-from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -48,14 +41,11 @@ from disent.data.groundtruth import XYSquaresData
 import torch
 import torch.nn.functional as F
 
-from disent.data.util.in_out import ensure_dir_exists
 from disent.data.util.in_out import ensure_parent_dir_exists
 from disent.dataset.groundtruth import GroundTruthDataset
 from disent.transform import ToStandardisedTensor
 from disent.transform.functional import conv2d_channel_wise_fft
-from disent.util import chunked
 from disent.util import seed
-from disent.util import Timer
 from disent.util.math import torch_box_kernel_2d
 from disent.util.math import torch_gaussian_kernel_2d
 from disent.util.math_loss import multi_spearman_rank_loss
@@ -257,6 +247,12 @@ def sample_factors(dataset, num_obs=1024, factor_mode='sample_random', factor: s
     return factors
 
 
+def sample_batch_and_factors(dataset, num_samples, factor_mode='sample_random', factor=None, device=None):
+    factors = sample_factors(dataset, num_obs=num_samples, factor_mode=factor_mode, factor=factor)
+    batch = dataset.dataset_batch_from_factors(factors, mode='target').to(device=device)
+    factors = torch.from_numpy(factors).to(dtype=torch.float32, device=device)
+    return batch, factors
+
 def make_changed_mask(batch, masked=True):
     if masked:
         mask = torch.zeros_like(batch[0], dtype=torch.bool)
@@ -265,6 +261,27 @@ def make_changed_mask(batch, masked=True):
     else:
         mask = torch.ones_like(batch[0], dtype=torch.bool)
     return mask
+
+
+
+
+def _get_caller_args_string(sort: bool = False, names: bool = False, sep: str = '_', exclude: Sequence[str] = None):
+    stack = inspect.stack()
+    fn_name = stack[1].function
+    fn_locals = stack[1].frame.f_locals
+    fn = stack[2].frame.f_locals[fn_name]  # this is hacky, there should be a better way?
+    fn_params = inspect.getfullargspec(fn).args
+    # check excluded
+    exclude = set() if (exclude is None) else set(exclude)
+    fn_params = [p for p in fn_params if (p not in exclude)]
+    # sort values
+    if sort:
+        fn_params = sorted(fn_params)
+    # get strings
+    if names:
+        return sep.join(f"{k}={fn_locals[k]}" for k in fn_params)
+    else:
+        return sep.join(f"{fn_locals[k]}" for k in fn_params)
 
 
 def _make_dset(*path, dataset, overwrite=False) -> str:
@@ -300,23 +317,23 @@ def _random_dset_idxs_chunks(dataset, obs_num: int, num_chunks: int):
 
 def _load_random_dset_minibatch(dataset, h5py_path: str, obs_num: int):
     idxs = np.random.randint(0, len(dataset), size=(obs_num,))
-    return _load_dset_minibatch(dataset=dataset, h5py_path=h5py_path, idxs=idxs)
+    return __load_dset_minibatch(dataset=dataset, h5py_path=h5py_path, idxs=idxs)
 
 
-def _load_dset_minibatch(dataset, h5py_path: str, idxs):
-    batch = []
+def __load_dset_minibatch(dataset, h5py_path: str, idxs):
+    batch, existing = [], []
     num_existing = 0
     with h5py.File(h5py_path, 'r', libver='latest', swmr=True) as f:
         for i in idxs:
-            if f['exists'][i]:
+            exists = f['exists'][i]
+            if exists:
                 num_existing += 1
                 obs = torch.as_tensor(f['data'][i], dtype=torch.float32)
             else:
                 (obs,) = dataset[i]['x_targ']
             batch.append(obs)
-    existing_ratio = num_existing / len(idxs)
-    return torch.stack(batch, dim=0), idxs, existing_ratio
-
+            existing.append(exists)
+    return torch.stack(batch, dim=0), np.array(idxs), np.array(existing)
 
 # save random minibatches
 def _save_dset_minibatch(h5py_path: str, batch, idxs):
@@ -326,98 +343,35 @@ def _save_dset_minibatch(h5py_path: str, batch, idxs):
             f['exists'][idx] = True
 
 
-def _get_caller_args_string(sort: bool = False, names: bool = False, sep: str = '_', exclude: Sequence[str] = None):
-    stack = inspect.stack()
-    fn_name = stack[1].function
-    fn_locals = stack[1].frame.f_locals
-    fn = stack[2].frame.f_locals[fn_name]  # this is hacky, there should be a better way?
-    fn_params = inspect.getfullargspec(fn).args
-    # check excluded
-    exclude = set() if (exclude is None) else set(exclude)
-    fn_params = [p for p in fn_params if (p not in exclude)]
-    # sort values
-    if sort:
-        fn_params = sorted(fn_params)
-    # get strings
-    if names:
-        return sep.join(f"{k}={fn_locals[k]}" for k in fn_params)
-    else:
-        return sep.join(f"{fn_locals[k]}" for k in fn_params)
+# ========================================================================= #
+# multiproc h5py dataset helper                                             #
+# ========================================================================= #
 
 
-# TODO: replace this with some Pool or Future
-class CmdWorker(object):
+def _multiproc_load_random_dset_minibatch(dataset, h5py_path: str, obs_num: int, workers: int = psutil.cpu_count()) -> Sequence[Future]:
+    with ProcessPoolExecutor(workers) as executor:
 
-    def __init__(self, cmd_handler, **kwargs):
-        self.cmd_queue = Queue()
-        self.ret_queue = Queue()
-        self.proc = Process(target=cmd_handler, kwargs=dict(cmd_queue=self.cmd_queue, ret_queue=self.ret_queue, **kwargs))
-
-    def get(self):
-        return self.ret_queue.get()
-
-    def put(self, cmd: str, **kwargs):
-        self.cmd_queue.put((cmd, kwargs))
-
-    def force_kill(self):
-        self.proc.kill()
-        return self
-
-    def start(self):
-        self.proc.start()
-        return self
+        futures = [
+            executor.submit(__load_dset_minibatch, dataset=dataset, h5py_path=h5py_path, idxs=idxs)
+            for idxs in _random_dset_idxs_chunks(dataset, obs_num=obs_num, num_chunks=workers)
+        ]
+    return futures
 
 
-# TODO: replace this with some Pool or Future
-class CmdWorkers(object):
+def _recombine_multiproc_futures(futures: Sequence[Future]):
+    xs, idxs, exists = zip(*(future.result() for future in futures))
+    return torch.cat(xs, dim=0), np.concatenate(idxs, axis=0), np.concatenate(exists, axis=0)
 
-    def __init__(self, commands: dict, num_workers: int = psutil.cpu_count()):
-        assert 'kill' not in commands
-        self._workers = [CmdWorker(self._cmd_handler, commands=commands) for _ in range(num_workers)]
 
-    @property
-    def num_workers(self):
-        return len(self._workers)
+def _multiproc_save_dset_minibatch(h5py_path: str, batch, idxs) -> Future:
+    with ProcessPoolExecutor(1) as executor:
+        return executor.submit(_save_dset_minibatch, h5py_path=h5py_path, batch=batch, idxs=idxs)
 
-    def __enter__(self):
-        self.start()
-        return self
 
-    def __exit__(self, *args, **kwargs):
-        self.kill()
-        self.force_kill()
+# ========================================================================= #
+# adversarial dataset generator                                             #
+# ========================================================================= #
 
-    def start(self):
-        for worker in self._workers:
-            worker.start()
-        return self
-
-    def get(self):
-        return [worker.get() for worker in self._workers]
-
-    def put(self, cmd: str, kwargs_list):
-        assert cmd != 'kill'
-        assert len(kwargs_list) == len(self._workers)
-        for worker, kwargs in zip(self._workers, kwargs_list):
-            worker.put(cmd, **kwargs)
-
-    def kill(self):
-        for worker in self._workers:
-            worker.put('kill')
-        return self
-
-    def force_kill(self):
-        for worker in self._workers:
-            worker.force_kill()
-        return self
-
-    def _cmd_handler(self, cmd_queue, ret_queue, commands):
-        while True:
-            cmd, kwargs = cmd_queue.get()
-            if cmd == 'kill':
-                return
-            result = commands[cmd](**kwargs)
-            ret_queue.put(result)
 
 def run_generate_and_save_adversarial_dataset_mp(
     dataset_name: str = 'shapes3d',
@@ -442,28 +396,22 @@ def run_generate_and_save_adversarial_dataset_mp(
     dataset = make_dataset(dataset_name)
     # save dataset
     path = _make_dset(f'out/overlap/{_get_caller_args_string(exclude=["overwrite", "seed_"])}.hdf5', dataset=dataset, overwrite=overwrite)
-    # load fns
-    workers = CmdWorkers(commands=dict(load=lambda idxs: _load_dset_minibatch(dataset, h5py_path=path, idxs=idxs))).start()
-    def load_random_batch():
-        workers.put('load', [dict(idxs=idxs) for idxs in _random_dset_idxs_chunks(dataset, obs_num, workers.num_workers)])
-    def get_random_batch():
-        xs, idxss, existing_ratios = zip(*workers.get())
-        existing_ratio = np.sum([r * len(i) for r, i in zip(existing_ratios, idxss)]) / np.sum([len(i) for i in idxss])
-        x, idxs, existing_ratio = torch.cat(xs, dim=0), np.concatenate(idxss, axis=0), existing_ratio
-        return x, idxs, existing_ratio
     # loop vars
     num_minibatches = int((len(dataset) * train_minibatch_ratio) // obs_num)
     prog = tqdm(total=num_minibatches * train_num_minibatch_steps, postfix={'loss': 0.0, 'exist_ratio': 0.0})
     # start loading minibatch
-    load_random_batch()
+    save_future: Future = None
+    batch_futures = _multiproc_load_random_dset_minibatch(dataset, path, obs_num)
     # optimize random minibatches
     for b in range(num_minibatches):
         # get random minibatch
-        x, idxs, existing_ratio = get_random_batch()
+        x, idxs, existing_ratio = _recombine_multiproc_futures(batch_futures)
         x = x.cuda()
         x.requires_grad = True
         # queue loading an extra batch
-        load_random_batch()
+        if save_future is not None:
+            save_future.result()
+        batch_futures = _multiproc_load_random_dset_minibatch(dataset, path, obs_num)
 
         # generate mask
         mask = make_changed_mask(x, masked=obs_masked)
@@ -481,8 +429,12 @@ def run_generate_and_save_adversarial_dataset_mp(
 
         # save optimized minibatch
         x = x.detach().cpu()
-        # TODO: this should also be done in the background!
-        _save_dset_minibatch(h5py_path=path, batch=x, idxs=idxs)
+        save_future = _multiproc_save_dset_minibatch(h5py_path=path, batch=x, idxs=idxs)
+
+    # cleanup futures
+    if save_future is not None:
+        save_future.result()
+    _recombine_multiproc_futures(batch_futures)
 
 
 def run_generate_adversarial_data(
@@ -651,11 +603,9 @@ def run_check_all_xy_squares_dists(show=False):
     plt.show()
 
 
-def sample_batch_and_factors(dataset, num_samples, factor_mode='sample_random', factor=None, device=None):
-    factors = sample_factors(dataset, num_obs=num_samples, factor_mode=factor_mode, factor=factor)
-    batch = dataset.dataset_batch_from_factors(factors, mode='target').to(device=device)
-    factors = torch.from_numpy(factors).to(dtype=torch.float32, device=device)
-    return batch, factors
+# ========================================================================= #
+# batch helper                                                              #
+# ========================================================================= #
 
 
 def train_kernel_to_disentangle_xy(
@@ -711,7 +661,6 @@ def train_kernel_to_disentangle_xy(
         step_optimizer(optimizer, loss)
         show_img(kernel[0], i=i, step=100, scale=True)
         pbar.set_postfix({'loss': float(loss)})
-
 
 
 # ========================================================================= #
