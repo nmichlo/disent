@@ -31,21 +31,28 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def ensure_dir_exists(*path):
+def ensure_dir_exists(*path, is_file=False, absolute=False):
     import os
-    # join path if not a string
-    if not isinstance(path, str):
-        path = os.path.join(*path)
-    # remove file part of directory
-    # TODO: this function is useless
-    if os.path.isfile(path):
-        path = os.path.dirname(path)
+    # join path
+    path = os.path.join(*path)
+    # to abs path
+    if absolute:
+        path = os.path.abspath(path)
+    # remove file
+    dirs = os.path.dirname(path) if is_file else path
     # create missing directory
-    if path and not os.path.isdir(path):
-        os.makedirs(path, exist_ok=True)
-        log.info(f'created missing directories: {path}')
+    if os.path.exists(dirs):
+        if not os.path.isdir(dirs):
+            raise IOError(f'path is not a directory: {dirs}')
+    else:
+        os.makedirs(dirs, exist_ok=True)
+        log.info(f'created missing directories: {dirs}')
     # return directory
     return path
+
+
+def ensure_parent_dir_exists(*path):
+    return ensure_dir_exists(*path, is_file=True, absolute=True)
 
 
 def basename_from_url(url):
