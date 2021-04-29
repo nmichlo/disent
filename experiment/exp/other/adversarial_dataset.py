@@ -22,6 +22,8 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 import inspect
+import multiprocessing.synchronize
+from concurrent.futures import Executor
 from concurrent.futures import Future
 from concurrent.futures import ProcessPoolExecutor
 from typing import Sequence
@@ -46,6 +48,7 @@ from disent.dataset.groundtruth import GroundTruthDataset
 from disent.transform import ToStandardisedTensor
 from disent.transform.functional import conv2d_channel_wise_fft
 from disent.util import seed
+from disent.util import Timer
 from disent.util.math import torch_box_kernel_2d
 from disent.util.math import torch_gaussian_kernel_2d
 from disent.util.math_loss import multi_spearman_rank_loss
@@ -172,6 +175,11 @@ def run_differentiable_sorting_loss(dataset='xysquares', loss_mode='spearman', o
         print(i, float(loss))
 
 
+# ========================================================================= #
+# losses                                                                    #
+# ========================================================================= #
+
+
 def unreduced_mse_loss(pred, targ) -> torch.Tensor:
     return F.mse_loss(pred, targ, reduction='none')
 
@@ -217,6 +225,11 @@ def stochastic_const_loss(pred: torch.Tensor, mask: torch.Tensor, num_pairs: int
     return mM + lcst
 
 
+# ========================================================================= #
+# sampling helper                                                           #
+# ========================================================================= #
+
+
 def get_factor_idx(dataset, factor) -> int:
     if isinstance(factor, str):
         try:
@@ -253,6 +266,12 @@ def sample_batch_and_factors(dataset, num_samples, factor_mode='sample_random', 
     factors = torch.from_numpy(factors).to(dtype=torch.float32, device=device)
     return batch, factors
 
+
+# ========================================================================= #
+# mask helper                                                               #
+# ========================================================================= #
+
+
 def make_changed_mask(batch, masked=True):
     if masked:
         mask = torch.zeros_like(batch[0], dtype=torch.bool)
@@ -263,6 +282,9 @@ def make_changed_mask(batch, masked=True):
     return mask
 
 
+# ========================================================================= #
+# fn args helper                                                            #
+# ========================================================================= #
 
 
 def _get_caller_args_string(sort: bool = False, names: bool = False, sep: str = '_', exclude: Sequence[str] = None):
@@ -282,6 +304,11 @@ def _get_caller_args_string(sort: bool = False, names: bool = False, sep: str = 
         return sep.join(f"{k}={fn_locals[k]}" for k in fn_params)
     else:
         return sep.join(f"{fn_locals[k]}" for k in fn_params)
+
+
+# ========================================================================= #
+# h5py dataset helper                                                       #
+# ========================================================================= #
 
 
 def _make_dset(*path, dataset, overwrite=False) -> str:
@@ -333,7 +360,12 @@ def __load_dset_minibatch(dataset, h5py_path: str, idxs):
                 (obs,) = dataset[i]['x_targ']
             batch.append(obs)
             existing.append(exists)
-    return torch.stack(batch, dim=0), np.array(idxs), np.array(existing)
+    # load
+    batch = torch.stack(batch, dim=0)
+    existing = np.array(existing, dtype=np.float32)
+    # return
+    return batch, existing
+
 
 # save random minibatches
 def _save_dset_minibatch(h5py_path: str, batch, idxs):
@@ -347,25 +379,57 @@ def _save_dset_minibatch(h5py_path: str, batch, idxs):
 # multiproc h5py dataset helper                                             #
 # ========================================================================= #
 
+class FutureList(object):
+    def __init__(self, futures: Sequence[Future]):
+        self._futures = futures
 
-def _multiproc_load_random_dset_minibatch(dataset, h5py_path: str, obs_num: int, workers: int = psutil.cpu_count()) -> Sequence[Future]:
-    with ProcessPoolExecutor(workers) as executor:
+    def result(self):
+        return [future.result() for future in self._futures]
 
-        futures = [
-            executor.submit(__load_dset_minibatch, dataset=dataset, h5py_path=h5py_path, idxs=idxs)
-            for idxs in _random_dset_idxs_chunks(dataset, obs_num=obs_num, num_chunks=workers)
-        ]
-    return futures
+# ========================================================================= #
+# multiproc h5py dataset helper                                             #
+# ========================================================================= #
+
+# SUBMIT
+
+def _submit_load_batch_futures(executor: Executor, num_splits: int, dataset, h5py_path: str, idxs) -> FutureList:
+    return FutureList([
+        executor.submit(__inner__load_batch, dataset=dataset, h5py_path=h5py_path, idxs=idxs)
+        for idxs in np.array_split(idxs, num_splits)
+    ])
 
 
-def _recombine_multiproc_futures(futures: Sequence[Future]):
-    xs, idxs, exists = zip(*(future.result() for future in futures))
-    return torch.cat(xs, dim=0), np.concatenate(idxs, axis=0), np.concatenate(exists, axis=0)
+def _submit_save_batch(executor: Executor, h5py_path: str, batch, idxs) -> Future:
+    return executor.submit(__inner__save_batch, h5py_path=h5py_path, batch=batch, idxs=idxs)
 
 
-def _multiproc_save_dset_minibatch(h5py_path: str, batch, idxs) -> Future:
-    with ProcessPoolExecutor(1) as executor:
-        return executor.submit(_save_dset_minibatch, h5py_path=h5py_path, batch=batch, idxs=idxs)
+NUM_WORKERS = psutil.cpu_count()
+_BARRIER = multiprocessing.Barrier(NUM_WORKERS)
+
+
+def __inner__load_batch(dataset, h5py_path: str, idxs):
+    _BARRIER.wait()
+    result = __load_dset_minibatch(dataset=dataset, h5py_path=h5py_path, idxs=idxs)
+    _BARRIER.wait()
+    return result
+
+
+def __inner__save_batch(h5py_path, batch, idxs):
+    _save_dset_minibatch(h5py_path=h5py_path, batch=batch, idxs=idxs)
+
+
+def _wait_for_load_future(future: FutureList):
+    with Timer() as t:
+        xs, exists = zip(*future.result())
+    xs = torch.cat(xs, dim=0)
+    exists = np.concatenate(exists, axis=0).mean(dtype=np.float32)
+    return (xs, exists), t
+
+
+def _wait_for_save_future(future: Future):
+    with Timer() as t:
+        future.result()
+    return t
 
 
 # ========================================================================= #
@@ -373,68 +437,99 @@ def _multiproc_save_dset_minibatch(h5py_path: str, batch, idxs) -> Future:
 # ========================================================================= #
 
 
+def _random_batch_idxs(num_obs: int, num_splits: int):
+    batch_idxs = np.arange(num_obs)
+    np.random.shuffle(batch_idxs)
+    batch_idxs = np.array_split(batch_idxs, num_splits)
+    return batch_idxs
+
+
 def run_generate_and_save_adversarial_dataset_mp(
     dataset_name: str = 'shapes3d',
     optimizer: str = 'adam',
     lr: float = 1e-2,
-    obs_num: int = 1024 * 10,
     obs_masked: bool = True,
     loss_fn: str = 'mse',
+    batch_size: int = 1024 * 1,
     loss_num_pairs: int = 4096,
     loss_num_samples: int = 4096*2,  # only applies if loss_const_targ=None
     loss_top_k: int = None,
     loss_const_targ: float = None,  # replace stochastic pairwise constant loss with deterministic loss target
     loss_reg_out_of_bounds: bool = False,
-    train_minibatch_ratio: float = 100.0,
-    train_num_minibatch_steps: int = 100,
+    train_epochs: int = 10,
+    train_optim_steps: int = 100,
     # skipped params
-    overwrite: bool = True,
+    overwrite: bool = False,
     seed_: int = None,
 ):
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     seed(seed_)
     # make dataset
     dataset = make_dataset(dataset_name)
-    # save dataset
+    # get save path
     path = _make_dset(f'out/overlap/{_get_caller_args_string(exclude=["overwrite", "seed_"])}.hdf5', dataset=dataset, overwrite=overwrite)
-    # loop vars
-    num_minibatches = int((len(dataset) * train_minibatch_ratio) // obs_num)
-    prog = tqdm(total=num_minibatches * train_num_minibatch_steps, postfix={'loss': 0.0, 'exist_ratio': 0.0})
-    # start loading minibatch
-    save_future: Future = None
-    batch_futures = _multiproc_load_random_dset_minibatch(dataset, path, obs_num)
-    # optimize random minibatches
-    for b in range(num_minibatches):
-        # get random minibatch
-        x, idxs, existing_ratio = _recombine_multiproc_futures(batch_futures)
-        x = x.cuda()
-        x.requires_grad = True
-        # queue loading an extra batch
-        if save_future is not None:
-            save_future.result()
-        batch_futures = _multiproc_load_random_dset_minibatch(dataset, path, obs_num)
+    # compute vars
+    num_splits = (len(dataset) + batch_size - 1) // batch_size
+    # progress
+    load_time, save_time = Timer(), Timer()
+    prog = tqdm(total=num_splits * train_epochs * train_optim_steps, postfix={'loss': 0.0, '💯': 0.0, '🔍': 'N/A', '💾': 'N/A'}, ncols=100)
+    # concurrent pool
+    executor = ProcessPoolExecutor(NUM_WORKERS)
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
-        # generate mask
-        mask = make_changed_mask(x, masked=obs_masked)
-        # make optimizer
-        optim = make_optimizer(x, name=optimizer, lr=lr)
-        # repeatedly optimize
-        for i in range(train_num_minibatch_steps):
-            # final loss
-            loss = stochastic_const_loss(x, mask, num_pairs=loss_num_pairs, num_samples=loss_num_samples, loss=loss_fn, reg_out_of_bounds=loss_reg_out_of_bounds, top_k=loss_top_k, constant_targ=loss_const_targ)
-            # update variables
-            step_optimizer(optim, loss)
-            # update progress bar
-            prog.update()
-            prog.set_postfix({'loss': float(loss), 'exist_ratio': existing_ratio})
+    # >>> EPOCHS <<< #
+    for epoch in range(train_epochs):
+        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+        # split dataset into random non-overlapping batches
+        batch_idxs = _random_batch_idxs(num_obs=len(dataset), num_splits=num_splits)
+        load_future, save_future = None, None
+        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
-        # save optimized minibatch
-        x = x.detach().cpu()
-        save_future = _multiproc_save_dset_minibatch(h5py_path=path, batch=x, idxs=idxs)
+        # >>> BATCHES <<< #
+        for n in range(num_splits):
+            # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+            if n == 0:
+                load_future = _submit_load_batch_futures(executor, num_splits=NUM_WORKERS, dataset=dataset, h5py_path=path, idxs=batch_idxs[n])
+            # get batch
+            load_future, ((x, exists), load_time) = None, _wait_for_load_future(load_future)
+            # TODO: transfer to gpu is the new bottleneck
+            x = x.cuda().requires_grad_(True)
+            # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+            # queue loading an extra batch
+            if n+1 < num_splits:
+                load_future = _submit_load_batch_futures(executor, num_splits=NUM_WORKERS, dataset=dataset, h5py_path=path, idxs=batch_idxs[n + 1])
+            # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+            # make optimizer
+            mask = make_changed_mask(x, masked=obs_masked)
+            optim = make_optimizer(x, name=optimizer, lr=lr)
+            # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+
+            # >>> OPTIMIZE <<< #
+            for _ in range(train_optim_steps):
+                # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+                # final loss
+                loss = stochastic_const_loss(x, mask, num_pairs=loss_num_pairs, num_samples=loss_num_samples, loss=loss_fn, reg_out_of_bounds=loss_reg_out_of_bounds, top_k=loss_top_k, constant_targ=loss_const_targ)
+                # update variables
+                step_optimizer(optim, loss)
+                # update progress bar
+                prog.update()
+                prog.set_postfix({'loss': float(loss), '💯': exists, '🔍': load_time.pretty, '💾': save_time.pretty})
+                # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+
+            # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+            if n != 0:
+                save_future, save_time = None, _wait_for_save_future(save_future)
+            # save optimized minibatch
+            save_future = _submit_save_batch(executor, h5py_path=path, batch=x.detach().cpu(), idxs=batch_idxs[n])
+            # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+        # WAIT
+        save_future, save_time = None, _wait_for_save_future(save_future)
+
 
     # cleanup futures
-    if save_future is not None:
-        save_future.result()
-    _recombine_multiproc_futures(batch_futures)
+    # if save_future is not None:
+    #     save_future.result()
+    # _recombine_multiproc_futures(batch_futures)
 
 
 def run_generate_adversarial_data(
@@ -481,6 +576,11 @@ def run_generate_adversarial_data(
         step_optimizer(optimizer, loss)
         show_imgs(x[:9], i=i, scale=False, step=display_period)
         prog.set_postfix({'loss': float(loss)})
+
+
+# ========================================================================= #
+# distance function                                                         #
+# ========================================================================= #
 
 
 def spearman_rank_dist(

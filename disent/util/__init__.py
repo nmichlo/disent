@@ -377,6 +377,10 @@ class Timer:
 
     @staticmethod
     def prettify_time(ns: int) -> str:
+        if ns == 0:
+            return 'N/A'
+        elif ns < 0:
+            return 'NaN'
         # get power of 1000
         pow = min(3, int(np.log10(ns) // 3))
         time = ns / 1000**pow
