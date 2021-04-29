@@ -314,12 +314,21 @@ def _get_caller_args_string(sort: bool = False, names: bool = False, sep: str = 
 def _make_dset(*path, dataset, overwrite_mode: str = 'continue') -> str:
     path = ensure_parent_dir_exists(*path)
     # get read/write mode
-    if overwrite_mode == 'continue':
-        rw_mode = 'a'
-    elif overwrite_mode == 'overwrite':
-        rw_mode = 'w'
+    if overwrite_mode == 'overwrite':
+        rw_mode = 'w'  # create new file, overwrite if exists
     elif overwrite_mode == 'fail':
-        rw_mode = 'x'
+        rw_mode = 'x'  # create new file, fail if exists
+    elif overwrite_mode == 'continue':
+        rw_mode = 'a'  # create if missing, append if exists
+        # clear file consistency flags
+        # if clear_consistency_flags:
+        #     if os.path.isfile(path):
+        #         cmd = ["h5clear", "-s", "'{path}'"]
+        #         print(f'clearing file consistency flags: {" ".join(cmd)}')
+        #         try:
+        #             subprocess.check_output(cmd)
+        #         except FileNotFoundError:
+        #             raise FileNotFoundError('h5clear utility is not installed!')
     else:
         raise KeyError(f'invalid overwrite_mode={repr(overwrite_mode)}')
     # open in read write mode
@@ -329,18 +338,18 @@ def _make_dset(*path, dataset, overwrite_mode: str = 'continue') -> str:
         obs_shape = dataset[0]['x_targ'][0].shape
         # make dset
         if 'data' not in f:
-            dset = f.create_dataset(
+            f.create_dataset(
                 'data',
                 shape=(num_obs, *obs_shape),
                 dtype='float32',
                 chunks=(1, *obs_shape)
             )
         # make set_dset
-        if 'exists' not in f:
-            dexist = f.create_dataset(
-                'exists',
+        if 'visits' not in f:
+            f.create_dataset(
+                'visits',
                 shape=(num_obs,),
-                dtype='bool',
+                dtype='int64',
                 chunks=(1,)
             )
     return path
@@ -357,23 +366,21 @@ def _load_random_dset_minibatch(dataset, h5py_path: str, obs_num: int):
 
 
 def __load_dset_minibatch(dataset, h5py_path: str, idxs):
-    batch, existing = [], []
-    num_existing = 0
+    batch, visits = [], []
     with h5py.File(h5py_path, 'r', libver='latest', swmr=True) as f:
         for i in idxs:
-            exists = f['exists'][i]
-            if exists:
-                num_existing += 1
+            v = f['visits'][i]
+            if v > 0:
                 obs = torch.as_tensor(f['data'][i], dtype=torch.float32)
             else:
                 (obs,) = dataset[i]['x_targ']
             batch.append(obs)
-            existing.append(exists)
+            visits.append(v)
     # load
     batch = torch.stack(batch, dim=0)
-    existing = np.array(existing, dtype=np.float32)
+    visits = np.array(visits, dtype=np.int64)
     # return
-    return batch, existing
+    return batch, visits
 
 
 # save random minibatches
@@ -381,7 +388,7 @@ def _save_dset_minibatch(h5py_path: str, batch, idxs):
     with h5py.File(h5py_path, 'r+', libver='latest') as f:
         for obs, idx in zip(batch, idxs):
             f['data'][idx] = obs
-            f['exists'][idx] = True
+            f['visits'][idx] += 1
 
 
 # ========================================================================= #
@@ -429,10 +436,10 @@ def __inner__save_batch(h5py_path, batch, idxs):
 
 def _wait_for_load_future(future: FutureList):
     with Timer() as t:
-        xs, exists = zip(*future.result())
+        xs, visits = zip(*future.result())
     xs = torch.cat(xs, dim=0)
-    exists = np.concatenate(exists, axis=0).mean(dtype=np.float32)
-    return (xs, exists), t
+    visits = np.concatenate(visits, axis=0).mean(dtype=np.float32)
+    return (xs, visits), t
 
 
 def _wait_for_save_future(future: Future):
@@ -498,14 +505,16 @@ def run_generate_and_save_adversarial_dataset_mp(
         for n in range(num_splits):
             # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
             if n == 0:
+                assert load_future is None
                 load_future = _submit_load_batch_futures(executor, num_splits=NUM_WORKERS, dataset=dataset, h5py_path=path, idxs=batch_idxs[n])
             # get batch
-            load_future, ((x, exists), load_time) = None, _wait_for_load_future(load_future)
+            load_future, ((x, visits), load_time) = None, _wait_for_load_future(load_future)
             # TODO: transfer to gpu is the new bottleneck
             x = x.cuda().requires_grad_(True)
             # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
             # queue loading an extra batch
             if n+1 < num_splits:
+                assert load_future is None
                 load_future = _submit_load_batch_futures(executor, num_splits=NUM_WORKERS, dataset=dataset, h5py_path=path, idxs=batch_idxs[n + 1])
             # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
             # make optimizer
@@ -522,23 +531,21 @@ def run_generate_and_save_adversarial_dataset_mp(
                 step_optimizer(optim, loss)
                 # update progress bar
                 prog.update()
-                prog.set_postfix({'loss': float(loss), '💯': exists, '🔍': load_time.pretty, '💾': save_time.pretty})
+                prog.set_postfix({'loss': float(loss), '💯': visits, '🔍': load_time.pretty, '💾': save_time.pretty})
                 # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
             # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
             if n != 0:
                 save_future, save_time = None, _wait_for_save_future(save_future)
             # save optimized minibatch
+            assert save_future is None
             save_future = _submit_save_batch(executor, h5py_path=path, batch=x.detach().cpu(), idxs=batch_idxs[n])
             # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         # WAIT
         save_future, save_time = None, _wait_for_save_future(save_future)
-
-
-    # cleanup futures
-    # if save_future is not None:
-    #     save_future.result()
-    # _recombine_multiproc_futures(batch_futures)
+        # check that nothing has gone unloaded
+        assert save_future is None
+        assert load_future is None
 
 
 def run_generate_adversarial_data(
