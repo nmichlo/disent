@@ -311,10 +311,19 @@ def _get_caller_args_string(sort: bool = False, names: bool = False, sep: str = 
 # ========================================================================= #
 
 
-def _make_dset(*path, dataset, overwrite=False) -> str:
+def _make_dset(*path, dataset, overwrite_mode: str = 'continue') -> str:
     path = ensure_parent_dir_exists(*path)
+    # get read/write mode
+    if overwrite_mode == 'continue':
+        rw_mode = 'a'
+    elif overwrite_mode == 'overwrite':
+        rw_mode = 'w'
+    elif overwrite_mode == 'fail':
+        rw_mode = 'x'
+    else:
+        raise KeyError(f'invalid overwrite_mode={repr(overwrite_mode)}')
     # open in read write mode
-    with h5py.File(path, 'w' if overwrite else 'a', libver='latest') as f:
+    with h5py.File(path, rw_mode, libver='latest') as f:
         # get data
         num_obs = len(dataset)
         obs_shape = dataset[0]['x_targ'][0].shape
@@ -450,16 +459,16 @@ def run_generate_and_save_adversarial_dataset_mp(
     lr: float = 1e-2,
     obs_masked: bool = True,
     loss_fn: str = 'mse',
-    batch_size: int = 1024 * 1,
-    loss_num_pairs: int = 4096,
-    loss_num_samples: int = 4096*2,  # only applies if loss_const_targ=None
+    batch_size: int = 1024*12,
+    loss_num_pairs: int = 1024*5,
+    loss_num_samples: int = 1024*5*2,  # only applies if loss_const_targ=None
     loss_top_k: int = None,
     loss_const_targ: float = None,  # replace stochastic pairwise constant loss with deterministic loss target
     loss_reg_out_of_bounds: bool = False,
     train_epochs: int = 10,
     train_optim_steps: int = 100,
     # skipped params
-    overwrite: bool = False,
+    overwrite_mode: str = 'fail',  # continue, overwrite, fail
     seed_: int = None,
 ):
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
@@ -467,7 +476,7 @@ def run_generate_and_save_adversarial_dataset_mp(
     # make dataset
     dataset = make_dataset(dataset_name)
     # get save path
-    path = _make_dset(f'out/overlap/{_get_caller_args_string(exclude=["overwrite", "seed_"])}.hdf5', dataset=dataset, overwrite=overwrite)
+    path = _make_dset(f'out/overlap/{_get_caller_args_string(exclude=["overwrite_mode", "seed_"])}.hdf5', dataset=dataset, overwrite_mode=overwrite_mode)
     # compute vars
     num_splits = (len(dataset) + batch_size - 1) // batch_size
     # progress
