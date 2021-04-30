@@ -419,7 +419,7 @@ def _submit_save_batch(executor: Executor, h5py_path: str, batch, idxs) -> Futur
     return executor.submit(__inner__save_batch, h5py_path=h5py_path, batch=batch, idxs=idxs)
 
 
-NUM_WORKERS = psutil.cpu_count()
+NUM_WORKERS = psutil.cpu_count(logical=False)
 _BARRIER = multiprocessing.Barrier(NUM_WORKERS)
 
 
@@ -452,12 +452,41 @@ def _wait_for_save_future(future: Future):
 # adversarial dataset generator                                             #
 # ========================================================================= #
 
+# def _random_batch_idxs(num_obs: int, num_splits: int):
+#     idxs = np.arange(num_obs)
+#     np.random.shuffle(idxs)
+#     idxs = np.array_split(idxs, num_splits)
+#     return idxs
 
-def _random_batch_idxs(num_obs: int, num_splits: int):
-    batch_idxs = np.arange(num_obs)
-    np.random.shuffle(batch_idxs)
-    batch_idxs = np.array_split(batch_idxs, num_splits)
-    return batch_idxs
+def _random_epoch_idxs(num_epochs: int, num_obs: int, num_epoch_splits: int):
+    # each index [0, num_obs] is repeated (*num_epochs) times
+    idxs = np.tile(np.arange(num_obs), num_epochs)
+    np.random.shuffle(idxs)
+    # split indexes into mini-batches
+    idxs = np.array_split(idxs, num_epoch_splits * num_epochs)
+    return idxs
+
+
+def _ordered_epoch_random_batch_idxs(num_epochs: int, num_obs: int, num_epoch_splits: int):
+    # each index [0, num_obs] is repeated (*num_epochs) times
+    idxs = []
+    for i in range(num_epochs):
+        rng = np.arange(num_obs)
+        np.random.shuffle(rng)
+        idxs.append(rng)
+    idxs = np.concatenate(idxs, axis=0)
+    # split indexes into mini-batches
+    idxs = np.array_split(idxs, num_epoch_splits * num_epochs)
+    return idxs
+
+
+def get_epoch_batch_idxs(num_epochs: int, num_obs: int, num_epoch_splits: int, shuffle_mode: str = None):
+    if shuffle_mode == 'all':
+        return _random_epoch_idxs(num_epochs=num_epochs, num_obs=num_obs, num_epoch_splits=num_epoch_splits)
+    elif shuffle_mode == 'batch':
+        return _ordered_epoch_random_batch_idxs(num_epochs=num_epochs, num_obs=num_obs, num_epoch_splits=num_epoch_splits)
+    else:
+        raise KeyError(f'invalid mode={repr(shuffle_mode)}')
 
 
 def run_generate_and_save_adversarial_dataset_mp(
@@ -466,86 +495,82 @@ def run_generate_and_save_adversarial_dataset_mp(
     lr: float = 1e-2,
     obs_masked: bool = True,
     loss_fn: str = 'mse',
-    batch_size: int = 1024*12,
+    batch_size: int = 1024*12,         # approx
     loss_num_pairs: int = 1024*5,
     loss_num_samples: int = 1024*5*2,  # only applies if loss_const_targ=None
     loss_top_k: int = None,
-    loss_const_targ: float = None,  # replace stochastic pairwise constant loss with deterministic loss target
+    loss_const_targ: float = 0.1,     # replace stochastic pairwise constant loss with deterministic loss target
     loss_reg_out_of_bounds: bool = False,
-    train_epochs: int = 10,
-    train_optim_steps: int = 100,
+    train_epochs: int = 8,
+    train_optim_steps: int = 125,
+    train_shuffle_mode: str = 'all',   # "all" (each index is repeated epoch number of times, but all shuffled), "batch" (ordered in epochs, but indexes within epochs are shuffled)
     # skipped params
-    overwrite_mode: str = 'fail',  # continue, overwrite, fail
+    overwrite_mode: str = 'overwrite', # continue, overwrite, fail
     seed_: int = None,
 ):
-    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # - - - - - - - - - - - - - - - - #
     seed(seed_)
+    # - - - - - - - - - - - - - - - - #
+    # ↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓ #
     # make dataset
     dataset = make_dataset(dataset_name)
     # get save path
     path = _make_dset(f'out/overlap/{_get_caller_args_string(exclude=["overwrite_mode", "seed_"])}.hdf5', dataset=dataset, overwrite_mode=overwrite_mode)
-    # compute vars
-    num_splits = (len(dataset) + batch_size - 1) // batch_size
-    # progress
-    load_time, save_time = Timer(), Timer()
-    prog = tqdm(total=num_splits * train_epochs * train_optim_steps, postfix={'loss': 0.0, '💯': 0.0, '🔍': 'N/A', '💾': 'N/A'}, ncols=100)
-    # concurrent pool
+    # split dataset into random batches
+    # -- this can use a lot of memory if batch size, and dataset size is too big, but gives better results than computing per epoch
+    epoch_idxs = get_epoch_batch_idxs(num_epochs=train_epochs, num_obs=len(dataset), num_epoch_splits=(len(dataset) + batch_size - 1) // batch_size, shuffle_mode=train_shuffle_mode)
+    # ↑=↑=↑=↑=↑=↑=↑=↑=↑=↑=↑=↑=↑=↑=↑=↑ #
+    # - - - - - - - - - - - - - - - - #
+    # loop vars & progress bar
+    save_time = Timer()
+    prog = tqdm(total=len(epoch_idxs) * train_optim_steps, postfix={'loss': 0.0, '💯': 0.0, '🔍': 'N/A', '💾': 'N/A'}, ncols=100)
+    # multiprocessing pool
     executor = ProcessPoolExecutor(NUM_WORKERS)
-    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-
-    # >>> EPOCHS <<< #
-    for epoch in range(train_epochs):
-        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        # split dataset into random non-overlapping batches
-        batch_idxs = _random_batch_idxs(num_obs=len(dataset), num_splits=num_splits)
-        load_future, save_future = None, None
-        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-
-        # >>> BATCHES <<< #
-        for n in range(num_splits):
-            # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-            if n == 0:
-                assert load_future is None
-                load_future = _submit_load_batch_futures(executor, num_splits=NUM_WORKERS, dataset=dataset, h5py_path=path, idxs=batch_idxs[n])
-            # get batch
-            load_future, ((x, visits), load_time) = None, _wait_for_load_future(load_future)
-            # TODO: transfer to gpu is the new bottleneck
-            x = x.cuda().requires_grad_(True)
-            # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-            # queue loading an extra batch
-            if n+1 < num_splits:
-                assert load_future is None
-                load_future = _submit_load_batch_futures(executor, num_splits=NUM_WORKERS, dataset=dataset, h5py_path=path, idxs=batch_idxs[n + 1])
-            # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-            # make optimizer
-            mask = make_changed_mask(x, masked=obs_masked)
-            optim = make_optimizer(x, name=optimizer, lr=lr)
-            # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-
-            # >>> OPTIMIZE <<< #
-            for _ in range(train_optim_steps):
-                # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-                # final loss
-                loss = stochastic_const_loss(x, mask, num_pairs=loss_num_pairs, num_samples=loss_num_samples, loss=loss_fn, reg_out_of_bounds=loss_reg_out_of_bounds, top_k=loss_top_k, constant_targ=loss_const_targ)
-                # update variables
-                step_optimizer(optim, loss)
-                # update progress bar
-                prog.update()
-                prog.set_postfix({'loss': float(loss), '💯': visits, '🔍': load_time.pretty, '💾': save_time.pretty})
-                # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-
-            # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-            if n != 0:
-                save_future, save_time = None, _wait_for_save_future(save_future)
-            # save optimized minibatch
-            assert save_future is None
-            save_future = _submit_save_batch(executor, h5py_path=path, batch=x.detach().cpu(), idxs=batch_idxs[n])
-            # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        # WAIT
-        save_future, save_time = None, _wait_for_save_future(save_future)
-        # check that nothing has gone unloaded
-        assert save_future is None
-        assert load_future is None
+    # first data load
+    load_future = _submit_load_batch_futures(executor, num_splits=NUM_WORKERS, dataset=dataset, h5py_path=path, idxs=epoch_idxs[0])
+    # - - - - - - - - - - - - - - - - #
+    # >>> BATCHES <<< #
+    for n in range(len(epoch_idxs)):
+        # ↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓ #
+        # get batch -- transfer to gpu is the bottleneck
+        (x, visits), load_time = _wait_for_load_future(load_future)
+        x = x.cuda().requires_grad_(True)
+        # ↑=↑=↑=↑=↑=↑=↑=↑=↑=↑=↑=↑=↑=↑=↑=↑ #
+        # - - - - - - - - - - - - - - - - #
+        # queue loading an extra batch
+        if (n+1) < len(epoch_idxs):
+            load_future = _submit_load_batch_futures(executor, num_splits=NUM_WORKERS, dataset=dataset, h5py_path=path, idxs=epoch_idxs[n + 1])
+        # - - - - - - - - - - - - - - - - #
+        # ↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓ #
+        # make optimizers
+        mask = make_changed_mask(x, masked=obs_masked)
+        optim = make_optimizer(x, name=optimizer, lr=lr)
+        # ↑=↑=↑=↑=↑=↑=↑=↑=↑=↑=↑=↑=↑=↑=↑=↑ #
+        # >>> OPTIMIZE <<< #
+        for _ in range(train_optim_steps):
+            # ↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓ #
+            # final loss & update
+            loss = stochastic_const_loss(x, mask, num_pairs=loss_num_pairs, num_samples=loss_num_samples, loss=loss_fn, reg_out_of_bounds=loss_reg_out_of_bounds, top_k=loss_top_k, constant_targ=loss_const_targ)
+            step_optimizer(optim, loss)
+            # ↑=↑=↑=↑=↑=↑=↑=↑=↑=↑=↑=↑=↑=↑=↑=↑ #
+            # - - - - - - - - - - - - - - - - #
+            # update progress bar
+            logs = {'loss': float(loss), '💯': visits, '🔍': load_time.pretty, '💾': save_time.pretty}
+            prog.update()
+            prog.set_postfix(logs)
+            # - - - - - - - - - - - - - - - - #
+        # - - - - - - - - - - - - - - - - #
+        if n > 0:
+            save_time = _wait_for_save_future(save_future)
+        # save optimized minibatch
+        save_future = _submit_save_batch(executor, h5py_path=path, batch=x.detach().cpu(), idxs=epoch_idxs[n])
+        # - - - - - - - - - - - - - - - - #
+    # - - - - - - - - - - - - - - - - #
+    # final save
+    save_time = _wait_for_save_future(save_future)
+    # cleanup all
+    executor.shutdown()
+    # - - - - - - - - - - - - - - - - #
 
 
 def run_generate_adversarial_data(
