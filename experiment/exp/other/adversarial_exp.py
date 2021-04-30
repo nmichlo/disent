@@ -341,7 +341,7 @@ def _make_dset(*path, dataset, overwrite_mode: str = 'continue') -> str:
             f.create_dataset(
                 'data',
                 shape=(num_obs, *obs_shape),
-                dtype='float32',
+                dtype='uint8',
                 chunks=(1, *obs_shape)
             )
         # make set_dset
@@ -371,7 +371,7 @@ def __load_dset_minibatch(dataset, h5py_path: str, idxs):
         for i in idxs:
             v = f['visits'][i]
             if v > 0:
-                obs = torch.as_tensor(f['data'][i], dtype=torch.float32)
+                obs = torch.as_tensor(f['data'][i], dtype=torch.float32) / 255
             else:
                 (obs,) = dataset[i]['x_targ']
             batch.append(obs)
@@ -387,7 +387,7 @@ def __load_dset_minibatch(dataset, h5py_path: str, idxs):
 def _save_dset_minibatch(h5py_path: str, batch, idxs):
     with h5py.File(h5py_path, 'r+', libver='latest') as f:
         for obs, idx in zip(batch, idxs):
-            f['data'][idx] = obs
+            f['data'][idx] = (torch.clamp(obs, 0, 1) * 255).to(torch.uint8)
             f['visits'][idx] += 1
 
 
