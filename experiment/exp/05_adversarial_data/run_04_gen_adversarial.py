@@ -107,7 +107,7 @@ def _make_hdf5_dataset(path, dataset, overwrite_mode: str = 'continue') -> str:
             f.create_dataset(
                 'data',
                 shape=(num_obs, *obs_shape),
-                dtype='float32',
+                dtype='uint8',
                 chunks=(1, *obs_shape)
             )
         # make set_dset
@@ -131,7 +131,7 @@ def _load_hdf5_batch(dataset, h5py_path: str, idxs):
         for i in idxs:
             v = f['visits'][i]
             if v > 0:
-                obs = torch.as_tensor(f['data'][i], dtype=torch.float32)
+                obs = torch.as_tensor(f['data'][i], dtype=torch.float32) / 255
             else:
                 (obs,) = dataset[i]['x_targ']
             batch.append(obs)
@@ -150,7 +150,7 @@ def _save_hdf5_batch(h5py_path: str, batch, idxs):
     """
     with h5py.File(h5py_path, 'r+', libver='latest') as f:
         for obs, idx in zip(batch, idxs):
-            f['data'][idx] = obs
+            f['data'][idx] = torch.clamp(torch.round(obs * 255), 0, 255).to(torch.uint8)
             f['visits'][idx] += 1
 
 
@@ -186,7 +186,7 @@ def _submit_save_batch(executor: Executor, h5py_path: str, batch, idxs) -> Futur
     return executor.submit(__inner__save_batch, h5py_path=h5py_path, batch=batch, idxs=idxs)
 
 
-NUM_WORKERS = psutil.cpu_count(logical=False)
+NUM_WORKERS = psutil.cpu_count()
 _BARRIER = multiprocessing.Barrier(NUM_WORKERS)
 
 
@@ -241,7 +241,7 @@ def run_generate_and_save_adversarial_dataset_mp(
     save_folder: str = 'out/overlap',
     save_prefix: str = '',
     overwrite_mode: str = 'overwrite',  # continue, overwrite, fail
-    seed_: int = None,
+    seed_: int = 777,
 ):
     seed(seed_)
     # ↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓ #
@@ -366,6 +366,7 @@ def run_generate_adversarial_data(
 
 if __name__ == '__main__':
     run_generate_and_save_adversarial_dataset_mp(
-        save_prefix='float32_'
+
+        save_prefix='uint8_'
     )
     # run_generate_adversarial_data()
