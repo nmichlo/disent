@@ -71,7 +71,7 @@ def seed(long=777):
     https://pytorch.org/docs/stable/notes/randomness.html
     """
     if long is None:
-        log.warning(f'[SEEDING]: skipped!')
+        log.warning(f'[SEEDING]: no seed was specified. Seeding skipped!')
         return
     torch.manual_seed(long)
     torch.backends.cudnn.deterministic = True
