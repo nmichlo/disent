@@ -249,11 +249,24 @@ def make_changed_mask(batch, masked=True):
 # ========================================================================= #
 
 
+def _get_fn_from_stack(fn_name: str, stack):
+    # -- do we actually need all of this?
+    fn = None
+    for s in stack:
+        if fn_name in s.frame.f_locals:
+            fn = s.frame.f_locals[fn_name]
+            break
+    if fn is None:
+        raise RuntimeError(f'could not retrieve function: {repr(fn_name)} from call stack.')
+    return fn
+
+
 def get_caller_params(sort: bool = False, exclude: Sequence[str] = None) -> dict:
     stack = inspect.stack()
     fn_name = stack[1].function
     fn_locals = stack[1].frame.f_locals
-    fn = stack[2].frame.f_locals[fn_name]  # this is hacky, there should be a better way?
+    # get function and params
+    fn = _get_fn_from_stack(fn_name, stack)
     fn_params = inspect.getfullargspec(fn).args
     # check excluded
     exclude = set() if (exclude is None) else set(exclude)

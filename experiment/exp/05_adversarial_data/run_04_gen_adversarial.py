@@ -26,9 +26,13 @@ import multiprocessing.synchronize
 from concurrent.futures import Executor
 from concurrent.futures import Future
 from concurrent.futures import ProcessPoolExecutor
+from typing import Optional
 from typing import Sequence
 
 import h5py
+import logging
+
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 import psutil
@@ -38,7 +42,11 @@ from tqdm import tqdm
 import experiment.exp.helper as H
 from disent.data.util.in_out import ensure_parent_dir_exists
 from disent.util import seed
+from disent.util import TempNumpySeed
 from disent.util import Timer
+
+
+log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
@@ -77,6 +85,11 @@ def stochastic_const_loss(pred: torch.Tensor, mask: torch.Tensor, num_pairs: int
 # ========================================================================= #
 
 
+NAME_DATA = 'data'
+NAME_VISITS = 'visits'
+NAME_OBS = 'x_targ'
+
+
 def _make_hdf5_dataset(path, dataset, overwrite_mode: str = 'continue') -> str:
     path = ensure_parent_dir_exists(path)
     # get read/write mode
@@ -98,22 +111,23 @@ def _make_hdf5_dataset(path, dataset, overwrite_mode: str = 'continue') -> str:
     else:
         raise KeyError(f'invalid overwrite_mode={repr(overwrite_mode)}')
     # open in read write mode
+    log.info(f'Opening hdf5 dataset: overwrite_mode={repr(overwrite_mode)} exists={repr(os.path.exists(path))} path={repr(path)}')
     with h5py.File(path, rw_mode, libver='latest') as f:
         # get data
         num_obs = len(dataset)
-        obs_shape = dataset[0]['x_targ'][0].shape
+        obs_shape = dataset[0][NAME_OBS][0].shape
         # make dset
-        if 'data' not in f:
+        if NAME_DATA not in f:
             f.create_dataset(
-                'data',
+                NAME_DATA,
                 shape=(num_obs, *obs_shape),
                 dtype='uint8',
                 chunks=(1, *obs_shape)
             )
         # make set_dset
-        if 'visits' not in f:
+        if NAME_VISITS not in f:
             f.create_dataset(
-                'visits',
+                NAME_VISITS,
                 shape=(num_obs,),
                 dtype='int64',
                 chunks=(1,)
@@ -121,26 +135,43 @@ def _make_hdf5_dataset(path, dataset, overwrite_mode: str = 'continue') -> str:
     return path
 
 
-def _load_hdf5_batch(dataset, h5py_path: str, idxs):
+def _read_hdf5_batch(h5py_path: str, idxs, return_visits=False):
+    batch, visits = [], []
+    with h5py.File(h5py_path, 'r', libver='latest', swmr=True) as f:
+        for i in idxs:
+            visits.append(f[NAME_VISITS][i])
+            batch.append(torch.as_tensor(f[NAME_DATA][i], dtype=torch.float32) / 255)
+    # return values
+    if return_visits:
+        return torch.stack(batch, dim=0), np.array(visits, dtype=np.int64)
+    else:
+        return torch.stack(batch, dim=0)
+
+
+def _load_hdf5_batch(dataset, h5py_path: str, idxs, initial_noise: Optional[float] = None, return_visits=True):
     """
     Load a batch from the disk.
     - Can be used by multiple threads at a time.
+    - returns an item from the original dataset if an
+      observation has not been saved into the hdf5 dataset yet.
     """
     batch, visits = [], []
     with h5py.File(h5py_path, 'r', libver='latest', swmr=True) as f:
         for i in idxs:
-            v = f['visits'][i]
+            v = f[NAME_VISITS][i]
             if v > 0:
-                obs = torch.as_tensor(f['data'][i], dtype=torch.float32) / 255
+                obs = torch.as_tensor(f[NAME_DATA][i], dtype=torch.float32) / 255
             else:
-                (obs,) = dataset[i]['x_targ']
+                (obs,) = dataset[i][NAME_OBS]
+                if initial_noise is not None:
+                    obs += (torch.randn_like(obs) * initial_noise)
             batch.append(obs)
             visits.append(v)
-    # load
-    batch = torch.stack(batch, dim=0)
-    visits = np.array(visits, dtype=np.int64)
-    # return
-    return batch, visits
+    # return values
+    if return_visits:
+        return torch.stack(batch, dim=0), np.array(visits, dtype=np.int64)
+    else:
+        return torch.stack(batch, dim=0)
 
 
 def _save_hdf5_batch(h5py_path: str, batch, idxs):
@@ -150,8 +181,8 @@ def _save_hdf5_batch(h5py_path: str, batch, idxs):
     """
     with h5py.File(h5py_path, 'r+', libver='latest') as f:
         for obs, idx in zip(batch, idxs):
-            f['data'][idx] = torch.clamp(torch.round(obs * 255), 0, 255).to(torch.uint8)
-            f['visits'][idx] += 1
+            f[NAME_DATA][idx] = torch.clamp(torch.round(obs * 255), 0, 255).to(torch.uint8)
+            f[NAME_VISITS][idx] += 1
 
 
 # ========================================================================= #
@@ -175,9 +206,9 @@ class FutureList(object):
 # SUBMIT:
 
 
-def _submit_load_batch_futures(executor: Executor, num_splits: int, dataset, h5py_path: str, idxs) -> FutureList:
+def _submit_load_batch_futures(executor: Executor, num_splits: int, dataset, h5py_path: str, idxs, initial_noise: Optional[float] = None) -> FutureList:
     return FutureList([
-        executor.submit(__inner__load_batch, dataset=dataset, h5py_path=h5py_path, idxs=idxs)
+        executor.submit(__inner__load_batch, dataset=dataset, h5py_path=h5py_path, idxs=idxs, initial_noise=initial_noise)
         for idxs in np.array_split(idxs, num_splits)
     ])
 
@@ -190,9 +221,9 @@ NUM_WORKERS = psutil.cpu_count()
 _BARRIER = multiprocessing.Barrier(NUM_WORKERS)
 
 
-def __inner__load_batch(dataset, h5py_path: str, idxs):
+def __inner__load_batch(dataset, h5py_path: str, idxs, initial_noise: Optional[float] = None):
     _BARRIER.wait()
-    result = _load_hdf5_batch(dataset=dataset, h5py_path=h5py_path, idxs=idxs)
+    result = _load_hdf5_batch(dataset=dataset, h5py_path=h5py_path, idxs=idxs, initial_noise=initial_noise)
     _BARRIER.wait()
     return result
 
@@ -228,22 +259,30 @@ def run_generate_and_save_adversarial_dataset_mp(
     optimizer: str = 'adam',
     lr: float = 1e-2,
     obs_masked: bool = True,
+    obs_initial_noise: Optional[float] = None,
     loss_fn: str = 'mse',
-    batch_size: int = 1024*12,         # approx
+    batch_size: int = 1024*12,                # approx
+    batch_sample_mode: str = 'shuffle',       # range, shuffle, random
     loss_num_pairs: int = 1024*5,
-    loss_num_samples: int = 1024*5*2,  # only applies if loss_const_targ=None
-    loss_top_k: int = None,
-    loss_const_targ: float = 0.1,      # replace stochastic pairwise constant loss with deterministic loss target
+    loss_num_samples: int = 1024*5*2,         # only applies if loss_const_targ=None
+    loss_top_k: Optional[int] = None,
+    loss_const_targ: Optional[float] = 0.1,   # replace stochastic pairwise constant loss with deterministic loss target
     loss_reg_out_of_bounds: bool = False,
     train_epochs: int = 8,
     train_optim_steps: int = 125,
     # skipped params
     save_folder: str = 'out/overlap',
     save_prefix: str = '',
-    overwrite_mode: str = 'overwrite',  # continue, overwrite, fail
-    seed_: int = 777,
-):
+    overwrite_mode: str = 'fail',             # continue, overwrite, fail
+    seed_: Optional[int] = 777,
+) -> str:
+    # checks
+    if obs_initial_noise is not None:
+        assert not obs_masked, '`obs_masked` cannot be `True`, if using initial noise, ie. `obs_initial_noise is not None`'
+
+    # deterministic!
     seed(seed_)
+
     # ↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓ #
     # make dataset
     dataset = H.make_dataset(dataset_name)
@@ -263,9 +302,9 @@ def run_generate_and_save_adversarial_dataset_mp(
     # EPOCHS:
     for e in range(train_epochs):
         # generate batches
-        batch_idxs = H.generate_epoch_batch_idxs(num_obs=len(dataset), num_batches=train_batches, mode='shuffle')
+        batch_idxs = H.generate_epoch_batch_idxs(num_obs=len(dataset), num_batches=train_batches, mode=batch_sample_mode)
         # first data load
-        load_future = _submit_load_batch_futures(executor, num_splits=NUM_WORKERS, dataset=dataset, h5py_path=path, idxs=batch_idxs[0])
+        load_future = _submit_load_batch_futures(executor, num_splits=NUM_WORKERS, dataset=dataset, h5py_path=path, idxs=batch_idxs[0], initial_noise=obs_initial_noise)
 
         # BATCHES:
         for n in range(len(batch_idxs)):
@@ -277,7 +316,7 @@ def run_generate_and_save_adversarial_dataset_mp(
 
             # queue loading an extra batch
             if (n+1) < len(batch_idxs):
-                load_future = _submit_load_batch_futures(executor, num_splits=NUM_WORKERS, dataset=dataset, h5py_path=path, idxs=batch_idxs[n + 1])
+                load_future = _submit_load_batch_futures(executor, num_splits=NUM_WORKERS, dataset=dataset, h5py_path=path, idxs=batch_idxs[n + 1], initial_noise=obs_initial_noise)
 
             # ↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓ #
             # make optimizers
@@ -308,6 +347,8 @@ def run_generate_and_save_adversarial_dataset_mp(
 
     # cleanup all
     executor.shutdown()
+    # return the path to the dataset
+    return path
 
 
 # ========================================================================= #
@@ -364,9 +405,51 @@ def run_generate_adversarial_data(
 # ========================================================================= #
 
 
-if __name__ == '__main__':
-    run_generate_and_save_adversarial_dataset_mp(
+def main():
+    logging.basicConfig(level=logging.INFO, format='(%(asctime)s) %(name)s:%(lineno)d [%(levelname)s]: %(message)s')
 
-        save_prefix='uint8_'
-    )
-    # run_generate_adversarial_data()
+    DATASET_NAME = 'shapes3d'
+
+    with TempNumpySeed(42):
+        display_idxs = H.sample_unique_batch_indices(num_obs=len(H.make_dataset(DATASET_NAME)), num_samples=9)
+
+    paths = []
+    for i, kwargs in enumerate([
+        dict(save_prefix='fixed_masked_const_', obs_masked=True,  loss_const_targ=0.1,  obs_initial_noise=None),
+        dict(save_prefix='fixed_masked_randm_', obs_masked=True,  loss_const_targ=None, obs_initial_noise=None),
+        dict(save_prefix='fixed_unmask_const_', obs_masked=False, loss_const_targ=0.1,  obs_initial_noise=None),
+        dict(save_prefix='fixed_unmask_randm_', obs_masked=False, loss_const_targ=None, obs_initial_noise=None),
+        dict(save_prefix='noise_unmask_const_', obs_masked=False, loss_const_targ=0.1,  obs_initial_noise=0.001),
+        dict(save_prefix='noise_unmask_randm_', obs_masked=False, loss_const_targ=None, obs_initial_noise=0.001),
+    ]):
+        # generate dataset
+        try:
+            path = run_generate_and_save_adversarial_dataset_mp(
+                dataset_name=DATASET_NAME,
+                train_epochs=8,
+                train_optim_steps=125,
+                seed_=777,
+                # overwrite_mode='continue',
+                # batch_sample_mode='range',
+                **kwargs
+            )
+            paths.append(path)
+        except Exception as e:
+            log.error(f'[{i}] FAILED RUN: {e} -- {repr(kwargs)}')
+        # load some samples and display them
+        try:
+            H.show_imgs(_read_hdf5_batch(paths[-1], display_idxs))
+        except Exception as e:
+            log.warning(f'[{i}] FAILED SHOW: {e} -- {repr(kwargs)}')
+
+    for path in paths:
+        print(path)
+
+
+# ========================================================================= #
+# main                                                                      #
+# ========================================================================= #
+
+
+if __name__ == '__main__':
+    main()
