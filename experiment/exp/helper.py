@@ -166,14 +166,14 @@ _LOSS_FNS = {
 }
 
 
-def pairwise_loss(pred: torch.Tensor, targ: torch.Tensor, mode='mse') -> torch.Tensor:
+def pairwise_loss(pred: torch.Tensor, targ: torch.Tensor, mode='mse', mean_dtype=None) -> torch.Tensor:
     # check input
     assert pred.shape == targ.shape
     assert pred.ndim >= 1
     # mean over final dims
     loss = unreduced_loss(pred=pred, targ=targ, mode=mode)
     if loss.ndim >= 2:
-        loss = loss.mean(dim=tuple(range(1, loss.ndim)))
+        loss = loss.mean(dim=tuple(range(1, loss.ndim)), dtype=mean_dtype)
     # check result
     assert loss.ndim == 1
     assert loss.shape == pred.shape[:1]
@@ -191,9 +191,9 @@ def unreduced_overlap(pred: torch.Tensor, targ: torch.Tensor, mode='mse') -> tor
     return - unreduced_loss(pred=pred, targ=targ, mode=mode)
 
 
-def pairwise_overlap(pred: torch.Tensor, targ: torch.Tensor, mode='mse') -> torch.Tensor:
+def pairwise_overlap(pred: torch.Tensor, targ: torch.Tensor, mode='mse', mean_dtype=None) -> torch.Tensor:
     # -ve loss
-    return - pairwise_loss(pred=pred, targ=targ, mode=mode)
+    return - pairwise_loss(pred=pred, targ=targ, mode=mode, mean_dtype=mean_dtype)
 
 
 # ========================================================================= #
