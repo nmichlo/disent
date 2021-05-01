@@ -28,9 +28,11 @@ from typing import Sequence
 from typing import Union
 
 import numpy as np
+import psutil
 
 import torch_optimizer
 from matplotlib import pyplot as plt
+from torch.utils.data import DataLoader
 
 from disent.data.groundtruth import Cars3dData
 from disent.data.groundtruth import Shapes3dData
@@ -39,6 +41,7 @@ import torch
 import torch.nn.functional as F
 
 from disent.dataset.groundtruth import GroundTruthDataset
+from disent.dataset.groundtruth import GroundTruthDatasetAndFactors
 from disent.transform import ToStandardisedTensor
 
 
@@ -74,13 +77,15 @@ def step_optimizer(optimizer, loss):
 # ========================================================================= #
 
 
-def make_dataset(name: str = 'xysquares', dataloader=False):
-    if name == 'xysquares':  dataset = GroundTruthDataset(XYSquaresData(), transform=ToStandardisedTensor())
-    elif name == 'xysquares_1x1':  dataset = GroundTruthDataset(XYSquaresData(square_size=1), transform=ToStandardisedTensor())
-    elif name == 'xysquares_2x2':  dataset = GroundTruthDataset(XYSquaresData(square_size=2), transform=ToStandardisedTensor())
-    elif name == 'xysquares_4x4':  dataset = GroundTruthDataset(XYSquaresData(square_size=4), transform=ToStandardisedTensor())
-    elif name == 'cars3d':   dataset = GroundTruthDataset(Cars3dData(),    transform=ToStandardisedTensor(size=64))
-    elif name == 'shapes3d': dataset = GroundTruthDataset(Shapes3dData(),  transform=ToStandardisedTensor())
+def make_dataset(name: str = 'xysquares', factors: bool = False):
+    Sampler = GroundTruthDatasetAndFactors if factors else GroundTruthDataset
+    # make dataset
+    if name == 'xysquares':        dataset = Sampler(XYSquaresData(),              transform=ToStandardisedTensor())
+    elif name == 'xysquares_1x1':  dataset = Sampler(XYSquaresData(square_size=1), transform=ToStandardisedTensor())
+    elif name == 'xysquares_2x2':  dataset = Sampler(XYSquaresData(square_size=2), transform=ToStandardisedTensor())
+    elif name == 'xysquares_4x4':  dataset = Sampler(XYSquaresData(square_size=4), transform=ToStandardisedTensor())
+    elif name == 'cars3d':         dataset = Sampler(Cars3dData(),                 transform=ToStandardisedTensor(size=64))
+    elif name == 'shapes3d':       dataset = Sampler(Shapes3dData(),               transform=ToStandardisedTensor())
     else: raise KeyError(f'invalid data name: {repr(name)}')
     return dataset
 
@@ -161,6 +166,21 @@ _LOSS_FNS = {
 }
 
 
+def pairwise_loss(pred: torch.Tensor, targ: torch.Tensor, mode='mse') -> torch.Tensor:
+    # check input
+    assert pred.shape == targ.shape
+    assert pred.ndim >= 1
+    # mean over final dims
+    loss = unreduced_loss(pred=pred, targ=targ, mode=mode)
+    if loss.ndim >= 2:
+        loss = loss.mean(dim=tuple(range(1, loss.ndim)))
+    # check result
+    assert loss.ndim == 1
+    assert loss.shape == pred.shape[:1]
+    # done
+    return loss
+
+
 # ========================================================================= #
 # LOSS                                                                      #
 # ========================================================================= #
@@ -168,22 +188,12 @@ _LOSS_FNS = {
 
 def unreduced_overlap(pred: torch.Tensor, targ: torch.Tensor, mode='mse') -> torch.Tensor:
     # -ve loss
-    return -unreduced_loss(pred=pred, targ=targ, mode=mode)
+    return - unreduced_loss(pred=pred, targ=targ, mode=mode)
 
 
 def pairwise_overlap(pred: torch.Tensor, targ: torch.Tensor, mode='mse') -> torch.Tensor:
-    # check input
-    assert pred.shape == targ.shape
-    assert pred.ndim >= 1
-    # mean over final dims
-    overlap = unreduced_overlap(pred=pred, targ=targ, mode=mode)
-    if overlap.ndim >= 2:
-        overlap = overlap.mean(dim=tuple(range(1, overlap.ndim)))
-    # check result
-    assert overlap.ndim == 1
-    assert overlap.shape == pred.shape[:1]
-    # done
-    return overlap
+    # -ve loss
+    return - pairwise_loss(pred=pred, targ=targ, mode=mode)
 
 
 # ========================================================================= #
@@ -202,6 +212,14 @@ def normalise_factor_idx(dataset, factor: Union[int, str]) -> int:
     assert isinstance(f_idx, int)
     assert 0 <= f_idx < dataset.num_factors
     return f_idx
+
+
+def normalise_factor_idxs(dataset, factors: Union[Sequence[Union[int, str]], Union[int, str]]) -> List[int]:
+    if isinstance(factors, (int, str)):
+        factors = [factors]
+    factors = [normalise_factor_idx(dataset, factor) for factor in factors]
+    assert len(set(factors)) == len(factors)
+    return factors
 
 
 def sample_factors(dataset, num_obs: int = 1024, factor_mode: str = 'sample_random', factor: Union[int, str] = None):

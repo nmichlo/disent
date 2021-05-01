@@ -110,6 +110,15 @@ class GroundTruthDataset(Dataset, GroundTruthData, AugmentableDataset):
     # End Class                                                             #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
+
+class GroundTruthDatasetAndFactors(GroundTruthDataset):
+    def dataset_get_observation(self, *idxs):
+        return {
+            **super().dataset_get_observation(*idxs),
+            'factors': tuple(self.idx_to_pos(idxs))
+        }
+
+
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
