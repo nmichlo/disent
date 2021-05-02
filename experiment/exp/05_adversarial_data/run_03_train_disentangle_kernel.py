@@ -21,12 +21,14 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
+
 from typing import List
 from typing import Optional
 
 import psutil
-import torch
 import pytorch_lightning as pl
+import torch
 from torch.nn import Parameter
 from tqdm import tqdm
 
@@ -67,8 +69,7 @@ def disentangle_loss(
     return loss
 
 
-
-def train_module_to_disentangle(
+def train_model_to_disentangle(
     model,
     dataset='xysquares_1x1',
     batch_size=128,
@@ -104,6 +105,86 @@ def train_module_to_disentangle(
             step_callback(i)
 
 
+class Disentangler(DisentLightningModule):
+
+    def __init__(
+        self,
+        model,
+        loss: str = 'mse',
+        optimizer: str = 'radam',
+        lr: float = 1e-3,
+        train_factors: Optional[List[int]] = None,
+        train_pair_ratio: float = 4.0,
+    ):
+        super().__init__()
+        self._model = model
+        self.save_hyperparameters()
+        self._i = 0
+
+    def configure_optimizers(self):
+        return H.make_optimizer(self, name=self.hparams.optimizer, lr=self.hparams.lr)
+
+    def training_step(self, batch, batch_idx):
+        (xs,), (factors,) = batch['x_targ'], batch['factors']
+        # feed forward batch
+        aug_xs = self._model(xs)
+        assert aug_xs.shape == xs.shape
+        # compute pairwise distances of factors and batch, and optimize to correspond
+        loss = disentangle_loss(
+            batch=aug_xs, factors=factors,
+            num_pairs=int(len(xs) * self.hparams.train_pair_ratio),
+            f_idxs=self.hparams.train_factors,
+            loss_fn=self.hparams.loss,
+            mean_dtype=torch.float64,
+        )
+        # show
+        self._i += 1
+        H.show_imgs(aug_xs[:9], i=self._i, step=500)
+        # log
+        self.log('loss', loss)
+        return loss
+
+    def forward(self, xs) -> torch.Tensor:
+        return self._model(xs)
+
+
+def train_pl_model_to_disentangle(
+    model: torch.nn.Module,
+    dataset='xysquares_4x4',
+    train_batch_size: int = 128,
+    train_epochs: int = 10,
+    # disentangler settings
+    factor_idxs: Optional[List[int]] = None,
+    loss_fn: str = 'mse',
+    train_optimizer: str = 'radam',
+    train_lr: float = 1e-3,
+    train_pair_ratio: float = 4.0,
+):
+    # make data
+    dataset = H.make_dataset(dataset, factors=True)
+    shuffle = len(dataset) <= 16777216
+    if not shuffle:
+        print('WARNING: not shuffling, dataset too big!')
+    # make dataloader
+    dataloader = torch.utils.data.DataLoader(
+        dataset=dataset,
+        batch_size=train_batch_size, shuffle=shuffle,
+        num_workers=psutil.cpu_count(), pin_memory=torch.cuda.is_available()
+    )
+    # make module
+    module = Disentangler(
+        model,
+        train_factors=factor_idxs, train_pair_ratio=train_pair_ratio,
+        loss=loss_fn, optimizer=train_optimizer, lr=train_lr,
+    )
+    # train
+    trainer = pl.Trainer(
+        checkpoint_callback=False, terminate_on_nan=False,
+        max_epochs=train_epochs, gpus=int(torch.cuda.is_available()),
+    )
+    trainer.fit(module, dataloader)
+
+
 # ========================================================================= #
 # MAIN                                                                      #
 # ========================================================================= #
@@ -121,12 +202,35 @@ class Kernel(DisentModule):
         return conv2d_channel_wise_fft(xs, self._kernel)
 
     def show_img(self, i=None):
-        H.show_img(self._kernel[0], i=i, step=250, scale=True)
+        H.show_img(self._kernel[0], i=i, step=1000, scale=True)
+
+
+class NN(DisentModule):
+
+    def __init__(self):
+        super().__init__()
+        self._layers = torch.nn.Sequential(
+            torch.nn.Conv2d(in_channels=3, out_channels=6, kernel_size=7, padding=1+1+1),
+            torch.nn.InstanceNorm2d(num_features=3),
+            torch.nn.ReLU(),
+            torch.nn.Conv2d(in_channels=6, out_channels=9, kernel_size=7, padding=1+1+1),
+            torch.nn.InstanceNorm2d(num_features=3),
+            torch.nn.ReLU(),
+            torch.nn.Conv2d(in_channels=9, out_channels=9, kernel_size=7, padding=1+1+1),
+            torch.nn.InstanceNorm2d(num_features=3),
+            torch.nn.ReLU(),
+            torch.nn.Conv2d(in_channels=9, out_channels=6, kernel_size=7, padding=1+1+1),
+            torch.nn.InstanceNorm2d(num_features=3),
+            torch.nn.ReLU(),
+            torch.nn.Conv2d(in_channels=6, out_channels=3, kernel_size=7, padding=1+1+1),
+        )
+
+    def forward(self, xs):
+        return self._layers(xs)
 
 
 if __name__ == '__main__':
-
-    model = Kernel(radius=33, channels=3)
-    train_module_to_disentangle(model=model, step_callback=model.show_img)
+    model = Kernel(radius=55, channels=1)
+    train_pl_model_to_disentangle(model=model)
 
 

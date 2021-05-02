@@ -218,7 +218,7 @@ def _submit_save_batch(executor: Executor, h5py_path: str, batch, idxs) -> Futur
 
 
 NUM_WORKERS = psutil.cpu_count()
-_BARRIER = multiprocessing.Barrier(NUM_WORKERS)
+_BARRIER = None
 
 
 def __inner__load_batch(dataset, h5py_path: str, idxs, initial_noise: Optional[float] = None):
@@ -297,6 +297,8 @@ def run_generate_and_save_adversarial_dataset_mp(
     save_time = Timer()
     prog = tqdm(total=train_epochs * train_batches * train_optim_steps, postfix={'loss': 0.0, '💯': 0.0, '🔍': 'N/A', '💾': 'N/A'}, ncols=100)
     # multiprocessing pool
+    global _BARRIER  # TODO: this is a hack and should be unique to each run
+    _BARRIER = multiprocessing.Barrier(NUM_WORKERS)
     executor = ProcessPoolExecutor(NUM_WORKERS)
 
     # EPOCHS:
