@@ -23,16 +23,17 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import inspect
+from collections import Sized
 from typing import List
 from typing import Sequence
 from typing import Union
 
 import numpy as np
-import psutil
 
 import torch_optimizer
 from matplotlib import pyplot as plt
-from torch.utils.data import DataLoader
+from torch.utils.data import BatchSampler
+from torch.utils.data import Sampler
 
 from disent.data.groundtruth import Cars3dData
 from disent.data.groundtruth import Shapes3dData
@@ -50,7 +51,7 @@ from disent.transform import ToStandardisedTensor
 # ========================================================================= #
 
 
-def make_optimizer(model: torch.nn.Module, name: str = 'sgd', lr=1e-3):
+def make_optimizer(model: torch.nn.Module, name: str = 'sgd', lr=1e-3, weight_decay: float = 0):
     if isinstance(model, torch.nn.Module):
         params = model.parameters()
     elif isinstance(model, torch.Tensor):
@@ -59,10 +60,10 @@ def make_optimizer(model: torch.nn.Module, name: str = 'sgd', lr=1e-3):
     else:
         raise TypeError(f'cannot optimize type: {type(model)}')
     # make optimizer
-    if name == 'sgd': return torch.optim.SGD(params, lr=lr)
-    elif name == 'sgd_m': return torch.optim.SGD(params, lr=lr, momentum=0.1)
-    elif name == 'adam': return torch.optim.Adam(params, lr=lr)
-    elif name == 'radam': return torch_optimizer.RAdam(params, lr=lr)
+    if   name == 'sgd':   return torch.optim.SGD(params,       lr=lr, weight_decay=weight_decay)
+    elif name == 'sgd_m': return torch.optim.SGD(params,       lr=lr, weight_decay=weight_decay, momentum=0.1)
+    elif name == 'adam':  return torch.optim.Adam(params,      lr=lr, weight_decay=weight_decay)
+    elif name == 'radam': return torch_optimizer.RAdam(params, lr=lr, weight_decay=weight_decay)
     else: raise KeyError(f'invalid optimizer name: {repr(name)}')
 
 
@@ -80,10 +81,11 @@ def step_optimizer(optimizer, loss):
 def make_dataset(name: str = 'xysquares', factors: bool = False):
     Sampler = GroundTruthDatasetAndFactors if factors else GroundTruthDataset
     # make dataset
-    if name == 'xysquares':        dataset = Sampler(XYSquaresData(),              transform=ToStandardisedTensor())
+    if   name == 'xysquares':      dataset = Sampler(XYSquaresData(),              transform=ToStandardisedTensor())
     elif name == 'xysquares_1x1':  dataset = Sampler(XYSquaresData(square_size=1), transform=ToStandardisedTensor())
     elif name == 'xysquares_2x2':  dataset = Sampler(XYSquaresData(square_size=2), transform=ToStandardisedTensor())
     elif name == 'xysquares_4x4':  dataset = Sampler(XYSquaresData(square_size=4), transform=ToStandardisedTensor())
+    elif name == 'xysquares_8x8':  dataset = Sampler(XYSquaresData(square_size=8), transform=ToStandardisedTensor())
     elif name == 'cars3d':         dataset = Sampler(Cars3dData(),                 transform=ToStandardisedTensor(size=64))
     elif name == 'shapes3d':       dataset = Sampler(Shapes3dData(),               transform=ToStandardisedTensor())
     else: raise KeyError(f'invalid data name: {repr(name)}')
@@ -129,8 +131,9 @@ def show_img(x: torch.Tensor, scale=False, i=None, step=None, show=True):
 def show_imgs(xs: Sequence[torch.Tensor], scale=False, i=None, step=None, show=True):
     if show:
         if (i is None) or (step is None) or (i % step == 0):
-            n = int(np.ceil(np.sqrt(len(xs))))
-            fig, axs = plt.subplots(n, n)
+            w = int(np.ceil(np.sqrt(len(xs))))
+            h = (len(xs) + w - 1) // w
+            fig, axs = plt.subplots(h, w)
             for ax, im in zip(np.array(axs).flatten(), xs):
                 ax.imshow(to_img(im, scale=scale))
                 ax.set_axis_off()
@@ -359,6 +362,51 @@ def generate_epochs_batch_idxs(num_obs: int, num_epochs: int, num_epoch_batches:
     for i in range(num_epochs):
         batches.extend(generate_epoch_batch_idxs(num_obs=num_obs, num_batches=num_epoch_batches, mode=mode))
     return batches
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #
+
+
+class StochasticSampler(Sampler):
+    """
+    Sample random batches, not guaranteed to be unique or cover the entire dataset in one epoch!
+    """
+
+    def __init__(self, data_source: Union[Sized, int], batch_size: int = 128):
+        super().__init__(data_source)
+        if isinstance(data_source, int):
+            self._len = data_source
+        else:
+            self._len = len(data_source)
+        self._batch_size = batch_size
+        assert isinstance(self._len, int)
+        assert self._len > 0
+        assert isinstance(self._batch_size, int)
+        assert self._batch_size > 0
+
+    def __iter__(self):
+        while True:
+            yield from np.random.randint(0, self._len, size=self._batch_size)
+
+
+def yield_dataloader(dataloader, steps: int):
+    i = 0
+    while True:
+        for it in dataloader:
+            yield it
+            i += 1
+            if i >= steps:
+                return
+
+
+def StochasticBatchSampler(data_source: Union[Sized, int], batch_size: int):
+    return BatchSampler(
+        sampler=StochasticSampler(data_source=data_source, batch_size=batch_size),
+        batch_size=batch_size,
+        drop_last=True
+    )
 
 
 # ========================================================================= #

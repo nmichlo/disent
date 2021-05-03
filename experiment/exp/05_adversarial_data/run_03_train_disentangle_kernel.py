@@ -32,7 +32,7 @@ import torch
 from torch.nn import Parameter
 from tqdm import tqdm
 
-import experiment.exp.helper as H
+import experiment.exp.util.helper as H
 from disent.transform.functional import conv2d_channel_wise_fft
 from disent.util import DisentLightningModule
 from disent.util import DisentModule

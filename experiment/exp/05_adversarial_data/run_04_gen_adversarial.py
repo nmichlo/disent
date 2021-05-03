@@ -32,14 +32,13 @@ from typing import Sequence
 import h5py
 import logging
 
-import matplotlib.pyplot as plt
 import numpy as np
 import os
 import psutil
 import torch
 from tqdm import tqdm
 
-import experiment.exp.helper as H
+import experiment.exp.util.helper as H
 from disent.data.util.in_out import ensure_parent_dir_exists
 from disent.util import seed
 from disent.util import TempNumpySeed

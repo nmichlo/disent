@@ -26,7 +26,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
-import experiment.exp.helper as H
+import experiment.exp.util.helper as H
 from disent.util.math_loss import multi_spearman_rank_loss
 from disent.util.math_loss import torch_soft_rank
 
