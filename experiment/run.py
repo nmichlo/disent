@@ -103,7 +103,7 @@ def hydra_make_logger(cfg):
     loggers = []
 
     # initialise logging dict
-    cfg.setdefault('loggings', {})
+    cfg.setdefault('logging', {})
 
     if ('wandb' in cfg.logging) and cfg.logging.wandb.setdefault('enabled', True):
         loggers.append(WandbLogger(

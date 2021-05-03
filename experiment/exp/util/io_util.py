@@ -24,18 +24,13 @@
 
 import base64
 import dataclasses
+import io
 import os
 from typing import Union
 
-import io
 import torch
-from git import Commit
-from github import ContentFile
-from github import Github
-from github import GithubException
-from github import UnknownObjectException
-from github.Branch import Branch
-from github.Repository import Repository
+
+from disent.data.util.in_out import ensure_parent_dir_exists
 
 
 # ========================================================================= #
@@ -44,6 +39,7 @@ from github.Repository import Repository
 
 
 def gh_get_repo(repo: str = None):
+    from github import Github
     # get token str
     token = os.environ.get('GITHUB_TOKEN', '')
     if not token.strip():
@@ -59,7 +55,8 @@ def gh_get_repo(repo: str = None):
     return Github(token).get_repo(repo)
 
 
-def gh_get_branch(repo: Repository, branch: str = None, source_branch: str = None, allow_new_branch: bool = True) -> Branch:
+def gh_get_branch(repo: 'Repository', branch: str = None, source_branch: str = None, allow_new_branch: bool = True) -> 'Branch':
+    from github import GithubException
     # check branch
     assert isinstance(branch, str) or (branch is None)
     assert isinstance(source_branch, str) or (source_branch is None)
@@ -80,11 +77,13 @@ def gh_get_branch(repo: Repository, branch: str = None, source_branch: str = Non
 
 @dataclasses.dataclass
 class WriteResult:
-    commit: Commit
-    content: ContentFile
+    commit: 'Commit'
+    content: 'ContentFile'
 
 
-def gh_write_file(repo: Repository, path: str, content: Union[str, bytes], branch: str = None, allow_new_file=True, allow_overwrite_file=False, allow_new_branch=True) -> WriteResult:
+def gh_write_file(repo: 'Repository', path: str, content: Union[str, bytes], branch: str = None, allow_new_file=True, allow_overwrite_file=False, allow_new_branch=True) -> WriteResult:
+    from github import UnknownObjectException
+    # get branch
     branch = gh_get_branch(repo, branch, allow_new_branch=allow_new_branch).name
     # check that the file exists
     try:
@@ -158,3 +157,32 @@ def torch_load_base64(s: str):
 # END                                                                       #
 # ========================================================================= #
 
+
+def _split_special_path(path):
+    if path.startswith('github:'):
+        # get github repo and path
+        path = path[len('github:'):]
+        repo, path = os.path.join(*path.split('/')[:2]), os.path.join(*path.split('/')[2:])
+        # check paths
+        assert repo.strip() and len(repo.split('/')) == 2
+        assert path.strip() and len(repo.split('/')) >= 1
+        # return components
+        return 'github', (repo, path)
+    else:
+        return 'local', path
+
+
+def torch_write(path: str, model):
+    path_type, path = _split_special_path(path)
+    # handle cases
+    if path_type == 'github':
+        path, repo = path
+        # get the name of the path
+        ghw = GithubWriter(repo)
+        ghw.write_file(path=path, content=torch_save_bytes(model))
+        print(f'Saved in repo: {repr(path)} to file: {repr(repo)}')
+    elif path_type == 'local':
+        torch.save(model, ensure_parent_dir_exists(path))
+        print(f'Saved to file: {repr(path)}')
+    else:
+        raise KeyError(f'unknown path type: {repr(path_type)}')

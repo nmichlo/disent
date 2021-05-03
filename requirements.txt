@@ -11,6 +11,7 @@ torch==1.8.1
 torchvision==0.9.1
 torch-optimizer==0.1.0
 pytorch-lightning==1.2.7
+torchsort==0.1.4
 # pytorch-lightning-bolts==0.3.0
 
 # tensorflow==2.4.1

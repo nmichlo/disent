@@ -15,8 +15,4 @@ logging:
     project: '${job.project}'
     name: '${job.name}'
     group: null
-    tags:
-      - '${framework.name}'
-      - '${dataset.name}'
-      - '${optimizer.name}'
-      - '${model.name}'
+    tags: []

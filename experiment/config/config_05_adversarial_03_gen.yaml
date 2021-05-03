@@ -1,0 +1,45 @@
+defaults:
+  # runtime
+  - run_length: short
+  - run_logging: wandb
+  - run_location: cluster_many
+  # plugins
+  - hydra/job_logging: colorlog
+  - hydra/hydra_logging: colorlog
+  - hydra/launcher: submitit_slurm
+
+job:
+  user: 'n_michlo'
+  project: 'exp-disentangle-kernel'
+  name: r${kernel.radius}-${kernel.channels}_s${trainer.steps}_${optimizer.name}_lr${optimizer.lr}_wd${optimizer.weight_decay}_xy${data.spacing}x${data.spacing}
+  partition: stampede
+
+optimizer:
+  name: adam
+  lr: 3e-3
+  weight_decay: 0.0
+
+data:
+  spacing: 8
+
+kernel:
+  radius: 63
+  channels: 1
+
+train:
+  pairs_ratio: 8.0
+  loss: mse
+
+exp:
+  seed: 777
+  rel_save_dir: data/adversarial_kernel
+  save_name: ${job.name}.pt
+  show_every_n_steps: 1000
+
+# OVERRIDE run_logging: wandb -- too fast otherwise
+logging:
+  flush_logs_every_n_steps: 500
+
+# OVERRIDE run_location:
+dataset:
+  batch_size: 128
