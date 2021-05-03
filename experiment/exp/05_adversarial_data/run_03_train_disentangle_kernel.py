@@ -22,13 +22,22 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+from typing import List
+from typing import Optional
+
+import psutil
 import torch
-import torch.nn.functional as F
+from torch.nn import Parameter
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-import experiment.exp.helper as H
+import experiment.exp.util.helper as H
 from disent.transform.functional import conv2d_channel_wise_fft
+from disent.util import DisentModule
+from disent.util import seed
 from disent.util.math_loss import spearman_rank_loss
+from experiment.exp.util.io_util import GithubWriter
+from experiment.exp.util.io_util import torch_save_bytes
 
 
 # ========================================================================= #
@@ -36,59 +45,71 @@ from disent.util.math_loss import spearman_rank_loss
 # ========================================================================= #
 
 
-def train_kernel_to_disentangle_xy(
+def disentangle_loss(
+    batch: torch.Tensor,
+    factors: torch.Tensor,
+    num_pairs: int,
+    f_idxs: Optional[List[int]] = None,
+    loss_fn: str = 'mse',
+    mean_dtype=None,
+) -> torch.Tensor:
+    assert len(batch) == len(factors)
+    assert batch.ndim == 4
+    assert factors.ndim == 2
+    # random pairs
+    ia, ib = torch.randint(0, len(batch), size=(2, num_pairs), device=batch.device)
+    # get pairwise distances
+    b_dists = H.pairwise_loss(batch[ia], batch[ib], mode=loss_fn, mean_dtype=mean_dtype)  # avoid precision errors
+    # compute factor distances
+    if f_idxs is not None:
+        f_dists = torch.abs(factors[ia, f_idxs] - factors[ib, f_idxs])
+    else:
+        f_dists = torch.abs(factors[ia] - factors[ib]).sum(dim=-1)
+    # optimise metric
+    loss = spearman_rank_loss(b_dists, -f_dists)  # decreasing overlap should mean increasing factor dist
+    return loss
+
+
+def train_model_to_disentangle(
+    model,
     dataset='xysquares_1x1',
-    kernel_radius=33,
-    kernel_channels=False,
     batch_size=128,
-    batch_samples_ratio=4.0,
-    batch_factor_mode='sample_random',  # sample_random, sample_traversals
-    batch_factor=None,
-    batch_aug_both=True,
+    batch_samples_ratio=16.0,
+    factor_idxs: List[int] = None,
     train_steps=10000,
     train_optimizer='radam',
-    train_lr=1e-3,
-    loss_dist_mse=True,
-    progress=True,
+    lr=1e-3,
+    loss_fn='mse',
+    step_callback=None,
+    weight_decay: float = 0
 ):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    # make dataset
-    dataset = H.make_dataset(dataset)
-    # make trainable kernel
-    kernel = torch.abs(torch.randn(1, 3 if kernel_channels else 1, 2*kernel_radius+1, 2*kernel_radius+1, dtype=torch.float32, device=device))
-    kernel = kernel / kernel.sum(dim=(0, 2, 3), keepdim=True)
-    kernel = torch.tensor(kernel, device=device, requires_grad=True)
-    # make optimizer
-    optimizer = H.make_optimizer(kernel, name=train_optimizer, lr=train_lr)
-
-    # factor to optimise
-    f_idx = H.normalise_factor_idx(dataset, batch_factor) if (batch_factor is not None) else None
-
+    # make dataset, model & optimizer
+    dataset = H.make_dataset(dataset, factors=True)
+    dataloader = DataLoader(dataset, batch_sampler=H.StochasticBatchSampler(dataset, batch_size), num_workers=psutil.cpu_count(), pin_memory=True)
+    model = model.to(device=device)
+    optimizer = H.make_optimizer(model, name=train_optimizer, lr=lr, weight_decay=weight_decay)
+    # factors to optimise
+    factor_idxs = None if (factor_idxs is None) else H.normalise_factor_idxs(dataset, factor_idxs)
     # train
-    pbar = tqdm(range(train_steps+1), postfix={'loss': 0.0}, disable=not progress)
-    for i in pbar:
-        batch, factors = H.sample_batch_and_factors(dataset, num_samples=batch_size, factor_mode=batch_factor_mode, factor=batch_factor, device=device)
-        # random pairs
-        ia, ib = torch.randint(0, len(batch), size=(2, int(batch_size * batch_samples_ratio)), device=batch.device)
-        # compute loss distances
-        aug_batch = conv2d_channel_wise_fft(batch, kernel)
-        (targ_a, targ_b) = (aug_batch[ia], aug_batch[ib]) if batch_aug_both else (aug_batch[ia], batch[ib])
-        if loss_dist_mse:
-            b_dists = F.mse_loss(targ_a, targ_b, reduction='none').sum(dim=(-3, -2, -1))
-        else:
-            b_dists = torch.abs(targ_a - targ_b).sum(dim=(-3, -2, -1))
-        # compute factor distances
-        if f_idx:
-            f_dists = torch.abs(factors[ia, f_idx] - factors[ib, f_idx])
-        else:
-            f_dists = torch.abs(factors[ia] - factors[ib]).sum(dim=-1)
-        # optimise metric
-        loss = spearman_rank_loss(b_dists, -f_dists)  # decreasing overlap should mean increasing factor dist
+    pbar = tqdm(postfix={'loss': 0.0}, total=train_steps, position=0, leave=True)
+    for i, batch in enumerate(H.yield_dataloader(dataloader, steps=train_steps)):
+        (batch,), (factors,) = batch['x_targ'], batch['factors']
+        batch, factors = batch.to(device), factors.to(device)
+        # feed forward batch
+        aug_batch = model(batch)
+        # compute pairwise distances of factors and batch, and optimize to correspond
+        loss = disentangle_loss(batch=aug_batch, factors=factors, num_pairs=int(batch_size * batch_samples_ratio), f_idxs=factor_idxs, loss_fn=loss_fn, mean_dtype=torch.float64)
+        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+        if hasattr(model, 'augment_loss'):
+            loss = model.augment_loss(loss)
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         # update variables
         H.step_optimizer(optimizer, loss)
-        H.show_img(kernel[0], i=i, step=100, scale=True)
+        pbar.update()
         pbar.set_postfix({'loss': float(loss)})
+        if step_callback:
+            step_callback(i+1)
 
 
 # ========================================================================= #
@@ -96,7 +117,75 @@ def train_kernel_to_disentangle_xy(
 # ========================================================================= #
 
 
-if __name__ == '__main__':
-    train_kernel_to_disentangle_xy()
+class Kernel(DisentModule):
+    def __init__(self, radius: int = 33, channels: int = 1, offset: float = 0.0, scale: float = 0.001, abs_val: bool = False, rescale: bool = False):
+        super().__init__()
+        assert channels in (1, 3)
+        kernel = torch.randn(1, channels, 2*radius+1, 2*radius+1, dtype=torch.float32)
+        if abs_val:
+            kernel = torch.abs(kernel)
+        kernel = offset + kernel * scale
+        if rescale:
+            kernel = kernel / torch.abs(kernel).sum(dim=(0, 2, 3), keepdim=True)
+        self._kernel = Parameter(kernel)
+        self._i = 1
 
+    def forward(self, xs):
+        return conv2d_channel_wise_fft(xs, self._kernel)
+
+    def show_img(self, i=None):
+        H.show_img(self._kernel[0], i=i, step=2500, scale=True)
+        self._i = i
+
+    def augment_loss(self, loss):
+        # symmetric loss
+        k, kt = self._kernel[0], torch.transpose(self._kernel[0], -1, -2)
+        symmetric_loss = 0
+        symmetric_loss += H.unreduced_loss(torch.flip(k, dims=[-1]), k, mode='mae').mean()
+        symmetric_loss += H.unreduced_loss(torch.flip(k, dims=[-2]), k, mode='mae').mean()
+        symmetric_loss += H.unreduced_loss(torch.flip(k, dims=[-1]), kt, mode='mae').mean()
+        symmetric_loss += H.unreduced_loss(torch.flip(k, dims=[-2]), kt, mode='mae').mean()
+        # final loss
+        return loss + symmetric_loss * 10
+
+
+# ========================================================================= #
+# Models                                                                    #
+# ========================================================================= #
+
+
+def main(
+    radius=63,
+    seed_=777
+):
+    seed(seed_)
+
+    model = Kernel(radius=radius, channels=1, offset=0.002, scale=0.01, abs_val=False, rescale=False)
+
+    kwargs = dict(
+        train_optimizer='radam',
+        model=model,
+        step_callback=model.show_img,
+        train_steps=10_000,
+        lr=1e-3,
+        weight_decay=1e-1,
+    )
+
+    ghw = GithubWriter('nmichlo/uploads')
+    ghw.write_file(f'disent/adversarial_kernel/r{radius}_random.pt', content=torch_save_bytes(model._kernel))
+    train_model_to_disentangle(dataset='xysquares_8x8', **kwargs)
+    ghw.write_file(f'disent/adversarial_kernel/r{radius}_xy8x8.pt', content=torch_save_bytes(model._kernel))
+    train_model_to_disentangle(dataset='xysquares_4x4', **kwargs)
+    ghw.write_file(f'disent/adversarial_kernel/r{radius}_xy4x4.pt', content=torch_save_bytes(model._kernel))
+    train_model_to_disentangle(dataset='xysquares_2x2', **kwargs)
+    ghw.write_file(f'disent/adversarial_kernel/r{radius}_xy2x2.pt', content=torch_save_bytes(model._kernel))
+    train_model_to_disentangle(dataset='xysquares_1x1', **kwargs)
+    ghw.write_file(f'disent/adversarial_kernel/r{radius}_xy1x1.pt', content=torch_save_bytes(model._kernel))
+
+
+if __name__ == '__main__':
+    main(radius=63)
+    main(radius=47)
+    main(radius=31)
+    main(radius=15)
 

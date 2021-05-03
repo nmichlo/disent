@@ -35,7 +35,7 @@ from matplotlib import pyplot as plt
 from matplotlib.ticker import MultipleLocator
 from tqdm import tqdm
 
-import experiment.exp.helper as H
+import experiment.exp.util.helper as H
 from disent.data.groundtruth import *
 from disent.dataset.groundtruth import GroundTruthDataset
 from disent.transform import ToStandardisedTensor
