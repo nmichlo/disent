@@ -24,10 +24,10 @@
 
 import base64
 import dataclasses
+import io
 import os
 from typing import Union
 
-import io
 import torch
 from git import Commit
 from github import ContentFile
@@ -36,6 +36,8 @@ from github import GithubException
 from github import UnknownObjectException
 from github.Branch import Branch
 from github.Repository import Repository
+
+from disent.data.util.in_out import ensure_parent_dir_exists
 
 
 # ========================================================================= #
@@ -158,3 +160,32 @@ def torch_load_base64(s: str):
 # END                                                                       #
 # ========================================================================= #
 
+
+def _split_special_path(path):
+    if path.startswith('github:'):
+        # get github repo and path
+        path = path[len('github:'):]
+        repo, path = os.path.join(*path.split('/')[:2]), os.path.join(*path.split('/')[2:])
+        # check paths
+        assert repo.strip() and len(repo.split('/')) == 2
+        assert path.strip() and len(repo.split('/')) >= 1
+        # return components
+        return 'github', (repo, path)
+    else:
+        return 'local', path
+
+
+def torch_write(path: str, model):
+    path_type, path = _split_special_path(path)
+    # handle cases
+    if path_type == 'github':
+        path, repo = path
+        # get the name of the path
+        ghw = GithubWriter(repo)
+        ghw.write_file(path=path, content=torch_save_bytes(model))
+        print(f'Saved in repo: {repr(path)} to file: {repr(repo)}')
+    elif path_type == 'local':
+        torch.save(model, ensure_parent_dir_exists(path))
+        print(f'Saved to file: {repr(path)}')
+    else:
+        raise KeyError(f'unknown path type: {repr(path_type)}')

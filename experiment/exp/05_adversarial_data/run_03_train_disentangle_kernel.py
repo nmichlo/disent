@@ -22,22 +22,40 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import dataclasses
 from typing import List
 from typing import Optional
 
+import hydra
+import os
+
+import logging
 import psutil
 import torch
+import wandb
+from omegaconf import OmegaConf
 from torch.nn import Parameter
 from torch.utils.data import DataLoader
+import pytorch_lightning as pl
 from tqdm import tqdm
 
 import experiment.exp.util.helper as H
 from disent.transform.functional import conv2d_channel_wise_fft
+from disent.util import DisentLightningModule
 from disent.util import DisentModule
+from disent.util import make_box_str
 from disent.util import seed
 from disent.util.math_loss import spearman_rank_loss
-from experiment.exp.util.io_util import GithubWriter
-from experiment.exp.util.io_util import torch_save_bytes
+from experiment.exp.util.io_util import torch_write
+from experiment.run import hydra_append_progress_callback
+from experiment.run import hydra_check_cuda
+from experiment.run import hydra_make_logger
+from experiment.util.callbacks.callbacks_base import _PeriodicCallback
+from experiment.util.hydra_utils import make_non_strict
+from experiment.util.logger_util import wb_log_metrics
+
+
+log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
@@ -70,46 +88,46 @@ def disentangle_loss(
     return loss
 
 
-def train_model_to_disentangle(
-    model,
-    dataset='xysquares_1x1',
-    batch_size=128,
-    batch_samples_ratio=16.0,
-    factor_idxs: List[int] = None,
-    train_steps=10000,
-    train_optimizer='radam',
-    lr=1e-3,
-    loss_fn='mse',
-    step_callback=None,
-    weight_decay: float = 0
-):
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    # make dataset, model & optimizer
-    dataset = H.make_dataset(dataset, factors=True)
-    dataloader = DataLoader(dataset, batch_sampler=H.StochasticBatchSampler(dataset, batch_size), num_workers=psutil.cpu_count(), pin_memory=True)
-    model = model.to(device=device)
-    optimizer = H.make_optimizer(model, name=train_optimizer, lr=lr, weight_decay=weight_decay)
-    # factors to optimise
-    factor_idxs = None if (factor_idxs is None) else H.normalise_factor_idxs(dataset, factor_idxs)
-    # train
-    pbar = tqdm(postfix={'loss': 0.0}, total=train_steps, position=0, leave=True)
-    for i, batch in enumerate(H.yield_dataloader(dataloader, steps=train_steps)):
+class DisentangleModule(DisentLightningModule):
+
+    def __init__(
+        self,
+        model,
+        hparams,
+    ):
+        super().__init__()
+        self.model = model
+        self.hparams = hparams
+
+    def configure_optimizers(self):
+        return H.make_optimizer(self, name=self.hparams.optimizer.name, lr=self.hparams.optimizer.lr, weight_decay=self.hparams.optimizer.weight_decay)
+
+    def training_step(self, batch, batch_idx):
         (batch,), (factors,) = batch['x_targ'], batch['factors']
-        batch, factors = batch.to(device), factors.to(device)
         # feed forward batch
-        aug_batch = model(batch)
+        aug_batch = self.model(batch)
         # compute pairwise distances of factors and batch, and optimize to correspond
-        loss = disentangle_loss(batch=aug_batch, factors=factors, num_pairs=int(batch_size * batch_samples_ratio), f_idxs=factor_idxs, loss_fn=loss_fn, mean_dtype=torch.float64)
+        loss = disentangle_loss(
+            batch=aug_batch,
+            factors=factors,
+            num_pairs=int(len(batch) * self.hparams.train.pairs_ratio),
+            f_idxs=None,
+            loss_fn=self.hparams.train.loss,
+            mean_dtype=torch.float64,
+        )
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        if hasattr(model, 'augment_loss'):
-            loss = model.augment_loss(loss)
+        if hasattr(self.model, 'augment_loss'):
+            loss_aug = self.model.augment_loss(self)
+        else:
+            loss_aug = 0
+        loss += loss_aug
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        # update variables
-        H.step_optimizer(optimizer, loss)
-        pbar.update()
-        pbar.set_postfix({'loss': float(loss)})
-        if step_callback:
-            step_callback(i+1)
+        self.log('loss', loss)
+        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+        return loss
+
+    def forward(self, batch):
+        return self.model(batch)
 
 
 # ========================================================================= #
@@ -128,62 +146,105 @@ class Kernel(DisentModule):
     def forward(self, xs):
         return conv2d_channel_wise_fft(xs, self._kernel)
 
-    def show_img(self, i=None):
-        H.show_img(self._kernel[0], i=i, step=5000, scale=True)
+    def make_train_periodic_callback(self, cfg) -> _PeriodicCallback:
+        class ImShowCallback(_PeriodicCallback):
+            def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+                wb_log_metrics(
+                    trainer.logger, {
+                        'kernel': wandb.Image(H.to_img(pl_module.model._kernel[0], scale=True).numpy()),
+                    }
+                )
+        return ImShowCallback(every_n_steps=cfg.exp.show_every_n_steps)
 
-    def augment_loss(self, loss):
+    def augment_loss(self, framework: DisentLightningModule):
         # symmetric loss
         k, kt = self._kernel[0], torch.transpose(self._kernel[0], -1, -2)
-        symmetric_loss = 0
-        symmetric_loss += H.unreduced_loss(torch.flip(k, dims=[-1]), k, mode='mae').mean()
-        symmetric_loss += H.unreduced_loss(torch.flip(k, dims=[-2]), k, mode='mae').mean()
-        symmetric_loss += H.unreduced_loss(torch.flip(k, dims=[-1]), kt, mode='mae').mean()
-        symmetric_loss += H.unreduced_loss(torch.flip(k, dims=[-2]), kt, mode='mae').mean()
+        loss_symmetric = 0
+        loss_symmetric += H.unreduced_loss(torch.flip(k, dims=[-1]), k, mode='mae').mean()
+        loss_symmetric += H.unreduced_loss(torch.flip(k, dims=[-2]), k, mode='mae').mean()
+        loss_symmetric += H.unreduced_loss(torch.flip(k, dims=[-1]), kt, mode='mae').mean()
+        loss_symmetric += H.unreduced_loss(torch.flip(k, dims=[-2]), kt, mode='mae').mean()
+        # log loss
+        framework.log('loss_symmetric', loss_symmetric)
         # final loss
-        return loss + symmetric_loss * 10
+        return loss_symmetric
 
 
 # ========================================================================= #
-# Models                                                                    #
+# Run Hydra                                                                 #
 # ========================================================================= #
 
 
-def main(
-    radius=63,
-    seed_=777,
-    steps=15000,
-    lr=1e-3,
-    weight_decay=1e-1,
-    spacing=8,
-):
-    assert spacing in {1, 2, 4, 8}
-    seed(seed_)
-    # model
-    model = Kernel(radius=radius, channels=1, offset=0.002, scale=0.01)
+ROOT_DIR = os.path.abspath(__file__ + '/../../../..')
+
+
+@hydra.main(config_path=os.path.join(ROOT_DIR, 'experiment/config'), config_name="config_05_adversarial_03_gen")
+def run_hydra(cfg):
+    cfg = make_non_strict(cfg)
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # check CUDA setting
+    cfg.trainer.setdefault('cuda', 'try_cuda')
+    hydra_check_cuda(cfg)
+    # CREATE LOGGER
+    logger = hydra_make_logger(cfg)
+    # TRAINER CALLBACKS
+    callbacks = []
+    hydra_append_progress_callback(callbacks, cfg)
+    # print everything
+    log.info('Final Config' + make_box_str(OmegaConf.to_yaml(cfg)))
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    seed(cfg.exp.seed)
+    assert cfg.dataset.spacing in {1, 2, 4, 8}
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    dataset = H.make_dataset(f'xysquares_{cfg.dataset.spacing}x{cfg.dataset.spacing}', factors=True)
+    dataloader = DataLoader(
+        dataset,
+        batch_sampler=H.StochasticBatchSampler(dataset, batch_size=128),
+        num_workers=psutil.cpu_count(),
+        pin_memory=True
+    )
+    model = Kernel(radius=cfg.kernel.radius, channels=cfg.kernel.channels, offset=0.002, scale=0.01)
+    callbacks.append(model.make_train_periodic_callback(cfg))
+    framework = DisentangleModule(model, cfg)
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    if framework.logger:
+        framework.logger.log_hyperparams(framework.hparams)
     # train
-    train_model_to_disentangle(
-        dataset=f'xysquares_{spacing}x{spacing}',
-        train_optimizer='radam',
-        model=model,
-        step_callback=model.show_img,
-        train_steps=steps,
-        lr=lr,
-        weight_decay=weight_decay
+    trainer = pl.Trainer(
+        log_every_n_steps=cfg.logging.setdefault('log_every_n_steps', 50),
+        flush_logs_every_n_steps=cfg.logging.setdefault('flush_logs_every_n_steps', 100),
+        logger=logger,
+        callbacks=callbacks,
+        gpus=1 if cfg.trainer.cuda else 0,
+        max_epochs=cfg.trainer.setdefault('epochs', None),
+        max_steps=cfg.trainer.setdefault('steps', 10000),
+        progress_bar_refresh_rate=0,  # ptl 0.9
+        terminate_on_nan=True,  # we do this here so we don't run the final metrics
+        checkpoint_callback=False,
     )
-    # upload files
-    ghw = GithubWriter('nmichlo/uploads')
-    ghw.write_file(
-        path=f'disent/adversarial_kernel/r{radius}_s{steps}_lr{lr}_wd{weight_decay}_xy{spacing}x{spacing}.pt',
-        content=torch_save_bytes(model._kernel),
-    )
+    trainer.fit(framework, dataloader)
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # save kernel
+    if cfg.exp.rel_save_dir is not None:
+        assert not os.path.isabs(cfg.exp.rel_save_dir), f'rel_save_dir must be relative: {repr(cfg.exp.rel_save_dir)}'
+        save_dir = os.path.join(ROOT_DIR, cfg.exp.rel_save_dir)
+        assert os.path.isabs(save_dir), f'save_dir must be absolute: {repr(save_dir)}'
+        # save kernel
+        torch_write(os.path.join(save_dir, cfg.exp.save_name), framework.model._kernel)
+
+
+# ========================================================================= #
+# Entry Point                                                               #
+# ========================================================================= #
 
 
 if __name__ == '__main__':
-    # run experiment
-    for wd in [1e-1, 0.0]:
-        for r in [63, 55, 47, 39, 31, 23, 15, 7]:
-            for s in [8, 4, 2, 1]:
-                try:
-                    main(radius=r, weight_decay=wd, spacing=s)
-                except Exception as e:
-                    print(f'FAILED: {r} -- {e}')
+    # NORMAL:
+    # run()
+
+    # HYDRA:
+    # run experiment (12min * 4*8*2) / 60 ~= 12 hours
+    # but speeds up as kernel size decreases, so might be shorter
+    # EXP ARGS:
+    # $ ... -m +weight_decay=1e-4,0.0 +radius=63,55,47,39,31,23,15,7 +spacing=8,4,2,1
+    run_hydra()
