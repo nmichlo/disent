@@ -21,27 +21,33 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-
-
+import base64
+import io
 from typing import List
 from typing import Optional
 
+import github
+import numpy as np
+import os
 import psutil
-import pytorch_lightning as pl
+import scipy.ndimage
 import torch
 from torch.nn import Parameter
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 import experiment.exp.util.helper as H
 from disent.transform.functional import conv2d_channel_wise_fft
-from disent.util import DisentLightningModule
 from disent.util import DisentModule
+from disent.util import seed
 from disent.util.math_loss import spearman_rank_loss
 
 
 # ========================================================================= #
 # EXP                                                                       #
 # ========================================================================= #
+from experiment.exp.util.github_util import gh_write_file
+from experiment.exp.util.github_util import GithubWriter
 
 
 def disentangle_loss(
@@ -73,116 +79,42 @@ def train_model_to_disentangle(
     model,
     dataset='xysquares_1x1',
     batch_size=128,
-    batch_samples_ratio=4.0,
+    batch_samples_ratio=16.0,
     factor_idxs: List[int] = None,
     train_steps=10000,
     train_optimizer='radam',
-    train_lr=1e-3,
+    lr=1e-3,
     loss_fn='mse',
     step_callback=None,
+    weight_decay: float = 0
 ):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    # make dataset
-    dataset = H.make_dataset(dataset)
+    # make dataset, model & optimizer
+    dataset = H.make_dataset(dataset, factors=True)
+    dataloader = DataLoader(dataset, batch_sampler=H.StochasticBatchSampler(dataset, batch_size), num_workers=psutil.cpu_count(), pin_memory=True)
     model = model.to(device=device)
-    # make optimizer
-    optimizer = H.make_optimizer(model, name=train_optimizer, lr=train_lr)
+    optimizer = H.make_optimizer(model, name=train_optimizer, lr=lr, weight_decay=weight_decay)
     # factors to optimise
     factor_idxs = None if (factor_idxs is None) else H.normalise_factor_idxs(dataset, factor_idxs)
     # train
-    pbar = tqdm(range(train_steps+1), postfix={'loss': 0.0})
-    for i in pbar:
-        batch, factors = H.sample_batch_and_factors(dataset, num_samples=batch_size, factor_mode='sample_random', device=device)
+    pbar = tqdm(postfix={'loss': 0.0}, total=train_steps, position=0, leave=True)
+    for i, batch in enumerate(H.yield_dataloader(dataloader, steps=train_steps)):
+        (batch,), (factors,) = batch['x_targ'], batch['factors']
+        batch, factors = batch.to(device), factors.to(device)
         # feed forward batch
         aug_batch = model(batch)
         # compute pairwise distances of factors and batch, and optimize to correspond
-        loss = disentangle_loss(batch=aug_batch, factors=factors, num_pairs=int(batch_size * batch_samples_ratio), f_idxs=factor_idxs, loss_fn=loss_fn)
+        loss = disentangle_loss(batch=aug_batch, factors=factors, num_pairs=int(batch_size * batch_samples_ratio), f_idxs=factor_idxs, loss_fn=loss_fn, mean_dtype=torch.float64)
+        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+        if hasattr(model, 'augment_loss'):
+            loss = model.augment_loss(loss)
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         # update variables
         H.step_optimizer(optimizer, loss)
+        pbar.update()
         pbar.set_postfix({'loss': float(loss)})
         if step_callback:
-            step_callback(i)
-
-
-class Disentangler(DisentLightningModule):
-
-    def __init__(
-        self,
-        model,
-        loss: str = 'mse',
-        optimizer: str = 'radam',
-        lr: float = 1e-3,
-        train_factors: Optional[List[int]] = None,
-        train_pair_ratio: float = 4.0,
-    ):
-        super().__init__()
-        self._model = model
-        self.save_hyperparameters()
-        self._i = 0
-
-    def configure_optimizers(self):
-        return H.make_optimizer(self, name=self.hparams.optimizer, lr=self.hparams.lr)
-
-    def training_step(self, batch, batch_idx):
-        (xs,), (factors,) = batch['x_targ'], batch['factors']
-        # feed forward batch
-        aug_xs = self._model(xs)
-        assert aug_xs.shape == xs.shape
-        # compute pairwise distances of factors and batch, and optimize to correspond
-        loss = disentangle_loss(
-            batch=aug_xs, factors=factors,
-            num_pairs=int(len(xs) * self.hparams.train_pair_ratio),
-            f_idxs=self.hparams.train_factors,
-            loss_fn=self.hparams.loss,
-            mean_dtype=torch.float64,
-        )
-        # show
-        self._i += 1
-        H.show_imgs(aug_xs[:9], i=self._i, step=500)
-        # log
-        self.log('loss', loss)
-        return loss
-
-    def forward(self, xs) -> torch.Tensor:
-        return self._model(xs)
-
-
-def train_pl_model_to_disentangle(
-    model: torch.nn.Module,
-    dataset='xysquares_4x4',
-    train_batch_size: int = 128,
-    train_epochs: int = 10,
-    # disentangler settings
-    factor_idxs: Optional[List[int]] = None,
-    loss_fn: str = 'mse',
-    train_optimizer: str = 'radam',
-    train_lr: float = 1e-3,
-    train_pair_ratio: float = 4.0,
-):
-    # make data
-    dataset = H.make_dataset(dataset, factors=True)
-    shuffle = len(dataset) <= 16777216
-    if not shuffle:
-        print('WARNING: not shuffling, dataset too big!')
-    # make dataloader
-    dataloader = torch.utils.data.DataLoader(
-        dataset=dataset,
-        batch_size=train_batch_size, shuffle=shuffle,
-        num_workers=psutil.cpu_count(), pin_memory=torch.cuda.is_available()
-    )
-    # make module
-    module = Disentangler(
-        model,
-        train_factors=factor_idxs, train_pair_ratio=train_pair_ratio,
-        loss=loss_fn, optimizer=train_optimizer, lr=train_lr,
-    )
-    # train
-    trainer = pl.Trainer(
-        checkpoint_callback=False, terminate_on_nan=False,
-        max_epochs=train_epochs, gpus=int(torch.cuda.is_available()),
-    )
-    trainer.fit(module, dataloader)
+            step_callback(i+1)
 
 
 # ========================================================================= #
@@ -191,18 +123,54 @@ def train_pl_model_to_disentangle(
 
 
 class Kernel(DisentModule):
-    def __init__(self, radius: int = 33, channels: int = 1):
+    def __init__(self, radius: int = 33, channels: int = 1, offset: float = 0.0, scale: float = 0.001, abs_val: bool = False, rescale: bool = False):
         super().__init__()
         assert channels in (1, 3)
-        kernel = torch.abs(torch.randn(1, channels, 2*radius+1, 2*radius+1, dtype=torch.float32))
-        kernel = kernel / kernel.sum(dim=(0, 2, 3), keepdim=True)
+        kernel = torch.randn(1, channels, 2*radius+1, 2*radius+1, dtype=torch.float32)
+        if abs_val:
+            kernel = torch.abs(kernel)
+        kernel = offset + kernel * scale
+        if rescale:
+            kernel = kernel / torch.abs(kernel).sum(dim=(0, 2, 3), keepdim=True)
         self._kernel = Parameter(kernel)
+        self._i = 1
 
     def forward(self, xs):
         return conv2d_channel_wise_fft(xs, self._kernel)
 
     def show_img(self, i=None):
-        H.show_img(self._kernel[0], i=i, step=1000, scale=True)
+        H.show_img(self._kernel[0], i=i, step=2500, scale=True)
+        self._i = i
+
+    def augment_loss(self, loss):
+        # k = self._kernel[0].detach().cpu().numpy()
+        # k = np.moveaxis(k, 0, -1)
+        # # k = scipy.ndimage.median_filter(k, size=5)
+        # k = scipy.ndimage.gaussian_filter(k, sigma=1.0)
+        # k = np.moveaxis(k, -1, 0)[None, ...]
+        # k = torch.from_numpy(k).cuda()
+        # # loss
+        # l = H.unreduced_loss(self._kernel, k, mode='mse')
+        # # mask loss
+        # b, c, h, w = l.shape
+        # cw, ch = w // 2, h // 2
+        # r = 3
+        # l[:, :, ch-r:ch+r, :] *= 0.1
+        # l[:, :, :, cw-r:cw+r] *= 0.1
+        # #
+        # H.show_imgs([k[0], self._kernel[0]], i=self._i, step=500, scale=True)
+        # #
+        # loss += torch.topk(l.flatten(), k=1024).values.mean() * (100**2)
+
+        # symmetric loss
+        k, kt = self._kernel[0], torch.transpose(self._kernel[0], -1, -2)
+        symmetric_loss = 0
+        symmetric_loss += H.unreduced_loss(torch.flip(k, dims=[-1]), k, mode='mae').mean()
+        symmetric_loss += H.unreduced_loss(torch.flip(k, dims=[-2]), k, mode='mae').mean()
+        symmetric_loss += H.unreduced_loss(torch.flip(k, dims=[-1]), kt, mode='mae').mean()
+        symmetric_loss += H.unreduced_loss(torch.flip(k, dims=[-2]), kt, mode='mae').mean()
+        # final loss
+        return loss + symmetric_loss * 10
 
 
 class NN(DisentModule):
@@ -229,8 +197,69 @@ class NN(DisentModule):
         return self._layers(xs)
 
 
-if __name__ == '__main__':
-    model = Kernel(radius=55, channels=1)
-    train_pl_model_to_disentangle(model=model)
+# ========================================================================= #
+# Torch Save Utils                                                          #
+# ========================================================================= #
 
+
+def torch_save_bytes(model) -> bytes:
+    buffer = io.BytesIO()
+    torch.save(model, buffer)
+    buffer.seek(0)
+    return buffer.read()
+
+
+def torch_save_base64(model) -> str:
+    b = torch_save_bytes(model)
+    return base64.b64encode(b).decode('ascii')
+
+
+def torch_load_bytes(b: bytes):
+    return torch.load(io.BytesIO(b))
+
+
+def torch_load_base64(s: str):
+    b = base64.b64decode(s.encode('ascii'))
+    return torch_load_bytes(b)
+
+
+# ========================================================================= #
+# Models                                                                    #
+# ========================================================================= #
+
+
+def main(
+    radius=63,
+    seed_=777
+):
+    seed(seed_)
+
+    model = Kernel(radius=radius, channels=1, offset=0.002, scale=0.01, abs_val=False, rescale=False)
+
+    kwargs = dict(
+        train_optimizer='radam',
+        model=model,
+        step_callback=model.show_img,
+        train_steps=10_000,
+        lr=1e-3,
+        weight_decay=1e-1,
+    )
+
+    ghw = GithubWriter('nmichlo/uploads')
+    ghw.write_file(f'disent/adversarial_kernel/r{radius}_random.pt', content=torch_save_bytes(model._kernel))
+    train_model_to_disentangle(dataset='xysquares_8x8', **kwargs)
+    ghw.write_file(f'disent/adversarial_kernel/r{radius}_xy8x8.pt', content=torch_save_bytes(model._kernel))
+    train_model_to_disentangle(dataset='xysquares_4x4', **kwargs)
+    ghw.write_file(f'disent/adversarial_kernel/r{radius}_xy4x4.pt', content=torch_save_bytes(model._kernel))
+    train_model_to_disentangle(dataset='xysquares_2x2', **kwargs)
+    ghw.write_file(f'disent/adversarial_kernel/r{radius}_xy2x2.pt', content=torch_save_bytes(model._kernel))
+    train_model_to_disentangle(dataset='xysquares_1x1', **kwargs)
+    ghw.write_file(f'disent/adversarial_kernel/r{radius}_xy1x1.pt', content=torch_save_bytes(model._kernel))
+
+
+if __name__ == '__main__':
+    main(radius=63)
+    main(radius=47)
+    main(radius=31)
+    main(radius=15)
 
