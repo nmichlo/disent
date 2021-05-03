@@ -23,6 +23,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import inspect
+import os
 from collections import Sized
 from typing import List
 from typing import Sequence
@@ -78,7 +79,7 @@ def step_optimizer(optimizer, loss):
 # ========================================================================= #
 
 
-def make_dataset(name: str = 'xysquares', factors: bool = False):
+def make_dataset(name: str = 'xysquares', factors: bool = False, data_dir='data/dataset'):
     Sampler = GroundTruthDatasetAndFactors if factors else GroundTruthDataset
     # make dataset
     if   name == 'xysquares':      dataset = Sampler(XYSquaresData(),              transform=ToStandardisedTensor())
@@ -86,8 +87,8 @@ def make_dataset(name: str = 'xysquares', factors: bool = False):
     elif name == 'xysquares_2x2':  dataset = Sampler(XYSquaresData(square_size=2), transform=ToStandardisedTensor())
     elif name == 'xysquares_4x4':  dataset = Sampler(XYSquaresData(square_size=4), transform=ToStandardisedTensor())
     elif name == 'xysquares_8x8':  dataset = Sampler(XYSquaresData(square_size=8), transform=ToStandardisedTensor())
-    elif name == 'cars3d':         dataset = Sampler(Cars3dData(),                 transform=ToStandardisedTensor(size=64))
-    elif name == 'shapes3d':       dataset = Sampler(Shapes3dData(),               transform=ToStandardisedTensor())
+    elif name == 'cars3d':         dataset = Sampler(Cars3dData(data_dir=os.path.join(data_dir, 'cars3d')),   transform=ToStandardisedTensor(size=64))
+    elif name == 'shapes3d':       dataset = Sampler(Shapes3dData(data_dir=os.path.join(data_dir, '3dshapes')), transform=ToStandardisedTensor())
     else: raise KeyError(f'invalid data name: {repr(name)}')
     return dataset
 

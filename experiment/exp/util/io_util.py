@@ -29,13 +29,6 @@ import os
 from typing import Union
 
 import torch
-from git import Commit
-from github import ContentFile
-from github import Github
-from github import GithubException
-from github import UnknownObjectException
-from github.Branch import Branch
-from github.Repository import Repository
 
 from disent.data.util.in_out import ensure_parent_dir_exists
 
@@ -46,6 +39,7 @@ from disent.data.util.in_out import ensure_parent_dir_exists
 
 
 def gh_get_repo(repo: str = None):
+    from github import Github
     # get token str
     token = os.environ.get('GITHUB_TOKEN', '')
     if not token.strip():
@@ -61,7 +55,8 @@ def gh_get_repo(repo: str = None):
     return Github(token).get_repo(repo)
 
 
-def gh_get_branch(repo: Repository, branch: str = None, source_branch: str = None, allow_new_branch: bool = True) -> Branch:
+def gh_get_branch(repo: 'Repository', branch: str = None, source_branch: str = None, allow_new_branch: bool = True) -> 'Branch':
+    from github import GithubException
     # check branch
     assert isinstance(branch, str) or (branch is None)
     assert isinstance(source_branch, str) or (source_branch is None)
@@ -82,11 +77,13 @@ def gh_get_branch(repo: Repository, branch: str = None, source_branch: str = Non
 
 @dataclasses.dataclass
 class WriteResult:
-    commit: Commit
-    content: ContentFile
+    commit: 'Commit'
+    content: 'ContentFile'
 
 
-def gh_write_file(repo: Repository, path: str, content: Union[str, bytes], branch: str = None, allow_new_file=True, allow_overwrite_file=False, allow_new_branch=True) -> WriteResult:
+def gh_write_file(repo: 'Repository', path: str, content: Union[str, bytes], branch: str = None, allow_new_file=True, allow_overwrite_file=False, allow_new_branch=True) -> WriteResult:
+    from github import UnknownObjectException
+    # get branch
     branch = gh_get_branch(repo, branch, allow_new_branch=allow_new_branch).name
     # check that the file exists
     try:

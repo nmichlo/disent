@@ -22,7 +22,6 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-import dataclasses
 from typing import List
 from typing import Optional
 
@@ -37,7 +36,6 @@ from omegaconf import OmegaConf
 from torch.nn import Parameter
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
-from tqdm import tqdm
 
 import experiment.exp.util.helper as H
 from disent.transform.functional import conv2d_channel_wise_fft
@@ -182,6 +180,7 @@ ROOT_DIR = os.path.abspath(__file__ + '/../../../..')
 def run_hydra(cfg):
     cfg = make_non_strict(cfg)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # TODO: some of this code is duplicated between this and the main experiment run.py
     # check CUDA setting
     cfg.trainer.setdefault('cuda', 'try_cuda')
     hydra_check_cuda(cfg)
@@ -194,14 +193,14 @@ def run_hydra(cfg):
     log.info('Final Config' + make_box_str(OmegaConf.to_yaml(cfg)))
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     seed(cfg.exp.seed)
-    assert cfg.dataset.spacing in {1, 2, 4, 8}
+    assert cfg.data.spacing in {1, 2, 4, 8}
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-    dataset = H.make_dataset(f'xysquares_{cfg.dataset.spacing}x{cfg.dataset.spacing}', factors=True)
+    dataset = H.make_dataset(f'xysquares_{cfg.data.spacing}x{cfg.data.spacing}', factors=True, data_dir=cfg.dataset.data_dir)
     dataloader = DataLoader(
         dataset,
-        batch_sampler=H.StochasticBatchSampler(dataset, batch_size=128),
-        num_workers=psutil.cpu_count(),
-        pin_memory=True
+        batch_sampler=H.StochasticBatchSampler(dataset, batch_size=cfg.dataset.batch_size),
+        num_workers=cfg.dataset.num_workers,
+        pin_memory=cfg.dataset.pin_memory,
     )
     model = Kernel(radius=cfg.kernel.radius, channels=cfg.kernel.channels, offset=0.002, scale=0.01)
     callbacks.append(model.make_train_periodic_callback(cfg))
@@ -239,12 +238,9 @@ def run_hydra(cfg):
 
 
 if __name__ == '__main__':
-    # NORMAL:
-    # run()
-
     # HYDRA:
     # run experiment (12min * 4*8*2) / 60 ~= 12 hours
     # but speeds up as kernel size decreases, so might be shorter
     # EXP ARGS:
-    # $ ... -m +weight_decay=1e-4,0.0 +radius=63,55,47,39,31,23,15,7 +spacing=8,4,2,1
+    # $ ... -m optimizer.weight_decay=1e-4,0.0 kernel.radius=63,55,47,39,31,23,15,7 dataset.spacing=8,4,2,1
     run_hydra()

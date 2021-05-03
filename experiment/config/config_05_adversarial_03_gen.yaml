@@ -1,6 +1,6 @@
 defaults:
   # runtime
-  - run_length: xtiny
+  - run_length: short
   - run_logging: wandb
   - run_location: cluster_many
   # plugins
@@ -11,7 +11,7 @@ defaults:
 job:
   user: 'n_michlo'
   project: 'exp-disentangle-kernel'
-  name: r${kernel.radius}-${kernel.channels}_s${trainer.steps}_${optimizer.name}_lr${optimizer.lr}_wd${optimizer.weight_decay}_xy${dataset.spacing}x${dataset.spacing}
+  name: r${kernel.radius}-${kernel.channels}_s${trainer.steps}_${optimizer.name}_lr${optimizer.lr}_wd${optimizer.weight_decay}_xy${data.spacing}x${data.spacing}
   partition: stampede
 
 optimizer:
@@ -19,7 +19,7 @@ optimizer:
   lr: 3e-3
   weight_decay: 0.0
 
-dataset:
+data:
   spacing: 8
 
 kernel:
@@ -35,3 +35,11 @@ exp:
   rel_save_dir: data/adversarial_kernel
   save_name: ${job.name}.pt
   show_every_n_steps: 1000
+
+# OVERRIDE run_logging: wandb -- too fast otherwise
+logging:
+  flush_logs_every_n_steps: 500
+
+# OVERRIDE run_location:
+dataset:
+  batch_size: 128

@@ -7,6 +7,7 @@
 export PROJECT="exp-kernel-disentangle-xy"
 export PARTITION="stampede"
 export PARALLELISM=32
+export PY_RUN_FILE='experiment/exp/05_adversarial_data/run_03_train_disentangle_kernel.py'
 
 # source the helper file
 source "$(dirname "$(dirname "$(realpath -s "$0")")")/helper.sh"
@@ -21,4 +22,4 @@ clog_cudaless_nodes "$PARTITION" 86400 "C-disent" # 24 hours
 submit_sweep \
     optimizer.weight_decay=1e-4,0.0 \
     kernel.radius=63,55,47,39,31,23,15,7 \
-    dataset.spacing=8,4,2,1 \
+    data.spacing=8,4,2,1
