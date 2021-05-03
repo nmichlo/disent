@@ -154,25 +154,36 @@ def main(
     steps=15000,
     lr=1e-3,
     weight_decay=1e-1,
+    spacing=8,
 ):
+    assert spacing in {1, 2, 4, 8}
     seed(seed_)
+    # model
     model = Kernel(radius=radius, channels=1, offset=0.002, scale=0.01)
-    # train kwargs
-    kwargs = dict(train_optimizer='radam', model=model, step_callback=model.show_img, train_steps=steps, lr=lr, weight_decay=weight_decay)
+    # train
+    train_model_to_disentangle(
+        dataset=f'xysquares_{spacing}x{spacing}',
+        train_optimizer='radam',
+        model=model,
+        step_callback=model.show_img,
+        train_steps=steps,
+        lr=lr,
+        weight_decay=weight_decay
+    )
     # upload files
     ghw = GithubWriter('nmichlo/uploads')
-    ghw.write_file(f'disent/adversarial_kernel/r{radius}_s{steps}_lr{lr}_wd{weight_decay}_random.pt', content=torch_save_bytes(model._kernel))
-    # train
-    for i in [8, 4, 2, 1]:
-        train_model_to_disentangle(dataset=f'xysquares_{i}x{i}', **kwargs)
-        ghw.write_file(f'disent/adversarial_kernel/r{radius}_s{steps}_lr{lr}_wd{weight_decay}_xy{i}x{i}.pt', content=torch_save_bytes(model._kernel))
+    ghw.write_file(
+        path=f'disent/adversarial_kernel/r{radius}_s{steps}_lr{lr}_wd{weight_decay}_xy{spacing}x{spacing}.pt',
+        content=torch_save_bytes(model._kernel),
+    )
 
 
 if __name__ == '__main__':
-
+    # run experiment
     for wd in [1e-1, 0.0]:
         for r in [63, 55, 47, 39, 31, 23, 15, 7]:
-            try:
-                main(radius=r, weight_decay=wd)
-            except Exception as e:
-                print(f'FAILED: {r} -- {e}')
+            for s in [8, 4, 2, 1]:
+                try:
+                    main(radius=r, weight_decay=wd, spacing=s)
+                except Exception as e:
+                    print(f'FAILED: {r} -- {e}')
