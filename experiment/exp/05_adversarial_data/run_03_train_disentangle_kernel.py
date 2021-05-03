@@ -21,16 +21,11 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-import base64
-import io
+
 from typing import List
 from typing import Optional
 
-import github
-import numpy as np
-import os
 import psutil
-import scipy.ndimage
 import torch
 from torch.nn import Parameter
 from torch.utils.data import DataLoader
@@ -41,13 +36,13 @@ from disent.transform.functional import conv2d_channel_wise_fft
 from disent.util import DisentModule
 from disent.util import seed
 from disent.util.math_loss import spearman_rank_loss
+from experiment.exp.util.io_util import GithubWriter
+from experiment.exp.util.io_util import torch_save_bytes
 
 
 # ========================================================================= #
 # EXP                                                                       #
 # ========================================================================= #
-from experiment.exp.util.github_util import gh_write_file
-from experiment.exp.util.github_util import GithubWriter
 
 
 def disentangle_loss(
@@ -143,25 +138,6 @@ class Kernel(DisentModule):
         self._i = i
 
     def augment_loss(self, loss):
-        # k = self._kernel[0].detach().cpu().numpy()
-        # k = np.moveaxis(k, 0, -1)
-        # # k = scipy.ndimage.median_filter(k, size=5)
-        # k = scipy.ndimage.gaussian_filter(k, sigma=1.0)
-        # k = np.moveaxis(k, -1, 0)[None, ...]
-        # k = torch.from_numpy(k).cuda()
-        # # loss
-        # l = H.unreduced_loss(self._kernel, k, mode='mse')
-        # # mask loss
-        # b, c, h, w = l.shape
-        # cw, ch = w // 2, h // 2
-        # r = 3
-        # l[:, :, ch-r:ch+r, :] *= 0.1
-        # l[:, :, :, cw-r:cw+r] *= 0.1
-        # #
-        # H.show_imgs([k[0], self._kernel[0]], i=self._i, step=500, scale=True)
-        # #
-        # loss += torch.topk(l.flatten(), k=1024).values.mean() * (100**2)
-
         # symmetric loss
         k, kt = self._kernel[0], torch.transpose(self._kernel[0], -1, -2)
         symmetric_loss = 0
@@ -171,56 +147,6 @@ class Kernel(DisentModule):
         symmetric_loss += H.unreduced_loss(torch.flip(k, dims=[-2]), kt, mode='mae').mean()
         # final loss
         return loss + symmetric_loss * 10
-
-
-class NN(DisentModule):
-
-    def __init__(self):
-        super().__init__()
-        self._layers = torch.nn.Sequential(
-            torch.nn.Conv2d(in_channels=3, out_channels=6, kernel_size=7, padding=1+1+1),
-            torch.nn.InstanceNorm2d(num_features=3),
-            torch.nn.ReLU(),
-            torch.nn.Conv2d(in_channels=6, out_channels=9, kernel_size=7, padding=1+1+1),
-            torch.nn.InstanceNorm2d(num_features=3),
-            torch.nn.ReLU(),
-            torch.nn.Conv2d(in_channels=9, out_channels=9, kernel_size=7, padding=1+1+1),
-            torch.nn.InstanceNorm2d(num_features=3),
-            torch.nn.ReLU(),
-            torch.nn.Conv2d(in_channels=9, out_channels=6, kernel_size=7, padding=1+1+1),
-            torch.nn.InstanceNorm2d(num_features=3),
-            torch.nn.ReLU(),
-            torch.nn.Conv2d(in_channels=6, out_channels=3, kernel_size=7, padding=1+1+1),
-        )
-
-    def forward(self, xs):
-        return self._layers(xs)
-
-
-# ========================================================================= #
-# Torch Save Utils                                                          #
-# ========================================================================= #
-
-
-def torch_save_bytes(model) -> bytes:
-    buffer = io.BytesIO()
-    torch.save(model, buffer)
-    buffer.seek(0)
-    return buffer.read()
-
-
-def torch_save_base64(model) -> str:
-    b = torch_save_bytes(model)
-    return base64.b64encode(b).decode('ascii')
-
-
-def torch_load_bytes(b: bytes):
-    return torch.load(io.BytesIO(b))
-
-
-def torch_load_base64(s: str):
-    b = base64.b64decode(s.encode('ascii'))
-    return torch_load_bytes(b)
 
 
 # ========================================================================= #

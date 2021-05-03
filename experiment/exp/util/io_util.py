@@ -22,10 +22,13 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import base64
 import dataclasses
 import os
 from typing import Union
 
+import io
+import torch
 from git import Commit
 from github import ContentFile
 from github import Github
@@ -123,3 +126,35 @@ class GithubWriter(object):
             content=content,
             **self._kwargs,
         )
+
+
+# ========================================================================= #
+# Torch Save Utils                                                          #
+# ========================================================================= #
+
+
+def torch_save_bytes(model) -> bytes:
+    buffer = io.BytesIO()
+    torch.save(model, buffer)
+    buffer.seek(0)
+    return buffer.read()
+
+
+def torch_save_base64(model) -> str:
+    b = torch_save_bytes(model)
+    return base64.b64encode(b).decode('ascii')
+
+
+def torch_load_bytes(b: bytes):
+    return torch.load(io.BytesIO(b))
+
+
+def torch_load_base64(s: str):
+    b = base64.b64decode(s.encode('ascii'))
+    return torch_load_bytes(b)
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #
+
