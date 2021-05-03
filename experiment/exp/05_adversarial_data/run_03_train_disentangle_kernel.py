@@ -118,24 +118,18 @@ def train_model_to_disentangle(
 
 
 class Kernel(DisentModule):
-    def __init__(self, radius: int = 33, channels: int = 1, offset: float = 0.0, scale: float = 0.001, abs_val: bool = False, rescale: bool = False):
+    def __init__(self, radius: int = 33, channels: int = 1, offset: float = 0.0, scale: float = 0.001):
         super().__init__()
         assert channels in (1, 3)
         kernel = torch.randn(1, channels, 2*radius+1, 2*radius+1, dtype=torch.float32)
-        if abs_val:
-            kernel = torch.abs(kernel)
         kernel = offset + kernel * scale
-        if rescale:
-            kernel = kernel / torch.abs(kernel).sum(dim=(0, 2, 3), keepdim=True)
         self._kernel = Parameter(kernel)
-        self._i = 1
 
     def forward(self, xs):
         return conv2d_channel_wise_fft(xs, self._kernel)
 
     def show_img(self, i=None):
-        H.show_img(self._kernel[0], i=i, step=2500, scale=True)
-        self._i = i
+        H.show_img(self._kernel[0], i=i, step=5000, scale=True)
 
     def augment_loss(self, loss):
         # symmetric loss
@@ -156,36 +150,29 @@ class Kernel(DisentModule):
 
 def main(
     radius=63,
-    seed_=777
+    seed_=777,
+    steps=15000,
+    lr=1e-3,
+    weight_decay=1e-1,
 ):
     seed(seed_)
-
-    model = Kernel(radius=radius, channels=1, offset=0.002, scale=0.01, abs_val=False, rescale=False)
-
-    kwargs = dict(
-        train_optimizer='radam',
-        model=model,
-        step_callback=model.show_img,
-        train_steps=10_000,
-        lr=1e-3,
-        weight_decay=1e-1,
-    )
-
+    model = Kernel(radius=radius, channels=1, offset=0.002, scale=0.01)
+    # train kwargs
+    kwargs = dict(train_optimizer='radam', model=model, step_callback=model.show_img, train_steps=steps, lr=lr, weight_decay=weight_decay)
+    # upload files
     ghw = GithubWriter('nmichlo/uploads')
-    ghw.write_file(f'disent/adversarial_kernel/r{radius}_random.pt', content=torch_save_bytes(model._kernel))
-    train_model_to_disentangle(dataset='xysquares_8x8', **kwargs)
-    ghw.write_file(f'disent/adversarial_kernel/r{radius}_xy8x8.pt', content=torch_save_bytes(model._kernel))
-    train_model_to_disentangle(dataset='xysquares_4x4', **kwargs)
-    ghw.write_file(f'disent/adversarial_kernel/r{radius}_xy4x4.pt', content=torch_save_bytes(model._kernel))
-    train_model_to_disentangle(dataset='xysquares_2x2', **kwargs)
-    ghw.write_file(f'disent/adversarial_kernel/r{radius}_xy2x2.pt', content=torch_save_bytes(model._kernel))
-    train_model_to_disentangle(dataset='xysquares_1x1', **kwargs)
-    ghw.write_file(f'disent/adversarial_kernel/r{radius}_xy1x1.pt', content=torch_save_bytes(model._kernel))
+    ghw.write_file(f'disent/adversarial_kernel/r{radius}_s{steps}_lr{lr}_wd{weight_decay}_random.pt', content=torch_save_bytes(model._kernel))
+    # train
+    for i in [8, 4, 2, 1]:
+        train_model_to_disentangle(dataset=f'xysquares_{i}x{i}', **kwargs)
+        ghw.write_file(f'disent/adversarial_kernel/r{radius}_s{steps}_lr{lr}_wd{weight_decay}_xy{i}x{i}.pt', content=torch_save_bytes(model._kernel))
 
 
 if __name__ == '__main__':
-    main(radius=63)
-    main(radius=47)
-    main(radius=31)
-    main(radius=15)
 
+    for wd in [1e-1, 0.0]:
+        for r in [63, 55, 47, 39, 31, 23, 15, 7]:
+            try:
+                main(radius=r, weight_decay=wd)
+            except Exception as e:
+                print(f'FAILED: {r} -- {e}')
