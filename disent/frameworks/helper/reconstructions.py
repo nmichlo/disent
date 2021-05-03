@@ -21,19 +21,21 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-
+import os
 import warnings
 from typing import final
 from typing import Sequence
+from typing import Union
 
 import torch
 import torch.nn.functional as F
 
+import disent
 from disent.frameworks.helper.reductions import loss_reduction
 from disent.frameworks.helper.util import compute_ave_loss
-
-
-from disent.util.math_loss import torch_mse_rank_loss
+from disent.transform.functional import conv2d_channel_wise_fft
+from disent.util import DisentModule
+from disent.util.math import torch_box_kernel_2d
 
 
 # ========================================================================= #
@@ -41,10 +43,14 @@ from disent.util.math_loss import torch_mse_rank_loss
 # ========================================================================= #
 
 
-class ReconLossHandler(object):
+class ReconLossHandler(DisentModule):
 
     def __init__(self, reduction: str = 'mean'):
+        super().__init__()
         self._reduction = reduction
+
+    def forward(self, *args, **kwargs):
+        raise RuntimeError(f'Cannot call forward() on {self.__class__.__name__}')
 
     def activate(self, x_partial: torch.Tensor):
         """
@@ -231,9 +237,51 @@ class ReconLossHandlerNormal(ReconLossHandlerMse):
 
 
 # ========================================================================= #
-# Factory                                                                   #
+# Augmented Losses                                                          #
 # ========================================================================= #
 
+
+class AugmentedReconLossHandler(ReconLossHandler):
+
+    def __init__(self, recon_loss_handler: ReconLossHandler, kernel: Union[str, torch.Tensor]):
+        super().__init__(reduction=recon_loss_handler._reduction)
+        # save variables
+        self._recon_loss_handler = recon_loss_handler
+        # must be a recon loss handler, but cannot nest augmented handlers
+        assert isinstance(recon_loss_handler, ReconLossHandler)
+        assert not isinstance(recon_loss_handler, AugmentedReconLossHandler)
+        # load the kernel
+        if isinstance(kernel, str):
+            kernel = torch.load(kernel)
+        kernel = kernel.requires_grad_(False)
+        # check stuffs
+        assert isinstance(kernel, torch.Tensor)
+        assert kernel.dtype == torch.float32
+        assert kernel.ndim == 4, f'invalid number of kernel dims, required 4, given: {repr(kernel.ndim)}'  # B, C, H, W
+        assert kernel.shape[0] == 1, f'invalid size of first kernel dim, required (1, ?, ?, ?), given: {repr(kernel.shape)}'  # B
+        assert kernel.shape[0] in (1, 3), f'invalid size of second kernel dim, required (?, 1 or 3, ?, ?), given: {repr(kernel.shape)}'  # C
+        # scale kernel -- just in case we didnt do this before
+        kernel = kernel / kernel.sum()
+        # save kernel
+        self._kernel = torch.nn.Parameter(kernel, requires_grad=False)
+
+    def activate(self, x_partial: torch.Tensor):
+        return self._recon_loss_handler.activate(x_partial)
+
+    def compute_unreduced_loss(self, x_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
+        aug_x_recon = conv2d_channel_wise_fft(x_recon, self._kernel)
+        aug_x_targ = conv2d_channel_wise_fft(x_targ, self._kernel)
+        aug_loss = self._recon_loss_handler.compute_unreduced_loss(aug_x_recon, aug_x_targ)
+        loss = self._recon_loss_handler.compute_unreduced_loss(x_recon, x_targ)
+        return 0.5 * loss + 0.5 * aug_loss
+
+    def compute_unreduced_loss_from_partial(self, x_partial_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
+        return self.compute_unreduced_loss(self.activate(x_partial_recon), x_targ)
+
+
+# ========================================================================= #
+# Factory                                                                   #
+# ========================================================================= #
 
 _RECON_LOSSES = {
     # ================================= #
@@ -254,6 +302,14 @@ _RECON_LOSSES = {
     #                 done the maths or thought about this much.
     'mse4': ReconLossHandlerMse4,  # scaled as if computed over outputs of the range [-1, 1] instead of [0, 1]
     'mae2': ReconLossHandlerMae2,  # scaled as if computed over outputs of the range [-1, 1] instead of [0, 1]
+    # ================================= #
+    # EXPERIMENTAL - INCREASING OVERLAP
+    'r47_xy8_mse':  lambda reduction: AugmentedReconLossHandler(ReconLossHandlerMse(reduction=reduction),  kernel=os.path.abspath(os.path.join(disent.__file__, '../../data/adversarial_kernel', 'r47-1_s28800_adam_lr0.003_wd0.0_xy8x8.pt'))),
+    'r47_xy8_mse4': lambda reduction: AugmentedReconLossHandler(ReconLossHandlerMse4(reduction=reduction), kernel=os.path.abspath(os.path.join(disent.__file__, '../../data/adversarial_kernel', 'r47-1_s28800_adam_lr0.003_wd0.0_xy8x8.pt'))),
+    'r47_xy1_mse':  lambda reduction: AugmentedReconLossHandler(ReconLossHandlerMse(reduction=reduction),  kernel=os.path.abspath(os.path.join(disent.__file__, '../../data/adversarial_kernel', 'r47-1_s28800_adam_lr0.003_wd0.0_xy1x1.pt'))),
+    'r47_xy1_mse4': lambda reduction: AugmentedReconLossHandler(ReconLossHandlerMse4(reduction=reduction), kernel=os.path.abspath(os.path.join(disent.__file__, '../../data/adversarial_kernel', 'r47-1_s28800_adam_lr0.003_wd0.0_xy1x1.pt'))),
+    'r47_box_mse':  lambda reduction: AugmentedReconLossHandler(ReconLossHandlerMse(reduction=reduction),  kernel=torch_box_kernel_2d(radius=47)[None, ...]),
+    'r47_box_mse4': lambda reduction: AugmentedReconLossHandler(ReconLossHandlerMse4(reduction=reduction), kernel=torch_box_kernel_2d(radius=47)[None, ...]),
 }
 
 
@@ -261,7 +317,7 @@ def make_reconstruction_loss(name: str, reduction: str) -> ReconLossHandler:
     try:
         cls = _RECON_LOSSES[name]
     except KeyError:
-        raise KeyError(f'Invalid vae reconstruction loss: {name}')
+        raise KeyError(f'Invalid vae reconstruction loss: {name}\nValid losses are: {list(_RECON_LOSSES.keys())}')
     # instantiate!
     return cls(reduction=reduction)
 
@@ -269,4 +325,3 @@ def make_reconstruction_loss(name: str, reduction: str) -> ReconLossHandler:
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-
