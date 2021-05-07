@@ -37,6 +37,8 @@ from disent.transform.functional import conv2d_channel_wise_fft
 from disent.util import DisentModule
 from disent.util.math import torch_box_kernel_2d
 
+from deprecated import deprecated
+
 
 # ========================================================================= #
 # Reconstruction Loss Base                                                  #
@@ -155,10 +157,13 @@ class ReconLossHandlerMae(ReconLossHandlerMse):
         return torch.abs(x_recon - x_targ)
 
 
+@deprecated('Mse4 loss is being used during development to avoid a new hyper-parameter search')
 class ReconLossHandlerMse4(ReconLossHandlerMse):
     def compute_unreduced_loss(self, x_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
         return super().compute_unreduced_loss(x_recon, x_targ) * 4
 
+
+@deprecated('Mae2 loss is being used during development to avoid a new hyper-parameter search')
 class ReconLossHandlerMae2(ReconLossHandlerMae):
     def compute_unreduced_loss(self, x_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
         return super().compute_unreduced_loss(x_recon, x_targ) * 2
@@ -243,7 +248,7 @@ class ReconLossHandlerNormal(ReconLossHandlerMse):
 
 class AugmentedReconLossHandler(ReconLossHandler):
 
-    def __init__(self, recon_loss_handler: ReconLossHandler, kernel: Union[str, torch.Tensor]):
+    def __init__(self, recon_loss_handler: ReconLossHandler, kernel: Union[str, torch.Tensor], kernel_weight=1.0):
         super().__init__(reduction=recon_loss_handler._reduction)
         # save variables
         self._recon_loss_handler = recon_loss_handler
@@ -264,6 +269,9 @@ class AugmentedReconLossHandler(ReconLossHandler):
         kernel = kernel / kernel.sum()
         # save kernel
         self._kernel = torch.nn.Parameter(kernel, requires_grad=False)
+        # kernel weighting
+        assert 0 <= kernel_weight <= 1, f'kernel weight must be in the range [0, 1] but received: {repr(kernel_weight)}'
+        self._kernel_weight = kernel_weight
 
     def activate(self, x_partial: torch.Tensor):
         return self._recon_loss_handler.activate(x_partial)
@@ -273,7 +281,7 @@ class AugmentedReconLossHandler(ReconLossHandler):
         aug_x_targ = conv2d_channel_wise_fft(x_targ, self._kernel)
         aug_loss = self._recon_loss_handler.compute_unreduced_loss(aug_x_recon, aug_x_targ)
         loss = self._recon_loss_handler.compute_unreduced_loss(x_recon, x_targ)
-        return 0.5 * loss + 0.5 * aug_loss
+        return (1. - self._kernel_weight) * loss + self._kernel_weight * aug_loss
 
     def compute_unreduced_loss_from_partial(self, x_partial_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
         return self.compute_unreduced_loss(self.activate(x_partial_recon), x_targ)
@@ -282,6 +290,12 @@ class AugmentedReconLossHandler(ReconLossHandler):
 # ========================================================================= #
 # Factory                                                                   #
 # ========================================================================= #
+
+
+_MAKE_KERNEL_R47_8x8 = lambda: os.path.abspath(os.path.join(disent.__file__, '../../data/adversarial_kernel', 'r47-1_s28800_adam_lr0.003_wd0.0_xy8x8.pt'))
+_MAKE_KERNEL_R47_1x1 = lambda: os.path.abspath(os.path.join(disent.__file__, '../../data/adversarial_kernel', 'r47-1_s28800_adam_lr0.003_wd0.0_xy1x1.pt'))
+_MAKE_KERNEL_R47_BOX = lambda: torch_box_kernel_2d(radius=47)[None, ...]
+
 
 _RECON_LOSSES = {
     # ================================= #
@@ -304,12 +318,18 @@ _RECON_LOSSES = {
     'mae2': ReconLossHandlerMae2,  # scaled as if computed over outputs of the range [-1, 1] instead of [0, 1]
     # ================================= #
     # EXPERIMENTAL - INCREASING OVERLAP
-    'r47_xy8_mse':  lambda reduction: AugmentedReconLossHandler(ReconLossHandlerMse(reduction=reduction),  kernel=os.path.abspath(os.path.join(disent.__file__, '../../data/adversarial_kernel', 'r47-1_s28800_adam_lr0.003_wd0.0_xy8x8.pt'))),
-    'r47_xy8_mse4': lambda reduction: AugmentedReconLossHandler(ReconLossHandlerMse4(reduction=reduction), kernel=os.path.abspath(os.path.join(disent.__file__, '../../data/adversarial_kernel', 'r47-1_s28800_adam_lr0.003_wd0.0_xy8x8.pt'))),
-    'r47_xy1_mse':  lambda reduction: AugmentedReconLossHandler(ReconLossHandlerMse(reduction=reduction),  kernel=os.path.abspath(os.path.join(disent.__file__, '../../data/adversarial_kernel', 'r47-1_s28800_adam_lr0.003_wd0.0_xy1x1.pt'))),
-    'r47_xy1_mse4': lambda reduction: AugmentedReconLossHandler(ReconLossHandlerMse4(reduction=reduction), kernel=os.path.abspath(os.path.join(disent.__file__, '../../data/adversarial_kernel', 'r47-1_s28800_adam_lr0.003_wd0.0_xy1x1.pt'))),
-    'r47_box_mse':  lambda reduction: AugmentedReconLossHandler(ReconLossHandlerMse(reduction=reduction),  kernel=torch_box_kernel_2d(radius=47)[None, ...]),
-    'r47_box_mse4': lambda reduction: AugmentedReconLossHandler(ReconLossHandlerMse4(reduction=reduction), kernel=torch_box_kernel_2d(radius=47)[None, ...]),
+    # xy8
+    'r47_xy8_mse4_1.0': lambda reduction: AugmentedReconLossHandler(ReconLossHandlerMse4(reduction=reduction), kernel=_MAKE_KERNEL_R47_8x8(), kernel_weight=1.0),
+    'r47_xy8_mse4_0.5': lambda reduction: AugmentedReconLossHandler(ReconLossHandlerMse4(reduction=reduction), kernel=_MAKE_KERNEL_R47_8x8(), kernel_weight=0.5),
+    'r47_xy8_mse4_0.1': lambda reduction: AugmentedReconLossHandler(ReconLossHandlerMse4(reduction=reduction), kernel=_MAKE_KERNEL_R47_8x8(), kernel_weight=0.1),
+    # xy1
+    'r47_xy1_mse4_1.0': lambda reduction: AugmentedReconLossHandler(ReconLossHandlerMse4(reduction=reduction), kernel=_MAKE_KERNEL_R47_1x1(), kernel_weight=1.0),
+    'r47_xy1_mse4_0.5': lambda reduction: AugmentedReconLossHandler(ReconLossHandlerMse4(reduction=reduction), kernel=_MAKE_KERNEL_R47_1x1(), kernel_weight=0.5),
+    'r47_xy1_mse4_0.1': lambda reduction: AugmentedReconLossHandler(ReconLossHandlerMse4(reduction=reduction), kernel=_MAKE_KERNEL_R47_1x1(), kernel_weight=0.1),
+    # box
+    'r47_box_mse4_1.0': lambda reduction: AugmentedReconLossHandler(ReconLossHandlerMse4(reduction=reduction), kernel=_MAKE_KERNEL_R47_BOX(), kernel_weight=1.0),
+    'r47_box_mse4_0.5': lambda reduction: AugmentedReconLossHandler(ReconLossHandlerMse4(reduction=reduction), kernel=_MAKE_KERNEL_R47_BOX(), kernel_weight=0.5),
+    'r47_box_mse4_0.1': lambda reduction: AugmentedReconLossHandler(ReconLossHandlerMse4(reduction=reduction), kernel=_MAKE_KERNEL_R47_BOX(), kernel_weight=0.1),
 }
 
 

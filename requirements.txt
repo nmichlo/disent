@@ -57,3 +57,5 @@ hydra-colorlog==1.0.1
 hydra-submitit-launcher==1.1.1
 
 # submitit==1.1.5
+
+Deprecated==1.2.12
