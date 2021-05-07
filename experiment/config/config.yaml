@@ -29,6 +29,8 @@ framework:
     module:
       recon_loss: mse4
       loss_reduction: mean
+    optional:
+      overlap_loss: NULL
 
 model:
   z_size: 9
