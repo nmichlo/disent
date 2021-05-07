@@ -9,7 +9,8 @@ module:
   detach_no_kl: FALSE
   detach_logvar: NULL  # set to NULL to disable fixed value
   # dotvae
-  overlap_num: 4096
+  overlap_loss: ${framework.optional.overlap_loss}  # any of the recon_loss values, or NULL to use the recon_loss value
+  overlap_num: 512
   # dotvae -- augment
   overlap_augment_mode: 'none'
   overlap_augment: NULL

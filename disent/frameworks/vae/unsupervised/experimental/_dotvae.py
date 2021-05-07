@@ -22,6 +22,7 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 from dataclasses import dataclass
+from typing import final
 from typing import Optional
 from typing import Sequence
 
@@ -31,6 +32,8 @@ import numpy as np
 import torch
 from torch.distributions import Normal
 
+from disent.frameworks.helper.reconstructions import make_reconstruction_loss
+from disent.frameworks.helper.reconstructions import ReconLossHandler
 from disent.frameworks.vae.supervised import AdaNegTripletVae
 from experiment.util.hydra_utils import instantiate_recursive
 
@@ -55,6 +58,7 @@ class DataOverlapTripletVae(AdaNegTripletVae):
         detach_no_kl: bool = False
         detach_logvar: float = None  # std = 0.5, logvar = ln(std**2) ~= -2,77
         # OVERLAP VAE
+        overlap_loss: Optional[str] = None  # if None, use the value from recon_loss
         overlap_num: int = 1024
         overlap_mine_ratio: float = 0.1
         overlap_mine_triplet_mode: str = 'none'
@@ -69,6 +73,14 @@ class DataOverlapTripletVae(AdaNegTripletVae):
             assert self.cfg.overlap_augment is not None, 'if cfg.overlap_augment_mode is not "none", then cfg.overlap_augment must be defined.'
         if self.cfg.overlap_augment is not None:
             self._augment = instantiate_recursive(self.cfg.overlap_augment)
+        # get overlap loss
+        overlap_loss = self.cfg.overlap_loss if (self.cfg.overlap_loss is not None) else self.cfg.recon_loss
+        self.__overlap_handler: ReconLossHandler = make_reconstruction_loss(overlap_loss, reduction='mean')
+
+    @final
+    @property
+    def overlap_handler(self) -> ReconLossHandler:
+        return self.__overlap_handler
 
     def hook_compute_ave_aug_loss(self, ds_posterior: Sequence[Normal], ds_prior, zs_sampled, xs_partial_recon, xs_targ: Sequence[torch.Tensor]):
         # ++++++++++++++++++++++++++++++++++++++++++ #
@@ -83,9 +95,9 @@ class DataOverlapTripletVae(AdaNegTripletVae):
         # self.debug(x_targ_orig, x_targ, a_idxs, p_idxs, n_idxs)
         # ++++++++++++++++++++++++++++++++++++++++++ #
         # 3. reorder random triples
-        a_idxs, p_idxs, n_idxs = self.overlap_swap_triplet_idxs(x_targ, a_idxs, p_idxs, n_idxs, cfg=self.cfg, unreduced_loss_fn=self.recon_handler.compute_unreduced_loss)
+        a_idxs, p_idxs, n_idxs = self.overlap_swap_triplet_idxs(x_targ, a_idxs, p_idxs, n_idxs)
         # 4. mine random triples
-        a_idxs, p_idxs, n_idxs = self.mine_triplets(x_targ_orig, x_targ, a_idxs, p_idxs, n_idxs)
+        a_idxs, p_idxs, n_idxs = self.mine_triplets(x_targ, a_idxs, p_idxs, n_idxs)
         # ++++++++++++++++++++++++++++++++++++++++++ #
         # 5. compute triplet loss
         loss, loss_log = AdaNegTripletVae.estimate_ada_triplet_loss(
@@ -120,11 +132,10 @@ class DataOverlapTripletVae(AdaNegTripletVae):
     #     plt.show()
     #     time.sleep(10)
 
-    @staticmethod
-    def overlap_swap_triplet_idxs(x_targ, a_idxs, p_idxs, n_idxs, cfg: cfg, unreduced_loss_fn):
+    def overlap_swap_triplet_idxs(self, x_targ, a_idxs, p_idxs, n_idxs):
         xs_targ = [x_targ[idxs] for idxs in (a_idxs, p_idxs, n_idxs)]
         # CORE: order the latent variables for triplet
-        swap_mask = DataOverlapTripletVae.overlap_swap_mask(xs_targ=xs_targ, unreduced_loss_fn=unreduced_loss_fn)
+        swap_mask = self.overlap_swap_mask(xs_targ=xs_targ)
         # swap all idxs
         swapped_a_idxs = a_idxs
         swapped_p_idxs = torch.where(swap_mask, n_idxs, p_idxs)
@@ -132,9 +143,7 @@ class DataOverlapTripletVae(AdaNegTripletVae):
         # return values
         return swapped_a_idxs, swapped_p_idxs, swapped_n_idxs
 
-
-    @staticmethod
-    def overlap_swap_mask(xs_targ: Sequence[torch.Tensor], unreduced_loss_fn: callable) -> torch.Tensor:
+    def overlap_swap_mask(self, xs_targ: Sequence[torch.Tensor]) -> torch.Tensor:
         # get variables
         a_x_targ_OLD, p_x_targ_OLD, n_x_targ_OLD = xs_targ
         # CORE OF THIS APPROACH
@@ -142,8 +151,8 @@ class DataOverlapTripletVae(AdaNegTripletVae):
         # calculate which are wrong!
         # TODO: add more loss functions, like perceptual & others
         with torch.no_grad():
-            a_p_losses = unreduced_loss_fn(a_x_targ_OLD, p_x_targ_OLD).mean(dim=(-3, -2, -1))  # (B, C, H, W) -> (B,)
-            a_n_losses = unreduced_loss_fn(a_x_targ_OLD, n_x_targ_OLD).mean(dim=(-3, -2, -1))  # (B, C, H, W) -> (B,)
+            a_p_losses = self.overlap_handler.compute_unreduced_loss(a_x_targ_OLD, p_x_targ_OLD).mean(dim=(-3, -2, -1))  # (B, C, H, W) -> (B,)
+            a_n_losses = self.overlap_handler.compute_unreduced_loss(a_x_targ_OLD, n_x_targ_OLD).mean(dim=(-3, -2, -1))  # (B, C, H, W) -> (B,)
             swap_mask = (a_p_losses > a_n_losses)  # (B,)
         # ++++++++++++++++++++++++++++++++++++++++++ #
         return swap_mask
@@ -163,7 +172,7 @@ class DataOverlapTripletVae(AdaNegTripletVae):
             raise KeyError(f'invalid cfg.overlap_augment_mode={repr(self.cfg.overlap_augment_mode)}')
         return aug_xs_targ
 
-    def mine_triplets(self, x_targ_orig, x_targ, a_idxs, p_idxs, n_idxs):
+    def mine_triplets(self, x_targ, a_idxs, p_idxs, n_idxs):
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # CUSTOM MODE
         overlap_mine_triplet_mode = self.cfg.overlap_mine_triplet_mode
@@ -177,13 +186,12 @@ class DataOverlapTripletVae(AdaNegTripletVae):
             raise KeyError(f'invalid cfg.overlap_mine_triplet_mode=={repr(self.cfg.overlap_mine_triplet_mode)}')
         # mine triplets -- can return array of indices or boolean mask array
         return mine_fn(
-            x_targ_orig=x_targ_orig,
             x_targ=x_targ,
             a_idxs=a_idxs,
             p_idxs=p_idxs,
             n_idxs=n_idxs,
             cfg=self.cfg,
-            unreduced_loss_fn=self.recon_handler.compute_unreduced_loss
+            unreduced_loss_fn=self.overlap_handler.compute_unreduced_loss
         )
 
 
@@ -192,11 +200,11 @@ class DataOverlapTripletVae(AdaNegTripletVae):
 # ========================================================================= #
 
 
-def mine_none(x_targ_orig, x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduced_loss_fn):
+def mine_none(x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduced_loss_fn):
     return a_idxs, p_idxs, n_idxs
 
 
-def mine_semi_hard_neg(x_targ_orig, x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduced_loss_fn):
+def mine_semi_hard_neg(x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduced_loss_fn):
     # SEMI HARD NEGATIVE MINING
     # "choose an anchor-negative pair that is farther than the anchor-positive pair, but within the margin, and so still contributes a positive loss"
     # -- triples satisfy d(a, p) < d(a, n) < alpha
@@ -213,7 +221,7 @@ def mine_semi_hard_neg(x_targ_orig, x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduc
         return a_idxs, p_idxs, n_idxs
 
 
-def mine_hard_neg(x_targ_orig, x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduced_loss_fn):
+def mine_hard_neg(x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduced_loss_fn):
     # HARD NEGATIVE MINING
     # "most similar images which have a different label from the anchor image"
     # -- triples with smallest d(a, n)
@@ -225,13 +233,13 @@ def mine_hard_neg(x_targ_orig, x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduced_lo
     return a_idxs[hard_idxs], p_idxs[hard_idxs], n_idxs[hard_idxs]
 
 
-def mine_easy_neg(x_targ_orig, x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduced_loss_fn):
+def mine_easy_neg(x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduced_loss_fn):
     # EASY NEGATIVE MINING
     # "least similar images which have the different label from the anchor image"
     raise RuntimeError('This triplet mode is not useful! Choose another.')
 
 
-def mine_hard_pos(x_targ_orig, x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduced_loss_fn):
+def mine_hard_pos(x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduced_loss_fn):
     # HARD POSITIVE MINING -- this performs really well!
     # "least similar images which have the same label to as anchor image"
     # -- shown not to be suitable for all datasets
@@ -243,7 +251,7 @@ def mine_hard_pos(x_targ_orig, x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduced_lo
     return a_idxs[hard_idxs], p_idxs[hard_idxs], n_idxs[hard_idxs]
 
 
-def mine_easy_pos(x_targ_orig, x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduced_loss_fn):
+def mine_easy_pos(x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduced_loss_fn):
     # EASY POSITIVE MINING
     # "the most similar images that have the same label as the anchor image"
     with torch.no_grad():

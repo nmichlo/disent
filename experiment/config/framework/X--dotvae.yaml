@@ -23,7 +23,8 @@ module:
   # ada_tvae - averaging
   adat_share_mask_mode: posterior
   # dotvae
-  overlap_num: 4096
+  overlap_loss: ${framework.optional.overlap_loss}  # any of the recon_loss values, or NULL to use the recon_loss value
+  overlap_num: 512
   overlap_mine_ratio: 0.1
   overlap_mine_triplet_mode: 'none'  # none, hard_neg, semi_hard_neg, hard_pos, easy_pos, random_hard_neg_or_hard_pos <- etc, dynamically evaluated, can chain multiple "_or_"s
   # dotvae -- augment

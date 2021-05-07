@@ -23,12 +23,15 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from dataclasses import dataclass
+from typing import final
 from typing import Sequence
 
 import torch
 from torch.distributions import Normal
 from typing import Optional
 
+from disent.frameworks.helper.reconstructions import make_reconstruction_loss
+from disent.frameworks.helper.reconstructions import ReconLossHandler
 from disent.frameworks.vae.supervised import TripletVae
 from disent.frameworks.vae.unsupervised._betavae import BetaVae
 from disent.util.math_loss import torch_mse_rank_loss
@@ -52,6 +55,7 @@ class DataOverlapRankVae(TripletVae):
         detach_no_kl: bool = False
         detach_logvar: float = -2  # std = 0.5, logvar = ln(std**2) ~= -2,77
         # OVERLAP VAE
+        overlap_loss: Optional[str] = None
         overlap_num: int = 1024
         # AUGMENT
         overlap_augment_mode: str = 'none'
@@ -65,6 +69,14 @@ class DataOverlapRankVae(TripletVae):
             assert self.cfg.overlap_augment is not None, 'if cfg.overlap_augment_mode is not "none", then cfg.overlap_augment must be defined.'
         if self.cfg.overlap_augment is not None:
             self._augment = instantiate_recursive(self.cfg.overlap_augment)
+        # get overlap loss
+        overlap_loss = self.cfg.overlap_loss if (self.cfg.overlap_loss is not None) else self.cfg.recon_loss
+        self.__overlap_handler: ReconLossHandler = make_reconstruction_loss(overlap_loss, reduction='mean')
+
+    @final
+    @property
+    def overlap_handler(self) -> ReconLossHandler:
+        return self.__overlap_handler
 
     def hook_compute_ave_aug_loss(self, ds_posterior: Sequence[Normal], ds_prior, zs_sampled, xs_partial_recon, xs_targ: Sequence[torch.Tensor]):
         # ++++++++++++++++++++++++++++++++++++++++++ #
@@ -78,7 +90,7 @@ class DataOverlapRankVae(TripletVae):
         # ++++++++++++++++++++++++++++++++++++++++++ #
         # compute image distances
         with torch.no_grad():
-            ap_recon_dists = self.recon_handler.compute_unreduced_loss(
+            ap_recon_dists = self.overlap_handler.compute_unreduced_loss(
                 x_targ[a_idxs],
                 x_targ[p_idxs],
             ).mean(dim=(-3, -2, -1))  # (B, C, H, W) -> (B,)
