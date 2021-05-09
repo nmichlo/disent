@@ -30,6 +30,7 @@ jobs:
       run: |
         python3 -m pip install --upgrade pip
         python3 -m pip install -r requirements-test.txt
+        python3 -m pip install -r requirements-pre.txt
         python3 -m pip install -r requirements.txt
 
     - name: Test with pytest
