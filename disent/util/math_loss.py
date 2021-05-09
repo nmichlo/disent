@@ -122,7 +122,7 @@ def torch_soft_rank(
     dims: Union[int, Tuple[int, ...]] = -1,
     regularization='l2',
     regularization_strength=1.0,
-    dims_at_end=False,
+    leave_dims_at_end=False,
 ):
     # we import it locally so that we don't have to install this
     import torchsort
@@ -131,7 +131,7 @@ def torch_soft_rank(
     # sort the last dimension of the 2D tensors
     tensor = torchsort.soft_rank(tensor, regularization=regularization, regularization_strength=regularization_strength)
     # undo the reorder operation
-    if dims_at_end:
+    if leave_dims_at_end:
         return tensor
     return torch_undo_dims_at_end_2d(tensor, moved_shape=moved_shape, moved_end_dims=moved_end_dims)
 
@@ -226,8 +226,8 @@ def spearman_rank_loss(
 
 def torch_mse_rank_loss(pred, targ, dims=-1, regularization='l2', regularization_strength=1.0, reduction='mean'):
     return F.mse_loss(
-        torch_soft_rank(pred, dims=dims, regularization=regularization, regularization_strength=regularization_strength, dims_at_end=False),
-        torch_soft_rank(targ, dims=dims, regularization=regularization, regularization_strength=regularization_strength, dims_at_end=False),
+        torch_soft_rank(pred, dims=dims, regularization=regularization, regularization_strength=regularization_strength, leave_dims_at_end=False),
+        torch_soft_rank(targ, dims=dims, regularization=regularization, regularization_strength=regularization_strength, leave_dims_at_end=False),
         reduction=reduction,
     )
 

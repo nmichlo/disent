@@ -24,18 +24,18 @@
 
 from dataclasses import dataclass
 from typing import final
+from typing import Optional
 from typing import Sequence
 
 import torch
 from torch.distributions import Normal
-from typing import Optional
 
 from disent.frameworks.helper.reconstructions import make_reconstruction_loss
 from disent.frameworks.helper.reconstructions import ReconLossHandler
-from disent.frameworks.helper.reductions import batch_loss_reduction
 from disent.frameworks.vae.supervised import TripletVae
 from disent.frameworks.vae.unsupervised._betavae import BetaVae
 from disent.util.math_loss import torch_mse_rank_loss
+from disent.util.math_loss import spearman_rank_loss
 from experiment.util.hydra_utils import instantiate_recursive
 
 
@@ -61,6 +61,9 @@ class DataOverlapRankVae(TripletVae):
         # AUGMENT
         overlap_augment_mode: str = 'none'
         overlap_augment: Optional[dict] = None
+        # REPRESENTATIONS
+        overlap_repr: str = 'deterministic'  # deterministic, stochastic
+        overlap_rank_mode: str = 'spearman_rank'  # spearman_rank, mse_rank
 
     def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
         # TODO: duplicate code
@@ -84,8 +87,7 @@ class DataOverlapRankVae(TripletVae):
         # 1. augment batch
         (x_targ_orig,) = xs_targ
         with torch.no_grad():
-            xs_targ = self.augment_triplet_targets(xs_targ)
-        (d_posterior,), (x_targ,) = ds_posterior, xs_targ
+            (x_targ,) = self.augment_triplet_targets(xs_targ)
         # 2. generate random pairs -- this does not generate unique pairs
         a_idxs, p_idxs = torch.randint(len(x_targ), size=(2, self.cfg.overlap_num), device=x_targ.device)
         # ++++++++++++++++++++++++++++++++++++++++++ #
@@ -93,15 +95,28 @@ class DataOverlapRankVae(TripletVae):
         with torch.no_grad():
             ap_recon_dists = self.overlap_handler.compute_pairwise_loss(x_targ[a_idxs], x_targ[p_idxs])
         # ++++++++++++++++++++++++++++++++++++++++++ #
+        # get representations
+        if self.cfg.overlap_repr == 'deterministic':
+            (d_posterior,) = ds_posterior
+            a_z, p_z = d_posterior.loc[a_idxs], d_posterior.loc[p_idxs]
+        elif self.cfg.overlap_repr == 'stochastic':
+            (z_sampled,) = zs_sampled
+            a_z, p_z = z_sampled[a_idxs], z_sampled[p_idxs]
+        else:
+            raise KeyError(f'invalid overlap_repr mode: {repr(self.cfg.overlap_repr)}')
         # compute representation distances
-        ap_repr_dists = torch.abs(d_posterior.loc[a_idxs] - d_posterior.loc[p_idxs]).sum(dim=-1)
-        # (z_sampled,) = zs_sampled
-        # ap_repr_dists = torch.abs(z_sampled[a_idxs] - z_sampled[p_idxs]).sum(dim=-1)
+        ap_repr_dists = torch.abs(a_z - p_z).sum(dim=-1)
         # ++++++++++++++++++++++++++++++++++++++++++ #
-        loss = torch_mse_rank_loss(ap_repr_dists, ap_recon_dists.detach(), dims=-1, reduction='mean')
-        return loss, {
-            'mse_rank_loss': loss
-        }
+        if self.cfg.overlap_rank_mode == 'mse_rank':
+            loss = torch_mse_rank_loss(ap_repr_dists, ap_recon_dists.detach(), dims=-1, reduction='mean')
+            loss_logs = {'mse_rank_loss': loss}
+        elif self.cfg.overlap_rank_mode == 'spearman_rank':
+            loss = spearman_rank_loss(ap_repr_dists, ap_recon_dists.detach(), nan_to_num=True)
+            loss_logs = {'spearman_rank_loss': loss}
+        else:
+            raise KeyError(f'invalid overlap_rank_mode: {repr(self.cfg.overlap_repr)}')
+        # return the loss
+        return loss, loss_logs
 
     def augment_triplet_targets(self, xs_targ):
         # TODO: duplicate code

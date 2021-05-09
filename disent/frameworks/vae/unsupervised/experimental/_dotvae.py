@@ -151,8 +151,8 @@ class DataOverlapTripletVae(AdaNegTripletVae):
         # calculate which are wrong!
         # TODO: add more loss functions, like perceptual & others
         with torch.no_grad():
-            a_p_losses = self.overlap_handler.compute_unreduced_loss(a_x_targ_OLD, p_x_targ_OLD).mean(dim=(-3, -2, -1))  # (B, C, H, W) -> (B,)
-            a_n_losses = self.overlap_handler.compute_unreduced_loss(a_x_targ_OLD, n_x_targ_OLD).mean(dim=(-3, -2, -1))  # (B, C, H, W) -> (B,)
+            a_p_losses = self.overlap_handler.compute_pairwise_loss(a_x_targ_OLD, p_x_targ_OLD)  # (B, C, H, W) -> (B,)
+            a_n_losses = self.overlap_handler.compute_pairwise_loss(a_x_targ_OLD, n_x_targ_OLD)  # (B, C, H, W) -> (B,)
             swap_mask = (a_p_losses > a_n_losses)  # (B,)
         # ++++++++++++++++++++++++++++++++++++++++++ #
         return swap_mask
@@ -191,7 +191,7 @@ class DataOverlapTripletVae(AdaNegTripletVae):
             p_idxs=p_idxs,
             n_idxs=n_idxs,
             cfg=self.cfg,
-            unreduced_loss_fn=self.overlap_handler.compute_unreduced_loss
+            pairwise_loss_fn=self.overlap_handler.compute_pairwise_loss
         )
 
 
@@ -200,17 +200,17 @@ class DataOverlapTripletVae(AdaNegTripletVae):
 # ========================================================================= #
 
 
-def mine_none(x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduced_loss_fn):
+def mine_none(x_targ, a_idxs, p_idxs, n_idxs, cfg, pairwise_loss_fn):
     return a_idxs, p_idxs, n_idxs
 
 
-def mine_semi_hard_neg(x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduced_loss_fn):
+def mine_semi_hard_neg(x_targ, a_idxs, p_idxs, n_idxs, cfg, pairwise_loss_fn):
     # SEMI HARD NEGATIVE MINING
     # "choose an anchor-negative pair that is farther than the anchor-positive pair, but within the margin, and so still contributes a positive loss"
     # -- triples satisfy d(a, p) < d(a, n) < alpha
     with torch.no_grad():
-        d_a_p = unreduced_loss_fn(x_targ[a_idxs], x_targ[p_idxs]).mean(dim=(-3, -2, -1))
-        d_a_n = unreduced_loss_fn(x_targ[a_idxs], x_targ[n_idxs]).mean(dim=(-3, -2, -1))
+        d_a_p = pairwise_loss_fn(x_targ[a_idxs], x_targ[p_idxs])
+        d_a_n = pairwise_loss_fn(x_targ[a_idxs], x_targ[n_idxs])
     # get hard negatives
     semi_hard_mask = (d_a_p < d_a_n) & (d_a_n < cfg.triplet_margin_max)
     # get indices
@@ -221,41 +221,41 @@ def mine_semi_hard_neg(x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduced_loss_fn):
         return a_idxs, p_idxs, n_idxs
 
 
-def mine_hard_neg(x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduced_loss_fn):
+def mine_hard_neg(x_targ, a_idxs, p_idxs, n_idxs, cfg, pairwise_loss_fn):
     # HARD NEGATIVE MINING
     # "most similar images which have a different label from the anchor image"
     # -- triples with smallest d(a, n)
     with torch.no_grad():
-        d_a_n = unreduced_loss_fn(x_targ[a_idxs], x_targ[n_idxs]).mean(dim=(-3, -2, -1))
+        d_a_n = pairwise_loss_fn(x_targ[a_idxs], x_targ[n_idxs])
     # get hard negatives
     hard_idxs = torch.argsort(d_a_n, descending=False)[:int(cfg.overlap_num * cfg.overlap_mine_ratio)]
     # get indices
     return a_idxs[hard_idxs], p_idxs[hard_idxs], n_idxs[hard_idxs]
 
 
-def mine_easy_neg(x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduced_loss_fn):
+def mine_easy_neg(x_targ, a_idxs, p_idxs, n_idxs, cfg, pairwise_loss_fn):
     # EASY NEGATIVE MINING
     # "least similar images which have the different label from the anchor image"
     raise RuntimeError('This triplet mode is not useful! Choose another.')
 
 
-def mine_hard_pos(x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduced_loss_fn):
+def mine_hard_pos(x_targ, a_idxs, p_idxs, n_idxs, cfg, pairwise_loss_fn):
     # HARD POSITIVE MINING -- this performs really well!
     # "least similar images which have the same label to as anchor image"
     # -- shown not to be suitable for all datasets
     with torch.no_grad():
-        d_a_p = unreduced_loss_fn(x_targ[a_idxs], x_targ[p_idxs]).mean(dim=(-3, -2, -1))
+        d_a_p = pairwise_loss_fn(x_targ[a_idxs], x_targ[p_idxs])
     # get hard positives
     hard_idxs = torch.argsort(d_a_p, descending=True)[:int(cfg.overlap_num * cfg.overlap_mine_ratio)]
     # get indices
     return a_idxs[hard_idxs], p_idxs[hard_idxs], n_idxs[hard_idxs]
 
 
-def mine_easy_pos(x_targ, a_idxs, p_idxs, n_idxs, cfg, unreduced_loss_fn):
+def mine_easy_pos(x_targ, a_idxs, p_idxs, n_idxs, cfg, pairwise_loss_fn):
     # EASY POSITIVE MINING
     # "the most similar images that have the same label as the anchor image"
     with torch.no_grad():
-        d_a_p = unreduced_loss_fn(x_targ[a_idxs], x_targ[p_idxs]).mean(dim=(-3, -2, -1))
+        d_a_p = pairwise_loss_fn(x_targ[a_idxs], x_targ[p_idxs])
     # get easy positives
     easy_idxs = torch.argsort(d_a_p, descending=False)[:int(cfg.overlap_num * cfg.overlap_mine_ratio)]
     # get indices
