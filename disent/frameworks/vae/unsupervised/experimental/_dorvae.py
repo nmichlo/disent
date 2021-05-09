@@ -33,7 +33,9 @@ from torch.distributions import Normal
 from disent.frameworks.helper.reconstructions import make_reconstruction_loss
 from disent.frameworks.helper.reconstructions import ReconLossHandler
 from disent.frameworks.vae.supervised import TripletVae
+from disent.frameworks.vae.supervised.experimental._adatvae import compute_triplet_shared_masks
 from disent.frameworks.vae.unsupervised._betavae import BetaVae
+from disent.frameworks.vae.weaklysupervised import AdaVae
 from disent.util.math_loss import torch_mse_rank_loss
 from disent.util.math_loss import spearman_rank_loss
 from experiment.util.hydra_utils import instantiate_recursive
@@ -55,6 +57,10 @@ class DataOverlapRankVae(TripletVae):
         detach_decoder: bool = True
         detach_no_kl: bool = False
         detach_logvar: float = -2  # std = 0.5, logvar = ln(std**2) ~= -2,77
+        # compatibility
+        ada_thresh_mode: str = 'dist'  # kl, symmetric_kl, dist, sampled_dist
+        ada_thresh_ratio: float = 0.5
+        adat_triplet_share_scale: float = 0.95
         # OVERLAP VAE
         overlap_loss: Optional[str] = None
         overlap_num: int = 1024
@@ -88,6 +94,8 @@ class DataOverlapRankVae(TripletVae):
         (x_targ_orig,) = xs_targ
         with torch.no_grad():
             (x_targ,) = self.augment_triplet_targets(xs_targ)
+        (d_posterior,) = ds_posterior
+        (z_sampled,) = zs_sampled
         # 2. generate random pairs -- this does not generate unique pairs
         a_idxs, p_idxs = torch.randint(len(x_targ), size=(2, self.cfg.overlap_num), device=x_targ.device)
         # ++++++++++++++++++++++++++++++++++++++++++ #
@@ -97,21 +105,30 @@ class DataOverlapRankVae(TripletVae):
         # ++++++++++++++++++++++++++++++++++++++++++ #
         # get representations
         if self.cfg.overlap_repr == 'deterministic':
-            (d_posterior,) = ds_posterior
             a_z, p_z = d_posterior.loc[a_idxs], d_posterior.loc[p_idxs]
         elif self.cfg.overlap_repr == 'stochastic':
-            (z_sampled,) = zs_sampled
             a_z, p_z = z_sampled[a_idxs], z_sampled[p_idxs]
         else:
             raise KeyError(f'invalid overlap_repr mode: {repr(self.cfg.overlap_repr)}')
+        # compute delta
+        if self.cfg.adat_triplet_share_scale != 1.0:
+            # DISENTANGLE!
+            # compute adaptive mask
+            a_posterior = Normal(d_posterior.loc[a_idxs], d_posterior.scale[a_idxs])
+            p_posterior = Normal(d_posterior.loc[p_idxs], d_posterior.scale[p_idxs])
+            share_mask = AdaVae.compute_posterior_shared_mask(a_posterior, p_posterior, thresh_mode=self.cfg.ada_thresh_mode, ratio=self.cfg.ada_thresh_ratio)
+            # weight according to mask
+            delta = torch.where(share_mask, self.cfg.adat_triplet_share_scale * (a_z - p_z), (a_z - p_z))
+        else:
+            delta = a_z - p_z
         # compute representation distances
-        ap_repr_dists = torch.abs(a_z - p_z).sum(dim=-1)
+        ap_repr_dists = torch.abs(delta).sum(dim=-1)
         # ++++++++++++++++++++++++++++++++++++++++++ #
         if self.cfg.overlap_rank_mode == 'mse_rank':
             loss = torch_mse_rank_loss(ap_repr_dists, ap_recon_dists.detach(), dims=-1, reduction='mean')
             loss_logs = {'mse_rank_loss': loss}
         elif self.cfg.overlap_rank_mode == 'spearman_rank':
-            loss = spearman_rank_loss(ap_repr_dists, ap_recon_dists.detach(), nan_to_num=True)
+            loss = - spearman_rank_loss(ap_repr_dists, ap_recon_dists.detach(), nan_to_num=True)
             loss_logs = {'spearman_rank_loss': loss}
         else:
             raise KeyError(f'invalid overlap_rank_mode: {repr(self.cfg.overlap_repr)}')

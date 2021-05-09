@@ -8,12 +8,16 @@ module:
   detach_decoder: FALSE
   detach_no_kl: FALSE
   detach_logvar: NULL  # set to NULL to disable fixed value
+  # compatibility
+  ada_thresh_mode: dist  # kl, symmetric_kl, dist, sampled_dist
+  ada_thresh_ratio: 0.5
+  adat_triplet_share_scale: 0.95
   # dorvae
   overlap_loss: ${framework.optional.overlap_loss}  # any of the recon_loss values, or NULL to use the recon_loss value
   overlap_num: 512
   # dorvae -- representation loss
   overlap_repr: deterministic       # deterministic, stochastic
-  overlap_rank_mode: mse_rank  # spearman_rank, mse_rank
+  overlap_rank_mode: spearman_rank  # spearman_rank, mse_rank
   # dorvae -- augment
   overlap_augment_mode: 'none'
   overlap_augment: NULL
