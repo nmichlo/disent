@@ -33,7 +33,7 @@ import torch.nn.functional as F
 import disent
 from disent.frameworks.helper.reductions import loss_reduction
 from disent.frameworks.helper.util import compute_ave_loss
-from disent.transform.functional import conv2d_channel_wise_fft
+from disent.util.math import torch_conv2d_channel_wise_fft
 from disent.util import DisentModule
 from disent.util.math import torch_box_kernel_2d
 
@@ -277,8 +277,8 @@ class AugmentedReconLossHandler(ReconLossHandler):
         return self._recon_loss_handler.activate(x_partial)
 
     def compute_unreduced_loss(self, x_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
-        aug_x_recon = conv2d_channel_wise_fft(x_recon, self._kernel)
-        aug_x_targ = conv2d_channel_wise_fft(x_targ, self._kernel)
+        aug_x_recon = torch_conv2d_channel_wise_fft(x_recon, self._kernel)
+        aug_x_targ = torch_conv2d_channel_wise_fft(x_targ, self._kernel)
         aug_loss = self._recon_loss_handler.compute_unreduced_loss(aug_x_recon, aug_x_targ)
         loss = self._recon_loss_handler.compute_unreduced_loss(x_recon, x_targ)
         return (1. - self._kernel_weight) * loss + self._kernel_weight * aug_loss

@@ -30,7 +30,7 @@ from tqdm import tqdm
 
 import torch.nn.functional as F
 import experiment.exp.util.helper as H
-from disent.transform.functional import conv2d_channel_wise_fft
+from disent.util.math import torch_conv2d_channel_wise_fft
 from disent.util.math import torch_box_kernel_2d
 from disent.util.math import torch_gaussian_kernel_2d
 
@@ -123,7 +123,7 @@ def check_xy_squares_dists(kernel='box', repeats=100, samples=256, pairwise_samp
         f_dists = torch.abs(factors[ia] - factors[ib]).sum(dim=-1)
 
         # compute loss distances
-        aug_batch = conv2d_channel_wise_fft(batch, kernel)
+        aug_batch = torch_conv2d_channel_wise_fft(batch, kernel)
         # TODO: aug - batch or aug - aug
         # b_dists = torch.abs(aug_batch[ia] - aug_batch[ib]).sum(dim=(-3, -2, -1))
         b_dists = F.mse_loss(aug_batch[ia], aug_batch[ib], reduction='none').sum(dim=(-3, -2, -1))

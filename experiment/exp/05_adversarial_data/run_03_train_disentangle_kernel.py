@@ -38,7 +38,7 @@ from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 
 import experiment.exp.util.helper as H
-from disent.transform.functional import conv2d_channel_wise_fft
+from disent.util.math import torch_conv2d_channel_wise_fft
 from disent.util import DisentLightningModule
 from disent.util import DisentModule
 from disent.util import make_box_str
@@ -142,7 +142,7 @@ class Kernel(DisentModule):
         self._kernel = Parameter(kernel)
 
     def forward(self, xs):
-        return conv2d_channel_wise_fft(xs, self._kernel)
+        return torch_conv2d_channel_wise_fft(xs, self._kernel)
 
     def make_train_periodic_callback(self, cfg) -> _PeriodicCallback:
         class ImShowCallback(_PeriodicCallback):

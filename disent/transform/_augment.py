@@ -30,8 +30,8 @@ import numpy as np
 import torch
 
 from disent.util.math import torch_box_kernel_2d
+from disent.util.math import torch_conv2d_channel_wise_fft
 from disent.util.math import torch_gaussian_kernel_2d
-import disent.transform.functional as F_d
 
 
 # ========================================================================= #
@@ -81,7 +81,7 @@ class _BaseFftBlur(object):
         # get kernel
         kernel = self._make_kernel(obs.shape, obs.device)
         # apply kernel
-        result = F_d.conv2d_channel_wise_fft(signal=obs, kernel=kernel)
+        result = torch_conv2d_channel_wise_fft(signal=obs, kernel=kernel)
         # remove batch dim
         if add_batch_dim:
             result = result[0]

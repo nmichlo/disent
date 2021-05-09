@@ -31,8 +31,8 @@ from scipy.stats import hmean
 from disent.data.groundtruth import XYSquaresData
 from disent.dataset.groundtruth import GroundTruthDataset
 from disent.transform import ToStandardisedTensor
-from disent.transform.functional import conv2d_channel_wise
-from disent.transform.functional import conv2d_channel_wise_fft
+from disent.util.math import torch_conv2d_channel_wise
+from disent.util.math import torch_conv2d_channel_wise_fft
 from disent.util import to_numpy
 from disent.util.math import torch_dct
 from disent.util.math import torch_dct2
@@ -135,11 +135,11 @@ def test_fft_conv2d():
     # sample data
     factors = dataset.sample_random_traversal_factors(f_idx=2)
     batch = dataset.dataset_batch_from_factors(factors=factors, mode="input")
-    # test conv2d_channel_wise variants
+    # test torch_conv2d_channel_wise variants
     for i in range(1, 5):
         kernel = torch_gaussian_kernel_2d(sigma=i)
-        out_cnv = conv2d_channel_wise(signal=batch, kernel=kernel)[0]
-        out_fft = conv2d_channel_wise_fft(signal=batch, kernel=kernel)[0]
+        out_cnv = torch_conv2d_channel_wise(signal=batch, kernel=kernel)[0]
+        out_fft = torch_conv2d_channel_wise_fft(signal=batch, kernel=kernel)[0]
         assert torch.max(torch.abs(out_cnv - out_fft)) < 1e-6
 
 

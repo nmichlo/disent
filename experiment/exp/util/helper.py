@@ -30,7 +30,8 @@ from typing import Sequence
 from typing import Union
 
 import numpy as np
-
+import torch
+import torch.nn.functional as F
 import torch_optimizer
 from matplotlib import pyplot as plt
 from torch.utils.data import BatchSampler
@@ -39,9 +40,6 @@ from torch.utils.data import Sampler
 from disent.data.groundtruth import Cars3dData
 from disent.data.groundtruth import Shapes3dData
 from disent.data.groundtruth import XYSquaresData
-import torch
-import torch.nn.functional as F
-
 from disent.dataset.groundtruth import GroundTruthDataset
 from disent.dataset.groundtruth import GroundTruthDatasetAndFactors
 from disent.transform import ToStandardisedTensor
