@@ -17,13 +17,14 @@ source "$(dirname "$(dirname "$(realpath -s "$0")")")/helper.sh"
 
 clog_cudaless_nodes "$PARTITION" 86400 "C-disent" # 24 hours
 
-# 1 * (2*2*5*9) == 180
+# 1 * (2*2*5*8) == 180
 submit_sweep \
     +DUMMY.repeat=1 \
-    +EXTRA.tags='best--augment-strength' \
+    +EXTRA.tags='best-augment-strength' \
     \
     framework=X--dotvae_aug \
     run_length=short,medium \
+    model=conv64alt \
     model.z_size=25 \
     \
     specializations.data_wrapper='gt_dist_${framework.data_wrap_mode}' \
@@ -57,6 +58,6 @@ submit_sweep \
     \
     framework.module.overlap_augment_mode='augment' \
     framework.module.overlap_augment.p=1.0 \
-    framework.module.overlap_augment.radius=[0,0],[8,8],[16,16],[24,24],[32,32],[0,8],[0,16],[0,24],[0,32] \
+    framework.module.overlap_augment.radius=[7,7],[15,15],[23,23],[31,31],[39,39],[47,47],[55,55],[63,63] \
     framework.module.overlap_augment.random_mode='batch' \
     framework.module.overlap_augment.random_same_xy=TRUE
