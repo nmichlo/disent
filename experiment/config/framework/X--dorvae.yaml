@@ -18,6 +18,8 @@ module:
   # dorvae -- representation loss
   overlap_repr: deterministic       # deterministic, stochastic
   overlap_rank_mode: spearman_rank  # spearman_rank, mse_rank
+  overlap_inward_pressure_masked: TRUE
+  overlap_inward_pressure_scale: 0.1
   # dorvae -- augment
   overlap_augment_mode: 'none'
   overlap_augment: NULL

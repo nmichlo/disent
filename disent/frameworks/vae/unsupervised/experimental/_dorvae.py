@@ -33,7 +33,6 @@ from torch.distributions import Normal
 from disent.frameworks.helper.reconstructions import make_reconstruction_loss
 from disent.frameworks.helper.reconstructions import ReconLossHandler
 from disent.frameworks.vae.supervised import TripletVae
-from disent.frameworks.vae.supervised.experimental._adatvae import compute_triplet_shared_masks
 from disent.frameworks.vae.unsupervised._betavae import BetaVae
 from disent.frameworks.vae.weaklysupervised import AdaVae
 from disent.util.math_loss import torch_mse_rank_loss
@@ -47,6 +46,11 @@ from experiment.util.hydra_utils import instantiate_recursive
 
 
 class DataOverlapRankVae(TripletVae):
+    """
+    This converges really well!
+    - but doesn't introduce axis alignment as well if there is no additional
+      inward pressure term like triplet to move representations closer together
+    """
 
     REQUIRED_OBS = 1
 
@@ -70,6 +74,8 @@ class DataOverlapRankVae(TripletVae):
         # REPRESENTATIONS
         overlap_repr: str = 'deterministic'  # deterministic, stochastic
         overlap_rank_mode: str = 'spearman_rank'  # spearman_rank, mse_rank
+        overlap_inward_pressure_masked: bool = False
+        overlap_inward_pressure_scale: float = 0.1
 
     def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
         # TODO: duplicate code
@@ -110,19 +116,14 @@ class DataOverlapRankVae(TripletVae):
             a_z, p_z = z_sampled[a_idxs], z_sampled[p_idxs]
         else:
             raise KeyError(f'invalid overlap_repr mode: {repr(self.cfg.overlap_repr)}')
-        # compute delta
-        if self.cfg.adat_triplet_share_scale != 1.0:
-            # DISENTANGLE!
-            # compute adaptive mask
-            a_posterior = Normal(d_posterior.loc[a_idxs], d_posterior.scale[a_idxs])
-            p_posterior = Normal(d_posterior.loc[p_idxs], d_posterior.scale[p_idxs])
-            share_mask = AdaVae.compute_posterior_shared_mask(a_posterior, p_posterior, thresh_mode=self.cfg.ada_thresh_mode, ratio=self.cfg.ada_thresh_ratio)
-            # weight according to mask
-            delta = torch.where(share_mask, self.cfg.adat_triplet_share_scale * (a_z - p_z), (a_z - p_z))
-        else:
-            delta = a_z - p_z
+        # DISENTANGLE!
+        # compute adaptive mask & weight deltas
+        a_posterior = Normal(d_posterior.loc[a_idxs], d_posterior.scale[a_idxs])
+        p_posterior = Normal(d_posterior.loc[p_idxs], d_posterior.scale[p_idxs])
+        share_mask = AdaVae.compute_posterior_shared_mask(a_posterior, p_posterior, thresh_mode=self.cfg.ada_thresh_mode, ratio=self.cfg.ada_thresh_ratio)
+        deltas = torch.where(share_mask, self.cfg.adat_triplet_share_scale * (a_z - p_z), (a_z - p_z))
         # compute representation distances
-        ap_repr_dists = torch.abs(delta).sum(dim=-1)
+        ap_repr_dists = torch.abs(deltas).sum(dim=-1)
         # ++++++++++++++++++++++++++++++++++++++++++ #
         if self.cfg.overlap_rank_mode == 'mse_rank':
             loss = torch_mse_rank_loss(ap_repr_dists, ap_recon_dists.detach(), dims=-1, reduction='mean')
@@ -132,8 +133,21 @@ class DataOverlapRankVae(TripletVae):
             loss_logs = {'spearman_rank_loss': loss}
         else:
             raise KeyError(f'invalid overlap_rank_mode: {repr(self.cfg.overlap_repr)}')
+        # ++++++++++++++++++++++++++++++++++++++++++ #
+        # inward pressure
+        if self.cfg.overlap_inward_pressure_masked:
+            in_deltas = torch.abs(deltas) * share_mask
+        else:
+            in_deltas = torch.abs(deltas)
+        # compute inward pressure
+        inward_pressure = self.cfg.overlap_inward_pressure_scale * in_deltas.mean()
+        loss += inward_pressure
+        # ++++++++++++++++++++++++++++++++++++++++++ #
         # return the loss
-        return loss, loss_logs
+        return loss, {
+            **loss_logs,
+            'inward_pressure': inward_pressure,
+        }
 
     def augment_triplet_targets(self, xs_targ):
         # TODO: duplicate code
