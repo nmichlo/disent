@@ -13,13 +13,13 @@ module:
   ada_thresh_ratio: 0.5
   adat_triplet_share_scale: 0.95
   # dorvae
-  overlap_loss: ${framework.optional.overlap_loss}  # any of the recon_loss values, or NULL to use the recon_loss value
+  overlap_loss: ${framework.overlap_loss}  # any of the recon_loss values, or NULL to use the recon_loss value
   overlap_num: 512
   # dorvae -- representation loss
   overlap_repr: deterministic       # deterministic, stochastic
   overlap_rank_mode: spearman_rank  # spearman_rank, mse_rank
-  overlap_inward_pressure_masked: TRUE
-  overlap_inward_pressure_scale: 0.1
+  overlap_inward_pressure_masked: FALSE
+  overlap_inward_pressure_scale: 0.01
   # dorvae -- augment
   overlap_augment_mode: 'none'
   overlap_augment: NULL

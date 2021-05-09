@@ -26,6 +26,7 @@ job:
 
 framework:
     beta: 0.003
+    overlap_loss: NULL
     module:
       recon_loss: mse4
       loss_reduction: mean
