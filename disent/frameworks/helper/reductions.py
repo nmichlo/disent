@@ -76,6 +76,27 @@ def get_mean_loss_scale(x: torch.Tensor, reduction: str):
 
 
 # ========================================================================= #
-# END                                                                 #
+# loss batch reduction                                                      #
 # ========================================================================= #
 
+
+_REDUCTION_FNS = {
+    'mean': torch.mean,
+    'sum': torch.sum,
+}
+
+
+def batch_loss_reduction(tensor: torch.Tensor, reduction_dtype=None, reduction='mean') -> torch.Tensor:
+    # mean over final dims
+    if tensor.ndim >= 2:
+        tensor = torch.flatten(tensor, start_dim=1)  # (B, -1)
+        tensor = _REDUCTION_FNS[reduction](tensor, dim=-1, dtype=reduction_dtype)
+    # check result
+    assert tensor.ndim == 1
+    # done
+    return tensor
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #

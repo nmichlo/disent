@@ -31,7 +31,6 @@ import torchvision.transforms.functional as F_tv
 # ========================================================================= #
 
 
-
 def noop(obs):
     """
     Transform that does absolutely nothing!

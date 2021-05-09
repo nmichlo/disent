@@ -26,17 +26,13 @@ from dataclasses import dataclass
 from typing import Sequence
 
 import torch
-from torch.distributions import Distribution
 from torch.distributions import Normal
 
 from disent.frameworks.helper.triplet_loss import configured_triplet, configured_dist_triplet
 from disent.frameworks.vae.supervised import TripletVae
 from disent.frameworks.vae.supervised.experimental._adatvae import compute_triplet_shared_masks
-from disent.frameworks.vae.supervised.experimental._adatvae import configured_dist_push_pull_triplet
 from disent.frameworks.vae.weaklysupervised import AdaVae
 import logging
-
-from disent.frameworks.vae.weaklysupervised._adavae import compute_average_params
 
 
 log = logging.getLogger(__name__)
@@ -61,8 +57,7 @@ class AdaNegTripletVae(TripletVae):
         # adavae
         ada_thresh_mode: str = 'dist'  # only works for: adat_share_mask_mode == "posterior"
         # ada_tvae - loss
-        adat_triplet_ratio: float = 1.0
-        adat_triplet_pull_weight: float = 0.0
+        adat_triplet_share_scale: float = 0.95
         # ada_tvae - averaging
         adat_share_mask_mode: str = 'posterior'
 
@@ -95,26 +90,13 @@ class AdaNegTripletVae(TripletVae):
         (a_z, p_z, n_z) = (d.mean for d in ds_posterior)
         trip_loss = configured_triplet(a_z, p_z, n_z, cfg=cfg)
 
-        # Hard Averaging Before Triplet - PULLING PUSHING
+        # Hard Averaging Before Triplet - Scaled
         (ap_share_mask, an_share_mask, pn_share_mask) = share_masks
-        neg_delta_push = torch.where(~an_share_mask, a_z - n_z, torch.zeros_like(a_z))  # this is the same as: an_a_ave - an_n_ave
-        neg_delta_pull = torch.where( an_share_mask, a_z - n_z, torch.zeros_like(a_z))
-        triplet_hard_neg_ave_pull = configured_dist_push_pull_triplet(pos_delta=a_z - p_z, neg_delta=neg_delta_push, neg_delta_pull=neg_delta_pull, cfg=cfg)
-        triplet_hard_neg_ave_pull = torch.lerp(trip_loss, triplet_hard_neg_ave_pull, weight=cfg.adat_triplet_ratio)
-
-        # TODO: add mode where we scale the neg pull deltas by some values < 1
-        #       we dont use triplet lerp in this version
-        #       triplet_hard_neg_ave_pull = configured_dist_triplet(
-        #           pos_delta=a_z - p_z,
-        #           neg_delta=torch.where(an_share_mask, cfg.adat_triplet_ratio * (a_z - n_z), (a_z - n_z)),
-        #           cfg=cfg,
-        #       )
-
-        # triplet_hard_neg_ave_pull = configured_dist_triplet(
-        #     pos_delta=a_z - p_z,
-        #     neg_delta=torch.where(an_share_mask, (1.0 - cfg.adat_triplet_ratio) * (a_z - n_z), (a_z - n_z)),
-        #     cfg=cfg,
-        # )
+        triplet_hard_neg_ave_pull = configured_dist_triplet(
+            pos_delta=a_z - p_z,
+            neg_delta=torch.where(an_share_mask, cfg.adat_triplet_share_scale * (a_z - n_z), (a_z - n_z)),
+            cfg=cfg,
+        )
 
         return triplet_hard_neg_ave_pull, {
             'triplet': trip_loss,

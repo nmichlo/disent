@@ -70,6 +70,9 @@ def seed(long=777):
     """
     https://pytorch.org/docs/stable/notes/randomness.html
     """
+    if long is None:
+        log.warning(f'[SEEDING]: no seed was specified. Seeding skipped!')
+        return
     torch.manual_seed(long)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
@@ -332,10 +335,11 @@ class LengthIter(object):
 
 
 class Timer:
-    def __init__(self, print_name=None):
+    def __init__(self, print_name=None, log_level=logging.INFO):
         self._start_time: int = None
         self._end_time: int = None
         self._print_name = print_name
+        self._log_level = log_level
 
     def __enter__(self):
         self._start_time = time.time_ns()
@@ -344,7 +348,7 @@ class Timer:
     def __exit__(self, *args, **kwargs):
         self._end_time = time.time_ns()
         if self._print_name:
-            log.info(f'{self._print_name}: {self.pretty}')
+            log.log(self._log_level, f'{self._print_name}: {self.pretty}')
 
     @property
     def elapsed_ns(self) -> int:
@@ -373,6 +377,10 @@ class Timer:
 
     @staticmethod
     def prettify_time(ns: int) -> str:
+        if ns == 0:
+            return 'N/A'
+        elif ns < 0:
+            return 'NaN'
         # get power of 1000
         pow = min(3, int(np.log10(ns) // 3))
         time = ns / 1000**pow

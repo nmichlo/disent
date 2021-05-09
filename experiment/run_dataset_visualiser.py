@@ -98,7 +98,7 @@ def visualise(cfg: DictConfig):
         obs = dataset[idx]
 
         # convert augmented images to observations
-        x = [(kornia.tensor_to_image(torch.clamp(obs, 0, 1))*255).astype('uint8') for obs in obs['x']]
+        x      = [(kornia.tensor_to_image(torch.clamp(obs, 0, 1))*255).astype('uint8') for obs in obs['x']]
         x_targ = [(kornia.tensor_to_image(torch.clamp(obs, 0, 1))*255).astype('uint8') for obs in obs['x_targ']]
         img = make_image_grid(x + x_targ, pad=PADDING, border=False, bg_color=255, num_cols=len(x))
 

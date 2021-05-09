@@ -40,7 +40,7 @@ class EncoderConv64(BaseEncoderModule):
     # TODO: verify, things have changed...
     """
 
-    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1, dropout=0.0):
+    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
         """
         Convolutional encoder used in beta-VAE paper for the chairs data.
         Based on row 3 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
@@ -54,17 +54,16 @@ class EncoderConv64(BaseEncoderModule):
 
         self.model = nn.Sequential(
             nn.Conv2d(in_channels=num_channels, out_channels=32, kernel_size=4, stride=2, padding=2),
-                nn.LeakyReLU(inplace=True),
+                nn.ReLU(inplace=True),
             nn.Conv2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=2),
-                nn.LeakyReLU(inplace=True),
+                nn.ReLU(inplace=True),
             nn.Conv2d(in_channels=32, out_channels=64, kernel_size=2, stride=2, padding=1),
-                nn.LeakyReLU(inplace=True),
+                nn.ReLU(inplace=True),
             nn.Conv2d(in_channels=64, out_channels=64, kernel_size=2, stride=2, padding=1),
-                nn.LeakyReLU(inplace=True),
+                nn.ReLU(inplace=True),
             Flatten3D(),
             nn.Linear(1600, 256),
-                nn.LeakyReLU(inplace=True),
-                nn.Dropout(dropout),
+                nn.ReLU(inplace=True),
             nn.Linear(256, self.z_total),
         )
 
@@ -79,7 +78,7 @@ class DecoderConv64(BaseDecoderModule):
     # TODO: verify, things have changed...
     """
 
-    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1, dropout=0.0):
+    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
         """
         Convolutional decoder used in beta-VAE paper for the chairs data.
         Based on row 3 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
@@ -92,17 +91,16 @@ class DecoderConv64(BaseDecoderModule):
 
         self.model = nn.Sequential(
             nn.Linear(self.z_size, 256),
-                nn.Dropout(dropout),
-                nn.LeakyReLU(inplace=True),
+                nn.ReLU(inplace=True),
             nn.Linear(256, 1024),
-                nn.LeakyReLU(inplace=True),
+                nn.ReLU(inplace=True),
             BatchView([64, 4, 4]),
             nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=4, stride=2, padding=1),
-                nn.LeakyReLU(inplace=True),
+                nn.ReLU(inplace=True),
             nn.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=4, stride=2, padding=1),
-                nn.LeakyReLU(inplace=True),
+                nn.ReLU(inplace=True),
             nn.ConvTranspose2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=1),
-                nn.LeakyReLU(inplace=True),
+                nn.ReLU(inplace=True),
             nn.ConvTranspose2d(in_channels=32, out_channels=num_channels, kernel_size=4, stride=2, padding=1),
         )
 

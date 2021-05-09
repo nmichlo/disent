@@ -135,7 +135,7 @@ class AE(BaseFramework):
 
     def compute_ave_recon_loss(self, xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
         # compute reconstruction loss
-        pixel_loss = self.recon_handler.compute_ave_loss(xs_partial_recon, xs_targ)
+        pixel_loss = self.recon_handler.compute_ave_loss_from_partial(xs_partial_recon, xs_targ)
         # return logs
         return pixel_loss, {
             'pixel_loss': pixel_loss

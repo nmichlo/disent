@@ -26,41 +26,25 @@
 import os
 from collections import defaultdict
 from typing import Dict
-from typing import List
 
 import seaborn as sns
 import numpy as np
 import pandas as pd
 import torch
-import torch.nn.functional as F
 from matplotlib import pyplot as plt
 from matplotlib.ticker import MultipleLocator
 from tqdm import tqdm
 
+import experiment.exp.util.helper as H
 from disent.data.groundtruth import *
 from disent.dataset.groundtruth import GroundTruthDataset
 from disent.transform import ToStandardisedTensor
 from disent.util import to_numpy
 
 
-def sample_indices(high, num_samples) -> List[int]:
-    assert high >= num_samples, 'not enough values to sample'
-    assert (high - num_samples) / high > 0.5, 'this method might be inefficient'
-    # get random sample
-    indices = set()
-    while len(indices) < num_samples:
-        indices.update(np.random.randint(low=0, high=high, size=num_samples - len(indices)))
-    # make sure indices are randomly ordered
-    indices = np.array(list(indices), dtype=int)
-    np.random.shuffle(indices)
-    # return values
-    return indices
-
-
-def overlap(batch_a, batch_b):
-    loss = -F.mse_loss(batch_a, batch_b, reduction='none').mean(dim=(-3, -2, -1))
-    assert loss.ndim == 1
-    return loss
+# ========================================================================= #
+# plot                                                                      #
+# ========================================================================= #
 
 
 def plot_overlap(a, b, mode='abs'):
@@ -82,7 +66,12 @@ def plot_overlap(a, b, mode='abs'):
     plt.show()
 
 
-def generate_data(gt_dataset, data_name: str, batch_size=64, samples=100_000, plot_diffs=False, load_cache=True, save_cache=True):
+# ========================================================================= #
+# CORE                                                                      #
+# ========================================================================= #
+
+
+def generate_data(gt_dataset, data_name: str, batch_size=64, samples=100_000, plot_diffs=False, load_cache=True, save_cache=True, overlap_loss: str = 'mse'):
     # cache
     file_path = os.path.join(os.path.dirname(__file__), f'cache/{data_name}_{samples}.pkl')
     if load_cache:
@@ -99,12 +88,13 @@ def generate_data(gt_dataset, data_name: str, batch_size=64, samples=100_000, pl
         name = 'random'
         for i in tqdm(range((samples + (batch_size-1) - 1) // (batch_size-1)), desc=f'{data_name}: {name}'):
             # get random batch of unique elements
-            idxs = sample_indices(len(gt_dataset), batch_size)
+            idxs = H.sample_unique_batch_indices(num_obs=len(gt_dataset), num_samples=batch_size)
             batch = gt_dataset.dataset_batch_from_indices(idxs, mode='input')
             # plot
-            if plot_diffs and (i == 0): plot_overlap(batch[0], batch[1])
+            if plot_diffs and (i == 0):
+                plot_overlap(batch[0], batch[1])
             # store overlap results
-            o = to_numpy(overlap(batch[:-1], batch[1:]))
+            o = to_numpy(H.pairwise_overlap(batch[:-1], batch[1:], mode=overlap_loss))
             df[True][name].extend(o)
             df[False][name].extend(o)
 
@@ -121,8 +111,8 @@ def generate_data(gt_dataset, data_name: str, batch_size=64, samples=100_000, pl
                 # plot
                 if plot_diffs and (i == 0): plot_overlap(batch[0], batch[1])
                 # store overlap results
-                df[True][name].extend(to_numpy(overlap(batch[:-1], batch[1:])))
-                df[False][name].extend(to_numpy(overlap(batch[idxs[:-1]], batch[idxs[1:]])))
+                df[True][name].extend(to_numpy(H.pairwise_overlap(batch[:-1], batch[1:], mode=overlap_loss)))
+                df[False][name].extend(to_numpy(H.pairwise_overlap(batch[idxs[:-1]], batch[idxs[1:]], mode=overlap_loss)))
 
         # make dataframe!
         df = pd.DataFrame({
@@ -139,6 +129,11 @@ def generate_data(gt_dataset, data_name: str, batch_size=64, samples=100_000, pl
         print(f'cached: {file_path}')
 
     return df
+
+
+# ========================================================================= #
+# plotting                                                                  #
+# ========================================================================= #
 
 
 def dual_plot_from_generated_data(df, data_name: str = None, save_name: str = None, tick_size: float = None, fig_l_pad=1, fig_w=7, fig_h=13):
@@ -326,6 +321,11 @@ def plot_unique_count(dfs, save_name: str = None, show_plt: bool = True, fig_l_p
         plt.close(fig)
 
 
+# ========================================================================= #
+# entrypoint                                                                #
+# ========================================================================= #
+
+
 if __name__ == '__main__':
 
     # matplotlib style
@@ -449,3 +449,9 @@ if __name__ == '__main__':
         tick_size=0.01,
         fig_w=13
     )
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #
+

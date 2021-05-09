@@ -58,6 +58,7 @@ class AdaTripletVae(TripletVae):
         adat_triplet_ratio: float = 1.0
         adat_triplet_soft_scale: float = 1.0
         adat_triplet_pull_weight: float = 0.1  # only works for: adat_triplet_loss == "triplet_hard_neg_ave_pull"
+        adat_triplet_share_scale: float = 0.95  # only works for: adat_triplet_loss == "triplet_hard_neg_ave_scaled"
         # ada_tvae - averaging
         adat_share_mask_mode: str = 'posterior'
         adat_share_ave_mode: str = 'all'  # only works for: adat_triplet_loss == "triplet_hard_ave_all"
@@ -121,6 +122,13 @@ class AdaTripletVae(TripletVae):
         (a_ave, p_ave, n_ave) = (p.mean for p in zs_params_shared_ave)
         triplet_all_hard_ave = configured_dist_triplet(pos_delta=a_ave-p_ave, neg_delta=a_ave-n_ave, cfg=cfg)
 
+        # Hard Averaging Before Triplet - Scaled
+        triplet_hard_neg_ave_scaled = configured_dist_triplet(
+            pos_delta=a_z - p_z,
+            neg_delta=torch.where(an_share_mask, cfg.adat_triplet_share_scale * (a_z - n_z), (a_z - n_z)),
+            cfg=cfg,
+        )
+
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         # Soft Losses
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
@@ -150,6 +158,8 @@ class AdaTripletVae(TripletVae):
             'triplet_hard_neg_ave':      torch.lerp(trip_loss, triplet_hard_ave_neg,      weight=cfg.adat_triplet_ratio),
             'triplet_hard_neg_ave_pull': torch.lerp(trip_loss, triplet_hard_ave_neg_pull, weight=cfg.adat_triplet_ratio),
             'triplet_hard_ave_all':      torch.lerp(trip_loss, triplet_all_hard_ave,      weight=cfg.adat_triplet_ratio),
+            # scaled
+            'triplet_hard_neg_ave_scaled': torch.lerp(trip_loss, triplet_hard_neg_ave_scaled, weight=cfg.adat_triplet_ratio),
         }
 
         return losses[cfg.adat_triplet_loss], {

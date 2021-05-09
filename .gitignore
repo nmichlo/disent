@@ -134,5 +134,5 @@ outputs/
 logs/
 
 # custom - root folder only
-/data/
+/data/dataset
 *.pkl

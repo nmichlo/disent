@@ -1,0 +1,23 @@
+# @package _group_
+name: conv64
+weight_init: 'xavier_normal'
+encoder:
+  _target_: disent.model.ae.EncoderConv64Alt
+  x_shape: ${dataset.x_shape}
+  z_size: ${model.z_size}
+  z_multiplier: ${framework.model_z_multiplier}
+  activation: ${model.activation}
+  norm: ${model.norm}
+  norm_pre_act: ${model.norm_pre_act}
+decoder:
+  _target_: disent.model.ae.DecoderConv64Alt
+  x_shape: ${dataset.x_shape}
+  z_size: ${model.z_size}
+  activation: ${model.activation}
+  norm: ${model.norm}
+  norm_pre_act: ${model.norm_pre_act}
+
+# vars
+activation: leaky_relu  # leaky_relu, relu
+norm: instance  # batch, instance, none
+norm_pre_act: TRUE

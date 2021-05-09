@@ -40,6 +40,11 @@ from disent.util import TempNumpySeed
 from disent.visualize.visualize_util import make_image_grid
 
 
+# ========================================================================= #
+# helper                                                                    #
+# ========================================================================= #
+
+
 def make_rel_path(*path_segments, is_file=True):
     assert not os.path.isabs(os.path.join(*path_segments)), 'path must be relative'
     path = os.path.join(os.path.dirname(__file__), *path_segments)
@@ -47,12 +52,14 @@ def make_rel_path(*path_segments, is_file=True):
     os.makedirs(folder_path, exist_ok=True)
     return path
 
+
 def make_rel_path_add_ext(*path_segments, ext='.png'):
     # make path
     path = make_rel_path(*path_segments, is_file=True)
     if not os.path.splitext(path)[1]:
         path = f'{path}{ext}'
     return path
+
 
 def output_image(img, rel_path, save=True, plot=True):
     if save and (rel_path is not None):
@@ -110,6 +117,12 @@ def make_dataset_traversals(
         image = make_image_grid(images.reshape(np.prod(images.shape[:2]), *images.shape[2:]), pad=pad, bg_color=bg_color, border=border, num_cols=num_cols)
         output_image(img=image, rel_path=rel_path, save=save, plot=plot)
     return image, images
+
+
+# ========================================================================= #
+# core                                                                      #
+# ========================================================================= #
+
 
 def plot_dataset_traversals(
     gt_data,
@@ -172,6 +185,11 @@ def plot_dataset_traversals(
         plt.show()
 
 
+# ========================================================================= #
+# entrypoint                                                                #
+# ========================================================================= #
+
+
 if __name__ == '__main__':
 
     # matplotlib style
@@ -218,3 +236,10 @@ if __name__ == '__main__':
         rel_path=f'plots/cars3d-traversal',
         f_idxs=None, seed=47, add_random_traversal=add_random_traversal, num_cols=num_cols
     )
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #
+
+

@@ -18,6 +18,9 @@
 if [ -z "$PROJECT" ]; then echo "PROJECT is not set"; exit 1; fi
 if [ -z "$PARTITION" ]; then echo "PARTITION is not set"; exit 1; fi
 if [ -z "$PARALLELISM" ]; then echo "PARALLELISM is not set"; exit 1; fi
+if [ -z "$PY_RUN_FILE" ]; then PY_RUN_FILE='experiment/run.py'; fi
+
+export PY_RUN_FILE
 
 # ========================================================================= #
 # Helper                                                                    #
@@ -33,7 +36,7 @@ echo "working directory is: $(pwd)"
 
 function submit_sweep() {
     echo "SUBMITTING:" "$@"
-    PYTHONPATH="$ROOT_DIR" python3 experiment/run.py -m \
+    PYTHONPATH="$ROOT_DIR" python3 "$PY_RUN_FILE" -m \
         job.project="$PROJECT" \
         job.partition="$PARTITION" \
         hydra.launcher.array_parallelism="$PARALLELISM" \
@@ -43,7 +46,7 @@ function submit_sweep() {
 
 function local_run() {
     echo "RUNNING:" "$@"
-    PYTHONPATH="$ROOT_DIR" python3 experiment/run.py \
+    PYTHONPATH="$ROOT_DIR" python3 "$PY_RUN_FILE" \
         job.project="$PROJECT" \
         "$@"
 }
@@ -53,6 +56,9 @@ export ROOT_DIR
 export submit_sweep
 export local_run
 
+# debug hydra
+HYDRA_FULL_ERROR=1
+export HYDRA_FULL_ERROR
 
 # ========================================================================= #
 # Slurm Helper                                                              #

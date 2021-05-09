@@ -2,15 +2,16 @@ pip>=21.0
 
 # DATA SCIENCE & ML
 # =================
-numpy==1.19.5
-pandas==1.2.2
+numpy==1.20.2
+pandas==1.2.4
 
 # opencv-python==4.5.1.48
 
-torch==1.7.1
-torchvision==0.8.2
+torch==1.8.1
+torchvision==0.9.1
 torch-optimizer==0.1.0
-pytorch-lightning==1.1.7
+pytorch-lightning==1.2.7
+torchsort==0.1.4
 # pytorch-lightning-bolts==0.3.0
 
 # tensorflow==2.4.1
@@ -38,13 +39,13 @@ h5py>=2.10.0  # as of tensorflow 2.4 it does not support h5py 3+
 
 # GRAPHING & DISPLAY
 # ==================
-matplotlib==3.4.0
+matplotlib==3.4.1
 plotly==4.14.3
 # seaborn==0.11.1
-tqdm==4.59.0
+tqdm==4.60.0
 
 # streamlit==0.75.0
-wandb==0.10.24
+wandb==0.10.25
 
 # UTILITY
 # =======
@@ -56,3 +57,5 @@ hydra-colorlog==1.0.1
 hydra-submitit-launcher==1.1.1
 
 # submitit==1.1.5
+
+Deprecated==1.2.12
