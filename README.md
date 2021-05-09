@@ -28,7 +28,7 @@
 </p>
 
 <p align="center">
-    <p align="center">⚠️ API is not yet stable</p>
+<!--     <p align="center">⚠️ API is not yet stable</p> -->
     <p align="center">
         Visit the <a href="https://disent.dontpanic.sh/">docs</a> for more info, or browse the  <a href="https://github.com/nmichlo/disent/releases">releases</a>.
     </p>
@@ -113,8 +113,8 @@ Disent includes implementations of modules, metrics and datasets from various pa
 - **Experimental**:
   + 🧵 Ada-TVAE
     - Adaptive Triplet VAE
-  + 🧵 DO-TVE
-    - Data Overlap Triplet Variational Encoder
+  + 🧵 DO-TVAE (DO-Ada-TVAE)
+    - Data Overlap Adaptive Triplet VAE
   + *various others not worth mentioning*
 
 Many popular disentanglement frameworks still need to be added, please
