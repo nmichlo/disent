@@ -32,6 +32,7 @@ from typing import Optional
 
 from disent.frameworks.helper.reconstructions import make_reconstruction_loss
 from disent.frameworks.helper.reconstructions import ReconLossHandler
+from disent.frameworks.helper.reductions import batch_loss_reduction
 from disent.frameworks.vae.supervised import TripletVae
 from disent.frameworks.vae.unsupervised._betavae import BetaVae
 from disent.util.math_loss import torch_mse_rank_loss
@@ -85,18 +86,17 @@ class DataOverlapRankVae(TripletVae):
         with torch.no_grad():
             xs_targ = self.augment_triplet_targets(xs_targ)
         (d_posterior,), (x_targ,) = ds_posterior, xs_targ
-        # 2. generate random triples -- this does not generate unique pairs
-        a_idxs, p_idxs = torch.randint(len(x_targ), size=(2, min(self.cfg.overlap_num, len(x_targ)**3)), device=x_targ.device)
+        # 2. generate random pairs -- this does not generate unique pairs
+        a_idxs, p_idxs = torch.randint(len(x_targ), size=(2, self.cfg.overlap_num), device=x_targ.device)
         # ++++++++++++++++++++++++++++++++++++++++++ #
         # compute image distances
         with torch.no_grad():
-            ap_recon_dists = self.overlap_handler.compute_unreduced_loss(
-                x_targ[a_idxs],
-                x_targ[p_idxs],
-            ).mean(dim=(-3, -2, -1))  # (B, C, H, W) -> (B,)
+            ap_recon_dists = self.overlap_handler.compute_pairwise_loss(x_targ[a_idxs], x_targ[p_idxs])
         # ++++++++++++++++++++++++++++++++++++++++++ #
         # compute representation distances
         ap_repr_dists = torch.abs(d_posterior.loc[a_idxs] - d_posterior.loc[p_idxs]).sum(dim=-1)
+        # (z_sampled,) = zs_sampled
+        # ap_repr_dists = torch.abs(z_sampled[a_idxs] - z_sampled[p_idxs]).sum(dim=-1)
         # ++++++++++++++++++++++++++++++++++++++++++ #
         loss = torch_mse_rank_loss(ap_repr_dists, ap_recon_dists.detach(), dims=-1, reduction='mean')
         return loss, {

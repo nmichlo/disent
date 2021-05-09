@@ -26,11 +26,13 @@ import warnings
 from typing import final
 from typing import Sequence
 from typing import Union
+import re
 
 import torch
 import torch.nn.functional as F
 
 import disent
+from disent.frameworks.helper.reductions import batch_loss_reduction
 from disent.frameworks.helper.reductions import loss_reduction
 from disent.frameworks.helper.util import compute_ave_loss
 from disent.util.math import torch_conv2d_channel_wise_fft
@@ -119,6 +121,16 @@ class ReconLossHandler(DisentModule):
         :return: The computed unreduced loss
         """
         raise NotImplementedError
+
+    def _pairwise_reduce(self, unreduced_loss: torch.Tensor):
+        assert self._reduction in ('mean', 'sum'), f'pairwise losses only support "mean" and "sum" reduction modes.'
+        return batch_loss_reduction(unreduced_loss, reduction_dtype=None, reduction=self._reduction)
+
+    def compute_pairwise_loss(self, x_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
+        return self._pairwise_reduce(self.compute_unreduced_loss(x_recon, x_targ))
+
+    def compute_pairwise_loss_from_partial(self, x_partial_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
+        return self._pairwise_reduce(self.compute_unreduced_loss_from_partial(x_partial_recon, x_targ))
 
 
 # ========================================================================= #
@@ -292,11 +304,6 @@ class AugmentedReconLossHandler(ReconLossHandler):
 # ========================================================================= #
 
 
-_MAKE_KERNEL_R47_8x8 = lambda: os.path.abspath(os.path.join(disent.__file__, '../../data/adversarial_kernel', 'r47-1_s28800_adam_lr0.003_wd0.0_xy8x8.pt'))
-_MAKE_KERNEL_R47_1x1 = lambda: os.path.abspath(os.path.join(disent.__file__, '../../data/adversarial_kernel', 'r47-1_s28800_adam_lr0.003_wd0.0_xy1x1.pt'))
-_MAKE_KERNEL_R47_BOX = lambda: torch_box_kernel_2d(radius=47)[None, ...]
-
-
 _RECON_LOSSES = {
     # ================================= #
     # from the normal distribution - real values in the range [0, 1]
@@ -316,30 +323,30 @@ _RECON_LOSSES = {
     #                 done the maths or thought about this much.
     'mse4': ReconLossHandlerMse4,  # scaled as if computed over outputs of the range [-1, 1] instead of [0, 1]
     'mae2': ReconLossHandlerMae2,  # scaled as if computed over outputs of the range [-1, 1] instead of [0, 1]
-    # ================================= #
-    # EXPERIMENTAL - INCREASING OVERLAP
-    # xy8
-    'r47_xy8_mse4_1.0': lambda reduction: AugmentedReconLossHandler(ReconLossHandlerMse4(reduction=reduction), kernel=_MAKE_KERNEL_R47_8x8(), kernel_weight=1.0),
-    'r47_xy8_mse4_0.5': lambda reduction: AugmentedReconLossHandler(ReconLossHandlerMse4(reduction=reduction), kernel=_MAKE_KERNEL_R47_8x8(), kernel_weight=0.5),
-    'r47_xy8_mse4_0.1': lambda reduction: AugmentedReconLossHandler(ReconLossHandlerMse4(reduction=reduction), kernel=_MAKE_KERNEL_R47_8x8(), kernel_weight=0.1),
-    # xy1
-    'r47_xy1_mse4_1.0': lambda reduction: AugmentedReconLossHandler(ReconLossHandlerMse4(reduction=reduction), kernel=_MAKE_KERNEL_R47_1x1(), kernel_weight=1.0),
-    'r47_xy1_mse4_0.5': lambda reduction: AugmentedReconLossHandler(ReconLossHandlerMse4(reduction=reduction), kernel=_MAKE_KERNEL_R47_1x1(), kernel_weight=0.5),
-    'r47_xy1_mse4_0.1': lambda reduction: AugmentedReconLossHandler(ReconLossHandlerMse4(reduction=reduction), kernel=_MAKE_KERNEL_R47_1x1(), kernel_weight=0.1),
-    # box
-    'r47_box_mse4_1.0': lambda reduction: AugmentedReconLossHandler(ReconLossHandlerMse4(reduction=reduction), kernel=_MAKE_KERNEL_R47_BOX(), kernel_weight=1.0),
-    'r47_box_mse4_0.5': lambda reduction: AugmentedReconLossHandler(ReconLossHandlerMse4(reduction=reduction), kernel=_MAKE_KERNEL_R47_BOX(), kernel_weight=0.5),
-    'r47_box_mse4_0.1': lambda reduction: AugmentedReconLossHandler(ReconLossHandlerMse4(reduction=reduction), kernel=_MAKE_KERNEL_R47_BOX(), kernel_weight=0.1),
 }
+
+_ARG_RECON_LOSSES = [
+    # (REGEX, EXAMPLE, FACTORY_FUNC)
+    # - factory function takes at min one arg: fn(reduction) with one arg after that per regex capture group
+    # - regex expressions are tested in order, expressions should be mutually exclusive or ordered such that more specialized versions occur first.
+    (re.compile(r'^([a-z\d]+)_(xy8)_r(47)_w(\d+\.\d+)$'),  'mse4_xy8_r47_w1.0', lambda reduction, loss, kern, radius, weight: AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=torch.load(os.path.abspath(os.path.join(disent.__file__, '../../data/adversarial_kernel', 'r47-1_s28800_adam_lr0.003_wd0.0_xy8x8.pt'))), kernel_weight=float(weight))),
+    (re.compile(r'^([a-z\d]+)_(xy1)_r(47)_w(\d+\.\d+)$'),  'mse4_xy1_r47_w1.0', lambda reduction, loss, kern, radius, weight: AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=torch.load(os.path.abspath(os.path.join(disent.__file__, '../../data/adversarial_kernel', 'r47-1_s28800_adam_lr0.003_wd0.0_xy1x1.pt'))), kernel_weight=float(weight))),
+    (re.compile(r'^([a-z\d]+)_(box)_r(\d+)_w(\d+\.\d+)$'), 'mse4_box_r31_w0.5', lambda reduction, loss, kern, radius, weight: AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=torch_box_kernel_2d(radius=int(radius))[None, ...], kernel_weight=float(weight))),
+]
 
 
 def make_reconstruction_loss(name: str, reduction: str) -> ReconLossHandler:
-    try:
-        cls = _RECON_LOSSES[name]
-    except KeyError:
-        raise KeyError(f'Invalid vae reconstruction loss: {name}\nValid losses are: {list(_RECON_LOSSES.keys())}')
-    # instantiate!
-    return cls(reduction=reduction)
+    if name in _RECON_LOSSES:
+        # search normal losses!
+        return _RECON_LOSSES[name](reduction)
+    else:
+        # regex search losses, and call with args!
+        for r, _, fn in _ARG_RECON_LOSSES:
+            result = r.search(name)
+            if result is not None:
+                return fn(reduction, *result.groups())
+    # we couldn't find anything
+    raise KeyError(f'Invalid vae reconstruction loss: {repr(name)} Valid losses include: {list(_RECON_LOSSES.keys())}, examples of additional argument based losses include: {[example for _, example, _ in _ARG_RECON_LOSSES]}')
 
 
 # ========================================================================= #

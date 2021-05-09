@@ -42,6 +42,7 @@ from disent.data.groundtruth import Shapes3dData
 from disent.data.groundtruth import XYSquaresData
 from disent.dataset.groundtruth import GroundTruthDataset
 from disent.dataset.groundtruth import GroundTruthDatasetAndFactors
+from disent.frameworks.helper.reductions import batch_loss_reduction
 from disent.transform import ToStandardisedTensor
 
 
@@ -171,13 +172,10 @@ _LOSS_FNS = {
 def pairwise_loss(pred: torch.Tensor, targ: torch.Tensor, mode='mse', mean_dtype=None) -> torch.Tensor:
     # check input
     assert pred.shape == targ.shape
-    assert pred.ndim >= 1
     # mean over final dims
     loss = unreduced_loss(pred=pred, targ=targ, mode=mode)
-    if loss.ndim >= 2:
-        loss = loss.mean(dim=tuple(range(1, loss.ndim)), dtype=mean_dtype)
+    loss = batch_loss_reduction(loss, reduction_dtype=mean_dtype, reduction='mean')
     # check result
-    assert loss.ndim == 1
     assert loss.shape == pred.shape[:1]
     # done
     return loss
