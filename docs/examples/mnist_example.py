@@ -41,7 +41,7 @@ module = AdaVae(
 )
 
 # train model
-trainer = pl.Trainer(logger=False, checkpoint_callback=False, max_steps=65535, gpus=1)
+trainer = pl.Trainer(logger=False, checkpoint_callback=False, max_steps=65535, gpus=1)  # callbacks=[VaeLatentCycleLoggingCallback(every_n_steps=250, plt_show=True)]
 trainer.fit(module, dataloader_train)
 
 # move back to gpu & manually encode some observation
