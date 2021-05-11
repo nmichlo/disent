@@ -26,6 +26,7 @@ import functools
 import logging
 import os
 import time
+from collections import Sequence
 from dataclasses import asdict
 from dataclasses import dataclass
 from dataclasses import fields
@@ -314,7 +315,7 @@ def concat_lines(*strings, sep=' | '):
 # ========================================================================= #
 
 
-class LengthIter(object):
+class LengthIter(Sequence):
 
     def __iter__(self):
         # this takes priority over __getitem__, otherwise __getitem__ would need to
