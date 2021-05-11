@@ -72,7 +72,7 @@ Please use the following citation if you use Disent in your research:
 
 **WARNING**: Disent is still under active development. Features and APIs are not considered stable, but should be expected to change! A very limited set of tests currently exist which will be expanded upon in time.
 
-The easiest way to use disent is by running `experiements/hydra_system.py` and changing the root config in `experiements/config/config.yaml`. Configurations are managed with [Hydra Config](https://github.com/facebookresearch/hydra)
+The easiest way to use disent is by running `experiement/run.py` and changing the root config in `experiements/config/config.yaml`. Configurations are managed with [Hydra Config](https://github.com/facebookresearch/hydra)
 
 **Pypi**:
 
@@ -88,8 +88,8 @@ The easiest way to use disent is by running `experiements/hydra_system.py` and c
 
 3. Install the requirements for python 3.8 with `pip3 install -r requirements.txt` 
 
-4. Run the default experiment after configuring `experiments/config/config.yaml`
-   by running `PYTHONPATH=. python3 experiments/run.py`
+4. Run the default experiment after configuring `experiment/config/config.yaml`
+   by running `PYTHONPATH=. python3 experiment/run.py`
 
 ----------------------
 
