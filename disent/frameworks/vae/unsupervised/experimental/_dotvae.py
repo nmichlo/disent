@@ -34,7 +34,7 @@ from torch.distributions import Normal
 
 from disent.frameworks.helper.reconstructions import make_reconstruction_loss
 from disent.frameworks.helper.reconstructions import ReconLossHandler
-from disent.frameworks.vae.supervised import AdaNegTripletVae
+from disent.frameworks.vae.supervised.experimental._adaneg_tvae import AdaNegTripletVae
 from experiment.util.hydra_utils import instantiate_recursive
 
 

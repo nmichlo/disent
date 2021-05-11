@@ -28,7 +28,7 @@ import torch
 from torch.distributions import Normal
 
 from disent.frameworks.helper.util import compute_ave_loss_and_logs
-from disent.frameworks.vae.unsupervised import BetaVae
+from disent.frameworks.vae.unsupervised._betavae import BetaVae
 
 # ========================================================================= #
 # Beta-TC-VAE                                                               #

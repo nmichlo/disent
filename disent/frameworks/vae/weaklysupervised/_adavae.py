@@ -21,6 +21,7 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
 from typing import Any
 from typing import Dict
 from typing import Sequence
@@ -28,9 +29,7 @@ from typing import Tuple
 
 import torch
 from dataclasses import dataclass
-
 from torch.distributions import Distribution
-
 from disent.frameworks.vae.unsupervised._betavae import BetaVae
 
 
