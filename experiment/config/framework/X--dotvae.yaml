@@ -26,7 +26,7 @@ module:
   overlap_loss: ${framework.overlap_loss}  # any of the recon_loss values, or NULL to use the recon_loss value
   overlap_num: 512
   overlap_mine_ratio: 0.1
-  overlap_mine_triplet_mode: 'none'  # none, hard_neg, semi_hard_neg, hard_pos, easy_pos, random_hard_neg_or_hard_pos <- etc, dynamically evaluated, can chain multiple "_or_"s
+  overlap_mine_triplet_mode: 'none'  # none, hard_neg, semi_hard_neg, hard_pos, easy_pos, ran:hard_neg+hard_pos <- etc, dynamically evaluated, can chain multiple "+"s
   # dotvae -- augment
   overlap_augment_mode: 'none'
   overlap_augment: NULL

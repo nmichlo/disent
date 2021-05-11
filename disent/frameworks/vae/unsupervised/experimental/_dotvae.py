@@ -176,14 +176,14 @@ class DataOverlapTripletVae(AdaNegTripletVae):
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # CUSTOM MODE
         overlap_mine_triplet_mode = self.cfg.overlap_mine_triplet_mode
-        if overlap_mine_triplet_mode.startswith('random_'):
-            overlap_mine_triplet_mode = np.random.choice(overlap_mine_triplet_mode[len('random_'):].split('_or_'))
+        if overlap_mine_triplet_mode.startswith('ran:'):
+            overlap_mine_triplet_mode = np.random.choice(overlap_mine_triplet_mode[len('ran:'):].split('+'))
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # get mining function
         try:
             mine_fn = _TRIPLET_MINE_MODES[overlap_mine_triplet_mode]
         except KeyError:
-            raise KeyError(f'invalid cfg.overlap_mine_triplet_mode=={repr(self.cfg.overlap_mine_triplet_mode)}')
+            raise KeyError(f'invalid cfg.overlap_mine_triplet_mode=={repr(self.cfg.overlap_mine_triplet_mode)} with mode: {repr(overlap_mine_triplet_mode)}, must be one of: {sorted(_TRIPLET_MINE_MODES.keys())}')
         # mine triplets -- can return array of indices or boolean mask array
         return mine_fn(
             x_targ=x_targ,

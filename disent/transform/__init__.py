@@ -30,3 +30,4 @@ from ._transforms import ToStandardisedTensor
 # augments
 from ._augment import FftGaussianBlur
 from ._augment import FftBoxBlur
+from ._augment import FftKernel

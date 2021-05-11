@@ -17,13 +17,13 @@ source "$(dirname "$(dirname "$(realpath -s "$0")")")/helper.sh"
 
 clog_cudaless_nodes "$PARTITION" 86400 "C-disent" # 24 hours
 
-# 1 * (2*2*5*8) == 180
+# 1 * (2*7*11) == 154
 submit_sweep \
     +DUMMY.repeat=1 \
-    +EXTRA.tags='best-augment-strength' \
+    +EXTRA.tags='best-augment-strength__alt' \
     \
     framework=X--dotvae_aug \
-    run_length=short,medium \
+    run_length=short \
     model=conv64alt \
     model.z_size=25 \
     \
@@ -54,10 +54,7 @@ submit_sweep \
     \
     framework.module.overlap_num=4096 \
     framework.module.overlap_mine_ratio=0.1 \
-    framework.module.overlap_mine_triplet_mode=none,hard_neg,semi_hard_neg,hard_pos,easy_pos \
+    framework.module.overlap_mine_triplet_mode=none,hard_neg,semi_hard_neg,hard_pos,easy_pos,ran:hard_neg+hard_pos,ran:hard_neg+easy_pos,ran:hard_pos+easy_pos \
     \
     framework.module.overlap_augment_mode='augment' \
-    framework.module.overlap_augment.p=1.0 \
-    framework.module.overlap_augment.radius=[7,7],[15,15],[23,23],[31,31],[39,39],[47,47],[55,55],[63,63] \
-    framework.module.overlap_augment.random_mode='batch' \
-    framework.module.overlap_augment.random_same_xy=TRUE
+    framework.module.overlap_augment.kernel=box_r15,box_r31,box_r47,box_r63,gau_r15,gau_r31,gau_r47,gau_r63,xy1_r47,xy8_r47
