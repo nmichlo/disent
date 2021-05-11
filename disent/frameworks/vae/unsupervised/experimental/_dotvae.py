@@ -21,12 +21,12 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
+import logging
 from dataclasses import dataclass
 from typing import final
 from typing import Optional
 from typing import Sequence
-
-import logging
 
 import numpy as np
 import torch

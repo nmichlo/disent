@@ -22,6 +22,7 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import logging
 from dataclasses import dataclass
 from typing import Sequence
 
@@ -29,11 +30,10 @@ import torch
 from torch.distributions import Distribution
 from torch.distributions import Normal
 
-from disent.frameworks.helper.triplet_loss import configured_triplet, configured_dist_triplet
-from disent.frameworks.vae.supervised import TripletVae
-from disent.frameworks.vae.weaklysupervised import AdaVae
-import logging
-
+from disent.frameworks.helper.triplet_loss import configured_dist_triplet
+from disent.frameworks.helper.triplet_loss import configured_triplet
+from disent.frameworks.vae.supervised._tvae import TripletVae
+from disent.frameworks.vae.weaklysupervised._adavae import AdaVae
 from disent.frameworks.vae.weaklysupervised._adavae import compute_average_params
 
 
