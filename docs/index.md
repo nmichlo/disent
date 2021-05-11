@@ -88,3 +88,13 @@ A warning will be printed if the hyper-parameter does not exist in the config, i
     ```python3
     --8<-- "docs/examples/overview_framework_betavae_scheduled.py"
     ```
+
+### Datasets Without Ground-Truth Factors
+
+Using datasets that do not have ground truth factors require
+wrapping, however metrics cannot be computed over them.
+
+??? example
+    ```python3
+    --8<-- "docs/examples/mnist_example.py"
+    ```
