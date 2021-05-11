@@ -21,3 +21,8 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
+# experimental frameworks
+from ._st_adavae import SwappedTargetAdaVae
+from ._st_betavae import SwappedTargetBetaVae
+from ._augpostriplet import AugPosTripletVae

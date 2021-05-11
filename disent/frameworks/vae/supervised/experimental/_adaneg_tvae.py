@@ -22,17 +22,18 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import logging
 from dataclasses import dataclass
 from typing import Sequence
 
 import torch
 from torch.distributions import Normal
 
-from disent.frameworks.helper.triplet_loss import configured_triplet, configured_dist_triplet
-from disent.frameworks.vae.supervised import TripletVae
+from disent.frameworks.helper.triplet_loss import configured_dist_triplet
+from disent.frameworks.helper.triplet_loss import configured_triplet
+from disent.frameworks.vae.supervised._tvae import TripletVae
 from disent.frameworks.vae.supervised.experimental._adatvae import compute_triplet_shared_masks
-from disent.frameworks.vae.weaklysupervised import AdaVae
-import logging
+from disent.frameworks.vae.weaklysupervised._adavae import AdaVae
 
 
 log = logging.getLogger(__name__)

@@ -31,6 +31,7 @@ import pytorch_lightning as pl
 import matplotlib.pyplot as plt
 
 import torch
+from pytorch_lightning.trainer.supporters import CombinedLoader
 
 import disent.metrics
 import disent.util.colors as c
@@ -40,6 +41,7 @@ from disent.frameworks.ae.unsupervised import AE
 from disent.frameworks.vae.unsupervised import Vae
 from disent.util import TempNumpySeed, chunked, to_numpy, Timer
 from disent.visualize.visualize_model import latent_cycle_grid_animation
+from disent.visualize.visualize_util import make_image_grid
 
 from experiment.util.hydra_data import HydraDataModule
 from experiment.util.callbacks.callbacks_base import _PeriodicCallback
@@ -55,11 +57,21 @@ log = logging.getLogger(__name__)
 
 def _get_dataset_and_vae(trainer: pl.Trainer, pl_module: pl.LightningModule) -> (AugmentableDataset, AE):
     assert isinstance(pl_module, AE), f'{pl_module.__class__} is not an instance of {AE}'
+    # get dataset
+    if hasattr(trainer, 'datamodule') and (trainer.datamodule is not None):
+        assert isinstance(trainer.datamodule, HydraDataModule)
+        dataset = trainer.datamodule.dataset_train_noaug
+    elif hasattr(trainer, 'train_dataloader') and (trainer.train_dataloader is not None):
+        if isinstance(trainer.train_dataloader, CombinedLoader):
+            dataset = trainer.train_dataloader.loaders.dataset
+        else:
+            raise RuntimeError(f'invalid trainer.train_dataloader: {trainer.train_dataloader}')
+    else:
+        raise RuntimeError('could not retrieve dataset! please report this...')
     # check dataset
-    assert hasattr(trainer, 'datamodule'), f'trainer was not run using a datamodule.'
-    assert isinstance(trainer.datamodule, HydraDataModule)
+    assert isinstance(dataset, AugmentableDataset), f'retrieved dataset is not an {AugmentableDataset.__name__}'
     # done checks
-    return trainer.datamodule.dataset_train_noaug, pl_module
+    return dataset, pl_module
 
 
 def _should_skip_groundtruth_callback(callback, dataset):
@@ -77,10 +89,11 @@ def _should_skip_groundtruth_callback(callback, dataset):
 
 class VaeLatentCycleLoggingCallback(_PeriodicCallback):
 
-    def __init__(self, seed=7777, every_n_steps=None, begin_first_step=False, mode='fitted_gaussian_cycle'):
+    def __init__(self, seed=7777, every_n_steps=None, begin_first_step=False, mode='fitted_gaussian_cycle', plt_show=False):
         super().__init__(every_n_steps, begin_first_step)
         self.seed = seed
         self.mode = mode
+        self.plt_show = plt_show
 
     def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         # get dataset and vae framework from trainer and module
@@ -97,13 +110,19 @@ class VaeLatentCycleLoggingCallback(_PeriodicCallback):
             z_logvars = torch.ones_like(z_means)
 
         # produce latent cycle grid animation
-        frames = latent_cycle_grid_animation(vae.decode, z_means, z_logvars, mode=self.mode, num_frames=21, decoder_device=vae.device)
+        frames, stills = latent_cycle_grid_animation(vae.decode, z_means, z_logvars, mode=self.mode, num_frames=21, decoder_device=vae.device, tensor_style_channels=False, return_stills=True, to_uint8=True)
 
         # log video
         wb_log_metrics(trainer.logger, {
-            self.mode: wandb.Video(np.clip(frames*255, 0, 255).astype('uint8'), fps=5, format='mp4'),
+            self.mode: wandb.Video(np.transpose(frames, [0, 3, 1, 2]), fps=5, format='mp4'),
         })
 
+        if self.plt_show:
+            grid = make_image_grid(np.reshape(stills, (-1, *stills.shape[2:])), num_cols=stills.shape[1])
+            plt.imshow(grid)
+            plt.tight_layout()
+            plt.axis('off')
+            plt.show()
 
 class VaeDisentanglementLoggingCallback(_PeriodicCallback):
 

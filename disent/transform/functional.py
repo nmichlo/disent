@@ -21,7 +21,7 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-
+from PIL.Image import Image
 import torch
 import torchvision.transforms.functional as F_tv
 
@@ -65,7 +65,8 @@ def to_standardised_tensor(obs, size=None, check=True):
     """
     # resize image
     if size is not None:
-        obs = F_tv.to_pil_image(obs)
+        if not isinstance(obs, Image):
+            obs = F_tv.to_pil_image(obs)
         obs = F_tv.resize(obs, size=size)
     # transform to tensor
     obs = F_tv.to_tensor(obs)

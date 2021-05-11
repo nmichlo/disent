@@ -21,12 +21,12 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
+import logging
 from dataclasses import dataclass
 from typing import final
 from typing import Optional
 from typing import Sequence
-
-import logging
 
 import numpy as np
 import torch
@@ -34,7 +34,7 @@ from torch.distributions import Normal
 
 from disent.frameworks.helper.reconstructions import make_reconstruction_loss
 from disent.frameworks.helper.reconstructions import ReconLossHandler
-from disent.frameworks.vae.supervised import AdaNegTripletVae
+from disent.frameworks.vae.supervised.experimental._adaneg_tvae import AdaNegTripletVae
 from experiment.util.hydra_utils import instantiate_recursive
 
 

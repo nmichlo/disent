@@ -22,13 +22,12 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from disent.frameworks.vae.unsupervised._vae import Vae
-from disent.frameworks.vae.unsupervised._betavae import BetaVae
-from disent.frameworks.vae.unsupervised._dfcvae import DfcVae
-from disent.frameworks.vae.unsupervised._dipvae import DipVae
-from disent.frameworks.vae.unsupervised._infovae import InfoVae
-from disent.frameworks.vae.unsupervised._betatcvae import BetaTcVae
+from ._vae import Vae
+from ._betavae import BetaVae
+from ._dfcvae import DfcVae
+from ._dipvae import DipVae
+from ._infovae import InfoVae
+from ._betatcvae import BetaTcVae
 
 # experimental frameworks
-from disent.frameworks.vae.unsupervised.experimental._dotvae import DataOverlapTripletVae
-from disent.frameworks.vae.unsupervised.experimental._dorvae import DataOverlapRankVae
+# from .experimental import *
