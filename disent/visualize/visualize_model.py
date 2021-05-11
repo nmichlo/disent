@@ -225,14 +225,29 @@ def latent_cycle(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', 
     return to_numpy(animations)
 
 
-def latent_cycle_grid_animation(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', num_frames=21, pad=4, border=True, bg_color=0.5, decoder_device=None):
+def latent_cycle_grid_animation(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', num_frames=21, pad=4, border=True, bg_color=0.5, decoder_device=None, tensor_style_channels=True, always_rgb=True, return_stills=False, to_uint8=False):
     # produce latent cycle animation & merge frames
-    animation = latent_cycle(decoder_func, z_means, z_logvars, mode=mode, num_animations=1, num_frames=num_frames, decoder_device=decoder_device)
-    frames = np.transpose(make_animation_grid(animation[0], pad=pad, border=border, bg_color=bg_color), [0, 3, 1, 2])
+    stills = latent_cycle(decoder_func, z_means, z_logvars, mode=mode, num_animations=1, num_frames=num_frames, decoder_device=decoder_device)[0]
     # check and add missing channel if needed (convert greyscale to rgb images)
-    assert frames.shape[1] in {1, 3}, f'Invalid number of image channels: {animation.shape} -> {frames.shape}'
-    if frames.shape[1] == 1:
-        frames = np.repeat(frames, 3, axis=1)
+    if always_rgb:
+        assert stills.shape[-1] in {1, 3}, f'Invalid number of image channels: {stills.shape} ({stills.shape[-1]})'
+        if stills.shape[-1] == 1:
+            stills = np.repeat(stills, 3, axis=-1)
+    # create animation
+    frames = make_animation_grid(stills, pad=pad, border=border, bg_color=bg_color)
+    # move channels to end
+    if tensor_style_channels:
+        if return_stills:
+            stills = np.transpose(stills, [0, 1, 4, 2, 3])
+        frames = np.transpose(frames, [0, 3, 1, 2])
+    # convert to uint8
+    if to_uint8:
+        if return_stills:
+            stills = np.clip(stills*255, 0, 255).astype('uint8')
+        frames = np.clip(frames*255, 0, 255).astype('uint8')
+    # done!
+    if return_stills:
+        return frames, stills
     return frames
 
 
