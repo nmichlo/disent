@@ -154,7 +154,7 @@ def torch_load_base64(s: str):
 
 
 # ========================================================================= #
-# END                                                                       #
+# write                                                                     #
 # ========================================================================= #
 
 
@@ -186,3 +186,29 @@ def torch_write(path: str, model):
         print(f'Saved to file: {repr(path)}')
     else:
         raise KeyError(f'unknown path type: {repr(path_type)}')
+
+
+# ========================================================================= #
+# Files                                                                     #
+# ========================================================================= #
+
+
+def make_rel_path(*path_segments, is_file=True):
+    assert not os.path.isabs(os.path.join(*path_segments)), 'path must be relative'
+    path = os.path.join(os.path.dirname(__file__), *path_segments)
+    folder_path = os.path.dirname(path) if is_file else path
+    os.makedirs(folder_path, exist_ok=True)
+    return path
+
+
+def make_rel_path_add_ext(*path_segments, ext='.png'):
+    # make path
+    path = make_rel_path(*path_segments, is_file=True)
+    if not os.path.splitext(path)[1]:
+        path = f'{path}{ext}'
+    return path
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #

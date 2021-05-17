@@ -34,33 +34,13 @@ from tqdm import tqdm
 
 from disent.metrics._flatness_components import compute_axis_score
 from disent.metrics._flatness_components import compute_linear_score
-
-
-# ========================================================================= #
-# COPIED FROM EXP 1                                                         #
-# ========================================================================= #
 from disent.util import seed
-
-
-def make_rel_path(*path_segments, is_file=True):
-    assert not os.path.isabs(os.path.join(*path_segments)), 'path must be relative'
-    path = os.path.join(os.path.dirname(__file__), *path_segments)
-    folder_path = os.path.dirname(path) if is_file else path
-    os.makedirs(folder_path, exist_ok=True)
-    return path
-
-
-def make_rel_path_add_ext(*path_segments, ext='.png'):
-    # make path
-    path = make_rel_path(*path_segments, is_file=True)
-    if not os.path.splitext(path)[1]:
-        path = f'{path}{ext}'
-    return path
 
 
 # ========================================================================= #
 # distance function                                                         #
 # ========================================================================= #
+from experiment.exp.util.io_util import make_rel_path_add_ext
 
 
 def _rotation_matrix(d, i, j, deg):

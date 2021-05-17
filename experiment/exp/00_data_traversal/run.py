@@ -39,26 +39,11 @@ from disent.dataset.groundtruth import GroundTruthDataset
 from disent.util import TempNumpySeed
 from disent.visualize.visualize_util import make_image_grid
 
+from experiment.exp.util.io_util import make_rel_path_add_ext
 
 # ========================================================================= #
 # helper                                                                    #
 # ========================================================================= #
-
-
-def make_rel_path(*path_segments, is_file=True):
-    assert not os.path.isabs(os.path.join(*path_segments)), 'path must be relative'
-    path = os.path.join(os.path.dirname(__file__), *path_segments)
-    folder_path = os.path.dirname(path) if is_file else path
-    os.makedirs(folder_path, exist_ok=True)
-    return path
-
-
-def make_rel_path_add_ext(*path_segments, ext='.png'):
-    # make path
-    path = make_rel_path(*path_segments, is_file=True)
-    if not os.path.splitext(path)[1]:
-        path = f'{path}{ext}'
-    return path
 
 
 def output_image(img, rel_path, save=True, plot=True):
