@@ -404,6 +404,10 @@ def torch_unsqueeze_r(input: torch.Tensor, n: int):
 # ========================================================================= #
 
 
+# TODO: replace with meshgrid based functions from experiment/exp/06_metric
+#       these are more intuitive and flexible
+
+
 def get_kernel_size(sigma: TypeGenericTensor = 1.0, truncate: TypeGenericTensor = 4.0):
     """
     This is how sklearn chooses kernel sizes.
