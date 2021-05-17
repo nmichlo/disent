@@ -120,7 +120,7 @@ def aggregate_measure_distances_along_all_factors(
         # check differences
         swap_ratio_l1, swap_ratio_l2 = compute_swap_ratios(zs[rai], zs[rpi], zs[rni])
         values.append({
-            # 'global_swap_ratio.l1': swap_ratio_l1,
+            'global_swap_ratio.l1': swap_ratio_l1,
             'global_swap_ratio.l2': swap_ratio_l2,
         })
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -133,20 +133,6 @@ def aggregate_measure_distances_along_all_factors(
 # ========================================================================= #
 # HELPER                                                                    #
 # ========================================================================= #
-
-def _norm_ratio(r: torch.Tensor, n: torch.Tensor) -> torch.Tensor:
-    # for: x/(x+a)
-    # normalised = (x/(x+a) - (1/n)) / (1 - (1/n))
-    # normalised = (x - 1/(n-1) * a) / (x + a)
-    return (r - (1/n)) / (1 - (1/n))
-
-
-def _score_ratio_max(sorted_vars: torch.Tensor) -> torch.Tensor:
-    return _norm_ratio(sorted_vars[0] / (sorted_vars[0] + torch.max(sorted_vars[1:])),  n=2)
-
-
-def _score_ratio(sorted_vars: torch.Tensor) -> torch.Tensor:
-    return _norm_ratio(sorted_vars[0] / torch.sum(sorted_vars), n=len(sorted_vars))
 
 
 def reorder_by_factor_dist(factors, rai, rpi, rni):
@@ -168,6 +154,65 @@ def compute_swap_ratios(a_zs, p_zs, n_zs):
     swap_ratio_l1 = (ap_delta_l1 <= an_delta_l1).to(torch.float32).mean()
     swap_ratio_l2 = (ap_delta_l2 <= an_delta_l2).to(torch.float32).mean()
     return swap_ratio_l1, swap_ratio_l2
+
+
+# ========================================================================= #
+# CORE                                                                      #
+# -- using variance instead of standard deviation makes it easier to        #
+#    obtain high scores.                                                    #
+# ========================================================================= #
+
+
+def compute_unsorted_axis_values(zs_traversal, use_std: bool = True):
+    # CORRELATIONS -- SORTED IN DESCENDING ORDER:
+    # correlation with standard basis (1, 0, 0, ...), (0, 1, 0, ...), ...
+    axis_values = torch.var(zs_traversal, dim=0)  # (z_size,)
+    if use_std:
+        axis_values = torch.sqrt(axis_values)
+    return axis_values
+
+
+def compute_unsorted_linear_values(zs_traversal, use_std: bool = True):
+    # CORRELATIONS -- SORTED IN DESCENDING ORDER:
+    # correlation along arbitrary orthogonal basis
+    _, linear_values = torch_pca(zs_traversal, center=True, mode='svd')  # svd: (min(z_size, factor_size),) | eig: (z_size,)
+    if use_std:
+        linear_values = torch.sqrt(linear_values)
+    return linear_values
+
+
+def _score_from_sorted(sorted_vars: torch.Tensor, use_max: bool = False, norm: bool = True) -> torch.Tensor:
+    if use_max:
+        # use two max values
+        n = 2
+        r = sorted_vars[0] / (sorted_vars[0] + torch.max(sorted_vars[1:]))
+    else:
+        # sum all values
+        n = len(sorted_vars)
+        r = sorted_vars[0] / torch.sum(sorted_vars)
+    # get norm if needed
+    if norm:
+        # for: x/(x+a)
+        # normalised = (x/(x+a) - (1/n)) / (1 - (1/n))
+        # normalised = (x - 1/(n-1) * a) / (x + a)
+        r = (r - (1/n)) / (1 - (1/n))
+    # done!
+    return r
+
+
+def score_from_unsorted(unsorted_values: torch.Tensor, use_max: bool = False, norm: bool = True):
+    # sort in descending order
+    sorted_values = torch.sort(unsorted_values, descending=True).values
+    # compute score
+    return _score_from_sorted(sorted_values, use_max=use_max, norm=norm)
+
+
+def compute_axis_score(zs_traversal: torch.Tensor, use_std: bool = True, use_max: bool = False, norm: bool = True):
+    return score_from_unsorted(compute_unsorted_axis_values(zs_traversal, use_std=use_std), use_max=use_max, norm=norm)
+
+
+def compute_linear_score(zs_traversal: torch.Tensor, use_std: bool = True, use_max: bool = False, norm: bool = True):
+    return score_from_unsorted(compute_unsorted_linear_values(zs_traversal, use_std=use_std), use_max=use_max, norm=norm)
 
 
 # ========================================================================= #
@@ -202,34 +247,30 @@ def aggregate_measure_distances_along_factor(
         near_swap_ratio_l1, near_swap_ratio_l2 = compute_swap_ratios(zs_traversal[:-2], zs_traversal[1:-1], zs_traversal[2:])
         factor_swap_ratio_l1, factor_swap_ratio_l2 = compute_swap_ratios(zs_traversal[idxs_a, :], zs_traversal[idxs_p, :], zs_traversal[idxs_n, :])
 
-        # CORRELATIONS -- SORTED IN DESCENDING ORDER:
+        # AXIS ALIGNMENT & LINEAR SCORES
         # correlation with standard basis (1, 0, 0, ...), (0, 1, 0, ...), ...
-        axis_var = torch.std(zs_traversal, dim=0)  # (z_size,)
-        sorted_axis_var = torch.sort(axis_var, descending=True).values
+        axis_values_std = compute_unsorted_axis_values(zs_traversal, use_std=True)
+        axis_values_var = compute_unsorted_axis_values(zs_traversal, use_std=False)
         # correlation along arbitrary orthogonal basis
-        _, linear_var = torch_pca(zs_traversal, center=True, mode='svd')  # svd: (min(z_size, factor_size),) | eig: (z_size,)
-        sorted_linear_var = torch.sort(linear_var, descending=True).values
-
-        # ALTERNATIVES?
-        # + deming regression: https://en.wikipedia.org/wiki/Deming_regression
-        #   instead of simple linear regression: https://en.wikipedia.org/wiki/Simple_linear_regression
-        # + custom line fitting: https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line
-        # + pearsons correlation: https://en.wikipedia.org/wiki/Distance_correlation
+        linear_values_std = compute_unsorted_linear_values(zs_traversal, use_std=True)
+        linear_values_var = compute_unsorted_linear_values(zs_traversal, use_std=False)
 
         # save variables
         measures.append({
-            # 'factor_swap_ratio_near.l1': near_swap_ratio_l1,
+            'factor_swap_ratio_near.l1': near_swap_ratio_l1,
             'factor_swap_ratio_near.l2': near_swap_ratio_l2,
-            # 'factor_swap_ratio.l1': factor_swap_ratio_l1,
+            'factor_swap_ratio.l1': factor_swap_ratio_l1,
             'factor_swap_ratio.l2': factor_swap_ratio_l2,
             # axis ratios
-            '_axis_var':       axis_var,  # this should not be sorted!
-            'axis_ratio':      _score_ratio(sorted_axis_var),
-            # 'axis_ratio_max':  _score_ratio_max(sorted_axis_var),
+            '_axis_values.std': axis_values_std,
+            '_axis_values.var': axis_values_var,
+            'axis_ratio.std':   score_from_unsorted(axis_values_std, use_max=False, norm=True),
+            'axis_ratio.var':   score_from_unsorted(axis_values_var, use_max=False, norm=True),
             # linear ratios
-            '_linear_var':       sorted_linear_var,
-            'linear_ratio':     _score_ratio(sorted_linear_var),
-            # 'linear_ratio_max': _score_ratio_max(sorted_linear_var),
+            '_linear_values.std': linear_values_std,
+            '_linear_values.var': linear_values_var,
+            'linear_ratio.std':   score_from_unsorted(linear_values_std, use_max=False, norm=True),
+            'linear_ratio.var':   score_from_unsorted(linear_values_var, use_max=False, norm=True),
         })
 
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -237,19 +278,14 @@ def aggregate_measure_distances_along_factor(
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     measures = default_collate(measures)
 
-    # compute mean variances
-    sorted_ave_axis_vars = torch.sort(measures.pop('_axis_var').mean(dim=0), descending=True).values
-    sorted_ave_linear_vars = torch.sort(measures.pop('_linear_var').mean(dim=0), descending=True).values
+    # aggregate over first dimension
+    results = {k: v.mean(dim=0) for k, v in measures.items()}
 
-    results = {
-        k: v.mean(dim=0)  # shape: (repeats,) -> ()
-        for k, v in measures.items()
-    }
-
-    results['ave_axis_ratio']       = _score_ratio(sorted_ave_axis_vars)
-    # results['ave_axis_ratio_max']   = _score_ratio_max(sorted_ave_axis_vars)
-    results['ave_linear_ratio']     = _score_ratio(sorted_ave_linear_vars)
-    # results['ave_linear_ratio_max'] = _score_ratio_max(sorted_ave_linear_vars)
+    # compute average scores & remove keys
+    results['ave_axis_ratio.std']   = score_from_unsorted(results.pop('_axis_values.std'),   use_max=False, norm=True)
+    results['ave_axis_ratio.var']   = score_from_unsorted(results.pop('_axis_values.var'),   use_max=False, norm=True)
+    results['ave_linear_ratio.std'] = score_from_unsorted(results.pop('_linear_values.std'), use_max=False, norm=True)
+    results['ave_linear_ratio.var'] = score_from_unsorted(results.pop('_linear_values.var'), use_max=False, norm=True)
 
     return results
 
