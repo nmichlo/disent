@@ -35,12 +35,12 @@ from tqdm import tqdm
 from disent.metrics._flatness_components import compute_axis_score
 from disent.metrics._flatness_components import compute_linear_score
 from disent.util import seed
+from experiment.exp.util.io_util import make_rel_path_add_ext
 
 
 # ========================================================================= #
 # distance function                                                         #
 # ========================================================================= #
-from experiment.exp.util.io_util import make_rel_path_add_ext
 
 
 def _rotation_matrix(d, i, j, deg):
@@ -431,8 +431,46 @@ if __name__ == '__main__':
 
     # plot everything
     seed(777)
-    make_grid_gaussian_score_plot(repeats=250, num_points=25000)
+    make_grid_gaussian_score_plot(
+        repeats=250,
+        num_points=25000,
+    )
     plt.savefig(make_rel_path_add_ext('plots/metric_grid', ext='.png'))
+    plt.show()
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    # plot everything -- minimal
+    seed(777)
+    make_grid_gaussian_score_plot(
+        y_std_ratios=(0.8, 0.4, 0.2, 0.1, 0.05)[::-1],  # (0.8, 0.4, 0.2, 0.1, 0.05),
+        deg_rotations=(0, 22.5, 45, 67.5, 90),
+        repeats=250,
+        num_points=25000,
+    )
+    plt.savefig(make_rel_path_add_ext('plots/metric_grid_minimal_5x5', ext='.png'))
+    plt.show()
+
+    # plot everything -- minimal
+    seed(777)
+    make_grid_gaussian_score_plot(
+        y_std_ratios=(0.8, 0.4, 0.2, 0.05)[::-1],  # (0.8, 0.4, 0.2, 0.1, 0.05),
+        deg_rotations=(0, 22.5, 45, 67.5, 90),
+        repeats=250,
+        num_points=25000,
+    )
+    plt.savefig(make_rel_path_add_ext('plots/metric_grid_minimal_4x5', ext='.png'))
+    plt.show()
+
+    # plot everything -- minimal
+    seed(777)
+    fig, axs = make_grid_gaussian_score_plot(
+        y_std_ratios=(0.8, 0.2, 0.05)[::-1],  # (0.8, 0.4, 0.2, 0.1, 0.05),
+        deg_rotations=(0, 22.5, 45, 67.5, 90),
+        repeats=250,
+        num_points=25000,
+    )
+    plt.savefig(make_rel_path_add_ext('plots/metric_grid_minimal_3x5', ext='.png'))
     plt.show()
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #

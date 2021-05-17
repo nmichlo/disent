@@ -24,6 +24,7 @@
 
 import base64
 import dataclasses
+import inspect
 import io
 import os
 from typing import Union
@@ -193,20 +194,33 @@ def torch_write(path: str, model):
 # ========================================================================= #
 
 
-def make_rel_path(*path_segments, is_file=True):
+def _make_rel_path(*path_segments, is_file=True, _calldepth=0):
     assert not os.path.isabs(os.path.join(*path_segments)), 'path must be relative'
-    path = os.path.join(os.path.dirname(__file__), *path_segments)
+    # get source
+    stack = inspect.stack()
+    module = inspect.getmodule(stack[_calldepth+1].frame)
+    reldir = os.path.dirname(module.__file__)
+    # make everything
+    path = os.path.join(reldir, *path_segments)
     folder_path = os.path.dirname(path) if is_file else path
     os.makedirs(folder_path, exist_ok=True)
     return path
 
 
-def make_rel_path_add_ext(*path_segments, ext='.png'):
+def _make_rel_path_add_ext(*path_segments, ext='.png', _calldepth=0):
     # make path
-    path = make_rel_path(*path_segments, is_file=True)
+    path = _make_rel_path(*path_segments, is_file=True, _calldepth=_calldepth+1)
     if not os.path.splitext(path)[1]:
         path = f'{path}{ext}'
     return path
+
+
+def make_rel_path(*path_segments, is_file=True):
+    return _make_rel_path(*path_segments, is_file=is_file, _calldepth=1)
+
+
+def make_rel_path_add_ext(*path_segments, ext='.png'):
+    return _make_rel_path_add_ext(*path_segments, ext=ext, _calldepth=1)
 
 
 # ========================================================================= #
