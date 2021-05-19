@@ -20,11 +20,12 @@ optimizer:
   weight_decay: 0.0
 
 data:
-  spacing: 8
+  name: 'xysquares_8x8'
 
 kernel:
   radius: 63
   channels: 1
+  disentangle_factors: NULL
 
 train:
   pairs_ratio: 8.0

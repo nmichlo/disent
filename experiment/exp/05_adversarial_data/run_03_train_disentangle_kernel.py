@@ -24,11 +24,14 @@
 
 from typing import List
 from typing import Optional
+from typing import Sequence
 
 import hydra
 import os
 
 import logging
+
+import numpy as np
 import psutil
 import torch
 import wandb
@@ -78,7 +81,7 @@ def disentangle_loss(
     b_dists = H.pairwise_loss(batch[ia], batch[ib], mode=loss_fn, mean_dtype=mean_dtype)  # avoid precision errors
     # compute factor distances
     if f_idxs is not None:
-        f_dists = torch.abs(factors[ia, f_idxs] - factors[ib, f_idxs])
+        f_dists = torch.abs(factors[ia][:, f_idxs] - factors[ib][:, f_idxs]).sum(dim=-1)
     else:
         f_dists = torch.abs(factors[ia] - factors[ib]).sum(dim=-1)
     # optimise metric
@@ -92,10 +95,12 @@ class DisentangleModule(DisentLightningModule):
         self,
         model,
         hparams,
+        disentangle_factor_idxs: Sequence[int] = None
     ):
         super().__init__()
         self.model = model
         self.hparams = hparams
+        self._disentangle_factors = None if (disentangle_factor_idxs is None) else np.array(disentangle_factor_idxs)
 
     def configure_optimizers(self):
         return H.make_optimizer(self, name=self.hparams.optimizer.name, lr=self.hparams.optimizer.lr, weight_decay=self.hparams.optimizer.weight_decay)
@@ -109,7 +114,7 @@ class DisentangleModule(DisentLightningModule):
             batch=aug_batch,
             factors=factors,
             num_pairs=int(len(batch) * self.hparams.train.pairs_ratio),
-            f_idxs=None,
+            f_idxs=self._disentangle_factors,
             loss_fn=self.hparams.train.loss,
             mean_dtype=torch.float64,
         )
@@ -177,7 +182,7 @@ ROOT_DIR = os.path.abspath(__file__ + '/../../../..')
 
 
 @hydra.main(config_path=os.path.join(ROOT_DIR, 'experiment/config'), config_name="config_05_adversarial_03_gen")
-def run_hydra(cfg):
+def run_disentangle_dataset_kernel(cfg):
     cfg = make_non_strict(cfg)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # TODO: some of this code is duplicated between this and the main experiment run.py
@@ -189,13 +194,17 @@ def run_hydra(cfg):
     # TRAINER CALLBACKS
     callbacks = []
     hydra_append_progress_callback(callbacks, cfg)
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    seed(cfg.exp.seed)
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # initialise dataset and get factor names to disentangle
+    dataset = H.make_dataset(cfg.data.name, factors=True, data_dir=cfg.dataset.data_dir)
+    disentangle_factor_idxs = H.get_factor_idxs(dataset, cfg.kernel.disentangle_factors)
+    cfg.kernel.disentangle_factors = tuple(dataset.factor_names[i] for i in disentangle_factor_idxs)
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # print everything
     log.info('Final Config' + make_box_str(OmegaConf.to_yaml(cfg)))
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-    seed(cfg.exp.seed)
-    assert cfg.data.spacing in {1, 2, 4, 8}
-    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-    dataset = H.make_dataset(f'xysquares_{cfg.data.spacing}x{cfg.data.spacing}', factors=True, data_dir=cfg.dataset.data_dir)
     dataloader = DataLoader(
         dataset,
         batch_sampler=H.StochasticBatchSampler(dataset, batch_size=cfg.dataset.batch_size),
@@ -204,7 +213,7 @@ def run_hydra(cfg):
     )
     model = Kernel(radius=cfg.kernel.radius, channels=cfg.kernel.channels, offset=0.002, scale=0.01)
     callbacks.append(model.make_train_periodic_callback(cfg))
-    framework = DisentangleModule(model, cfg)
+    framework = DisentangleModule(model, cfg, disentangle_factor_idxs=disentangle_factor_idxs)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     if framework.logger:
         framework.logger.log_hyperparams(framework.hparams)
@@ -243,4 +252,4 @@ if __name__ == '__main__':
     # but speeds up as kernel size decreases, so might be shorter
     # EXP ARGS:
     # $ ... -m optimizer.weight_decay=1e-4,0.0 kernel.radius=63,55,47,39,31,23,15,7 dataset.spacing=8,4,2,1
-    run_hydra()
+    run_disentangle_dataset_kernel()
