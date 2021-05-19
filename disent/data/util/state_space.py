@@ -184,6 +184,7 @@ class StateSpace(LengthIter):
         return factors
 
     def sample_random_cycle_factors(self, f_idx: int = None, factors=None, num: int = None):
+        # TODO: this is like cycle_factor(), except it behaves differently!
         f_idx, factors, num = self._get_f_idx_and_factors_and_size(f_idx=f_idx, factors=factors, num=num)
         # generate traversal
         grid = np.linspace(0, self.factor_sizes[f_idx]-1, num=num, endpoint=True)
