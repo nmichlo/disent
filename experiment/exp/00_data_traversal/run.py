@@ -37,15 +37,15 @@ from disent.data.groundtruth import SmallNorbData
 from disent.data.groundtruth import XYSquaresData
 from disent.dataset.groundtruth import GroundTruthDataset
 from disent.util import TempNumpySeed
-from disent.visualize.visualize_util import make_image_grid
-
+from experiment.exp.util.helper import get_factor_idxs
+from experiment.exp.util.helper import dataset_make_image_grid
 from experiment.exp.util.io_util import make_rel_path_add_ext
 
 # ========================================================================= #
 # helper                                                                    #
 # ========================================================================= #
 
-
+# TODO: move this to visualiser / helper / similar functions already exist
 def output_image(img, rel_path, save=True, plot=True):
     if save and (rel_path is not None):
         # convert image type
@@ -64,54 +64,14 @@ def output_image(img, rel_path, save=True, plot=True):
     return img
 
 
-def convert_f_idxs(gt_data, f_idxs):
-    if f_idxs is None:
-        f_idxs = list(range(gt_data.num_factors))
-    else:
-        f_idxs = [(gt_data.factor_names.index(i) if isinstance(i, str) else i) for i in f_idxs]
-    return f_idxs
-
-
-def make_traversal_grid(gt_data: Union[GroundTruthData, GroundTruthDataset], f_idxs=None, factors=True, num=8):
-    # get defaults
-    if not isinstance(gt_data, GroundTruthDataset):
-        gt_data = GroundTruthDataset(gt_data)
-    f_idxs = convert_f_idxs(gt_data, f_idxs)
-    # sample factors
-    if isinstance(factors, bool):
-        factors = gt_data.sample_factors(1) if factors else None
-    # sample traversals
-    images = []
-    for f_idx in f_idxs:
-        fs = gt_data.sample_random_cycle_factors(f_idx, factors=factors, num=num)
-        images.append(gt_data.dataset_batch_from_factors(fs, mode='raw') / 255.0)
-    images = np.stack(images)
-    # return grid
-    return images # (F, N, H, W, C)
-
-
-def make_dataset_traversals(
-    gt_data,
-    f_idxs=None, num_cols=8, factors=True,
-    pad=8, bg_color=1.0, border=False,
-    rel_path=None, save=True, plot=False,
-    seed=777,
-):
-    with TempNumpySeed(seed):
-        images = make_traversal_grid(gt_data, f_idxs=f_idxs, num=num_cols, factors=factors)
-        image = make_image_grid(images.reshape(np.prod(images.shape[:2]), *images.shape[2:]), pad=pad, bg_color=bg_color, border=border, num_cols=num_cols)
-        output_image(img=image, rel_path=rel_path, save=save, plot=plot)
-    return image, images
-
-
 # ========================================================================= #
 # core                                                                      #
 # ========================================================================= #
 
 
 def plot_dataset_traversals(
-    gt_data,
-    f_idxs=None, num_cols=8, factors=True, add_random_traversal=True,
+    gt_data: Union[GroundTruthData, GroundTruthDataset],
+    f_idxs=None, num_cols=8, factors=None, add_random_traversal=True,
     pad=8, bg_color=1.0, border=False,
     rel_path=None, save=True, plot=True,
     seed=777,
@@ -119,17 +79,18 @@ def plot_dataset_traversals(
 ):
     if not isinstance(gt_data, GroundTruthDataset):
         gt_data = GroundTruthDataset(gt_data)
-    f_idxs = convert_f_idxs(gt_data, f_idxs)
+    f_idxs = get_factor_idxs(gt_data, f_idxs)
     # print factors
     print(f'{gt_data.data.__class__.__name__}: loaded factors {tuple([gt_data.factor_names[i] for i in f_idxs])} of {gt_data.factor_names}')
     # get traversal grid
-    _, images = make_dataset_traversals(
+    image, images = dataset_make_image_grid(
         gt_data,
         f_idxs=f_idxs, num_cols=num_cols, factors=factors,
         pad=pad, bg_color=bg_color, border=border,
-        rel_path=None, save=False, plot=False,
         seed=seed,
     )
+    # save traversal grid
+    output_image(img=image, rel_path=rel_path, save=save, plot=plot)
     # add random traversal
     if add_random_traversal:
         with TempNumpySeed(seed):

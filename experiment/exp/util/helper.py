@@ -26,6 +26,7 @@ import inspect
 import os
 from collections import Sized
 from typing import List
+from typing import Optional
 from typing import Sequence
 from typing import Union
 
@@ -38,6 +39,7 @@ from torch.utils.data import BatchSampler
 from torch.utils.data import Sampler
 
 from disent.data.groundtruth import Cars3dData
+from disent.data.groundtruth import GroundTruthData
 from disent.data.groundtruth import Shapes3dData
 from disent.data.groundtruth import XYSquaresData
 from disent.dataset.groundtruth import GroundTruthDataset
@@ -45,6 +47,9 @@ from disent.dataset.groundtruth import GroundTruthDatasetAndFactors
 from disent.frameworks.helper.reductions import batch_loss_reduction
 from disent.transform import ToStandardisedTensor
 
+from disent.util import TempNumpySeed
+from disent.visualize.visualize_util import make_animated_image_grid
+from disent.visualize.visualize_util import make_image_grid
 
 # ========================================================================= #
 # optimizer                                                                 #
@@ -141,6 +146,21 @@ def show_imgs(xs: Sequence[torch.Tensor], scale=False, i=None, step=None, show=T
             plt.show()
 
 
+def grid_img(xs: torch.Tensor, scale=False, pad=8, border=True, bg_color=0.5, num_cols=None) -> np.ndarray:
+    assert xs.ndim == 4, 'channels must be: (I, C, H, W)'
+    imgs = [to_img(x, scale=scale).cpu().numpy() for x in xs]
+    # create grid
+    return make_image_grid(imgs, pad=pad, border=border, bg_color=bg_color, num_cols=num_cols)
+
+
+def grid_animation(xs: torch.Tensor, scale=False, pad=8, border=True, bg_color=0.5, num_cols=None) -> np.ndarray:
+    assert xs.ndim == 5, 'channels must be: (I, F, C, H, W)'
+    frames = []
+    for f in range(xs.shape[1]):
+        frames.append(grid_img(xs[:, f, :, :, :], scale=scale, pad=pad, border=border, bg_color=bg_color, num_cols=num_cols))
+    return np.array(frames)
+
+
 # ========================================================================= #
 # LOSS                                                                      #
 # ========================================================================= #
@@ -214,12 +234,18 @@ def normalise_factor_idx(dataset, factor: Union[int, str]) -> int:
     return f_idx
 
 
-def normalise_factor_idxs(dataset, factors: Union[Sequence[Union[int, str]], Union[int, str]]) -> List[int]:
+def normalise_factor_idxs(dataset: GroundTruthDataset, factors: Union[Sequence[Union[int, str]], Union[int, str]]) -> np.ndarray:
     if isinstance(factors, (int, str)):
         factors = [factors]
-    factors = [normalise_factor_idx(dataset, factor) for factor in factors]
+    factors = np.array([normalise_factor_idx(dataset, factor) for factor in factors])
     assert len(set(factors)) == len(factors)
     return factors
+
+
+def get_factor_idxs(dataset: GroundTruthDataset, factors: Optional[Union[Sequence[Union[int, str]], Union[int, str]]] = None):
+    if factors is None:
+        return np.arange(dataset.num_factors)
+    return normalise_factor_idxs(dataset, factors)
 
 
 def sample_factors(dataset, num_obs: int = 1024, factor_mode: str = 'sample_random', factor: Union[int, str] = None):
@@ -362,7 +388,7 @@ def generate_epochs_batch_idxs(num_obs: int, num_epochs: int, num_epoch_batches:
 
 
 # ========================================================================= #
-# END                                                                       #
+# Dataloader Sampler Utilities                                              #
 # ========================================================================= #
 
 
@@ -404,6 +430,70 @@ def StochasticBatchSampler(data_source: Union[Sized, int], batch_size: int):
         batch_size=batch_size,
         drop_last=True
     )
+
+
+# ========================================================================= #
+# Dataset Visualisation / Traversals                                        #
+# ========================================================================= #
+
+
+def dataset_make_traversals(
+    gt_data: Union[GroundTruthData, GroundTruthDataset],
+    f_idxs=None, factors=None, num_cols=8,
+    seed=777,
+    transpose_grid=False,
+    cyclic=True,
+):
+    with TempNumpySeed(seed):
+        # get defaults
+        if not isinstance(gt_data, GroundTruthDataset):
+            gt_data = GroundTruthDataset(gt_data)
+        # get f_idxs
+        f_idxs = get_factor_idxs(gt_data, f_idxs)
+        # sample traversals
+        images = []
+        for f_idx in f_idxs:
+            fs = gt_data.sample_random_cycle_factors(f_idx, factors=factors, num=num_cols)
+            # TODO: replace with cycle_factor from visualise_util
+            if cyclic:
+                fs = np.concatenate([fs, fs[1:-1][::-1]], axis=0)
+            images.append(gt_data.dataset_batch_from_factors(fs, mode='raw') / 255.0)  # TODO: we shouldn't divide here?
+        images = np.stack(images)
+    # return grid
+    if transpose_grid:
+        return np.swapaxes(images, 0, 1)
+    return images  # (F, N, H, W, C)
+
+
+def dataset_make_image_grid(
+    gt_data: Union[GroundTruthData, GroundTruthDataset],
+    f_idxs=None, factors=None, num_cols=None,
+    pad=8, bg_color=1.0, border=False,
+    seed=777,
+    return_traversals=False,
+    transpose_grid=False,
+):
+    images = dataset_make_traversals(gt_data, f_idxs=f_idxs, factors=factors, num_cols=num_cols, seed=seed, transpose_grid=transpose_grid)
+    image = make_image_grid(images.reshape(np.prod(images.shape[:2]), *images.shape[2:]), pad=pad, bg_color=bg_color, border=border, num_cols=images.shape[1])
+    if return_traversals:
+        return image, images
+    return image
+
+
+def dataset_make_animated_image_grid(
+    gt_data: Union[GroundTruthData, GroundTruthDataset],
+    f_idxs=None, factors=None, num_cols=None,
+    pad=8, bg_color=1.0, border=False,
+    seed=777,
+    return_traversals=False,
+    transpose_grid=False,
+    cyclic=True,
+):
+    images = dataset_make_traversals(gt_data, f_idxs=f_idxs, factors=factors, num_cols=num_cols, seed=seed, transpose_grid=transpose_grid, cyclic=cyclic)
+    image = make_animated_image_grid(images, pad=pad, bg_color=bg_color, border=border, num_cols=None)
+    if return_traversals:
+        return image, images
+    return image
 
 
 # ========================================================================= #
