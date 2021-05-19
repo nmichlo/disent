@@ -11,7 +11,7 @@ defaults:
 job:
   user: 'n_michlo'
   project: 'exp-disentangle-kernel'
-  name: r${kernel.radius}-${kernel.channels}_s${trainer.steps}_${optimizer.name}_lr${optimizer.lr}_wd${optimizer.weight_decay}_xy${data.spacing}x${data.spacing}
+  name: r${kernel.radius}-${kernel.channels}_s${trainer.steps}_${optimizer.name}_lr${optimizer.lr}_wd${optimizer.weight_decay}_${data.name}
   partition: stampede
 
 optimizer:
@@ -26,6 +26,10 @@ kernel:
   radius: 63
   channels: 1
   disentangle_factors: NULL
+  # training
+  regularize_symmetric: TRUE
+  regularize_norm: FALSE    # these don't work
+  regularize_nonneg: FALSE  # these don't work
 
 train:
   pairs_ratio: 8.0

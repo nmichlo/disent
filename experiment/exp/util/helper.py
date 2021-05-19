@@ -111,16 +111,34 @@ def get_single_batch(dataloader, cuda=True):
 # ========================================================================= #
 
 
-def to_img(x: torch.Tensor, scale=False):
+def to_img(x: torch.Tensor, scale=False, to_cpu=True):
+    assert x.ndim == 3, 'image must have 3 dimensions: (C, H, W)'
+    return to_imgs(x, scale=scale, to_cpu=to_cpu)
+
+
+def to_imgs(x: torch.Tensor, scale=False, to_cpu=True):
+    # (..., C, H, W)
+    assert x.ndim >= 3, 'image must have 3 or more dimensions: (..., C, H, W)'
     assert x.dtype in {torch.float16, torch.float32, torch.float64, torch.complex32, torch.complex64}, f'unsupported dtype: {x.dtype}'
-    x = x.detach().cpu()
-    x = torch.abs(x)
-    if scale:
-        m, M = torch.min(x), torch.max(x)
-        x = (x - m) / (M - m)
-    x = torch.moveaxis(x, 0, -1)
-    x = torch.clamp(x, 0, 1)
-    x = (x * 255).to(torch.uint8)
+    # no gradient
+    with torch.no_grad():
+        # imaginary to real
+        if x.dtype in {torch.complex32, torch.complex64}:
+            x = torch.abs(x)
+        # scale images
+        if scale:
+            m = x.min(dim=-3, keepdim=True).values.min(dim=-2, keepdim=True).values.min(dim=-1, keepdim=True).values
+            M = x.max(dim=-3, keepdim=True).values.max(dim=-2, keepdim=True).values.max(dim=-1, keepdim=True).values
+            x = (x - m) / (M - m)
+        # move axis
+        x = torch.moveaxis(x, -3, -1)
+        # to uint8
+        x = torch.clamp(x, 0, 1)
+        x = (x * 255).to(torch.uint8)
+    # done!
+    x = x.detach()  # is this needeed?
+    if to_cpu:
+        x = x.cpu()
     return x
 
 
@@ -441,28 +459,31 @@ def dataset_make_traversals(
     gt_data: Union[GroundTruthData, GroundTruthDataset],
     f_idxs=None, factors=None, num_cols=8,
     seed=777,
-    transpose_grid=False,
     cyclic=True,
+    mode='img'
 ):
     with TempNumpySeed(seed):
         # get defaults
         if not isinstance(gt_data, GroundTruthDataset):
             gt_data = GroundTruthDataset(gt_data)
-        # get f_idxs
         f_idxs = get_factor_idxs(gt_data, f_idxs)
         # sample traversals
-        images = []
+        traversals = []
         for f_idx in f_idxs:
-            fs = gt_data.sample_random_cycle_factors(f_idx, factors=factors, num=num_cols)
-            # TODO: replace with cycle_factor from visualise_util
+            traversal_factors = gt_data.sample_random_cycle_factors(f_idx, factors=factors, num=num_cols)
             if cyclic:
-                fs = np.concatenate([fs, fs[1:-1][::-1]], axis=0)
-            images.append(gt_data.dataset_batch_from_factors(fs, mode='raw') / 255.0)  # TODO: we shouldn't divide here?
-        images = np.stack(images)
+                traversal_factors = np.concatenate([traversal_factors, traversal_factors[1:-1][::-1]], axis=0)  # TODO: replace with cycle_factor from visualise_util
+            # get observations
+            if mode == 'img':
+                traversal = gt_data.dataset_batch_from_factors(traversal_factors, mode='raw') / 255.0  # TODO: we shouldn't divide here?
+            else:
+                traversal = gt_data.dataset_batch_from_factors(traversal_factors, mode=mode)
+            traversals.append(traversal)
     # return grid
-    if transpose_grid:
-        return np.swapaxes(images, 0, 1)
-    return images  # (F, N, H, W, C)
+    if mode == 'img':
+        return np.stack(traversals)  # (F, N, H, W, C)
+    else:
+        return traversals
 
 
 def dataset_make_image_grid(
@@ -471,9 +492,8 @@ def dataset_make_image_grid(
     pad=8, bg_color=1.0, border=False,
     seed=777,
     return_traversals=False,
-    transpose_grid=False,
 ):
-    images = dataset_make_traversals(gt_data, f_idxs=f_idxs, factors=factors, num_cols=num_cols, seed=seed, transpose_grid=transpose_grid)
+    images = dataset_make_traversals(gt_data, f_idxs=f_idxs, factors=factors, num_cols=num_cols, seed=seed)
     image = make_image_grid(images.reshape(np.prod(images.shape[:2]), *images.shape[2:]), pad=pad, bg_color=bg_color, border=border, num_cols=images.shape[1])
     if return_traversals:
         return image, images
@@ -486,10 +506,9 @@ def dataset_make_animated_image_grid(
     pad=8, bg_color=1.0, border=False,
     seed=777,
     return_traversals=False,
-    transpose_grid=False,
     cyclic=True,
 ):
-    images = dataset_make_traversals(gt_data, f_idxs=f_idxs, factors=factors, num_cols=num_cols, seed=seed, transpose_grid=transpose_grid, cyclic=cyclic)
+    images = dataset_make_traversals(gt_data, f_idxs=f_idxs, factors=factors, num_cols=num_cols, seed=seed, cyclic=cyclic)
     image = make_animated_image_grid(images, pad=pad, bg_color=bg_color, border=border, num_cols=None)
     if return_traversals:
         return image, images

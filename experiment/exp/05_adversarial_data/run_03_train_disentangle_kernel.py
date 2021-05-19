@@ -32,7 +32,6 @@ import os
 import logging
 
 import numpy as np
-import psutil
 import torch
 import wandb
 from omegaconf import OmegaConf
@@ -41,12 +40,15 @@ from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 
 import experiment.exp.util.helper as H
+from disent.util import TempNumpySeed
 from disent.util.math import torch_conv2d_channel_wise_fft
 from disent.util import DisentLightningModule
 from disent.util import DisentModule
 from disent.util import make_box_str
 from disent.util import seed
 from disent.util.math_loss import spearman_rank_loss
+from disent.visualize.visualize_util import make_animated_image_grid
+from disent.visualize.visualize_util import make_image_grid
 from experiment.exp.util.io_util import torch_write
 from experiment.run import hydra_append_progress_callback
 from experiment.run import hydra_check_cuda
@@ -139,38 +141,88 @@ class DisentangleModule(DisentLightningModule):
 
 
 class Kernel(DisentModule):
-    def __init__(self, radius: int = 33, channels: int = 1, offset: float = 0.0, scale: float = 0.001):
+    def __init__(self, radius: int = 33, channels: int = 1, offset: float = 0.0, scale: float = 0.001, train_symmetric_regularise: bool = True, train_norm_regularise: bool = True, train_nonneg_regularise: bool = True):
         super().__init__()
         assert channels in (1, 3)
         kernel = torch.randn(1, channels, 2*radius+1, 2*radius+1, dtype=torch.float32)
         kernel = offset + kernel * scale
+        # normalise
+        if train_nonneg_regularise:
+            kernel = torch.abs(kernel)
+        if train_norm_regularise:
+            kernel = kernel / kernel.sum(dim=[-1, -2], keepdim=True)
+        # store
         self._kernel = Parameter(kernel)
+        # regularise options
+        self._train_symmetric_regularise = train_symmetric_regularise
+        self._train_norm_regularise = train_norm_regularise
+        self._train_nonneg_regularise = train_nonneg_regularise
 
     def forward(self, xs):
         return torch_conv2d_channel_wise_fft(xs, self._kernel)
 
-    def make_train_periodic_callback(self, cfg) -> _PeriodicCallback:
+    def make_train_periodic_callback(self, cfg, dataset) -> _PeriodicCallback:
         class ImShowCallback(_PeriodicCallback):
             def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+                # get kernel image
+                kernel = H.to_img(pl_module.model._kernel[0], scale=True).numpy()
+                # get augmented traversals
+                with torch.no_grad():
+                    traversals_orig = H.dataset_make_traversals(dataset, num_cols=9, seed=777, mode='target')
+                    traversals_augm = [pl_module.forward(traversal.to(device=pl_module.device)) for traversal in traversals_orig]
+                    traversals_orig = H.to_imgs(torch.stack(traversals_orig), scale=False).numpy()
+                    traversals_augm = H.to_imgs(torch.stack(traversals_augm), scale=True).numpy()
+                    frames_orig = make_animated_image_grid(traversals_orig)
+                    frames_augm = make_animated_image_grid(traversals_augm)
+                    traversals_orig = make_image_grid(traversals_orig[:, :9].reshape(-1, *traversals_orig.shape[2:]), num_cols=9)
+                    traversals_augm = make_image_grid(traversals_augm[:, :9].reshape(-1, *traversals_augm.shape[2:]), num_cols=9)
+                # log images to WANDB
                 wb_log_metrics(
                     trainer.logger, {
-                        'kernel': wandb.Image(H.to_img(pl_module.model._kernel[0], scale=True).numpy()),
+                        'kernel': wandb.Image(kernel),
+                        'frames_orig': wandb.Video(np.transpose(frames_orig, [0, 3, 1, 2]), fps=5, format='mp4'),
+                        'frames_augm': wandb.Video(np.transpose(frames_augm, [0, 3, 1, 2]), fps=5, format='mp4'),
+                        'traversals_orig': wandb.Image(traversals_orig),
+                        'traversals_augm': wandb.Image(traversals_augm),
                     }
                 )
-        return ImShowCallback(every_n_steps=cfg.exp.show_every_n_steps)
+        return ImShowCallback(every_n_steps=cfg.exp.show_every_n_steps, begin_first_step=True)
 
     def augment_loss(self, framework: DisentLightningModule):
+        augment_loss = 0
         # symmetric loss
-        k, kt = self._kernel[0], torch.transpose(self._kernel[0], -1, -2)
-        loss_symmetric = 0
-        loss_symmetric += H.unreduced_loss(torch.flip(k, dims=[-1]), k, mode='mae').mean()
-        loss_symmetric += H.unreduced_loss(torch.flip(k, dims=[-2]), k, mode='mae').mean()
-        loss_symmetric += H.unreduced_loss(torch.flip(k, dims=[-1]), kt, mode='mae').mean()
-        loss_symmetric += H.unreduced_loss(torch.flip(k, dims=[-2]), kt, mode='mae').mean()
-        # log loss
-        framework.log('loss_symmetric', loss_symmetric)
-        # final loss
-        return loss_symmetric
+        if self._train_symmetric_regularise:
+            k, kt = self._kernel[0], torch.transpose(self._kernel[0], -1, -2)
+            loss_symmetric = 0
+            loss_symmetric += H.unreduced_loss(torch.flip(k, dims=[-1]), k,  mode='mae').mean()
+            loss_symmetric += H.unreduced_loss(torch.flip(k, dims=[-2]), k,  mode='mae').mean()
+            loss_symmetric += H.unreduced_loss(torch.flip(k, dims=[-1]), kt, mode='mae').mean()
+            loss_symmetric += H.unreduced_loss(torch.flip(k, dims=[-2]), kt, mode='mae').mean()
+            # log loss
+            framework.log('loss_symmetric', loss_symmetric)
+            # final loss
+            augment_loss += loss_symmetric
+        # sum of 1 loss, per channel
+        if self._train_norm_regularise:
+            k = self._kernel[0]
+            # sum over W & H resulting in: (C, W, H) -> (C,)
+            channel_sums = k.sum(dim=[-1, -2])
+            channel_loss = H.unreduced_loss(channel_sums, torch.ones_like(channel_sums), mode='mae')
+            norm_loss = channel_loss.mean()
+            # log loss
+            framework.log('loss_norm', norm_loss)
+            # final loss
+            augment_loss += norm_loss
+        # no negatives regulariser
+        if self._train_nonneg_regularise:
+            k = self._kernel[0]
+            nonneg_loss = torch.abs(k[k < 0].sum())
+            # log loss
+            framework.log('loss_non_negative', nonneg_loss)
+            # regularise negatives
+            augment_loss += nonneg_loss
+        # return!
+        return augment_loss
 
 
 # ========================================================================= #
@@ -201,6 +253,8 @@ def run_disentangle_dataset_kernel(cfg):
     dataset = H.make_dataset(cfg.data.name, factors=True, data_dir=cfg.dataset.data_dir)
     disentangle_factor_idxs = H.get_factor_idxs(dataset, cfg.kernel.disentangle_factors)
     cfg.kernel.disentangle_factors = tuple(dataset.factor_names[i] for i in disentangle_factor_idxs)
+    log.info(f'Dataset has ground-truth factors: {dataset.factor_names}')
+    log.info(f'Chosen ground-truth factors are: {tuple(cfg.kernel.disentangle_factors)}')
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # print everything
     log.info('Final Config' + make_box_str(OmegaConf.to_yaml(cfg)))
@@ -211,8 +265,8 @@ def run_disentangle_dataset_kernel(cfg):
         num_workers=cfg.dataset.num_workers,
         pin_memory=cfg.dataset.pin_memory,
     )
-    model = Kernel(radius=cfg.kernel.radius, channels=cfg.kernel.channels, offset=0.002, scale=0.01)
-    callbacks.append(model.make_train_periodic_callback(cfg))
+    model = Kernel(radius=cfg.kernel.radius, channels=cfg.kernel.channels, offset=0.002, scale=0.01, train_symmetric_regularise=cfg.kernel.regularize_symmetric, train_norm_regularise=cfg.kernel.regularize_norm, train_nonneg_regularise=cfg.kernel.regularize_nonneg)
+    callbacks.append(model.make_train_periodic_callback(cfg, dataset=dataset))
     framework = DisentangleModule(model, cfg, disentangle_factor_idxs=disentangle_factor_idxs)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     if framework.logger:
