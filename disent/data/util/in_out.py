@@ -23,6 +23,8 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
+import warnings
+
 
 log = logging.getLogger(__name__)
 
@@ -79,8 +81,11 @@ def download_file(url, save_path=None, overwrite_existing=False, chunk_size=4096
         raise Exception('Invalid save path: "{save_path}"')
 
     # check save path isnt there
-    if not overwrite_existing and os.path.isfile(save_path):
-        raise Exception(f'File already exists: "{save_path}" set overwrite_existing=True to overwrite.')
+    if os.path.isfile(save_path):
+        if overwrite_existing:
+            warnings.warn(f'Overwriting existing file: "{save_path}"')
+        else:
+            raise Exception(f'File already exists: "{save_path}" set overwrite_existing=True to overwrite.')
 
     # we download to a temporary file in case there is an error
     temp_download_path = os.path.join(path_dir, f'.{path_base}.download.temp')
