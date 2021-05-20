@@ -173,7 +173,7 @@ def plot_gaussian(
     ax.set_xlim([-trunc_sigma, trunc_sigma])
     ax.set_ylim([-trunc_sigma, trunc_sigma])
     # plot contour
-    xs, ys, zs = rotated_guassian2d(sigma=(std_x, std_y), deg=deg, trunc_sigma=trunc_sigma, num_points=contour_resolution)
+    xs, ys, zs = rotated_guassian2d(std_x=std_x, std_y=std_y, deg=deg, trunc_sigma=trunc_sigma, num_points=contour_resolution)
     ax.contourf(xs, ys, zs, **({} if contour_kwargs is None else contour_kwargs))
     # plot dots
     if dots_num is not None:

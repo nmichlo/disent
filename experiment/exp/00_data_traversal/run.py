@@ -21,11 +21,10 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-import itertools
+
 import os
 from typing import Union
 
-import imageio
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -37,31 +36,8 @@ from disent.data.groundtruth import SmallNorbData
 from disent.data.groundtruth import XYSquaresData
 from disent.dataset.groundtruth import GroundTruthDataset
 from disent.util import TempNumpySeed
-from experiment.exp.util.helper import get_factor_idxs
-from experiment.exp.util.helper import dataset_make_image_grid
+from experiment.exp.util import helper as H
 from experiment.exp.util.io_util import make_rel_path_add_ext
-
-# ========================================================================= #
-# helper                                                                    #
-# ========================================================================= #
-
-# TODO: move this to visualiser / helper / similar functions already exist
-def output_image(img, rel_path, save=True, plot=True):
-    if save and (rel_path is not None):
-        # convert image type
-        if img.dtype in (np.float16, np.float32, np.float64, np.float128):
-            assert np.all(img >= 0) and np.all(img <= 1.0)
-            img = np.uint8(img * 255)
-        elif img.dtype in (np.int16, np.int32, np.int64):
-            assert np.all(img >= 0) and np.all(img <= 255)
-            img = np.uint8(img)
-        assert img.dtype == np.uint8, f'unsupported image dtype: {img.dtype}'
-        # save image
-        imageio.imsave(make_rel_path_add_ext(rel_path, ext='.png'), img)
-    if plot:
-        plt.imshow(img)
-        plt.show()
-    return img
 
 
 # ========================================================================= #
@@ -71,64 +47,59 @@ def output_image(img, rel_path, save=True, plot=True):
 
 def plot_dataset_traversals(
     gt_data: Union[GroundTruthData, GroundTruthDataset],
-    f_idxs=None, num_cols=8, factors=None, add_random_traversal=True,
-    pad=8, bg_color=1.0, border=False,
-    rel_path=None, save=True, plot=True,
+    f_idxs=None,
+    num_cols=8,
+    base_factors=None,
+    add_random_traversal=True,
+    pad=8,
+    bg_color=127,
+    border=False,
+    rel_path=None,
+    save=True,
     seed=777,
-    plt_scale=7, offset=0.75, plt_transpose=False,
+    plt_scale=4.5,
+    offset=0.75
 ):
     if not isinstance(gt_data, GroundTruthDataset):
         gt_data = GroundTruthDataset(gt_data)
-    f_idxs = get_factor_idxs(gt_data, f_idxs)
-    # print factors
-    print(f'{gt_data.data.__class__.__name__}: loaded factors {tuple([gt_data.factor_names[i] for i in f_idxs])} of {gt_data.factor_names}')
+    f_idxs = H.get_factor_idxs(gt_data, f_idxs)
     # get traversal grid
-    image, images = dataset_make_image_grid(
-        gt_data,
-        f_idxs=f_idxs, num_cols=num_cols, factors=factors,
-        pad=pad, bg_color=bg_color, border=border,
+    row_labels = [gt_data.factor_names[i] for i in f_idxs]
+    grid = H.dataset_traversal_tasks(
+        gt_data=gt_data,
+        tasks='grid',
+        data_mode='raw',
+        factor_names=f_idxs,
+        num=num_cols,
         seed=seed,
+        base_factors=base_factors,
+        traverse_mode='interval',
+        pad=pad,
+        bg_color=bg_color,
+        border=border,
     )
-    # save traversal grid
-    output_image(img=image, rel_path=rel_path, save=save, plot=plot)
     # add random traversal
     if add_random_traversal:
         with TempNumpySeed(seed):
-            ran_imgs = gt_data.dataset_sample_batch(num_samples=num_cols, mode='raw') / 255
-            images = np.concatenate([ran_imgs[None, ...], images])
-    # transpose
-    if plt_transpose:
-        images = np.transpose(images, [1, 0, *range(2, images.ndim)])
+            row_labels = ['random'] + row_labels
+            grid = np.concatenate([
+                gt_data.dataset_sample_batch(num_samples=num_cols, mode='raw')[None, ...],
+                grid
+            ])
     # add missing channel
-    if images.ndim == 4:
-        images = images[..., None].repeat(3, axis=-1)
-    assert images.ndim == 5
+    if grid.ndim == 4:
+        grid = grid[..., None].repeat(3, axis=-1)
+    assert grid.ndim == 5
     # make figure
-    oW, oH = (0, offset*0.5) if plt_transpose else (offset, 0)
-    H, W, _, _, C = images.shape
-    assert C == 3
-    cm = 1 / 2.54
-    fig, axs = plt.subplots(H, W, figsize=(oW + cm*W*plt_scale, oH + cm*H*plt_scale))
-    axs = np.array(axs)
-    # plot images
-    for y, x in itertools.product(range(H), range(W)):
-        img, ax = images[y, x], axs[y, x]
-        ax.imshow(img)
-        i, j = (y, x) if plt_transpose else (x, y)
-        if (i == H-1) if plt_transpose else (i == 0):
-            label = 'random' if (add_random_traversal and (j == 0)) else gt_data.factor_names[f_idxs[j-int(add_random_traversal)]]
-            (ax.set_xlabel if plt_transpose else ax.set_ylabel)(label, fontsize=26)
-        # ax.set_axis_off()
-        ax.get_xaxis().set_ticks([])
-        ax.get_yaxis().set_ticks([])
-        ax.get_xaxis().set_ticklabels([])
-        ax.get_yaxis().set_ticklabels([])
-    plt.tight_layout()
-    # save and show
+    h, w, _, _, c = grid.shape
+    assert c == 3
+    fig, axs = H.plt_subplots_imshow(grid, row_labels=row_labels, subplot_padding=0.5, figsize=(offset + (1/2.54)*w*plt_scale, (1/2.54)*h*plt_scale))
+    # save figure
     if save and (rel_path is not None):
         plt.savefig(make_rel_path_add_ext(rel_path, ext='.png'))
-    if plot:
-        plt.show()
+    plt.show()
+    # done!
+    return fig, axs
 
 
 # ========================================================================= #
@@ -150,37 +121,32 @@ if __name__ == '__main__':
     for i in ([1, 2, 3, 4, 5, 6, 7, 8] if all_squares else [1, 8]):
         plot_dataset_traversals(
             XYSquaresData(grid_spacing=i, max_placements=8, no_warnings=True),
-            factors=None,
             rel_path=f'plots/xy-squares-traversal-spacing{i}',
-            f_idxs=None, seed=7, add_random_traversal=add_random_traversal, num_cols=num_cols
+            seed=7, add_random_traversal=add_random_traversal, num_cols=num_cols
         )
 
     plot_dataset_traversals(
         Shapes3dData(),
-        factors=None,
         rel_path=f'plots/shapes3d-traversal',
-        f_idxs=None, seed=47, add_random_traversal=add_random_traversal, num_cols=num_cols
+        seed=47, add_random_traversal=add_random_traversal, num_cols=num_cols
     )
 
     plot_dataset_traversals(
         DSpritesData(),
-        factors=None,
         rel_path=f'plots/dsprites-traversal',
-        f_idxs=None, seed=47, add_random_traversal=add_random_traversal, num_cols=num_cols
+        seed=47, add_random_traversal=add_random_traversal, num_cols=num_cols
     )
 
     plot_dataset_traversals(
         SmallNorbData(),
-        factors=None,
         rel_path=f'plots/smallnorb-traversal',
-        f_idxs=None, seed=47, add_random_traversal=add_random_traversal, num_cols=num_cols
+        seed=47, add_random_traversal=add_random_traversal, num_cols=num_cols
     )
 
     plot_dataset_traversals(
         Cars3dData(),
-        factors=None,
         rel_path=f'plots/cars3d-traversal',
-        f_idxs=None, seed=47, add_random_traversal=add_random_traversal, num_cols=num_cols
+        seed=47, add_random_traversal=add_random_traversal, num_cols=num_cols
     )
 
 

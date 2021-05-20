@@ -203,16 +203,22 @@ def _hide(hide, cond):
 
 def plt_subplots(
     nrows: int = 1, ncols: int = 1,
+    # custom
+    title=None,
     titles=None,
-    row_labels=None, col_labels=None,
+    row_labels=None,
+    col_labels=None,
     hide_labels='edges',  # none, edges, all
     hide_axis='edges',    # none, edges, all
-    **kwargs
+    # plt.subplots:
+    sharex: str = False,
+    sharey: str = False,
+    subplot_kw=None,
+    gridspec_kw=None,
+    **fig_kw,
 ):
     assert isinstance(nrows, int)
     assert isinstance(ncols, int)
-    # check figsize
-    figsize = kwargs.pop('figsize', None)
     # check titles
     if titles is not None:
         titles = np.array(titles).reshape([nrows, ncols])
@@ -228,8 +234,7 @@ def plt_subplots(
         assert len(titles) == nrows
         assert len(titles[0]) == ncols
     # create subplots
-    fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=figsize, **kwargs)
-    axs = axs.reshape([nrows, ncols])
+    fig, axs = plt.subplots(nrows=nrows, ncols=ncols, sharex=sharex, sharey=sharey, squeeze=False, subplot_kw=subplot_kw, gridspec_kw=gridspec_kw, **fig_kw)
     # generate
     for y in range(nrows):
         for x in range(ncols):
@@ -243,19 +248,52 @@ def plt_subplots(
             # set title
             if titles is not None:
                 ax.set_title(titles[y][x])
+    # set title
+    fig.suptitle(title)
     # done!
     return fig, axs
 
 
-# def plt_subplots_imshow(imgs, row_labels=None, col_labels=None, hide_inner_labels=False, subplot_padding=None, **kwargs):
-#     fig, axs = plt_subplots(nrows=len(imgs), ncols=len(imgs[0]), row_labels=row_labels, col_labels=col_labels, hide_inner_labels=hide_inner_labels, **kwargs)
-#     # plot images
-#     for img_row, ax_row in zip(axs, imgs):
-#         for img, ax in zip(img_row, ax_row):
-#             ax.imshow(img)
-#     fig.tight_layout(pad=subplot_padding)
-#     # done!
-#     return fig, axs
+def plt_subplots_imshow(
+    grid,
+    # custom:
+    title=None,
+    titles=None,
+    row_labels=None,
+    col_labels=None,
+    hide_labels='edges',  # none, edges, all
+    hide_axis='all',    # none, edges, all
+    # tight_layout:
+    subplot_padding=None,
+    # plt.subplots:
+    sharex: str = False,
+    sharey: str = False,
+    subplot_kw=None,
+    gridspec_kw=None,
+    **fig_kw,
+):
+    fig, axs = plt_subplots(
+        nrows=len(grid), ncols=len(grid[0]),
+        # custom
+        title=title,
+        titles=titles,
+        row_labels=row_labels,
+        col_labels=col_labels,
+        hide_labels=hide_labels,  # none, edges, all
+        hide_axis=hide_axis,      # none, edges, all
+        # plt.subplots:
+        sharex=sharex,
+        sharey=sharey,
+        subplot_kw=subplot_kw,
+        gridspec_kw=gridspec_kw,
+        **fig_kw,
+    )
+    # show images
+    for y, x in np.ndindex(axs.shape):
+        axs[y, x].imshow(grid[y][x])
+    fig.tight_layout(pad=subplot_padding)
+    # done!
+    return fig, axs
 
 
 def plt_hide_axis(ax, hide_xaxis=True, hide_yaxis=True, hide_border=True, hide_axis_labels=False, hide_axis_ticks=True, hide_grid=True):
@@ -570,10 +608,10 @@ class _TraversalTasks(object):
         return get_factor_idxs(gt_data, factor_names)
 
     @staticmethod
-    def task__factors(factor_idxs=TASK, gt_data=IN, seed=IN, base_factors=IN, num=IN):
+    def task__factors(factor_idxs=TASK, gt_data=IN, seed=IN, base_factors=IN, num=IN, traverse_mode=IN):
         with TempNumpySeed(seed):
             return np.stack([
-                gt_data.sample_random_factor_traversal(f_idx, base_factors=base_factors, num=num, mode='cycle')
+                gt_data.sample_random_factor_traversal(f_idx, base_factors=base_factors, num=num, mode=traverse_mode)
                 for f_idx in factor_idxs
             ], axis=0)
 
@@ -628,6 +666,7 @@ def dataset_traversal_tasks(
     num: int = 9,
     seed: int = 777,
     base_factors=None,
+    traverse_mode='cycle',
     # images & animations
     pad: int = 4,
     border: bool = True,
@@ -676,6 +715,7 @@ def dataset_traversal_tasks(
             num=num,
             seed=seed,
             base_factors=base_factors,
+            traverse_mode=traverse_mode,
             # animation & images
             pad=pad,
             border=border,
