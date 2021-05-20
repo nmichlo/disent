@@ -33,13 +33,13 @@ from ._unsupervised import metric_unsupervised
 from ._flatness import metric_flatness
 from ._flatness_components import metric_flatness_components
 
+# helper imports
+from disent.util import wrapped_partial as _wrapped_partial
+
 
 # ========================================================================= #
 # Fast Metric Settings                                                      #
 # ========================================================================= #
-
-
-from disent.util import wrapped_partial as _wrapped_partial
 
 
 FAST_METRICS = {

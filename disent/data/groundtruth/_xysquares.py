@@ -26,7 +26,9 @@ import logging
 from typing import Tuple
 from disent.data.groundtruth.base import GroundTruthData
 import numpy as np
-from disent.util import chunked
+
+from disent.util import iter_chunks
+
 
 log = logging.getLogger(__name__)
 
@@ -93,7 +95,7 @@ class XYSquaresData(GroundTruthData):
         offset, space, size = self._offset, self._spacing, self._square_size
         # GENERATE
         obs = np.zeros(self.observation_shape, dtype=np.uint8)
-        for i, (fx, fy) in enumerate(chunked(factors, 2)):
+        for i, (fx, fy) in enumerate(iter_chunks(factors, 2)):
             x, y = offset + space * fx, offset + space * fy
             if self._rgb:
                 obs[y:y+size, x:x+size, i] = self._fill_value

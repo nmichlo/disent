@@ -36,7 +36,7 @@ import torch
 from torch.utils.data.dataloader import default_collate
 
 from disent.dataset.groundtruth import GroundTruthDataset
-from disent.util import chunked
+from disent.util import iter_chunks
 
 
 log = logging.getLogger(__name__)
@@ -223,7 +223,7 @@ def encode_all_along_factor(ground_truth_dataset, representation_function, f_idx
 def encode_all_factors(ground_truth_dataset, representation_function, factors, batch_size: int) -> torch.Tensor:
     zs = []
     with torch.no_grad():
-        for batch_factors in chunked(factors, chunk_size=batch_size):
+        for batch_factors in iter_chunks(factors, chunk_size=batch_size):
             batch = ground_truth_dataset.dataset_batch_from_factors(batch_factors, mode='input')
             z = representation_function(batch)
             zs.append(z)

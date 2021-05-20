@@ -216,6 +216,7 @@ def cycle_interval(starting_value, num_frames, min_val, max_val):
 
 
 # TODO: this functionality is duplicated elsewhere!
+# TODO: similar functions exist: output_image, to_img, to_imgs, reconstructions_to_images
 def reconstructions_to_images(recon, mode='float', moveaxis=True):
     """
     Convert a batch of reconstructions to images.

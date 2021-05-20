@@ -116,11 +116,13 @@ def get_single_batch(dataloader, cuda=True):
 # ========================================================================= #
 
 
+# TODO: similar functions exist: output_image, to_img, to_imgs, reconstructions_to_images
 def to_img(x: torch.Tensor, scale=False, to_cpu=True, move_channels=True):
     assert x.ndim == 3, 'image must have 3 dimensions: (C, H, W)'
     return to_imgs(x, scale=scale, to_cpu=to_cpu, move_channels=move_channels)
 
 
+# TODO: similar functions exist: output_image, to_img, to_imgs, reconstructions_to_images
 def to_imgs(x: torch.Tensor, scale=False, to_cpu=True, move_channels=True):
     # (..., C, H, W)
     assert x.ndim >= 3, 'image must have 3 or more dimensions: (..., C, H, W)'
@@ -148,6 +150,7 @@ def to_imgs(x: torch.Tensor, scale=False, to_cpu=True, move_channels=True):
     return x
 
 
+# TODO: similar functions exist: output_image
 def show_img(x: torch.Tensor, scale=False, i=None, step=None, show=True):
     if show:
         if (i is None) or (step is None) or (i % step == 0):
@@ -157,6 +160,7 @@ def show_img(x: torch.Tensor, scale=False, i=None, step=None, show=True):
             plt.show()
 
 
+# TODO: similar functions exist: output_image
 def show_imgs(xs: Sequence[torch.Tensor], scale=False, i=None, step=None, show=True):
     if show:
         if (i is None) or (step is None) or (i % step == 0):
@@ -481,11 +485,11 @@ def plt_hide_axis(ax, hide_xaxis=True, hide_yaxis=True, hide_border=True, hide_a
 class _TraversalTasks(object):
 
     @staticmethod
-    def factor_idxs(gt_data=IN, factor_names=IN):
+    def task__factor_idxs(gt_data=IN, factor_names=IN):
         return get_factor_idxs(gt_data, factor_names)
 
     @staticmethod
-    def factors(factor_idxs=TASK, gt_data=IN, seed=IN, base_factors=IN, num=IN):
+    def task__factors(factor_idxs=TASK, gt_data=IN, seed=IN, base_factors=IN, num=IN):
         with TempNumpySeed(seed):
             return np.stack([
                 gt_data.sample_random_factor_traversal(f_idx, base_factors=base_factors, num=num, mode='cycle')
@@ -493,39 +497,39 @@ class _TraversalTasks(object):
             ], axis=0)
 
     @staticmethod
-    def raw_grid(factors=TASK, gt_data=IN, data_mode=IN):
+    def task__raw_grid(factors=TASK, gt_data=IN, data_mode=IN):
         return [gt_data.dataset_batch_from_factors(f, mode=data_mode) for f in factors]
 
     @staticmethod
-    def aug_grid(raw_grid=TASK, augment_fn=IN):
+    def task__aug_grid(raw_grid=TASK, augment_fn=IN):
         if augment_fn is not None:
             return [augment_fn(batch) for batch in raw_grid]
         return raw_grid
 
     @staticmethod
-    def grid(aug_grid=TASK):
+    def task__grid(aug_grid=TASK):
         return np.stack(aug_grid, axis=0)
 
     @staticmethod
-    def image(grid=TASK, num=IN):
+    def task__image(grid=TASK, num=IN):
         return make_image_grid(np.concatenate(grid, axis=0), pad=4, border=True, bg_color=None, num_cols=num)
 
     @staticmethod
-    def animation(grid=TASK):
+    def task__animation(grid=TASK):
         return make_animated_image_grid(np.stack(grid, axis=0), pad=4, border=True, bg_color=None, num_cols=None)
 
     @staticmethod
-    def wandb_image(image=TASK):
+    def task__image_wandb(image=TASK):
         import wandb
         return wandb.Image(image)
 
     @staticmethod
-    def wandb_animation(animation=TASK):
+    def task__animation_wandb(animation=TASK):
         import wandb
         return wandb.Video(np.transpose(animation, [0, 3, 1, 2]), fps=5, format='mp4')
 
     @staticmethod
-    def plt_image(image=TASK):
+    def task__image_plt(image=TASK):
         import matplotlib.pyplot as plt
         figsize = tuple(np.array(image.shape[:2][::-1]) * 0.02)
         fig, ax = plt.subplots(figsize=figsize)
@@ -554,7 +558,18 @@ def dataset_traversal_tasks(
     data_mode: str = 'raw',
 ):
     """
-    TODO: add documentation...
+    Generic function that can return multiple parts of the dataset & factor traversal pipeline.
+    - This only evaluates what is needed to compute the next components.
+
+    Tasks include:
+        - factor_idxs
+        - factors
+        - grid
+        - image
+        - image_wandb
+        - image_plt
+        - animation
+        - animation_wandb
     """
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     # normalise dataset
@@ -564,16 +579,16 @@ def dataset_traversal_tasks(
     return TaskHandler.compute(
         task_names=tasks,
         task_fns=(
-            _TraversalTasks.factor_idxs,
-            _TraversalTasks.factors,
-            _TraversalTasks.raw_grid,
-            _TraversalTasks.aug_grid,
-            _TraversalTasks.grid,
-            _TraversalTasks.image,
-            _TraversalTasks.animation,
-            _TraversalTasks.wandb_image,
-            _TraversalTasks.wandb_animation,
-            _TraversalTasks.plt_image,
+            _TraversalTasks.task__factor_idxs,
+            _TraversalTasks.task__factors,
+            _TraversalTasks.task__raw_grid,
+            _TraversalTasks.task__aug_grid,
+            _TraversalTasks.task__grid,
+            _TraversalTasks.task__image,
+            _TraversalTasks.task__animation,
+            _TraversalTasks.task__image_wandb,
+            _TraversalTasks.task__animation_wandb,
+            _TraversalTasks.task__image_plt,
         ),
         symbols=dict(
             gt_data=gt_data,

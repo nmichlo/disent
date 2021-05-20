@@ -181,6 +181,10 @@ def load_model(model, path, cuda=True, fail_if_missing=True):
 
 
 def chunked(arr, chunk_size: int, include_remainder=True):
+    """
+    return an array of array chucks of size chunk_size.
+    This is NOT an iterable, and returns all the data.
+    """
     size = (len(arr) + chunk_size - 1) if include_remainder else len(arr)
     return [arr[chunk_size*i:chunk_size*(i+1)] for i in range(size // chunk_size)]
 
@@ -238,6 +242,7 @@ def collect_dicts(results: List[dict]):
     return {k: list(v) for k, v in zip(keys, values)}
 
 
+# TODO: this shouldn't be here
 def aggregate_dict(results: dict, reduction='mean'):
     assert reduction == 'mean', 'mean is the only mode supported'
     return {
@@ -250,7 +255,6 @@ def aggregate_dict(results: dict, reduction='mean'):
 # ========================================================================= #
 
 
-# TODO: make this return a string not actually print out so it can be used with logging
 def make_separator_str(text, header=None, width=100, char_v='#', char_h='=', char_corners=None):
     """
     function wraps text between two lines or inside a box with lines on either side.
