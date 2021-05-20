@@ -166,26 +166,19 @@ class Kernel(DisentModule):
             def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
                 # get kernel image
                 kernel = H.to_img(pl_module.model._kernel[0], scale=True).numpy()
+                # augment function
+                def activation_fn(batch):
+                    return H.to_imgs(pl_module.forward(batch.to(pl_module.device)), scale=True)
                 # get augmented traversals
                 with torch.no_grad():
-                    traversals_orig = H.dataset_make_traversals(dataset, num_cols=9, seed=777, mode='target')
-                    traversals_augm = [pl_module.forward(traversal.to(device=pl_module.device)) for traversal in traversals_orig]
-                    traversals_orig = H.to_imgs(torch.stack(traversals_orig), scale=False).numpy()
-                    traversals_augm = H.to_imgs(torch.stack(traversals_augm), scale=True).numpy()
-                    frames_orig = make_animated_image_grid(traversals_orig)
-                    frames_augm = make_animated_image_grid(traversals_augm)
-                    traversals_orig = make_image_grid(traversals_orig[:, :9].reshape(-1, *traversals_orig.shape[2:]), num_cols=9)
-                    traversals_augm = make_image_grid(traversals_augm[:, :9].reshape(-1, *traversals_augm.shape[2:]), num_cols=9)
+                    orig_wandb_grid, orig_wandb_animation = H.dataset_traversal_tasks(dataset, tasks=('wandb_grid', 'wandb_animation'))
+                    augm_wandb_grid, augm_wandb_animation = H.dataset_traversal_tasks(dataset, tasks=('wandb_grid', 'wandb_animation'), task_options=dict(activation_fn=activation_fn, mode='input'))
                 # log images to WANDB
-                wb_log_metrics(
-                    trainer.logger, {
-                        'kernel': wandb.Image(kernel),
-                        'frames_orig': wandb.Video(np.transpose(frames_orig, [0, 3, 1, 2]), fps=5, format='mp4'),
-                        'frames_augm': wandb.Video(np.transpose(frames_augm, [0, 3, 1, 2]), fps=5, format='mp4'),
-                        'traversals_orig': wandb.Image(traversals_orig),
-                        'traversals_augm': wandb.Image(traversals_augm),
-                    }
-                )
+                wb_log_metrics(trainer.logger, {
+                    'kernel': wandb.Image(kernel),
+                    'traversals_orig': orig_wandb_grid, 'frames_orig': orig_wandb_animation,
+                    'traversals_augm': augm_wandb_grid, 'frames_augm': augm_wandb_animation,
+                })
         return ImShowCallback(every_n_steps=cfg.exp.show_every_n_steps, begin_first_step=True)
 
     def augment_loss(self, framework: DisentLightningModule):

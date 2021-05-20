@@ -53,6 +53,10 @@ from disent.util import TempNumpySeed
 from disent.visualize.visualize_util import make_animated_image_grid
 from disent.visualize.visualize_util import make_image_grid
 
+from experiment.exp.util.tasks import _INPUT_
+from experiment.exp.util.tasks import _COMPUTED_
+from experiment.exp.util.tasks import Tasks
+
 # ========================================================================= #
 # optimizer                                                                 #
 # ========================================================================= #
@@ -528,6 +532,85 @@ def dataset_make_animated_image_grid(
     if return_traversals:
         return image, images
     return image
+
+
+# ========================================================================= #
+# Dataset Visualisation / Traversals                                        #
+# ========================================================================= #
+
+
+# factors
+def _task__factor_idxs(gt_data=_INPUT_, factor_names=_INPUT_):
+    return get_factor_idxs(gt_data, factor_names)
+def _task__factors(gt_data=_INPUT_, seed=_INPUT_, base_factors=_INPUT_, num=_INPUT_, factor_idxs=_COMPUTED_):
+    with TempNumpySeed(seed):
+        return np.stack([gt_data.sample_random_cycle_factors(f_idx, base_factors=base_factors, num=num) for f_idx in factor_idxs], axis=0)
+
+# orig raw frames
+def _task__raw_frames(gt_data=_INPUT_, factors=_COMPUTED_, mode='raw'):
+    return [gt_data.dataset_batch_from_factors(f, mode=mode) for f in factors]
+def _task__aug_frames(raw_frames=_COMPUTED_, activation_fn=None):
+    if activation_fn is not None:
+        return [activation_fn(batch) for batch in raw_frames]
+    return raw_frames
+def _task__frames(aug_frames=_COMPUTED_):
+    return np.stack(aug_frames, axis=0)
+
+# orig animation
+def _task__grid(num=_INPUT_, frames=_COMPUTED_):
+    return make_image_grid(np.concatenate(frames, axis=0), pad=4, border=True, bg_color=None, num_cols=num)
+def _task__animation(frames=_COMPUTED_):
+    return make_animated_image_grid(np.stack(frames, axis=0), pad=4, border=True, bg_color=None, num_cols=None)
+def _task__wandb_grid(grid=_COMPUTED_):
+    import wandb
+    return wandb.Image(grid)
+def _task__wandb_animation(animation=_COMPUTED_):
+    import wandb
+    return wandb.Video(np.transpose(animation, [0, 3, 1, 2]), fps=5, format='mp4')
+
+# tasks
+_TRAVERSAL_TASKS = Tasks([
+    _task__factor_idxs,
+    _task__factors,
+    _task__raw_frames,
+    _task__aug_frames,
+    _task__frames,
+    _task__grid,
+    _task__animation,
+    _task__wandb_grid,
+    _task__wandb_animation,
+])
+
+
+def dataset_traversal_tasks(
+    gt_data: Union[GroundTruthData, GroundTruthDataset],
+    # inputs
+    factor_names: Optional[NonNormalisedFactors] = None,
+    num: int = 9,
+    seed: int = 777,
+    base_factors=None,
+    # task settings
+    tasks: Union[str, Sequence[str]] = 'frames',
+    task_result_overrides: Optional[Dict[str, Any]] = None,
+    task_options: Optional[Dict[str, Any]] = None,
+):
+    # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+    # normalise dataset
+    if not isinstance(gt_data, GroundTruthDataset):
+        gt_data = GroundTruthDataset(gt_data)
+    # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+    return _TRAVERSAL_TASKS.compute(
+        tasks=tasks,
+        inputs=dict(
+            gt_data=gt_data,
+            factor_names=factor_names,
+            num=num,
+            seed=seed,
+            base_factors=base_factors,
+        ),
+        result_overrides=task_result_overrides,
+        options=task_options,
+    )
 
 
 # ========================================================================= #
