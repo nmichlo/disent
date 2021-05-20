@@ -167,17 +167,17 @@ class Kernel(DisentModule):
                 # get kernel image
                 kernel = H.to_img(pl_module.model._kernel[0], scale=True).numpy()
                 # augment function
-                def activation_fn(batch):
+                def augment_fn(batch):
                     return H.to_imgs(pl_module.forward(batch.to(pl_module.device)), scale=True)
                 # get augmented traversals
                 with torch.no_grad():
-                    orig_wandb_grid, orig_wandb_animation = H.dataset_traversal_tasks(dataset, tasks=('wandb_grid', 'wandb_animation'))
-                    augm_wandb_grid, augm_wandb_animation = H.dataset_traversal_tasks(dataset, tasks=('wandb_grid', 'wandb_animation'), task_options=dict(activation_fn=activation_fn, mode='input'))
+                    orig_wandb_image, orig_wandb_animation = H.dataset_traversal_tasks(dataset, tasks=('wandb_image', 'wandb_animation'))
+                    augm_wandb_image, augm_wandb_animation = H.dataset_traversal_tasks(dataset, tasks=('wandb_image', 'wandb_animation'), augment_fn=augment_fn, data_mode='input')
                 # log images to WANDB
                 wb_log_metrics(trainer.logger, {
                     'kernel': wandb.Image(kernel),
-                    'traversals_orig': orig_wandb_grid, 'frames_orig': orig_wandb_animation,
-                    'traversals_augm': augm_wandb_grid, 'frames_augm': augm_wandb_animation,
+                    'traversal_img_orig': orig_wandb_image, 'traversal_animation_orig': orig_wandb_animation,
+                    'traversal_img_augm': augm_wandb_image, 'traversal_animation_augm': augm_wandb_animation,
                 })
         return ImShowCallback(every_n_steps=cfg.exp.show_every_n_steps, begin_first_step=True)
 

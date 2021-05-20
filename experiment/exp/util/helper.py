@@ -171,21 +171,6 @@ def show_imgs(xs: Sequence[torch.Tensor], scale=False, i=None, step=None, show=T
             plt.show()
 
 
-def grid_img(xs: torch.Tensor, scale=False, pad=8, border=True, bg_color=0.5, num_cols=None) -> np.ndarray:
-    assert xs.ndim == 4, 'channels must be: (I, C, H, W)'
-    imgs = [to_img(x, scale=scale).cpu().numpy() for x in xs]
-    # create grid
-    return make_image_grid(imgs, pad=pad, border=border, bg_color=bg_color, num_cols=num_cols)
-
-
-def grid_animation(xs: torch.Tensor, scale=False, pad=8, border=True, bg_color=0.5, num_cols=None) -> np.ndarray:
-    assert xs.ndim == 5, 'channels must be: (I, F, C, H, W)'
-    frames = []
-    for f in range(xs.shape[1]):
-        frames.append(grid_img(xs[:, f, :, :, :], scale=scale, pad=pad, border=border, bg_color=bg_color, num_cols=num_cols))
-    return np.array(frames)
-
-
 # ========================================================================= #
 # LOSS                                                                      #
 # ========================================================================= #
@@ -254,12 +239,14 @@ def normalise_factor_idx(dataset, factor: Union[int, str]) -> int:
             raise KeyError(f'{repr(factor)} is not one of: {dataset.factor_names}')
     else:
         f_idx = factor
-    assert isinstance(f_idx, int)
+    assert isinstance(f_idx, (int, np.int32, np.int64, np.uint8))
     assert 0 <= f_idx < dataset.num_factors
-    return f_idx
+    return int(f_idx)
+
 
 # general type
 NonNormalisedFactors = Union[Sequence[Union[int, str]], Union[int, str]]
+
 
 def normalise_factor_idxs(dataset: GroundTruthDataset, factors: NonNormalisedFactors) -> np.ndarray:
     if isinstance(factors, (int, str)):
@@ -268,12 +255,14 @@ def normalise_factor_idxs(dataset: GroundTruthDataset, factors: NonNormalisedFac
     assert len(set(factors)) == len(factors)
     return factors
 
+
 def get_factor_idxs(dataset: GroundTruthDataset, factors: Optional[NonNormalisedFactors] = None):
     if factors is None:
         return np.arange(dataset.num_factors)
     return normalise_factor_idxs(dataset, factors)
 
 
+# TODO: clean this up
 def sample_factors(dataset, num_obs: int = 1024, factor_mode: str = 'sample_random', factor: Union[int, str] = None):
     # sample multiple random factor traversals
     if factor_mode == 'sample_traversals':
@@ -283,7 +272,7 @@ def sample_factors(dataset, num_obs: int = 1024, factor_mode: str = 'sample_rand
         # generate traversals
         factors = []
         for i in range((num_obs + dataset.factor_sizes[f_idx] - 1) // dataset.factor_sizes[f_idx]):
-            factors.append(dataset.sample_random_traversal_factors(f_idx=f_idx))
+            factors.append(dataset.sample_random_factor_traversal(f_idx=f_idx))
         factors = np.concatenate(factors, axis=0)
     elif factor_mode == 'sample_random':
         factors = dataset.sample_factors(num_obs)
@@ -292,6 +281,7 @@ def sample_factors(dataset, num_obs: int = 1024, factor_mode: str = 'sample_rand
     return factors
 
 
+# TODO: move into dataset class
 def sample_batch_and_factors(dataset, num_samples: int, factor_mode: str = 'sample_random', factor: Union[int, str] = None, device=None):
     factors = sample_factors(dataset, num_obs=num_samples, factor_mode=factor_mode, factor=factor)
     batch = dataset.dataset_batch_from_factors(factors, mode='target').to(device=device)
@@ -459,83 +449,7 @@ def StochasticBatchSampler(data_source: Union[Sized, int], batch_size: int):
 
 
 # ========================================================================= #
-# Dataset Visualisation / Traversals                                        #
-# ========================================================================= #
-
-
-def dataset_make_traversals(
-    gt_data: Union[GroundTruthData, GroundTruthDataset],
-    f_idxs: Optional[NonNormalisedFactors] = None,
-    factors: Optional[np.ndarray] = None,
-    num_cols: int = 8,
-    seed: int = 777,
-    cyclic: bool = True,
-    mode: str = 'raw'
-):
-    assert isinstance(num_cols, int) and num_cols > 0, 'num_cols must be specified.'
-    with TempNumpySeed(seed):
-        # get defaults
-        if not isinstance(gt_data, GroundTruthDataset):
-            gt_data = GroundTruthDataset(gt_data)
-        f_idxs = get_factor_idxs(gt_data, f_idxs)
-        # sample traversals
-        traversals = []
-        for f_idx in f_idxs:
-            traversal_factors = gt_data.sample_random_cycle_factors(f_idx, base_factors=factors, num=num_cols)
-            if cyclic:
-                traversal_factors = np.concatenate([traversal_factors, traversal_factors[1:-1][::-1]], axis=0)  # TODO: replace with cycle_factor from visualise_util
-            # get observations
-            if mode == 'raw_f32':
-                traversal = gt_data.dataset_batch_from_factors(traversal_factors, mode='raw').astype(np.float32) / 255.0  # TODO: we shouldn't divide here?
-            else:
-                traversal = gt_data.dataset_batch_from_factors(traversal_factors, mode=mode)
-            traversals.append(traversal)
-    # return grid
-    if mode == 'raw_f32':
-        return np.stack(traversals)  # (F, N, H, W, C)
-    else:
-        return traversals
-
-
-def dataset_make_image_grid(
-    gt_data: Union[GroundTruthData, GroundTruthDataset],
-    f_idxs: Optional[NonNormalisedFactors] = None,
-    factors: Optional[np.ndarray] = None,
-    num_cols: int = 8,
-    pad: int = 8,
-    bg_color=1.0,
-    border: bool = False,
-    seed: int = 777,
-    return_traversals: int = False,
-):
-    images = dataset_make_traversals(gt_data, f_idxs=f_idxs, factors=factors, num_cols=num_cols, seed=seed, cyclic=False, mode='raw_f32')
-    image = make_image_grid(images.reshape(np.prod(images.shape[:2]), *images.shape[2:]), pad=pad, bg_color=bg_color, border=border, num_cols=images.shape[1])
-    if return_traversals:
-        return image, images
-    return image
-
-
-def dataset_make_animated_image_grid(
-    gt_data: Union[GroundTruthData, GroundTruthDataset],
-    f_idxs: Optional[NonNormalisedFactors] = None,
-    factors: Optional[np.ndarray] = None,
-    num_cols: int = 8,
-    pad: int = 8,
-    bg_color=1.0,
-    border: bool = False,
-    seed: int = 777,
-    return_traversals: bool = False,
-    cyclic: bool = True,
-):
-    images = dataset_make_traversals(gt_data, f_idxs=f_idxs, factors=factors, num_cols=num_cols, seed=seed, cyclic=cyclic, mode='raw_f32')
-    image = make_animated_image_grid(images, pad=pad, bg_color=bg_color, border=border, num_cols=None)
-    if return_traversals:
-        return image, images
-    return image
-
-
-# ========================================================================= #
-# Dataset Visualisation / Traversals                                        #
+# Dataset Visualisation / Traversals -- HELPER                              #
 # ========================================================================= #
 
 
@@ -544,26 +458,26 @@ def _task__factor_idxs(gt_data=_INPUT_, factor_names=_INPUT_):
     return get_factor_idxs(gt_data, factor_names)
 def _task__factors(gt_data=_INPUT_, seed=_INPUT_, base_factors=_INPUT_, num=_INPUT_, factor_idxs=_COMPUTED_):
     with TempNumpySeed(seed):
-        return np.stack([gt_data.sample_random_cycle_factors(f_idx, base_factors=base_factors, num=num) for f_idx in factor_idxs], axis=0)
+        return np.stack([gt_data.sample_random_factor_traversal(f_idx, base_factors=base_factors, num=num, mode='cycle') for f_idx in factor_idxs], axis=0)
 
-# orig raw frames
-def _task__raw_frames(gt_data=_INPUT_, factors=_COMPUTED_, mode='raw'):
-    return [gt_data.dataset_batch_from_factors(f, mode=mode) for f in factors]
-def _task__aug_frames(raw_frames=_COMPUTED_, activation_fn=None):
+# orig raw grid
+def _task__raw_grid(gt_data=_INPUT_, factors=_COMPUTED_, data_mode='raw'):
+    return [gt_data.dataset_batch_from_factors(f, mode=data_mode) for f in factors]
+def _task__aug_grid(raw_grid=_COMPUTED_, activation_fn=None):
     if activation_fn is not None:
-        return [activation_fn(batch) for batch in raw_frames]
-    return raw_frames
-def _task__frames(aug_frames=_COMPUTED_):
-    return np.stack(aug_frames, axis=0)
+        return [activation_fn(batch) for batch in raw_grid]
+    return raw_grid
+def _task__grid(aug_grid=_COMPUTED_):
+    return np.stack(aug_grid, axis=0)
 
 # orig animation
-def _task__grid(num=_INPUT_, frames=_COMPUTED_):
-    return make_image_grid(np.concatenate(frames, axis=0), pad=4, border=True, bg_color=None, num_cols=num)
-def _task__animation(frames=_COMPUTED_):
-    return make_animated_image_grid(np.stack(frames, axis=0), pad=4, border=True, bg_color=None, num_cols=None)
-def _task__wandb_grid(grid=_COMPUTED_):
+def _task__image(num=_INPUT_, grid=_COMPUTED_):
+    return make_image_grid(np.concatenate(grid, axis=0), pad=4, border=True, bg_color=None, num_cols=num)
+def _task__animation(grid=_COMPUTED_):
+    return make_animated_image_grid(np.stack(grid, axis=0), pad=4, border=True, bg_color=None, num_cols=None)
+def _task__wandb_image(image=_COMPUTED_):
     import wandb
-    return wandb.Image(grid)
+    return wandb.Image(image)
 def _task__wandb_animation(animation=_COMPUTED_):
     import wandb
     return wandb.Video(np.transpose(animation, [0, 3, 1, 2]), fps=5, format='mp4')
@@ -572,28 +486,37 @@ def _task__wandb_animation(animation=_COMPUTED_):
 _TRAVERSAL_TASKS = Tasks([
     _task__factor_idxs,
     _task__factors,
-    _task__raw_frames,
-    _task__aug_frames,
-    _task__frames,
+    _task__raw_grid,
+    _task__aug_grid,
     _task__grid,
+    _task__image,
     _task__animation,
-    _task__wandb_grid,
+    _task__wandb_image,
     _task__wandb_animation,
 ])
 
 
+# ========================================================================= #
+# Dataset Visualisation / Traversals                                        #
+# ========================================================================= #
+
+
 def dataset_traversal_tasks(
     gt_data: Union[GroundTruthData, GroundTruthDataset],
+    # task settings
+    tasks: Union[str, Sequence[str]] = 'grid',
     # inputs
     factor_names: Optional[NonNormalisedFactors] = None,
     num: int = 9,
     seed: int = 777,
     base_factors=None,
-    # task settings
-    tasks: Union[str, Sequence[str]] = 'frames',
-    task_result_overrides: Optional[Dict[str, Any]] = None,
-    task_options: Optional[Dict[str, Any]] = None,
+    # augment
+    augment_fn=None,
+    data_mode='raw',
 ):
+    """
+    TODO: add documentation...
+    """
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     # normalise dataset
     if not isinstance(gt_data, GroundTruthDataset):
@@ -608,8 +531,7 @@ def dataset_traversal_tasks(
             seed=seed,
             base_factors=base_factors,
         ),
-        result_overrides=task_result_overrides,
-        options=task_options,
+        options=dict(activation_fn=augment_fn, data_mode=data_mode),
     )
 
 
