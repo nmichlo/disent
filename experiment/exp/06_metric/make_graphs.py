@@ -35,6 +35,7 @@ from tqdm import tqdm
 from disent.metrics._flatness_components import compute_axis_score
 from disent.metrics._flatness_components import compute_linear_score
 from disent.util import seed
+from experiment.exp.util.helper import plt_hide_axis
 from experiment.exp.util.io_util import make_rel_path_add_ext
 
 
@@ -308,28 +309,6 @@ def make_ave_scores_plot(
 # ========================================================================= #
 
 
-# TODO: move this into helper
-def plot_hide_axis(ax, hide_xaxis=True, hide_yaxis=True, hide_border=True, hide_axis_labels=False, hide_axis_ticks=True):
-    if hide_xaxis:
-        if hide_axis_ticks:
-            ax.set_xticks([])
-            ax.set_xticklabels([])
-        if hide_axis_labels:
-            ax.xaxis.label.set_visible(False)
-    if hide_yaxis:
-        if hide_axis_ticks:
-            ax.set_yticks([])
-            ax.set_yticklabels([])
-        if hide_axis_labels:
-            ax.yaxis.label.set_visible(False)
-    if hide_border:
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        ax.spines['bottom'].set_visible(False)
-        ax.spines['left'].set_visible(False)
-    return ax
-
-
 def plot_scores(ax, axis_score, linear_score):
     assert 0 <= linear_score <= 1
     assert 0 <= axis_score <= 1
@@ -353,7 +332,7 @@ def plot_remove_inner_grid_ticks(axs, hide_axis_labels=False, hide_axis_ticks=Tr
     h, w = axs.shape
     for y, ax_row in enumerate(axs):
         for x, ax in enumerate(ax_row):
-            plot_hide_axis(ax, hide_xaxis=(y != h-1), hide_yaxis=(x != 0), hide_border=True, hide_axis_labels=hide_axis_labels, hide_axis_ticks=hide_axis_ticks)
+            plt_hide_axis(ax, hide_xaxis=(y != h - 1), hide_yaxis=(x != 0), hide_border=True, hide_axis_labels=hide_axis_labels, hide_axis_ticks=hide_axis_ticks)
 
 
 # ========================================================================= #
@@ -409,7 +388,7 @@ def make_grid_gaussian_score_plot(
             # generate subplots
             ax = axs[y, x]
             plot_gaussian(deg=deg, sigma=sigma, dots_num=dots_num, ax=ax, contour_trunc_sigma=x_std * 2.05, contour_kwargs=subplot_contour_kwargs, dots_kwargs=subplot_dots_kwargs)
-            plot_hide_axis(ax)
+            plt_hide_axis(ax)
             plot_scores(ax, axis_score=axis_score, linear_score=linear_score)
             # modify ax
             if y == nrows-1:

@@ -24,12 +24,11 @@
 
 import inspect
 import os
-from typing import Any
-from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Sequence
 from typing import Sized
+from typing import Tuple
 from typing import Union
 
 import numpy as np
@@ -53,9 +52,9 @@ from disent.util import TempNumpySeed
 from disent.visualize.visualize_util import make_animated_image_grid
 from disent.visualize.visualize_util import make_image_grid
 
-from experiment.exp.util.tasks import _INPUT_
-from experiment.exp.util.tasks import _COMPUTED_
-from experiment.exp.util.tasks import Tasks
+from experiment.exp.util.tasks import IN
+from experiment.exp.util.tasks import TASK
+from experiment.exp.util.tasks import TaskHandler
 
 # ========================================================================= #
 # optimizer                                                                 #
@@ -449,51 +448,91 @@ def StochasticBatchSampler(data_source: Union[Sized, int], batch_size: int):
 
 
 # ========================================================================= #
+# Matplotlib Helper                                                         #
+# ========================================================================= #
+
+
+def plt_hide_axis(ax, hide_xaxis=True, hide_yaxis=True, hide_border=True, hide_axis_labels=False, hide_axis_ticks=True):
+    if hide_xaxis:
+        if hide_axis_ticks:
+            ax.set_xticks([])
+            ax.set_xticklabels([])
+        if hide_axis_labels:
+            ax.xaxis.label.set_visible(False)
+    if hide_yaxis:
+        if hide_axis_ticks:
+            ax.set_yticks([])
+            ax.set_yticklabels([])
+        if hide_axis_labels:
+            ax.yaxis.label.set_visible(False)
+    if hide_border:
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+    return ax
+
+
+# ========================================================================= #
 # Dataset Visualisation / Traversals -- HELPER                              #
 # ========================================================================= #
 
 
-# factors
-def _task__factor_idxs(gt_data=_INPUT_, factor_names=_INPUT_):
-    return get_factor_idxs(gt_data, factor_names)
-def _task__factors(gt_data=_INPUT_, seed=_INPUT_, base_factors=_INPUT_, num=_INPUT_, factor_idxs=_COMPUTED_):
-    with TempNumpySeed(seed):
-        return np.stack([gt_data.sample_random_factor_traversal(f_idx, base_factors=base_factors, num=num, mode='cycle') for f_idx in factor_idxs], axis=0)
+class _TraversalTasks(object):
 
-# orig raw grid
-def _task__raw_grid(gt_data=_INPUT_, factors=_COMPUTED_, data_mode='raw'):
-    return [gt_data.dataset_batch_from_factors(f, mode=data_mode) for f in factors]
-def _task__aug_grid(raw_grid=_COMPUTED_, activation_fn=None):
-    if activation_fn is not None:
-        return [activation_fn(batch) for batch in raw_grid]
-    return raw_grid
-def _task__grid(aug_grid=_COMPUTED_):
-    return np.stack(aug_grid, axis=0)
+    @staticmethod
+    def factor_idxs(gt_data=IN, factor_names=IN):
+        return get_factor_idxs(gt_data, factor_names)
 
-# orig animation
-def _task__image(num=_INPUT_, grid=_COMPUTED_):
-    return make_image_grid(np.concatenate(grid, axis=0), pad=4, border=True, bg_color=None, num_cols=num)
-def _task__animation(grid=_COMPUTED_):
-    return make_animated_image_grid(np.stack(grid, axis=0), pad=4, border=True, bg_color=None, num_cols=None)
-def _task__wandb_image(image=_COMPUTED_):
-    import wandb
-    return wandb.Image(image)
-def _task__wandb_animation(animation=_COMPUTED_):
-    import wandb
-    return wandb.Video(np.transpose(animation, [0, 3, 1, 2]), fps=5, format='mp4')
+    @staticmethod
+    def factors(factor_idxs=TASK, gt_data=IN, seed=IN, base_factors=IN, num=IN):
+        with TempNumpySeed(seed):
+            return np.stack([
+                gt_data.sample_random_factor_traversal(f_idx, base_factors=base_factors, num=num, mode='cycle')
+                for f_idx in factor_idxs
+            ], axis=0)
 
-# tasks
-_TRAVERSAL_TASKS = Tasks([
-    _task__factor_idxs,
-    _task__factors,
-    _task__raw_grid,
-    _task__aug_grid,
-    _task__grid,
-    _task__image,
-    _task__animation,
-    _task__wandb_image,
-    _task__wandb_animation,
-])
+    @staticmethod
+    def raw_grid(factors=TASK, gt_data=IN, data_mode=IN):
+        return [gt_data.dataset_batch_from_factors(f, mode=data_mode) for f in factors]
+
+    @staticmethod
+    def aug_grid(raw_grid=TASK, augment_fn=IN):
+        if augment_fn is not None:
+            return [augment_fn(batch) for batch in raw_grid]
+        return raw_grid
+
+    @staticmethod
+    def grid(aug_grid=TASK):
+        return np.stack(aug_grid, axis=0)
+
+    @staticmethod
+    def image(grid=TASK, num=IN):
+        return make_image_grid(np.concatenate(grid, axis=0), pad=4, border=True, bg_color=None, num_cols=num)
+
+    @staticmethod
+    def animation(grid=TASK):
+        return make_animated_image_grid(np.stack(grid, axis=0), pad=4, border=True, bg_color=None, num_cols=None)
+
+    @staticmethod
+    def wandb_image(image=TASK):
+        import wandb
+        return wandb.Image(image)
+
+    @staticmethod
+    def wandb_animation(animation=TASK):
+        import wandb
+        return wandb.Video(np.transpose(animation, [0, 3, 1, 2]), fps=5, format='mp4')
+
+    @staticmethod
+    def plt_image(image=TASK):
+        import matplotlib.pyplot as plt
+        figsize = tuple(np.array(image.shape[:2][::-1]) * 0.02)
+        fig, ax = plt.subplots(figsize=figsize)
+        ax.imshow(image)
+        plt_hide_axis(ax)
+        fig.tight_layout()
+        return fig, ax
 
 
 # ========================================================================= #
@@ -504,15 +543,15 @@ _TRAVERSAL_TASKS = Tasks([
 def dataset_traversal_tasks(
     gt_data: Union[GroundTruthData, GroundTruthDataset],
     # task settings
-    tasks: Union[str, Sequence[str]] = 'grid',
+    tasks: Union[str, Tuple[str, ...]] = 'grid',
     # inputs
     factor_names: Optional[NonNormalisedFactors] = None,
     num: int = 9,
     seed: int = 777,
     base_factors=None,
     # augment
-    augment_fn=None,
-    data_mode='raw',
+    augment_fn: callable = None,
+    data_mode: str = 'raw',
 ):
     """
     TODO: add documentation...
@@ -522,16 +561,31 @@ def dataset_traversal_tasks(
     if not isinstance(gt_data, GroundTruthDataset):
         gt_data = GroundTruthDataset(gt_data)
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-    return _TRAVERSAL_TASKS.compute(
-        tasks=tasks,
-        inputs=dict(
+    return TaskHandler.compute(
+        task_names=tasks,
+        task_fns=(
+            _TraversalTasks.factor_idxs,
+            _TraversalTasks.factors,
+            _TraversalTasks.raw_grid,
+            _TraversalTasks.aug_grid,
+            _TraversalTasks.grid,
+            _TraversalTasks.image,
+            _TraversalTasks.animation,
+            _TraversalTasks.wandb_image,
+            _TraversalTasks.wandb_animation,
+            _TraversalTasks.plt_image,
+        ),
+        symbols=dict(
             gt_data=gt_data,
+            augment_fn=augment_fn,
+            base_factors=base_factors,
+            data_mode=data_mode,
             factor_names=factor_names,
             num=num,
             seed=seed,
-            base_factors=base_factors,
         ),
-        options=dict(activation_fn=augment_fn, data_mode=data_mode),
+        strict=True,
+        disable_options=True,
     )
 
 
