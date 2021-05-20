@@ -24,10 +24,12 @@
 
 import inspect
 import os
-from collections import Sized
+from typing import Any
+from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Sequence
+from typing import Sized
 from typing import Union
 
 import numpy as np
@@ -111,12 +113,12 @@ def get_single_batch(dataloader, cuda=True):
 # ========================================================================= #
 
 
-def to_img(x: torch.Tensor, scale=False, to_cpu=True):
+def to_img(x: torch.Tensor, scale=False, to_cpu=True, move_channels=True):
     assert x.ndim == 3, 'image must have 3 dimensions: (C, H, W)'
-    return to_imgs(x, scale=scale, to_cpu=to_cpu)
+    return to_imgs(x, scale=scale, to_cpu=to_cpu, move_channels=move_channels)
 
 
-def to_imgs(x: torch.Tensor, scale=False, to_cpu=True):
+def to_imgs(x: torch.Tensor, scale=False, to_cpu=True, move_channels=True):
     # (..., C, H, W)
     assert x.ndim >= 3, 'image must have 3 or more dimensions: (..., C, H, W)'
     assert x.dtype in {torch.float16, torch.float32, torch.float64, torch.complex32, torch.complex64}, f'unsupported dtype: {x.dtype}'
@@ -131,7 +133,8 @@ def to_imgs(x: torch.Tensor, scale=False, to_cpu=True):
             M = x.max(dim=-3, keepdim=True).values.max(dim=-2, keepdim=True).values.max(dim=-1, keepdim=True).values
             x = (x - m) / (M - m)
         # move axis
-        x = torch.moveaxis(x, -3, -1)
+        if move_channels:
+            x = torch.moveaxis(x, -3, -1)
         # to uint8
         x = torch.clamp(x, 0, 1)
         x = (x * 255).to(torch.uint8)
@@ -251,16 +254,17 @@ def normalise_factor_idx(dataset, factor: Union[int, str]) -> int:
     assert 0 <= f_idx < dataset.num_factors
     return f_idx
 
+# general type
+NonNormalisedFactors = Union[Sequence[Union[int, str]], Union[int, str]]
 
-def normalise_factor_idxs(dataset: GroundTruthDataset, factors: Union[Sequence[Union[int, str]], Union[int, str]]) -> np.ndarray:
+def normalise_factor_idxs(dataset: GroundTruthDataset, factors: NonNormalisedFactors) -> np.ndarray:
     if isinstance(factors, (int, str)):
         factors = [factors]
     factors = np.array([normalise_factor_idx(dataset, factor) for factor in factors])
     assert len(set(factors)) == len(factors)
     return factors
 
-
-def get_factor_idxs(dataset: GroundTruthDataset, factors: Optional[Union[Sequence[Union[int, str]], Union[int, str]]] = None):
+def get_factor_idxs(dataset: GroundTruthDataset, factors: Optional[NonNormalisedFactors] = None):
     if factors is None:
         return np.arange(dataset.num_factors)
     return normalise_factor_idxs(dataset, factors)
@@ -457,11 +461,14 @@ def StochasticBatchSampler(data_source: Union[Sized, int], batch_size: int):
 
 def dataset_make_traversals(
     gt_data: Union[GroundTruthData, GroundTruthDataset],
-    f_idxs=None, factors=None, num_cols=8,
-    seed=777,
-    cyclic=True,
-    mode='img'
+    f_idxs: Optional[NonNormalisedFactors] = None,
+    factors: Optional[np.ndarray] = None,
+    num_cols: int = 8,
+    seed: int = 777,
+    cyclic: bool = True,
+    mode: str = 'raw'
 ):
+    assert isinstance(num_cols, int) and num_cols > 0, 'num_cols must be specified.'
     with TempNumpySeed(seed):
         # get defaults
         if not isinstance(gt_data, GroundTruthDataset):
@@ -470,17 +477,17 @@ def dataset_make_traversals(
         # sample traversals
         traversals = []
         for f_idx in f_idxs:
-            traversal_factors = gt_data.sample_random_cycle_factors(f_idx, factors=factors, num=num_cols)
+            traversal_factors = gt_data.sample_random_cycle_factors(f_idx, base_factors=factors, num=num_cols)
             if cyclic:
                 traversal_factors = np.concatenate([traversal_factors, traversal_factors[1:-1][::-1]], axis=0)  # TODO: replace with cycle_factor from visualise_util
             # get observations
-            if mode == 'img':
-                traversal = gt_data.dataset_batch_from_factors(traversal_factors, mode='raw') / 255.0  # TODO: we shouldn't divide here?
+            if mode == 'raw_f32':
+                traversal = gt_data.dataset_batch_from_factors(traversal_factors, mode='raw').astype(np.float32) / 255.0  # TODO: we shouldn't divide here?
             else:
                 traversal = gt_data.dataset_batch_from_factors(traversal_factors, mode=mode)
             traversals.append(traversal)
     # return grid
-    if mode == 'img':
+    if mode == 'raw_f32':
         return np.stack(traversals)  # (F, N, H, W, C)
     else:
         return traversals
@@ -488,12 +495,16 @@ def dataset_make_traversals(
 
 def dataset_make_image_grid(
     gt_data: Union[GroundTruthData, GroundTruthDataset],
-    f_idxs=None, factors=None, num_cols=None,
-    pad=8, bg_color=1.0, border=False,
-    seed=777,
-    return_traversals=False,
+    f_idxs: Optional[NonNormalisedFactors] = None,
+    factors: Optional[np.ndarray] = None,
+    num_cols: int = 8,
+    pad: int = 8,
+    bg_color=1.0,
+    border: bool = False,
+    seed: int = 777,
+    return_traversals: int = False,
 ):
-    images = dataset_make_traversals(gt_data, f_idxs=f_idxs, factors=factors, num_cols=num_cols, seed=seed)
+    images = dataset_make_traversals(gt_data, f_idxs=f_idxs, factors=factors, num_cols=num_cols, seed=seed, cyclic=False, mode='raw_f32')
     image = make_image_grid(images.reshape(np.prod(images.shape[:2]), *images.shape[2:]), pad=pad, bg_color=bg_color, border=border, num_cols=images.shape[1])
     if return_traversals:
         return image, images
@@ -502,13 +513,17 @@ def dataset_make_image_grid(
 
 def dataset_make_animated_image_grid(
     gt_data: Union[GroundTruthData, GroundTruthDataset],
-    f_idxs=None, factors=None, num_cols=None,
-    pad=8, bg_color=1.0, border=False,
-    seed=777,
-    return_traversals=False,
-    cyclic=True,
+    f_idxs: Optional[NonNormalisedFactors] = None,
+    factors: Optional[np.ndarray] = None,
+    num_cols: int = 8,
+    pad: int = 8,
+    bg_color=1.0,
+    border: bool = False,
+    seed: int = 777,
+    return_traversals: bool = False,
+    cyclic: bool = True,
 ):
-    images = dataset_make_traversals(gt_data, f_idxs=f_idxs, factors=factors, num_cols=num_cols, seed=seed, cyclic=cyclic)
+    images = dataset_make_traversals(gt_data, f_idxs=f_idxs, factors=factors, num_cols=num_cols, seed=seed, cyclic=cyclic, mode='raw_f32')
     image = make_animated_image_grid(images, pad=pad, bg_color=bg_color, border=border, num_cols=None)
     if return_traversals:
         return image, images

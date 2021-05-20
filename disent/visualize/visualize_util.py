@@ -27,6 +27,7 @@ import warnings
 
 import numpy as np
 import scipy.stats
+import torch
 from PIL import Image
 
 from disent.util import to_numpy
@@ -40,7 +41,16 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def make_image_grid(images, pad=8, border=True, bg_color=0.5, num_cols=None):
+# get bg color -- TODO: add support for more
+_BG_COLOR_DTYPE_MAP = {
+    'uint8':   127, np.uint8:   127, torch.uint8:   127, np.dtype('uint8'):   127,
+    'float16': 0.5, np.float16: 0.5, torch.float16: 0.5, np.dtype('float16'): 0.5,
+    'float32': 0.5, np.float32: 0.5, torch.float32: 0.5, np.dtype('float32'): 0.5,
+    'float64': 0.5, np.float64: 0.5, torch.float64: 0.5, np.dtype('float64'): 0.5,
+}
+
+
+def make_image_grid(images, pad=8, border=True, bg_color=None, num_cols=None):
     """
     Convert a list of images into a single image that is a grid of those images.
     :param images: list of input images, all the same size: (I, H, W, C) or (I, H, W)
@@ -59,6 +69,9 @@ def make_image_grid(images, pad=8, border=True, bg_color=0.5, num_cols=None):
     img_size = img_shape[:2]
     if ndim == 3:
         assert (img_shape[2] == 1) or (img_shape[2] == 3), 'Invalid number of channels for an image.'
+    # get bg color
+    if bg_color is None:
+        bg_color = _BG_COLOR_DTYPE_MAP[images[0].dtype]
     # grid sizes
     num_rows, num_cols = _get_grid_size(len(images), num_cols=num_cols)
     grid_size = (img_size + pad) * [num_rows, num_cols] + (pad if border else -pad)
@@ -75,7 +88,7 @@ def make_image_grid(images, pad=8, border=True, bg_color=0.5, num_cols=None):
     return grid
 
 
-def make_animated_image_grid(list_of_animated_images, pad=8, border=True, bg_color=0.5, num_cols=None):
+def make_animated_image_grid(list_of_animated_images, pad=8, border=True, bg_color=None, num_cols=None):
     """
     :param list_of_animated_images: list of input images, with the second dimension the number of frames: : (I, F, H, W, C) or (I, F, H, W)
     :param pad: the number of pixels between images
