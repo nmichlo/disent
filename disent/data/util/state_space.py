@@ -24,6 +24,7 @@
 
 import numpy as np
 from disent.util import LengthIter
+from disent.visualize.visualize_util import get_factor_traversal
 
 
 # ========================================================================= #
@@ -158,6 +159,12 @@ class StateSpace(LengthIter):
         return self.sample_missing_factors(np.array(factors)[..., fixed_factor_indices], fixed_factor_indices)
 
     def _get_f_idx_and_factors_and_size(self, f_idx: int = None, base_factors=None, num: int = None):
+        """
+        :param f_idx: Sampled randomly in the range [0, num_factors) if not given.
+        :param base_factors: Sampled randomly from all possible factors if not given. Coerced into the shape (1, num_factors)
+        :param num: Set to the factor size `self.factor_sizes[f_idx]` if not given.
+        :return: All values above in a tuple.
+        """
         # choose a random factor if not given
         if f_idx is None:
             f_idx = np.random.randint(0, self.num_factors)
@@ -165,7 +172,7 @@ class StateSpace(LengthIter):
         if base_factors is None:
             base_factors = self.sample_factors(size=1)
         else:
-            base_factors = base_factors.reshape((1, self.num_factors))
+            base_factors = np.reshape(base_factors, (1, self.num_factors))
         # get size if not given
         if num is None:
             num = self.factor_sizes[f_idx]
@@ -176,22 +183,13 @@ class StateSpace(LengthIter):
         # return everything
         return f_idx, base_factors, num
 
-    def sample_random_traversal_factors(self, f_idx: int = None, base_factors=None) -> np.ndarray:
-        f_idx, base_factors, f_size = self._get_f_idx_and_factors_and_size(f_idx=f_idx, base_factors=base_factors, num=None)
+    def sample_random_factor_traversal(self, f_idx: int = None, base_factors=None, num: int = None, mode='interval') -> np.ndarray:
+        f_idx, base_factors, num = self._get_f_idx_and_factors_and_size(f_idx=f_idx, base_factors=base_factors, num=num)
         # generate traversal
-        base_factors[:, f_idx] = np.arange(f_size)
+        base_factors[:, f_idx] = get_factor_traversal(self.factor_sizes[f_idx], num_frames=num, mode=mode)
         # return factors
         return base_factors
 
-    def sample_random_cycle_factors(self, f_idx: int = None, base_factors=None, num: int = None):
-        # TODO: this is like cycle_factor(), except it behaves differently!
-        f_idx, base_factors, num = self._get_f_idx_and_factors_and_size(f_idx=f_idx, base_factors=base_factors, num=num)
-        # generate traversal
-        grid = np.linspace(0, self.factor_sizes[f_idx]-1, num=num, endpoint=True)
-        grid = np.int64(np.around(grid))
-        base_factors[:, f_idx] = grid
-        # return factors
-        return base_factors
 
 # ========================================================================= #
 # Hidden State Space                                                        #

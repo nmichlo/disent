@@ -304,10 +304,11 @@ def make_ave_scores_plot(
 
 
 # ========================================================================= #
-# Generate Grid Plots                                                       #
+# HELPER                                                                    #
 # ========================================================================= #
 
 
+# TODO: move this into helper
 def plot_hide_axis(ax, hide_xaxis=True, hide_yaxis=True, hide_border=True, hide_axis_labels=False, hide_axis_ticks=True):
     if hide_xaxis:
         if hide_axis_ticks:
@@ -353,6 +354,11 @@ def plot_remove_inner_grid_ticks(axs, hide_axis_labels=False, hide_axis_ticks=Tr
     for y, ax_row in enumerate(axs):
         for x, ax in enumerate(ax_row):
             plot_hide_axis(ax, hide_xaxis=(y != h-1), hide_yaxis=(x != 0), hide_border=True, hide_axis_labels=hide_axis_labels, hide_axis_ticks=hide_axis_ticks)
+
+
+# ========================================================================= #
+# Generate Grid Plots                                                       #
+# ========================================================================= #
 
 
 def make_grid_gaussian_score_plot(

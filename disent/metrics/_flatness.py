@@ -214,7 +214,7 @@ def aggregate_measure_distances_along_factor(
 
 def encode_all_along_factor(ground_truth_dataset, representation_function, f_idx: int, batch_size: int):
     # generate repeated factors, varying one factor over a range (f_size, f_dims)
-    factors = ground_truth_dataset.sample_random_traversal_factors(f_idx=f_idx)
+    factors = ground_truth_dataset.sample_random_factor_traversal(f_idx=f_idx)
     # get the representations of all the factors (f_size, z_size)
     sequential_zs = encode_all_factors(ground_truth_dataset, representation_function, factors=factors, batch_size=batch_size)
     return sequential_zs

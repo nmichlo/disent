@@ -129,26 +129,50 @@ def _get_grid_size(n, num_cols=None):
 
 
 # ========================================================================= #
-# Index Cycle Generators | FROM: disentanglement_lib                        #
+# Factor Cycle Generators                                                   #
 # ========================================================================= #
 
 
-def cycle_factor(starting_index, num_indices, num_frames):
+def traverse_factor(factor_size, num_frames, start_index=0):
     """
     Cycles through the state space in a single cycle.
-    eg. starting_index=4, num_indices=5, num_frames=8 returns: [4, 3, 2, 1, 0, 1, 2, 3]
-    eg. starting_index=2, num_indices=5, num_frames=8 returns: [2, 4, 4, 3, 2, 0, 0, 1]
-    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-    Copyright 2018 The DisentanglementLib Authors. All rights reserved.
-    Licensed under the Apache License, Version 2.0
-    https://github.com/google-research/disentanglement_lib
-    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    eg. num_indices=5, num_frames=7 returns: [0,1,1,2,3,3,4]
+    eg. num_indices=4, num_frames=7 returns: [0,0,1,2,2,2,3]  # TODO: this result is weird
     """
-    grid = np.linspace(starting_index, starting_index + 2 * num_indices, num=num_frames, endpoint=False)
-    grid = np.int64(np.ceil(grid))  # TODO: should this be around instead of ceil?
-    grid -= np.maximum(0, 2 * grid - 2 * num_indices + 1)
-    grid += np.maximum(0, -2 * grid - 1)
+    grid = np.linspace(0, factor_size - 1, num=num_frames, endpoint=True)
+    grid = np.int64(np.around(grid))
+    grid = (start_index + grid) % factor_size
     return grid
+
+
+def cycle_factor(factor_size, num_frames):
+    """
+    Cycles through the state space in a single cycle.
+    eg. num_indices=5, num_frames=7 returns: [0,1,3,4,3,2,1]
+    eg. num_indices=4, num_frames=7 returns: [0,1,2,3,2,2,0]
+    """
+    grid = traverse_factor(factor_size=factor_size, num_frames=num_frames)
+    grid = np.concatenate([grid[0::2], grid[1::2][::-1]])
+    return grid
+
+
+_FACTOR_TRAVERSALS = {
+    'interval': traverse_factor,
+    'cycle': cycle_factor,
+}
+
+
+def get_factor_traversal(factor_size, num_frames, mode='interval'):
+    try:
+        traversal_fn = _FACTOR_TRAVERSALS[mode]
+    except KeyError:
+        raise KeyError(f'Invalid factor traversal mode: {repr(mode)}')
+    return traversal_fn(factor_size=factor_size, num_frames=num_frames)
+
+
+# ========================================================================= #
+# Cycle Generators | FROM: disentanglement_lib                              #
+# ========================================================================= #
 
 
 def cycle_gaussian(starting_value, num_frames, loc=0., scale=1.):
@@ -191,6 +215,7 @@ def cycle_interval(starting_value, num_frames, min_val, max_val):
 # ========================================================================= #
 
 
+# TODO: this functionality is duplicated elsewhere!
 def reconstructions_to_images(recon, mode='float', moveaxis=True):
     """
     Convert a batch of reconstructions to images.
