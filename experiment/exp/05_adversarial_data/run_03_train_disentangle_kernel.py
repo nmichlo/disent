@@ -171,8 +171,8 @@ class Kernel(DisentModule):
                     return H.to_imgs(pl_module.forward(batch.to(pl_module.device)), scale=True)
                 # get augmented traversals
                 with torch.no_grad():
-                    orig_wandb_image, orig_wandb_animation = H.dataset_traversal_tasks(dataset, tasks=('wandb_image', 'wandb_animation'))
-                    augm_wandb_image, augm_wandb_animation = H.dataset_traversal_tasks(dataset, tasks=('wandb_image', 'wandb_animation'), augment_fn=augment_fn, data_mode='input')
+                    orig_wandb_image, orig_wandb_animation = H.dataset_traversal_tasks(dataset, tasks=('image_wandb', 'animation_wandb'))
+                    augm_wandb_image, augm_wandb_animation = H.dataset_traversal_tasks(dataset, tasks=('image_wandb', 'animation_wandb'), augment_fn=augment_fn, data_mode='input')
                 # log images to WANDB
                 wb_log_metrics(trainer.logger, {
                     'kernel': wandb.Image(kernel),

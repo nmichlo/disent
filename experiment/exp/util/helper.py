@@ -24,6 +24,7 @@
 
 import inspect
 import os
+from numbers import Number
 from typing import List
 from typing import Optional
 from typing import Sequence
@@ -150,16 +151,21 @@ def to_imgs(x: torch.Tensor, scale=False, to_cpu=True, move_channels=True):
     return x
 
 
+# ========================================================================= #
+# Matplotlib Helper                                                         #
+# ========================================================================= #
+
+
+# TODO: replace this function
 # TODO: similar functions exist: output_image
-def show_img(x: torch.Tensor, scale=False, i=None, step=None, show=True):
+def show_img(x: torch.Tensor, scale=False, i=None, step=None, show=True, **kwargs):
     if show:
         if (i is None) or (step is None) or (i % step == 0):
-            plt.imshow(to_img(x, scale=scale))
-            plt.axis('off')
-            plt.tight_layout()
+            plt_imshow(img=to_img(x, scale=scale), **kwargs)
             plt.show()
 
 
+# TODO: replace this function
 # TODO: similar functions exist: output_image
 def show_imgs(xs: Sequence[torch.Tensor], scale=False, i=None, step=None, show=True):
     if show:
@@ -170,8 +176,109 @@ def show_imgs(xs: Sequence[torch.Tensor], scale=False, i=None, step=None, show=T
             for ax, im in zip(np.array(axs).flatten(), xs):
                 ax.imshow(to_img(im, scale=scale))
                 ax.set_axis_off()
-            plt.tight_layout()
+            fig.tight_layout()
             plt.show()
+
+
+def plt_imshow(img, figsize=12, **kwargs):
+    # check image shape
+    assert img.ndim == 3
+    assert img.shape[-1] in (1, 3)
+    # figure size -- fixed width, adjust height according to image
+    if isinstance(figsize, (int, str, Number)):
+        size = np.array(img.shape[:2][::-1])
+        figsize = tuple(size / size[0] * figsize)
+    # create plot
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=figsize, **kwargs)
+    plt_hide_axis(ax)
+    ax.imshow(img)
+    fig.tight_layout()
+    return fig, ax
+
+
+def _hide(hide, cond):
+    assert hide in {True, False, 'all', 'edges', 'none'}
+    return (hide is True) or (hide == 'all') or (hide == 'edges' and cond)
+
+
+def plt_subplots(
+    nrows: int = 1, ncols: int = 1,
+    titles=None,
+    row_labels=None, col_labels=None,
+    hide_labels='edges',  # none, edges, all
+    hide_axis='edges',    # none, edges, all
+    **kwargs
+):
+    assert isinstance(nrows, int)
+    assert isinstance(ncols, int)
+    # check figsize
+    figsize = kwargs.pop('figsize', None)
+    # check titles
+    if titles is not None:
+        titles = np.array(titles).reshape([nrows, ncols])
+    # get labels
+    if (row_labels is None) or isinstance(row_labels, str):
+        row_labels = [row_labels] * nrows
+    if (col_labels is None) or isinstance(col_labels, str):
+        col_labels = [col_labels] * ncols
+    assert len(row_labels) == nrows, 'row_labels and nrows mismatch'
+    assert len(col_labels) == ncols, 'row_labels and nrows mismatch'
+    # check titles
+    if titles is not None:
+        assert len(titles) == nrows
+        assert len(titles[0]) == ncols
+    # create subplots
+    fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=figsize, **kwargs)
+    axs = axs.reshape([nrows, ncols])
+    # generate
+    for y in range(nrows):
+        for x in range(ncols):
+            ax = axs[y, x]
+            plt_hide_axis(ax, hide_xaxis=_hide(hide_axis, y != nrows-1), hide_yaxis=_hide(hide_axis, x != 0))
+            # modify ax
+            if not _hide(hide_labels, y != nrows-1):
+                ax.set_xlabel(col_labels[x])
+            if not _hide(hide_labels, x != 0):
+                ax.set_ylabel(row_labels[y])
+            # set title
+            if titles is not None:
+                ax.set_title(titles[y][x])
+    # done!
+    return fig, axs
+
+
+# def plt_subplots_imshow(imgs, row_labels=None, col_labels=None, hide_inner_labels=False, subplot_padding=None, **kwargs):
+#     fig, axs = plt_subplots(nrows=len(imgs), ncols=len(imgs[0]), row_labels=row_labels, col_labels=col_labels, hide_inner_labels=hide_inner_labels, **kwargs)
+#     # plot images
+#     for img_row, ax_row in zip(axs, imgs):
+#         for img, ax in zip(img_row, ax_row):
+#             ax.imshow(img)
+#     fig.tight_layout(pad=subplot_padding)
+#     # done!
+#     return fig, axs
+
+
+def plt_hide_axis(ax, hide_xaxis=True, hide_yaxis=True, hide_border=True, hide_axis_labels=False, hide_axis_ticks=True, hide_grid=True):
+    if hide_xaxis:
+        if hide_axis_ticks:
+            ax.set_xticks([])
+            ax.set_xticklabels([])
+        if hide_axis_labels:
+            ax.xaxis.label.set_visible(False)
+    if hide_yaxis:
+        if hide_axis_ticks:
+            ax.set_yticks([])
+            ax.set_yticklabels([])
+        if hide_axis_labels:
+            ax.yaxis.label.set_visible(False)
+    if hide_border:
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+    if hide_grid:
+        ax.grid(False)
+    return ax
 
 
 # ========================================================================= #
@@ -452,32 +559,6 @@ def StochasticBatchSampler(data_source: Union[Sized, int], batch_size: int):
 
 
 # ========================================================================= #
-# Matplotlib Helper                                                         #
-# ========================================================================= #
-
-
-def plt_hide_axis(ax, hide_xaxis=True, hide_yaxis=True, hide_border=True, hide_axis_labels=False, hide_axis_ticks=True):
-    if hide_xaxis:
-        if hide_axis_ticks:
-            ax.set_xticks([])
-            ax.set_xticklabels([])
-        if hide_axis_labels:
-            ax.xaxis.label.set_visible(False)
-    if hide_yaxis:
-        if hide_axis_ticks:
-            ax.set_yticks([])
-            ax.set_yticklabels([])
-        if hide_axis_labels:
-            ax.yaxis.label.set_visible(False)
-    if hide_border:
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        ax.spines['bottom'].set_visible(False)
-        ax.spines['left'].set_visible(False)
-    return ax
-
-
-# ========================================================================= #
 # Dataset Visualisation / Traversals -- HELPER                              #
 # ========================================================================= #
 
@@ -511,12 +592,12 @@ class _TraversalTasks(object):
         return np.stack(aug_grid, axis=0)
 
     @staticmethod
-    def task__image(grid=TASK, num=IN):
-        return make_image_grid(np.concatenate(grid, axis=0), pad=4, border=True, bg_color=None, num_cols=num)
+    def task__image(grid=TASK, num=IN, pad=IN, border=IN, bg_color=IN):
+        return make_image_grid(np.concatenate(grid, axis=0), pad=pad, border=border, bg_color=bg_color, num_cols=num)
 
     @staticmethod
-    def task__animation(grid=TASK):
-        return make_animated_image_grid(np.stack(grid, axis=0), pad=4, border=True, bg_color=None, num_cols=None)
+    def task__animation(grid=TASK, pad=IN, border=IN, bg_color=IN):
+        return make_animated_image_grid(np.stack(grid, axis=0), pad=pad, border=border, bg_color=bg_color, num_cols=None)
 
     @staticmethod
     def task__image_wandb(image=TASK):
@@ -530,13 +611,7 @@ class _TraversalTasks(object):
 
     @staticmethod
     def task__image_plt(image=TASK):
-        import matplotlib.pyplot as plt
-        figsize = tuple(np.array(image.shape[:2][::-1]) * 0.02)
-        fig, ax = plt.subplots(figsize=figsize)
-        ax.imshow(image)
-        plt_hide_axis(ax)
-        fig.tight_layout()
-        return fig, ax
+        return plt_imshow(img=image)
 
 
 # ========================================================================= #
@@ -553,6 +628,10 @@ def dataset_traversal_tasks(
     num: int = 9,
     seed: int = 777,
     base_factors=None,
+    # images & animations
+    pad: int = 4,
+    border: bool = True,
+    bg_color: Number = None,
     # augment
     augment_fn: callable = None,
     data_mode: str = 'raw',
@@ -592,12 +671,18 @@ def dataset_traversal_tasks(
         ),
         symbols=dict(
             gt_data=gt_data,
-            augment_fn=augment_fn,
-            base_factors=base_factors,
-            data_mode=data_mode,
+            # inputs
             factor_names=factor_names,
             num=num,
             seed=seed,
+            base_factors=base_factors,
+            # animation & images
+            pad=pad,
+            border=border,
+            bg_color=bg_color,
+            # augment
+            augment_fn=augment_fn,
+            data_mode=data_mode,
         ),
         strict=True,
         disable_options=True,
