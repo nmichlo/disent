@@ -21,6 +21,8 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
+import itertools
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
@@ -35,6 +37,8 @@ from tqdm import tqdm
 from disent.metrics._flatness_components import compute_axis_score
 from disent.metrics._flatness_components import compute_linear_score
 from disent.util import seed
+
+from experiment.exp.util import helper as H
 from experiment.exp.util.io_util import make_rel_path_add_ext
 
 
@@ -139,18 +143,18 @@ def rotated_radius_meshgrid(radius: float, num_points: int, deg: float = 0, devi
     return rx, ry
 
 
-def rotated_guassian2d(sigma: Tuple[float, float], deg: float, trunc_sigma: Optional[float] = None, num_points: int = 511):
-    sx, sy = sigma
-    radius = (2.25*max(sx, sy)) if (trunc_sigma is None) else trunc_sigma
+def rotated_guassian2d(std_x: float, std_y: float, deg: float, trunc_sigma: Optional[float] = None, num_points: int = 511):
+    radius = (2.25*max(std_x, std_y)) if (trunc_sigma is None) else trunc_sigma
     (xs_r, ys_r), (xs, ys) = rotated_radius_meshgrid(radius=radius, num_points=num_points, deg=deg, return_orig=True)
-    zs = gaussian_2d(xs_r, ys_r, sx=sx, sy=sy)
+    zs = gaussian_2d(xs_r, ys_r, sx=std_x, sy=std_y)
     zs /= zs.sum()
     return xs, ys, zs
 
 
 def plot_gaussian(
     deg: float = 0.0,
-    sigma=(1.0, 0.1),
+    std_x: float = 1.0,
+    std_y: float = 0.1,
     # contour
     contour_resolution: int = 255,
     contour_trunc_sigma: Optional[float] = None,
@@ -165,15 +169,15 @@ def plot_gaussian(
         fig = plt.figure()
         ax = fig.gca()
     # set limits
-    trunc_sigma = (2.05 * max(sigma)) if (contour_trunc_sigma is None) else contour_trunc_sigma
+    trunc_sigma = (2.05 * max(std_x, std_y)) if (contour_trunc_sigma is None) else contour_trunc_sigma
     ax.set_xlim([-trunc_sigma, trunc_sigma])
     ax.set_ylim([-trunc_sigma, trunc_sigma])
     # plot contour
-    xs, ys, zs = rotated_guassian2d(sigma=sigma, deg=deg, trunc_sigma=trunc_sigma, num_points=contour_resolution)
+    xs, ys, zs = rotated_guassian2d(std_x=std_x, std_y=std_y, deg=deg, trunc_sigma=trunc_sigma, num_points=contour_resolution)
     ax.contourf(xs, ys, zs, **({} if contour_kwargs is None else contour_kwargs))
     # plot dots
     if dots_num is not None:
-        points = make_line_points(n=dots_num, dims=2, deg=deg, std_x=sigma[0], std_y=sigma[1])
+        points = make_line_points(n=dots_num, dims=2, deg=deg, std_x=std_x, std_y=std_y)
         ax.scatter(*points.T, **({} if dots_kwargs is None else dots_kwargs))
     # done
     return ax
@@ -270,37 +274,45 @@ def make_ave_scores_plot(
         norm=norm,
         repeats=repeats,
     )
-    # aspect ratio
-    aspect_ratio = 180 * (std_num / deg_num)
-    # vertical / horizontal settings
-    if vertical:
-        nrows, ncols = (2, 1)
-        figsize = (subplot_size + 0.33, subplot_size * 2 * (deg_num / std_num) + 0.75)
-    else:
-        nrows, ncols = (1, 2)
-        figsize = (subplot_size * 2 * (deg_num / std_num) + 0.75, subplot_size + 0.5)
     # make plot
-    fig, axs = plt.subplots(nrows, ncols, figsize=figsize)
-    (ax0, ax1) = axs
-    # common axis settings
-    def _normalise_axis(ax):
-        ax.set_aspect(aspect_ratio)
-        ax.set_xticks(np.linspace(0., 180., 5))
-        ax.grid(False)
-        ax.set_xlabel(f'θ - Rotation Degrees')
-        ax.set_ylabel(f'σ - Standard Deviation')
-    # linear subplot
-    ax0.set_title('Linear Scores')
-    ax0.imshow(linear_scores, cmap=cmap_linear, extent=[0., 180., 0., 1.])
-    _normalise_axis(ax0)
-    # axis subplot
-    ax1.set_title('Axis Scores')
-    ax1.imshow(axis_scores, cmap=cmap_axis, extent=[0., 180., 0., 1.])
-    _normalise_axis(ax1)
-    # general subplot settings
+    fig, axs = H.plt_subplots(
+        nrows=1+int(vertical),
+        ncols=1+int(not vertical),
+        titles=['Linear', 'Axis'],
+        row_labels=f'$σ_y$ - Standard Deviation',
+        col_labels=f'θ - Rotation Degrees',
+        figsize=(subplot_size + 0.5, subplot_size * 2 * (deg_num / std_num) + 0.75)[::1 if vertical else -1]
+    )
+    (ax0, ax1) = axs.flatten()
+    # subplots
+    ax0.imshow(linear_scores, cmap=cmap_linear, extent=[0., 180., 1., 0.])
+    ax1.imshow(axis_scores, cmap=cmap_axis, extent=[0., 180., 1., 0.])
+    for ax in axs.flatten():
+        ax.set_aspect(180 * (std_num / deg_num))
+        if len(ax.get_xticks()):
+            ax.set_xticks(np.linspace(0., 180., 5))
+    # layout
     fig.tight_layout(pad=subplot_padding)
-    # plot_remove_inner_grid_ticks(axs.reshape(nrows, ncols), hide_axis_labels=True, hide_axis_ticks=False)
+    # done
     return fig, axs
+
+
+# ========================================================================= #
+# HELPER                                                                    #
+# ========================================================================= #
+
+
+def plot_scores(ax, axis_score, linear_score):
+    from matplotlib.lines import Line2D
+    assert 0 <= linear_score <= 1
+    assert 0 <= axis_score <= 1
+    linear_rgb = cm.get_cmap('RdPu_r')(np.clip(linear_score, 0., 1.))
+    axis_rgb   = cm.get_cmap('GnBu_r')(np.clip(axis_score, 0., 1.))
+    ax.legend(handles=[
+        Line2D([0], [0], label=f'Linear: {float(linear_score):.2f}', color=linear_rgb, marker='o', markersize=10, linestyle='None'),
+        Line2D([0], [0], label=f'Axis: {float(axis_score):.2f}',     color=axis_rgb,   marker='o', markersize=10, linestyle='None'),
+    ])
+    return ax
 
 
 # ========================================================================= #
@@ -308,59 +320,10 @@ def make_ave_scores_plot(
 # ========================================================================= #
 
 
-def plot_hide_axis(ax, hide_xaxis=True, hide_yaxis=True, hide_border=True, hide_axis_labels=False, hide_axis_ticks=True):
-    if hide_xaxis:
-        if hide_axis_ticks:
-            ax.set_xticks([])
-            ax.set_xticklabels([])
-        if hide_axis_labels:
-            ax.xaxis.label.set_visible(False)
-    if hide_yaxis:
-        if hide_axis_ticks:
-            ax.set_yticks([])
-            ax.set_yticklabels([])
-        if hide_axis_labels:
-            ax.yaxis.label.set_visible(False)
-    if hide_border:
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        ax.spines['bottom'].set_visible(False)
-        ax.spines['left'].set_visible(False)
-    return ax
-
-
-def plot_scores(ax, axis_score, linear_score):
-    assert 0 <= linear_score <= 1
-    assert 0 <= axis_score <= 1
-
-    linear_rgb = cm.get_cmap('RdPu_r')(np.clip(linear_score, 0., 1.))
-    axis_rgb   = cm.get_cmap('GnBu_r')(np.clip(axis_score, 0., 1.))
-
-    from matplotlib.lines import Line2D
-
-    ax.legend(handles=[
-        Line2D([0], [0], label=f'Linear: {float(linear_score):.2f}', color=linear_rgb, marker='o', markersize=10, linestyle='None'),
-        Line2D([0], [0], label=f'Axis: {float(axis_score):.2f}',     color=axis_rgb,   marker='o', markersize=10, linestyle='None'),
-    ])
-
-    return ax
-
-
-def plot_remove_inner_grid_ticks(axs, hide_axis_labels=False, hide_axis_ticks=True):
-    if axs.ndim != 2:
-        raise NotImplementedError('Only ndims == 2 is supported!')
-    h, w = axs.shape
-    for y, ax_row in enumerate(axs):
-        for x, ax in enumerate(ax_row):
-            plot_hide_axis(ax, hide_xaxis=(y != h-1), hide_yaxis=(x != 0), hide_border=True, hide_axis_labels=hide_axis_labels, hide_axis_ticks=hide_axis_ticks)
-
-
 def make_grid_gaussian_score_plot(
     # grid
-    y_std_ratios: Sequence[float] = (0.8, 0.2, 0.05)[::-1],  # (0.8, 0.4, 0.2, 0.1, 0.05),
+    y_stds: Sequence[float] = (0.8, 0.2, 0.05)[::-1],  # (0.8, 0.4, 0.2, 0.1, 0.05),
     deg_rotations: Sequence[float] = (0, 22.5, 45, 67.5, 90, 112.5, 135, 157.5),  # (0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165),
-    # plot score options
-    x_std: float = 1.0,
     # plot dot options
     dots_num: Optional[int] = None,
     # score options
@@ -376,45 +339,37 @@ def make_grid_gaussian_score_plot(
     subplot_dots_kwargs: Optional[dict] = None,
 ):
     # defaults
-    if subplot_contour_kwargs is None:
-        subplot_contour_kwargs = dict(cmap='Blues')
-    if subplot_dots_kwargs is None:
-        subplot_dots_kwargs = dict(cmap='Purples')
+    if subplot_contour_kwargs is None: subplot_contour_kwargs = dict(cmap='Blues')
+    if subplot_dots_kwargs is None: subplot_dots_kwargs = dict(cmap='Purples')
 
     # make figure
-    nrows, ncols = len(y_std_ratios), len(deg_rotations)
-    fig, axs = plt.subplots(nrows, ncols, figsize=(ncols*subplot_size, nrows*subplot_size))
+    nrows, ncols = len(y_stds), len(deg_rotations)
+    fig, axs = H.plt_subplots(
+        nrows=nrows, ncols=ncols,
+        row_labels=[f'$σ_y$ = {std_y}' for std_y in y_stds],
+        col_labels=[f'θ = {deg}°' for deg in deg_rotations],
+        hide_axis='all',
+        figsize=(ncols*subplot_size, nrows*subplot_size),
+    )
 
     # progress
     p = tqdm(total=axs.size, desc='generating_plot')
-
-    # compute scores
-    for y, y_std_ratio in enumerate(y_std_ratios):
-        sigma = (x_std, x_std * y_std_ratio)
-        # for each rotation
-        for x, deg in enumerate(deg_rotations):
-            # compute scores
-            axis_score, linear_score = [], []
-            for k in range(repeats):
-                points = make_2d_line_points(n=num_points, deg=deg, std_x=sigma[0], std_y=sigma[1])
-                axis_score.append(compute_axis_score(points, use_std=use_std, use_max=use_max, norm=norm))
-                linear_score.append(compute_linear_score(points, use_std=use_std, use_max=use_max, norm=norm))
-            axis_score, linear_score = np.mean(axis_score), np.mean(linear_score)
-            # generate subplots
-            ax = axs[y, x]
-            plot_gaussian(deg=deg, sigma=sigma, dots_num=dots_num, ax=ax, contour_trunc_sigma=x_std * 2.05, contour_kwargs=subplot_contour_kwargs, dots_kwargs=subplot_dots_kwargs)
-            plot_hide_axis(ax)
-            plot_scores(ax, axis_score=axis_score, linear_score=linear_score)
-            # modify ax
-            if y == nrows-1:
-                ax.set_xlabel(f'θ = {deg}°')
-            if x == 0:
-                ax.set_ylabel(f'σ = {sigma[1]}')
-            # update progress
-            p.update()
-
     # generate plot
+    for (y, std_y), (x, deg) in itertools.product(enumerate(y_stds), enumerate(deg_rotations)):
+        # compute scores
+        axis_score, linear_score = [], []
+        for k in range(repeats):
+            points = make_2d_line_points(n=num_points, deg=deg, std_x=1.0, std_y=std_y)
+            axis_score.append(compute_axis_score(points, use_std=use_std, use_max=use_max, norm=norm))
+            linear_score.append(compute_linear_score(points, use_std=use_std, use_max=use_max, norm=norm))
+        axis_score, linear_score = np.mean(axis_score), np.mean(linear_score)
+        # generate subplots
+        plot_gaussian(ax=axs[y, x], deg=deg, std_x=1.0, std_y=std_y, dots_num=dots_num, contour_trunc_sigma=2.05, contour_kwargs=subplot_contour_kwargs, dots_kwargs=subplot_dots_kwargs)
+        plot_scores(ax=axs[y, x], axis_score=axis_score, linear_score=linear_score)
+        # update progress
+        p.update()
     plt.tight_layout(pad=subplot_padding)
+
     return fig, axs
 
 
@@ -443,7 +398,7 @@ if __name__ == '__main__':
     # plot everything -- minimal
     seed(777)
     make_grid_gaussian_score_plot(
-        y_std_ratios=(0.8, 0.4, 0.2, 0.1, 0.05)[::-1],  # (0.8, 0.4, 0.2, 0.1, 0.05),
+        y_stds=(0.8, 0.4, 0.2, 0.1, 0.05)[::-1],  # (0.8, 0.4, 0.2, 0.1, 0.05),
         deg_rotations=(0, 22.5, 45, 67.5, 90),
         repeats=250,
         num_points=25000,
@@ -454,7 +409,7 @@ if __name__ == '__main__':
     # plot everything -- minimal
     seed(777)
     make_grid_gaussian_score_plot(
-        y_std_ratios=(0.8, 0.4, 0.2, 0.05)[::-1],  # (0.8, 0.4, 0.2, 0.1, 0.05),
+        y_stds=(0.8, 0.4, 0.2, 0.05)[::-1],  # (0.8, 0.4, 0.2, 0.1, 0.05),
         deg_rotations=(0, 22.5, 45, 67.5, 90),
         repeats=250,
         num_points=25000,
@@ -465,7 +420,7 @@ if __name__ == '__main__':
     # plot everything -- minimal
     seed(777)
     fig, axs = make_grid_gaussian_score_plot(
-        y_std_ratios=(0.8, 0.2, 0.05)[::-1],  # (0.8, 0.4, 0.2, 0.1, 0.05),
+        y_stds=(0.8, 0.2, 0.05)[::-1],  # (0.8, 0.4, 0.2, 0.1, 0.05),
         deg_rotations=(0, 22.5, 45, 67.5, 90),
         repeats=250,
         num_points=25000,

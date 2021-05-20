@@ -25,12 +25,11 @@
 import logging
 import warnings
 
-import wandb
+import matplotlib.pyplot as plt
 import numpy as np
 import pytorch_lightning as pl
-import matplotlib.pyplot as plt
-
 import torch
+import wandb
 from pytorch_lightning.trainer.supporters import CombinedLoader
 
 import disent.metrics
@@ -39,13 +38,18 @@ from disent.dataset._augment_util import AugmentableDataset
 from disent.dataset.groundtruth import GroundTruthDataset
 from disent.frameworks.ae.unsupervised import AE
 from disent.frameworks.vae.unsupervised import Vae
-from disent.util import TempNumpySeed, chunked, to_numpy, Timer
+from disent.util import iter_chunks
+from disent.util import TempNumpySeed
+from disent.util import Timer
+from disent.util import to_numpy
 from disent.visualize.visualize_model import latent_cycle_grid_animation
 from disent.visualize.visualize_util import make_image_grid
-
-from experiment.util.hydra_data import HydraDataModule
 from experiment.util.callbacks.callbacks_base import _PeriodicCallback
-from experiment.util.logger_util import wb_log_metrics, wb_log_reduced_summaries, log_metrics
+from experiment.util.hydra_data import HydraDataModule
+from experiment.util.logger_util import log_metrics
+from experiment.util.logger_util import wb_log_metrics
+from experiment.util.logger_util import wb_log_reduced_summaries
+
 
 log = logging.getLogger(__name__)
 
@@ -191,7 +195,7 @@ class VaeLatentCorrelationLoggingCallback(_PeriodicCallback):
         # encode observations of factors
         zs = np.concatenate([
             to_numpy(vae.encode(dataset.dataset_batch_from_factors(factor_batch, mode='input').to(vae.device)))
-            for factor_batch in chunked(factors, 256)
+            for factor_batch in iter_chunks(factors, 256)
         ])
         z_size = zs.shape[-1]
 

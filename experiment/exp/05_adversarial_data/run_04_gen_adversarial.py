@@ -405,6 +405,8 @@ def run_generate_adversarial_data(
 # entrypoint                                                                #
 # ========================================================================= #
 
+# TODO: add WANDB support for visualisation of dataset
+# TODO: add graphing of visual overlap like exp 01
 
 def main():
     logging.basicConfig(level=logging.INFO, format='(%(asctime)s) %(name)s:%(lineno)d [%(levelname)s]: %(message)s')

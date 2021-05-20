@@ -24,9 +24,12 @@
 
 import inspect
 import os
-from collections import Sized
+from numbers import Number
 from typing import List
+from typing import Optional
 from typing import Sequence
+from typing import Sized
+from typing import Tuple
 from typing import Union
 
 import numpy as np
@@ -38,6 +41,7 @@ from torch.utils.data import BatchSampler
 from torch.utils.data import Sampler
 
 from disent.data.groundtruth import Cars3dData
+from disent.data.groundtruth import GroundTruthData
 from disent.data.groundtruth import Shapes3dData
 from disent.data.groundtruth import XYSquaresData
 from disent.dataset.groundtruth import GroundTruthDataset
@@ -45,6 +49,13 @@ from disent.dataset.groundtruth import GroundTruthDatasetAndFactors
 from disent.frameworks.helper.reductions import batch_loss_reduction
 from disent.transform import ToStandardisedTensor
 
+from disent.util import TempNumpySeed
+from disent.visualize.visualize_util import make_animated_image_grid
+from disent.visualize.visualize_util import make_image_grid
+
+from experiment.exp.util.tasks import IN
+from experiment.exp.util.tasks import TASK
+from experiment.exp.util.tasks import TaskHandler
 
 # ========================================================================= #
 # optimizer                                                                 #
@@ -106,28 +117,56 @@ def get_single_batch(dataloader, cuda=True):
 # ========================================================================= #
 
 
-def to_img(x: torch.Tensor, scale=False):
+# TODO: similar functions exist: output_image, to_img, to_imgs, reconstructions_to_images
+def to_img(x: torch.Tensor, scale=False, to_cpu=True, move_channels=True):
+    assert x.ndim == 3, 'image must have 3 dimensions: (C, H, W)'
+    return to_imgs(x, scale=scale, to_cpu=to_cpu, move_channels=move_channels)
+
+
+# TODO: similar functions exist: output_image, to_img, to_imgs, reconstructions_to_images
+def to_imgs(x: torch.Tensor, scale=False, to_cpu=True, move_channels=True):
+    # (..., C, H, W)
+    assert x.ndim >= 3, 'image must have 3 or more dimensions: (..., C, H, W)'
     assert x.dtype in {torch.float16, torch.float32, torch.float64, torch.complex32, torch.complex64}, f'unsupported dtype: {x.dtype}'
-    x = x.detach().cpu()
-    x = torch.abs(x)
-    if scale:
-        m, M = torch.min(x), torch.max(x)
-        x = (x - m) / (M - m)
-    x = torch.moveaxis(x, 0, -1)
-    x = torch.clamp(x, 0, 1)
-    x = (x * 255).to(torch.uint8)
+    # no gradient
+    with torch.no_grad():
+        # imaginary to real
+        if x.dtype in {torch.complex32, torch.complex64}:
+            x = torch.abs(x)
+        # scale images
+        if scale:
+            m = x.min(dim=-3, keepdim=True).values.min(dim=-2, keepdim=True).values.min(dim=-1, keepdim=True).values
+            M = x.max(dim=-3, keepdim=True).values.max(dim=-2, keepdim=True).values.max(dim=-1, keepdim=True).values
+            x = (x - m) / (M - m)
+        # move axis
+        if move_channels:
+            x = torch.moveaxis(x, -3, -1)
+        # to uint8
+        x = torch.clamp(x, 0, 1)
+        x = (x * 255).to(torch.uint8)
+    # done!
+    x = x.detach()  # is this needeed?
+    if to_cpu:
+        x = x.cpu()
     return x
 
 
-def show_img(x: torch.Tensor, scale=False, i=None, step=None, show=True):
+# ========================================================================= #
+# Matplotlib Helper                                                         #
+# ========================================================================= #
+
+
+# TODO: replace this function
+# TODO: similar functions exist: output_image
+def show_img(x: torch.Tensor, scale=False, i=None, step=None, show=True, **kwargs):
     if show:
         if (i is None) or (step is None) or (i % step == 0):
-            plt.imshow(to_img(x, scale=scale))
-            plt.axis('off')
-            plt.tight_layout()
+            plt_imshow(img=to_img(x, scale=scale), **kwargs)
             plt.show()
 
 
+# TODO: replace this function
+# TODO: similar functions exist: output_image
 def show_imgs(xs: Sequence[torch.Tensor], scale=False, i=None, step=None, show=True):
     if show:
         if (i is None) or (step is None) or (i % step == 0):
@@ -137,8 +176,147 @@ def show_imgs(xs: Sequence[torch.Tensor], scale=False, i=None, step=None, show=T
             for ax, im in zip(np.array(axs).flatten(), xs):
                 ax.imshow(to_img(im, scale=scale))
                 ax.set_axis_off()
-            plt.tight_layout()
+            fig.tight_layout()
             plt.show()
+
+
+def plt_imshow(img, figsize=12, **kwargs):
+    # check image shape
+    assert img.ndim == 3
+    assert img.shape[-1] in (1, 3)
+    # figure size -- fixed width, adjust height according to image
+    if isinstance(figsize, (int, str, Number)):
+        size = np.array(img.shape[:2][::-1])
+        figsize = tuple(size / size[0] * figsize)
+    # create plot
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=figsize, **kwargs)
+    plt_hide_axis(ax)
+    ax.imshow(img)
+    fig.tight_layout()
+    return fig, ax
+
+
+def _hide(hide, cond):
+    assert hide in {True, False, 'all', 'edges', 'none'}
+    return (hide is True) or (hide == 'all') or (hide == 'edges' and cond)
+
+
+def plt_subplots(
+    nrows: int = 1, ncols: int = 1,
+    # custom
+    title=None,
+    titles=None,
+    row_labels=None,
+    col_labels=None,
+    hide_labels='edges',  # none, edges, all
+    hide_axis='edges',    # none, edges, all
+    # plt.subplots:
+    sharex: str = False,
+    sharey: str = False,
+    subplot_kw=None,
+    gridspec_kw=None,
+    **fig_kw,
+):
+    assert isinstance(nrows, int)
+    assert isinstance(ncols, int)
+    # check titles
+    if titles is not None:
+        titles = np.array(titles).reshape([nrows, ncols])
+    # get labels
+    if (row_labels is None) or isinstance(row_labels, str):
+        row_labels = [row_labels] * nrows
+    if (col_labels is None) or isinstance(col_labels, str):
+        col_labels = [col_labels] * ncols
+    assert len(row_labels) == nrows, 'row_labels and nrows mismatch'
+    assert len(col_labels) == ncols, 'row_labels and nrows mismatch'
+    # check titles
+    if titles is not None:
+        assert len(titles) == nrows
+        assert len(titles[0]) == ncols
+    # create subplots
+    fig, axs = plt.subplots(nrows=nrows, ncols=ncols, sharex=sharex, sharey=sharey, squeeze=False, subplot_kw=subplot_kw, gridspec_kw=gridspec_kw, **fig_kw)
+    # generate
+    for y in range(nrows):
+        for x in range(ncols):
+            ax = axs[y, x]
+            plt_hide_axis(ax, hide_xaxis=_hide(hide_axis, y != nrows-1), hide_yaxis=_hide(hide_axis, x != 0))
+            # modify ax
+            if not _hide(hide_labels, y != nrows-1):
+                ax.set_xlabel(col_labels[x])
+            if not _hide(hide_labels, x != 0):
+                ax.set_ylabel(row_labels[y])
+            # set title
+            if titles is not None:
+                ax.set_title(titles[y][x])
+    # set title
+    fig.suptitle(title)
+    # done!
+    return fig, axs
+
+
+def plt_subplots_imshow(
+    grid,
+    # custom:
+    title=None,
+    titles=None,
+    row_labels=None,
+    col_labels=None,
+    hide_labels='edges',  # none, edges, all
+    hide_axis='all',    # none, edges, all
+    # tight_layout:
+    subplot_padding=None,
+    # plt.subplots:
+    sharex: str = False,
+    sharey: str = False,
+    subplot_kw=None,
+    gridspec_kw=None,
+    **fig_kw,
+):
+    fig, axs = plt_subplots(
+        nrows=len(grid), ncols=len(grid[0]),
+        # custom
+        title=title,
+        titles=titles,
+        row_labels=row_labels,
+        col_labels=col_labels,
+        hide_labels=hide_labels,  # none, edges, all
+        hide_axis=hide_axis,      # none, edges, all
+        # plt.subplots:
+        sharex=sharex,
+        sharey=sharey,
+        subplot_kw=subplot_kw,
+        gridspec_kw=gridspec_kw,
+        **fig_kw,
+    )
+    # show images
+    for y, x in np.ndindex(axs.shape):
+        axs[y, x].imshow(grid[y][x])
+    fig.tight_layout(pad=subplot_padding)
+    # done!
+    return fig, axs
+
+
+def plt_hide_axis(ax, hide_xaxis=True, hide_yaxis=True, hide_border=True, hide_axis_labels=False, hide_axis_ticks=True, hide_grid=True):
+    if hide_xaxis:
+        if hide_axis_ticks:
+            ax.set_xticks([])
+            ax.set_xticklabels([])
+        if hide_axis_labels:
+            ax.xaxis.label.set_visible(False)
+    if hide_yaxis:
+        if hide_axis_ticks:
+            ax.set_yticks([])
+            ax.set_yticklabels([])
+        if hide_axis_labels:
+            ax.yaxis.label.set_visible(False)
+    if hide_border:
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+    if hide_grid:
+        ax.grid(False)
+    return ax
 
 
 # ========================================================================= #
@@ -209,19 +387,30 @@ def normalise_factor_idx(dataset, factor: Union[int, str]) -> int:
             raise KeyError(f'{repr(factor)} is not one of: {dataset.factor_names}')
     else:
         f_idx = factor
-    assert isinstance(f_idx, int)
+    assert isinstance(f_idx, (int, np.int32, np.int64, np.uint8))
     assert 0 <= f_idx < dataset.num_factors
-    return f_idx
+    return int(f_idx)
 
 
-def normalise_factor_idxs(dataset, factors: Union[Sequence[Union[int, str]], Union[int, str]]) -> List[int]:
+# general type
+NonNormalisedFactors = Union[Sequence[Union[int, str]], Union[int, str]]
+
+
+def normalise_factor_idxs(dataset: GroundTruthDataset, factors: NonNormalisedFactors) -> np.ndarray:
     if isinstance(factors, (int, str)):
         factors = [factors]
-    factors = [normalise_factor_idx(dataset, factor) for factor in factors]
+    factors = np.array([normalise_factor_idx(dataset, factor) for factor in factors])
     assert len(set(factors)) == len(factors)
     return factors
 
 
+def get_factor_idxs(dataset: GroundTruthDataset, factors: Optional[NonNormalisedFactors] = None):
+    if factors is None:
+        return np.arange(dataset.num_factors)
+    return normalise_factor_idxs(dataset, factors)
+
+
+# TODO: clean this up
 def sample_factors(dataset, num_obs: int = 1024, factor_mode: str = 'sample_random', factor: Union[int, str] = None):
     # sample multiple random factor traversals
     if factor_mode == 'sample_traversals':
@@ -231,7 +420,7 @@ def sample_factors(dataset, num_obs: int = 1024, factor_mode: str = 'sample_rand
         # generate traversals
         factors = []
         for i in range((num_obs + dataset.factor_sizes[f_idx] - 1) // dataset.factor_sizes[f_idx]):
-            factors.append(dataset.sample_random_traversal_factors(f_idx=f_idx))
+            factors.append(dataset.sample_random_factor_traversal(f_idx=f_idx))
         factors = np.concatenate(factors, axis=0)
     elif factor_mode == 'sample_random':
         factors = dataset.sample_factors(num_obs)
@@ -240,6 +429,7 @@ def sample_factors(dataset, num_obs: int = 1024, factor_mode: str = 'sample_rand
     return factors
 
 
+# TODO: move into dataset class
 def sample_batch_and_factors(dataset, num_samples: int, factor_mode: str = 'sample_random', factor: Union[int, str] = None, device=None):
     factors = sample_factors(dataset, num_obs=num_samples, factor_mode=factor_mode, factor=factor)
     batch = dataset.dataset_batch_from_factors(factors, mode='target').to(device=device)
@@ -362,7 +552,7 @@ def generate_epochs_batch_idxs(num_obs: int, num_epochs: int, num_epoch_batches:
 
 
 # ========================================================================= #
-# END                                                                       #
+# Dataloader Sampler Utilities                                              #
 # ========================================================================= #
 
 
@@ -403,6 +593,139 @@ def StochasticBatchSampler(data_source: Union[Sized, int], batch_size: int):
         sampler=StochasticSampler(data_source=data_source, batch_size=batch_size),
         batch_size=batch_size,
         drop_last=True
+    )
+
+
+# ========================================================================= #
+# Dataset Visualisation / Traversals -- HELPER                              #
+# ========================================================================= #
+
+
+class _TraversalTasks(object):
+
+    @staticmethod
+    def task__factor_idxs(gt_data=IN, factor_names=IN):
+        return get_factor_idxs(gt_data, factor_names)
+
+    @staticmethod
+    def task__factors(factor_idxs=TASK, gt_data=IN, seed=IN, base_factors=IN, num=IN, traverse_mode=IN):
+        with TempNumpySeed(seed):
+            return np.stack([
+                gt_data.sample_random_factor_traversal(f_idx, base_factors=base_factors, num=num, mode=traverse_mode)
+                for f_idx in factor_idxs
+            ], axis=0)
+
+    @staticmethod
+    def task__raw_grid(factors=TASK, gt_data=IN, data_mode=IN):
+        return [gt_data.dataset_batch_from_factors(f, mode=data_mode) for f in factors]
+
+    @staticmethod
+    def task__aug_grid(raw_grid=TASK, augment_fn=IN):
+        if augment_fn is not None:
+            return [augment_fn(batch) for batch in raw_grid]
+        return raw_grid
+
+    @staticmethod
+    def task__grid(aug_grid=TASK):
+        return np.stack(aug_grid, axis=0)
+
+    @staticmethod
+    def task__image(grid=TASK, num=IN, pad=IN, border=IN, bg_color=IN):
+        return make_image_grid(np.concatenate(grid, axis=0), pad=pad, border=border, bg_color=bg_color, num_cols=num)
+
+    @staticmethod
+    def task__animation(grid=TASK, pad=IN, border=IN, bg_color=IN):
+        return make_animated_image_grid(np.stack(grid, axis=0), pad=pad, border=border, bg_color=bg_color, num_cols=None)
+
+    @staticmethod
+    def task__image_wandb(image=TASK):
+        import wandb
+        return wandb.Image(image)
+
+    @staticmethod
+    def task__animation_wandb(animation=TASK):
+        import wandb
+        return wandb.Video(np.transpose(animation, [0, 3, 1, 2]), fps=5, format='mp4')
+
+    @staticmethod
+    def task__image_plt(image=TASK):
+        return plt_imshow(img=image)
+
+
+# ========================================================================= #
+# Dataset Visualisation / Traversals                                        #
+# ========================================================================= #
+
+
+def dataset_traversal_tasks(
+    gt_data: Union[GroundTruthData, GroundTruthDataset],
+    # task settings
+    tasks: Union[str, Tuple[str, ...]] = 'grid',
+    # inputs
+    factor_names: Optional[NonNormalisedFactors] = None,
+    num: int = 9,
+    seed: int = 777,
+    base_factors=None,
+    traverse_mode='cycle',
+    # images & animations
+    pad: int = 4,
+    border: bool = True,
+    bg_color: Number = None,
+    # augment
+    augment_fn: callable = None,
+    data_mode: str = 'raw',
+):
+    """
+    Generic function that can return multiple parts of the dataset & factor traversal pipeline.
+    - This only evaluates what is needed to compute the next components.
+
+    Tasks include:
+        - factor_idxs
+        - factors
+        - grid
+        - image
+        - image_wandb
+        - image_plt
+        - animation
+        - animation_wandb
+    """
+    # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+    # normalise dataset
+    if not isinstance(gt_data, GroundTruthDataset):
+        gt_data = GroundTruthDataset(gt_data)
+    # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+    return TaskHandler.compute(
+        task_names=tasks,
+        task_fns=(
+            _TraversalTasks.task__factor_idxs,
+            _TraversalTasks.task__factors,
+            _TraversalTasks.task__raw_grid,
+            _TraversalTasks.task__aug_grid,
+            _TraversalTasks.task__grid,
+            _TraversalTasks.task__image,
+            _TraversalTasks.task__animation,
+            _TraversalTasks.task__image_wandb,
+            _TraversalTasks.task__animation_wandb,
+            _TraversalTasks.task__image_plt,
+        ),
+        symbols=dict(
+            gt_data=gt_data,
+            # inputs
+            factor_names=factor_names,
+            num=num,
+            seed=seed,
+            base_factors=base_factors,
+            traverse_mode=traverse_mode,
+            # animation & images
+            pad=pad,
+            border=border,
+            bg_color=bg_color,
+            # augment
+            augment_fn=augment_fn,
+            data_mode=data_mode,
+        ),
+        strict=True,
+        disable_options=True,
     )
 
 

@@ -97,7 +97,7 @@ class DownloadableGroundTruthData(GroundTruthData, metaclass=ABCMeta):
             no_data = not os.path.exists(path)
             # download data
             if self._force_download or no_data:
-                download_file(url, path)
+                download_file(url, path, overwrite_existing=True)
 
     @property
     def dataset_paths(self) -> List[str]:
@@ -134,7 +134,7 @@ class PreprocessedDownloadableGroundTruthData(DownloadableGroundTruthData, metac
         do_data = self._force_download or (no_data and do_proc)
 
         if do_data:
-            download_file(self.dataset_url, self._data_path)
+            download_file(self.dataset_url, self._data_path, overwrite_existing=True)
 
         if do_proc:
             # TODO: also used in io save file, convert to with syntax.

@@ -133,7 +133,7 @@ def test_fft_conv2d():
     data = XYSquaresData()
     dataset = GroundTruthDataset(data, transform=ToStandardisedTensor(), augment=None)
     # sample data
-    factors = dataset.sample_random_traversal_factors(f_idx=2)
+    factors = dataset.sample_random_factor_traversal(f_idx=2)
     batch = dataset.dataset_batch_from_factors(factors=factors, mode="input")
     # test torch_conv2d_channel_wise variants
     for i in range(1, 5):

@@ -46,7 +46,7 @@ class AdaVae(BetaVae):
     - ML-AdaVAE: Averaging from https://arxiv.org/abs/1705.08841
 
     MODIFICATION:
-    - Symmetric KL Calculation used by default, described in: https://openreview.net/pdf?id=8VXvj1QNRl1
+    - Symmetric KL Calculation used by default, described in: https://arxiv.org/pdf/2010.14407.pdf
     """
 
     REQUIRED_OBS = 2

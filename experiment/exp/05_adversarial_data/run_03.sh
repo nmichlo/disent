@@ -22,4 +22,4 @@ clog_cudaless_nodes "$PARTITION" 86400 "C-disent" # 24 hours
 submit_sweep \
     optimizer.weight_decay=1e-4,0.0 \
     kernel.radius=63,55,47,39,31,23,15,7 \
-    data.spacing=8,4,2,1
+    data.name=xysquares_8x8,xysquares_4x4,xysquares_2x2,xysquares_1x1

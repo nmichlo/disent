@@ -32,7 +32,7 @@ import torch
 
 from disent.util import to_numpy
 from disent.visualize import visualize_util
-from disent.visualize.visualize_util import make_animation_grid
+from disent.visualize.visualize_util import make_animated_image_grid
 from disent.visualize.visualize_util import reconstructions_to_images
 
 
@@ -234,7 +234,7 @@ def latent_cycle_grid_animation(decoder_func, z_means, z_logvars, mode='fixed_in
         if stills.shape[-1] == 1:
             stills = np.repeat(stills, 3, axis=-1)
     # create animation
-    frames = make_animation_grid(stills, pad=pad, border=border, bg_color=bg_color)
+    frames = make_animated_image_grid(stills, pad=pad, border=border, bg_color=bg_color)
     # move channels to end
     if tensor_style_channels:
         if return_stills:
