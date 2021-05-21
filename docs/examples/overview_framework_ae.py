@@ -3,7 +3,7 @@ from torch.optim import Adam
 from torch.utils.data import Dataset, DataLoader
 from disent.data.groundtruth import XYSquaresData, GroundTruthData
 from disent.dataset.groundtruth import GroundTruthDataset
-from disent.frameworks.ae.unsupervised import AE
+from disent.frameworks.ae import AE
 from disent.model.ae import EncoderConv64, DecoderConv64, AutoEncoder
 from disent.transform import ToStandardisedTensor
 from disent.util import is_test_run

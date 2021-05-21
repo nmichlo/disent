@@ -35,7 +35,6 @@ from disent.frameworks.helper.reductions import batch_loss_reduction
 from disent.frameworks.helper.reductions import loss_reduction
 from disent.frameworks.helper.util import compute_ave_loss
 from disent.transform import FftKernel
-from disent.util.math import torch_conv2d_channel_wise_fft
 from disent.util import DisentModule
 
 from deprecated import deprecated

@@ -22,30 +22,20 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from dataclasses import dataclass
+# supervised frameworks
+from disent.frameworks.vae.experimental._supervised__adaave_tvae import AdaAveTripletVae
+from disent.frameworks.vae.experimental._supervised__adaneg_tvae import AdaNegTripletVae
+from disent.frameworks.vae.experimental._supervised__adatvae import AdaTripletVae
+from disent.frameworks.vae.experimental._supervised__badavae import BoundedAdaVae
+from disent.frameworks.vae.experimental._supervised__gadavae import GuidedAdaVae
+from disent.frameworks.vae.experimental._supervised__tbadavae import TripletBoundedAdaVae
+from disent.frameworks.vae.experimental._supervised__tgadavae import TripletGuidedAdaVae
 
-from disent.frameworks.vae.supervised.experimental._badavae import BoundedAdaVae
-from disent.frameworks.vae.supervised._tvae import TripletVae
-from disent.frameworks.helper.triplet_loss import TripletLossConfig
+# unsupervised frameworks
+from disent.frameworks.vae.experimental._unsupervised__dorvae import DataOverlapRankVae
+from disent.frameworks.vae.experimental._unsupervised__dotvae import DataOverlapTripletVae
 
-
-# ========================================================================= #
-# tbadavae                                                                  #
-# ========================================================================= #
-
-
-class TripletBoundedAdaVae(BoundedAdaVae):
-
-    REQUIRED_OBS = 3
-
-    @dataclass
-    class cfg(BoundedAdaVae.cfg, TripletLossConfig):
-        pass
-
-    def hook_compute_ave_aug_loss(self, ds_posterior, ds_prior, zs_sampled, xs_partial_recon, xs_targ):
-        return TripletVae.compute_triplet_loss(zs_mean=[d.mean for d in ds_posterior], cfg=self.cfg)
-
-
-# ========================================================================= #
-# END                                                                       #
-# ========================================================================= #
+# weakly supervised frameworks
+from disent.frameworks.vae.experimental._weaklysupervised__augpostriplet import AugPosTripletVae
+from disent.frameworks.vae.experimental._weaklysupervised__st_adavae import SwappedTargetAdaVae
+from disent.frameworks.vae.experimental._weaklysupervised__st_betavae import SwappedTargetBetaVae

@@ -27,9 +27,9 @@ import warnings
 from dataclasses import dataclass
 from typing import Sequence
 
-from disent.frameworks.vae.supervised.experimental._adatvae import AdaTripletVae
-from disent.frameworks.vae.supervised.experimental._adatvae import compute_ave_shared_params
-from disent.frameworks.vae.supervised.experimental._adatvae import compute_triplet_shared_masks
+from disent.frameworks.vae.experimental._supervised__adatvae import AdaTripletVae
+from disent.frameworks.vae.experimental._supervised__adatvae import compute_ave_shared_params
+from disent.frameworks.vae.experimental._supervised__adatvae import compute_triplet_shared_masks
 
 log = logging.getLogger(__name__)
 

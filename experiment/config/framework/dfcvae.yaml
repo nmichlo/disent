@@ -1,7 +1,7 @@
 # @package _group_
 name: dfcvae
 module:
-  _target_: disent.frameworks.vae.unsupervised.DfcVae
+  _target_: disent.frameworks.vae.DfcVae
   beta: ${framework.beta}
   # dfcvae
   feature_layers: ['14', '24', '34', '43']

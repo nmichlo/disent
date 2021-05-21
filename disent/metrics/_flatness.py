@@ -278,8 +278,8 @@ def angles_between(a, b, dim=-1, nan_to_angle=None):
 #     from torch.utils.data import DataLoader
 #     from disent.data.groundtruth import XYObjectData, XYSquaresData
 #     from disent.dataset.groundtruth import GroundTruthDataset, GroundTruthDatasetPairs
-#     from disent.frameworks.vae.unsupervised import BetaVae
-#     from disent.frameworks.vae.weaklysupervised import AdaVae
+#     from disent.frameworks.vae import BetaVae
+#     from disent.frameworks.vae import AdaVae
 #     from disent.model.ae import EncoderConv64, DecoderConv64, AutoEncoder
 #     from disent.transform import ToStandardisedTensor
 #     from disent.util import colors

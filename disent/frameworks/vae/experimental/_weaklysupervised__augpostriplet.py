@@ -22,42 +22,62 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import logging
 from dataclasses import dataclass
 
-import numpy as np
-from disent.frameworks.vae.unsupervised._betavae import BetaVae
+import kornia
+import torch
+import torchvision
+
+from disent.frameworks.vae._supervised__tvae import TripletVae
+
+
+log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
-# Swapped Target BetaVAE                                                    #
+# Guided Ada Vae                                                            #
 # ========================================================================= #
 
 
-class SwappedTargetBetaVae(BetaVae):
+class AugPosTripletVae(TripletVae):
 
-    REQUIRED_OBS = 2
+    REQUIRED_OBS = 2  # third obs is generated from augmentations
 
     @dataclass
-    class cfg(BetaVae.cfg):
-        swap_chance: float = 0.1
+    class cfg(TripletVae.cfg):
+        pass
 
     def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
-        assert cfg.swap_chance >= 0
+        self._aug = None
 
     def do_training_step(self, batch, batch_idx):
-        (x0, x1), (x0_targ, x1_targ) = batch['x'], batch['x_targ']
+        (a_x, n_x), (a_x_targ, n_x_targ) = batch['x'], batch['x_targ']
 
-        # random change for the target not to be equal to the input
-        if np.random.random() < self.cfg.swap_chance:
-            x0_targ, x1_targ = x1_targ, x0_targ
+        # make augmenter as it requires the image sizes
+        if self._aug is None:
+            size = a_x.shape[2:4]
+            self._aug = torchvision.transforms.RandomOrder([
+                kornia.augmentation.ColorJitter(brightness=0.25, contrast=0.25, saturation=0, hue=0.15),
+                kornia.augmentation.RandomCrop(size=size, padding=8),
+                # kornia.augmentation.RandomPerspective(distortion_scale=0.05, p=1.0),
+                # kornia.augmentation.RandomRotation(degrees=4),
+            ])
 
-        return super(SwappedTargetBetaVae, self).do_training_step({
-            'x': (x0,),
-            'x_targ': (x0_targ,),
-        }, batch_idx)
+        # generate augmented items
+        with torch.no_grad():
+            p_x_targ = a_x_targ
+            p_x = self._aug(a_x)
+            # a_x = self._aug(a_x)
+            # n_x = self._aug(n_x)
+
+        batch['x'], batch['x_targ'] = (a_x, p_x, n_x), (a_x_targ, p_x_targ, n_x_targ)
+        # compute!
+        return super().do_training_step(batch, batch_idx)
 
 
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
+

@@ -32,9 +32,9 @@ from torch.distributions import Normal
 
 from disent.frameworks.helper.triplet_loss import configured_dist_triplet
 from disent.frameworks.helper.triplet_loss import configured_triplet
-from disent.frameworks.vae.supervised._tvae import TripletVae
-from disent.frameworks.vae.weaklysupervised._adavae import AdaVae
-from disent.frameworks.vae.weaklysupervised._adavae import compute_average_params
+from disent.frameworks.vae._supervised__tvae import TripletVae
+from disent.frameworks.vae._weaklysupervised__adavae import AdaVae
+from disent.frameworks.vae._weaklysupervised__adavae import compute_average_params
 
 
 log = logging.getLogger(__name__)

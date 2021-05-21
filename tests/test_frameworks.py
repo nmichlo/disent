@@ -34,10 +34,10 @@ from disent.data.groundtruth import XYObjectData
 from disent.dataset.groundtruth import GroundTruthDataset
 from disent.dataset.groundtruth import GroundTruthDatasetPairs
 from disent.dataset.groundtruth import GroundTruthDatasetTriples
-from disent.frameworks.ae.unsupervised import *
-from disent.frameworks.vae.unsupervised import *
-from disent.frameworks.vae.weaklysupervised import *
-from disent.frameworks.vae.supervised import *
+from disent.frameworks.ae import *
+from disent.frameworks.ae.experimental import *
+from disent.frameworks.vae import *
+from disent.frameworks.vae.experimental import *
 from disent.model.ae import AutoEncoder
 from disent.model.ae import DecoderConv64
 from disent.model.ae import EncoderConv64

@@ -30,7 +30,7 @@ from typing import Tuple
 import torch
 from dataclasses import dataclass
 from torch.distributions import Distribution
-from disent.frameworks.vae.unsupervised._betavae import BetaVae
+from disent.frameworks.vae._unsupervised__betavae import BetaVae
 
 
 # ========================================================================= #

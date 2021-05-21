@@ -231,7 +231,7 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 from disent.data.groundtruth import XYObjectData
 from disent.dataset.groundtruth import GroundTruthDataset
-from disent.frameworks.vae.unsupervised import BetaVae
+from disent.frameworks.vae import BetaVae
 from disent.metrics import metric_dci, metric_mig
 from disent.model.ae import EncoderConv64, DecoderConv64, AutoEncoder
 from disent.schedule import CyclicSchedule

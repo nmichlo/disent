@@ -32,9 +32,9 @@ from torch.distributions import Normal
 
 from disent.frameworks.helper.reconstructions import make_reconstruction_loss
 from disent.frameworks.helper.reconstructions import ReconLossHandler
-from disent.frameworks.vae.supervised._tvae import TripletVae
-from disent.frameworks.vae.unsupervised._betavae import BetaVae
-from disent.frameworks.vae.weaklysupervised._adavae import AdaVae
+from disent.frameworks.vae._supervised__tvae import TripletVae
+from disent.frameworks.vae._unsupervised__betavae import BetaVae
+from disent.frameworks.vae._weaklysupervised__adavae import AdaVae
 from disent.util.math_loss import torch_mse_rank_loss
 from disent.util.math_loss import spearman_rank_loss
 from experiment.util.hydra_utils import instantiate_recursive

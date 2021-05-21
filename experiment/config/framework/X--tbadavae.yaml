@@ -1,7 +1,7 @@
 # @package _group_
 name: tbadavae
 module:
-  _target_: disent.frameworks.vae.supervised.TripletBoundedAdaVae
+  _target_: disent.frameworks.vae.TripletBoundedAdaVae
   beta: ${framework.beta}
   # adavae
   ada_average_mode: gvae  # gvae or ml-vae

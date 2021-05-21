@@ -22,11 +22,29 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-# experimental frameworks
-# from ._badavae import BoundedAdaVae
-# from ._gadavae import GuidedAdaVae
-# from ._tbadavae import TripletBoundedAdaVae
-# from ._tgadavae import TripletGuidedAdaVae
-# from ._adatvae import AdaTripletVae
-# from ._adaave_tvae import AdaAveTripletVae
-# from ._adaneg_tvae import AdaNegTripletVae
+from dataclasses import dataclass
+
+from disent.frameworks.vae.experimental._supervised__gadavae import GuidedAdaVae
+from disent.frameworks.vae._supervised__tvae import TripletVae
+from disent.frameworks.helper.triplet_loss import TripletLossConfig
+
+
+# ========================================================================= #
+# tgadavae                                                                  #
+# ========================================================================= #
+
+
+class TripletGuidedAdaVae(GuidedAdaVae):
+
+    REQUIRED_OBS = 3
+
+    @dataclass
+    class cfg(GuidedAdaVae.cfg, TripletLossConfig):
+        pass
+
+    def hook_compute_ave_aug_loss(self, ds_posterior, ds_prior, zs_sampled, xs_partial_recon, xs_targ):
+        return TripletVae.compute_triplet_loss(zs_mean=[d.mean for d in ds_posterior], cfg=self.cfg)
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #

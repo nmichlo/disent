@@ -33,7 +33,7 @@ from typing import Union
 import torch
 from torch.distributions import Distribution
 
-from disent.frameworks.vae.unsupervised._vae import Vae
+from disent.frameworks.vae._unsupervised__vae import Vae
 
 
 # ========================================================================= #

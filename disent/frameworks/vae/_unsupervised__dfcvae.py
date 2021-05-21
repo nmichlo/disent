@@ -38,7 +38,7 @@ from torch.nn import functional as F
 
 from disent.frameworks.helper.reductions import get_mean_loss_scale
 from disent.frameworks.helper.util import compute_ave_loss
-from disent.frameworks.vae.unsupervised._betavae import BetaVae
+from disent.frameworks.vae._unsupervised__betavae import BetaVae
 from disent.transform.functional import check_tensor
 
 

@@ -1,7 +1,7 @@
 # @package _group_
 name: infovae
 module:
-  _target_: disent.frameworks.vae.unsupervised.InfoVae
+  _target_: disent.frameworks.vae.InfoVae
   # info vae is not based off beta vae, but with
   # the correct parameter choice this can equal the beta vae
   info_alpha: -0.5

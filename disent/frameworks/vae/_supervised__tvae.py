@@ -34,7 +34,7 @@ from typing import Union
 import torch
 from torch.distributions import Normal
 
-from disent.frameworks.vae.unsupervised._betavae import BetaVae
+from disent.frameworks.vae._unsupervised__betavae import BetaVae
 from disent.frameworks.helper.triplet_loss import configured_triplet, TripletLossConfig
 
 

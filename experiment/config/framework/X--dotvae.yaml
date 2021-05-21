@@ -1,7 +1,7 @@
 # @package _group_
 name: do_tvae
 module:
-  _target_: disent.frameworks.vae.unsupervised.DataOverlapTripletVae
+  _target_: disent.frameworks.vae.DataOverlapTripletVae
   beta: ${framework.beta}
   # tvae: triplet stuffs
   triplet_loss: triplet

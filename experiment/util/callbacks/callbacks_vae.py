@@ -36,8 +36,8 @@ import disent.metrics
 import disent.util.colors as c
 from disent.dataset._augment_util import AugmentableDataset
 from disent.dataset.groundtruth import GroundTruthDataset
-from disent.frameworks.ae.unsupervised import AE
-from disent.frameworks.vae.unsupervised import Vae
+from disent.frameworks.ae import AE
+from disent.frameworks.vae import Vae
 from disent.util import iter_chunks
 from disent.util import TempNumpySeed
 from disent.util import Timer

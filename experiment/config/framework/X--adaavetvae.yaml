@@ -1,7 +1,7 @@
 # @package _group_
 name: adaave_tvae
 module:
-  _target_: disent.frameworks.vae.supervised.AdaAveTripletVae
+  _target_: disent.frameworks.vae.AdaAveTripletVae
   beta: ${framework.beta}
   # tvae: triplet stuffs
   triplet_loss: triplet

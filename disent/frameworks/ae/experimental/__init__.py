@@ -22,12 +22,11 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from ._vae import Vae
-from ._betavae import BetaVae
-from ._dfcvae import DfcVae
-from ._dipvae import DipVae
-from ._infovae import InfoVae
-from ._betatcvae import BetaTcVae
+# supervised frameworks
+# <ADD>
 
-# experimental frameworks
-# from .experimental import *
+# unsupervised frameworks
+# <ADD>
+
+# weakly supervised frameworks
+# <ADD>
