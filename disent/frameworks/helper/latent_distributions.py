@@ -29,6 +29,7 @@ from typing import Tuple, final
 
 import numpy as np
 import torch
+from torch.distributions import Laplace
 from torch.distributions import Normal, Distribution
 
 from disent.frameworks.helper.reductions import loss_reduction
@@ -193,8 +194,14 @@ class LatentDistsHandlerNormal(LatentDistsHandler):
     Latent distributions with:
     - posterior: normal distribution with diagonal covariance
     - prior: unit normal distribution
+
+    NOTE: Expanding parameters results in something akin to an L2 regularizer.
     """
 
+    # assert mode == 'direct', f'legacy reference implementation of KL loss only supports mode="direct", not {repr(mode)}'
+    # assert reduction == 'mean_sum', f'legacy reference implementation of KL loss only supports reduction="mean_sum", not {repr(reduction)}'
+
+    # TODO: convert to using scale and loc?
     @dataclass
     class Params(LatentDistsHandler.Params):
         mean: torch.Tensor = None
@@ -226,7 +233,7 @@ class LatentDistsHandlerNormal(LatentDistsHandler):
         # compute required values
         z_std = torch.exp(0.5 * z_logvar)
         # q: approximate posterior distribution
-        posterior = Normal(z_mean, z_std)
+        posterior = Normal(loc=z_mean, scale=z_std)
         # p: prior distribution
         prior = Normal(torch.zeros_like(z_mean), torch.ones_like(z_std))
         # return values
@@ -239,25 +246,45 @@ class LatentDistsHandlerNormal(LatentDistsHandler):
             logvar=d_posterior.variance.log()
         )
 
-    @staticmethod
-    def LEGACY_compute_kl_loss(mu, logvar, mode: str = 'direct', reduction='mean_sum'):
-        """
-        Calculates the KL divergence between a normal distribution with
-        diagonal covariance and a unit normal distribution.
-        FROM: https://github.com/Schlumberger/joint-vae/blob/master/jointvae/training.py
 
-        (✓) Visual inspection against reference implementation:
-            https://github.com/google-research/disentanglement_lib (compute_gaussian_kl)
-        """
-        assert mode == 'direct', f'legacy reference implementation of KL loss only supports mode="direct", not {repr(mode)}'
-        assert reduction == 'mean_sum', f'legacy reference implementation of KL loss only supports reduction="mean_sum", not {repr(reduction)}'
-        # Calculate KL divergence
-        kl_values = -0.5 * (1 + logvar - mu.pow(2) - logvar.exp())
-        # Sum KL divergence across latent vector for each sample
-        kl_sums = torch.sum(kl_values, dim=1)
-        # KL loss is mean of the KL divergence sums
-        kl_loss = torch.mean(kl_sums)
-        return kl_loss
+class LatentDistsHandlerLaplace(LatentDistsHandler):
+    """
+    Latent distributions with:
+    - posterior: laplace distribution with diagonal covariance
+    - prior: unit laplace distribution
+
+    TODO: is this true?
+    NOTE: Expanding parameters results in something akin to an L1 regularizer, with extra terms?
+    """
+
+    @dataclass
+    class Params(LatentDistsHandler.Params):
+        loc: torch.Tensor = None
+        logscale: torch.Tensor = None
+        __repr__ = short_dataclass_repr
+
+    @final
+    def encoding_to_params(self, raw_z: Tuple[torch.Tensor, torch.Tensor]) -> Params:
+        z_loc, z_logscale = raw_z
+        return self.Params(z_loc, z_logscale)
+
+    @final
+    def params_to_representation(self, z_params: Params) -> torch.Tensor:
+        return z_params.loc
+
+    @final
+    def params_to_dists(self, z_params: Params) -> Tuple[Laplace, Laplace]:
+        z_loc, z_logscale = z_params
+        posterior = Laplace(loc=z_loc, scale=torch.exp(z_logscale))
+        prior = Laplace(torch.zeros_like(z_loc), torch.ones_like(z_logscale))
+        return posterior, prior
+
+    @final
+    def dist_to_params(self, d_posterior: Laplace) -> Params:
+        return self.Params(
+            loc=d_posterior.loc,
+            logscale=d_posterior.scale.log()
+        )
 
 
 # ========================================================================= #
@@ -265,11 +292,17 @@ class LatentDistsHandlerNormal(LatentDistsHandler):
 # ========================================================================= #
 
 
+_LATENT_HANDLERS = {
+    'normal': LatentDistsHandlerNormal,
+    'laplace': LatentDistsHandlerLaplace,
+}
+
+
 def make_latent_distribution(name: str, kl_mode: str, reduction: str) -> LatentDistsHandler:
-    if name == 'normal':
-        cls = LatentDistsHandlerNormal
-    else:
-        raise KeyError(f'unknown vae distribution name: {name}')
+    try:
+        cls = _LATENT_HANDLERS[name]
+    except KeyError:
+        raise KeyError(f'unknown vae distribution name: {repr(name)}, must be one of: {sorted(_LATENT_HANDLERS.keys())}')
     # make instance
     return cls(kl_mode=kl_mode, reduction=reduction)
 
