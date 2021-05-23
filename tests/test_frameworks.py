@@ -74,7 +74,7 @@ from disent.transform import ToStandardisedTensor
     (AugPosTripletVae,     dict(),                                                                      XYObjectData),
     # VAE - supervised
     (TripletVae,           dict(),                                                                      XYObjectData),
-    (TripletVae,           dict(detach=True, detach_decoder=True, detach_no_kl=True, detach_logvar=-2), XYObjectData),
+    (TripletVae,           dict(detach=True, detach_decoder=True, detach_no_kl=True, detach_std=0.5), XYObjectData),
     (BoundedAdaVae,        dict(),                                                                      XYObjectData),
     (GuidedAdaVae,         dict(),                                                                      XYObjectData),
     (GuidedAdaVae,         dict(gada_anchor_ave_mode='thresh'),                                         XYObjectData),

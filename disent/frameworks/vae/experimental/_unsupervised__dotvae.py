@@ -56,7 +56,7 @@ class DataOverlapTripletVae(AdaNegTripletVae):
         detach: bool = False
         detach_decoder: bool = False
         detach_no_kl: bool = False
-        detach_logvar: float = None  # std = 0.5, logvar = ln(std**2) ~= -2,77
+        detach_std: float = None
         # OVERLAP VAE
         overlap_loss: Optional[str] = None  # if None, use the value from recon_loss
         overlap_num: int = 1024

@@ -13,7 +13,7 @@ module:
   detach: FALSE
   detach_decoder: FALSE
   detach_no_kl: FALSE
-  detach_logvar: NULL  # set to NULL to disable fixed value
+  detach_std: NULL  # set to NULL to disable fixed value
 
 # settings used elsewhere
 data_wrap_mode: weak_pair

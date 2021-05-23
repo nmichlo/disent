@@ -53,7 +53,7 @@ class TripletVae(BetaVae):
         detach: bool = False
         detach_decoder: bool = True
         detach_no_kl: bool = False
-        detach_logvar: float = -2  # std = 0.5, logvar = ln(std**2) ~= -2,77
+        detach_std: float = None
 
     def hook_intercept_zs(self, zs_params: Sequence['Params']) -> Tuple[Sequence['Params'], Dict[str, Any]]:
         # replace logvar
