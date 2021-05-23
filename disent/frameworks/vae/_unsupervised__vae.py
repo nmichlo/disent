@@ -37,6 +37,7 @@ from torch.distributions import Distribution
 from disent.frameworks.ae._unsupervised__ae import AE
 from disent.frameworks.helper.latent_distributions import LatentDistsHandler
 from disent.frameworks.helper.latent_distributions import make_latent_distribution
+from disent.frameworks.helper.util import detach_all
 from disent.util import map_all
 
 
@@ -49,6 +50,39 @@ class Vae(AE):
     """
     Variational Auto Encoder
     https://arxiv.org/abs/1312.6114
+    ------------------------
+
+    This VAE implementation supports multiple inputs in parallel. Each input
+    is fed through the VAE on its own, and the loss from each step is averaged
+    together at the end. This is effectively the same as increasing the batch
+    size and scaling down the loss. The reason this VAE implementation supports
+    the variable number of input args is to allow one common framework to be
+    the parent of all child VAEs.
+
+    Child classes can implement various hooks to override or add additional
+    functionality to the VAE. Most common VAE derivatives can be implemented
+    by simply adding functionality using these hooks, and changing the required
+    number of input arguments using `REQUIRED_OBS`.
+
+    - HOOKS:
+        * `hook_intercept_zs`
+        * `hook_intercept_zs_sampled`
+        * `hook_compute_ave_aug_loss` (NB: not the same as `hook_ae_compute_ave_aug_loss` from AEs)
+
+    - OVERRIDES:
+        * `compute_ave_recon_loss`
+        * `compute_ave_reg_loss`
+
+    For example:
+    -> implementing `hook_compute_ave_aug_loss` and setting `REQUIRED_OBS=3`
+       we can easily implement a Triplet VAE.
+    -> implementing `hook_intercept_zs` and then setting `REQUIRED_OBS=2`
+       we can easily implement the Adaptive VAE style frameworks.
+
+    TODO: allow hooks to be registered? simply build up new frameworks?
+          Vae(recon_loss=DfcLoss())
+          Vae(hook_intercept_zs=AdaptiveAveraging(mode='gvae'), required_obs=2)
+          Vae(hook_compute_ave_aug_loss=TripletLoss(), required_obs=3)
     """
 
     # override required z from AE
@@ -90,7 +124,7 @@ class Vae(AE):
         # [HOOK] intercept zs_samples
         zs_sampled, logs_intercept_zs_sampled = self.hook_intercept_zs_sampled(zs_sampled)
         # reconstruct without the final activation
-        xs_partial_recon = map_all(self.decode_partial, zs_sampled)
+        xs_partial_recon = map_all(self.decode_partial, detach_all(zs_sampled, self.cfg.detach and self.cfg.detach_decoder))
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
         # LOSS
@@ -121,6 +155,7 @@ class Vae(AE):
     # Overrideable                                                          #
     # --------------------------------------------------------------------- #
 
+    # TODO: this changes the hook definition from AE
     def hook_intercept_zs(self, zs_params: Sequence['Params']) -> Tuple[Sequence['Params'], Dict[str, Any]]:
         return zs_params, {}
 
@@ -129,6 +164,10 @@ class Vae(AE):
 
     def hook_compute_ave_aug_loss(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
         return 0, {}
+
+    @final
+    def hook_ae_compute_ave_aug_loss(self, zs: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
+        raise NotImplementedError('This function should never be used or overridden by VAE methods!')
 
     def compute_ave_reg_loss(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
         # compute regularization loss (kl divergence)

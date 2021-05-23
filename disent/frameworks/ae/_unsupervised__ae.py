@@ -36,6 +36,7 @@ from typing import Union
 import torch
 
 from disent.frameworks.helper.reconstructions import ReconLossHandler, make_reconstruction_loss
+from disent.frameworks.helper.util import detach_all
 from disent.model.ae.base import AutoEncoder
 from disent.frameworks.framework import BaseFramework
 
@@ -53,6 +54,23 @@ log = logging.getLogger(__name__)
 class AE(BaseFramework):
     """
     Basic Auto Encoder
+    ------------------
+
+    See the docs for the VAE, while the AE is more simple, the VAE docs
+    cover the concepts needed to get started with writing Auto-Encoder
+    sub-classes.
+
+    Like the VAE, the AE is also written such that you can change the
+    number of required input observations that should be fed through the
+    network in parallel with `REQUIRED_OBS`. Various hooks are also made
+    available to add functionality and access the internal data.
+
+    - HOOKS:
+        * `hook_intercept_zs`
+        * `hook_ae_compute_ave_aug_loss` (NB: not the same as `hook_compute_ave_aug_loss` from VAEs)
+
+    - OVERRIDES:
+        * `compute_ave_recon_loss`
     """
 
     REQUIRED_Z_MULTIPLIER = 1
@@ -66,6 +84,9 @@ class AE(BaseFramework):
         # - 'mean': mean over the entire batch
         # - 'mean_sum': sum each observation, returning the mean sum over the batch
         loss_reduction: str = 'mean'
+        # detach various loss components
+        detach: bool = False
+        detach_decoder: bool = False
 
     def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
         super().__init__(make_optimizer_fn, batch_augment=batch_augment, cfg=cfg)
@@ -108,22 +129,26 @@ class AE(BaseFramework):
         # intercept latent variables
         zs, logs_intercept_zs = self.hook_intercept_zs(zs)
         # reconstruct without the final activation
-        xs_partial_recon = map_all(self.decode_partial, zs)
+        xs_partial_recon = map_all(self.decode_partial, detach_all(zs, self.cfg.detach and self.cfg.detach_decoder))
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
         # LOSS
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # compute all the recon losses
         recon_loss, logs_recon = self.compute_ave_recon_loss(xs_partial_recon, xs_targ)
+        # [HOOK] augment loss
+        aug_loss, logs_aug = self.hook_ae_compute_ave_aug_loss(zs=zs, xs_partial_recon=xs_partial_recon, xs_targ=xs_targ)
         # compute combined loss
-        loss = recon_loss
+        loss = recon_loss + aug_loss
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
         # return values
         return loss, {
             **logs_intercept_zs,
             **logs_recon,
+            **logs_aug,
             'recon_loss': recon_loss,
+            'aug_loss': aug_loss,
         }
 
     # --------------------------------------------------------------------- #
@@ -132,6 +157,9 @@ class AE(BaseFramework):
 
     def hook_intercept_zs(self, zs: Sequence[torch.Tensor]) -> Tuple[Sequence[torch.Tensor], Dict[str, Any]]:
         return zs, {}
+
+    def hook_ae_compute_ave_aug_loss(self, zs: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
+        return 0, {}
 
     def compute_ave_recon_loss(self, xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
         # compute reconstruction loss

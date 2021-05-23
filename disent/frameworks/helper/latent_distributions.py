@@ -125,6 +125,9 @@ def kl_loss(posterior: Distribution, prior: Distribution, z_sampled: torch.Tenso
 
 class LatentDistsHandler(object):
 
+    # TODO: can we simplify this whole handler?
+    #       -- maybe get rid of the params classes?
+
     def __init__(self,  kl_mode: str = 'direct', reduction='mean'):
         self._kl_mode = kl_mode
         self._reduction = reduction

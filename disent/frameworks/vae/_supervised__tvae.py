@@ -52,11 +52,11 @@ class TripletVae(BetaVae):
     @dataclass
     class cfg(BetaVae.cfg, TripletLossConfig):
         # tvae: no loss from decoder -> encoder
-        detach: bool = False
-        detach_decoder: bool = True
+        # TODO: add detach mode in VAE that stops sampling!
         detach_no_kl: bool = False
         detach_std: float = None
 
+    # TODO: move this into VAE
     def hook_intercept_zs(self, zs_params: Sequence['Params']) -> Tuple[Sequence['Params'], Dict[str, Any]]:
         # replace logvar
         if self.cfg.detach and (self.cfg.detach_std is not None):
@@ -64,12 +64,7 @@ class TripletVae(BetaVae):
                 z_params.logvar = torch.full_like(z_params.logvar, fill_value=np.log(self.cfg.detach_std ** 2))
         return zs_params, {}
 
-    def hook_intercept_zs_sampled(self, zs_sampled: Sequence[torch.Tensor]) -> Tuple[Sequence[torch.Tensor], Dict[str, Any]]:
-        # detach samples so no gradient flows through them
-        if self.cfg.detach and self.cfg.detach_decoder:
-            zs_sampled = tuple(z_sampled.detach() for z_sampled in zs_sampled)
-        return zs_sampled, {}
-
+    # TODO: move this into VAE
     def compute_ave_reg_loss(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
         if self.cfg.detach and self.cfg.detach_no_kl:
             return 0, {}
