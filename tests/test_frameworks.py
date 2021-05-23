@@ -113,6 +113,8 @@ def test_framework_config_defaults():
     # we test that defaults are working recursively
     assert asdict(BetaVae.cfg()) == dict(
         recon_loss='mse',
+        detach=False,
+        detach_decoder=False,
         loss_reduction='mean',
         latent_distribution='normal',
         kl_loss_mode='direct',
@@ -120,6 +122,8 @@ def test_framework_config_defaults():
     )
     assert asdict(BetaVae.cfg(recon_loss='bce', kl_loss_mode='approx')) == dict(
         recon_loss='bce',
+        detach=False,
+        detach_decoder=False,
         loss_reduction='mean',
         latent_distribution='normal',
         kl_loss_mode='approx',
