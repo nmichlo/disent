@@ -57,12 +57,14 @@ class TripletVae(BetaVae):
         detach_std: float = None
 
     # TODO: move this into VAE
-    def hook_intercept_zs(self, zs_params: Sequence['Params']) -> Tuple[Sequence['Params'], Dict[str, Any]]:
-        # replace logvar
+    def hook_intercept_ds(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution]) -> Tuple[Sequence[Distribution], Sequence[Distribution], Dict[str, Any]]:
+        # replace variance
         if self.cfg.detach and (self.cfg.detach_std is not None):
-            for z_params in zs_params:
-                z_params.logvar = torch.full_like(z_params.logvar, fill_value=np.log(self.cfg.detach_std ** 2))
-        return zs_params, {}
+            for d_posterior in ds_posterior:
+                assert isinstance(d_posterior, Normal)
+                d_posterior.scale = torch.full_like(d_posterior.scale, fill_value=self.cfg.detach_std)
+        # return values
+        return ds_posterior, ds_prior, {}
 
     # TODO: move this into VAE
     def compute_ave_reg_loss(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:

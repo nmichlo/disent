@@ -65,7 +65,7 @@ class Vae(AE):
     number of input arguments using `REQUIRED_OBS`.
 
     - HOOKS:
-        * `hook_intercept_zs`
+        * `hook_intercept_ds`
         * `hook_intercept_zs_sampled`
         * `hook_compute_ave_aug_loss` (NB: not the same as `hook_ae_compute_ave_aug_loss` from AEs)
 
@@ -76,12 +76,12 @@ class Vae(AE):
     For example:
     -> implementing `hook_compute_ave_aug_loss` and setting `REQUIRED_OBS=3`
        we can easily implement a Triplet VAE.
-    -> implementing `hook_intercept_zs` and then setting `REQUIRED_OBS=2`
+    -> implementing `hook_intercept_ds` and then setting `REQUIRED_OBS=2`
        we can easily implement the Adaptive VAE style frameworks.
 
     TODO: allow hooks to be registered? simply build up new frameworks?
           Vae(recon_loss=DfcLoss())
-          Vae(hook_intercept_zs=AdaptiveAveraging(mode='gvae'), required_obs=2)
+          Vae(hook_intercept_ds=AdaptiveAveraging(mode='gvae'), required_obs=2)
           Vae(hook_compute_ave_aug_loss=TripletLoss(), required_obs=3)
     """
 
@@ -116,11 +116,11 @@ class Vae(AE):
         # FORWARD
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # latent distribution parameterizations
-        zs_params = map_all(self.encode_params, xs)
+        ds_posterior, ds_prior = map_all(self.encode_dists, xs, collect_returned=True)
         # [HOOK] intercept latent parameterizations
-        zs_params, logs_intercept_zs = self.hook_intercept_zs(zs_params)
-        # make latent distributions & sample
-        ds_posterior, ds_prior, zs_sampled = map_all(self.params_to_dists_and_sample, zs_params, collect_returned=True)
+        ds_posterior, ds_prior, logs_intercept_zs = self.hook_intercept_ds(ds_posterior, ds_prior)
+        # sample from dists
+        zs_sampled = tuple(d_posterior.rsample() for d_posterior in ds_posterior)
         # [HOOK] intercept zs_samples
         zs_sampled, logs_intercept_zs_sampled = self.hook_intercept_zs_sampled(zs_sampled)
         # reconstruct without the final activation
@@ -152,22 +152,29 @@ class Vae(AE):
         }
 
     # --------------------------------------------------------------------- #
+    # Delete AE Hooks                                                       #
+    # --------------------------------------------------------------------- #
+
+    @final
+    def hook_ae_intercept_zs(self, zs: Sequence[torch.Tensor]) -> Tuple[Sequence[torch.Tensor], Dict[str, Any]]:
+        raise NotImplementedError('This function should never be used or overridden by VAE methods!')
+
+    @final
+    def hook_ae_compute_ave_aug_loss(self, zs: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
+        raise NotImplementedError('This function should never be used or overridden by VAE methods!')
+
+    # --------------------------------------------------------------------- #
     # Overrideable                                                          #
     # --------------------------------------------------------------------- #
 
-    # TODO: this changes the hook definition from AE
-    def hook_intercept_zs(self, zs_params: Sequence['Params']) -> Tuple[Sequence['Params'], Dict[str, Any]]:
-        return zs_params, {}
+    def hook_intercept_ds(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution]) -> Tuple[Sequence[Distribution], Sequence[Distribution], Dict[str, Any]]:
+        return ds_posterior, ds_prior, {}
 
     def hook_intercept_zs_sampled(self, zs_sampled: Sequence[torch.Tensor]) -> Tuple[Sequence[torch.Tensor], Dict[str, Any]]:
         return zs_sampled, {}
 
     def hook_compute_ave_aug_loss(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
         return 0, {}
-
-    @final
-    def hook_ae_compute_ave_aug_loss(self, zs: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
-        raise NotImplementedError('This function should never be used or overridden by VAE methods!')
 
     def compute_ave_reg_loss(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
         # compute regularization loss (kl divergence)
@@ -184,41 +191,29 @@ class Vae(AE):
     @final
     def encode(self, x: torch.Tensor) -> torch.Tensor:
         """Get the deterministic latent representation (useful for visualisation)"""
-        z_params = self.encode_params(x)
-        z = self.latents_handler.params_to_representation(z_params)
+        z_raw = self._model.encode(x)
+        z = self.latents_handler.encoding_to_representation(z_raw)
         return z
 
+    # TODO: update references of this function to Distributions
     @final
-    def encode_params(self, x: torch.Tensor) -> 'Params':
+    def encode_dists(self, x: torch.Tensor) -> Tuple[Distribution, Distribution]:
         """Get parametrisations of the latent distributions, which are sampled from during training."""
         z_raw = self._model.encode(x)
-        z_params = self.latents_handler.encoding_to_params(z_raw)
-        return z_params
+        z_posterior, z_prior = self.latents_handler.encoding_to_dists(z_raw)
+        return z_posterior, z_prior
 
     # --------------------------------------------------------------------- #
     # VAE - Latent Distributions                                            #
     # --------------------------------------------------------------------- #
 
-    @final
-    def params_to_dists(self, z_params: 'Params') -> Tuple[Distribution, Distribution]:
-        return self.latents_handler.params_to_dists(z_params)
+    # @final
+    # def all_encodings_to_representations(self, zs_raw: Sequence[Tuple[torch.Tensor, ...]]) -> Sequence[torch.Tensor]:
+    #     return map_all(self.latents_handler.encoding_to_representation, zs_raw, collect_returned=False)
 
-    @final
-    def params_to_dists_and_sample(self, z_params: 'Params') -> Tuple[Distribution, Distribution, torch.Tensor]:
-        return self.latents_handler.params_to_dists_and_sample(z_params)
-
-    @final
-    def dist_to_params(self, d_posterior: Distribution) -> 'Params':
-        return self.latents_handler.dist_to_params(d_posterior)
-
-    @final
-    def all_params_to_dists(self, zs_params: Sequence['Params']) -> Tuple[Sequence[Distribution], Sequence[Distribution]]:
-        ds_posterior, ds_prior = zip(*(self.params_to_dists(z_params) for z_params in zs_params))
-        return ds_posterior, ds_prior
-
-    @final
-    def all_dist_to_params(self, ds_posterior: Sequence[Distribution]) -> Sequence['Params']:
-        return [self.dist_to_params(d) for d in ds_posterior]
+    # @final
+    # def all_encodings_to_dists(self, zs_raw: Sequence[Tuple[torch.Tensor, ...]]) -> Tuple[Sequence[Distribution], Sequence[Distribution]]:
+    #     return map_all(self.latents_handler.encoding_to_dists, zs_raw, collect_returned=True)
 
 
 # ========================================================================= #

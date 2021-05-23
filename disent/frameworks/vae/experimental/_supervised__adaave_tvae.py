@@ -25,10 +25,16 @@
 import logging
 import warnings
 from dataclasses import dataclass
+from typing import Any
+from typing import Dict
 from typing import Sequence
+from typing import Tuple
+
+from torch.distributions import Distribution
+from torch.distributions import Normal
 
 from disent.frameworks.vae.experimental._supervised__adatvae import AdaTripletVae
-from disent.frameworks.vae.experimental._supervised__adatvae import compute_ave_shared_params
+from disent.frameworks.vae.experimental._supervised__adatvae import compute_ave_shared_distributions
 from disent.frameworks.vae.experimental._supervised__adatvae import compute_triplet_shared_masks
 
 log = logging.getLogger(__name__)
@@ -68,29 +74,28 @@ class AdaAveTripletVae(AdaTripletVae):
         if self.cfg.adaave_decode_orig == False:
             warnings.warn(f'cfg.adaave_decode_orig == {repr(self.cfg.adaave_decode_orig)}. Modes other than True do not work well!')
 
-    def hook_intercept_zs(self, zs_params: Sequence['Params']):
+    def hook_intercept_ds(self, ds_posterior: Sequence[Normal], ds_prior: Sequence[Normal]) -> Tuple[Sequence[Distribution], Sequence[Distribution], Dict[str, Any]]:
         # triplet vae intercept -- in case detached
-        zs_params, intercept_logs = super().hook_intercept_zs(zs_params)
-        ds_posterior, _ = self.all_params_to_dists(zs_params)
+        ds_posterior, ds_prior, intercept_logs = super().hook_intercept_ds(ds_posterior, ds_prior)
 
         # compute shared masks, shared embeddings & averages over shared embeddings
         share_masks, share_logs = compute_triplet_shared_masks(ds_posterior, cfg=self.cfg)
-        zs_params_shared, zs_params_shared_ave = compute_ave_shared_params(zs_params, share_masks, cfg=self.cfg)
+        ds_posterior_shared, ds_posterior_shared_ave = compute_ave_shared_distributions(ds_posterior, share_masks, cfg=self.cfg)
 
         # DIFFERENCE FROM ADAVAE | get return values
         # adavae: adaave_augment_orig == True, adaave_decode_orig == False
-        zs_params_augment = (zs_params if self.cfg.adaave_augment_orig else zs_params_shared_ave)
-        zs_params_return = (zs_params if self.cfg.adaave_decode_orig else zs_params_shared_ave)
+        ds_posterior_augment = (ds_posterior if self.cfg.adaave_augment_orig else ds_posterior_shared_ave)
+        ds_posterior_return = (ds_posterior if self.cfg.adaave_decode_orig else ds_posterior_shared_ave)
 
         # save params for aug_loss hook step
         self._curr_ada_loss_kwargs = dict(
             share_masks=share_masks,
-            zs_params=zs_params,
-            zs_params_shared=zs_params_shared,
-            zs_params_shared_ave=zs_params_augment,  # USUALLY: zs_params_shared_ave
+            zs=[d.mean for d in ds_posterior],
+            zs_shared=[d.mean for d in ds_posterior_shared],
+            zs_shared_ave=[d.mean for d in ds_posterior_augment],  # USUALLY: zs_params_shared_ave
         )
 
-        return zs_params_return, {
+        return ds_posterior_return, ds_prior, {
             **intercept_logs,
             **share_logs,
         }

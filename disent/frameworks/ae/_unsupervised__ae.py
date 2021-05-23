@@ -66,7 +66,7 @@ class AE(BaseFramework):
     available to add functionality and access the internal data.
 
     - HOOKS:
-        * `hook_intercept_zs`
+        * `hook_ae_intercept_zs`
         * `hook_ae_compute_ave_aug_loss` (NB: not the same as `hook_compute_ave_aug_loss` from VAEs)
 
     - OVERRIDES:
@@ -125,9 +125,9 @@ class AE(BaseFramework):
         # FORWARD
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # latent variables
-        zs = map_all(self.encode_params, xs)
+        zs = map_all(self.encode, xs)
         # intercept latent variables
-        zs, logs_intercept_zs = self.hook_intercept_zs(zs)
+        zs, logs_intercept_zs = self.hook_ae_intercept_zs(zs)
         # reconstruct without the final activation
         xs_partial_recon = map_all(self.decode_partial, detach_all(zs, self.cfg.detach and self.cfg.detach_decoder))
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -155,7 +155,7 @@ class AE(BaseFramework):
     # Overrideable                                                          #
     # --------------------------------------------------------------------- #
 
-    def hook_intercept_zs(self, zs: Sequence[torch.Tensor]) -> Tuple[Sequence[torch.Tensor], Dict[str, Any]]:
+    def hook_ae_intercept_zs(self, zs: Sequence[torch.Tensor]) -> Tuple[Sequence[torch.Tensor], Dict[str, Any]]:
         return zs, {}
 
     def hook_ae_compute_ave_aug_loss(self, zs: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
@@ -177,13 +177,11 @@ class AE(BaseFramework):
     def encode(self, x: torch.Tensor) -> torch.Tensor:
         """Get the deterministic latent representation (useful for visualisation)"""
         return self._model.encode(x)
-        # TODO: return self.encode_params(x)
 
     @final
     def decode(self, z: torch.Tensor) -> torch.Tensor:
         """Decode latent vector z into reconstruction x_recon (useful for visualisation)"""
         return self.recon_handler.activate(self._model.decode(z))
-        # TODO: return self.recon_handler.activate(self.decode_partial(z))
 
     @final
     def forward(self, batch: torch.Tensor) -> torch.Tensor:
@@ -193,11 +191,6 @@ class AE(BaseFramework):
     # --------------------------------------------------------------------- #
     # AE Model Utility Functions (Training)                                 #
     # --------------------------------------------------------------------- #
-
-    @final
-    def encode_params(self, x: torch.Tensor) -> torch.Tensor:
-        """Get parametrisations of the latent distributions, which are sampled from during training."""
-        return self._model.encode(x)
 
     @final
     def decode_partial(self, z: torch.Tensor) -> torch.Tensor:
