@@ -24,8 +24,8 @@
 
 from dataclasses import dataclass
 
+from disent.frameworks.helper.triplet_loss import compute_triplet_loss
 from disent.frameworks.vae.experimental._supervised__gadavae import GuidedAdaVae
-from disent.frameworks.vae._supervised__tvae import TripletVae
 from disent.frameworks.helper.triplet_loss import TripletLossConfig
 
 
@@ -43,7 +43,8 @@ class TripletGuidedAdaVae(GuidedAdaVae):
         pass
 
     def hook_compute_ave_aug_loss(self, ds_posterior, ds_prior, zs_sampled, xs_partial_recon, xs_targ):
-        return TripletVae.compute_triplet_loss(zs_mean=[d.mean for d in ds_posterior], cfg=self.cfg)
+        return compute_triplet_loss(zs=[d.mean for d in ds_posterior], cfg=self.cfg)
+
 
 # ========================================================================= #
 # END                                                                       #

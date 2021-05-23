@@ -31,11 +31,13 @@ from typing import Sequence
 from typing import Tuple
 from typing import Union
 
+import numpy as np
 import torch
 from torch.distributions import Normal
 
+from disent.frameworks.helper.triplet_loss import compute_triplet_loss
+from disent.frameworks.helper.triplet_loss import TripletLossConfig
 from disent.frameworks.vae._unsupervised__betavae import BetaVae
-from disent.frameworks.helper.triplet_loss import configured_triplet, TripletLossConfig
 
 
 # ========================================================================= #
@@ -57,10 +59,9 @@ class TripletVae(BetaVae):
 
     def hook_intercept_zs(self, zs_params: Sequence['Params']) -> Tuple[Sequence['Params'], Dict[str, Any]]:
         # replace logvar
-        if self.cfg.detach and (self.cfg.detach_logvar is not None):
+        if self.cfg.detach and (self.cfg.detach_std is not None):
             for z_params in zs_params:
-                z_params.logvar = torch.full_like(z_params.logvar, self.cfg.detach_logvar)
-        # done
+                z_params.logvar = torch.full_like(z_params.logvar, fill_value=np.log(self.cfg.detach_std ** 2))
         return zs_params, {}
 
     def hook_intercept_zs_sampled(self, zs_sampled: Sequence[torch.Tensor]) -> Tuple[Sequence[torch.Tensor], Dict[str, Any]]:
@@ -72,21 +73,10 @@ class TripletVae(BetaVae):
     def compute_ave_reg_loss(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
         if self.cfg.detach and self.cfg.detach_no_kl:
             return 0, {}
-        else:
-            return super().compute_ave_reg_loss(ds_posterior, ds_prior, zs_sampled)
+        return super().compute_ave_reg_loss(ds_posterior, ds_prior, zs_sampled)
 
     def hook_compute_ave_aug_loss(self, ds_posterior: Sequence[Normal], ds_prior: Sequence[Normal], zs_sampled: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
-        return self.compute_triplet_loss(zs_mean=[d.mean for d in ds_posterior], cfg=self.cfg)
-
-    @staticmethod
-    def compute_triplet_loss(zs_mean: Sequence[torch.Tensor], cfg: cfg):
-        anc, pos, neg = zs_mean
-        # loss is scaled and everything
-        loss = configured_triplet(anc, pos, neg, cfg=cfg)
-        # return loss & log
-        return loss, {
-            f'{cfg.triplet_loss}_L{cfg.triplet_p}': loss
-        }
+        return compute_triplet_loss(zs=[d.mean for d in ds_posterior], cfg=self.cfg)
 
 
 # ========================================================================= #
