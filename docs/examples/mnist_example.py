@@ -1,3 +1,4 @@
+import os
 from collections import Sequence
 
 import pytorch_lightning as pl
@@ -15,15 +16,17 @@ from disent.transform import ToStandardisedTensor
 from disent.util import is_test_run
 
 
+# modify the mnist dataset to only return observations, not labels
 class MNIST(datasets.MNIST, Sequence):
     def __getitem__(self, index):
         img, target = super().__getitem__(index)
         return img
 
 
-# make mnist dataset -- adjust num_samples here to match framework
-dataset_train = RandomDataset(MNIST('./data/dataset/mnist', train=True,  download=True, transform=ToStandardisedTensor(size=64)), num_samples=2)
-dataset_test  =               MNIST('./data/dataset/mnist', train=False, download=True, transform=ToStandardisedTensor(size=64))
+# make mnist dataset -- adjust num_samples here to match framework. TODO: add tests that can fail with a warning -- dataset downloading is not always reliable
+data_folder   = os.path.abspath(os.path.join(__file__, '../data/dataset'))
+dataset_train = RandomDataset(MNIST(data_folder, train=True,  download=True, transform=ToStandardisedTensor(size=64)), num_samples=2)
+dataset_test  =               MNIST(data_folder, train=False, download=True, transform=ToStandardisedTensor(size=64))
 
 # create the dataloaders
 dataloader_train = DataLoader(dataset=dataset_train, batch_size=64, shuffle=True)
