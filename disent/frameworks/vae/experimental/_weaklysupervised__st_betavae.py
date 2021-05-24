@@ -24,26 +24,39 @@
 
 from dataclasses import dataclass
 
-from disent.frameworks.vae.supervised.experimental._gadavae import GuidedAdaVae
-from disent.frameworks.vae.supervised._tvae import TripletVae
-from disent.frameworks.helper.triplet_loss import TripletLossConfig
+import numpy as np
+from disent.frameworks.vae._unsupervised__betavae import BetaVae
 
 
 # ========================================================================= #
-# tgadavae                                                                  #
+# Swapped Target BetaVAE                                                    #
 # ========================================================================= #
 
 
-class TripletGuidedAdaVae(GuidedAdaVae):
+class SwappedTargetBetaVae(BetaVae):
 
-    REQUIRED_OBS = 3
+    REQUIRED_OBS = 2
 
     @dataclass
-    class cfg(GuidedAdaVae.cfg, TripletLossConfig):
-        pass
+    class cfg(BetaVae.cfg):
+        swap_chance: float = 0.1
 
-    def hook_compute_ave_aug_loss(self, ds_posterior, ds_prior, zs_sampled, xs_partial_recon, xs_targ):
-        return TripletVae.compute_triplet_loss(zs_mean=[d.mean for d in ds_posterior], cfg=self.cfg)
+    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
+        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
+        assert cfg.swap_chance >= 0
+
+    def do_training_step(self, batch, batch_idx):
+        (x0, x1), (x0_targ, x1_targ) = self._get_xs_and_targs(batch, batch_idx)
+
+        # random change for the target not to be equal to the input
+        if np.random.random() < self.cfg.swap_chance:
+            x0_targ, x1_targ = x1_targ, x0_targ
+
+        return super(SwappedTargetBetaVae, self).do_training_step({
+            'x': (x0,),
+            'x_targ': (x0_targ,),
+        }, batch_idx)
+
 
 # ========================================================================= #
 # END                                                                       #

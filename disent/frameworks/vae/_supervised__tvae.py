@@ -31,11 +31,13 @@ from typing import Sequence
 from typing import Tuple
 from typing import Union
 
+import numpy as np
 import torch
 from torch.distributions import Normal
 
-from disent.frameworks.vae.unsupervised._betavae import BetaVae
-from disent.frameworks.helper.triplet_loss import configured_triplet, TripletLossConfig
+from disent.frameworks.helper.triplet_loss import compute_triplet_loss
+from disent.frameworks.helper.triplet_loss import TripletLossConfig
+from disent.frameworks.vae._unsupervised__betavae import BetaVae
 
 
 # ========================================================================= #
@@ -50,43 +52,28 @@ class TripletVae(BetaVae):
     @dataclass
     class cfg(BetaVae.cfg, TripletLossConfig):
         # tvae: no loss from decoder -> encoder
-        detach: bool = False
-        detach_decoder: bool = True
+        # TODO: add detach mode in VAE that stops sampling!
         detach_no_kl: bool = False
-        detach_logvar: float = -2  # std = 0.5, logvar = ln(std**2) ~= -2,77
+        detach_std: float = None
 
-    def hook_intercept_zs(self, zs_params: Sequence['Params']) -> Tuple[Sequence['Params'], Dict[str, Any]]:
-        # replace logvar
-        if self.cfg.detach and (self.cfg.detach_logvar is not None):
-            for z_params in zs_params:
-                z_params.logvar = torch.full_like(z_params.logvar, self.cfg.detach_logvar)
-        # done
-        return zs_params, {}
+    # TODO: move this into VAE
+    def hook_intercept_ds(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution]) -> Tuple[Sequence[Distribution], Sequence[Distribution], Dict[str, Any]]:
+        # replace variance
+        if self.cfg.detach and (self.cfg.detach_std is not None):
+            for d_posterior in ds_posterior:
+                assert isinstance(d_posterior, Normal)
+                d_posterior.scale = torch.full_like(d_posterior.scale, fill_value=self.cfg.detach_std)
+        # return values
+        return ds_posterior, ds_prior, {}
 
-    def hook_intercept_zs_sampled(self, zs_sampled: Sequence[torch.Tensor]) -> Tuple[Sequence[torch.Tensor], Dict[str, Any]]:
-        # detach samples so no gradient flows through them
-        if self.cfg.detach and self.cfg.detach_decoder:
-            zs_sampled = tuple(z_sampled.detach() for z_sampled in zs_sampled)
-        return zs_sampled, {}
-
+    # TODO: move this into VAE
     def compute_ave_reg_loss(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
         if self.cfg.detach and self.cfg.detach_no_kl:
             return 0, {}
-        else:
-            return super().compute_ave_reg_loss(ds_posterior, ds_prior, zs_sampled)
+        return super().compute_ave_reg_loss(ds_posterior, ds_prior, zs_sampled)
 
     def hook_compute_ave_aug_loss(self, ds_posterior: Sequence[Normal], ds_prior: Sequence[Normal], zs_sampled: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
-        return self.compute_triplet_loss(zs_mean=[d.mean for d in ds_posterior], cfg=self.cfg)
-
-    @staticmethod
-    def compute_triplet_loss(zs_mean: Sequence[torch.Tensor], cfg: cfg):
-        anc, pos, neg = zs_mean
-        # loss is scaled and everything
-        loss = configured_triplet(anc, pos, neg, cfg=cfg)
-        # return loss & log
-        return loss, {
-            f'{cfg.triplet_loss}_L{cfg.triplet_p}': loss
-        }
+        return compute_triplet_loss(zs=[d.mean for d in ds_posterior], cfg=self.cfg)
 
 
 # ========================================================================= #

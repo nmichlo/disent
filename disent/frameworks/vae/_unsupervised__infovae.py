@@ -30,7 +30,7 @@ import torch
 from torch import Tensor
 from torch.distributions import Normal
 
-from disent.frameworks.vae.unsupervised._vae import Vae
+from disent.frameworks.vae._unsupervised__vae import Vae
 
 
 # ========================================================================= #

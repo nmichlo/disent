@@ -21,12 +21,11 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-import numpy as np
-from torch.utils.data import DataLoader
 
-from disent.data.groundtruth import GroundTruthData
-from disent.data.groundtruth import XYSquaresData
-from disent.dataset.groundtruth import GroundTruthDataset
+import numpy as np
+
+from disent.data.groundtruth.base import GroundTruthData
+from disent.dataset.groundtruth._single import GroundTruthDataset
 
 
 class GroundTruthDistDataset(GroundTruthDataset):

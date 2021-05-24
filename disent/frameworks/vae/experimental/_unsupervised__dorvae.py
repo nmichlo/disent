@@ -32,9 +32,9 @@ from torch.distributions import Normal
 
 from disent.frameworks.helper.reconstructions import make_reconstruction_loss
 from disent.frameworks.helper.reconstructions import ReconLossHandler
-from disent.frameworks.vae.supervised._tvae import TripletVae
-from disent.frameworks.vae.unsupervised._betavae import BetaVae
-from disent.frameworks.vae.weaklysupervised._adavae import AdaVae
+from disent.frameworks.vae._supervised__tvae import TripletVae
+from disent.frameworks.vae._unsupervised__betavae import BetaVae
+from disent.frameworks.vae._weaklysupervised__adavae import AdaVae
 from disent.util.math_loss import torch_mse_rank_loss
 from disent.util.math_loss import spearman_rank_loss
 from experiment.util.hydra_utils import instantiate_recursive
@@ -55,12 +55,12 @@ class DataOverlapRankVae(TripletVae):
     REQUIRED_OBS = 1
 
     @dataclass
-    class cfg(BetaVae.cfg):
+    class cfg(TripletVae.cfg):
         # tvae: no loss from decoder -> encoder
         detach: bool = False
         detach_decoder: bool = True
         detach_no_kl: bool = False
-        detach_logvar: float = -2  # std = 0.5, logvar = ln(std**2) ~= -2,77
+        detach_std: float = 0.5  # std = 0.5, logvar = ln(std**2) ~= -2,77
         # compatibility
         ada_thresh_mode: str = 'dist'  # kl, symmetric_kl, dist, sampled_dist
         ada_thresh_ratio: float = 0.5

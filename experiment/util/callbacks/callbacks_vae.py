@@ -36,8 +36,8 @@ import disent.metrics
 import disent.util.colors as c
 from disent.dataset._augment_util import AugmentableDataset
 from disent.dataset.groundtruth import GroundTruthDataset
-from disent.frameworks.ae.unsupervised import AE
-from disent.frameworks.vae.unsupervised import Vae
+from disent.frameworks.ae import AE
+from disent.frameworks.vae import Vae
 from disent.util import iter_chunks
 from disent.util import TempNumpySeed
 from disent.util import Timer
@@ -108,9 +108,9 @@ class VaeLatentCycleLoggingCallback(_PeriodicCallback):
             obs = dataset.dataset_sample_batch(64, mode='input').to(vae.device)
 
         if isinstance(vae, Vae):
-            z_means, z_logvars = vae.encode_params(obs)
+            z_means, z_logvars = vae.encode_dists(obs)
         else:
-            z_means = vae.encode_params(obs)
+            z_means = vae.encode_dists(obs)
             z_logvars = torch.ones_like(z_means)
 
         # produce latent cycle grid animation

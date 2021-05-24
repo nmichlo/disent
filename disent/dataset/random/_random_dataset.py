@@ -48,6 +48,7 @@ class RandomDataset(Dataset, LengthIter, AugmentableDataset):
         # augmentable dataset
         self._transform = transform
         self._augment = augment
+        super().__init__()
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Augmentable Dataset Overrides                                         #

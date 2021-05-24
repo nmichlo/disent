@@ -1,7 +1,7 @@
 # @package _group_
 name: betatcvae
 module:
-  _target_: disent.frameworks.vae.unsupervised.BetaTcVae
+  _target_: disent.frameworks.vae.BetaTcVae
   beta: ${framework.beta}
 
 # settings used elsewhere

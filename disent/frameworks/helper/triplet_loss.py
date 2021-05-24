@@ -23,6 +23,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from dataclasses import dataclass
+from typing import Sequence
 from typing import Type, Union
 import torch
 import warnings
@@ -255,6 +256,26 @@ def configured_dist_triplet(pos_delta, neg_delta, cfg: TripletConfigTypeHint):
         margin_max=cfg.triplet_margin_max,
         p=cfg.triplet_p,
     ) * cfg.triplet_scale
+
+
+def compute_triplet_loss(zs: Sequence[torch.Tensor], cfg: TripletConfigTypeHint):
+    anc, pos, neg = zs
+    # loss is scaled and everything
+    loss = configured_triplet(anc, pos, neg, cfg=cfg)
+    # return loss & log
+    return loss, {
+        f'{cfg.triplet_loss}_L{cfg.triplet_p}': loss
+    }
+
+
+def compute_dist_triplet_loss(zs_deltas: Sequence[torch.Tensor], cfg: TripletConfigTypeHint):
+    pos_delta, neg_delta = zs_deltas
+    # loss is scaled and everything
+    loss = configured_dist_triplet(pos_delta, neg_delta, cfg=cfg)
+    # return loss & log
+    return loss, {
+        f'{cfg.triplet_loss}_L{cfg.triplet_p}': loss
+    }
 
 
 # ========================================================================= #

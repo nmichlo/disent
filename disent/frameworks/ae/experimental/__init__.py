@@ -22,11 +22,11 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-# experimental frameworks
-# from ._badavae import BoundedAdaVae
-# from ._gadavae import GuidedAdaVae
-# from ._tbadavae import TripletBoundedAdaVae
-# from ._tgadavae import TripletGuidedAdaVae
-# from ._adatvae import AdaTripletVae
-# from ._adaave_tvae import AdaAveTripletVae
-# from ._adaneg_tvae import AdaNegTripletVae
+# supervised frameworks
+# <ADD>
+
+# unsupervised frameworks
+# <ADD>
+
+# weakly supervised frameworks
+# <ADD>

@@ -1,7 +1,7 @@
 # @package _group_
 name: tvae
 module:
-  _target_: disent.frameworks.vae.supervised.TripletVae
+  _target_: disent.frameworks.vae.TripletVae
   beta: ${framework.beta}
   # tvae: triplet stuffs
   triplet_loss: triplet
@@ -13,7 +13,7 @@ module:
   detach: FALSE
   detach_decoder: FALSE
   detach_no_kl: FALSE
-  detach_logvar: NULL  # set to NULL to disable fixed value
+  detach_std: NULL  # set to NULL to disable fixed value
 
 # settings used elsewhere
 data_wrap_mode: triplet

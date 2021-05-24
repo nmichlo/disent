@@ -24,6 +24,7 @@
 
 from typing import Any
 from typing import Dict
+from typing import Sequence
 from typing import Tuple
 
 import torch
@@ -31,6 +32,17 @@ import torch
 from disent.util import aggregate_dict
 from disent.util import collect_dicts
 from disent.util import map_all
+
+
+# ========================================================================= #
+# AVE LOSS HELPER                                                           #
+# ========================================================================= #
+
+
+def detach_all(tensors: Sequence[torch.tensor], condition: bool = True):
+    if condition:
+        return tuple(tensor.detach() for tensor in tensors)
+    return tensors
 
 
 # ========================================================================= #

@@ -1,7 +1,7 @@
 # @package _group_
 name: adavae
 module:
-  _target_: disent.frameworks.vae.weaklysupervised.AdaVae
+  _target_: disent.frameworks.vae.AdaVae
   beta: ${framework.beta}
   # adavae
   ada_average_mode: gvae  # gvae or ml-vae

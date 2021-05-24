@@ -8,5 +8,5 @@ dataset: Dataset = GroundTruthDatasetPairs(data, transform=ToStandardisedTensor(
 dataloader = DataLoader(dataset=dataset, batch_size=4, shuffle=True)
 
 for batch in dataloader:
-    (x0, x1), (x0_targ, x1_targ) = batch['x'], batch['x_targ']
-    print(x0 is x0_targ, x0.dtype, x0.min(), x0.max(), x0.shape)
+    (x0, x1) = batch['x_targ']
+    print(x0.dtype, x0.min(), x0.max(), x0.shape)

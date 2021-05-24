@@ -22,7 +22,30 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from ._tvae import TripletVae
+from dataclasses import dataclass
 
-# experimental frameworks
-# from .experimental import *
+from disent.frameworks.helper.triplet_loss import compute_triplet_loss
+from disent.frameworks.vae.experimental._supervised__badavae import BoundedAdaVae
+from disent.frameworks.helper.triplet_loss import TripletLossConfig
+
+
+# ========================================================================= #
+# tbadavae                                                                  #
+# ========================================================================= #
+
+
+class TripletBoundedAdaVae(BoundedAdaVae):
+
+    REQUIRED_OBS = 3
+
+    @dataclass
+    class cfg(BoundedAdaVae.cfg, TripletLossConfig):
+        pass
+
+    def hook_compute_ave_aug_loss(self, ds_posterior, ds_prior, zs_sampled, xs_partial_recon, xs_targ):
+        return compute_triplet_loss(zs=[d.mean for d in ds_posterior], cfg=self.cfg)
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #

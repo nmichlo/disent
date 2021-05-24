@@ -24,7 +24,7 @@
 
 import numpy as np
 from disent.data.groundtruth.base import GroundTruthData
-from disent.dataset.groundtruth import GroundTruthDataset
+from disent.dataset.groundtruth._single import GroundTruthDataset
 
 
 class GroundTruthDatasetOrigWeakPairs(GroundTruthDataset):

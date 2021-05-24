@@ -22,7 +22,20 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-# experimental frameworks
-from ._st_adavae import SwappedTargetAdaVae
-from ._st_betavae import SwappedTargetBetaVae
-from ._augpostriplet import AugPosTripletVae
+# supervised frameworks
+from disent.frameworks.vae.experimental._supervised__adaave_tvae import AdaAveTripletVae
+from disent.frameworks.vae.experimental._supervised__adaneg_tvae import AdaNegTripletVae
+from disent.frameworks.vae.experimental._supervised__adatvae import AdaTripletVae
+from disent.frameworks.vae.experimental._supervised__badavae import BoundedAdaVae
+from disent.frameworks.vae.experimental._supervised__gadavae import GuidedAdaVae
+from disent.frameworks.vae.experimental._supervised__tbadavae import TripletBoundedAdaVae
+from disent.frameworks.vae.experimental._supervised__tgadavae import TripletGuidedAdaVae
+
+# unsupervised frameworks
+from disent.frameworks.vae.experimental._unsupervised__dorvae import DataOverlapRankVae
+from disent.frameworks.vae.experimental._unsupervised__dotvae import DataOverlapTripletVae
+
+# weakly supervised frameworks
+from disent.frameworks.vae.experimental._weaklysupervised__augpostriplet import AugPosTripletVae
+from disent.frameworks.vae.experimental._weaklysupervised__st_adavae import SwappedTargetAdaVae
+from disent.frameworks.vae.experimental._weaklysupervised__st_betavae import SwappedTargetBetaVae

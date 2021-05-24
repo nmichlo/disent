@@ -34,7 +34,7 @@ from torch.distributions import Normal
 
 from disent.frameworks.helper.reconstructions import make_reconstruction_loss
 from disent.frameworks.helper.reconstructions import ReconLossHandler
-from disent.frameworks.vae.supervised.experimental._adaneg_tvae import AdaNegTripletVae
+from disent.frameworks.vae.experimental._supervised__adaneg_tvae import AdaNegTripletVae
 from experiment.util.hydra_utils import instantiate_recursive
 
 
@@ -56,7 +56,7 @@ class DataOverlapTripletVae(AdaNegTripletVae):
         detach: bool = False
         detach_decoder: bool = False
         detach_no_kl: bool = False
-        detach_logvar: float = None  # std = 0.5, logvar = ln(std**2) ~= -2,77
+        detach_std: float = None
         # OVERLAP VAE
         overlap_loss: Optional[str] = None  # if None, use the value from recon_loss
         overlap_num: int = 1024

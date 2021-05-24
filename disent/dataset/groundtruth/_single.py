@@ -23,7 +23,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
-from typing import Tuple, Optional
+from typing import Tuple
 import numpy as np
 from torch.utils.data import Dataset
 from torch.utils.data.dataloader import default_collate

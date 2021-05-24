@@ -1,7 +1,7 @@
 # @package _group_
 name: dipvae
 module:
-  _target_: disent.frameworks.vae.unsupervised.DipVae
+  _target_: disent.frameworks.vae.DipVae
   # Beta-VAE
   beta: ${framework.beta}
   # DIP-VAE

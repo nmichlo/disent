@@ -22,62 +22,39 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-import logging
 from dataclasses import dataclass
+from numbers import Number
+from typing import Any
+from typing import Dict
+from typing import Sequence
+from typing import Tuple
+from typing import Union
 
-import kornia
 import torch
-import torchvision
 
-from disent.frameworks.vae.supervised._tvae import TripletVae
-
-
-log = logging.getLogger(__name__)
+from disent.frameworks.ae import AE
+from disent.frameworks.helper.triplet_loss import compute_triplet_loss
+from disent.frameworks.helper.triplet_loss import TripletLossConfig
+from disent.frameworks.vae._unsupervised__betavae import BetaVae
 
 
 # ========================================================================= #
-# Guided Ada Vae                                                            #
+# triple ae                                                                 #
 # ========================================================================= #
 
 
-class AugPosTripletVae(TripletVae):
+class TripletAE(AE):
 
-    REQUIRED_OBS = 2  # third obs is generated from augmentations
+    REQUIRED_OBS = 3
 
     @dataclass
-    class cfg(TripletVae.cfg):
+    class cfg(BetaVae.cfg, TripletLossConfig):
         pass
 
-    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
-        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
-        self._aug = None
-
-    def do_training_step(self, batch, batch_idx):
-        (a_x, n_x), (a_x_targ, n_x_targ) = batch['x'], batch['x_targ']
-
-        # make augmenter as it requires the image sizes
-        if self._aug is None:
-            size = a_x.shape[2:4]
-            self._aug = torchvision.transforms.RandomOrder([
-                kornia.augmentation.ColorJitter(brightness=0.25, contrast=0.25, saturation=0, hue=0.15),
-                kornia.augmentation.RandomCrop(size=size, padding=8),
-                # kornia.augmentation.RandomPerspective(distortion_scale=0.05, p=1.0),
-                # kornia.augmentation.RandomRotation(degrees=4),
-            ])
-
-        # generate augmented items
-        with torch.no_grad():
-            p_x_targ = a_x_targ
-            p_x = self._aug(a_x)
-            # a_x = self._aug(a_x)
-            # n_x = self._aug(n_x)
-
-        batch['x'], batch['x_targ'] = (a_x, p_x, n_x), (a_x_targ, p_x_targ, n_x_targ)
-        # compute!
-        return super().do_training_step(batch, batch_idx)
+    def hook_ae_compute_ave_aug_loss(self, zs: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
+        return compute_triplet_loss(zs=zs, cfg=self.cfg)
 
 
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-

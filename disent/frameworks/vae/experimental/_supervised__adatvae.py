@@ -25,6 +25,7 @@
 import logging
 from dataclasses import dataclass
 from typing import Sequence
+from typing import Tuple
 
 import torch
 from torch.distributions import Distribution
@@ -32,9 +33,9 @@ from torch.distributions import Normal
 
 from disent.frameworks.helper.triplet_loss import configured_dist_triplet
 from disent.frameworks.helper.triplet_loss import configured_triplet
-from disent.frameworks.vae.supervised._tvae import TripletVae
-from disent.frameworks.vae.weaklysupervised._adavae import AdaVae
-from disent.frameworks.vae.weaklysupervised._adavae import compute_average_params
+from disent.frameworks.vae._supervised__tvae import TripletVae
+from disent.frameworks.vae._weaklysupervised__adavae import AdaVae
+from disent.frameworks.vae._weaklysupervised__adavae import compute_average_distribution
 
 
 log = logging.getLogger(__name__)
@@ -65,13 +66,12 @@ class AdaTripletVae(TripletVae):
 
     def hook_compute_ave_aug_loss(self, ds_posterior: Sequence[Normal], ds_prior: Sequence[Normal], zs_sampled: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]):
         return self.estimate_ada_triplet_loss(
-            zs_params=self.all_dist_to_params(ds_posterior),
             ds_posterior=ds_posterior,
             cfg=self.cfg,
         )
 
     @staticmethod
-    def estimate_ada_triplet_loss(zs_params: Sequence['Params'], ds_posterior: Sequence[Normal], cfg: cfg):
+    def estimate_ada_triplet_loss(ds_posterior: Sequence[Normal], cfg: cfg):
         """
         zs_params and ds_posterior are convenience variables here.
         - they should contain the same values
@@ -79,14 +79,14 @@ class AdaTripletVae(TripletVae):
         """
         # compute shared masks, shared embeddings & averages over shared embeddings
         share_masks, share_logs = compute_triplet_shared_masks(ds_posterior, cfg=cfg)
-        zs_params_shared, zs_params_shared_ave = compute_ave_shared_params(zs_params, share_masks, cfg=cfg)
+        ds_posterior_shared, ds_posterior_shared_ave = compute_ave_shared_distributions(ds_posterior, share_masks, cfg=cfg)
 
         # compute loss
         ada_triplet_loss, ada_triplet_logs = AdaTripletVae.compute_ada_triplet_loss(
             share_masks=share_masks,
-            zs_params=zs_params,
-            zs_params_shared=zs_params_shared,
-            zs_params_shared_ave=zs_params_shared_ave,
+            zs=[d.mean for d in ds_posterior],
+            zs_shared=[d.mean for d in ds_posterior_shared],
+            zs_shared_ave=[d.mean for d in ds_posterior_shared_ave],
             cfg=cfg,
         )
 
@@ -96,10 +96,10 @@ class AdaTripletVae(TripletVae):
         }
 
     @staticmethod
-    def compute_ada_triplet_loss(share_masks, zs_params, zs_params_shared, zs_params_shared_ave, cfg: cfg):
+    def compute_ada_triplet_loss(share_masks: Sequence[torch.Tensor], zs: Sequence[Normal], zs_shared: Sequence[Normal], zs_shared_ave: Sequence[Normal], cfg: cfg):
 
         # Normal Triplet Loss
-        (a_z, p_z, n_z) = (p.mean for p in zs_params)
+        (a_z, p_z, n_z) = zs
         trip_loss = configured_triplet(a_z, p_z, n_z, cfg=cfg)
 
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
@@ -108,7 +108,7 @@ class AdaTripletVae(TripletVae):
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
         # Hard Averaging Before Triplet
-        (ap_a_ave, ap_p_ave, an_a_ave, an_n_ave, pn_p_ave, pn_n_ave) = (p.mean for p in zs_params_shared)
+        (ap_a_ave, ap_p_ave, an_a_ave, an_n_ave, pn_p_ave, pn_n_ave) = zs_shared
         triplet_hard_ave     = configured_dist_triplet(pos_delta=ap_a_ave - ap_p_ave, neg_delta=an_a_ave - an_n_ave, cfg=cfg)
         triplet_hard_ave_neg = configured_dist_triplet(pos_delta=a_z      - p_z,      neg_delta=an_a_ave - an_n_ave, cfg=cfg)
 
@@ -119,7 +119,7 @@ class AdaTripletVae(TripletVae):
         triplet_hard_ave_neg_pull = configured_dist_push_pull_triplet(pos_delta=a_z - p_z, neg_delta=neg_delta_push, neg_delta_pull=neg_delta_pull, cfg=cfg)
 
         # Hard All Averaging Before Triplet
-        (a_ave, p_ave, n_ave) = (p.mean for p in zs_params_shared_ave)
+        (a_ave, p_ave, n_ave) = zs_shared_ave
         triplet_all_hard_ave = configured_dist_triplet(pos_delta=a_ave-p_ave, neg_delta=a_ave-n_ave, cfg=cfg)
 
         # Hard Averaging Before Triplet - Scaled
@@ -253,54 +253,54 @@ def compute_triplet_shared_masks(ds_posterior: Sequence[Distribution], cfg: AdaT
     }
 
 
-def compute_ave_shared_params(zs_params, share_masks, cfg: AdaTripletVae.cfg):
+def compute_ave_shared_distributions(ds_posterior: Sequence[Normal], share_masks: Sequence[torch.Tensor], cfg: AdaTripletVae.cfg) -> Tuple[Sequence[Normal], Sequence[Normal]]:
     """
     required config params:
     - cfg.ada_average_mode: "gvae", "ml-vae"
     - cfg.adat_share_ave_mode: "all", "pos_neg", "pos", "neg"
     """
-    a_z_params, p_z_params, n_z_params = zs_params
+    a_posterior, p_posterior, n_posterior = ds_posterior
     ap_share_mask, an_share_mask, pn_share_mask = share_masks
 
     # compute shared embeddings
-    ave_ap_a_z_params, ave_ap_p_z_params = AdaVae.make_averaged_params(a_z_params, p_z_params, ap_share_mask, average_mode=cfg.ada_average_mode)
-    ave_an_a_z_params, ave_an_n_z_params = AdaVae.make_averaged_params(a_z_params, n_z_params, an_share_mask, average_mode=cfg.ada_average_mode)
-    ave_pn_p_z_params, ave_pn_n_z_params = AdaVae.make_averaged_params(p_z_params, n_z_params, pn_share_mask, average_mode=cfg.ada_average_mode)
+    ave_ap_a_posterior, ave_ap_p_posterior = AdaVae.make_averaged_distributions(a_posterior, p_posterior, ap_share_mask, average_mode=cfg.ada_average_mode)
+    ave_an_a_posterior, ave_an_n_posterior = AdaVae.make_averaged_distributions(a_posterior, n_posterior, an_share_mask, average_mode=cfg.ada_average_mode)
+    ave_pn_p_posterior, ave_pn_n_posterior = AdaVae.make_averaged_distributions(p_posterior, n_posterior, pn_share_mask, average_mode=cfg.ada_average_mode)
 
     # compute averaged shared embeddings
     if cfg.adat_share_ave_mode == 'all':
-        ave_a_params = compute_average_params(ave_ap_a_z_params, ave_an_a_z_params, average_mode=cfg.ada_average_mode)
-        ave_p_params = compute_average_params(ave_ap_p_z_params, ave_pn_p_z_params, average_mode=cfg.ada_average_mode)
-        ave_n_params = compute_average_params(ave_an_n_z_params, ave_pn_n_z_params, average_mode=cfg.ada_average_mode)
+        ave_a_posterior = compute_average_distribution(ave_ap_a_posterior, ave_an_a_posterior, average_mode=cfg.ada_average_mode)
+        ave_p_posterior = compute_average_distribution(ave_ap_p_posterior, ave_pn_p_posterior, average_mode=cfg.ada_average_mode)
+        ave_n_posterior = compute_average_distribution(ave_an_n_posterior, ave_pn_n_posterior, average_mode=cfg.ada_average_mode)
     elif cfg.adat_share_ave_mode == 'pos_neg':
-        ave_a_params = compute_average_params(ave_ap_a_z_params, ave_an_a_z_params, average_mode=cfg.ada_average_mode)
-        ave_p_params = ave_ap_p_z_params
-        ave_n_params = ave_an_n_z_params
+        ave_a_posterior = compute_average_distribution(ave_ap_a_posterior, ave_an_a_posterior, average_mode=cfg.ada_average_mode)
+        ave_p_posterior = ave_ap_p_posterior
+        ave_n_posterior = ave_an_n_posterior
     elif cfg.adat_share_ave_mode == 'pos':
-        ave_a_params = ave_ap_a_z_params
-        ave_p_params = ave_ap_p_z_params
-        ave_n_params = n_z_params
+        ave_a_posterior = ave_ap_a_posterior
+        ave_p_posterior = ave_ap_p_posterior
+        ave_n_posterior = n_posterior
     elif cfg.adat_share_ave_mode == 'neg':
-        ave_a_params = ave_an_a_z_params
-        ave_p_params = p_z_params
-        ave_n_params = ave_an_n_z_params
+        ave_a_posterior = ave_an_a_posterior
+        ave_p_posterior = p_posterior
+        ave_n_posterior = ave_an_n_posterior
     else:
         raise KeyError(f'Invalid cfg.adat_share_ave_mode={repr(cfg.adat_share_ave_mode)}')
 
-    zs_params_shared = (
-        ave_ap_a_z_params, ave_ap_p_z_params,  # a & p
-        ave_an_a_z_params, ave_an_n_z_params,  # a & n
-        ave_pn_p_z_params, ave_pn_n_z_params,  # p & n
+    ds_posterior_shared = (
+        ave_ap_a_posterior, ave_ap_p_posterior,  # a & p
+        ave_an_a_posterior, ave_an_n_posterior,  # a & n
+        ave_pn_p_posterior, ave_pn_n_posterior,  # p & n
     )
 
-    zs_params_shared_ave = (
-        ave_a_params,
-        ave_p_params,
-        ave_n_params
+    ds_posterior_shared_ave = (
+        ave_a_posterior,
+        ave_p_posterior,
+        ave_n_posterior
     )
 
     # return values
-    return zs_params_shared, zs_params_shared_ave
+    return ds_posterior_shared, ds_posterior_shared_ave
 
 
 # ========================================================================= #
