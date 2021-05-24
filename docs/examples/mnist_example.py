@@ -1,5 +1,3 @@
-# TODO: update this example for automatic testing
-
 from collections import Sequence
 
 import pytorch_lightning as pl
@@ -14,6 +12,7 @@ from disent.model.ae import AutoEncoder
 from disent.model.ae import DecoderConv64Alt
 from disent.model.ae import EncoderConv64Alt
 from disent.transform import ToStandardisedTensor
+from disent.util import is_test_run
 
 
 class MNIST(datasets.MNIST, Sequence):
@@ -41,10 +40,10 @@ module = AdaVae(
 )
 
 # train model
-trainer = pl.Trainer(logger=False, checkpoint_callback=False, max_steps=65535, gpus=1)  # callbacks=[VaeLatentCycleLoggingCallback(every_n_steps=250, plt_show=True)]
+trainer = pl.Trainer(logger=False, checkpoint_callback=False, max_steps=65535, fast_dev_run=is_test_run())  # callbacks=[VaeLatentCycleLoggingCallback(every_n_steps=250, plt_show=True)]
 trainer.fit(module, dataloader_train)
 
 # move back to gpu & manually encode some observation
-module.cuda()
 for xs in tqdm(dataloader_test, desc='Custom Evaluation'):
     zs = module.encode(xs.to(module.device))
+    if is_test_run(): break

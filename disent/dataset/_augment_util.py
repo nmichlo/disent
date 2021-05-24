@@ -53,49 +53,74 @@ class AugmentableDataset(object):
 
     def _datapoint_raw_to_target(self, dat):
         x_targ = dat
-        if self.transform:
+        if self.transform is not None:
             x_targ = self.transform(x_targ)
         return x_targ
 
     def _datapoint_target_to_input(self, x_targ):
         x = x_targ
-        if self.augment:
+        if self.augment is not None:
             x = self.augment(x)
             x = _batch_to_observation(batch=x, obs_shape=x_targ.shape)
         return x
 
     def dataset_get(self, idx, mode: str):
+        """
+        Gets the specified datapoint, using the specified mode.
+        - raw: direct untransformed/unaugmented observations
+        - target: transformed observations
+        - input: transformed then augmented observations
+        - pair: (input, target) tuple of observations
+
+        Pipeline:
+            1. raw    = dataset[idx]
+            2. target = transform(raw)
+            3. input  = augment(target) = augment(transform(raw))
+
+        :param idx: The index of the datapoint in the dataset
+        :param mode: {'raw', 'target', 'input', 'pair'}
+        :return: observation depending on mode
+        """
         try:
             idx = int(idx)
         except:
             raise TypeError(f'Indices must be integer-like ({type(idx)}): {idx}')
         # we do not support indexing by lists
-        dat = self._get_augmentable_observation(idx)
+        x_raw = self._get_augmentable_observation(idx)
         # return correct data
         if mode == 'pair':
-            x_targ = self._datapoint_raw_to_target(dat)
-            x = self._datapoint_target_to_input(x_targ)
+            x_targ = self._datapoint_raw_to_target(x_raw)  # applies self.transform
+            x = self._datapoint_target_to_input(x_targ)    # applies self.augment
             return x, x_targ
         elif mode == 'input':
-            x_targ = self._datapoint_raw_to_target(dat)
-            return self._datapoint_target_to_input(x_targ)
+            x_targ = self._datapoint_raw_to_target(x_raw)  # applies self.transform
+            x = self._datapoint_target_to_input(x_targ)    # applies self.augment
+            return x
         elif mode == 'target':
-            return self._datapoint_raw_to_target(dat)
+            x_targ = self._datapoint_raw_to_target(x_raw)  # applies self.transform
+            return x_targ
         elif mode == 'raw':
-            return dat
+            return x_raw
         else:
-            raise KeyError(f'Invalid {mode=}')
+            raise ValueError(f'Invalid {mode=}')
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Multiple Datapoints                                                   #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     def dataset_get_observation(self, *idxs):
-        xs, x_targs = zip(*[self.dataset_get(idx, mode='pair') for idx in idxs])
-        return {
-            'x': tuple(xs),
-            'x_targ': tuple(x_targs),
-        }
+        xs, xs_targ = zip(*(self.dataset_get(idx, mode='pair') for idx in idxs))
+        # handle cases
+        if self.augment is None:
+            # makes 5-10% faster
+            return {
+                'x_targ': xs_targ,
+            }
+        else:
+            return {
+                'x': xs,
+                'x_targ': xs_targ,
+            }
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Batches                                                               #

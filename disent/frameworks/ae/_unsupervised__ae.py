@@ -21,7 +21,7 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-
+import warnings
 from dataclasses import dataclass
 from numbers import Number
 from typing import Any
@@ -110,8 +110,12 @@ class AE(BaseFramework):
 
     @final
     def _get_xs_and_targs(self, batch: Dict[str, Tuple[torch.Tensor, ...]], batch_idx) -> Tuple[Tuple[torch.Tensor, ...], Tuple[torch.Tensor, ...]]:
-        xs = batch['x']
-        xs_targ = batch.get('x_targ', xs)
+        xs_targ = batch['x_targ']
+        if 'x' not in batch:
+            warnings.warn('dataset does not have input: x -> x_targ using target as input: x_targ -> x_targ')
+            xs = xs_targ
+        else:
+            xs = batch['x']
         # check that we have the correct number of inputs
         if (len(xs) != self.REQUIRED_OBS) or (len(xs_targ) != self.REQUIRED_OBS):
             log.warning(f'batch len(xs)={len(xs)} and len(xs_targ)={len(xs_targ)} observation count mismatch, requires: {self.REQUIRED_OBS}')

@@ -46,7 +46,7 @@ class SwappedTargetBetaVae(BetaVae):
         assert cfg.swap_chance >= 0
 
     def do_training_step(self, batch, batch_idx):
-        (x0, x1), (x0_targ, x1_targ) = batch['x'], batch['x_targ']
+        (x0, x1), (x0_targ, x1_targ) = self._get_xs_and_targs(batch, batch_idx)
 
         # random change for the target not to be equal to the input
         if np.random.random() < self.cfg.swap_chance:

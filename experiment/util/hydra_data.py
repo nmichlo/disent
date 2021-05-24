@@ -44,10 +44,10 @@ class HydraDataModule(pl.LightningDataModule):
         self.hparams = hparams
         # transform: prepares data from datasets
         self.data_transform = instantiate_recursive(self.hparams.dataset.transform)
-        assert callable(self.data_transform)
+        assert (self.data_transform is None) or callable(self.data_transform)
         # input_transform_aug: augment data for inputs, then apply input_transform
         self.input_transform = instantiate_recursive(self.hparams.augment.transform)
-        assert callable(self.input_transform)
+        assert (self.input_transform is None) or callable(self.input_transform)
         # batch_augment: augments transformed data for inputs, should be applied across a batch
         # which version of the dataset we need to use if GPU augmentation is enabled or not.
         # - corresponds to below in train_dataloader()

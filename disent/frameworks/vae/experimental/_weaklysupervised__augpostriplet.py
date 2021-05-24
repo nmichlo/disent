@@ -52,8 +52,10 @@ class AugPosTripletVae(TripletVae):
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
         self._aug = None
 
+
+
     def do_training_step(self, batch, batch_idx):
-        (a_x, n_x), (a_x_targ, n_x_targ) = batch['x'], batch['x_targ']
+        (a_x, n_x), (a_x_targ, n_x_targ) = self._get_xs_and_targs(batch, batch_idx)
 
         # make augmenter as it requires the image sizes
         if self._aug is None:
