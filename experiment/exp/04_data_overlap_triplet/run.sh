@@ -39,7 +39,7 @@
 #    framework.module.triplet_p=1 \
 #    \
 #    framework.module.detach=FALSE \
-#    framework.module.detach_decoder=FALSE \
+#    framework.module.disable_decoder=FALSE \
 #    framework.module.detach_no_kl=FALSE \
 #    framework.module.detach_std=NULL \
 #    \

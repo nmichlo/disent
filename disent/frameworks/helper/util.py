@@ -39,8 +39,8 @@ from disent.util import map_all
 # ========================================================================= #
 
 
-def detach_all(tensors: Sequence[torch.tensor], condition: bool = True):
-    if condition:
+def detach_all(tensors: Sequence[torch.tensor], if_: bool = True):
+    if if_:
         return tuple(tensor.detach() for tensor in tensors)
     return tensors
 

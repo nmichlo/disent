@@ -56,11 +56,6 @@ class DataOverlapRankVae(TripletVae):
 
     @dataclass
     class cfg(TripletVae.cfg):
-        # tvae: no loss from decoder -> encoder
-        detach: bool = False
-        detach_decoder: bool = True
-        detach_no_kl: bool = False
-        detach_std: float = 0.5  # std = 0.5, logvar = ln(std**2) ~= -2,77
         # compatibility
         ada_thresh_mode: str = 'dist'  # kl, symmetric_kl, dist, sampled_dist
         ada_thresh_ratio: float = 0.5

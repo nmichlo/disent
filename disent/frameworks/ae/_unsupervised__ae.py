@@ -21,6 +21,8 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
+import logging
 import warnings
 from dataclasses import dataclass
 from numbers import Number
@@ -29,17 +31,15 @@ from typing import Dict
 from typing import final
 from typing import Sequence
 from typing import Tuple
-
-import logging
 from typing import Union
 
 import torch
 
-from disent.frameworks.helper.reconstructions import ReconLossHandler, make_reconstruction_loss
+from disent.frameworks.framework import BaseFramework
+from disent.frameworks.helper.reconstructions import make_reconstruction_loss
+from disent.frameworks.helper.reconstructions import ReconLossHandler
 from disent.frameworks.helper.util import detach_all
 from disent.model.ae.base import AutoEncoder
-from disent.frameworks.framework import BaseFramework
-
 from disent.util import map_all
 
 
@@ -84,9 +84,10 @@ class AE(BaseFramework):
         # - 'mean': mean over the entire batch
         # - 'mean_sum': sum each observation, returning the mean sum over the batch
         loss_reduction: str = 'mean'
-        # detach various loss components
-        detach: bool = False
-        detach_decoder: bool = False
+        # disable various components
+        disable_decoder: bool = False
+        disable_rec_loss: bool = False
+        disable_aug_loss: bool = False
 
     def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
         super().__init__(make_optimizer_fn, batch_augment=batch_augment, cfg=cfg)
@@ -133,7 +134,7 @@ class AE(BaseFramework):
         # intercept latent variables
         zs, logs_intercept_zs = self.hook_ae_intercept_zs(zs)
         # reconstruct without the final activation
-        xs_partial_recon = map_all(self.decode_partial, detach_all(zs, self.cfg.detach and self.cfg.detach_decoder))
+        xs_partial_recon = map_all(self.decode_partial, detach_all(zs, if_=self.cfg.disable_decoder))
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
         # LOSS
@@ -143,7 +144,9 @@ class AE(BaseFramework):
         # [HOOK] augment loss
         aug_loss, logs_aug = self.hook_ae_compute_ave_aug_loss(zs=zs, xs_partial_recon=xs_partial_recon, xs_targ=xs_targ)
         # compute combined loss
-        loss = recon_loss + aug_loss
+        loss = 0
+        if not self.cfg.disable_rec_loss: loss += recon_loss
+        if not self.cfg.disable_aug_loss: loss += aug_loss
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
         # return values

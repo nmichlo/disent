@@ -51,26 +51,7 @@ class TripletVae(BetaVae):
 
     @dataclass
     class cfg(BetaVae.cfg, TripletLossConfig):
-        # tvae: no loss from decoder -> encoder
-        # TODO: add detach mode in VAE that stops sampling!
-        detach_no_kl: bool = False
-        detach_std: float = None
-
-    # TODO: move this into VAE
-    def hook_intercept_ds(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution]) -> Tuple[Sequence[Distribution], Sequence[Distribution], Dict[str, Any]]:
-        # replace variance
-        if self.cfg.detach and (self.cfg.detach_std is not None):
-            for d_posterior in ds_posterior:
-                assert isinstance(d_posterior, Normal)
-                d_posterior.scale = torch.full_like(d_posterior.scale, fill_value=self.cfg.detach_std)
-        # return values
-        return ds_posterior, ds_prior, {}
-
-    # TODO: move this into VAE
-    def compute_ave_reg_loss(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
-        if self.cfg.detach and self.cfg.detach_no_kl:
-            return 0, {}
-        return super().compute_ave_reg_loss(ds_posterior, ds_prior, zs_sampled)
+        pass
 
     def hook_compute_ave_aug_loss(self, ds_posterior: Sequence[Normal], ds_prior: Sequence[Normal], zs_sampled: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
         return compute_triplet_loss(zs=[d.mean for d in ds_posterior], cfg=self.cfg)
