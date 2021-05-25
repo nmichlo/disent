@@ -38,7 +38,7 @@ import psutil
 import torch
 from tqdm import tqdm
 
-import experiment.exp.util.helper as H
+import experiment.exp.util as H
 from disent.data.util.in_out import ensure_parent_dir_exists
 from disent.util import seed
 from disent.util import TempNumpySeed

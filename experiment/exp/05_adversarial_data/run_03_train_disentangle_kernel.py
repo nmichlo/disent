@@ -22,34 +22,28 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import logging
+import os
 from typing import List
 from typing import Optional
 from typing import Sequence
 
 import hydra
-import os
-
-import logging
-
 import numpy as np
+import pytorch_lightning as pl
 import torch
 import wandb
 from omegaconf import OmegaConf
 from torch.nn import Parameter
 from torch.utils.data import DataLoader
-import pytorch_lightning as pl
 
-import experiment.exp.util.helper as H
-from disent.util import TempNumpySeed
-from disent.util.math import torch_conv2d_channel_wise_fft
+import experiment.exp.util as H
 from disent.util import DisentLightningModule
 from disent.util import DisentModule
 from disent.util import make_box_str
 from disent.util import seed
+from disent.util.math import torch_conv2d_channel_wise_fft
 from disent.util.math_loss import spearman_rank_loss
-from disent.visualize.visualize_util import make_animated_image_grid
-from disent.visualize.visualize_util import make_image_grid
-from experiment.exp.util.io_util import torch_write
 from experiment.run import hydra_append_progress_callback
 from experiment.run import hydra_check_cuda
 from experiment.run import hydra_make_logger
@@ -285,7 +279,7 @@ def run_disentangle_dataset_kernel(cfg):
         save_dir = os.path.join(ROOT_DIR, cfg.exp.rel_save_dir)
         assert os.path.isabs(save_dir), f'save_dir must be absolute: {repr(save_dir)}'
         # save kernel
-        torch_write(os.path.join(save_dir, cfg.exp.save_name), framework.model._kernel)
+        H.torch_write(os.path.join(save_dir, cfg.exp.save_name), framework.model._kernel)
 
 
 # ========================================================================= #
