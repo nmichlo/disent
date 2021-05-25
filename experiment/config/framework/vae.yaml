@@ -2,6 +2,12 @@
 name: vae
 module:
   _target_: disent.frameworks.vae.Vae
+  # disable various components
+  disable_decoder: FALSE
+  disable_reg_loss: FALSE
+  disable_rec_loss: FALSE
+  disable_aug_loss: FALSE
+  disable_posterior_scale: NULL
 
 # settings used elsewhere
 data_wrap_mode: single

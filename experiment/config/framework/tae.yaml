@@ -1,15 +1,11 @@
 # @package _group_
-name: augpos_tvae_os
+name: tae
 module:
-  _target_: disent.frameworks.vae.AugPosTripletVae
+  _target_: disent.frameworks.ae.TripletAE
   # disable various components
   disable_decoder: FALSE
-  disable_reg_loss: FALSE
   disable_rec_loss: FALSE
   disable_aug_loss: FALSE
-  disable_posterior_scale: NULL
-  # Beta-VAE
-  beta: ${framework.beta}
   # tvae: triplet stuffs
   triplet_loss: triplet
   triplet_margin_min: 0.001
@@ -18,5 +14,5 @@ module:
   triplet_p: 2
 
 # settings used elsewhere
-data_wrap_mode: weak_pair
+data_wrap_mode: triplet
 model_z_multiplier: 2
