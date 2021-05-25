@@ -23,7 +23,7 @@ module:
   triplet_margin_min: 0.001
   triplet_margin_max: 1
   triplet_scale: 0.1
-  triplet_p: 2
+  triplet_p: 1
 
 # settings used elsewhere
 data_wrap_mode: triplet
