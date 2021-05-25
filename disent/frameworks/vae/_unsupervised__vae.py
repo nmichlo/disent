@@ -129,7 +129,7 @@ class Vae(AE):
         # [HOOK] intercept latent parameterizations
         ds_posterior, ds_prior, logs_intercept_ds = self.hook_intercept_ds(ds_posterior, ds_prior)
         # sample from dists
-        zs_sampled = map_all(Distribution.rsample, ds_posterior)
+        zs_sampled = tuple(d.rsample() for d in ds_posterior)
         # reconstruct without the final activation
         xs_partial_recon = map_all(self.decode_partial, detach_all(zs_sampled, if_=self.cfg.disable_decoder))
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
