@@ -64,7 +64,8 @@ def run_differentiable_sorting_loss(dataset='xysquares', loss_mode='spearman', o
 
         # update variables
         H.step_optimizer(optimizer, loss)
-        H.show_img(x[0], i=i, step=250)
+        if i % 250 == 0:
+            H.plt_imshow(H.to_img(x[0]), show=True)
 
         # compute loss
         print(i, float(loss))

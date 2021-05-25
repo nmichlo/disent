@@ -70,40 +70,11 @@ def to_imgs(x: torch.Tensor, scale=False, to_cpu=True, move_channels=True):
 
 
 # ========================================================================= #
-# images - show                                                             #
-# ========================================================================= #
-
-
-# TODO: replace this function
-# TODO: similar functions exist: output_image, show_img, show_imgs
-def show_img(x: torch.Tensor, scale=False, i=None, step=None, show=True, **kwargs):
-    if show:
-        if (i is None) or (step is None) or (i % step == 0):
-            plt_imshow(img=to_img(x, scale=scale), **kwargs)
-            plt.show()
-
-
-# TODO: replace this function
-# TODO: similar functions exist: output_image, show_img, show_imgs
-def show_imgs(xs: Sequence[torch.Tensor], scale=False, i=None, step=None, show=True):
-    if show:
-        if (i is None) or (step is None) or (i % step == 0):
-            w = int(np.ceil(np.sqrt(len(xs))))
-            h = (len(xs) + w - 1) // w
-            fig, axs = plt.subplots(h, w)
-            for ax, im in zip(np.array(axs).flatten(), xs):
-                ax.imshow(to_img(im, scale=scale))
-                ax.set_axis_off()
-            fig.tight_layout()
-            plt.show()
-
-
-# ========================================================================= #
 # Matplotlib Helper                                                         #
 # ========================================================================= #
 
 
-def plt_imshow(img, figsize=12, **kwargs):
+def plt_imshow(img, figsize=12, show=False, **kwargs):
     # check image shape
     assert img.ndim == 3
     assert img.shape[-1] in (1, 3)
@@ -116,6 +87,9 @@ def plt_imshow(img, figsize=12, **kwargs):
     plt_hide_axis(ax)
     ax.imshow(img)
     fig.tight_layout()
+    # done!
+    if show:
+        plt.show()
     return fig, ax
 
 
@@ -193,6 +167,8 @@ def plt_subplots_imshow(
     sharey: str = False,
     subplot_kw=None,
     gridspec_kw=None,
+    # extra
+    show=False,
     **fig_kw,
 ):
     fig, axs = plt_subplots(
@@ -216,6 +192,8 @@ def plt_subplots_imshow(
         axs[y, x].imshow(grid[y][x])
     fig.tight_layout(pad=subplot_padding)
     # done!
+    if show:
+        plt.show()
     return fig, axs
 
 

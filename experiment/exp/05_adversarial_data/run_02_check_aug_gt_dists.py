@@ -151,7 +151,7 @@ def run_check_all_xy_squares_dists(show=False):
         ys = []
         for r in rs:
             ave_spearman, last_img = check_xy_squares_dists(kernel=kernel, repeats=32, samples=128, pairwise_samples=1024, kernel_radius=r, show_prog=False)
-            H.show_img(last_img, scale=True, show=show)
+            H.plt_imshow(H.to_img(last_img, scale=True), show=show)
             ys.append(abs(ave_spearman))
             print(kernel, r, ':', r*2+1, abs(ave_spearman))
         plt.plot(rs, ys, label=kernel)
