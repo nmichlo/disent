@@ -29,4 +29,4 @@
 # <ADD>
 
 # weakly supervised frameworks
-# <ADD>
+from disent.frameworks.ae.experimental._weaklysupervised__adaae import AdaAe

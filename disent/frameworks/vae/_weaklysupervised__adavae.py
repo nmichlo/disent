@@ -179,6 +179,14 @@ class AdaVae(BetaVae):
         # return values
         return ave_z0_posterior, ave_z1_posterior
 
+    @classmethod
+    def make_averaged_zs(cls, z0: torch.Tensor, z1: torch.Tensor, share_mask: torch.Tensor):
+        ave = 0.5 * z0 + 0.5 * z1
+        ave_z0 = torch.where(share_mask, ave, z0)
+        ave_z1 = torch.where(share_mask, ave, z1)
+        return ave_z0, ave_z1
+
+
 
 # ========================================================================= #
 # Averaging Functions                                                       #
