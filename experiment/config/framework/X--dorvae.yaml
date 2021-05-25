@@ -1,7 +1,7 @@
 # @package _group_
 name: dor_vae
 module:
-  _target_: disent.frameworks.vae.DataOverlapRankVae
+  _target_: disent.frameworks.vae.experimental.DataOverlapRankVae
   # disable various components
   disable_decoder: FALSE
   disable_reg_loss: FALSE

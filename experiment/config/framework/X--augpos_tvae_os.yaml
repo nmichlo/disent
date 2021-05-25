@@ -1,7 +1,7 @@
 # @package _group_
 name: augpos_tvae_os
 module:
-  _target_: disent.frameworks.vae.AugPosTripletVae
+  _target_: disent.frameworks.vae.experimental.AugPosTripletVae
   # disable various components
   disable_decoder: FALSE
   disable_reg_loss: FALSE

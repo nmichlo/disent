@@ -1,7 +1,7 @@
 # @package _group_
 name: adatvae
 module:
-  _target_: disent.frameworks.vae.AdaTripletVae
+  _target_: disent.frameworks.vae.experimental.AdaTripletVae
   # disable various components
   disable_decoder: FALSE
   disable_reg_loss: FALSE
