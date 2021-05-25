@@ -119,7 +119,7 @@ def to_numpy(array) -> np.ndarray:
     # recursive conversion
     # not super efficient but allows handling of PIL.Image and other nested data.
     elif isinstance(array, (list, tuple)):
-        return np.array([to_numpy(elem) for elem in array])
+        return np.stack([to_numpy(elem) for elem in array], axis=0)
     else:
         return np.array(array)
 
