@@ -2,6 +2,8 @@
 name: do_tvae
 module:
   _target_: disent.frameworks.vae.experimental.DataOverlapTripletVae
+  # base vae
+  latent_distribution: ${framework.optional.latent_distribution}
   # disable various components
   disable_decoder: FALSE
   disable_reg_loss: FALSE
@@ -25,7 +27,7 @@ module:
   # ada_tvae - averaging
   adat_share_mask_mode: posterior
   # dotvae
-  overlap_loss: ${framework.overlap_loss}  # any of the recon_loss values, or NULL to use the recon_loss value
+  overlap_loss: ${framework.optional.overlap_loss}  # any of the recon_loss values, or NULL to use the recon_loss value
   overlap_num: 512
   overlap_mine_ratio: 0.1
   overlap_mine_triplet_mode: 'none'  # none, hard_neg, semi_hard_neg, hard_pos, easy_pos, ran:hard_neg+hard_pos <- etc, dynamically evaluated, can chain multiple "+"s

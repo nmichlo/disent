@@ -2,6 +2,8 @@
 name: adatvae
 module:
   _target_: disent.frameworks.vae.experimental.AdaTripletVae
+  # base vae
+  latent_distribution: ${framework.optional.latent_distribution}
   # disable various components
   disable_decoder: FALSE
   disable_reg_loss: FALSE

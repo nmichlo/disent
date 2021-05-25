@@ -2,6 +2,8 @@
 name: betavae
 module:
   _target_: disent.frameworks.vae.BetaVae
+  # base vae
+  latent_distribution: ${framework.optional.latent_distribution}
   # disable various components
   disable_decoder: FALSE
   disable_reg_loss: FALSE
