@@ -32,7 +32,7 @@ from typing import Union
 
 import torch
 
-from disent.frameworks.ae import AE
+from disent.frameworks.ae import Ae
 from disent.frameworks.helper.triplet_loss import compute_triplet_loss
 from disent.frameworks.helper.triplet_loss import TripletLossConfig
 from disent.frameworks.vae._unsupervised__betavae import BetaVae
@@ -43,7 +43,7 @@ from disent.frameworks.vae._unsupervised__betavae import BetaVae
 # ========================================================================= #
 
 
-class TripletAE(AE):
+class TripletAe(Ae):
 
     REQUIRED_OBS = 3
 

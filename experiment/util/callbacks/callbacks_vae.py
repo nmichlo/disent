@@ -36,7 +36,7 @@ import disent.metrics
 import disent.util.colors as c
 from disent.dataset._augment_util import AugmentableDataset
 from disent.dataset.groundtruth import GroundTruthDataset
-from disent.frameworks.ae import AE
+from disent.frameworks.ae import Ae
 from disent.frameworks.vae import Vae
 from disent.util import iter_chunks
 from disent.util import TempNumpySeed
@@ -59,8 +59,8 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def _get_dataset_and_vae(trainer: pl.Trainer, pl_module: pl.LightningModule) -> (AugmentableDataset, AE):
-    assert isinstance(pl_module, AE), f'{pl_module.__class__} is not an instance of {AE}'
+def _get_dataset_and_vae(trainer: pl.Trainer, pl_module: pl.LightningModule) -> (AugmentableDataset, Ae):
+    assert isinstance(pl_module, Ae), f'{pl_module.__class__} is not an instance of {Ae}'
     # get dataset
     if hasattr(trainer, 'datamodule') and (trainer.datamodule is not None):
         assert isinstance(trainer.datamodule, HydraDataModule)

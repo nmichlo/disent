@@ -28,6 +28,7 @@ from typing import Sequence
 from typing import Tuple
 
 import torch
+from deprecated import deprecated
 from torch.distributions import Distribution
 from torch.distributions import Normal
 
@@ -46,6 +47,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
+@deprecated(reason='Rather use the AdaNegTripletVae')
 class AdaTripletVae(TripletVae):
 
     REQUIRED_OBS = 3
@@ -122,7 +124,7 @@ class AdaTripletVae(TripletVae):
         (a_ave, p_ave, n_ave) = zs_shared_ave
         triplet_all_hard_ave = configured_dist_triplet(pos_delta=a_ave-p_ave, neg_delta=a_ave-n_ave, cfg=cfg)
 
-        # Hard Averaging Before Triplet - Scaled
+        # Soft Scaled Negative Triplet
         triplet_hard_neg_ave_scaled = configured_dist_triplet(
             pos_delta=a_z - p_z,
             neg_delta=torch.where(an_share_mask, cfg.adat_triplet_share_scale * (a_z - n_z), (a_z - n_z)),

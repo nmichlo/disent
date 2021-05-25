@@ -49,13 +49,13 @@ class AdaVae(BetaVae):
 
     MODIFICATION:
     - Symmetric KL Calculation used by default, described in: https://arxiv.org/pdf/2010.14407.pdf
+    - adjustable threshold value
     """
 
     REQUIRED_OBS = 2
 
     @dataclass
     class cfg(BetaVae.cfg):
-        # TODO: prefix all variables with "ada_"
         ada_average_mode: str = 'gvae'
         ada_thresh_mode: str = 'symmetric_kl'  # kl, symmetric_kl, dist, sampled_dist
         ada_thresh_ratio: float = 0.5

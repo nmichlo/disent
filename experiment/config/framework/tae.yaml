@@ -1,7 +1,7 @@
 # @package _group_
 name: tae
 module:
-  _target_: disent.frameworks.ae.TripletAE
+  _target_: disent.frameworks.ae.TripletAe
   # disable various components
   disable_decoder: FALSE
   disable_rec_loss: FALSE

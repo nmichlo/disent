@@ -51,7 +51,7 @@ from disent.transform import ToStandardisedTensor
 
 @pytest.mark.parametrize(['Framework', 'cfg_kwargs', 'Data'], [
     # AE - unsupervised
-    (AE,                   dict(),                                                                      XYObjectData),
+    (Ae, dict(), XYObjectData),
     # VAE - unsupervised
     (Vae,                  dict(),                                                                      XYObjectData),
     (BetaVae,              dict(),                                                                      XYObjectData),

@@ -48,7 +48,7 @@ class AdaNegTripletVae(TripletVae):
 
     """
     This is a condensed version of the ada_tvae and adaave_tvae,
-    using approximately the best settings...
+    using approximately the best settings and loss...
     """
 
     REQUIRED_OBS = 3

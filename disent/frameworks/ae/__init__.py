@@ -26,7 +26,7 @@
 # <ADD>
 
 # unsupervised frameworks
-from disent.frameworks.ae._unsupervised__ae import AE
+from disent.frameworks.ae._unsupervised__ae import Ae
 
 # weakly supervised frameworks
 # <ADD>
