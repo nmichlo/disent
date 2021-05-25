@@ -203,18 +203,6 @@ class Vae(AE):
         z_posterior, z_prior = self.latents_handler.encoding_to_dists(z_raw)
         return z_posterior, z_prior
 
-    # --------------------------------------------------------------------- #
-    # VAE - Latent Distributions                                            #
-    # --------------------------------------------------------------------- #
-
-    # @final
-    # def all_encodings_to_representations(self, zs_raw: Sequence[Tuple[torch.Tensor, ...]]) -> Sequence[torch.Tensor]:
-    #     return map_all(self.latents_handler.encoding_to_representation, zs_raw, collect_returned=False)
-
-    # @final
-    # def all_encodings_to_dists(self, zs_raw: Sequence[Tuple[torch.Tensor, ...]]) -> Tuple[Sequence[Distribution], Sequence[Distribution]]:
-    #     return map_all(self.latents_handler.encoding_to_dists, zs_raw, collect_returned=True)
-
 
 # ========================================================================= #
 # END                                                                       #
