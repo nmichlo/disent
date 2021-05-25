@@ -75,7 +75,7 @@ from disent.transform import ToStandardisedTensor
     (AugPosTripletVae,     dict(),                                                                      XYObjectData),
     # VAE - supervised
     (TripletVae,           dict(),                                                                      XYObjectData),
-    (TripletVae,           dict(detach=True, detach_decoder=True, detach_no_kl=True, detach_std=0.5), XYObjectData),
+    (TripletVae,           dict(disable_decoder=True, disable_reg_loss=True, disable_posterior_scale=0.5), XYObjectData),
     (BoundedAdaVae,        dict(),                                                                      XYObjectData),
     (GuidedAdaVae,         dict(),                                                                      XYObjectData),
     (GuidedAdaVae,         dict(gada_anchor_ave_mode='thresh'),                                         XYObjectData),
@@ -114,8 +114,11 @@ def test_framework_config_defaults():
     # we test that defaults are working recursively
     assert asdict(BetaVae.cfg()) == dict(
         recon_loss='mse',
-        detach=False,
-        detach_decoder=False,
+        disable_aug_loss=False,
+        disable_decoder=False,
+        disable_posterior_scale=None,
+        disable_rec_loss=False,
+        disable_reg_loss=False,
         loss_reduction='mean',
         latent_distribution='normal',
         kl_loss_mode='direct',
@@ -123,8 +126,11 @@ def test_framework_config_defaults():
     )
     assert asdict(BetaVae.cfg(recon_loss='bce', kl_loss_mode='approx')) == dict(
         recon_loss='bce',
-        detach=False,
-        detach_decoder=False,
+        disable_aug_loss=False,
+        disable_decoder=False,
+        disable_posterior_scale=None,
+        disable_rec_loss=False,
+        disable_reg_loss=False,
         loss_reduction='mean',
         latent_distribution='normal',
         kl_loss_mode='approx',

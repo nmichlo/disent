@@ -26,7 +26,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
-import experiment.exp.util.helper as H
+import experiment.exp.util as H
 from disent.util.math_loss import multi_spearman_rank_loss
 from disent.util.math_loss import torch_soft_rank
 
@@ -64,7 +64,8 @@ def run_differentiable_sorting_loss(dataset='xysquares', loss_mode='spearman', o
 
         # update variables
         H.step_optimizer(optimizer, loss)
-        H.show_img(x[0], i=i, step=250)
+        if i % 250 == 0:
+            H.plt_imshow(H.to_img(x[0]), show=True)
 
         # compute loss
         print(i, float(loss))

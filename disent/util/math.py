@@ -197,6 +197,23 @@ def torch_mean_harmonic(xs, dim: _DimTypeHint = None):
 
 
 # ========================================================================= #
+# helper                                                                    #
+# ========================================================================= #
+
+
+def torch_normalize(tensor: torch.Tensor, dims=None, dtype=None):
+    # get min & max values
+    if dims is not None:
+        m, M = tensor, tensor
+        for dim in dims:
+            m, M = m.min(dim=dim, keepdim=True).values, M.max(dim=dim, keepdim=True).values
+    else:
+        m, M = tensor.min(), tensor.max()
+    # scale tensor
+    return (tensor.to(dtype=dtype) - m) / (M - m)  # automatically converts to float32 if needed
+
+
+# ========================================================================= #
 # polyfill - in later versions of pytorch                                   #
 # ========================================================================= #
 

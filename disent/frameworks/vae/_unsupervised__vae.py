@@ -27,17 +27,21 @@ from numbers import Number
 from typing import Any
 from typing import Dict
 from typing import final
+from typing import Optional
 from typing import Sequence
 from typing import Tuple
 from typing import Union
 
 import torch
 from torch.distributions import Distribution
+from torch.distributions import Laplace
+from torch.distributions import Normal
 
 from disent.frameworks.ae._unsupervised__ae import AE
 from disent.frameworks.helper.latent_distributions import LatentDistsHandler
 from disent.frameworks.helper.latent_distributions import make_latent_distribution
 from disent.frameworks.helper.util import detach_all
+
 from disent.util import map_all
 
 
@@ -66,7 +70,6 @@ class Vae(AE):
 
     - HOOKS:
         * `hook_intercept_ds`
-        * `hook_intercept_zs_sampled`
         * `hook_compute_ave_aug_loss` (NB: not the same as `hook_ae_compute_ave_aug_loss` from AEs)
 
     - OVERRIDES:
@@ -91,8 +94,12 @@ class Vae(AE):
 
     @dataclass
     class cfg(AE.cfg):
+        # latent distribution settings
         latent_distribution: str = 'normal'
         kl_loss_mode: str = 'direct'
+        # disable various components
+        disable_reg_loss: bool = False
+        disable_posterior_scale: Optional[float] = None
 
     def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
         # required_z_multiplier
@@ -117,14 +124,14 @@ class Vae(AE):
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # latent distribution parameterizations
         ds_posterior, ds_prior = map_all(self.encode_dists, xs, collect_returned=True)
+        # [HOOK] disable learnt scale values
+        ds_posterior, ds_prior = self._hook_intercept_ds_disable_scale(ds_posterior, ds_prior)
         # [HOOK] intercept latent parameterizations
-        ds_posterior, ds_prior, logs_intercept_zs = self.hook_intercept_ds(ds_posterior, ds_prior)
+        ds_posterior, ds_prior, logs_intercept_ds = self.hook_intercept_ds(ds_posterior, ds_prior)
         # sample from dists
-        zs_sampled = tuple(d_posterior.rsample() for d_posterior in ds_posterior)
-        # [HOOK] intercept zs_samples
-        zs_sampled, logs_intercept_zs_sampled = self.hook_intercept_zs_sampled(zs_sampled)
+        zs_sampled = tuple(d.rsample() for d in ds_posterior)
         # reconstruct without the final activation
-        xs_partial_recon = map_all(self.decode_partial, detach_all(zs_sampled, self.cfg.detach and self.cfg.detach_decoder))
+        xs_partial_recon = map_all(self.decode_partial, detach_all(zs_sampled, if_=self.cfg.disable_decoder))
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
         # LOSS
@@ -136,13 +143,15 @@ class Vae(AE):
         # [HOOK] augment loss
         aug_loss, logs_aug = self.hook_compute_ave_aug_loss(ds_posterior=ds_posterior, ds_prior=ds_prior, zs_sampled=zs_sampled, xs_partial_recon=xs_partial_recon, xs_targ=xs_targ)
         # compute combined loss
-        loss = recon_loss + reg_loss + aug_loss
+        loss = 0
+        if not self.cfg.disable_rec_loss: loss += recon_loss
+        if not self.cfg.disable_aug_loss: loss += aug_loss
+        if not self.cfg.disable_reg_loss: loss += reg_loss
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
         # return values
         return loss, {
-            **logs_intercept_zs,
-            **logs_intercept_zs_sampled,
+            **logs_intercept_ds,
             **logs_recon,
             **logs_reg,
             **logs_aug,
@@ -164,14 +173,24 @@ class Vae(AE):
         raise NotImplementedError('This function should never be used or overridden by VAE methods!')  # pragma: no cover
 
     # --------------------------------------------------------------------- #
-    # Overrideable                                                          #
+    # Private Hooks                                                         #
+    # --------------------------------------------------------------------- #
+
+    def _hook_intercept_ds_disable_scale(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution]):
+        # disable posterior scales
+        if self.cfg.disable_posterior_scale is not None:
+            for d_posterior in ds_posterior:
+                assert isinstance(d_posterior, (Normal, Laplace))
+                d_posterior.scale = torch.full_like(d_posterior.scale, fill_value=self.cfg.disable_posterior_scale)
+        # return modified values
+        return ds_posterior, ds_prior
+
+    # --------------------------------------------------------------------- #
+    # Overrideable Hooks                                                    #
     # --------------------------------------------------------------------- #
 
     def hook_intercept_ds(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution]) -> Tuple[Sequence[Distribution], Sequence[Distribution], Dict[str, Any]]:
         return ds_posterior, ds_prior, {}
-
-    def hook_intercept_zs_sampled(self, zs_sampled: Sequence[torch.Tensor]) -> Tuple[Sequence[torch.Tensor], Dict[str, Any]]:
-        return zs_sampled, {}
 
     def hook_compute_ave_aug_loss(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
         return 0, {}
@@ -195,25 +214,12 @@ class Vae(AE):
         z = self.latents_handler.encoding_to_representation(z_raw)
         return z
 
-    # TODO: update references of this function to Distributions
     @final
     def encode_dists(self, x: torch.Tensor) -> Tuple[Distribution, Distribution]:
         """Get parametrisations of the latent distributions, which are sampled from during training."""
         z_raw = self._model.encode(x)
         z_posterior, z_prior = self.latents_handler.encoding_to_dists(z_raw)
         return z_posterior, z_prior
-
-    # --------------------------------------------------------------------- #
-    # VAE - Latent Distributions                                            #
-    # --------------------------------------------------------------------- #
-
-    # @final
-    # def all_encodings_to_representations(self, zs_raw: Sequence[Tuple[torch.Tensor, ...]]) -> Sequence[torch.Tensor]:
-    #     return map_all(self.latents_handler.encoding_to_representation, zs_raw, collect_returned=False)
-
-    # @final
-    # def all_encodings_to_dists(self, zs_raw: Sequence[Tuple[torch.Tensor, ...]]) -> Tuple[Sequence[Distribution], Sequence[Distribution]]:
-    #     return map_all(self.latents_handler.encoding_to_dists, zs_raw, collect_returned=True)
 
 
 # ========================================================================= #

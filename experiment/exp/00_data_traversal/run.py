@@ -28,6 +28,7 @@ from typing import Union
 import numpy as np
 from matplotlib import pyplot as plt
 
+import experiment.exp.util as H
 from disent.data.groundtruth import Cars3dData
 from disent.data.groundtruth import DSpritesData
 from disent.data.groundtruth import GroundTruthData
@@ -36,8 +37,6 @@ from disent.data.groundtruth import SmallNorbData
 from disent.data.groundtruth import XYSquaresData
 from disent.dataset.groundtruth import GroundTruthDataset
 from disent.util import TempNumpySeed
-from experiment.exp.util import helper as H
-from experiment.exp.util.io_util import make_rel_path_add_ext
 
 
 # ========================================================================= #
@@ -96,7 +95,7 @@ def plot_dataset_traversals(
     fig, axs = H.plt_subplots_imshow(grid, row_labels=row_labels, subplot_padding=0.5, figsize=(offset + (1/2.54)*w*plt_scale, (1/2.54)*h*plt_scale))
     # save figure
     if save and (rel_path is not None):
-        plt.savefig(make_rel_path_add_ext(rel_path, ext='.png'))
+        plt.savefig(H.make_rel_path_add_ext(rel_path, ext='.png'))
     plt.show()
     # done!
     return fig, axs

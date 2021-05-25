@@ -22,39 +22,52 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from dataclasses import dataclass
-from distutils.dist import Distribution
-from numbers import Number
-from typing import Any
-from typing import Dict
+import inspect
 from typing import Sequence
-from typing import Tuple
-from typing import Union
-
-import numpy as np
-import torch
-from torch.distributions import Normal
-
-from disent.frameworks.helper.triplet_loss import compute_triplet_loss
-from disent.frameworks.helper.triplet_loss import TripletLossConfig
-from disent.frameworks.vae._unsupervised__betavae import BetaVae
 
 
 # ========================================================================= #
-# tvae                                                                      #
+# Function Arguments                                                        #
 # ========================================================================= #
 
 
-class TripletVae(BetaVae):
+def _get_fn_from_stack(fn_name: str, stack):
+    # -- do we actually need all of this?
+    fn = None
+    for s in stack:
+        if fn_name in s.frame.f_locals:
+            fn = s.frame.f_locals[fn_name]
+            break
+    if fn is None:
+        raise RuntimeError(f'could not retrieve function: {repr(fn_name)} from call stack.')
+    return fn
 
-    REQUIRED_OBS = 3
 
-    @dataclass
-    class cfg(BetaVae.cfg, TripletLossConfig):
-        pass
+def get_caller_params(sort: bool = False, exclude: Sequence[str] = None) -> dict:
+    stack = inspect.stack()
+    fn_name = stack[1].function
+    fn_locals = stack[1].frame.f_locals
+    # get function and params
+    fn = _get_fn_from_stack(fn_name, stack)
+    fn_params = inspect.getfullargspec(fn).args
+    # check excluded
+    exclude = set() if (exclude is None) else set(exclude)
+    fn_params = [p for p in fn_params if (p not in exclude)]
+    # sort values
+    if sort:
+        fn_params = sorted(fn_params)
+    # return dict
+    return {
+        k: fn_locals[k] for k in fn_params
+    }
 
-    def hook_compute_ave_aug_loss(self, ds_posterior: Sequence[Normal], ds_prior: Sequence[Normal], zs_sampled: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
-        return compute_triplet_loss(zs=[d.mean for d in ds_posterior], cfg=self.cfg)
+
+def params_as_string(params: dict, sep: str = '_', names: bool = False):
+    # get strings
+    if names:
+        return sep.join(f"{k}={v}" for k, v in params.items())
+    else:
+        return sep.join(f"{v}" for k, v in params.items())
 
 
 # ========================================================================= #

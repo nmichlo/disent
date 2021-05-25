@@ -52,11 +52,6 @@ class DataOverlapTripletVae(AdaNegTripletVae):
 
     @dataclass
     class cfg(AdaNegTripletVae.cfg):
-        # OVERRIDE - triplet vae configs
-        detach: bool = False
-        detach_decoder: bool = False
-        detach_no_kl: bool = False
-        detach_std: float = None
         # OVERLAP VAE
         overlap_loss: Optional[str] = None  # if None, use the value from recon_loss
         overlap_num: int = 1024

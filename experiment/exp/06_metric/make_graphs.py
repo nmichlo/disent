@@ -23,23 +23,21 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import itertools
+import os
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
 
 import numpy as np
-import os
 import torch
 from matplotlib import cm
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
+import experiment.exp.util as H
 from disent.metrics._flatness_components import compute_axis_score
 from disent.metrics._flatness_components import compute_linear_score
 from disent.util import seed
-
-from experiment.exp.util import helper as H
-from experiment.exp.util.io_util import make_rel_path_add_ext
 
 
 # ========================================================================= #
@@ -390,7 +388,7 @@ if __name__ == '__main__':
         repeats=250,
         num_points=25000,
     )
-    plt.savefig(make_rel_path_add_ext('plots/metric_grid', ext='.png'))
+    plt.savefig(H.make_rel_path_add_ext('plots/metric_grid', ext='.png'))
     plt.show()
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -403,7 +401,7 @@ if __name__ == '__main__':
         repeats=250,
         num_points=25000,
     )
-    plt.savefig(make_rel_path_add_ext('plots/metric_grid_minimal_5x5', ext='.png'))
+    plt.savefig(H.make_rel_path_add_ext('plots/metric_grid_minimal_5x5', ext='.png'))
     plt.show()
 
     # plot everything -- minimal
@@ -414,7 +412,7 @@ if __name__ == '__main__':
         repeats=250,
         num_points=25000,
     )
-    plt.savefig(make_rel_path_add_ext('plots/metric_grid_minimal_4x5', ext='.png'))
+    plt.savefig(H.make_rel_path_add_ext('plots/metric_grid_minimal_4x5', ext='.png'))
     plt.show()
 
     # plot everything -- minimal
@@ -425,14 +423,14 @@ if __name__ == '__main__':
         repeats=250,
         num_points=25000,
     )
-    plt.savefig(make_rel_path_add_ext('plots/metric_grid_minimal_3x5', ext='.png'))
+    plt.savefig(H.make_rel_path_add_ext('plots/metric_grid_minimal_3x5', ext='.png'))
     plt.show()
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     seed(777)
     make_ave_scores_plot(repeats=250, num_points=10000, use_max=False)
-    plt.savefig(make_rel_path_add_ext('plots/metric_scores', ext='.png'))
+    plt.savefig(H.make_rel_path_add_ext('plots/metric_scores', ext='.png'))
     plt.show()
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #

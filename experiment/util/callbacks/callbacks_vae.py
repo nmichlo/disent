@@ -93,28 +93,31 @@ def _should_skip_groundtruth_callback(callback, dataset):
 
 class VaeLatentCycleLoggingCallback(_PeriodicCallback):
 
-    def __init__(self, seed=7777, every_n_steps=None, begin_first_step=False, mode='fitted_gaussian_cycle', plt_show=False):
+    def __init__(self, seed=7777, every_n_steps=None, begin_first_step=False, mode='fitted_gaussian_cycle', plt_show=False, plt_block_size=1.0):
         super().__init__(every_n_steps, begin_first_step)
         self.seed = seed
         self.mode = mode
         self.plt_show = plt_show
+        self.plt_block_size = plt_block_size
 
     def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         # get dataset and vae framework from trainer and module
         dataset, vae = _get_dataset_and_vae(trainer, pl_module)
 
-        # get random sample of z_means and z_logvars for computing the range of values for the latent_cycle
-        with TempNumpySeed(self.seed):
-            obs = dataset.dataset_sample_batch(64, mode='input').to(vae.device)
-
-        if isinstance(vae, Vae):
-            z_means, z_logvars = vae.encode_dists(obs)
-        else:
-            z_means = vae.encode_dists(obs)
-            z_logvars = torch.ones_like(z_means)
-
-        # produce latent cycle grid animation
-        frames, stills = latent_cycle_grid_animation(vae.decode, z_means, z_logvars, mode=self.mode, num_frames=21, decoder_device=vae.device, tensor_style_channels=False, return_stills=True, to_uint8=True)
+        with torch.no_grad():
+            # get random sample of z_means and z_logvars for computing the range of values for the latent_cycle
+            with TempNumpySeed(self.seed):
+                obs = dataset.dataset_sample_batch(64, mode='input').to(vae.device)
+            # handle VAE vs. AE
+            if isinstance(vae, Vae):
+                ds_posterior, ds_prior = vae.encode_dists(obs)
+                zs_mean, zs_logvar = ds_posterior.mean, torch.log(ds_posterior.variance)
+            else:
+                zs_mean = vae.encode_dists(obs)
+                zs_logvar = torch.ones_like(zs_mean)
+            # produce latent cycle grid animation
+            # TODO: this needs to be fixed to not use logvar, but rather the representations or distributions themselves
+            frames, stills = latent_cycle_grid_animation(vae.decode, zs_mean, zs_logvar, mode=self.mode, num_frames=21, decoder_device=vae.device, tensor_style_channels=False, return_stills=True, to_uint8=True)
 
         # log video
         wb_log_metrics(trainer.logger, {
@@ -122,11 +125,13 @@ class VaeLatentCycleLoggingCallback(_PeriodicCallback):
         })
 
         if self.plt_show:
-            grid = make_image_grid(np.reshape(stills, (-1, *stills.shape[2:])), num_cols=stills.shape[1])
-            plt.imshow(grid)
-            plt.tight_layout()
-            plt.axis('off')
+            grid = make_image_grid(np.reshape(stills, (-1, *stills.shape[2:])), num_cols=stills.shape[1], pad=4)
+            fig, ax = plt.subplots(1, 1, figsize=(self.plt_block_size*stills.shape[1], self.plt_block_size*stills.shape[0]))
+            ax.imshow(grid)
+            ax.axis('off')
+            fig.tight_layout()
             plt.show()
+
 
 class VaeDisentanglementLoggingCallback(_PeriodicCallback):
 
