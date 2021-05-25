@@ -15,4 +15,4 @@ module:
 
 # settings used elsewhere
 data_wrap_mode: triplet
-model_z_multiplier: 2
+model_z_multiplier: 1
