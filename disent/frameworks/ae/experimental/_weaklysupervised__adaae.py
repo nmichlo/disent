@@ -22,37 +22,59 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from dataclasses import dataclass
-from numbers import Number
 from typing import Any
 from typing import Dict
 from typing import Sequence
 from typing import Tuple
-from typing import Union
 
 import torch
+from dataclasses import dataclass
 
 from disent.frameworks.ae._unsupervised__ae import Ae
-from disent.frameworks.helper.triplet_loss import compute_triplet_loss
-from disent.frameworks.helper.triplet_loss import TripletLossConfig
+from disent.frameworks.vae._weaklysupervised__adavae import AdaVae
 
 
 # ========================================================================= #
-# triple ae                                                                 #
+# Ada-GVAE                                                                  #
 # ========================================================================= #
 
 
-class TripletAe(Ae):
+class AdaAe(Ae):
+    """
+    Custom implementation, removing Variational Auto-Encoder components of:
+    Weakly Supervised Disentanglement Learning Without Compromises: https://arxiv.org/abs/2002.02886
 
-    REQUIRED_OBS = 3
+    MODIFICATION:
+    - L1 distance for deltas instead of KL divergence
+    - adjustable threshold value
+    """
+
+    REQUIRED_OBS = 2
 
     @dataclass
-    class cfg(Ae.cfg, TripletLossConfig):
-        pass
+    class cfg(Ae.cfg):
+        ada_thresh_ratio: float = 0.5
 
-    def hook_ae_compute_ave_aug_loss(self, zs: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
-        return compute_triplet_loss(zs=zs, cfg=self.cfg)
+    def hook_ae_intercept_zs(self, zs: Sequence[torch.Tensor]) -> Tuple[Sequence[torch.Tensor], Dict[str, Any]]:
+        """
+        Adaptive VAE Glue Method, putting the various components together
+        1. find differences between deltas
+        2. estimate a threshold for differences
+        3. compute a shared mask from this threshold
+        4. average together elements that should be considered shared
 
+        TODO: the methods used in this function  should probably be moved here
+        TODO: this function could be turned into a torch.nn.Module!
+        """
+        z0, z1 = zs
+        # shared elements that need to be averaged, computed per pair in the batch.
+        share_mask = AdaVae.compute_z_shared_mask(z0, z1, ratio=self.cfg.ada_thresh_ratio)
+        # compute average posteriors
+        new_zs = AdaVae.make_averaged_zs(z0, z1, share_mask)
+        # return new args & generate logs
+        return new_zs, {
+            'shared': share_mask.sum(dim=1).float().mean()
+        }
 
 # ========================================================================= #
 # END                                                                       #

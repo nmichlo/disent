@@ -28,6 +28,7 @@ from typing import Sequence
 from typing import Tuple
 
 import torch
+from deprecated import deprecated
 from torch.distributions import Distribution
 from torch.distributions import Normal
 
@@ -46,6 +47,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
+@deprecated(reason='Rather use the AdaNegTripletVae')
 class AdaTripletVae(TripletVae):
 
     REQUIRED_OBS = 3
@@ -122,7 +124,7 @@ class AdaTripletVae(TripletVae):
         (a_ave, p_ave, n_ave) = zs_shared_ave
         triplet_all_hard_ave = configured_dist_triplet(pos_delta=a_ave-p_ave, neg_delta=a_ave-n_ave, cfg=cfg)
 
-        # Hard Averaging Before Triplet - Scaled
+        # Soft Scaled Negative Triplet
         triplet_hard_neg_ave_scaled = configured_dist_triplet(
             pos_delta=a_z - p_z,
             neg_delta=torch.where(an_share_mask, cfg.adat_triplet_share_scale * (a_z - n_z), (a_z - n_z)),
@@ -215,6 +217,25 @@ def configured_soft_ave_loss(share_mask, delta, cfg: AdaTripletVae.cfg):
 # ========================================================================= #
 # AveAda-TVAE                                                               #
 # ========================================================================= #
+
+
+def compute_triplet_shared_masks_from_zs(zs: Sequence[torch.Tensor], cfg):
+    """
+    required config params:
+    - cfg.ada_thresh_ratio:
+    """
+    a_z, p_z, n_z = zs
+    # shared elements that need to be averaged, computed per pair in the batch.
+    ap_share_mask = AdaVae.compute_z_shared_mask(a_z, p_z, ratio=cfg.ada_thresh_ratio)
+    an_share_mask = AdaVae.compute_z_shared_mask(a_z, n_z, ratio=cfg.ada_thresh_ratio)
+    pn_share_mask = AdaVae.compute_z_shared_mask(p_z, n_z, ratio=cfg.ada_thresh_ratio)
+    # return values
+    share_masks = (ap_share_mask, an_share_mask, pn_share_mask)
+    return share_masks, {
+        'ap_shared': ap_share_mask.sum(dim=1).float().mean(),
+        'an_shared': an_share_mask.sum(dim=1).float().mean(),
+        'pn_shared': pn_share_mask.sum(dim=1).float().mean(),
+    }
 
 
 def compute_triplet_shared_masks(ds_posterior: Sequence[Distribution], cfg: AdaTripletVae.cfg):

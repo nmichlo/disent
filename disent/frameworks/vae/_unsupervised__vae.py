@@ -37,7 +37,7 @@ from torch.distributions import Distribution
 from torch.distributions import Laplace
 from torch.distributions import Normal
 
-from disent.frameworks.ae._unsupervised__ae import AE
+from disent.frameworks.ae._unsupervised__ae import Ae
 from disent.frameworks.helper.latent_distributions import LatentDistsHandler
 from disent.frameworks.helper.latent_distributions import make_latent_distribution
 from disent.frameworks.helper.util import detach_all
@@ -50,7 +50,7 @@ from disent.util import map_all
 # ========================================================================= #
 
 
-class Vae(AE):
+class Vae(Ae):
     """
     Variational Auto Encoder
     https://arxiv.org/abs/1312.6114
@@ -93,7 +93,7 @@ class Vae(AE):
     REQUIRED_OBS = 1
 
     @dataclass
-    class cfg(AE.cfg):
+    class cfg(Ae.cfg):
         # latent distribution settings
         latent_distribution: str = 'normal'
         kl_loss_mode: str = 'direct'

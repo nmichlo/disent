@@ -22,6 +22,7 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import logging
 from dataclasses import dataclass
 from numbers import Number
 from typing import Any
@@ -32,26 +33,37 @@ from typing import Union
 
 import torch
 
-from disent.frameworks.ae._unsupervised__ae import Ae
-from disent.frameworks.helper.triplet_loss import compute_triplet_loss
-from disent.frameworks.helper.triplet_loss import TripletLossConfig
+from disent.frameworks.ae._supervised__tae import TripletAe
+from disent.frameworks.ae.experimental._weaklysupervised__adaae import AdaAe
+from disent.frameworks.vae.experimental._supervised__adaneg_tvae import AdaNegTripletVae
+
+
+log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
-# triple ae                                                                 #
+# Guided Ada Vae                                                            #
 # ========================================================================= #
 
 
-class TripletAe(Ae):
+class AdaNegTripletAe(TripletAe):
+    """
+    This is a condensed version of the ada_tvae and adaave_tvae,
+    using approximately the best settings and loss...
+    """
 
     REQUIRED_OBS = 3
 
     @dataclass
-    class cfg(Ae.cfg, TripletLossConfig):
-        pass
+    class cfg(TripletAe.cfg, AdaAe.cfg):
+        # ada_tvae - loss
+        adat_triplet_share_scale: float = 0.95
 
     def hook_ae_compute_ave_aug_loss(self, zs: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
-        return compute_triplet_loss(zs=zs, cfg=self.cfg)
+        return AdaNegTripletVae.estimate_ada_triplet_loss_from_zs(
+            zs=zs,
+            cfg=self.cfg,
+        )
 
 
 # ========================================================================= #

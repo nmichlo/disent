@@ -51,7 +51,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class AE(BaseFramework):
+class Ae(BaseFramework):
     """
     Basic Auto Encoder
     ------------------

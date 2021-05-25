@@ -1,7 +1,9 @@
 # @package _group_
 name: badavae
 module:
-  _target_: disent.frameworks.vae.BoundedAdaVae
+  _target_: disent.frameworks.vae.experimental.BoundedAdaVae
+  # base vae
+  latent_distribution: ${framework.optional.latent_distribution}
   # disable various components
   disable_decoder: FALSE
   disable_reg_loss: FALSE

@@ -36,7 +36,7 @@ import disent.metrics
 import disent.util.colors as c
 from disent.dataset._augment_util import AugmentableDataset
 from disent.dataset.groundtruth import GroundTruthDataset
-from disent.frameworks.ae import AE
+from disent.frameworks.ae import Ae
 from disent.frameworks.vae import Vae
 from disent.util import iter_chunks
 from disent.util import TempNumpySeed
@@ -59,8 +59,8 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def _get_dataset_and_vae(trainer: pl.Trainer, pl_module: pl.LightningModule) -> (AugmentableDataset, AE):
-    assert isinstance(pl_module, AE), f'{pl_module.__class__} is not an instance of {AE}'
+def _get_dataset_and_vae(trainer: pl.Trainer, pl_module: pl.LightningModule) -> (AugmentableDataset, Ae):
+    assert isinstance(pl_module, Ae), f'{pl_module.__class__} is not an instance of {Ae}'
     # get dataset
     if hasattr(trainer, 'datamodule') and (trainer.datamodule is not None):
         assert isinstance(trainer.datamodule, HydraDataModule)
@@ -108,13 +108,17 @@ class VaeLatentCycleLoggingCallback(_PeriodicCallback):
             # get random sample of z_means and z_logvars for computing the range of values for the latent_cycle
             with TempNumpySeed(self.seed):
                 obs = dataset.dataset_sample_batch(64, mode='input').to(vae.device)
-            # handle VAE vs. AE
+
+            # get representations
             if isinstance(vae, Vae):
+                # variational auto-encoder
                 ds_posterior, ds_prior = vae.encode_dists(obs)
                 zs_mean, zs_logvar = ds_posterior.mean, torch.log(ds_posterior.variance)
             else:
-                zs_mean = vae.encode_dists(obs)
+                # auto-encoder
+                zs_mean = vae.encode(obs)
                 zs_logvar = torch.ones_like(zs_mean)
+
             # produce latent cycle grid animation
             # TODO: this needs to be fixed to not use logvar, but rather the representations or distributions themselves
             frames, stills = latent_cycle_grid_animation(vae.decode, zs_mean, zs_logvar, mode=self.mode, num_frames=21, decoder_device=vae.device, tensor_style_channels=False, return_stills=True, to_uint8=True)

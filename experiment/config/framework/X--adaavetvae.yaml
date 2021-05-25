@@ -1,7 +1,9 @@
 # @package _group_
 name: adaave_tvae
 module:
-  _target_: disent.frameworks.vae.AdaAveTripletVae
+  _target_: disent.frameworks.vae.experimental.AdaAveTripletVae
+  # base vae
+  latent_distribution: ${framework.optional.latent_distribution}
   # disable various components
   disable_decoder: FALSE
   disable_reg_loss: FALSE
