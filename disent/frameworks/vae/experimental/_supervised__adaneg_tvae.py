@@ -33,6 +33,7 @@ from disent.frameworks.helper.triplet_loss import configured_dist_triplet
 from disent.frameworks.helper.triplet_loss import configured_triplet
 from disent.frameworks.vae._supervised__tvae import TripletVae
 from disent.frameworks.vae.experimental._supervised__adatvae import compute_triplet_shared_masks
+from disent.frameworks.vae.experimental._supervised__adatvae import compute_triplet_shared_masks_from_zs
 from disent.frameworks.vae._weaklysupervised__adavae import AdaVae
 
 
@@ -69,16 +70,11 @@ class AdaNegTripletVae(TripletVae):
         )
 
     @staticmethod
-    def estimate_ada_triplet_loss(ds_posterior: Sequence[Normal], cfg: cfg):
-        """
-        zs_params and ds_posterior are convenience variables here.
-        - they should contain the same values
-        - in practice we only need one of them and can compute the other!
-        """
+    def estimate_ada_triplet_loss_from_zs(zs: Sequence[torch.Tensor], cfg: cfg):
         # compute shared masks, shared embeddings & averages over shared embeddings
-        share_masks, share_logs = compute_triplet_shared_masks(ds_posterior, cfg=cfg)
+        share_masks, share_logs = compute_triplet_shared_masks_from_zs(zs=zs, cfg=cfg)
         # compute loss
-        ada_triplet_loss, ada_triplet_logs = AdaNegTripletVae.compute_ada_triplet_loss(share_masks=share_masks, ds_posterior=ds_posterior, cfg=cfg)
+        ada_triplet_loss, ada_triplet_logs = AdaNegTripletVae.compute_ada_triplet_loss(share_masks=share_masks, zs=zs, cfg=cfg)
         # merge logs & return loss
         return ada_triplet_loss, {
             **ada_triplet_logs,
@@ -86,22 +82,34 @@ class AdaNegTripletVae(TripletVae):
         }
 
     @staticmethod
-    def compute_ada_triplet_loss(share_masks, ds_posterior, cfg: cfg):
+    def estimate_ada_triplet_loss(ds_posterior: Sequence[Normal], cfg: cfg):
+        # compute shared masks, shared embeddings & averages over shared embeddings
+        share_masks, share_logs = compute_triplet_shared_masks(ds_posterior, cfg=cfg)
+        # compute loss
+        ada_triplet_loss, ada_triplet_logs = AdaNegTripletVae.compute_ada_triplet_loss(share_masks=share_masks, zs=(d.mean for d in ds_posterior), cfg=cfg)
+        # merge logs & return loss
+        return ada_triplet_loss, {
+            **ada_triplet_logs,
+            **share_logs,
+        }
+
+    @staticmethod
+    def compute_ada_triplet_loss(share_masks, zs, cfg: cfg):
         # Normal Triplet Loss
-        (a_z, p_z, n_z) = (d.mean for d in ds_posterior)
+        (a_z, p_z, n_z) = zs
         trip_loss = configured_triplet(a_z, p_z, n_z, cfg=cfg)
 
-        # Hard Averaging Before Triplet - Scaled
+        # Soft Scaled Negative Triplet
         (ap_share_mask, an_share_mask, pn_share_mask) = share_masks
-        triplet_hard_neg_ave_pull = configured_dist_triplet(
+        triplet_hard_neg_ave_scaled = configured_dist_triplet(
             pos_delta=a_z - p_z,
             neg_delta=torch.where(an_share_mask, cfg.adat_triplet_share_scale * (a_z - n_z), (a_z - n_z)),
             cfg=cfg,
         )
 
-        return triplet_hard_neg_ave_pull, {
+        return triplet_hard_neg_ave_scaled, {
             'triplet': trip_loss,
-            'triplet_chosen': triplet_hard_neg_ave_pull,
+            'triplet_chosen': triplet_hard_neg_ave_scaled,
         }
 
 

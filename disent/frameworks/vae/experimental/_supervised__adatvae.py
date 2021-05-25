@@ -219,6 +219,25 @@ def configured_soft_ave_loss(share_mask, delta, cfg: AdaTripletVae.cfg):
 # ========================================================================= #
 
 
+def compute_triplet_shared_masks_from_zs(zs: Sequence[torch.Tensor], cfg):
+    """
+    required config params:
+    - cfg.ada_thresh_ratio:
+    """
+    a_z, p_z, n_z = zs
+    # shared elements that need to be averaged, computed per pair in the batch.
+    ap_share_mask = AdaVae.compute_z_shared_mask(a_z, p_z, ratio=cfg.ada_thresh_ratio)
+    an_share_mask = AdaVae.compute_z_shared_mask(a_z, n_z, ratio=cfg.ada_thresh_ratio)
+    pn_share_mask = AdaVae.compute_z_shared_mask(p_z, n_z, ratio=cfg.ada_thresh_ratio)
+    # return values
+    share_masks = (ap_share_mask, an_share_mask, pn_share_mask)
+    return share_masks, {
+        'ap_shared': ap_share_mask.sum(dim=1).float().mean(),
+        'an_shared': an_share_mask.sum(dim=1).float().mean(),
+        'pn_shared': pn_share_mask.sum(dim=1).float().mean(),
+    }
+
+
 def compute_triplet_shared_masks(ds_posterior: Sequence[Distribution], cfg: AdaTripletVae.cfg):
     """
     required config params:
