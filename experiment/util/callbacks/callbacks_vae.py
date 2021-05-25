@@ -108,13 +108,17 @@ class VaeLatentCycleLoggingCallback(_PeriodicCallback):
             # get random sample of z_means and z_logvars for computing the range of values for the latent_cycle
             with TempNumpySeed(self.seed):
                 obs = dataset.dataset_sample_batch(64, mode='input').to(vae.device)
-            # handle VAE vs. AE
+
+            # get representations
             if isinstance(vae, Vae):
+                # variational auto-encoder
                 ds_posterior, ds_prior = vae.encode_dists(obs)
                 zs_mean, zs_logvar = ds_posterior.mean, torch.log(ds_posterior.variance)
             else:
-                zs_mean = vae.encode_dists(obs)
+                # auto-encoder
+                zs_mean = vae.encode(obs)
                 zs_logvar = torch.ones_like(zs_mean)
+
             # produce latent cycle grid animation
             # TODO: this needs to be fixed to not use logvar, but rather the representations or distributions themselves
             frames, stills = latent_cycle_grid_animation(vae.decode, zs_mean, zs_logvar, mode=self.mode, num_frames=21, decoder_device=vae.device, tensor_style_channels=False, return_stills=True, to_uint8=True)

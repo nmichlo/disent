@@ -30,8 +30,8 @@ from typing import Tuple
 import torch
 from dataclasses import dataclass
 
-from disent.frameworks.ae import Ae
-from disent.frameworks.vae import AdaVae
+from disent.frameworks.ae._unsupervised__ae import Ae
+from disent.frameworks.vae._weaklysupervised__adavae import AdaVae
 
 
 # ========================================================================= #

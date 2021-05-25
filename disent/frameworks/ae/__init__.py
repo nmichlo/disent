@@ -23,11 +23,10 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 # supervised frameworks
-# <ADD>
+from disent.frameworks.ae._supervised__tae import TripletAe
 
 # unsupervised frameworks
 from disent.frameworks.ae._unsupervised__ae import Ae
-from disent.frameworks.ae._supervised__tae import TripletAe
 
 # weakly supervised frameworks
 # <ADD>

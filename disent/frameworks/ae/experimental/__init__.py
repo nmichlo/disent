@@ -23,11 +23,10 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 # supervised frameworks
-# <ADD>
+from disent.frameworks.ae.experimental._supervised__adaneg_tae import AdaNegTripletAe
 
 # unsupervised frameworks
 # <ADD>
 
 # weakly supervised frameworks
 from disent.frameworks.ae.experimental._weaklysupervised__adaae import AdaAe
-from disent.frameworks.ae.experimental._supervised__adaneg_tae import AdaNegTripletAe
