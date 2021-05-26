@@ -62,9 +62,12 @@ class Shapes3dData(Hdf5PreprocessedGroundTruthData):
 # ========================================================================= #
 
 
-if __name__ == '__main__':
-    dataset = Shapes3dData(data_dir='data/dataset/shapes3d-1-64-64-3')
-    # pair_dataset = PairedVariationDataset(dataset, k='uniform')
+# if __name__ == '__main__':
+    # dataset = RandomDataset(Shapes3dData())
+    # dataloader = DataLoader(dataset, num_workers=os.cpu_count(), batch_size=256)
+    #
+    # for batch in tqdm(dataloader):
+    #     pass
 
     # # test that dimensions are resampled correctly, and only differ by a certain number of factors, not all.
     # for i in range(10):
