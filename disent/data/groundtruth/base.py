@@ -182,8 +182,21 @@ class PreprocessedDownloadableGroundTruthData(DownloadableGroundTruthData, metac
 
 class Hdf5PreprocessedGroundTruthData(PreprocessedDownloadableGroundTruthData, metaclass=ABCMeta):
     """
-    Automatically download and pre-process an hdf5 dataset into the specific chunk sizes.
-    TODO: Only supports one dataset from the hdf5 file itself, labels etc need a custom implementation.
+    Automatically download and pre-process an hdf5 dataset
+    into the specific chunk sizes.
+
+    Often the (non-chunked) dataset will be optimized for random accesses,
+    while the unprocessed (chunked) dataset will be better for sequential reads.
+    - The chunk size specifies the region of data to be loaded when accessing a
+      single element of the dataset, if the chunk size is not correctly set,
+      unneeded data will be loaded when accessing observations.
+    - override `hdf5_chunk_size` to set the chunk size, for random access
+      optimized data this should be set to the minimum observation shape that can
+      be broadcast across the shape of the dataset. Eg. with observations of shape
+      (64, 64, 3), set the chunk size to (1, 64, 64, 3).
+
+    TODO: Only supports one dataset from the hdf5 file
+          itself, labels etc need a custom implementation.
     """
 
     def __init__(self, data_dir='data/dataset', in_memory=False, force_download=False, force_preprocess=False):
@@ -192,26 +205,25 @@ class Hdf5PreprocessedGroundTruthData(PreprocessedDownloadableGroundTruthData, m
 
         # Load the entire dataset into memory if required
         if self._in_memory:
-            # Only load the dataset once, no matter how many instances of the class are created.
-            # data is stored on the underlying class at the _DATA property.
-            # TODO: this is weird
-            if not hasattr(self.__class__, '_DATA'):
-                log.info(f'[DATASET: {self.__class__.__name__}]: Loading...')
-                # Often the (non-chunked) dataset will be optimized for random accesses,
-                # while the unprocessed (chunked) dataset will be better for sequential reads.
-                with h5py.File(self.dataset_path, 'r') as db:
-                    # indexing dataset objects returns numpy array
-                    # instantiating np.array from the dataset requires double memory.
-                    self.__class__._DATA = db[self.hdf5_name][:]
-                log.info(f'[DATASET: {self.__class__.__name__}]: Loaded!')
+            with h5py.File(self.dataset_path, 'r', libver='latest', swmr=True) as db:
+                # indexing dataset objects returns numpy array
+                # instantiating np.array from the dataset requires double memory.
+                self._memory_data = db[self.hdf5_name][:]
+        else:
+            # is this thread safe?
+            self._hdf5_file = h5py.File(self.dataset_path, 'r', libver='latest', swmr=True)
+            self._hdf5_data = self._hdf5_file[self.hdf5_name]
 
     def __getitem__(self, idx):
         if self._in_memory:
-            return self.__class__._DATA[idx]
+            return self._memory_data[idx]
         else:
-            # This actually doesnt seem too slow
-            with h5py.File(self.dataset_path, 'r', libver='latest', swmr=True) as f:
-                return f[self.hdf5_name][idx]
+            return self._hdf5_data[idx]
+
+    def __del__(self):
+        # do we need to do this?
+        if not self._in_memory:
+            self._hdf5_file.close()
 
     def _preprocess_dataset(self, path_src, path_dst):
         import os
