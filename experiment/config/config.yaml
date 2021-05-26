@@ -29,7 +29,9 @@ framework:
     module:
       recon_loss: mse4
       loss_reduction: mean
+      latent_distribution: cauchy
     optional:
+      latent_distribution: normal  # only used by VAEs
       overlap_loss: NULL
 
 model:

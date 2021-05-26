@@ -22,18 +22,18 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from dataclasses import dataclass
+
 from dataclasses import fields
 from typing import Sequence
 from typing import Tuple, final
 
 import numpy as np
 import torch
+from torch.distributions import Laplace
 from torch.distributions import Normal, Distribution
 
 from disent.frameworks.helper.reductions import loss_reduction
 from disent.frameworks.helper.util import compute_ave_loss
-from disent.util import TupleDataClass
 
 
 # ========================================================================= #
@@ -128,37 +128,19 @@ class LatentDistsHandler(object):
         self._kl_mode = kl_mode
         self._reduction = reduction
 
-    @dataclass
-    class Params(TupleDataClass):
-        """
-        We use a params object so frameworks can check
-        what kind of ops are supported, debug easier, and give type hints.
-        - its a bit less efficient memory wise, but hardly...
-        """
-        __repr__ = short_dataclass_repr
-
-    def encoding_to_params(self, z_raw):
+    def encoding_to_representation(self, z_raw: Tuple[torch.Tensor, ...]) -> torch.Tensor:
         raise NotImplementedError
 
-    def params_to_representation(self, z_params: Params) -> torch.Tensor:
-        raise NotImplementedError
-
-    def params_to_dists(self, z_params: Params) -> Tuple[Distribution, Distribution]:
-        """
-        make the posterior and prior distributions
-        """
-        raise NotImplementedError
-
-    def dist_to_params(self, d_posterior: Distribution) -> Params:
+    def encoding_to_dists(self, z_raw: Tuple[torch.Tensor, ...]) -> Tuple[Distribution, Distribution]:
         raise NotImplementedError
 
     @final
-    def params_to_dists_and_sample(self, z_params: Params) -> Tuple[Distribution, Distribution, torch.Tensor]:
+    def encoding_to_dists_and_sample(self, z_raw: Tuple[torch.Tensor, ...]) -> Tuple[Distribution, Distribution, torch.Tensor]:
         """
         Return the parameterized prior and the approximate posterior distributions,
         as well as a sample from the approximate posterior using the 'reparameterization trick'.
         """
-        posterior, prior = self.params_to_dists(z_params)
+        posterior, prior = self.encoding_to_dists(z_raw)
         # sample from posterior -- reparameterization trick!
         # ie. z ~ q(z|x)
         z_sampled = posterior.rsample()
@@ -193,25 +175,18 @@ class LatentDistsHandlerNormal(LatentDistsHandler):
     Latent distributions with:
     - posterior: normal distribution with diagonal covariance
     - prior: unit normal distribution
+
+    NOTE: Expanding parameters results in something akin to an L2 regularizer.
     """
 
-    @dataclass
-    class Params(LatentDistsHandler.Params):
-        mean: torch.Tensor = None
-        logvar: torch.Tensor = None
-        __repr__ = short_dataclass_repr
+    # assert mode == 'direct', f'legacy reference implementation of KL loss only supports mode="direct", not {repr(mode)}'
+    # assert reduction == 'mean_sum', f'legacy reference implementation of KL loss only supports reduction="mean_sum", not {repr(reduction)}'
 
-    @final
-    def encoding_to_params(self, raw_z: Tuple[torch.Tensor, torch.Tensor]) -> Params:
+    def encoding_to_representation(self, raw_z: Tuple[torch.Tensor, ...]) -> torch.Tensor:
         z_mean, z_logvar = raw_z
-        return self.Params(z_mean, z_logvar)
+        return z_mean
 
-    @final
-    def params_to_representation(self, z_params: Params) -> torch.Tensor:
-        return z_params.mean
-
-    @final
-    def params_to_dists(self, z_params: Params) -> Tuple[Normal, Normal]:
+    def encoding_to_dists(self, raw_z: Tuple[torch.Tensor, ...]) -> Tuple[Normal, Normal]:
         """
         Return the parameterized prior and the approximate posterior distributions.
         - The standard VAE parameterizes the gaussian normal with diagonal covariance.
@@ -222,42 +197,41 @@ class LatentDistsHandlerNormal(LatentDistsHandler):
             https://github.com/google-research/disentanglement_lib (sample_from_latent_distribution)
             https://github.com/PyTorchLightning/pytorch-lightning-bolts/blob/master/pl_bolts/models/autoencoders/basic_vae/basic_vae_module.py
         """
-        z_mean, z_logvar = z_params
+        z_mean, z_logvar = raw_z
         # compute required values
         z_std = torch.exp(0.5 * z_logvar)
         # q: approximate posterior distribution
-        posterior = Normal(z_mean, z_std)
+        posterior = Normal(loc=z_mean, scale=z_std)
         # p: prior distribution
         prior = Normal(torch.zeros_like(z_mean), torch.ones_like(z_std))
         # return values
         return posterior, prior
 
-    @final
-    def dist_to_params(self, d_posterior: Normal) -> Params:
-        return self.Params(
-            mean=d_posterior.mean,
-            logvar=d_posterior.variance.log()
-        )
 
-    @staticmethod
-    def LEGACY_compute_kl_loss(mu, logvar, mode: str = 'direct', reduction='mean_sum'):
-        """
-        Calculates the KL divergence between a normal distribution with
-        diagonal covariance and a unit normal distribution.
-        FROM: https://github.com/Schlumberger/joint-vae/blob/master/jointvae/training.py
+class LatentDistsHandlerLaplace(LatentDistsHandler):
+    """
+    Latent distributions with:
+    - posterior: laplace distribution with diagonal covariance
+    - prior: unit laplace distribution
 
-        (✓) Visual inspection against reference implementation:
-            https://github.com/google-research/disentanglement_lib (compute_gaussian_kl)
-        """
-        assert mode == 'direct', f'legacy reference implementation of KL loss only supports mode="direct", not {repr(mode)}'
-        assert reduction == 'mean_sum', f'legacy reference implementation of KL loss only supports reduction="mean_sum", not {repr(reduction)}'
-        # Calculate KL divergence
-        kl_values = -0.5 * (1 + logvar - mu.pow(2) - logvar.exp())
-        # Sum KL divergence across latent vector for each sample
-        kl_sums = torch.sum(kl_values, dim=1)
-        # KL loss is mean of the KL divergence sums
-        kl_loss = torch.mean(kl_sums)
-        return kl_loss
+    TODO: is this true?
+    NOTE: Expanding parameters results in something akin to an L1 regularizer, with extra terms?
+    """
+
+    def encoding_to_representation(self, raw_z: Tuple[torch.Tensor, ...]) -> torch.Tensor:
+        z_loc, z_logscale = raw_z
+        return z_loc
+
+    def encoding_to_dists(self, raw_z: Tuple[torch.Tensor, ...]) -> Tuple[Laplace, Laplace]:
+        z_loc, z_logscale = raw_z
+        # compute required values
+        z_scale = torch.exp(z_logscale)
+        # q: approximate posterior distribution
+        posterior = Laplace(loc=z_loc, scale=z_scale)
+        # p: prior distribution
+        prior = Laplace(torch.zeros_like(z_loc), torch.ones_like(z_scale))
+        # return values
+        return posterior, prior
 
 
 # ========================================================================= #
@@ -265,11 +239,17 @@ class LatentDistsHandlerNormal(LatentDistsHandler):
 # ========================================================================= #
 
 
+_LATENT_HANDLERS = {
+    'normal': LatentDistsHandlerNormal,
+    'laplace': LatentDistsHandlerLaplace,
+}
+
+
 def make_latent_distribution(name: str, kl_mode: str, reduction: str) -> LatentDistsHandler:
-    if name == 'normal':
-        cls = LatentDistsHandlerNormal
-    else:
-        raise KeyError(f'unknown vae distribution name: {name}')
+    try:
+        cls = _LATENT_HANDLERS[name]
+    except KeyError:
+        raise KeyError(f'unknown vae distribution name: {repr(name)}, must be one of: {sorted(_LATENT_HANDLERS.keys())}')
     # make instance
     return cls(kl_mode=kl_mode, reduction=reduction)
 

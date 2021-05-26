@@ -21,6 +21,9 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
+import os
+import re
 from numbers import Number
 from typing import List
 from typing import Tuple
@@ -29,6 +32,8 @@ from typing import Union
 import numpy as np
 import torch
 
+import disent
+from disent.util import DisentModule
 from disent.util.math import torch_box_kernel_2d
 from disent.util.math import torch_conv2d_channel_wise_fft
 from disent.util.math import torch_gaussian_kernel_2d
@@ -50,14 +55,15 @@ def _expand_to_min_max_tuples(input: MmTuple) -> Tuple[Tuple[Number, Number], Tu
     return (xm, xM), (ym, yM)
 
 
-
-class _BaseFftBlur(object):
+class _BaseFftBlur(DisentModule):
     """
     randomly gaussian blur the input images.
     - similar api to kornia
     """
 
     def __init__(self, p: float = 0.5, random_mode='batch', random_same_xy=True):
+        super().__init__()
+        # check arguments
         assert 0 <= p <= 1, f'probability of applying transform p={repr(p)} must be in range [0, 1]'
         self.p = p
         # random modes
@@ -70,7 +76,7 @@ class _BaseFftBlur(object):
         # same random value for x and y
         self.b_idx = 0 if random_same_xy else 1
 
-    def __call__(self, obs):
+    def forward(self, obs):
         # randomly return original
         if np.random.random() < (1 - self.p):
             return obs
@@ -78,9 +84,8 @@ class _BaseFftBlur(object):
         add_batch_dim = (obs.ndim == 3)
         if add_batch_dim:
             obs = obs[None, ...]
-        # get kernel
-        kernel = self._make_kernel(obs.shape, obs.device)
         # apply kernel
+        kernel = self._make_kernel(obs.shape, obs.device)
         result = torch_conv2d_channel_wise_fft(signal=obs, kernel=kernel)
         # remove batch dim
         if add_batch_dim:
@@ -125,7 +130,7 @@ class FftGaussianBlur(_BaseFftBlur):
         # generate kernel
         return torch_gaussian_kernel_2d(
             sigma=sigma[..., 0], truncate=trunc[..., 0],
-            sigma_b=sigma[..., self.b_idx], truncate_b=trunc[..., self.b_idx], # TODO: we do generate unneeded random values if random_same_xy == True
+            sigma_b=sigma[..., self.b_idx], truncate_b=trunc[..., self.b_idx],  # TODO: we do generate unneeded random values if random_same_xy == True
             dtype=torch.float32, device=device,
         )
 
@@ -169,7 +174,115 @@ class FftBoxBlur(_BaseFftBlur):
 
 
 # ========================================================================= #
-# END                                                                       #
+# FFT Kernel                                                                #
 # ========================================================================= #
 
+
+class FftKernel(DisentModule):
+    """
+    2D Convolve an image
+    """
+
+    def __init__(self, kernel: Union[torch.Tensor, str], normalize: bool = True):
+        super().__init__()
+        # load the kernel
+        self._kernel = torch.nn.Parameter(get_kernel(kernel, normalize=normalize), requires_grad=False)
+
+    def forward(self, obs):
+        # add or remove batch dim
+        add_batch_dim = (obs.ndim == 3)
+        if add_batch_dim:
+            obs = obs[None, ...]
+        # apply kernel
+        result = torch_conv2d_channel_wise_fft(signal=obs, kernel=self._kernel)
+        # remove batch dim
+        if add_batch_dim:
+            result = result[0]
+        # done!
+        return result
+
+
+# ========================================================================= #
+# Kernels                                                                   #
+# ========================================================================= #
+
+
+def _normalise_kernel(kernel: torch.Tensor, normalize: bool) -> torch.Tensor:
+    if normalize:
+        with torch.no_grad():
+            return kernel / kernel.sum()
+    return kernel
+
+
+def _check_kernel(kernel: torch.Tensor) -> torch.Tensor:
+    # check kernel
+    assert isinstance(kernel, torch.Tensor)
+    assert kernel.dtype == torch.float32
+    assert kernel.ndim == 4, f'invalid number of kernel dims, required 4, given: {repr(kernel.ndim)}'  # B, C, H, W
+    assert kernel.shape[0] == 1, f'invalid size of first kernel dim, required (1, ?, ?, ?), given: {repr(kernel.shape)}'  # B
+    assert kernel.shape[0] in (1, 3), f'invalid size of second kernel dim, required (?, 1 or 3, ?, ?), given: {repr(kernel.shape)}'  # C
+    # done checks
+    return kernel
+
+
+_KERNELS = {
+    # kernels that do not require arguments, just general factory functions
+    # name: class/fn -- with no required args
+}
+
+
+_ARG_KERNELS = [
+    # (REGEX, EXAMPLE, FACTORY_FUNC)
+    # - factory function takes at min one arg: fn(reduction) with one arg after that per regex capture group
+    # - regex expressions are tested in order, expressions should be mutually exclusive or ordered such that more specialized versions occur first.
+    (re.compile(r'^(xy8)_r(47)$'),  'xy8_r47', lambda kern, radius: torch.load(os.path.abspath(os.path.join(disent.__file__, '../../data/adversarial_kernel', 'r47-1_s28800_adam_lr0.003_wd0.0_xy8x8.pt')))),
+    (re.compile(r'^(xy1)_r(47)$'),  'xy1_r47', lambda kern, radius: torch.load(os.path.abspath(os.path.join(disent.__file__, '../../data/adversarial_kernel', 'r47-1_s28800_adam_lr0.003_wd0.0_xy1x1.pt')))),
+    (re.compile(r'^(box)_r(\d+)$'), 'box_r31', lambda kern, radius: torch_box_kernel_2d(radius=int(radius))[None, ...]),
+    (re.compile(r'^(gau)_r(\d+)$'), 'gau_r31', lambda kern, radius: torch_gaussian_kernel_2d(sigma=int(radius) / 4.0, truncate=4.0)[None, None, ...]),
+]
+
+
+# NOTE: this function compliments make_reconstruction_loss in frameworks/helper/reconstructions.py
+def _make_kernel(name: str) -> torch.Tensor:
+    if name in _KERNELS:
+        # search normal losses!
+        return _KERNELS[name]()
+    else:
+        # regex search kernels, and call with args!
+        for r, _, fn in _ARG_KERNELS:
+            result = r.search(name)
+            if result is not None:
+                return fn(*result.groups())
+    # we couldn't find anything
+    raise KeyError(f'Invalid kernel name: {repr(name)} Examples of argument based kernels include: {[example for _, example, _ in _ARG_KERNELS]}')
+
+
+def make_kernel(name: str, normalize: bool = False):
+    kernel = _make_kernel(name)
+    kernel = _normalise_kernel(kernel, normalize=normalize)
+    kernel = _check_kernel(kernel)
+    return kernel
+
+
+def _get_kernel(name_or_path: str) -> torch.Tensor:
+    if '/' not in name_or_path:
+        try:
+            return _make_kernel(name_or_path)
+        except KeyError:
+            pass
+    if os.path.isfile(name_or_path):
+        return torch.load(name_or_path)
+    raise KeyError(f'Invalid kernel path or name: {repr(name_or_path)} Examples of argument based kernels include: {[example for _, example, _ in _ARG_KERNELS]}, otherwise specify a valid path to a kernel file save with torch.')
+
+
+def get_kernel(kernel: Union[str, torch.Tensor], normalize: bool = False):
+    kernel = _get_kernel(kernel) if isinstance(kernel, str) else torch.clone(kernel)
+    kernel = _normalise_kernel(kernel, normalize=normalize)
+    kernel = _check_kernel(kernel)
+    return kernel
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #
 

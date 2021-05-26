@@ -1,0 +1,14 @@
+# @package _group_
+name: adaae
+module:
+  _target_: disent.frameworks.ae.experimental.AdaAe
+  # disable various components
+  disable_decoder: FALSE
+  disable_rec_loss: FALSE
+  disable_aug_loss: FALSE
+  # adavae
+  ada_thresh_ratio: 0.5
+
+# settings used elsewhere
+data_wrap_mode: pair
+model_z_multiplier: 1

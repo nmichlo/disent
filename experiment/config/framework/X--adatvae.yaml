@@ -1,7 +1,16 @@
 # @package _group_
 name: adatvae
 module:
-  _target_: disent.frameworks.vae.supervised.AdaTripletVae
+  _target_: disent.frameworks.vae.experimental.AdaTripletVae
+  # base vae
+  latent_distribution: ${framework.optional.latent_distribution}
+  # disable various components
+  disable_decoder: FALSE
+  disable_reg_loss: FALSE
+  disable_rec_loss: FALSE
+  disable_aug_loss: FALSE
+  disable_posterior_scale: NULL
+  # Beta-VAE
   beta: ${framework.beta}
   # tvae: triplet stuffs
   triplet_loss: triplet
@@ -9,11 +18,6 @@ module:
   triplet_margin_max: 1
   triplet_scale: 0.1
   triplet_p: 1
-  # tvae: no loss from decoder -> encoder
-  detach: FALSE
-  detach_decoder: FALSE
-  detach_no_kl: FALSE
-  detach_logvar: NULL  # set to NULL to disable fixed value
   # adavae
   ada_average_mode: gvae
   ada_thresh_mode: symmetric_kl  # Only works for: adat_share_mask_mode == "posterior" --- kl, symmetric_kl, dist, sampled_dist

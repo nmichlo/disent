@@ -34,10 +34,10 @@ from disent.data.groundtruth import XYObjectData
 from disent.dataset.groundtruth import GroundTruthDataset
 from disent.dataset.groundtruth import GroundTruthDatasetPairs
 from disent.dataset.groundtruth import GroundTruthDatasetTriples
-from disent.frameworks.ae.unsupervised import *
-from disent.frameworks.vae.unsupervised import *
-from disent.frameworks.vae.weaklysupervised import *
-from disent.frameworks.vae.supervised import *
+from disent.frameworks.ae import *
+from disent.frameworks.ae.experimental import *
+from disent.frameworks.vae import *
+from disent.frameworks.vae.experimental import *
 from disent.model.ae import AutoEncoder
 from disent.model.ae import DecoderConv64
 from disent.model.ae import EncoderConv64
@@ -51,7 +51,12 @@ from disent.transform import ToStandardisedTensor
 
 @pytest.mark.parametrize(['Framework', 'cfg_kwargs', 'Data'], [
     # AE - unsupervised
-    (AE,                   dict(),                                                                      XYObjectData),
+    (Ae,                   dict(), XYObjectData),
+    (TripletAe,            dict(), XYObjectData),
+    # AE - weakly supervised
+    (AdaAe,                dict(), XYObjectData),
+    # AE - supervised
+    (AdaNegTripletAe,      dict(), XYObjectData),
     # VAE - unsupervised
     (Vae,                  dict(),                                                                      XYObjectData),
     (BetaVae,              dict(),                                                                      XYObjectData),
@@ -66,6 +71,7 @@ from disent.transform import ToStandardisedTensor
     (DataOverlapTripletVae,dict(overlap_mine_triplet_mode='hard_neg'),                                  XYObjectData),
     (DataOverlapTripletVae,dict(overlap_mine_triplet_mode='hard_pos'),                                  XYObjectData),
     (DataOverlapTripletVae,dict(overlap_mine_triplet_mode='easy_pos'),                                  XYObjectData),
+    (DataOverlapRankVae,   dict(),                                                                      XYObjectData),
     # VAE - weakly supervised
     (AdaVae,               dict(),                                                                      XYObjectData),
     (AdaVae,               dict(ada_average_mode='ml-vae'),                                             XYObjectData),
@@ -74,7 +80,7 @@ from disent.transform import ToStandardisedTensor
     (AugPosTripletVae,     dict(),                                                                      XYObjectData),
     # VAE - supervised
     (TripletVae,           dict(),                                                                      XYObjectData),
-    (TripletVae,           dict(detach=True, detach_decoder=True, detach_no_kl=True, detach_logvar=-2), XYObjectData),
+    (TripletVae,           dict(disable_decoder=True, disable_reg_loss=True, disable_posterior_scale=0.5), XYObjectData),
     (BoundedAdaVae,        dict(),                                                                      XYObjectData),
     (GuidedAdaVae,         dict(),                                                                      XYObjectData),
     (GuidedAdaVae,         dict(gada_anchor_ave_mode='thresh'),                                         XYObjectData),
@@ -113,6 +119,11 @@ def test_framework_config_defaults():
     # we test that defaults are working recursively
     assert asdict(BetaVae.cfg()) == dict(
         recon_loss='mse',
+        disable_aug_loss=False,
+        disable_decoder=False,
+        disable_posterior_scale=None,
+        disable_rec_loss=False,
+        disable_reg_loss=False,
         loss_reduction='mean',
         latent_distribution='normal',
         kl_loss_mode='direct',
@@ -120,6 +131,11 @@ def test_framework_config_defaults():
     )
     assert asdict(BetaVae.cfg(recon_loss='bce', kl_loss_mode='approx')) == dict(
         recon_loss='bce',
+        disable_aug_loss=False,
+        disable_decoder=False,
+        disable_posterior_scale=None,
+        disable_rec_loss=False,
+        disable_reg_loss=False,
         loss_reduction='mean',
         latent_distribution='normal',
         kl_loss_mode='approx',

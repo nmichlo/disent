@@ -36,7 +36,7 @@ import torch
 from torch.utils.data.dataloader import default_collate
 
 from disent.dataset.groundtruth import GroundTruthDataset
-from disent.util import chunked
+from disent.util import iter_chunks
 
 
 log = logging.getLogger(__name__)
@@ -214,7 +214,7 @@ def aggregate_measure_distances_along_factor(
 
 def encode_all_along_factor(ground_truth_dataset, representation_function, f_idx: int, batch_size: int):
     # generate repeated factors, varying one factor over a range (f_size, f_dims)
-    factors = ground_truth_dataset.sample_random_traversal_factors(f_idx=f_idx)
+    factors = ground_truth_dataset.sample_random_factor_traversal(f_idx=f_idx)
     # get the representations of all the factors (f_size, z_size)
     sequential_zs = encode_all_factors(ground_truth_dataset, representation_function, factors=factors, batch_size=batch_size)
     return sequential_zs
@@ -223,7 +223,7 @@ def encode_all_along_factor(ground_truth_dataset, representation_function, f_idx
 def encode_all_factors(ground_truth_dataset, representation_function, factors, batch_size: int) -> torch.Tensor:
     zs = []
     with torch.no_grad():
-        for batch_factors in chunked(factors, chunk_size=batch_size):
+        for batch_factors in iter_chunks(factors, chunk_size=batch_size):
             batch = ground_truth_dataset.dataset_batch_from_factors(batch_factors, mode='input')
             z = representation_function(batch)
             zs.append(z)
@@ -278,8 +278,8 @@ def angles_between(a, b, dim=-1, nan_to_angle=None):
 #     from torch.utils.data import DataLoader
 #     from disent.data.groundtruth import XYObjectData, XYSquaresData
 #     from disent.dataset.groundtruth import GroundTruthDataset, GroundTruthDatasetPairs
-#     from disent.frameworks.vae.unsupervised import BetaVae
-#     from disent.frameworks.vae.weaklysupervised import AdaVae
+#     from disent.frameworks.vae import BetaVae
+#     from disent.frameworks.vae import AdaVae
 #     from disent.model.ae import EncoderConv64, DecoderConv64, AutoEncoder
 #     from disent.transform import ToStandardisedTensor
 #     from disent.util import colors

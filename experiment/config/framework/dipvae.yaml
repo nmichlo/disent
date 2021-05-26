@@ -1,7 +1,15 @@
 # @package _group_
 name: dipvae
 module:
-  _target_: disent.frameworks.vae.unsupervised.DipVae
+  _target_: disent.frameworks.vae.DipVae
+  # base vae
+  latent_distribution: ${framework.optional.latent_distribution}
+  # disable various components
+  disable_decoder: FALSE
+  disable_reg_loss: FALSE
+  disable_rec_loss: FALSE
+  disable_aug_loss: FALSE
+  disable_posterior_scale: NULL
   # Beta-VAE
   beta: ${framework.beta}
   # DIP-VAE

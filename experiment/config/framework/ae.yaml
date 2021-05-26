@@ -1,7 +1,11 @@
 # @package _group_
 name: ae
 module:
-  _target_: disent.frameworks.ae.unsupervised.AE
+  _target_: disent.frameworks.ae.Ae
+  # disable various components
+  disable_decoder: FALSE
+  disable_rec_loss: FALSE
+  disable_aug_loss: FALSE
 
 # settings used elsewhere
 data_wrap_mode: single

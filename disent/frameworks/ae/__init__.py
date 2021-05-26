@@ -21,3 +21,12 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
+# supervised frameworks
+from disent.frameworks.ae._supervised__tae import TripletAe
+
+# unsupervised frameworks
+from disent.frameworks.ae._unsupervised__ae import Ae
+
+# weakly supervised frameworks
+# <ADD>

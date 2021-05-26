@@ -1,7 +1,16 @@
 # @package _group_
 name: dfcvae
 module:
-  _target_: disent.frameworks.vae.unsupervised.DfcVae
+  _target_: disent.frameworks.vae.DfcVae
+  # base vae
+  latent_distribution: ${framework.optional.latent_distribution}
+  # disable various components
+  disable_decoder: FALSE
+  disable_reg_loss: FALSE
+  disable_rec_loss: FALSE
+  disable_aug_loss: FALSE
+  disable_posterior_scale: NULL
+  # Beta-VAE
   beta: ${framework.beta}
   # dfcvae
   feature_layers: ['14', '24', '34', '43']

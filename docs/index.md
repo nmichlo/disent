@@ -43,6 +43,10 @@ Wrappers for the aforementioned data. Ground truth variables of the data can be 
         ```python3
         --8<-- "docs/examples/overview_dataset_pair.py"
         ```
+    === "Paired Augmented Tensor Dataset"
+        ```python3
+        --8<-- "docs/examples/overview_dataset_pair_augment.py"
+        ```
     === "Paired Tensor Dataloader"
         ```python3
         --8<-- "docs/examples/overview_dataset_loader.py"
@@ -87,4 +91,16 @@ A warning will be printed if the hyper-parameter does not exist in the config, i
 ??? example
     ```python3
     --8<-- "docs/examples/overview_framework_betavae_scheduled.py"
+    ```
+
+### Datasets Without Ground-Truth Factors
+
+Using datasets that do not have ground truth factors require custom wrappers with
+custom sampling procedures, however metrics cannot be computed over them.
+
+We can implement an MNIST example using the builtin random sampler.
+
+??? example
+    ```python3
+    --8<-- "docs/examples/mnist_example.py"
     ```

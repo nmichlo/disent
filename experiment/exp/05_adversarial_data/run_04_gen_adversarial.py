@@ -38,7 +38,7 @@ import psutil
 import torch
 from tqdm import tqdm
 
-import experiment.exp.util.helper as H
+import experiment.exp.util as H
 from disent.data.util.in_out import ensure_parent_dir_exists
 from disent.util import seed
 from disent.util import TempNumpySeed
@@ -386,7 +386,7 @@ def run_generate_adversarial_data(
     x = torch.tensor(x + torch.randn_like(x) * obs_noise_weight, requires_grad=True)
     # generate mask
     mask = H.make_changed_mask(x, masked=obs_masked)
-    H.show_img(mask.to(torch.float32))
+    H.plt_imshow(H.to_img(mask.to(torch.float32)), show=True)
     # make optimizer
     optimizer = H.make_optimizer(x, name=optimizer, lr=lr)
 
@@ -397,7 +397,8 @@ def run_generate_adversarial_data(
         loss = stochastic_const_loss(x, mask, num_pairs=loss_num_pairs, num_samples=loss_num_samples, loss=loss_fn, reg_out_of_bounds=loss_reg_out_of_bounds, top_k=loss_top_k, constant_targ=loss_const_targ)
         # update variables
         H.step_optimizer(optimizer, loss)
-        H.show_imgs(x[:9], i=i, scale=False, step=display_period)
+        if i % display_period == 0:
+            log.warning(f'visualisation of `x[:9]` was disabled')
         prog.set_postfix({'loss': float(loss)})
 
 
@@ -405,6 +406,8 @@ def run_generate_adversarial_data(
 # entrypoint                                                                #
 # ========================================================================= #
 
+# TODO: add WANDB support for visualisation of dataset
+# TODO: add graphing of visual overlap like exp 01
 
 def main():
     logging.basicConfig(level=logging.INFO, format='(%(asctime)s) %(name)s:%(lineno)d [%(levelname)s]: %(message)s')
@@ -439,7 +442,7 @@ def main():
             log.error(f'[{i}] FAILED RUN: {e} -- {repr(kwargs)}')
         # load some samples and display them
         try:
-            H.show_imgs(_read_hdf5_batch(paths[-1], display_idxs))
+            log.warning(f'visualisation of `_read_hdf5_batch(paths[-1], display_idxs)` was disabled')
         except Exception as e:
             log.warning(f'[{i}] FAILED SHOW: {e} -- {repr(kwargs)}')
 

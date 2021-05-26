@@ -21,6 +21,7 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+from typing import Sequence
 
 import numpy as np
 from torch.utils.data import Dataset
@@ -37,7 +38,7 @@ class RandomDataset(Dataset, LengthIter, AugmentableDataset):
 
     def __init__(
             self,
-            data: LengthIter,
+            data: Sequence,
             transform=None,
             augment=None,
             num_samples=1,
@@ -47,6 +48,7 @@ class RandomDataset(Dataset, LengthIter, AugmentableDataset):
         # augmentable dataset
         self._transform = transform
         self._augment = augment
+        super().__init__()
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Augmentable Dataset Overrides                                         #

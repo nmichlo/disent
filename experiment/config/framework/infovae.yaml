@@ -1,7 +1,16 @@
 # @package _group_
 name: infovae
 module:
-  _target_: disent.frameworks.vae.unsupervised.InfoVae
+  _target_: disent.frameworks.vae.InfoVae
+  # base vae
+  latent_distribution: ${framework.optional.latent_distribution}
+  # disable various components
+  disable_decoder: FALSE
+  disable_reg_loss: FALSE
+  disable_rec_loss: FALSE
+  disable_aug_loss: FALSE
+  disable_posterior_scale: NULL
+  # Info-VAE
   # info vae is not based off beta vae, but with
   # the correct parameter choice this can equal the beta vae
   info_alpha: -0.5

@@ -21,3 +21,17 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
+# supervised frameworks
+from disent.frameworks.vae._supervised__tvae import TripletVae
+
+# unsupervised frameworks
+from disent.frameworks.vae._unsupervised__betatcvae import BetaTcVae
+from disent.frameworks.vae._unsupervised__betavae import BetaVae
+from disent.frameworks.vae._unsupervised__dfcvae import DfcVae
+from disent.frameworks.vae._unsupervised__dipvae import DipVae
+from disent.frameworks.vae._unsupervised__infovae import InfoVae
+from disent.frameworks.vae._unsupervised__vae import Vae
+
+# weakly supervised frameworks
+from disent.frameworks.vae._weaklysupervised__adavae import AdaVae

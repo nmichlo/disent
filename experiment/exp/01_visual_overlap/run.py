@@ -35,7 +35,7 @@ from matplotlib import pyplot as plt
 from matplotlib.ticker import MultipleLocator
 from tqdm import tqdm
 
-import experiment.exp.util.helper as H
+import experiment.exp.util as H
 from disent.data.groundtruth import *
 from disent.dataset.groundtruth import GroundTruthDataset
 from disent.transform import ToStandardisedTensor
@@ -103,7 +103,7 @@ def generate_data(gt_dataset, data_name: str, batch_size=64, samples=100_000, pl
             name = f'f_{gt_dataset.factor_names[f_idx]}'
             for i in tqdm(range((samples + (gt_dataset.factor_sizes[f_idx] - 1) - 1) // (gt_dataset.factor_sizes[f_idx] - 1)), desc=f'{data_name}: {name}'):
                 # get random batch that is a factor traversal
-                factors = gt_dataset.sample_random_traversal_factors(f_idx)
+                factors = gt_dataset.sample_random_factor_traversal(f_idx)
                 batch = gt_dataset.dataset_batch_from_factors(factors, mode='input')
                 # shuffle indices
                 idxs = np.arange(len(factors))

@@ -1,0 +1,18 @@
+# @package _group_
+name: tae
+module:
+  _target_: disent.frameworks.ae.TripletAe
+  # disable various components
+  disable_decoder: FALSE
+  disable_rec_loss: FALSE
+  disable_aug_loss: FALSE
+  # tvae: triplet stuffs
+  triplet_loss: triplet
+  triplet_margin_min: 0.001
+  triplet_margin_max: 1
+  triplet_scale: 0.1
+  triplet_p: 2
+
+# settings used elsewhere
+data_wrap_mode: triplet
+model_z_multiplier: 1

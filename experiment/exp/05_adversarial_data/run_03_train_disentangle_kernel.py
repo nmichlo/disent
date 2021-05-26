@@ -22,29 +22,28 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import logging
+import os
 from typing import List
 from typing import Optional
+from typing import Sequence
 
 import hydra
-import os
-
-import logging
-import psutil
+import numpy as np
+import pytorch_lightning as pl
 import torch
 import wandb
 from omegaconf import OmegaConf
 from torch.nn import Parameter
 from torch.utils.data import DataLoader
-import pytorch_lightning as pl
 
-import experiment.exp.util.helper as H
-from disent.util.math import torch_conv2d_channel_wise_fft
+import experiment.exp.util as H
 from disent.util import DisentLightningModule
 from disent.util import DisentModule
 from disent.util import make_box_str
 from disent.util import seed
+from disent.util.math import torch_conv2d_channel_wise_fft
 from disent.util.math_loss import spearman_rank_loss
-from experiment.exp.util.io_util import torch_write
 from experiment.run import hydra_append_progress_callback
 from experiment.run import hydra_check_cuda
 from experiment.run import hydra_make_logger
@@ -78,7 +77,7 @@ def disentangle_loss(
     b_dists = H.pairwise_loss(batch[ia], batch[ib], mode=loss_fn, mean_dtype=mean_dtype)  # avoid precision errors
     # compute factor distances
     if f_idxs is not None:
-        f_dists = torch.abs(factors[ia, f_idxs] - factors[ib, f_idxs])
+        f_dists = torch.abs(factors[ia][:, f_idxs] - factors[ib][:, f_idxs]).sum(dim=-1)
     else:
         f_dists = torch.abs(factors[ia] - factors[ib]).sum(dim=-1)
     # optimise metric
@@ -92,10 +91,12 @@ class DisentangleModule(DisentLightningModule):
         self,
         model,
         hparams,
+        disentangle_factor_idxs: Sequence[int] = None
     ):
         super().__init__()
         self.model = model
         self.hparams = hparams
+        self._disentangle_factors = None if (disentangle_factor_idxs is None) else np.array(disentangle_factor_idxs)
 
     def configure_optimizers(self):
         return H.make_optimizer(self, name=self.hparams.optimizer.name, lr=self.hparams.optimizer.lr, weight_decay=self.hparams.optimizer.weight_decay)
@@ -109,7 +110,7 @@ class DisentangleModule(DisentLightningModule):
             batch=aug_batch,
             factors=factors,
             num_pairs=int(len(batch) * self.hparams.train.pairs_ratio),
-            f_idxs=None,
+            f_idxs=self._disentangle_factors,
             loss_fn=self.hparams.train.loss,
             mean_dtype=torch.float64,
         )
@@ -134,38 +135,81 @@ class DisentangleModule(DisentLightningModule):
 
 
 class Kernel(DisentModule):
-    def __init__(self, radius: int = 33, channels: int = 1, offset: float = 0.0, scale: float = 0.001):
+    def __init__(self, radius: int = 33, channels: int = 1, offset: float = 0.0, scale: float = 0.001, train_symmetric_regularise: bool = True, train_norm_regularise: bool = True, train_nonneg_regularise: bool = True):
         super().__init__()
         assert channels in (1, 3)
         kernel = torch.randn(1, channels, 2*radius+1, 2*radius+1, dtype=torch.float32)
         kernel = offset + kernel * scale
+        # normalise
+        if train_nonneg_regularise:
+            kernel = torch.abs(kernel)
+        if train_norm_regularise:
+            kernel = kernel / kernel.sum(dim=[-1, -2], keepdim=True)
+        # store
         self._kernel = Parameter(kernel)
+        # regularise options
+        self._train_symmetric_regularise = train_symmetric_regularise
+        self._train_norm_regularise = train_norm_regularise
+        self._train_nonneg_regularise = train_nonneg_regularise
 
     def forward(self, xs):
         return torch_conv2d_channel_wise_fft(xs, self._kernel)
 
-    def make_train_periodic_callback(self, cfg) -> _PeriodicCallback:
+    def make_train_periodic_callback(self, cfg, dataset) -> _PeriodicCallback:
         class ImShowCallback(_PeriodicCallback):
             def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
-                wb_log_metrics(
-                    trainer.logger, {
-                        'kernel': wandb.Image(H.to_img(pl_module.model._kernel[0], scale=True).numpy()),
-                    }
-                )
-        return ImShowCallback(every_n_steps=cfg.exp.show_every_n_steps)
+                # get kernel image
+                kernel = H.to_img(pl_module.model._kernel[0], scale=True).numpy()
+                # augment function
+                def augment_fn(batch):
+                    return H.to_imgs(pl_module.forward(batch.to(pl_module.device)), scale=True)
+                # get augmented traversals
+                with torch.no_grad():
+                    orig_wandb_image, orig_wandb_animation = H.dataset_traversal_tasks(dataset, tasks=('image_wandb', 'animation_wandb'))
+                    augm_wandb_image, augm_wandb_animation = H.dataset_traversal_tasks(dataset, tasks=('image_wandb', 'animation_wandb'), augment_fn=augment_fn, data_mode='input')
+                # log images to WANDB
+                wb_log_metrics(trainer.logger, {
+                    'kernel': wandb.Image(kernel),
+                    'traversal_img_orig': orig_wandb_image, 'traversal_animation_orig': orig_wandb_animation,
+                    'traversal_img_augm': augm_wandb_image, 'traversal_animation_augm': augm_wandb_animation,
+                })
+        return ImShowCallback(every_n_steps=cfg.exp.show_every_n_steps, begin_first_step=True)
 
     def augment_loss(self, framework: DisentLightningModule):
+        augment_loss = 0
         # symmetric loss
-        k, kt = self._kernel[0], torch.transpose(self._kernel[0], -1, -2)
-        loss_symmetric = 0
-        loss_symmetric += H.unreduced_loss(torch.flip(k, dims=[-1]), k, mode='mae').mean()
-        loss_symmetric += H.unreduced_loss(torch.flip(k, dims=[-2]), k, mode='mae').mean()
-        loss_symmetric += H.unreduced_loss(torch.flip(k, dims=[-1]), kt, mode='mae').mean()
-        loss_symmetric += H.unreduced_loss(torch.flip(k, dims=[-2]), kt, mode='mae').mean()
-        # log loss
-        framework.log('loss_symmetric', loss_symmetric)
-        # final loss
-        return loss_symmetric
+        if self._train_symmetric_regularise:
+            k, kt = self._kernel[0], torch.transpose(self._kernel[0], -1, -2)
+            loss_symmetric = 0
+            loss_symmetric += H.unreduced_loss(torch.flip(k, dims=[-1]), k,  mode='mae').mean()
+            loss_symmetric += H.unreduced_loss(torch.flip(k, dims=[-2]), k,  mode='mae').mean()
+            loss_symmetric += H.unreduced_loss(torch.flip(k, dims=[-1]), kt, mode='mae').mean()
+            loss_symmetric += H.unreduced_loss(torch.flip(k, dims=[-2]), kt, mode='mae').mean()
+            # log loss
+            framework.log('loss_symmetric', loss_symmetric)
+            # final loss
+            augment_loss += loss_symmetric
+        # sum of 1 loss, per channel
+        if self._train_norm_regularise:
+            k = self._kernel[0]
+            # sum over W & H resulting in: (C, W, H) -> (C,)
+            channel_sums = k.sum(dim=[-1, -2])
+            channel_loss = H.unreduced_loss(channel_sums, torch.ones_like(channel_sums), mode='mae')
+            norm_loss = channel_loss.mean()
+            # log loss
+            framework.log('loss_norm', norm_loss)
+            # final loss
+            augment_loss += norm_loss
+        # no negatives regulariser
+        if self._train_nonneg_regularise:
+            k = self._kernel[0]
+            nonneg_loss = torch.abs(k[k < 0].sum())
+            # log loss
+            framework.log('loss_non_negative', nonneg_loss)
+            # regularise negatives
+            augment_loss += nonneg_loss
+        # return!
+        return augment_loss
 
 
 # ========================================================================= #
@@ -177,7 +221,7 @@ ROOT_DIR = os.path.abspath(__file__ + '/../../../..')
 
 
 @hydra.main(config_path=os.path.join(ROOT_DIR, 'experiment/config'), config_name="config_05_adversarial_03_gen")
-def run_hydra(cfg):
+def run_disentangle_dataset_kernel(cfg):
     cfg = make_non_strict(cfg)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # TODO: some of this code is duplicated between this and the main experiment run.py
@@ -189,22 +233,28 @@ def run_hydra(cfg):
     # TRAINER CALLBACKS
     callbacks = []
     hydra_append_progress_callback(callbacks, cfg)
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    seed(cfg.exp.seed)
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # initialise dataset and get factor names to disentangle
+    dataset = H.make_dataset(cfg.data.name, factors=True, data_dir=cfg.dataset.data_dir)
+    disentangle_factor_idxs = H.get_factor_idxs(dataset, cfg.kernel.disentangle_factors)
+    cfg.kernel.disentangle_factors = tuple(dataset.factor_names[i] for i in disentangle_factor_idxs)
+    log.info(f'Dataset has ground-truth factors: {dataset.factor_names}')
+    log.info(f'Chosen ground-truth factors are: {tuple(cfg.kernel.disentangle_factors)}')
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # print everything
     log.info('Final Config' + make_box_str(OmegaConf.to_yaml(cfg)))
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-    seed(cfg.exp.seed)
-    assert cfg.data.spacing in {1, 2, 4, 8}
-    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-    dataset = H.make_dataset(f'xysquares_{cfg.data.spacing}x{cfg.data.spacing}', factors=True, data_dir=cfg.dataset.data_dir)
     dataloader = DataLoader(
         dataset,
         batch_sampler=H.StochasticBatchSampler(dataset, batch_size=cfg.dataset.batch_size),
         num_workers=cfg.dataset.num_workers,
         pin_memory=cfg.dataset.pin_memory,
     )
-    model = Kernel(radius=cfg.kernel.radius, channels=cfg.kernel.channels, offset=0.002, scale=0.01)
-    callbacks.append(model.make_train_periodic_callback(cfg))
-    framework = DisentangleModule(model, cfg)
+    model = Kernel(radius=cfg.kernel.radius, channels=cfg.kernel.channels, offset=0.002, scale=0.01, train_symmetric_regularise=cfg.kernel.regularize_symmetric, train_norm_regularise=cfg.kernel.regularize_norm, train_nonneg_regularise=cfg.kernel.regularize_nonneg)
+    callbacks.append(model.make_train_periodic_callback(cfg, dataset=dataset))
+    framework = DisentangleModule(model, cfg, disentangle_factor_idxs=disentangle_factor_idxs)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     if framework.logger:
         framework.logger.log_hyperparams(framework.hparams)
@@ -229,7 +279,7 @@ def run_hydra(cfg):
         save_dir = os.path.join(ROOT_DIR, cfg.exp.rel_save_dir)
         assert os.path.isabs(save_dir), f'save_dir must be absolute: {repr(save_dir)}'
         # save kernel
-        torch_write(os.path.join(save_dir, cfg.exp.save_name), framework.model._kernel)
+        H.torch_write(os.path.join(save_dir, cfg.exp.save_name), framework.model._kernel)
 
 
 # ========================================================================= #
@@ -243,4 +293,4 @@ if __name__ == '__main__':
     # but speeds up as kernel size decreases, so might be shorter
     # EXP ARGS:
     # $ ... -m optimizer.weight_decay=1e-4,0.0 kernel.radius=63,55,47,39,31,23,15,7 dataset.spacing=8,4,2,1
-    run_hydra()
+    run_disentangle_dataset_kernel()

@@ -21,7 +21,7 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-import os
+
 import warnings
 from typing import final
 from typing import Sequence
@@ -31,13 +31,11 @@ import re
 import torch
 import torch.nn.functional as F
 
-import disent
 from disent.frameworks.helper.reductions import batch_loss_reduction
 from disent.frameworks.helper.reductions import loss_reduction
 from disent.frameworks.helper.util import compute_ave_loss
-from disent.util.math import torch_conv2d_channel_wise_fft
+from disent.transform import FftKernel
 from disent.util import DisentModule
-from disent.util.math import torch_box_kernel_2d
 
 from deprecated import deprecated
 
@@ -268,19 +266,7 @@ class AugmentedReconLossHandler(ReconLossHandler):
         assert isinstance(recon_loss_handler, ReconLossHandler)
         assert not isinstance(recon_loss_handler, AugmentedReconLossHandler)
         # load the kernel
-        if isinstance(kernel, str):
-            kernel = torch.load(kernel)
-        kernel = kernel.requires_grad_(False)
-        # check stuffs
-        assert isinstance(kernel, torch.Tensor)
-        assert kernel.dtype == torch.float32
-        assert kernel.ndim == 4, f'invalid number of kernel dims, required 4, given: {repr(kernel.ndim)}'  # B, C, H, W
-        assert kernel.shape[0] == 1, f'invalid size of first kernel dim, required (1, ?, ?, ?), given: {repr(kernel.shape)}'  # B
-        assert kernel.shape[0] in (1, 3), f'invalid size of second kernel dim, required (?, 1 or 3, ?, ?), given: {repr(kernel.shape)}'  # C
-        # scale kernel -- just in case we didnt do this before
-        kernel = kernel / kernel.sum()
-        # save kernel
-        self._kernel = torch.nn.Parameter(kernel, requires_grad=False)
+        self._kernel = FftKernel(kernel=kernel, normalize=True)
         # kernel weighting
         assert 0 <= kernel_weight <= 1, f'kernel weight must be in the range [0, 1] but received: {repr(kernel_weight)}'
         self._kernel_weight = kernel_weight
@@ -289,9 +275,7 @@ class AugmentedReconLossHandler(ReconLossHandler):
         return self._recon_loss_handler.activate(x_partial)
 
     def compute_unreduced_loss(self, x_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
-        aug_x_recon = torch_conv2d_channel_wise_fft(x_recon, self._kernel)
-        aug_x_targ = torch_conv2d_channel_wise_fft(x_targ, self._kernel)
-        aug_loss = self._recon_loss_handler.compute_unreduced_loss(aug_x_recon, aug_x_targ)
+        aug_loss = self._recon_loss_handler.compute_unreduced_loss(self._kernel(x_recon), self._kernel(x_targ))
         loss = self._recon_loss_handler.compute_unreduced_loss(x_recon, x_targ)
         return (1. - self._kernel_weight) * loss + self._kernel_weight * aug_loss
 
@@ -325,16 +309,16 @@ _RECON_LOSSES = {
     'mae2': ReconLossHandlerMae2,  # scaled as if computed over outputs of the range [-1, 1] instead of [0, 1]
 }
 
+
 _ARG_RECON_LOSSES = [
     # (REGEX, EXAMPLE, FACTORY_FUNC)
     # - factory function takes at min one arg: fn(reduction) with one arg after that per regex capture group
     # - regex expressions are tested in order, expressions should be mutually exclusive or ordered such that more specialized versions occur first.
-    (re.compile(r'^([a-z\d]+)_(xy8)_r(47)_w(\d+\.\d+)$'),  'mse4_xy8_r47_w1.0', lambda reduction, loss, kern, radius, weight: AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=torch.load(os.path.abspath(os.path.join(disent.__file__, '../../data/adversarial_kernel', 'r47-1_s28800_adam_lr0.003_wd0.0_xy8x8.pt'))), kernel_weight=float(weight))),
-    (re.compile(r'^([a-z\d]+)_(xy1)_r(47)_w(\d+\.\d+)$'),  'mse4_xy1_r47_w1.0', lambda reduction, loss, kern, radius, weight: AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=torch.load(os.path.abspath(os.path.join(disent.__file__, '../../data/adversarial_kernel', 'r47-1_s28800_adam_lr0.003_wd0.0_xy1x1.pt'))), kernel_weight=float(weight))),
-    (re.compile(r'^([a-z\d]+)_(box)_r(\d+)_w(\d+\.\d+)$'), 'mse4_box_r31_w0.5', lambda reduction, loss, kern, radius, weight: AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=torch_box_kernel_2d(radius=int(radius))[None, ...], kernel_weight=float(weight))),
+    (re.compile(r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_w(\d+\.\d+)$'), 'mse4_xy8_r47_w1.0', lambda reduction, loss, kern, weight: AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, kernel_weight=float(weight))),
 ]
 
 
+# NOTE: this function compliments make_kernel in transform/_augment.py
 def make_reconstruction_loss(name: str, reduction: str) -> ReconLossHandler:
     if name in _RECON_LOSSES:
         # search normal losses!

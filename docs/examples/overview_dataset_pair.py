@@ -8,5 +8,5 @@ dataset: Dataset = GroundTruthDatasetPairs(data, transform=ToStandardisedTensor(
 
 for obs in dataset:
     # singles are contained in tuples of size 1 for compatibility with pairs with size 2
-    (x0, x1), (x0_targ, x1_targ) = obs['x'], obs['x_targ']
-    print(x0 is x0_targ, x0.dtype, x0.min(), x0.max(), x0.shape)
+    (x0, x1) = obs['x_targ']
+    print(x0.dtype, x0.min(), x0.max(), x0.shape)

@@ -52,7 +52,7 @@ submit_sweep \
     framework.module.detach=FALSE \
     framework.module.detach_decoder=FALSE \
     framework.module.detach_no_kl=FALSE \
-    framework.module.detach_logvar=NULL \
+    framework.module.detach_std=NULL \
     \
     framework.module.ada_average_mode=gvae \
     framework.module.ada_thresh_mode=symmetric_kl,dist \
@@ -96,9 +96,9 @@ submit_sweep \
 #    triplet_p=1 \
 #    \
 #    detach=FALSE \
-#    detach_decoder=FALSE \
+#    disable_decoder=FALSE \
 #    detach_no_kl=FALSE \
-#    detach_logvar=NULL \
+#    detach_std=NULL \
 #    \
 #    ada_average_mode=gvae \
 #    ada_thresh_mode=symmetric_kl,dist \
