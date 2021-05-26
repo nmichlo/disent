@@ -29,7 +29,6 @@ framework:
     module:
       recon_loss: mse4
       loss_reduction: mean
-      latent_distribution: cauchy
     optional:
       latent_distribution: normal  # only used by VAEs
       overlap_loss: NULL
@@ -44,5 +43,5 @@ optimizer:
 # - This key is deleted on load and the correct key on the root config is set similar to defaults.
 # - Unfortunately this hack needs to exists as hydra does not yet support this kinda of variable interpolation in defaults.
 specializations:
-#  data_wrapper: ${dataset.data_type}_${framework.data_wrap_mode}
-  data_wrapper: gt_dist_${framework.data_wrap_mode}
+  data_wrapper: ${dataset.data_type}_${framework.data_wrap_mode}
+#  data_wrapper: gt_dist_${framework.data_wrap_mode}
