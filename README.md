@@ -48,9 +48,11 @@ Disent is a modular disentangled representation learning framework for auto-enco
 #### Goals
 
 Disent aims to fill the following criteria:
-- Provide **high quality**, **readable** and **easily comparable** implementations of VAEs
-- Use **best practice** eg. `torch.distributions`
-- Be extremely **flexible** & configurable
+1. Provide **high quality**, **readable**, **consistent** and **easily comparable** implementations of frameworks
+2. **Highlight difference** between framework implementations by overriding **hooks** and minimising duplicate code 
+3. Use **best practice** eg. `torch.distributions`
+4. Be extremely **flexible** & configurable
+
 
 #### Citing Disent
 
