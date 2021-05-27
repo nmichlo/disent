@@ -333,10 +333,10 @@ def aggregate_measure_distances_along_factor(
 #         return r
 #
 #     class XYOverlapData(XYSquaresData):
-#         def __init__(self, square_size=8, grid_size=64, grid_spacing=None, num_squares=3, rgb=True):
+#         def __init__(self, square_size=8, image_size=64, grid_spacing=None, num_squares=3, rgb=True):
 #             if grid_spacing is None:
 #                 grid_spacing = (square_size+1) // 2
-#             super().__init__(square_size=square_size, grid_size=grid_size, grid_spacing=grid_spacing, num_squares=num_squares, rgb=rgb)
+#             super().__init__(square_size=square_size, image_size=image_size, grid_spacing=grid_spacing, num_squares=num_squares, rgb=rgb)
 #
 #     # datasets = [XYObjectData(rgb=False, palette='white'), XYSquaresData(), XYOverlapData(), XYObjectData()]
 #     datasets = [XYObjectData()]

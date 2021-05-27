@@ -119,7 +119,7 @@ if __name__ == '__main__':
     # save image
     for i in ([1, 2, 3, 4, 5, 6, 7, 8] if all_squares else [1, 8]):
         plot_dataset_traversals(
-            XYSquaresData(grid_spacing=i, max_placements=8, no_warnings=True),
+            XYSquaresData(grid_spacing=i, grid_size=8, no_warnings=True),
             rel_path=f'plots/xy-squares-traversal-spacing{i}',
             seed=7, add_random_traversal=add_random_traversal, num_cols=num_cols
         )

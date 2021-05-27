@@ -1,0 +1,15 @@
+# @package _group_
+name: xysquares_rgb
+data:
+  _target_: disent.data.groundtruth.XYSquaresData
+  square_size: 8
+  grid_size: 64
+  grid_spacing: 8
+  num_squares: 3
+  rgb: TRUE
+  max_placements: 8
+transform:
+  _target_: disent.transform.ToStandardisedTensor
+x_shape: [3, 64, 64]
+
+data_type: ground_truth

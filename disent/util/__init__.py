@@ -353,7 +353,10 @@ class Timer:
     def __exit__(self, *args, **kwargs):
         self._end_time = time.time_ns()
         if self._print_name:
-            log.log(self._log_level, f'{self._print_name}: {self.pretty}')
+            if self._log_level is None:
+                print(f'{self._print_name}: {self.pretty}')
+            else:
+                log.log(self._log_level, f'{self._print_name}: {self.pretty}')
 
     @property
     def elapsed_ns(self) -> int:

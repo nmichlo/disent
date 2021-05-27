@@ -21,14 +21,32 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+import numpy as np
 
-from .base import GroundTruthData
-# others
-from ._cars3d import Cars3dData
-from ._dsprites import DSpritesData
-from ._mpi3d import Mpi3dData
-from ._norb import SmallNorbData
-from ._shapes3d import Shapes3dData
-from ._xyobject import XYObjectData
-from ._xysquares import XYSquaresData, XYSquaresMinimalData
-from ._xyblocks import XYBlocksData
+from disent.data.groundtruth import XYSquaresData
+from disent.data.groundtruth._xysquares import XYSquaresMinimalData
+
+
+# ========================================================================= #
+# TESTS                                                                     #
+# ========================================================================= #
+
+
+def test_xysquares_similarity():
+    data_org = XYSquaresData()
+    data_min = XYSquaresMinimalData()
+    # check lengths
+    assert len(data_org) == len(data_min)
+    n = len(data_min)
+    # check items
+    for i in np.random.randint(0, n, size=100):
+        assert np.allclose(data_org[i], data_min[i])
+    # check bounds
+    assert np.allclose(data_org[0], data_min[0])
+    assert np.allclose(data_org[n-1], data_min[n-1])
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #
+
