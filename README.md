@@ -68,17 +68,23 @@ Please use the following citation if you use Disent in your research:
 
 ----------------------
 
+### Warning ⚠️
+
+Disent is still under active development. Features and APIs are not considered stable, and should be expected to change! A very limited set of tests currently exist which will be expanded upon in time.
+
+----------------------
+
 ### Getting Started
 
-**WARNING**: Disent is still under active development. Features and APIs are not considered stable, but should be expected to change! A very limited set of tests currently exist which will be expanded upon in time.
-
-The easiest way to use disent is by running `experiement/run.py` and changing the root config in `experiements/config/config.yaml`. Configurations are managed with [Hydra Config](https://github.com/facebookresearch/hydra)
+The easiest way to use disent is by running `experiement/run.py` and changing the root config in `experiements/config/config.yaml`. Configurations are managed with [Hydra Config](https://github.com/facebookresearch/hydra). This mode is only available if you clone the repo directly.
 
 **Pypi**:
 
-1. Install with: `pip install disent` (This will most likely be outdated)
+1. Make sure `pip3` is upgraded: `pip3 install --upgrade pip`
 
-2. Visit the [docs](https://disent.dontpanic.sh)!
+2. Install `disent` with: `pip3 install disent` (for up-to-date versions, rather clone the `dev` branch)
+
+3. Visit the [docs & examples](https://disent.dontpanic.sh)!
 
 **Source**:
 
@@ -137,10 +143,9 @@ submit an issue if you have a request for an additional framework.
   + [Unsupervised Scores](https://github.com/google-research/disentanglement_lib)
   + 🧵 Flatness Score
     - Measures max width (furthest two points) over path length (sum of distances between consecutive points) of factor traversal embeddings. A combined measure of linearity and ordering, (weighted towards axis alignment if l2 width over l1 path length is used).
-  + 🧵 Flatness Components - Linearity, Monotonicity & Ordering
-    - Measure **linearity** of factor traversal embeddings using softmax-style metric over PCA variances computed over embeddings
-    - Measure **axis-alignment** of factor traversal embeddings using softmax-style metric over embedding variances
-    - Measure **ordering** of embeddings by checking anchor-positive and anchor-negative distances correspond to ground-truth factors
+  + 🧵 Flatness Components - Linearity & Axis Alignment
+    - Measure **linearity**, how much the largest eigen vector explains a factor traversal, ie. the largest singular value of latent variables over the sum of singular values.
+    - Measure **axis-alignment**, how much the largest standard basis vector explains a factor traversal, ie. the largest standard deviation of latent variables over the sum of standard deviations.
 
 Some popular metrics still need to be added, please submit an issue if you wish to
 add your own, or you have a request.
@@ -163,10 +168,11 @@ Various common datasets used in disentanglement research are implemented, as wel
   + SmallNORB
   + Shapes3D
 
-- **Ground Truth Non-Overlapping (Synthetic)**:
-  + 🧵 XYBlocks: *3 blocks of decreasing size that move across a grid. Blocks can be one of three colors R, G, B. if a smaller block overlaps a larger one and is the same color, the block is xor'd to black.*
-  + 🧵 XYSquares: *3 squares (R, G, B) that move across a non-overlapping grid. Obervations have no channel-wise loss overlap.*
+- **Ground Truth Synthetic**:
+  + 🧵 XYSquares: (**non-overlapping**) *3 squares (R, G, B) that move across a non-overlapping grid. Obervations have no channel-wise loss overlap.*
   + 🧵 XYObject: *A simplistic version of dSprites with a single square.*
+  + 🧵 XYBlocks: *3 blocks of decreasing size that move across a grid. Blocks can be one of three colors R, G, B. if a smaller block overlaps a larger one and is the same color, the block is xor'd to black.*
+
 
   ##### Input Transforms + Input/Target Augmentations
   
