@@ -76,16 +76,13 @@ class SmallNorbData(DownloadableGroundTruthData):
     def __init__(self, data_dir='data/dataset/smallnorb', force_download=False, is_test=False):
         super().__init__(data_dir=data_dir, force_download=force_download)
         assert not is_test, 'Test set not yet supported'
-
-        if not hasattr(self.__class__, '_DATA'):
-            images, features = self._read_norb_set(is_test)
-            # sort by features
-            indices = np.lexsort(features[:, [4, 3, 2, 1, 0]].T)
-            # store data on class
-            self.__class__._DATA = images[indices]
+        # read dataset and sort by features
+        images, features = self._read_norb_set(is_test)
+        indices = np.lexsort(features[:, [4, 3, 2, 1, 0]].T)
+        self._data = images[indices]
 
     def __getitem__(self, idx):
-        return self.__class__._DATA[idx]
+        return self._data[idx]
 
     def _read_norb_set(self, is_test):
         # get file data corresponding to urls

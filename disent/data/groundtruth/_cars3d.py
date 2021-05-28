@@ -56,15 +56,11 @@ class Cars3dData(DownloadableGroundTruthData):
 
     def __init__(self, data_dir='data/dataset/cars3d', force_download=False):
         super().__init__(data_dir=data_dir, force_download=force_download)
-
         converted_file = self._make_converted_file(data_dir, force_download)
-
-        if not hasattr(self.__class__, '_DATA'):
-            # store data on class
-            self.__class__._DATA = np.load(converted_file)['images']
+        self._data = np.load(converted_file)['images']
 
     def __getitem__(self, idx):
-        return self.__class__._DATA[idx]
+        return self._data[idx]
 
     def _make_converted_file(self, data_dir, force_download):
         # get files & folders

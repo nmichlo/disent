@@ -74,11 +74,7 @@ class Mpi3dData(DownloadableGroundTruthData):
         super().__init__(data_dir=data_dir, force_download=force_download)
 
         # load data
-        if not hasattr(self.__class__, '_DATA'):
-            self.__class__._DATA = {}
-        if subset not in self.__class__._DATA:
-            self.__class__._DATA[subset] = np.load(self.dataset_paths[0])
-        self._data = self.__class__._DATA[subset]
+        self._data = np.load(self.dataset_paths[0])
 
     def __getitem__(self, idx):
         return self._data[idx]
