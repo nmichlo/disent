@@ -22,13 +22,22 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import dataclasses
 import logging
 import os
 from abc import ABCMeta
-from typing import List, Tuple
+from typing import Any
+from typing import Dict
+from typing import Optional
+from typing import Sequence
+from typing import Tuple
+
 import h5py
 
-from disent.data.util.in_out import basename_from_url, download_file, ensure_dir_exists
+from disent.data.util.hdf5 import hdf5_resave_file
+from disent.data.util.in_out import ensure_dir_exists
+from disent.data.util.in_out import retrieve_file
+from disent.data.util.jobs import CachedJobFile
 from disent.data.util.state_space import StateSpace
 
 
@@ -45,6 +54,13 @@ class GroundTruthData(StateSpace):
     def __init__(self):
         assert len(self.factor_names) == len(self.factor_sizes), 'Dimensionality mismatch of FACTOR_NAMES and FACTOR_DIMS'
         super().__init__(factor_sizes=self.factor_sizes)
+
+    @property
+    def name(self):
+        name = self.__class__.__name__
+        if name.endswith('Data'):
+            name = name[:-len('Data')]
+        return name.lower()
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Overrides                                                             #
@@ -76,143 +92,59 @@ class GroundTruthData(StateSpace):
 
 
 # ========================================================================= #
-# dataset helpers                                                           #
+# disk ground truth data                                                    #
 # ========================================================================= #
 
 
-class DownloadableGroundTruthData(GroundTruthData, metaclass=ABCMeta):
+class DiskGroundTruthData(GroundTruthData, metaclass=ABCMeta):
 
-    def __init__(self, data_dir='data/dataset', force_download=False):
+    def __init__(self, data_root: Optional[str] = None, prepare: bool = False):
         super().__init__()
-        # paths
-        self._data_dir = ensure_dir_exists(data_dir)
-        self._data_paths = [os.path.join(self._data_dir, basename_from_url(url)) for url in self.dataset_urls]
-        # meta
-        self._force_download = force_download
-        # DOWNLOAD
-        self._do_download_dataset()
-
-    def _do_download_dataset(self):
-        for path, url in zip(self.dataset_paths, self.dataset_urls):
-            no_data = not os.path.exists(path)
-            # download data
-            if self._force_download or no_data:
-                download_file(url, path, overwrite_existing=True)
+        # get root data folder
+        if data_root is None:
+            data_root = os.path.abspath(os.environ.get('DISENT_DATA_ROOT', 'data/dataset'))
+        else:
+            data_root = os.path.abspath(data_root)
+        # get class data folder
+        self._data_dir = ensure_dir_exists(os.path.join(data_root, self.name))
+        log.info(f'{self.name}: data_dir_share={repr(self._data_dir)}')
+        # prepare everything
+        if prepare:
+            for data_object in self.data_objects:
+                data_object.prepare(self.data_dir)
 
     @property
-    def dataset_paths(self) -> List[str]:
-        """path that the data should be loaded from in the child class"""
-        return self._data_paths
+    def data_dir(self):
+        return self._data_dir
 
     @property
-    def dataset_urls(self) -> List[str]:
-        raise NotImplementedError()
+    def data_objects(self) -> Sequence['DataObject']:
+        raise NotImplementedError
 
 
-class PreprocessedDownloadableGroundTruthData(DownloadableGroundTruthData, metaclass=ABCMeta):
+class Hdf5GroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
 
-    def __init__(self, data_dir='data/dataset', force_download=False, force_preprocess=False):
-        super().__init__(data_dir=data_dir, force_download=force_download)
-        # paths
-        self._proc_path = f'{self._data_path}.processed'
-        self._force_preprocess = force_preprocess
-        # PROCESS
-        self._do_download_and_process_dataset()
-
-    def _do_download_dataset(self):
-        # we skip this in favour of our new method,
-        # so that we can lazily download the data.
-        pass
-
-    def _do_download_and_process_dataset(self):
-        no_data = not os.path.exists(self._data_path)
-        no_proc = not os.path.exists(self._proc_path)
-
-        # preprocess only if required
-        do_proc = self._force_preprocess or no_proc
-        # lazily download if required for preprocessing
-        do_data = self._force_download or (no_data and do_proc)
-
-        if do_data:
-            download_file(self.dataset_url, self._data_path, overwrite_existing=True)
-
-        if do_proc:
-            # TODO: also used in io save file, convert to with syntax.
-            # save to a temporary location in case there is an error, we then know one occured.
-            path_dir, path_base = os.path.split(self._proc_path)
-            ensure_dir_exists(path_dir)
-            temp_proc_path = os.path.join(path_dir, f'.{path_base}.temp')
-
-            # process stuff
-            self._preprocess_dataset(path_src=self._data_path, path_dst=temp_proc_path)
-
-            # delete existing file if needed
-            if os.path.isfile(self._proc_path):
-                os.remove(self._proc_path)
-            # move processed file to correct place
-            os.rename(temp_proc_path, self._proc_path)
-
-            assert os.path.exists(self._proc_path), f'Overridden _preprocess_dataset method did not initialise the required dataset file: dataset_path="{self._proc_path}"'
-
-    @property
-    def _data_path(self):
-        assert len(self.dataset_paths) == 1
-        return self.dataset_paths[0]
-
-    @property
-    def dataset_urls(self):
-        return [self.dataset_url]
-
-    @property
-    def dataset_url(self):
-        raise NotImplementedError()
-
-    @property
-    def dataset_path(self):
-        """path that the dataset should be loaded from in the child class"""
-        return self._proc_path
-
-    @property
-    def dataset_path_unprocessed(self):
-        return self._data_path
-
-    def _preprocess_dataset(self, path_src, path_dst):
-        raise NotImplementedError()
-
-
-class Hdf5PreprocessedGroundTruthData(PreprocessedDownloadableGroundTruthData, metaclass=ABCMeta):
-    """
-    Automatically download and pre-process an hdf5 dataset
-    into the specific chunk sizes.
-
-    Often the (non-chunked) dataset will be optimized for random accesses,
-    while the unprocessed (chunked) dataset will be better for sequential reads.
-    - The chunk size specifies the region of data to be loaded when accessing a
-      single element of the dataset, if the chunk size is not correctly set,
-      unneeded data will be loaded when accessing observations.
-    - override `hdf5_chunk_size` to set the chunk size, for random access
-      optimized data this should be set to the minimum observation shape that can
-      be broadcast across the shape of the dataset. Eg. with observations of shape
-      (64, 64, 3), set the chunk size to (1, 64, 64, 3).
-
-    TODO: Only supports one dataset from the hdf5 file
-          itself, labels etc need a custom implementation.
-    """
-
-    def __init__(self, data_dir='data/dataset', in_memory=False, force_download=False, force_preprocess=False):
-        super().__init__(data_dir=data_dir, force_download=force_download, force_preprocess=force_preprocess)
+    def __init__(self, data_root: Optional[str] = None, prepare: bool = False, in_memory=False):
+        super().__init__(data_root=data_root, prepare=prepare)
+        # variables
+        self._h5_path = self.data_object.get_file_path(self.data_dir)
+        self._h5_dataset_name = self.data_object.hdf5_dataset_name
         self._in_memory = in_memory
-
         # Load the entire dataset into memory if required
         if self._in_memory:
-            with h5py.File(self.dataset_path, 'r', libver='latest', swmr=True) as db:
+            with h5py.File(self._h5_path, 'r', libver='latest', swmr=True) as db:
                 # indexing dataset objects returns numpy array
                 # instantiating np.array from the dataset requires double memory.
-                self._memory_data = db[self.hdf5_name][:]
+                self._memory_data = db[self._h5_dataset_name][:]
         else:
-            # is this thread safe?
-            self._hdf5_file = h5py.File(self.dataset_path, 'r', libver='latest', swmr=True)
-            self._hdf5_data = self._hdf5_file[self.hdf5_name]
+            self._hdf5_file, self._hdf5_data = self._make_hdf5()
+
+    def _make_hdf5(self):
+        # is this thread safe?
+        # TODO: this may cause a memory leak, it is never closed?
+        hdf5_file = h5py.File(self._h5_path, 'r', libver='latest', swmr=True)
+        hdf5_data = hdf5_file[self._h5_dataset_name]
+        return hdf5_file, hdf5_data
 
     def __getitem__(self, idx):
         if self._in_memory:
@@ -220,44 +152,122 @@ class Hdf5PreprocessedGroundTruthData(PreprocessedDownloadableGroundTruthData, m
         else:
             return self._hdf5_data[idx]
 
-    def __del__(self):
-        # do we need to do this?
+    @property
+    def data_objects(self) -> Sequence['DlH5DataObject']:
+        return [self.data_object]
+
+    @property
+    def data_object(self) -> 'DlH5DataObject':
+        raise NotImplementedError
+
+    # CUSTOM PICKLE HANDLING -- h5py files are not supported!
+    # https://docs.python.org/3/library/pickle.html#pickle-state
+    # https://docs.python.org/3/library/pickle.html#object.__getstate__
+    # https://docs.python.org/3/library/pickle.html#object.__setstate__
+    # TODO: this might duplicate in-memory stuffs.
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state.pop('_hdf5_file', None)
+        state.pop('_hdf5_data', None)
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
         if not self._in_memory:
-            self._hdf5_file.close()
+            self._hdf5_file, self._hdf5_data = self._make_hdf5()
 
-    def _preprocess_dataset(self, path_src, path_dst):
-        import os
-        from disent.data.util.hdf5 import hdf5_resave_dataset, hdf5_test_entries_per_second, bytes_to_human
 
-        # resave datasets
-        with h5py.File(path_src, 'r') as inp_data:
-            with h5py.File(path_dst, 'w') as out_data:
-                hdf5_resave_dataset(inp_data, out_data, self.hdf5_name, self.hdf5_chunk_size, self.hdf5_compression, self.hdf5_compression_lvl)
-                # File Size:
-                log.info(f'[FILE SIZES] IN: {bytes_to_human(os.path.getsize(path_src))} OUT: {bytes_to_human(os.path.getsize(path_dst))}\n')
-                # Test Speed:
-                log.info('[TESTING] Access Speed...')
-                log.info(f'Random Accesses Per Second: {hdf5_test_entries_per_second(out_data, self.hdf5_name, access_method="random"):.3f}')
+# ========================================================================= #
+# data objects                                                              #
+# ========================================================================= #
 
-    @property
-    def hdf5_compression(self) -> 'str':
-        return 'gzip'
 
-    @property
-    def hdf5_compression_lvl(self) -> int:
-        # default is 4, max of 9 doesnt seem to add much cpu usage on read, but its not worth it data wise?
-        return 4
+@dataclasses.dataclass
+class DataObject(object):
+    file_name: str
 
-    @property
-    def hdf5_name(self) -> str:
-        raise NotImplementedError()
+    def prepare(self, data_dir: str):
+        pass
 
-    @property
-    def hdf5_chunk_size(self) -> Tuple[int]:
-        # dramatically affects access speed, but also compression ratio.
-        raise NotImplementedError()
+    def get_file_path(self, data_dir: str, variant: Optional[str] = None):
+        suffix = '' if (variant is None) else f'.{variant}'
+        return os.path.join(data_dir, self.file_name + suffix)
+
+
+@dataclasses.dataclass
+class DlDataObject(DataObject):
+    file_name: str
+    # download file/link
+    uri: str
+    uri_hashes: Dict[str, str]
+    # hash settings
+    hash_mode: str
+    hash_type: str
+
+    def _make_dl_job(self, save_path: str):
+        return CachedJobFile(
+            make_file_fn=lambda path: retrieve_file(
+                src_uri=self.uri,
+                dst_path=path,
+                overwrite_existing=True,
+            ),
+            path=save_path,
+            hash=self.uri_hashes[self.hash_mode],
+            hash_type=self.hash_type,
+            hash_mode=self.hash_mode,
+        )
+
+    def prepare(self, data_dir: str):
+        dl_job = self._make_dl_job(save_path=self.get_file_path(data_dir=data_dir))
+        dl_job.run()
+
+
+@dataclasses.dataclass
+class DlH5DataObject(DlDataObject):
+    file_name: str
+    file_hashes: Dict[str, str]
+    # download file/link
+    uri: str
+    uri_hashes: Dict[str, str]
+    # hash settings
+    hash_mode: str
+    hash_type: str
+    # h5 re-save settings
+    hdf5_dataset_name: str
+    hdf5_chunk_size: Tuple[int, ...]
+    hdf5_compression: Optional[str]
+    hdf5_compression_lvl: Optional[int]
+
+    def _make_h5_job(self, load_path: str, save_path: str):
+        return CachedJobFile(
+            make_file_fn=lambda path: hdf5_resave_file(
+                inp_path=load_path,
+                out_path=path,
+                dataset_name=self.hdf5_dataset_name,
+                chunk_size=self.hdf5_chunk_size,
+                compression=self.hdf5_compression,
+                compression_lvl=self.hdf5_compression_lvl,
+                batch_size=None,
+                print_mode='minimal',
+            ),
+            path=save_path,
+            hash=self.file_hashes[self.hash_mode],
+            hash_type=self.hash_type,
+            hash_mode=self.hash_mode,
+        )
+
+    def prepare(self, data_dir: str):
+        dl_path = self.get_file_path(data_dir=data_dir, variant='ORIG')
+        h5_path = self.get_file_path(data_dir=data_dir)
+        dl_job = self._make_dl_job(save_path=dl_path)
+        h5_job = self._make_h5_job(load_path=dl_path, save_path=h5_path)
+        h5_job.set_parent(dl_job).run()
 
 
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
+
+
+

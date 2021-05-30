@@ -32,6 +32,7 @@ from dataclasses import dataclass
 from dataclasses import fields
 from itertools import islice
 from pprint import pformat
+from random import random
 from typing import List
 
 import numpy as np
@@ -340,10 +341,43 @@ class LengthIter(Sequence):
 
 
 class Timer:
-    def __init__(self, print_name=None, log_level=logging.INFO):
+
+    """
+    Timer class, can be used with a with statement to
+    measure the execution time of a block of code!
+
+    Examples:
+
+        1. get the runtime
+        ```
+        with Timer() as t:
+            time.sleep(1)
+        print(t.pretty)
+        ```
+
+        2. automatic print
+        ```
+        with Timer(name="example") as t:
+            time.sleep(1)
+        ```
+
+        3. reuse timer to measure multiple instances
+        ```
+        t = Timer()
+        for i in range(100):
+            with t:
+                time.sleep(0.95)
+            if t.elapsed > 3:
+                break
+        print(t)
+        ```
+    """
+
+    def __init__(self, name: str = None, log_level: int = logging.INFO):
         self._start_time: int = None
         self._end_time: int = None
-        self._print_name = print_name
+        self._total_time = 0
+        self.name = name
         self._log_level = log_level
 
     def __enter__(self):
@@ -352,19 +386,24 @@ class Timer:
 
     def __exit__(self, *args, **kwargs):
         self._end_time = time.time_ns()
-        if self._print_name:
+        # add elapsed time to total time, and reset the timer!
+        self._total_time += (self._end_time - self._start_time)
+        self._start_time = None
+        self._end_time = None
+        # print results
+        if self.name:
             if self._log_level is None:
-                print(f'{self._print_name}: {self.pretty}')
+                print(f'{self.name}: {self.pretty}')
             else:
-                log.log(self._log_level, f'{self._print_name}: {self.pretty}')
+                log.log(self._log_level, f'{self.name}: {self.pretty}')
 
     @property
     def elapsed_ns(self) -> int:
-        if self._start_time is None:
-            return 0
-        if self._end_time is None:
-            return time.time_ns() - self._start_time
-        return self._end_time - self._start_time
+        if self._start_time is not None:
+            # running
+            return self._total_time + (time.time_ns() - self._start_time)
+        # finished running
+        return self._total_time
 
     @property
     def elapsed_ms(self) -> float:

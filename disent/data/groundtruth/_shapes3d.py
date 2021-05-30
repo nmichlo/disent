@@ -22,7 +22,9 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from disent.data.groundtruth.base import Hdf5PreprocessedGroundTruthData
+
+from disent.data.groundtruth.base import DlH5DataObject
+from disent.data.groundtruth.base import Hdf5GroundTruthData
 
 
 # ========================================================================= #
@@ -30,7 +32,7 @@ from disent.data.groundtruth.base import Hdf5PreprocessedGroundTruthData
 # ========================================================================= #
 
 
-class Shapes3dData(Hdf5PreprocessedGroundTruthData):
+class Shapes3dData(Hdf5GroundTruthData):
     """
     3D Shapes Dataset:
     - https://github.com/deepmind/3d-shapes
@@ -39,41 +41,32 @@ class Shapes3dData(Hdf5PreprocessedGroundTruthData):
         - direct:   https://storage.googleapis.com/3d-shapes/3dshapes.h5
           redirect: https://storage.cloud.google.com/3d-shapes/3dshapes.h5
           info:     https://console.cloud.google.com/storage/browser/_details/3d-shapes/3dshapes.h5
-
-    reference implementation: https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/data/ground_truth/shapes3d.py
     """
 
-    dataset_url = 'https://storage.googleapis.com/3d-shapes/3dshapes.h5'
+    name = '3dshapes'
 
     factor_names = ('floor_hue', 'wall_hue', 'object_hue', 'scale', 'shape', 'orientation')
     factor_sizes = (10, 10, 10, 8, 4, 15)  # TOTAL: 480000
     observation_shape = (64, 64, 3)
 
-    hdf5_name = 'images'
-    # minimum chunk size, no compression but good for random accesses
-    hdf5_chunk_size = (1, 64, 64, 3)
-
-    def __init__(self, data_dir='data/dataset/3dshapes', in_memory=False, force_download=False, force_preprocess=False):
-        super().__init__(data_dir=data_dir, in_memory=in_memory, force_download=force_download, force_preprocess=force_preprocess)
+    data_object = DlH5DataObject(
+        # processed dataset file
+        file_name='3dshapes.h5',
+        file_hashes={'fast': 'e3a1a449b95293d4b2c25edbfcb8e804', 'full': 'b5187ee0d8b519bb33281c5ca549658c'},
+        # download file/link
+        uri='https://storage.googleapis.com/3d-shapes/3dshapes.h5',
+        uri_hashes={'fast': '85b20ed7cc8dc1f939f7031698d2d2ab', 'full': '099a2078d58cec4daad0702c55d06868'},
+        # hash settings
+        hash_mode='fast',
+        hash_type='md5',
+        # h5 re-save settings
+        hdf5_dataset_name='images',
+        hdf5_chunk_size=(1, 64, 64, 3),
+        hdf5_compression='gzip',
+        hdf5_compression_lvl=4,
+    )
 
 
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-
-
-# if __name__ == '__main__':
-    # dataset = RandomDataset(Shapes3dData())
-    # dataloader = DataLoader(dataset, num_workers=os.cpu_count(), batch_size=256)
-    #
-    # for batch in tqdm(dataloader):
-    #     pass
-
-    # # test that dimensions are resampled correctly, and only differ by a certain number of factors, not all.
-    # for i in range(10):
-    #     idx = np.random.randint(len(dataset))
-    #     a, b = pair_dataset.sample_pair_factors(idx)
-    #     print(all(dataset.idx_to_pos(idx) == a), '|', a, '&', b, ':', [int(v) for v in (a == b)])
-    #     a, b = dataset.pos_to_idx([a, b])
-    #     print(a, b)
-    #     dataset[a], dataset[b]
