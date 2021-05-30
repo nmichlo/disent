@@ -26,15 +26,16 @@ import dataclasses
 import logging
 import os
 from abc import ABCMeta
-from typing import Any
+from typing import Callable
 from typing import Dict
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
 
-import h5py
+import numpy as np
 
 from disent.data.util.hdf5 import hdf5_resave_file
+from disent.data.util.hdf5 import PickleH5pyDataset
 from disent.data.util.in_out import ensure_dir_exists
 from disent.data.util.in_out import retrieve_file
 from disent.data.util.jobs import CachedJobFile
@@ -127,30 +128,25 @@ class Hdf5GroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
     def __init__(self, data_root: Optional[str] = None, prepare: bool = False, in_memory=False):
         super().__init__(data_root=data_root, prepare=prepare)
         # variables
-        self._h5_path = self.data_object.get_file_path(self.data_dir)
-        self._h5_dataset_name = self.data_object.hdf5_dataset_name
         self._in_memory = in_memory
-        # Load the entire dataset into memory if required
+        # load the h5py dataset
+        data = PickleH5pyDataset(
+            h5_path=self.data_object.get_file_path(self.data_dir),
+            h5_dataset_name=self.data_object.hdf5_dataset_name,
+        )
+        # handle different memroy modes
         if self._in_memory:
-            with h5py.File(self._h5_path, 'r', libver='latest', swmr=True) as db:
-                # indexing dataset objects returns numpy array
-                # instantiating np.array from the dataset requires double memory.
-                self._memory_data = db[self._h5_dataset_name][:]
+            # Load the entire dataset into memory if required
+            # indexing dataset objects returns numpy array
+            # instantiating np.array from the dataset requires double memory.
+            self._data = data[:]
+            data.close()
         else:
-            self._hdf5_file, self._hdf5_data = self._make_hdf5()
-
-    def _make_hdf5(self):
-        # is this thread safe?
-        # TODO: this may cause a memory leak, it is never closed?
-        hdf5_file = h5py.File(self._h5_path, 'r', libver='latest', swmr=True)
-        hdf5_data = hdf5_file[self._h5_dataset_name]
-        return hdf5_file, hdf5_data
+            # Load the dataset from the disk
+            self._data = data
 
     def __getitem__(self, idx):
-        if self._in_memory:
-            return self._memory_data[idx]
-        else:
-            return self._hdf5_data[idx]
+        return self._data[idx]
 
     @property
     def data_objects(self) -> Sequence['DlH5DataObject']:
@@ -159,23 +155,6 @@ class Hdf5GroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
     @property
     def data_object(self) -> 'DlH5DataObject':
         raise NotImplementedError
-
-    # CUSTOM PICKLE HANDLING -- h5py files are not supported!
-    # https://docs.python.org/3/library/pickle.html#pickle-state
-    # https://docs.python.org/3/library/pickle.html#object.__getstate__
-    # https://docs.python.org/3/library/pickle.html#object.__setstate__
-    # TODO: this might duplicate in-memory stuffs.
-
-    def __getstate__(self):
-        state = self.__dict__.copy()
-        state.pop('_hdf5_file', None)
-        state.pop('_hdf5_data', None)
-        return state
-
-    def __setstate__(self, state):
-        self.__dict__.update(state)
-        if not self._in_memory:
-            self._hdf5_file, self._hdf5_data = self._make_hdf5()
 
 
 # ========================================================================= #
@@ -238,6 +217,8 @@ class DlH5DataObject(DlDataObject):
     hdf5_chunk_size: Tuple[int, ...]
     hdf5_compression: Optional[str]
     hdf5_compression_lvl: Optional[int]
+    hdf5_dtype: np.dtype = None
+    hdf5_mutator: Optional[Callable[[np.ndarray], np.ndarray]] = None
 
     def _make_h5_job(self, load_path: str, save_path: str):
         return CachedJobFile(
@@ -249,7 +230,8 @@ class DlH5DataObject(DlDataObject):
                 compression=self.hdf5_compression,
                 compression_lvl=self.hdf5_compression_lvl,
                 batch_size=None,
-                print_mode='minimal',
+                out_dtype=self.hdf5_dtype,
+                out_mutator=self.hdf5_mutator,
             ),
             path=save_path,
             hash=self.file_hashes[self.hash_mode],
@@ -262,7 +244,7 @@ class DlH5DataObject(DlDataObject):
         h5_path = self.get_file_path(data_dir=data_dir)
         dl_job = self._make_dl_job(save_path=dl_path)
         h5_job = self._make_h5_job(load_path=dl_path, save_path=h5_path)
-        h5_job.set_parent(dl_job).run()
+        dl_job.set_child(h5_job).run()
 
 
 # ========================================================================= #

@@ -22,13 +22,37 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-import os
 import logging
+import math
+import os
 from typing import Optional
 from typing import Tuple
 
+from disent.util import colors as c
+
 
 log = logging.getLogger(__name__)
+
+
+# ========================================================================= #
+# Formatting                                                                #
+# ========================================================================= #
+
+
+_BYTES_POW_NAME = ("B  ",  "KiB",  "MiB",  "GiB",  "TiB",  "PiB",  "EiB",  "ZiB",  "YiB")
+_BYTES_POW_COLR = (c.WHT, c.lGRN, c.lYLW, c.lRED, c.lRED, c.lRED, c.lRED, c.lRED, c.lRED)
+
+
+def bytes_to_human(size_bytes, decimals=3, color=True):
+    if size_bytes == 0:
+        return "0B"
+    # round correctly
+    i = int(math.floor(math.log(size_bytes, 1024)))
+    s = round(size_bytes / math.pow(1024, i), decimals)
+    # generate string
+    name = f'{_BYTES_POW_COLR[i]}{_BYTES_POW_NAME[i]}{c.RST}' if color else f'{_BYTES_POW_NAME[i]}'
+    # format string
+    return f"{s:{4+decimals}.{decimals}f} {name}"
 
 
 # ========================================================================= #

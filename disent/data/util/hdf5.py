@@ -26,7 +26,6 @@ Utilities for converting and testing different chunk sizes of hdf5 files
 """
 
 import logging
-import math
 import os
 
 import h5py
@@ -34,7 +33,10 @@ import numpy as np
 from tqdm import tqdm
 
 from disent.data.util.in_out import AtomicFileContext
+from disent.data.util.in_out import bytes_to_human
+from disent.util import colors as c
 from disent.util import iter_chunks
+from disent.util import LengthIter
 from disent.util import Timer
 
 
@@ -42,69 +44,102 @@ log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
-# hdf5                                                                   #
+# hdf5 pickle dataset                                                       #
+# ========================================================================= #
+
+
+class PickleH5pyDataset(LengthIter):
+    """
+    This class supports pickling and unpickling of a read-only
+    SWMR h5py file and corresponding dataset.
+    """
+
+    def __init__(self, h5_path: str, h5_dataset_name: str):
+        self._h5_path = h5_path
+        self._h5_dataset_name = h5_dataset_name
+        self._hdf5_file, self._hdf5_data = self._make_hdf5()
+
+    def _make_hdf5(self):
+        # TODO: can this cause a memory leak if it is never closed?
+        hdf5_file = h5py.File(self._h5_path, 'r', libver='latest', swmr=True)
+        hdf5_data = hdf5_file[self._h5_dataset_name]
+        return hdf5_file, hdf5_data
+
+    def __len__(self):
+        return self._hdf5_data.shape[0]
+
+    def __getitem__(self, item):
+        return self._hdf5_data[item]
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, error_type, error, traceback):
+        self.close()
+
+    # CUSTOM PICKLE HANDLING -- h5py files are not supported!
+    # https://docs.python.org/3/library/pickle.html#pickle-state
+    # https://docs.python.org/3/library/pickle.html#object.__getstate__
+    # https://docs.python.org/3/library/pickle.html#object.__setstate__
+    # TODO: this might duplicate in-memory stuffs.
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state.pop('_hdf5_file', None)
+        state.pop('_hdf5_data', None)
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self._hdf5_file, self._hdf5_data = self._make_hdf5()
+
+    def close(self):
+        self._hdf5_file.close()
+        del self._hdf5_file
+        del self._hdf5_data
+
+
+# ========================================================================= #
+# hdf5                                                                      #
 # ========================================================================= #
 
 
 # TODO: cleanup
-def bytes_to_human(size_bytes, decimals=3, color=True):
-    if size_bytes == 0:
-        return "0B"
-    size_name = ("B  ", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB")
-    size_color = (None,     92,   93,    91,    91,    91,    91,    91,    91)
-    i = int(math.floor(math.log(size_bytes, 1024)))
-    s = round(size_bytes / math.pow(1024, i), decimals)
-    name = f'\033[{size_color[i]}m{size_name[i]}\033[0m' if color else size_name[i]
-    return f"{s:{4+decimals}.{decimals}f} {name}"
-
-
-# TODO: cleanup
-def hdf5_print_entry_data_stats(data, dataset, label='STATISTICS', print_mode='all'):
-    dtype = data[dataset].dtype
-    itemsize = data[dataset].dtype.itemsize
+def hdf5_print_entry_data_stats(h5_dataset: h5py.Dataset, label='STATISTICS'):
+    dtype = h5_dataset.dtype
+    itemsize = h5_dataset.dtype.itemsize
     # chunk
-    chunks = np.array(data[dataset].chunks)
+    chunks = np.array(h5_dataset.chunks)
     data_per_chunk = np.prod(chunks) * itemsize
     # entry
-    shape = np.array([1, *data[dataset].shape[1:]])
+    shape = np.array([1, *h5_dataset.shape[1:]])
     data_per_entry = np.prod(shape) * itemsize
     # chunks per entry
     chunks_per_dim = np.ceil(shape / chunks).astype('int')
     chunks_per_entry = np.prod(chunks_per_dim)
     read_data_per_entry = data_per_chunk * chunks_per_entry
     # print info
-    if print_mode == 'all':
-        if label:
-            tqdm.write(f'[{label}]: \033[92m{dataset}\033[0m')
-        tqdm.write(
-            f'\t\033[90mentry shape:\033[0m      {str(list(shape)):18s} \033[93m{bytes_to_human(data_per_entry)}\033[0m'
-            f'\n\t\033[90mchunk shape:\033[0m      {str(list(chunks)):18s} \033[93m{bytes_to_human(data_per_chunk)}\033[0m'
-            f'\n\t\033[90mchunks per entry:\033[0m {str(list(chunks_per_dim)):18s} \033[93m{bytes_to_human(read_data_per_entry)}\033[0m (\033[91m{chunks_per_entry}\033[0m)'
-        )
-    elif print_mode == 'minimal':
-        tqdm.write(
-            f'[{label:3s}] entry: {str(list(shape)):18s} ({str(dtype):8s}) \033[93m{bytes_to_human(data_per_entry)}\033[0m chunk: {str(list(chunks)):18s} \033[93m{bytes_to_human(data_per_chunk)}\033[0m chunks per entry: {str(list(chunks_per_dim)):18s} \033[93m{bytes_to_human(read_data_per_entry)}\033[0m (\033[91m{chunks_per_entry}\033[0m)'
-        )
-
-
-# TODO: cleanup
-def hd5f_print_dataset_info(data, dataset, label='DATASET'):
-    if label:
-        tqdm.write(f'[{label}]: \033[92m{dataset}\033[0m')
     tqdm.write(
-          f'\t\033[90mraw:\033[0m                {data[dataset]}'
-          f'\n\t\033[90mchunks:\033[0m           {data[dataset].chunks}'
-          f'\n\t\033[90mcompression:\033[0m      {data[dataset].compression}'
-          f'\n\t\033[90mcompression lvl:\033[0m  {data[dataset].compression_opts}'
+        f'[{label:3s}] '
+        f'entry: {str(list(shape)):18s} ({str(dtype):8s}) {c.lYLW}{bytes_to_human(data_per_entry)}{c.RST} '
+        f'chunk: {str(list(chunks)):18s} {c.YLW}{bytes_to_human(data_per_chunk)}{c.RST} '
+        f'chunks per entry: {str(list(chunks_per_dim)):18s} {c.YLW}{bytes_to_human(read_data_per_entry)}{c.RST} ({c.RED}{chunks_per_entry:5d}{c.RST})  |  '
+        f'compression: {repr(h5_dataset.compression)} compression lvl: {repr(h5_dataset.compression_opts)}'
     )
 
 
-def hdf5_resave_dataset(inp_h5: h5py.File, out_h5: h5py.File, dataset_name, chunk_size=None, compression=None, compression_lvl=None, batch_size=None, print_mode='minimal'):
+# ========================================================================= #
+# hdf5 - resave                                                             #
+# ========================================================================= #
+
+
+def hdf5_resave_dataset(inp_h5: h5py.File, out_h5: h5py.File, dataset_name, chunk_size=None, compression=None, compression_lvl=None, batch_size=None, out_dtype=None, out_mutator=None):
     # create new dataset
-    out_h5.create_dataset(
+    inp_data = inp_h5[dataset_name]
+    out_data = out_h5.create_dataset(
         name=dataset_name,
-        shape=inp_h5[dataset_name].shape,
-        dtype=inp_h5[dataset_name].dtype,
+        shape=inp_data.shape,
+        dtype=out_dtype if (out_dtype is not None) else inp_data.dtype,
         chunks=chunk_size,
         compression=compression,
         compression_opts=compression_lvl,
@@ -115,25 +150,28 @@ def hdf5_resave_dataset(inp_h5: h5py.File, out_h5: h5py.File, dataset_name, chun
         track_times=False,
     )
     # print stats
-    hdf5_print_entry_data_stats(inp_h5, dataset_name, label=f'IN', print_mode=print_mode)
-    hdf5_print_entry_data_stats(out_h5, dataset_name, label=f'OUT', print_mode=print_mode)
+    tqdm.write('')
+    hdf5_print_entry_data_stats(inp_data, label=f'IN')
+    hdf5_print_entry_data_stats(out_data, label=f'OUT')
     # choose batch size for copying data
     if batch_size is None:
-        batch_size = inp_h5[dataset_name].chunks[0]
+        batch_size = inp_data.chunks[0]
         log.debug(f're-saving h5 dataset using automatic batch size of: {batch_size}')
-    # batched copy | loads could be parallelized!
-    entries = len(inp_h5[dataset_name])
-    with tqdm(total=entries) as progress:
-        for i in range(0, entries, batch_size):
-            out_h5[dataset_name][i:i + batch_size] = inp_h5[dataset_name][i:i + batch_size]
+    # get default
+    if out_mutator is None:
+        out_mutator = lambda x: x
+    # save data
+    with tqdm(total=len(inp_data)) as progress:
+        for i in range(0, len(inp_data), batch_size):
+            out_data[i:i + batch_size] = out_mutator(inp_data[i:i + batch_size])
             progress.update(batch_size)
 
 
-def hdf5_resave_file(inp_path: str, out_path: str, dataset_name, chunk_size=None, compression=None, compression_lvl=None, batch_size=None, print_mode='minimal'):
+def hdf5_resave_file(inp_path: str, out_path: str, dataset_name, chunk_size=None, compression=None, compression_lvl=None, batch_size=None, out_dtype=None, out_mutator=None):
     # re-save datasets
     with h5py.File(inp_path, 'r') as inp_h5:
         with AtomicFileContext(out_path, open_mode=None, overwrite=True) as tmp_h5_path:
-            with h5py.File(tmp_h5_path, 'w') as out_h5:
+            with h5py.File(tmp_h5_path, 'w', libver='latest') as out_h5:
                 hdf5_resave_dataset(
                     inp_h5=inp_h5,
                     out_h5=out_h5,
@@ -142,16 +180,16 @@ def hdf5_resave_file(inp_path: str, out_path: str, dataset_name, chunk_size=None
                     compression=compression,
                     compression_lvl=compression_lvl,
                     batch_size=batch_size,
-                    print_mode=print_mode,
+                    out_dtype=out_dtype,
+                    out_mutator=out_mutator,
                 )
     # file size:
     log.info(f'[FILE SIZES] IN: {bytes_to_human(os.path.getsize(inp_path))} OUT: {bytes_to_human(os.path.getsize(out_path))}')
 
 
-def hdf5_test_speed(h5_path: str, dataset_name: str, access_method: str = 'random'):
-    with h5py.File(h5_path, 'r') as out_h5:
-        log.info('[TESTING] Access Speed...')
-        log.info(f'Random Accesses Per Second: {hdf5_test_entries_per_second(out_h5, dataset_name, access_method=access_method, max_entries=5_000):.3f}')
+# ========================================================================= #
+# hdf5 - speed tests                                                        #
+# ========================================================================= #
 
 
 def hdf5_test_entries_per_second(h5_data: h5py.File, dataset_name, access_method='random', max_entries=48000, timeout=10, batch_size: int = 256):
@@ -178,6 +216,12 @@ def hdf5_test_entries_per_second(h5_data: h5py.File, dataset_name, access_method
     # calculate score
     entries_per_sec = (i + 1) / t.elapsed
     return entries_per_sec
+
+
+def hdf5_test_speed(h5_path: str, dataset_name: str, access_method: str = 'random'):
+    with h5py.File(h5_path, 'r') as out_h5:
+        log.info('[TESTING] Access Speed...')
+        log.info(f'Random Accesses Per Second: {hdf5_test_entries_per_second(out_h5, dataset_name, access_method=access_method, max_entries=5_000):.3f}')
 
 
 # ========================================================================= #
