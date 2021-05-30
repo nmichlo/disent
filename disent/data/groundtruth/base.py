@@ -31,6 +31,7 @@ from typing import Dict
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
+from typing import Union
 
 import numpy as np
 
@@ -217,7 +218,7 @@ class DlH5DataObject(DlDataObject):
     hdf5_chunk_size: Tuple[int, ...]
     hdf5_compression: Optional[str]
     hdf5_compression_lvl: Optional[int]
-    hdf5_dtype: np.dtype = None
+    hdf5_dtype: Optional[Union[np.dtype, str]] = None
     hdf5_mutator: Optional[Callable[[np.ndarray], np.ndarray]] = None
 
     def _make_h5_job(self, load_path: str, save_path: str):

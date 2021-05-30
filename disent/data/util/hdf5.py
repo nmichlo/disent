@@ -61,7 +61,7 @@ class PickleH5pyDataset(LengthIter):
 
     def _make_hdf5(self):
         # TODO: can this cause a memory leak if it is never closed?
-        hdf5_file = h5py.File(self._h5_path, 'r', libver='latest', swmr=True)
+        hdf5_file = h5py.File(self._h5_path, 'r', swmr=True)
         hdf5_data = hdf5_file[self._h5_dataset_name]
         return hdf5_file, hdf5_data
 
@@ -134,6 +134,9 @@ def hdf5_print_entry_data_stats(h5_dataset: h5py.Dataset, label='STATISTICS'):
 
 
 def hdf5_resave_dataset(inp_h5: h5py.File, out_h5: h5py.File, dataset_name, chunk_size=None, compression=None, compression_lvl=None, batch_size=None, out_dtype=None, out_mutator=None):
+    # check out_h5 version compatibility
+    if (isinstance(out_h5.libver, str) and out_h5.libver != 'earliest') or (out_h5.libver[0] != 'earliest'):
+        raise RuntimeError(f'hdf5 out file has an incompatible libver: {repr(out_h5.libver)} libver should be set to: "earliest"')
     # create new dataset
     inp_data = inp_h5[dataset_name]
     out_data = out_h5.create_dataset(
@@ -171,7 +174,7 @@ def hdf5_resave_file(inp_path: str, out_path: str, dataset_name, chunk_size=None
     # re-save datasets
     with h5py.File(inp_path, 'r') as inp_h5:
         with AtomicFileContext(out_path, open_mode=None, overwrite=True) as tmp_h5_path:
-            with h5py.File(tmp_h5_path, 'w', libver='latest') as out_h5:
+            with h5py.File(tmp_h5_path, 'w', libver='earliest') as out_h5:  # TODO: libver='latest' is not deterministic, even with track_times=False
                 hdf5_resave_dataset(
                     inp_h5=inp_h5,
                     out_h5=out_h5,

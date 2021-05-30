@@ -146,7 +146,7 @@ class CachedJobFile(CachedJob):
         # check the hash
         fhash = self.__compute_hash()
         if self.hash != fhash:
-            raise RuntimeError(f'{self}: computed {self.hash_mode} {self.hash_type} hash: {repr(fhash)} for newly generated file {repr(self.path)} does not match expected hash: {repr(self.hash)}')
+            raise RuntimeError(f'{self}: error because computed {self.hash_mode} {self.hash_type} hash: {repr(fhash)} does not match expected hash: {repr(self.hash)} for: {repr(self.path)}')
         else:
             log.debug(f'{self}: successfully generated file: {repr(self.path)} with correct {self.hash_mode} {self.hash_type} hash: {fhash}')
 
