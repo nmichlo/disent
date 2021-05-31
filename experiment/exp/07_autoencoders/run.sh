@@ -5,8 +5,8 @@
 # ========================================================================= #
 
 export PROJECT="exp-autoencoder-versions"
-export PARTITION="batch"
-export PARALLELISM=24
+export PARTITION="stampede"
+export PARALLELISM=32
 
 # source the helper file
 source "$(dirname "$(dirname "$(realpath -s "$0")")")/helper.sh"
@@ -17,7 +17,7 @@ source "$(dirname "$(dirname "$(realpath -s "$0")")")/helper.sh"
 
 clog_cudaless_nodes "$PARTITION" 86400 "C-disent" # 24 hours
 
-# 1 * (2*3*3*8) == 144
+# 1 * (2*2*3*3*8) == 288
 submit_sweep \
     +DUMMY.repeat=1 \
     +EXTRA.tags='various-auto-encoders' \
@@ -31,4 +31,4 @@ submit_sweep \
     model.z_size=25 \
     \
     specializations.data_wrapper='gt_dist_${framework.data_wrap_mode}' \
-    sampling=gt_dist_manhat
+    sampling=gt_dist_manhat,gt_dist_manhat_scaled
