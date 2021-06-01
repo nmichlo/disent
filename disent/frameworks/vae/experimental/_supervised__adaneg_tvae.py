@@ -29,8 +29,8 @@ from typing import Sequence
 import torch
 from torch.distributions import Normal
 
-from disent.frameworks.helper.triplet_loss import configured_dist_triplet
-from disent.frameworks.helper.triplet_loss import configured_triplet
+from disent.nn.loss.triplet import configured_dist_triplet
+from disent.nn.loss.triplet import configured_triplet
 from disent.frameworks.vae._supervised__tvae import TripletVae
 from disent.frameworks.vae.experimental._supervised__adatvae import compute_triplet_shared_masks
 from disent.frameworks.vae.experimental._supervised__adatvae import compute_triplet_shared_masks_from_zs

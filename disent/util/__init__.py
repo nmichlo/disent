@@ -27,16 +27,10 @@ import logging
 import os
 import time
 from collections import Sequence
-from dataclasses import asdict
-from dataclasses import dataclass
-from dataclasses import fields
 from itertools import islice
-from pprint import pformat
-from random import random
 from typing import List
 
 import numpy as np
-import pytorch_lightning as pl
 import torch
 
 
@@ -123,7 +117,6 @@ def to_numpy(array) -> np.ndarray:
         return np.stack([to_numpy(elem) for elem in array], axis=0)
     else:
         return np.array(array)
-
 
 
 # ========================================================================= #
@@ -423,68 +416,6 @@ def get_memory_usage():
     process = psutil.Process(os.getpid())
     num_bytes = process.memory_info().rss  # in bytes
     return num_bytes
-
-
-# ========================================================================= #
-# Slot Tuple                                                                #
-# ========================================================================= #
-
-
-@dataclass
-class TupleDataClass:
-    """
-    Like a named tuple + dataclass combination, that is mutable.
-    -- requires that you still decorate the inherited class with @dataclass
-    """
-
-    __field_names_cache = None
-
-    @property
-    def __field_names(self):
-        # check for attribute and set on class only
-        if self.__class__.__field_names_cache is None:
-            self.__class__.__field_names_cache = tuple(f.name for f in fields(self))
-        return self.__class__.__field_names_cache
-
-    def __iter__(self):
-        for name in self.__field_names:
-            yield getattr(self, name)
-
-    def __len__(self):
-        return self.__field_names.__len__()
-
-    def __str__(self):
-        return str(tuple(self))
-
-    def __repr__(self):
-        return f'{self.__class__.__name__}({", ".join(f"{name}={repr(getattr(self, name))}" for name in self.__field_names)})'
-
-
-# ========================================================================= #
-# END                                                                       #
-# ========================================================================= #
-
-
-def debug_transform_tensors(obj):
-    """
-    recursively convert all tensors to their shapes for debugging
-    """
-    if isinstance(obj, (torch.Tensor, np.ndarray)):
-        return obj.shape
-    elif isinstance(obj, dict):
-        return {debug_transform_tensors(k): debug_transform_tensors(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return list(debug_transform_tensors(v) for v in obj)
-    elif isinstance(obj, tuple):
-        return tuple(debug_transform_tensors(v) for v in obj)
-    elif isinstance(obj, set):
-        return {debug_transform_tensors(k) for k in obj}
-    else:
-        return obj
-
-
-def pprint_tensors(*args, **kwargs):
-    print(*(debug_transform_tensors(arg) for arg in args), **kwargs)
 
 
 # ========================================================================= #

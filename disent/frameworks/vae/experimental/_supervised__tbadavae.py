@@ -24,9 +24,9 @@
 
 from dataclasses import dataclass
 
-from disent.frameworks.helper.triplet_loss import compute_triplet_loss
 from disent.frameworks.vae.experimental._supervised__badavae import BoundedAdaVae
-from disent.frameworks.helper.triplet_loss import TripletLossConfig
+from disent.nn.loss.triplet import compute_triplet_loss
+from disent.nn.loss.triplet import TripletLossConfig
 
 
 # ========================================================================= #

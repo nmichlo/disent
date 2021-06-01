@@ -22,30 +22,7 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from dataclasses import dataclass
-
-from disent.frameworks.vae.experimental._supervised__gadavae import GuidedAdaVae
-from disent.nn.loss.triplet import compute_triplet_loss
-from disent.nn.loss.triplet import TripletLossConfig
-
-
-# ========================================================================= #
-# tgadavae                                                                  #
-# ========================================================================= #
-
-
-class TripletGuidedAdaVae(GuidedAdaVae):
-
-    REQUIRED_OBS = 3
-
-    @dataclass
-    class cfg(GuidedAdaVae.cfg, TripletLossConfig):
-        pass
-
-    def hook_compute_ave_aug_loss(self, ds_posterior, ds_prior, zs_sampled, xs_partial_recon, xs_targ):
-        return compute_triplet_loss(zs=[d.mean for d in ds_posterior], cfg=self.cfg)
-
-
-# ========================================================================= #
-# END                                                                       #
-# ========================================================================= #
+# disent base modules
+from disent.nn.model.ae import AutoEncoder
+from disent.nn.model.ae import DisentEncoder
+from disent.nn.model.ae import DisentDecoder

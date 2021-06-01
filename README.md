@@ -241,9 +241,9 @@ from disent.data.groundtruth import XYObjectData
 from disent.dataset.groundtruth import GroundTruthDataset
 from disent.frameworks.vae import BetaVae
 from disent.metrics import metric_dci, metric_mig
-from disent.model.ae import EncoderConv64, DecoderConv64, AutoEncoder
+from disent.nn.model.ae import AutoEncoder, EncoderConv64, DecoderConv64
+from disent.nn.transform import ToStandardisedTensor
 from disent.schedule import CyclicSchedule
-from disent.transform import ToStandardisedTensor
 
 # We use this internally to test this script.
 # You can remove all references to this in your own code.

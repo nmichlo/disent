@@ -24,8 +24,9 @@
 
 from torch import nn as nn, Tensor
 
-from disent.model.base import BaseEncoderModule, BaseDecoderModule
-from disent.model.common import Flatten3D, BatchView
+from disent.nn.model.ae.base import DisentEncoder, DisentDecoder
+from disent.nn.modules import Flatten3D
+from disent.nn.modules import BatchView
 
 
 # ========================================================================= #
@@ -33,7 +34,7 @@ from disent.model.common import Flatten3D, BatchView
 # ========================================================================= #
 
 
-class EncoderConv64(BaseEncoderModule):
+class EncoderConv64(DisentEncoder):
     """
     Reference Implementation:
     https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/shared/architectures.py
@@ -71,7 +72,7 @@ class EncoderConv64(BaseEncoderModule):
         return self.model(x)
 
 
-class DecoderConv64(BaseDecoderModule):
+class DecoderConv64(DisentDecoder):
     """
     From:
     https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/shared/architectures.py

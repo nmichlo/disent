@@ -24,8 +24,8 @@
 import pytest
 import torch
 
-from disent.transform._augment import _expand_to_min_max_tuples
-from disent.transform._augment import FftGaussianBlur
+from disent.nn.transform import FftGaussianBlur
+from disent.nn.transform._augment import _expand_to_min_max_tuples
 from disent.util.math import torch_gaussian_kernel
 from disent.util.math import torch_gaussian_kernel_2d
 
@@ -57,6 +57,7 @@ def test_fft_guassian_blur_sigmas():
         _expand_to_min_max_tuples([[0.0, 1.0], 1.0])
     with pytest.raises(Exception):
         _expand_to_min_max_tuples([0.0, [1.0, 2.0]])
+
 
 def test_fft_guassian_blur():
     fn = FftGaussianBlur(sigma=1.0, truncate=3.0)

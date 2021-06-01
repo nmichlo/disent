@@ -28,7 +28,7 @@ import pytorch_lightning as pl
 from omegaconf import DictConfig
 
 from disent.dataset._augment_util import AugmentableDataset
-from disent.transform.groundtruth import GroundTruthDatasetBatchAugment
+from disent.nn.transform import GroundTruthDatasetBatchAugment
 from experiment.util.hydra_utils import instantiate_recursive
 
 

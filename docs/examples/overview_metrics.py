@@ -5,9 +5,10 @@ from disent.data.groundtruth import XYObjectData
 from disent.dataset.groundtruth import GroundTruthDataset
 from disent.frameworks.vae import BetaVae
 from disent.metrics import metric_dci, metric_mig
-from disent.model.ae import EncoderConv64, DecoderConv64, AutoEncoder
-from disent.transform import ToStandardisedTensor
+from disent.nn.model.ae import AutoEncoder, DecoderConv64, EncoderConv64
+from disent.nn.transform import ToStandardisedTensor
 from disent.util import is_test_run
+
 
 data = XYObjectData()
 dataset = GroundTruthDataset(data, transform=ToStandardisedTensor())

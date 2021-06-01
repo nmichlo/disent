@@ -22,7 +22,6 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-import dataclasses
 import logging
 import os
 
@@ -38,8 +37,8 @@ from pytorch_lightning.loggers import WandbLogger
 
 from disent import metrics
 from disent.frameworks.framework import BaseFramework
-from disent.model.ae.base import AutoEncoder
-from disent.model.init import init_model_weights
+from disent.nn.model.ae import AutoEncoder
+from disent.nn.weights import init_model_weights
 from disent.util import DisentConfigurable
 from disent.util import make_box_str
 from experiment.util.callbacks import LoggerProgressCallback

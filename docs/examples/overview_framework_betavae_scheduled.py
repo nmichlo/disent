@@ -1,13 +1,14 @@
 import pytorch_lightning as pl
 from torch.optim import Adam
-from torch.utils.data import Dataset, DataLoader
-from disent.data.groundtruth import XYSquaresData, GroundTruthData
+from torch.utils.data import DataLoader, Dataset
+from disent.data.groundtruth import GroundTruthData, XYSquaresData
 from disent.dataset.groundtruth import GroundTruthDataset
 from disent.frameworks.vae import BetaVae
-from disent.model.ae import EncoderConv64, DecoderConv64, AutoEncoder
+from disent.nn.model.ae import AutoEncoder, DecoderConv64, EncoderConv64
+from disent.nn.transform import ToStandardisedTensor
 from disent.schedule import CyclicSchedule
-from disent.transform import ToStandardisedTensor
 from disent.util import is_test_run
+
 
 data: GroundTruthData = XYSquaresData()
 dataset: Dataset = GroundTruthDataset(data, transform=ToStandardisedTensor())

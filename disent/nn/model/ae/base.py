@@ -39,7 +39,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class BaseModule(DisentModule):
+class DisentLatentsBase(DisentModule):
 
     def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
         super().__init__()
@@ -78,11 +78,11 @@ class BaseModule(DisentModule):
 
 
 # ========================================================================= #
-# Custom Base nn.Module                                                     #
+# Base Encoder & Base Decoder                                               #
 # ========================================================================= #
 
 
-class BaseEncoderModule(BaseModule):
+class DisentEncoder(DisentLatentsBase):
 
     @final
     def forward(self, x) -> Tensor:
@@ -102,7 +102,7 @@ class BaseEncoderModule(BaseModule):
         raise NotImplementedError
 
 
-class BaseDecoderModule(BaseModule):
+class DisentDecoder(DisentLatentsBase):
     
     def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
         assert z_multiplier == 1, 'decoder does not support z_multiplier != 1'
@@ -122,6 +122,47 @@ class BaseDecoderModule(BaseModule):
 
     def decode(self, z) -> Tensor:
         raise NotImplementedError
+
+
+# ========================================================================= #
+# Auto-Encoder Wrapper                                                      #
+# ========================================================================= #
+
+
+class AutoEncoder(DisentLatentsBase):
+
+    def __init__(self, encoder: DisentEncoder, decoder: DisentDecoder):
+        assert isinstance(encoder, DisentEncoder)
+        assert isinstance(decoder, DisentDecoder)
+        # check sizes
+        assert encoder.x_shape == decoder.x_shape, 'x_shape mismatch'
+        assert encoder.x_size == decoder.x_size, 'x_size mismatch - this should never happen if x_shape matches'
+        assert encoder.z_size == decoder.z_size, 'z_size mismatch'
+        # initialise
+        super().__init__(x_shape=decoder.x_shape, z_size=decoder.z_size, z_multiplier=encoder.z_multiplier)
+        # assign
+        self._encoder = encoder
+        self._decoder = decoder
+
+    def forward(self, x):
+        raise RuntimeError('This has been disabled')
+
+    def encode(self, x):
+        z_raw = self._encoder(x)
+        # extract components if necessary
+        if self._z_multiplier == 1:
+            return z_raw
+        elif self.z_multiplier == 2:
+            return z_raw[..., :self.z_size], z_raw[..., self.z_size:]
+        else:
+            raise KeyError(f'z_multiplier={self.z_multiplier} is unsupported')
+
+    def decode(self, z: Tensor) -> Tensor:
+        """
+        decode the given representation.
+        the returned tensor does not have an activation applied to it!
+        """
+        return self._decoder(z)
 
 
 # ========================================================================= #

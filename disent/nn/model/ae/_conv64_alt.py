@@ -24,8 +24,9 @@
 
 from torch import nn as nn, Tensor
 
-from disent.model.base import BaseEncoderModule, BaseDecoderModule
-from disent.model.common import Flatten3D, BatchView
+from disent.nn.model.ae.base import DisentEncoder, DisentDecoder
+from disent.nn.modules import Flatten3D
+from disent.nn.modules import BatchView
 
 
 def _make_activations(activation='relu', inplace=True, norm='instance', num_features: int = None, norm_pre_act=True):
@@ -61,7 +62,7 @@ def _make_activations(activation='relu', inplace=True, norm='instance', num_feat
 # ========================================================================= #
 
 
-class EncoderConv64Alt(BaseEncoderModule):
+class EncoderConv64Alt(DisentEncoder):
     """
     Reference Implementation:
     https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/shared/architectures.py
@@ -99,7 +100,7 @@ class EncoderConv64Alt(BaseEncoderModule):
         return self.model(x)
 
 
-class DecoderConv64Alt(BaseDecoderModule):
+class DecoderConv64Alt(DisentDecoder):
     """
     From:
     https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/shared/architectures.py

@@ -24,8 +24,9 @@
 
 from torch import nn as nn, Tensor
 
-from disent.model.base import BaseEncoderModule, BaseDecoderModule
-from disent.model.common import Flatten3D, Unsqueeze3D
+from disent.nn.model.ae.base import DisentEncoder, DisentDecoder
+from disent.nn.modules import Flatten3D
+from disent.nn.modules import Unsqueeze3D
 
 
 # ========================================================================= #
@@ -33,7 +34,7 @@ from disent.model.common import Flatten3D, Unsqueeze3D
 # ========================================================================= #
 
 
-class EncoderSimpleConv64(BaseEncoderModule):
+class EncoderSimpleConv64(DisentEncoder):
     """
     Reference Implementation: https://github.com/amir-abdi/disentanglement-pytorch
     # TODO: verify, things have changed...
@@ -66,7 +67,7 @@ class EncoderSimpleConv64(BaseEncoderModule):
         return self.model(x)
 
 
-class DecoderSimpleConv64(BaseDecoderModule):
+class DecoderSimpleConv64(DisentDecoder):
     """
     From: https://github.com/amir-abdi/disentanglement-pytorch
     # TODO: verify, things have changed...

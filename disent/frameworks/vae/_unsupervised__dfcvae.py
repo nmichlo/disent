@@ -36,10 +36,10 @@ from torch import Tensor
 from torchvision.models import vgg19_bn
 from torch.nn import functional as F
 
-from disent.frameworks.helper.reductions import get_mean_loss_scale
+from disent.nn.reductions import get_mean_loss_scale
 from disent.frameworks.helper.util import compute_ave_loss
 from disent.frameworks.vae._unsupervised__betavae import BetaVae
-from disent.transform.functional import check_tensor
+from disent.nn.transform.functional import check_tensor
 
 
 # ========================================================================= #

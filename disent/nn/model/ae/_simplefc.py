@@ -22,53 +22,56 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-import logging
+from torch import nn as nn, Tensor
 
-from torch import nn
-
-from disent.util import colors as c
-
-
-log = logging.getLogger(__name__)
+from disent.nn.model.ae.base import DisentEncoder, DisentDecoder
+from disent.nn.modules import Flatten3D
+from disent.nn.modules import BatchView
 
 
 # ========================================================================= #
-# Helper                                                                    #
+# simple fully connected models                                             #
 # ========================================================================= #
 
 
-def init_model_weights(model: nn.Module, mode='xavier_normal'):
-    count = 0
+class EncoderSimpleFC(DisentEncoder):
+    """
+    Custom Fully Connected Encoder.
+    """
 
-    # get default mode
-    if mode is None:
-        mode = 'default'
+    def __init__(self, x_shape=(3, 64, 64), h_size1=128, h_size2=128, z_size=6, z_multiplier=1):
+        super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
+        self.model = nn.Sequential(
+            Flatten3D(),
+            nn.Linear(self.x_size, h_size1),
+                nn.ReLU(True),
+            nn.Linear(h_size1, h_size2),
+                nn.ReLU(True),
+            nn.Linear(h_size2, self.z_total)
+        )
 
-    def init_normal(m):
-        nonlocal count
-        init, count = False, count + 1
+    def encode(self, x) -> (Tensor, Tensor):
+        return self.model(x)
 
-        # actually initialise!
-        if mode == 'xavier_normal':
-            if isinstance(m, (nn.Linear, nn.Conv2d, nn.ConvTranspose2d)):
-                nn.init.xavier_normal_(m.weight)
-                nn.init.zeros_(m.bias)
-                init = True
-        elif mode == 'default':
-            pass
-        else:
-            raise KeyError(f'Unknown init mode: {repr(mode)}')
 
-        # print messages
-        if init:
-            log.info(f'| {count:03d} {c.lGRN}INIT{c.RST}: {m.__class__.__name__}')
-        else:
-            log.info(f'| {count:03d} {c.lRED}SKIP{c.RST}: {m.__class__.__name__}')
+class DecoderSimpleFC(DisentDecoder):
+    """
+    Custom Fully Connected Decoder.
+    """
 
-    log.info(f'Initialising Model Layers: {mode}')
-    model.apply(init_normal)
+    def __init__(self, x_shape=(3, 64, 64), h_size1=128, h_size2=128, z_size=6, z_multiplier=1):
+        super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
+        self.model = nn.Sequential(
+            nn.Linear(self.z_size, h_size2),
+                nn.ReLU(True),
+            nn.Linear(h_size2, h_size1),
+                nn.ReLU(True),
+            nn.Linear(h_size1, self.x_size),
+                BatchView(self.x_shape),
+        )
 
-    return model
+    def decode(self, z):
+        return self.model(z)
 
 
 # ========================================================================= #

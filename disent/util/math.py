@@ -561,5 +561,29 @@ def torch_conv2d_channel_wise_fft(signal, kernel):
 
 
 # ========================================================================= #
-# end                                                                       #
+# DEBUG                                                                     #
 # ========================================================================= #
+
+
+def debug_transform_tensors(obj):
+    """
+    recursively convert all tensors to their shapes for debugging
+    """
+    if isinstance(obj, (torch.Tensor, np.ndarray)):
+        return obj.shape
+    elif isinstance(obj, dict):
+        return {debug_transform_tensors(k): debug_transform_tensors(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return list(debug_transform_tensors(v) for v in obj)
+    elif isinstance(obj, tuple):
+        return tuple(debug_transform_tensors(v) for v in obj)
+    elif isinstance(obj, set):
+        return {debug_transform_tensors(k) for k in obj}
+    else:
+        return obj
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #
+
