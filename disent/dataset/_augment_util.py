@@ -29,6 +29,11 @@ from typing import Optional, List
 from torch.utils.data.dataloader import default_collate
 
 
+# ========================================================================= #
+# util                                                                      #
+# ========================================================================= #
+
+
 class AugmentableDataset(object):
 
     @property
@@ -140,6 +145,11 @@ class AugmentableDataset(object):
         return self.dataset_batch_from_indices(sorted(indices), mode=mode)
 
 
+# ========================================================================= #
+# util                                                                      #
+# ========================================================================= #
+
+
 def _batch_to_observation(batch, obs_shape):
     """
     Convert a batch of size 1, to a single observation.
@@ -148,3 +158,8 @@ def _batch_to_observation(batch, obs_shape):
         assert batch.shape == (1, *obs_shape), f'batch.shape={repr(batch.shape)} does not correspond to obs_shape={repr(obs_shape)} with batch dimension added'
         return batch.reshape(obs_shape)
     return batch
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #

@@ -105,7 +105,7 @@ class TempNumpySeed(object):
             self._state = None
 
 # ========================================================================= #
-# IO                                                                        #
+# Conversion                                                                #
 # ========================================================================= #
 
 
@@ -124,56 +124,6 @@ def to_numpy(array) -> np.ndarray:
     else:
         return np.array(array)
 
-
-# ========================================================================= #
-# IO                                                                        #
-# ========================================================================= #
-
-
-def atomic_save(obj, path):
-    """
-    Save a model to a file, making sure that the file will
-    never be partly written.
-
-    This prevents the model from getting corrupted in the
-    event that the process dies or the machine crashes.
-
-    FROM: my obstacle_tower project
-    """
-    import os
-    import torch
-
-    if os.path.dirname(path):
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-    torch.save(obj, path + '.tmp')
-    os.rename(path + '.tmp', path)
-
-
-def save_model(model, path):
-    atomic_save(model.state_dict(), path)
-    log.info(f'[MODEL]: saved {path}')
-
-
-def load_model(model, path, cuda=True, fail_if_missing=True):
-    """
-    FROM: my obstacle_tower project
-    """
-    import os
-    import torch
-
-    if path and os.path.exists(path):
-        model.load_state_dict(torch.load(
-            path,
-            map_location=torch.device('cuda' if cuda else 'cpu')
-        ))
-        log.info(f'[MODEL]: loaded {path} (cuda: {cuda})')
-    else:
-        if fail_if_missing:
-            raise Exception(f'Could not load model, path does not exist: {path}')
-    if cuda:
-        model = model.cuda()  # this needs to stay despite the above.
-        log.info('[MODEL]: Moved to GPU')
-    return model
 
 
 # ========================================================================= #

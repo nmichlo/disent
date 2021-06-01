@@ -22,10 +22,12 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-import warnings
+import logging
+from dataclasses import asdict
 from dataclasses import dataclass
 from dataclasses import fields
 from numbers import Number
+from pprint import pformat
 from typing import Any
 from typing import Dict
 from typing import final
@@ -40,6 +42,33 @@ from disent.util import DisentConfigurable
 from disent.util import DisentLightningModule
 
 log = logging.getLogger(__name__)
+
+
+# ========================================================================= #
+# framework config                                                          #
+# ========================================================================= #
+
+
+class DisentConfigurable(object):
+
+    @dataclass
+    class cfg(object):
+        def get_keys(self) -> list:
+            return list(self.to_dict().keys())
+
+        def to_dict(self) -> dict:
+            return asdict(self)
+
+        def __str__(self):
+            return pformat(self.to_dict(), sort_dicts=False)
+
+    def __init__(self, cfg: cfg = cfg()):
+        if cfg is None:
+            cfg = self.__class__.cfg()
+            log.info(f'Initialised default config {cfg=} for {self.__class__.__name__}')
+        super().__init__()
+        assert isinstance(cfg, self.__class__.cfg), f'{cfg=} ({type(cfg)}) is not an instance of {self.__class__.cfg}'
+        self.cfg = cfg
 
 
 # ========================================================================= #

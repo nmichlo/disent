@@ -34,7 +34,7 @@ from disent.data.groundtruth.base import Hdf5GroundTruthData
 class DSpritesData(Hdf5GroundTruthData):
     """
     DSprites Dataset
-    - beta-VAE: Learning Basic Visual Concepts with a Constrained Variational BaseFramework
+    - beta-VAE: Learning Basic Visual Concepts with a Constrained Variational Framework
       (https://github.com/deepmind/dsprites-dataset)
 
     Files:
@@ -52,9 +52,6 @@ class DSpritesData(Hdf5GroundTruthData):
     factor_names = ('shape', 'scale', 'orientation', 'position_x', 'position_y')
     factor_sizes = (3, 6, 40, 32, 32)  # TOTAL: 737280
     observation_shape = (64, 64, 1)
-
-    # 8de0faa39af431a2dc7828df01121fe6
-    # 4e142be8960e05b5da4563be70281e8a
 
     data_object = DlH5DataObject(
         # processed dataset file
