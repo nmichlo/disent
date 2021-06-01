@@ -73,7 +73,7 @@ class EncoderConv64Alt(DisentEncoder):
         """
         Convolutional encoder used in beta-VAE paper for the chairs data.
         Based on row 3 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
-        Concepts with a Constrained Variational BaseFramework"
+        Concepts with a Constrained Variational Framework"
         (https://openreview.net/forum?id=Sy2fzU9gl)
         """
         # checks
@@ -111,7 +111,7 @@ class DecoderConv64Alt(DisentDecoder):
         """
         Convolutional decoder used in beta-VAE paper for the chairs data.
         Based on row 3 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
-        Concepts with a Constrained Variational BaseFramework"
+        Concepts with a Constrained Variational Framework"
         (https://openreview.net/forum?id=Sy2fzU9gl)
         """
         assert tuple(x_shape[1:]) == (64, 64), 'This model only works with image size 64x64.'

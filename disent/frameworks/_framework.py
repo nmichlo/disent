@@ -76,7 +76,7 @@ class DisentConfigurable(object):
 # ========================================================================= #
 
 
-class BaseFramework(DisentConfigurable, DisentLightningModule):
+class DisentFramework(DisentConfigurable, DisentLightningModule):
 
     @dataclass
     class cfg(DisentConfigurable.cfg):

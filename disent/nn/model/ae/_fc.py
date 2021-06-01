@@ -46,7 +46,7 @@ class EncoderFC(DisentEncoder):
         """
         Fully connected encoder used in beta-VAE paper for the dSprites data.
         Based on row 1 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
-        Concepts with a Constrained Variational BaseFramework"
+        Concepts with a Constrained Variational Framework"
         (https://openreview.net/forum?id=Sy2fzU9gl).
         """
         # checks
@@ -76,7 +76,7 @@ class DecoderFC(DisentDecoder):
         """
         Fully connected encoder used in beta-VAE paper for the dSprites data.
         Based on row 1 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
-        Concepts with a Constrained Variational BaseFramework"
+        Concepts with a Constrained Variational Framework"
         (https://openreview.net/forum?id=Sy2fzU9gl)
         """
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
