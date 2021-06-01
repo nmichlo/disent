@@ -28,7 +28,7 @@ from typing import final
 import numpy as np
 from torch import Tensor
 
-from disent.util import DisentModule
+from disent.nn.modules import DisentModule
 
 
 log = logging.getLogger(__name__)

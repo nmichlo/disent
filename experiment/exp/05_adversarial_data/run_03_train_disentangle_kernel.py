@@ -38,8 +38,8 @@ from torch.nn import Parameter
 from torch.utils.data import DataLoader
 
 import experiment.exp.util as H
-from disent.util import DisentLightningModule
-from disent.util import DisentModule
+from disent.nn.modules import DisentLightningModule
+from disent.nn.modules import DisentModule
 from disent.util import make_box_str
 from disent.util import seed
 from disent.util.math import torch_conv2d_channel_wise_fft

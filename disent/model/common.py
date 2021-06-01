@@ -23,7 +23,8 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
-from disent.util.base import DisentModule
+
+from disent.nn.modules import DisentModule
 
 
 log = logging.getLogger(__name__)

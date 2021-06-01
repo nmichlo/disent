@@ -38,8 +38,8 @@ import logging
 import torch
 
 from disent.schedule import Schedule
-from disent.util import DisentConfigurable
-from disent.util import DisentLightningModule
+from disent.nn.modules import DisentLightningModule
+
 
 log = logging.getLogger(__name__)
 

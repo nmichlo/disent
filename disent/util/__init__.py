@@ -426,52 +426,6 @@ def get_memory_usage():
 
 
 # ========================================================================= #
-# Torch Helper                                                              #
-# ========================================================================= #
-
-
-class DisentModule(torch.nn.Module):
-
-    def _forward_unimplemented(self, *args):
-        # Annoying fix applied by torch for Module.forward:
-        # https://github.com/python/mypy/issues/8795
-        raise RuntimeError('This should never run!')
-
-    def forward(self, *args, **kwargs):
-        raise NotImplementedError
-
-
-class DisentLightningModule(pl.LightningModule):
-
-    def _forward_unimplemented(self, *args):
-        # Annoying fix applied by torch for Module.forward:
-        # https://github.com/python/mypy/issues/8795
-        raise RuntimeError('This should never run!')
-
-
-class DisentConfigurable(object):
-
-    @dataclass
-    class cfg(object):
-        def get_keys(self) -> list:
-            return list(self.to_dict().keys())
-
-        def to_dict(self) -> dict:
-            return asdict(self)
-
-        def __str__(self):
-            return pformat(self.to_dict(), sort_dicts=False)
-
-    def __init__(self, cfg: cfg = cfg()):
-        if cfg is None:
-            cfg = self.__class__.cfg()
-            log.info(f'Initialised default config {cfg=} for {self.__class__.__name__}')
-        super().__init__()
-        assert isinstance(cfg, self.__class__.cfg), f'{cfg=} ({type(cfg)}) is not an instance of {self.__class__.cfg}'
-        self.cfg = cfg
-
-
-# ========================================================================= #
 # Slot Tuple                                                                #
 # ========================================================================= #
 
