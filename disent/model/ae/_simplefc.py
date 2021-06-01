@@ -24,7 +24,8 @@
 
 from torch import nn as nn, Tensor
 
-from disent.nn.model.ae.base import DisentEncoder, DisentDecoder
+from disent.model import DisentDecoder
+from disent.model import DisentEncoder
 from disent.nn.modules import Flatten3D
 from disent.nn.modules import BatchView
 

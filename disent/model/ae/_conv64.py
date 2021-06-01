@@ -22,20 +22,20 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-import numpy as np
 from torch import nn as nn, Tensor
 
-from disent.nn.model.ae.base import DisentEncoder, DisentDecoder
+from disent.model import DisentDecoder
+from disent.model import DisentEncoder
 from disent.nn.modules import Flatten3D
 from disent.nn.modules import BatchView
 
 
 # ========================================================================= #
-# disentanglement_lib FC models                                             #
+# disentanglement_lib Conv models                                           #
 # ========================================================================= #
 
 
-class EncoderFC(DisentEncoder):
+class EncoderConv64(DisentEncoder):
     """
     Reference Implementation:
     https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/shared/architectures.py
@@ -44,28 +44,36 @@ class EncoderFC(DisentEncoder):
 
     def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
         """
-        Fully connected encoder used in beta-VAE paper for the dSprites data.
-        Based on row 1 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
+        Convolutional encoder used in beta-VAE paper for the chairs data.
+        Based on row 3 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
         Concepts with a Constrained Variational Framework"
-        (https://openreview.net/forum?id=Sy2fzU9gl).
+        (https://openreview.net/forum?id=Sy2fzU9gl)
         """
         # checks
+        assert tuple(x_shape[1:]) == (64, 64), 'This model only works with image size 64x64.'
+        num_channels = x_shape[0]
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
         self.model = nn.Sequential(
+            nn.Conv2d(in_channels=num_channels, out_channels=32, kernel_size=4, stride=2, padding=2),
+                nn.ReLU(inplace=True),
+            nn.Conv2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=2),
+                nn.ReLU(inplace=True),
+            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=2, stride=2, padding=1),
+                nn.ReLU(inplace=True),
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=2, stride=2, padding=1),
+                nn.ReLU(inplace=True),
             Flatten3D(),
-            nn.Linear(int(np.prod(x_shape)), 1200),
-                nn.ReLU(True),
-            nn.Linear(1200, 1200),
-                nn.ReLU(True),
-            nn.Linear(1200, self.z_total)
+            nn.Linear(1600, 256),
+                nn.ReLU(inplace=True),
+            nn.Linear(256, self.z_total),
         )
 
     def encode(self, x) -> (Tensor, Tensor):
         return self.model(x)
 
 
-class DecoderFC(DisentDecoder):
+class DecoderConv64(DisentDecoder):
     """
     From:
     https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/shared/architectures.py
@@ -74,22 +82,28 @@ class DecoderFC(DisentDecoder):
 
     def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
         """
-        Fully connected encoder used in beta-VAE paper for the dSprites data.
-        Based on row 1 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
+        Convolutional decoder used in beta-VAE paper for the chairs data.
+        Based on row 3 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
         Concepts with a Constrained Variational Framework"
         (https://openreview.net/forum?id=Sy2fzU9gl)
         """
+        assert tuple(x_shape[1:]) == (64, 64), 'This model only works with image size 64x64.'
+        num_channels = x_shape[0]
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
         self.model = nn.Sequential(
-            nn.Linear(self.z_size, 1200),
-                nn.Tanh(),
-            nn.Linear(1200, 1200),
-                nn.Tanh(),
-            nn.Linear(1200, 1200),
-                nn.Tanh(),
-            nn.Linear(1200, int(np.prod(x_shape))),
-                BatchView(self.x_shape),
+            nn.Linear(self.z_size, 256),
+                nn.ReLU(inplace=True),
+            nn.Linear(256, 1024),
+                nn.ReLU(inplace=True),
+            BatchView([64, 4, 4]),
+            nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=4, stride=2, padding=1),
+                nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=4, stride=2, padding=1),
+                nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=1),
+                nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(in_channels=32, out_channels=num_channels, kernel_size=4, stride=2, padding=1),
         )
 
     def decode(self, z) -> Tensor:

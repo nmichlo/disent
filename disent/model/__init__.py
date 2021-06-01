@@ -23,18 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 # encoders & decoders
-from disent.nn.model.ae._conv64 import DecoderConv64
-from disent.nn.model.ae._conv64 import EncoderConv64
-from disent.nn.model.ae._conv64_alt import DecoderConv64Alt
-from disent.nn.model.ae._conv64_alt import EncoderConv64Alt
-from disent.nn.model.ae._fc import DecoderFC
-from disent.nn.model.ae._fc import EncoderFC
-from disent.nn.model.ae._simpleconv64 import DecoderSimpleConv64
-from disent.nn.model.ae._simpleconv64 import EncoderSimpleConv64
-from disent.nn.model.ae._simplefc import DecoderSimpleFC
-from disent.nn.model.ae._simplefc import EncoderSimpleFC
-
-# auto-encoder wrapper
-from disent.nn.model.ae.base import AutoEncoder
-from disent.nn.model.ae.base import DisentEncoder
-from disent.nn.model.ae.base import DisentDecoder
+from disent.model._base import AutoEncoder
+from disent.model._base import DisentEncoder
+from disent.model._base import DisentDecoder

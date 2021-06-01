@@ -39,7 +39,7 @@ from disent.frameworks import DisentFramework
 from disent.frameworks.helper.reconstructions import make_reconstruction_loss
 from disent.frameworks.helper.reconstructions import ReconLossHandler
 from disent.frameworks.helper.util import detach_all
-from disent.nn.model.ae import AutoEncoder
+from disent.model import AutoEncoder
 from disent.util import map_all
 
 

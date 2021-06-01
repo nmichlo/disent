@@ -38,9 +38,9 @@ from disent.frameworks.ae import *
 from disent.frameworks.ae.experimental import *
 from disent.frameworks.vae import *
 from disent.frameworks.vae.experimental import *
-from disent.nn.model.ae import AutoEncoder
-from disent.nn.model.ae import DecoderConv64
-from disent.nn.model.ae import EncoderConv64
+from disent.model import AutoEncoder
+from disent.model.ae import DecoderConv64
+from disent.model.ae import EncoderConv64
 from disent.nn.transform import ToStandardisedTensor
 
 

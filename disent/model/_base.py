@@ -22,6 +22,7 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+
 import logging
 from typing import final
 
@@ -35,7 +36,7 @@ log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
-# Custom Base nn.Module                                                     #
+# Custom Base Module Involving Inputs & Representations                     #
 # ========================================================================= #
 
 
@@ -103,7 +104,7 @@ class DisentEncoder(DisentLatentsBase):
 
 
 class DisentDecoder(DisentLatentsBase):
-    
+
     def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
         assert z_multiplier == 1, 'decoder does not support z_multiplier != 1'
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
@@ -168,3 +169,4 @@ class AutoEncoder(DisentLatentsBase):
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
+

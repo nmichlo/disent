@@ -38,7 +38,7 @@ from pytorch_lightning.loggers import WandbLogger
 from disent import metrics
 from disent.frameworks import DisentConfigurable
 from disent.frameworks import DisentFramework
-from disent.nn.model.ae import AutoEncoder
+from disent.model import AutoEncoder
 from disent.nn.weights import init_model_weights
 from disent.util import make_box_str
 from experiment.util.callbacks import LoggerProgressCallback

@@ -4,7 +4,8 @@ from torch.utils.data import DataLoader, Dataset
 from disent.data.groundtruth import GroundTruthData, XYSquaresData
 from disent.dataset.groundtruth import GroundTruthDatasetOrigWeakPairs
 from disent.frameworks.vae import AdaVae
-from disent.nn.model.ae import AutoEncoder, DecoderConv64, EncoderConv64
+from disent.model.ae import DecoderConv64, EncoderConv64
+from disent.model import AutoEncoder
 from disent.nn.transform import ToStandardisedTensor
 from disent.util import is_test_run
 
