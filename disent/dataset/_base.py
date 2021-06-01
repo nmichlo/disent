@@ -22,11 +22,15 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-import numpy as np
 from abc import abstractmethod
-from typing import Optional, List
+from typing import List
+from typing import Optional
 
+import numpy as np
+from torch.utils.data import Dataset
 from torch.utils.data.dataloader import default_collate
+
+from disent.util import LengthIter
 
 
 # ========================================================================= #
@@ -34,7 +38,7 @@ from torch.utils.data.dataloader import default_collate
 # ========================================================================= #
 
 
-class AugmentableDataset(object):
+class DisentDataset(Dataset, LengthIter):
 
     @property
     @abstractmethod
@@ -47,9 +51,6 @@ class AugmentableDataset(object):
         raise NotImplementedError
 
     def _get_augmentable_observation(self, idx):
-        raise NotImplementedError
-
-    def __len__(self):
         raise NotImplementedError
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #

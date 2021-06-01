@@ -272,10 +272,10 @@ class LengthIter(Sequence):
             yield self[i]
 
     def __len__(self):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def __getitem__(self, item):
-        raise NotImplemented()
+        raise NotImplementedError()
 
 
 # ========================================================================= #
