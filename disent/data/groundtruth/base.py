@@ -37,6 +37,7 @@ import numpy as np
 
 from disent.data.util.hdf5 import hdf5_resave_file
 from disent.data.util.hdf5 import PickleH5pyDataset
+from disent.data.util.in_out import basename_from_url
 from disent.data.util.in_out import ensure_dir_exists
 from disent.data.util.in_out import retrieve_file
 from disent.data.util.jobs import CachedJobFile
@@ -163,9 +164,10 @@ class Hdf5GroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
 # ========================================================================= #
 
 
-@dataclasses.dataclass
 class DataObject(object):
-    file_name: str
+
+    def __init__(self, file_name: str):
+        self.file_name = file_name
 
     def prepare(self, data_dir: str):
         pass
@@ -175,15 +177,24 @@ class DataObject(object):
         return os.path.join(data_dir, self.file_name + suffix)
 
 
-@dataclasses.dataclass
 class DlDataObject(DataObject):
-    file_name: str
-    # download file/link
-    uri: str
-    uri_hashes: Dict[str, str]
-    # hash settings
-    hash_mode: str
-    hash_type: str
+
+    def __init__(
+        self,
+        # download file/link
+        uri: str,
+        uri_hash: Union[str, Dict[str, str]],
+        # save path
+        file_name: Optional[str] = None,  # automatically obtain file name from url if None
+        # hash settings
+        hash_type: str = 'md5',
+        hash_mode: str = 'fast',
+    ):
+        super().__init__(file_name=basename_from_url(uri) if (file_name is None) else file_name)
+        self.uri = uri
+        self.uri_hash = uri_hash
+        self.hash_mode = hash_mode
+        self.hash_type = hash_type
 
     def _make_dl_job(self, save_path: str):
         return CachedJobFile(
@@ -193,7 +204,7 @@ class DlDataObject(DataObject):
                 overwrite_existing=True,
             ),
             path=save_path,
-            hash=self.uri_hashes[self.hash_mode],
+            hash=self.uri_hash,
             hash_type=self.hash_type,
             hash_mode=self.hash_mode,
         )
@@ -203,23 +214,36 @@ class DlDataObject(DataObject):
         dl_job.run()
 
 
-@dataclasses.dataclass
 class DlH5DataObject(DlDataObject):
-    file_name: str
-    file_hashes: Dict[str, str]
-    # download file/link
-    uri: str
-    uri_hashes: Dict[str, str]
-    # hash settings
-    hash_mode: str
-    hash_type: str
-    # h5 re-save settings
-    hdf5_dataset_name: str
-    hdf5_chunk_size: Tuple[int, ...]
-    hdf5_compression: Optional[str]
-    hdf5_compression_lvl: Optional[int]
-    hdf5_dtype: Optional[Union[np.dtype, str]] = None
-    hdf5_mutator: Optional[Callable[[np.ndarray], np.ndarray]] = None
+
+    def __init__(
+        self,
+        # download file/link
+        uri: str,
+        uri_hash: Union[str, Dict[str, str]],
+        # save hash
+        file_hash: Union[str, Dict[str, str]],
+        # h5 re-save settings
+        hdf5_dataset_name: str,
+        hdf5_chunk_size: Tuple[int, ...],
+        hdf5_compression: Optional[str] = 'gzip',
+        hdf5_compression_lvl: Optional[int] = 4,
+        hdf5_dtype: Optional[Union[np.dtype, str]] = None,
+        hdf5_mutator: Optional[Callable[[np.ndarray], np.ndarray]] = None,
+        # save path
+        file_name: Optional[str] = None,  # automatically obtain file name from url if None
+        # hash settings
+        hash_type: str = 'md5',
+        hash_mode: str = 'fast',
+    ):
+        super().__init__(file_name=file_name, uri=uri, uri_hash=uri_hash, hash_mode=hash_mode, hash_type=hash_type)
+        self.file_hash = file_hash
+        self.hdf5_dataset_name = hdf5_dataset_name
+        self.hdf5_chunk_size = hdf5_chunk_size
+        self.hdf5_compression = hdf5_compression
+        self.hdf5_compression_lvl = hdf5_compression_lvl
+        self.hdf5_dtype = hdf5_dtype
+        self.hdf5_mutator = hdf5_mutator
 
     def _make_h5_job(self, load_path: str, save_path: str):
         return CachedJobFile(
@@ -235,7 +259,7 @@ class DlH5DataObject(DlDataObject):
                 out_mutator=self.hdf5_mutator,
             ),
             path=save_path,
-            hash=self.file_hashes[self.hash_mode],
+            hash=self.file_hash,
             hash_type=self.hash_type,
             hash_mode=self.hash_mode,
         )

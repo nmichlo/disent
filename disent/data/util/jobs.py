@@ -26,7 +26,9 @@ import logging
 import os
 from abc import ABCMeta
 from typing import Callable
+from typing import Dict
 from typing import NoReturn
+from typing import Union
 
 from disent.data.util.in_out import hash_file
 
@@ -111,13 +113,13 @@ class CachedJobFile(CachedJob):
         self,
         make_file_fn: Callable[[str], NoReturn],
         path: str,
-        hash: str,
+        hash: Union[str, Dict[str, str]],
         hash_type: str = 'md5',
         hash_mode: str = 'full',
     ):
         # set attributes
         self.path = path
-        self.hash = hash
+        self.hash: str = hash if isinstance(hash, str) else hash[hash_mode]
         self.hash_type = hash_type
         self.hash_mode = hash_mode
         # generate

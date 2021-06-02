@@ -50,20 +50,14 @@ class Shapes3dData(Hdf5GroundTruthData):
     observation_shape = (64, 64, 3)
 
     data_object = DlH5DataObject(
-        # processed dataset file
-        file_name='3dshapes.h5',
-        file_hashes={'fast': 'e3a1a449b95293d4b2c25edbfcb8e804', 'full': 'b5187ee0d8b519bb33281c5ca549658c'},
         # download file/link
         uri='https://storage.googleapis.com/3d-shapes/3dshapes.h5',
-        uri_hashes={'fast': '85b20ed7cc8dc1f939f7031698d2d2ab', 'full': '099a2078d58cec4daad0702c55d06868'},
-        # hash settings
-        hash_mode='fast',
-        hash_type='md5',
+        uri_hash={'fast': '85b20ed7cc8dc1f939f7031698d2d2ab', 'full': '099a2078d58cec4daad0702c55d06868'},
+        # processed dataset file
+        file_hash={'fast': 'e3a1a449b95293d4b2c25edbfcb8e804', 'full': 'b5187ee0d8b519bb33281c5ca549658c'},
         # h5 re-save settings
         hdf5_dataset_name='images',
         hdf5_chunk_size=(1, 64, 64, 3),
-        hdf5_compression='gzip',
-        hdf5_compression_lvl=4,
     )
 
 

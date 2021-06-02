@@ -54,22 +54,16 @@ class DSpritesData(Hdf5GroundTruthData):
     observation_shape = (64, 64, 1)
 
     data_object = DlH5DataObject(
-        # processed dataset file
-        file_name='dsprites_ndarray_co1sh3sc6or40x32y32_64x64.hdf5',
-        file_hashes={'fast': '6d6d43d5f4d5c08c4b99a406289b8ecd', 'full': '1473ac1e1af7fdbc910766b3f9157f7b'},
         # download file/link
         uri='https://raw.githubusercontent.com/deepmind/dsprites-dataset/master/dsprites_ndarray_co1sh3sc6or40x32y32_64x64.hdf5',
-        uri_hashes={'fast': 'd6ee1e43db715c2f0de3c41e38863347', 'full': 'b331c4447a651c44bf5e8ae09022e230'},
-        # hash settings
-        hash_mode='fast',
-        hash_type='md5',
+        uri_hash={'fast': 'd6ee1e43db715c2f0de3c41e38863347', 'full': 'b331c4447a651c44bf5e8ae09022e230'},
+        # processed dataset file
+        file_hash={'fast': '6d6d43d5f4d5c08c4b99a406289b8ecd', 'full': '1473ac1e1af7fdbc910766b3f9157f7b'},
         # h5 re-save settings
         hdf5_dataset_name='imgs',
         hdf5_chunk_size=(1, 64, 64),
-        hdf5_compression='gzip',
-        hdf5_compression_lvl=4,
         hdf5_dtype='uint8',
-        hdf5_mutator=lambda x: x # lambda batch: batch * 255
+        hdf5_mutator=lambda x: x * 255
     )
 
 
