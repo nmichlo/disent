@@ -143,11 +143,3 @@ class XYBlocksData(GroundTruthData):
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-
-
-# if __name__ == '__main__':
-    # data = XYBlocksData(64, [1, 2, 3], rgb=True, palette='rgb', invert_bg=False)        # 110592 // 256 = 432
-    # print(len(data))
-    # for obs in tqdm(data):
-    #     pass
-    #     # print(obs[:, :, 0])

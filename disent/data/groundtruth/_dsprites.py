@@ -58,7 +58,7 @@ class DSpritesData(Hdf5GroundTruthData):
         uri='https://raw.githubusercontent.com/deepmind/dsprites-dataset/master/dsprites_ndarray_co1sh3sc6or40x32y32_64x64.hdf5',
         uri_hash={'fast': 'd6ee1e43db715c2f0de3c41e38863347', 'full': 'b331c4447a651c44bf5e8ae09022e230'},
         # processed dataset file
-        file_hash={'fast': '6d6d43d5f4d5c08c4b99a406289b8ecd', 'full': '1473ac1e1af7fdbc910766b3f9157f7b'},
+        file_hash={'fast': '7a6e83ebf35f93a1cd9ae0210112b421', 'full': '27c674fb5170dcd6a1f9853b66c5785d'},
         # h5 re-save settings
         hdf5_dataset_name='imgs',
         hdf5_chunk_size=(1, 64, 64),
@@ -73,7 +73,4 @@ class DSpritesData(Hdf5GroundTruthData):
 
 
 if __name__ == '__main__':
-
-    data = DSpritesData(in_memory=False, prepare=True)
-    for dat in data:
-        print(dat)
+    DSpritesData(prepare=True)

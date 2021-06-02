@@ -105,7 +105,7 @@ class DiskGroundTruthData(GroundTruthData, metaclass=ABCMeta):
         super().__init__()
         # get root data folder
         if data_root is None:
-            data_root = os.path.abspath(os.environ.get('DISENT_DATA_ROOT', 'data/dataset'))
+            data_root = self.default_data_root
         else:
             data_root = os.path.abspath(data_root)
         # get class data folder
@@ -119,6 +119,10 @@ class DiskGroundTruthData(GroundTruthData, metaclass=ABCMeta):
     @property
     def data_dir(self) -> str:
         return self._data_dir
+
+    @property
+    def default_data_root(self):
+        return os.path.abspath(os.environ.get('DISENT_DATA_ROOT', 'data/dataset'))
 
     @property
     def data_objects(self) -> Sequence['DataObject']:
@@ -188,6 +192,7 @@ class Hdf5GroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
 
 # ========================================================================= #
 # data objects                                                              #
+# TODO: clean this up, this could be simplified!                            #
 # ========================================================================= #
 
 

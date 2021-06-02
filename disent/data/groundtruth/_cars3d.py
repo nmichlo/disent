@@ -76,7 +76,6 @@ def resave_cars3d_archive(orig_zipped_file, new_save_file, overwrite=False):
         # load image paths & resave
         with AtomicFileContext(new_save_file, overwrite=overwrite) as temp_file:
             images = load_cars3d_folder(raw_data_dir=os.path.join(temp_dir, 'data'))
-            # TODO: resize images?
             np.savez(temp_file, images=images)
 
 
@@ -86,6 +85,9 @@ def resave_cars3d_archive(orig_zipped_file, new_save_file, overwrite=False):
 
 
 class Cars3dDataObject(ProcessedDataObject):
+    """
+    download the cars3d dataset and convert it to a numpy file.
+    """
     def _make_proc_job(self, load_path: str, save_path: str):
         return CachedJobFile(
             make_file_fn=lambda save_path: resave_cars3d_archive(orig_zipped_file=load_path, new_save_file=save_path, overwrite=True),

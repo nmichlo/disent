@@ -25,8 +25,10 @@
 import logging
 import math
 import os
+from typing import Dict
 from typing import Optional
 from typing import Tuple
+from typing import Union
 
 from disent.util import colors as c
 
@@ -117,10 +119,14 @@ class HashError(Exception):
     """
 
 
-def validate_file_hash(file: str, hash: str, hash_type='md5', hash_mode='full'):
+def validate_file_hash(file: str, hash: Union[str, Dict[str, str]], hash_type='md5', hash_mode='full'):
+    if isinstance(hash, dict):
+        hash = hash[hash_mode]
     fhash = hash_file(file=file, hash_type=hash_type, hash_mode=hash_mode)
     if fhash != hash:
-        raise HashError(f'computed {hash_mode} {hash_type} hash: {repr(fhash)} does not match expected hash: {repr(hash)} for file: {repr(file)}')
+        msg = f'computed {hash_mode} {hash_type} hash: {repr(fhash)} does not match expected hash: {repr(hash)} for file: {repr(file)}'
+        log.error(msg)
+        raise HashError(msg)
 
 
 # ========================================================================= #
@@ -143,7 +149,16 @@ class AtomicFileContext(object):
     # TODO: can this be cleaned up with the TemporaryDirectory and TemporaryFile classes?
     """
 
-    def __init__(self, file: str, open_mode: Optional[str] = None, overwrite: bool = False, makedirs: bool = True, tmp_file: Optional[str] = None, tmp_prefix='_TEMP_.', tmp_postfix=''):
+    def __init__(
+        self,
+        file: str,
+        open_mode: Optional[str] = None,
+        overwrite: bool = False,
+        makedirs: bool = True,
+        tmp_file: Optional[str] = None,
+        tmp_prefix: str = '_TEMP_.',
+        tmp_postfix: str = '',
+    ):
         from pathlib import Path
         # check files
         if not file:
