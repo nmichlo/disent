@@ -153,7 +153,7 @@ class SmallNorbData(DiskGroundTruthData):
         'info': DlDataObject(uri='https://cs.nyu.edu/~ylclab/data/norb-v1.0-small/smallnorb-5x01235x9x18x6x2x96x96-testing-info.mat.gz', uri_hash={'fast': 'd2703a3f95e7b9a970ad52e91f0aaf6a', 'full': 'a9454f3864d7fd4bb3ea7fc3eb84924e'}),
     }
 
-    def __init__(self, data_root: Optional[str] = 'data/TEMP/dataset', prepare: bool = False, is_test=True):
+    def __init__(self, data_root: Optional[str] = 'data/TEMP/dataset', prepare: bool = False, is_test=False):
         self._is_test = is_test
         # initialize
         super().__init__(data_root=data_root, prepare=prepare)
@@ -173,4 +173,3 @@ class SmallNorbData(DiskGroundTruthData):
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-

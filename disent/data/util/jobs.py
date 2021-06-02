@@ -28,6 +28,7 @@ from abc import ABCMeta
 from typing import Callable
 from typing import Dict
 from typing import NoReturn
+from typing import Optional
 from typing import Union
 
 from disent.data.util.in_out import hash_file
@@ -119,7 +120,7 @@ class CachedJobFile(CachedJob):
     ):
         # set attributes
         self.path = path
-        self.hash: str = hash if isinstance(hash, str) else hash[hash_mode]
+        self.hash: Optional[str] = hash if ((hash is None) or isinstance(hash, str)) else hash[hash_mode]
         self.hash_type = hash_type
         self.hash_mode = hash_mode
         # generate
@@ -137,7 +138,9 @@ class CachedJobFile(CachedJob):
             return True
         # stale if the hash does not match
         fhash = self.__compute_hash()
-        if self.hash != fhash:
+        if self.hash is None:
+            log.warning(f'{self}: not stale because it exists and no target hash was given. current {self.hash_mode} {self.hash_type} hash is: {fhash} for: {repr(self.path)}')
+        elif self.hash != fhash:
             log.warning(f'{self}: stale because computed {self.hash_mode} {self.hash_type} hash: {repr(fhash)} does not match expected hash: {repr(self.hash)} for: {repr(self.path)}')
             return True
         # not stale, we don't need to do anything!
@@ -147,7 +150,9 @@ class CachedJobFile(CachedJob):
         self._make_file_fn(self.path)
         # check the hash
         fhash = self.__compute_hash()
-        if self.hash != fhash:
+        if self.hash is None:
+            log.warning(f'{self}: could not verify generated file because no target hash was given. current {self.hash_mode} {self.hash_type} hash is: {fhash} for: {repr(self.path)}')
+        elif self.hash != fhash:
             raise RuntimeError(f'{self}: error because computed {self.hash_mode} {self.hash_type} hash: {repr(fhash)} does not match expected hash: {repr(self.hash)} for: {repr(self.path)}')
         else:
             log.debug(f'{self}: successfully generated file: {repr(self.path)} with correct {self.hash_mode} {self.hash_type} hash: {fhash}')

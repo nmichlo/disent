@@ -27,7 +27,7 @@ import os
 import shutil
 import numpy as np
 from scipy.io import loadmat
-from disent.data.groundtruth.base import DownloadableGroundTruthData
+from disent.data.groundtruth.base import DiskGroundTruthData
 
 log = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class Cars3dData(DownloadableGroundTruthData):
+class Cars3dData(DiskGroundTruthData):
     """
     Cars3D Dataset
     - Deep Visual Analogy-Making (https://papers.nips.cc/paper/5845-deep-visual-analogy-making)

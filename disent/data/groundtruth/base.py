@@ -133,7 +133,7 @@ class Hdf5GroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
         self._in_memory = in_memory
         # load the h5py dataset
         data = PickleH5pyDataset(
-            h5_path=self.data_object.get_file_path(self.data_dir),
+            h5_path=self.data_object.get_file_path(data_dir=self.data_dir),
             h5_dataset_name=self.data_object.hdf5_dataset_name,
         )
         # handle different memroy modes
@@ -183,7 +183,7 @@ class DlDataObject(DataObject):
         self,
         # download file/link
         uri: str,
-        uri_hash: Union[str, Dict[str, str]],
+        uri_hash: Optional[Union[str, Dict[str, str]]],
         # save path
         file_name: Optional[str] = None,  # automatically obtain file name from url if None
         # hash settings
@@ -220,9 +220,9 @@ class DlH5DataObject(DlDataObject):
         self,
         # download file/link
         uri: str,
-        uri_hash: Union[str, Dict[str, str]],
+        uri_hash: Optional[Union[str, Dict[str, str]]],
         # save hash
-        file_hash: Union[str, Dict[str, str]],
+        file_hash: Optional[Union[str, Dict[str, str]]],
         # h5 re-save settings
         hdf5_dataset_name: str,
         hdf5_chunk_size: Tuple[int, ...],
