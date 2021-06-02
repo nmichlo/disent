@@ -139,9 +139,11 @@ class AtomicFileContext(object):
         with open(tmp_file, 'w') as f:
             f.write("hello world!\n")
     ```
+
+    # TODO: can this be cleaned up with the TemporaryDirectory and TemporaryFile classes?
     """
 
-    def __init__(self, file: str, open_mode: Optional[str] = None, overwrite: bool = False, makedirs: bool = True, tmp_file: Optional[str] = None):
+    def __init__(self, file: str, open_mode: Optional[str] = None, overwrite: bool = False, makedirs: bool = True, tmp_file: Optional[str] = None, tmp_prefix='_TEMP_.', tmp_postfix=''):
         from pathlib import Path
         # check files
         if not file:
@@ -150,7 +152,8 @@ class AtomicFileContext(object):
             raise ValueError(f'tmp_file must not be empty: {repr(tmp_file)}')
         # get files
         self.trg_file = Path(file).absolute()
-        self.tmp_file = Path(f'{self.trg_file}.TEMP' if (tmp_file is None) else tmp_file)
+        tmp_file = Path(self.trg_file if (tmp_file is None) else tmp_file)
+        self.tmp_file = tmp_file.parent.joinpath(f'{tmp_prefix}{tmp_file.name}{tmp_postfix}')
         # check that the files are different
         if self.trg_file == self.tmp_file:
             raise ValueError(f'temporary and target files are the same: {self.tmp_file} == {self.trg_file}')
@@ -167,7 +170,7 @@ class AtomicFileContext(object):
                 raise FileExistsError(f'the temporary file exists but is not a file: {self.tmp_file}')
         if self.trg_file.exists():
             if not self._overwrite:
-                raise FileExistsError('the target file already exists, set overwrite=True to ignore this error.')
+                raise FileExistsError(f'the target file already exists: {self.trg_file}, set overwrite=True to ignore this error.')
             if not self.trg_file.is_file():
                 raise FileExistsError(f'the target file exists but is not a file: {self.trg_file}')
         # create the missing directories if needed

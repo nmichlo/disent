@@ -117,12 +117,39 @@ class DiskGroundTruthData(GroundTruthData, metaclass=ABCMeta):
                 data_object.prepare(self.data_dir)
 
     @property
-    def data_dir(self):
+    def data_dir(self) -> str:
         return self._data_dir
 
     @property
     def data_objects(self) -> Sequence['DataObject']:
         raise NotImplementedError
+
+
+class NumpyGroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
+
+    def __init__(self, data_root: Optional[str] = None, prepare: bool = False):
+        super().__init__(data_root=data_root, prepare=prepare)
+        # load dataset
+        self._data = np.load(self.data_object.get_file_path(self.data_dir))
+        if self.data_key is not None:
+            self._data = self._data[self.data_key]
+
+    def __getitem__(self, idx):
+        return self._data[idx]
+
+    @property
+    def data_objects(self) -> Sequence['DataObject']:
+        return [self.data_object]
+
+    @property
+    def data_object(self) -> 'DataObject':
+        raise NotImplementedError
+
+    @property
+    def data_key(self) -> Optional[str]:
+        # can override this!
+        return None
+
 
 
 class Hdf5GroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
@@ -166,15 +193,18 @@ class Hdf5GroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
 
 class DataObject(object):
 
-    def __init__(self, file_name: str):
-        self.file_name = file_name
+    @property
+    def file_name(self) -> str:
+        raise NotImplementedError
 
     def prepare(self, data_dir: str):
         pass
 
-    def get_file_path(self, data_dir: str, variant: Optional[str] = None):
-        suffix = '' if (variant is None) else f'.{variant}'
-        return os.path.join(data_dir, self.file_name + suffix)
+    def get_file_path(self, data_dir: str, file_name: Optional[str] = None, prefix: str = '', postfix: str = ''):
+        file_name = self.file_name if (file_name is None) else file_name
+        if prefix or postfix:
+            file_name = os.path.join(os.path.dirname(file_name), f'{prefix}{os.path.basename(file_name)}{postfix}')
+        return os.path.join(data_dir, file_name)
 
 
 class DlDataObject(DataObject):
@@ -184,17 +214,21 @@ class DlDataObject(DataObject):
         # download file/link
         uri: str,
         uri_hash: Optional[Union[str, Dict[str, str]]],
-        # save path
-        file_name: Optional[str] = None,  # automatically obtain file name from url if None
+        uri_name: Optional[str] = None,  # automatically obtain uri name from url if None
         # hash settings
         hash_type: str = 'md5',
         hash_mode: str = 'fast',
     ):
-        super().__init__(file_name=basename_from_url(uri) if (file_name is None) else file_name)
+        super().__init__()
         self.uri = uri
         self.uri_hash = uri_hash
+        self.uri_name = basename_from_url(uri) if (uri_name is None) else uri_name
         self.hash_mode = hash_mode
         self.hash_type = hash_type
+
+    @property
+    def file_name(self) -> str:
+        return self.uri_name
 
     def _make_dl_job(self, save_path: str):
         return CachedJobFile(
@@ -210,11 +244,46 @@ class DlDataObject(DataObject):
         )
 
     def prepare(self, data_dir: str):
-        dl_job = self._make_dl_job(save_path=self.get_file_path(data_dir=data_dir))
+        dl_job = self._make_dl_job(save_path=os.path.join(data_dir, self.uri_name))
         dl_job.run()
 
 
-class DlH5DataObject(DlDataObject):
+class ProcessedDataObject(DlDataObject):
+
+    def __init__(
+        self,
+        # save path
+        file_name: str,
+        file_hash: Optional[Union[str, Dict[str, str]]],
+        # download file/link
+        uri: str,
+        uri_hash: Optional[Union[str, Dict[str, str]]],
+        uri_name: Optional[str] = None,  # automatically obtain file name from url if None
+        # hash settings
+        hash_type: str = 'md5',
+        hash_mode: str = 'fast',
+    ):
+        super().__init__(uri=uri, uri_hash=uri_hash, uri_name=uri_name, hash_mode=hash_mode, hash_type=hash_type)
+        assert file_name is not None
+        self._file_name = file_name
+        self.file_hash = file_hash
+
+    @property
+    def file_name(self) -> str:
+        return self._file_name
+
+    def _make_proc_job(self, load_path: str, save_path: str):
+        raise NotImplementedError
+
+    def prepare(self, data_dir: str):
+        dl_path = os.path.join(data_dir, self.uri_name)
+        proc_path = os.path.join(data_dir, self.file_name)
+        dl_job = self._make_dl_job(save_path=dl_path)
+        proc_job = self._make_proc_job(load_path=dl_path, save_path=proc_path)
+        dl_job.set_child(proc_job).run()
+
+
+class DlH5DataObject(ProcessedDataObject):
 
     def __init__(
         self,
@@ -236,8 +305,16 @@ class DlH5DataObject(DlDataObject):
         hash_type: str = 'md5',
         hash_mode: str = 'fast',
     ):
-        super().__init__(file_name=file_name, uri=uri, uri_hash=uri_hash, hash_mode=hash_mode, hash_type=hash_type)
-        self.file_hash = file_hash
+        file_name = basename_from_url(uri) if (file_name is None) else file_name
+        super().__init__(
+            file_name=file_name,
+            file_hash=file_hash,
+            uri=uri,
+            uri_hash=uri_hash,
+            uri_name=file_name + '.ORIG',
+            hash_type=hash_type,
+            hash_mode=hash_mode,
+        )
         self.hdf5_dataset_name = hdf5_dataset_name
         self.hdf5_chunk_size = hdf5_chunk_size
         self.hdf5_compression = hdf5_compression
@@ -245,11 +322,11 @@ class DlH5DataObject(DlDataObject):
         self.hdf5_dtype = hdf5_dtype
         self.hdf5_mutator = hdf5_mutator
 
-    def _make_h5_job(self, load_path: str, save_path: str):
+    def _make_proc_job(self, load_path: str, save_path: str):
         return CachedJobFile(
-            make_file_fn=lambda path: hdf5_resave_file(
+            make_file_fn=lambda save_path: hdf5_resave_file(
                 inp_path=load_path,
-                out_path=path,
+                out_path=save_path,
                 dataset_name=self.hdf5_dataset_name,
                 chunk_size=self.hdf5_chunk_size,
                 compression=self.hdf5_compression,
@@ -263,13 +340,6 @@ class DlH5DataObject(DlDataObject):
             hash_type=self.hash_type,
             hash_mode=self.hash_mode,
         )
-
-    def prepare(self, data_dir: str):
-        dl_path = self.get_file_path(data_dir=data_dir, variant='ORIG')
-        h5_path = self.get_file_path(data_dir=data_dir)
-        dl_job = self._make_dl_job(save_path=dl_path)
-        h5_job = self._make_h5_job(load_path=dl_path, save_path=h5_path)
-        dl_job.set_child(h5_job).run()
 
 
 # ========================================================================= #

@@ -24,12 +24,10 @@
 
 import logging
 from typing import Optional
-from typing import Sequence
 
-import numpy as np
-
-from disent.data.groundtruth.base import DiskGroundTruthData
 from disent.data.groundtruth.base import DlDataObject
+from disent.data.groundtruth.base import NumpyGroundTruthData
+
 
 log = logging.getLogger(__name__)
 
@@ -38,13 +36,15 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class Mpi3dData(DiskGroundTruthData):
+class Mpi3dData(NumpyGroundTruthData):
     """
     MPI3D Dataset
     - https://github.com/rr-learning/disentanglement_dataset
 
     reference implementation: https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/data/ground_truth/mpi3d.py
     """
+
+    name = 'mpi3d'
 
     MPI3D_DATASETS = {
         'toy':        DlDataObject(uri='https://storage.googleapis.com/disentanglement_dataset/Final_Dataset/mpi3d_toy.npz',       uri_hash=None),
@@ -67,19 +67,10 @@ class Mpi3dData(DiskGroundTruthData):
             raise NotImplementedError('TODO: add support for converting to h5py for fast disk access')  # TODO!
         # initialise
         super().__init__(data_root=data_root, prepare=prepare)
-        # load data
-        self._data = np.load(self.data_object.get_file_path(data_dir=self.data_dir))
-
-    def __getitem__(self, idx):
-        return self._data[idx]
 
     @property
     def data_object(self) -> DlDataObject:
         return self.MPI3D_DATASETS[self._subset]
-
-    @property
-    def data_objects(self) -> Sequence[DlDataObject]:
-        return [self.data_object]
 
 
 # ========================================================================= #
