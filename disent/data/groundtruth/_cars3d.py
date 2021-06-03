@@ -30,10 +30,9 @@ from tempfile import TemporaryDirectory
 import numpy as np
 from scipy.io import loadmat
 
+from disent.data.groundtruth.base import DlGenDataObject
 from disent.data.groundtruth.base import NumpyGroundTruthData
-from disent.data.groundtruth.base import ProcessedDataObject
-from disent.data.util.in_out import AtomicFileContext
-from disent.data.util.jobs import CachedJobFile
+from disent.data.util.in_out import AtomicSaveFile
 
 
 log = logging.getLogger(__name__)
@@ -74,7 +73,7 @@ def resave_cars3d_archive(orig_zipped_file, new_save_file, overwrite=False):
         log.info(f"Extracting into temporary directory: {temp_dir}")
         shutil.unpack_archive(filename=orig_zipped_file, extract_dir=temp_dir)
         # load image paths & resave
-        with AtomicFileContext(new_save_file, overwrite=overwrite) as temp_file:
+        with AtomicSaveFile(new_save_file, overwrite=overwrite) as temp_file:
             images = load_cars3d_folder(raw_data_dir=os.path.join(temp_dir, 'data'))
             np.savez(temp_file, images=images)
 
@@ -84,18 +83,12 @@ def resave_cars3d_archive(orig_zipped_file, new_save_file, overwrite=False):
 # ========================================================================= #
 
 
-class Cars3dDataObject(ProcessedDataObject):
+class Cars3dDataObject(DlGenDataObject):
     """
     download the cars3d dataset and convert it to a numpy file.
     """
-    def _make_proc_job(self, load_path: str, save_path: str):
-        return CachedJobFile(
-            make_file_fn=lambda save_path: resave_cars3d_archive(orig_zipped_file=load_path, new_save_file=save_path, overwrite=True),
-            path=save_path,
-            hash=self.file_hash,
-            hash_type=self.hash_type,
-            hash_mode=self.hash_mode
-        )
+    def _generate(self, inp_file: str, out_file: str):
+        resave_cars3d_archive(orig_zipped_file=inp_file, new_save_file=out_file, overwrite=True)
 
 
 # ========================================================================= #
@@ -134,4 +127,5 @@ class Cars3dData(NumpyGroundTruthData):
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG)
     Cars3dData(prepare=True)

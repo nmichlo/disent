@@ -22,6 +22,7 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import logging
 
 from disent.data.groundtruth.base import DlH5DataObject
 from disent.data.groundtruth.base import Hdf5GroundTruthData
@@ -66,4 +67,5 @@ class Shapes3dData(Hdf5GroundTruthData):
 # ========================================================================= #
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG)
     Shapes3dData(prepare=True)

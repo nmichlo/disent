@@ -32,7 +32,7 @@ import h5py
 import numpy as np
 from tqdm import tqdm
 
-from disent.data.util.in_out import AtomicFileContext
+from disent.data.util.in_out import AtomicSaveFile
 from disent.data.util.in_out import bytes_to_human
 from disent.util import colors as c
 from disent.util import iter_chunks
@@ -173,7 +173,7 @@ def hdf5_resave_dataset(inp_h5: h5py.File, out_h5: h5py.File, dataset_name, chun
 def hdf5_resave_file(inp_path: str, out_path: str, dataset_name, chunk_size=None, compression=None, compression_lvl=None, batch_size=None, out_dtype=None, out_mutator=None):
     # re-save datasets
     with h5py.File(inp_path, 'r') as inp_h5:
-        with AtomicFileContext(out_path, open_mode=None, overwrite=True) as tmp_h5_path:
+        with AtomicSaveFile(out_path, open_mode=None, overwrite=True) as tmp_h5_path:
             with h5py.File(tmp_h5_path, 'w', libver='earliest') as out_h5:  # TODO: libver='latest' is not deterministic, even with track_times=False
                 hdf5_resave_dataset(
                     inp_h5=inp_h5,

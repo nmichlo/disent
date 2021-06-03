@@ -79,4 +79,5 @@ class Mpi3dData(NumpyGroundTruthData):
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG)
     Mpi3dData(prepare=True, in_memory=False)

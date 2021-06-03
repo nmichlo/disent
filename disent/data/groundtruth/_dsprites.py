@@ -22,6 +22,8 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import logging
+
 from disent.data.groundtruth.base import DlH5DataObject
 from disent.data.groundtruth.base import Hdf5GroundTruthData
 
@@ -73,4 +75,5 @@ class DSpritesData(Hdf5GroundTruthData):
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG)
     DSpritesData(prepare=True)

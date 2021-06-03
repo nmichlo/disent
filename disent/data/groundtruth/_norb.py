@@ -23,6 +23,8 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import gzip
+import logging
+import os
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
@@ -158,7 +160,7 @@ class SmallNorbData(DiskGroundTruthData):
         # initialize
         super().__init__(data_root=data_root, prepare=prepare)
         # read dataset and sort by features
-        dat_path, cat_path, info_path = (obj.get_file_path(data_dir=self.data_dir) for obj in self.data_objects)
+        dat_path, cat_path, info_path = (os.path.join(self.data_dir, obj.out_name) for obj in self.data_objects)
         self._data, _ = read_norb_dataset(dat_path=dat_path, cat_path=cat_path, info_path=info_path)
 
     def __getitem__(self, idx):
@@ -176,4 +178,5 @@ class SmallNorbData(DiskGroundTruthData):
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG)
     SmallNorbData(prepare=True)

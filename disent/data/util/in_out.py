@@ -25,10 +25,15 @@
 import logging
 import math
 import os
+from functools import wraps
+from pathlib import Path
+from typing import Callable
 from typing import Dict
+from typing import NoReturn
 from typing import Optional
 from typing import Tuple
 from typing import Union
+from uuid import uuid4
 
 from disent.util import colors as c
 
@@ -55,6 +60,18 @@ def bytes_to_human(size_bytes, decimals=3, color=True):
     name = f'{_BYTES_POW_COLR[i]}{_BYTES_POW_NAME[i]}{c.RST}' if color else f'{_BYTES_POW_NAME[i]}'
     # format string
     return f"{s:{4+decimals}.{decimals}f} {name}"
+
+
+def modify_file_name(file: Union[str, Path], prefix: str = None, suffix: str = None, sep='.') -> Union[str, Path]:
+    # get path components
+    path = Path(file)
+    assert path.name, f'file name cannot be empty: {repr(path)}, for name: {repr(path.name)}'
+    # create new path
+    prefix = '' if (prefix is None) else f'{prefix}{sep}'
+    suffix = '' if (suffix is None) else f'{sep}{suffix}'
+    new_path = path.parent.joinpath(f'{prefix}{path.name}{suffix}')
+    # return path
+    return str(new_path) if isinstance(file, str) else new_path
 
 
 # ========================================================================= #
@@ -88,15 +105,21 @@ def yield_fast_hash_bytes(file: str, chunk_size=16384, num_chunks=3):
                 yield f.read(chunk_size)
 
 
-def hash_file(file: str, hash_type='md5', hash_mode='full') -> str:
+def hash_file(file: str, hash_type='md5', hash_mode='full', missing_ok=True) -> str:
     """
     :param file: the path to the file
     :param hash_type: the kind of hash to compute, default is "md5"
     :param hash_mode: "full" uses all the bytes in the file to compute the hash, "fast" uses the start, middle, end bytes as well as the size of the file in the hash.
     :param chunk_size: number of bytes to read at a time
     :return: the hexdigest of the hash
+    :raises FileNotFoundError
     """
     import hashlib
+    # check the file exists
+    if not os.path.isfile(file):
+        if missing_ok:
+            return ''
+        raise FileNotFoundError(f'could not compute hash for missing file: {repr(file)}')
     # get file bytes iterator
     if hash_mode == 'full':
         byte_iter = yield_file_bytes(file=file)
@@ -119,14 +142,74 @@ class HashError(Exception):
     """
 
 
-def validate_file_hash(file: str, hash: Union[str, Dict[str, str]], hash_type='md5', hash_mode='full'):
-    if isinstance(hash, dict):
-        hash = hash[hash_mode]
-    fhash = hash_file(file=file, hash_type=hash_type, hash_mode=hash_mode)
+def get_hash(hash: Union[str, Dict[str, str]], hash_mode: str) -> str:
+    return hash[hash_mode] if isinstance(hash, dict) else hash
+
+
+def validate_file_hash(file: str, hash: Union[str, Dict[str, str]], hash_type: str = 'md5', hash_mode: str = 'full', missing_ok=True):
+    """
+    :raises FileNotFoundError, HashError
+    """
+    hash = get_hash(hash=hash, hash_mode=hash_mode)
+    # compute the hash
+    fhash = hash_file(file=file, hash_type=hash_type, hash_mode=hash_mode, missing_ok=missing_ok)
+    # check the hash
     if fhash != hash:
-        msg = f'computed {hash_mode} {hash_type} hash: {repr(fhash)} does not match expected hash: {repr(hash)} for file: {repr(file)}'
-        log.error(msg)
-        raise HashError(msg)
+        raise HashError(f'computed {hash_mode} {hash_type} hash: {repr(fhash)} does not match expected hash: {repr(hash)} for file: {repr(file)}')
+
+
+def is_valid_file_hash(file: str, hash: Union[str, Dict[str, str]], hash_type: str = 'md5', hash_mode: str = 'full', missing_ok=True):
+    try:
+        validate_file_hash(file=file, hash=hash, hash_type=hash_type, hash_mode=hash_mode, missing_ok=missing_ok)
+    except HashError:
+        return False
+    return True
+
+
+# ========================================================================= #
+# Function Caching                                                          #
+# ========================================================================= #
+
+
+class stalefile(object):
+
+    def __init__(
+        self,
+        file: str,
+        hash: Optional[Union[str, Dict[str, str]]],
+        hash_type: str = 'md5',
+        hash_mode: str = 'fast',
+    ):
+        self.file = file
+        self.hash = get_hash(hash=hash, hash_mode=hash_mode)
+        self.hash_type = hash_type
+        self.hash_mode = hash_mode
+
+    def __call__(self, func: Callable[[str], NoReturn]) -> Callable[[], str]:
+        @wraps(func)
+        def wrapper() -> str:
+            if self.is_stale():
+                log.debug(f'calling wrapped function: {func} because the file is stale: {repr(self.file)}')
+                func(self.file)
+                validate_file_hash(self.file, hash=self.hash, hash_type=self.hash_type, hash_mode=self.hash_mode)
+            else:
+                log.debug(f'skipped wrapped function: {func} because the file is fresh: {repr(self.file)}')
+            return self.file
+        return wrapper
+
+    def is_stale(self):
+        fhash = hash_file(file=self.file, hash_type=self.hash_type, hash_mode=self.hash_mode, missing_ok=True)
+        if not fhash:
+            log.info(f'file is stale because it does not exist: {repr(self.file)}')
+            return True
+        if fhash != self.hash:
+            log.info(f'file is stale because the computed {self.hash_mode} {self.hash_type} hash: {fhash} does not match the target hash: {self.hash} for file: {repr(self.file)}')
+            return True
+        log.info(f'file is fresh: {repr(self.file)}')
+        return False
+
+    def __bool__(self):
+        return self.is_stale()
 
 
 # ========================================================================= #
@@ -134,11 +217,13 @@ def validate_file_hash(file: str, hash: Union[str, Dict[str, str]], hash_type='m
 # ========================================================================= #
 
 
-class AtomicFileContext(object):
+class AtomicSaveFile(object):
     """
     Within the context, data must be written to a temporary file.
     Once data has been successfully written, the temporary file
-    is moved to the location of the given file.
+    is moved to the location of the target file.
+
+    The temporary file is created in the same directory as the target file.
 
     ```
     with AtomicFileHandler('file.txt') as tmp_file:
@@ -155,20 +240,16 @@ class AtomicFileContext(object):
         open_mode: Optional[str] = None,
         overwrite: bool = False,
         makedirs: bool = True,
-        tmp_file: Optional[str] = None,
-        tmp_prefix: str = '_TEMP_.',
-        tmp_postfix: str = '',
+        tmp_prefix: Optional[str] = '.temp.',
+        tmp_suffix: Optional[str] = None,
     ):
         from pathlib import Path
         # check files
         if not file:
             raise ValueError(f'file must not be empty: {repr(file)}')
-        if not tmp_file and (tmp_file is not None):
-            raise ValueError(f'tmp_file must not be empty: {repr(tmp_file)}')
         # get files
         self.trg_file = Path(file).absolute()
-        tmp_file = Path(self.trg_file if (tmp_file is None) else tmp_file)
-        self.tmp_file = tmp_file.parent.joinpath(f'{tmp_prefix}{tmp_file.name}{tmp_postfix}')
+        self.tmp_file = modify_file_name(self.trg_file, prefix=f'{tmp_prefix}{uuid4()}', suffix=tmp_suffix)
         # check that the files are different
         if self.trg_file == self.tmp_file:
             raise ValueError(f'temporary and target files are the same: {self.tmp_file} == {self.trg_file}')
@@ -269,7 +350,7 @@ def download_file(url: str, save_path: str, overwrite_existing: bool = False, ch
     import requests
     from tqdm import tqdm
     # write the file
-    with AtomicFileContext(file=save_path, open_mode='wb', overwrite=overwrite_existing) as (_, file):
+    with AtomicSaveFile(file=save_path, open_mode='wb', overwrite=overwrite_existing) as (_, file):
         response = requests.get(url, stream=True)
         total_length = response.headers.get('content-length')
         # cast to integer if content-length exists on response
@@ -288,12 +369,12 @@ def copy_file(src: str, dst: str, overwrite_existing: bool = False):
     if os.path.abspath(src) == os.path.abspath(dst):
         raise FileExistsError(f'input and output paths for copy are the same, skipping: {repr(dst)}')
     else:
-        with AtomicFileContext(file=dst, overwrite=overwrite_existing) as path:
+        with AtomicSaveFile(file=dst, overwrite=overwrite_existing) as path:
             import shutil
             shutil.copyfile(src, path)
 
 
-def retrieve_file(src_uri: str, dst_path: str, overwrite_existing: bool = True):
+def retrieve_file(src_uri: str, dst_path: str, overwrite_existing: bool = False):
     uri, is_url = _uri_parse_file_or_url(src_uri)
     if is_url:
         download_file(url=uri, save_path=dst_path, overwrite_existing=overwrite_existing)
