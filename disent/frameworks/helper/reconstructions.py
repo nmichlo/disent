@@ -34,8 +34,8 @@ from deprecated import deprecated
 
 from disent.frameworks.helper.util import compute_ave_loss
 from disent.nn.modules import DisentModule
-from disent.nn.reductions import batch_loss_reduction
-from disent.nn.reductions import loss_reduction
+from disent.nn.loss.reduction import batch_loss_reduction
+from disent.nn.loss.reduction import loss_reduction
 from disent.nn.transform import FftKernel
 
 
