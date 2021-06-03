@@ -34,7 +34,7 @@ from torch.distributions import Normal
 
 from disent.frameworks.helper.util import compute_ave_loss
 from disent.nn.loss.kl import kl_loss
-from disent.nn.reductions import loss_reduction
+from disent.nn.loss.reduction import loss_reduction
 
 
 # ========================================================================= #

@@ -21,19 +21,20 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
+import logging
 import warnings
 from typing import List
 from typing import Optional
 from typing import Union
 
-import logging
 import numpy as np
 import torch
 
-from disent.util.math_generic import generic_as_int32
-from disent.util.math_generic import generic_max
-from disent.util.math_generic import TypeGenericTensor
-from disent.util.math_generic import TypeGenericTorch
+from disent.nn.functional._generic_tensors import generic_as_int32
+from disent.nn.functional._generic_tensors import generic_max
+from disent.nn.functional._generic_tensors import TypeGenericTensor
+from disent.nn.functional._generic_tensors import TypeGenericTorch
 
 
 log = logging.getLogger(__name__)
