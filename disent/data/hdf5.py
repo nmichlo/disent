@@ -21,6 +21,7 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
 """
 Utilities for converting and testing different chunk sizes of hdf5 files
 """
@@ -48,10 +49,12 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class PickleH5pyData(LengthIter):
+class PickleH5pyFile(LengthIter):
     """
     This class supports pickling and unpickling of a read-only
     SWMR h5py file and corresponding dataset.
+
+    WARNING: this should probably not be used across multiple hosts?
     """
 
     def __init__(self, h5_path: str, h5_dataset_name: str):
