@@ -30,7 +30,7 @@ from scipy.stats import hmean
 
 from disent.data.groundtruth import XYSquaresData
 from disent.dataset.groundtruth import GroundTruthDataset
-from disent.transform import ToStandardisedTensor
+from disent.nn.transform import ToStandardisedTensor
 from disent.util.math import torch_conv2d_channel_wise
 from disent.util.math import torch_conv2d_channel_wise_fft
 from disent.util import to_numpy

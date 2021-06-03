@@ -24,8 +24,10 @@
 
 from torch import nn as nn, Tensor
 
-from disent.model.base import BaseEncoderModule, BaseDecoderModule
-from disent.model.common import Flatten3D, BatchView
+from disent.model import DisentDecoder
+from disent.model import DisentEncoder
+from disent.nn.modules import Flatten3D
+from disent.nn.modules import BatchView
 
 
 # ========================================================================= #
@@ -33,7 +35,7 @@ from disent.model.common import Flatten3D, BatchView
 # ========================================================================= #
 
 
-class EncoderConv64(BaseEncoderModule):
+class EncoderConv64(DisentEncoder):
     """
     Reference Implementation:
     https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/shared/architectures.py
@@ -44,7 +46,7 @@ class EncoderConv64(BaseEncoderModule):
         """
         Convolutional encoder used in beta-VAE paper for the chairs data.
         Based on row 3 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
-        Concepts with a Constrained Variational BaseFramework"
+        Concepts with a Constrained Variational Framework"
         (https://openreview.net/forum?id=Sy2fzU9gl)
         """
         # checks
@@ -71,7 +73,7 @@ class EncoderConv64(BaseEncoderModule):
         return self.model(x)
 
 
-class DecoderConv64(BaseDecoderModule):
+class DecoderConv64(DisentDecoder):
     """
     From:
     https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/shared/architectures.py
@@ -82,7 +84,7 @@ class DecoderConv64(BaseDecoderModule):
         """
         Convolutional decoder used in beta-VAE paper for the chairs data.
         Based on row 3 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
-        Concepts with a Constrained Variational BaseFramework"
+        Concepts with a Constrained Variational Framework"
         (https://openreview.net/forum?id=Sy2fzU9gl)
         """
         assert tuple(x_shape[1:]) == (64, 64), 'This model only works with image size 64x64.'

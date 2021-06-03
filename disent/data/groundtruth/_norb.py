@@ -21,35 +21,118 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-
+import dataclasses
 import gzip
+from typing import Dict
+
 import numpy as np
-from disent.data.groundtruth.base import DownloadableGroundTruthData
+
+from disent.data.groundtruth import GroundTruthData
+from disent.data.groundtruth.base import DlDataObject
+
+
+# ========================================================================= #
+# Binary Matrix Helper Functions                                            #
+# - https://cs.nyu.edu/~ylclab/data/norb-v1.0-small                         #
+# ========================================================================= #
+
+
+_BINARY_MATRIX_TYPES = {
+    0x1E3D4C55: 'uint8',    # byte matrix
+    0x1E3D4C54: 'int32',    # integer matrix
+    0x1E3D4C56: 'int16',    # short matrix
+    0x1E3D4C51: 'float32',  # single precision matrix
+    0x1E3D4C53: 'float64',  # double precision matrix
+    # 0x1E3D4C52: '???',    # packed matrix -- not sure what this is?
+}
+
+
+def read_binary_matrix_buffer(buffer):
+    """
+    Read the binary matrix data
+    - modified from disentanglement_lib
+
+    Binary Matrix File Format Specification
+        * The Header:
+            - dtype:      4 bytes
+            - ndim:       4 bytes, little endian
+            - dim_sizes: (4 * min(3, ndim)) bytes
+        * Handling the number of dimensions:
+            - If there are less than 3 dimensions, then dim[1] and dim[2] are both: 1
+            - Elif there are 3 or more dimensions, then the header will contain further size information.
+        * Handling Matrix Data:
+            - Little endian matrix data comes after the header,
+              the index of the last dimension changes the fastest.
+    """
+    dtype = int(np.frombuffer(buffer, "int32", 1, 0))          # bytes [0, 4)
+    ndim  = int(np.frombuffer(buffer, "int32", 1, 4))          # bytes [4, 8)
+    eff_dim = max(3, ndim)                                     # stores minimum of 3 dimensions even for 1D array
+    dims = np.frombuffer(buffer, "int32", eff_dim, 8)[0:ndim]  # bytes [8, 8 + eff_dim * 4)
+    data = np.frombuffer(buffer, _BINARY_MATRIX_TYPES[dtype], offset=8 + eff_dim * 4)
+    data = data.reshape(tuple(dims))
+    return data
+
+
+def read_binary_matrix_file(file, gzipped: bool = True):
+    with (gzip.open if gzipped else open)(file, "rb") as f:
+        return read_binary_matrix_buffer(buffer=f)
+
+
+def resave_binary_matrix_file(inp_path, out_path, gzipped: bool = True):
+    with AtomicFileContext(out_path, open_mode=None) as temp_out_path:
+        data = read_binary_matrix_file(file=inp_path, gzipped=gzipped)
+        np.savez(temp_out_path, data=data)
+
+
+# ========================================================================= #
+# Norb Data Tasks                                                           #
+# ========================================================================= #
+
+
+@dataclasses.dataclass
+class BinaryMatrixDataObject(DlDataObject):
+    file_name: str
+    file_hashes: Dict[str, str]
+    # download file/link
+    uri: str
+    uri_hashes: Dict[str, str]
+    # hash settings
+    hash_mode: str
+    hash_type: str
+
+    def _make_h5_job(self, load_path: str, save_path: str):
+        return CachedJobFile(
+            make_file_fn=lambda path: resave_binary_matrix_file(
+                inp_path=load_path,
+                out_path=path,
+                gzipped=True,
+            ),
+            path=save_path,
+            hash=self.file_hashes[self.hash_mode],
+            hash_type=self.hash_type,
+            hash_mode=self.hash_mode,
+        )
+
+    def prepare(self, data_dir: str):
+        dl_path = self.get_file_path(data_dir=data_dir, variant='ORIG')
+        h5_path = self.get_file_path(data_dir=data_dir)
+        dl_job = self._make_dl_job(save_path=dl_path)
+        h5_job = self._make_h5_job(load_path=dl_path, save_path=h5_path)
+        dl_job.set_child(h5_job).run()
+
 
 # ========================================================================= #
 # dataset_norb                                                              #
 # ========================================================================= #
 
 
-class SmallNorbData(DownloadableGroundTruthData):
+class SmallNorbData(GroundTruthData):
     """
     Small NORB Dataset
     - https://cs.nyu.edu/~ylclab/data/norb-v1.0-small/
 
-    Files:
-        - direct hdf5: https://raw.githubusercontent.com/deepmind/dsprites-dataset/master/dsprites_ndarray_co1sh3sc6or40x32y32_64x64.hdf5
-        - direct npz: https://raw.githubusercontent.com/deepmind/dsprites-dataset/master/dsprites_ndarray_co1sh3sc6or40x32y32_64x64.npz
-
     # reference implementation: https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/data/ground_truth/norb.py
     """
-
-    NORB_TYPES = {
-        0x1E3D4C55: 'uint8',      # byte matrix
-        0x1E3D4C54: 'int32',      # integer matrix
-        # 0x1E3D4C56: 'int16',    # short matrix
-        # 0x1E3D4C51: 'float32',  # single precision matrix
-        # 0x1E3D4C53: 'float64',  # double precision matrix
-    }
 
     # ordered training data (dat, cat, info)
     NORB_TRAIN_URLS = [
@@ -95,20 +178,8 @@ class SmallNorbData(DownloadableGroundTruthData):
         images = dat[:, 0]  # images are in pairs, we only extract the first one of each
         return images, features
 
-    @staticmethod
-    def _read_norb_file(filename):
-        """Read the norb data from the compressed file - modified from disentanglement_lib"""
-        with gzip.open(filename, "rb") as f:
-            s = f.read()
-            magic = int(np.frombuffer(s, "int32", 1, 0))
-            ndim = int(np.frombuffer(s, "int32", 1, 4))
-            eff_dim = max(3, ndim)  # stores minimum of 3 dimensions even for 1D array
-            dims = np.frombuffer(s, "int32", eff_dim, 8)[0:ndim]
-            data = np.frombuffer(s, SmallNorbData.NORB_TYPES[magic], offset=8 + eff_dim * 4)
-            data = data.reshape(tuple(dims))
-        return data
-
 
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
+

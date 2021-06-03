@@ -21,12 +21,11 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
 from typing import Sequence
 
 import numpy as np
-from torch.utils.data import Dataset
-from disent.dataset._augment_util import AugmentableDataset
-from disent.util import LengthIter
+from disent.dataset import DisentDataset
 
 
 # ========================================================================= #
@@ -34,7 +33,7 @@ from disent.util import LengthIter
 # ========================================================================= #
 
 
-class RandomDataset(Dataset, LengthIter, AugmentableDataset):
+class RandomDataset(DisentDataset):
 
     def __init__(
             self,

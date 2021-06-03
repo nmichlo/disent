@@ -35,11 +35,11 @@ from typing import Union
 
 import torch
 
-from disent.frameworks.framework import BaseFramework
+from disent.frameworks import DisentFramework
 from disent.frameworks.helper.reconstructions import make_reconstruction_loss
 from disent.frameworks.helper.reconstructions import ReconLossHandler
 from disent.frameworks.helper.util import detach_all
-from disent.model.ae.base import AutoEncoder
+from disent.model import AutoEncoder
 from disent.util import map_all
 
 
@@ -51,7 +51,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class Ae(BaseFramework):
+class Ae(DisentFramework):
     """
     Basic Auto Encoder
     ------------------
@@ -77,7 +77,7 @@ class Ae(BaseFramework):
     REQUIRED_OBS = 1
 
     @dataclass
-    class cfg(BaseFramework.cfg):
+    class cfg(DisentFramework.cfg):
         recon_loss: str = 'mse'
         # multiple reduction modes exist for the various loss components.
         # - 'sum': sum over the entire batch

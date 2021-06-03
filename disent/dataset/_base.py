@@ -22,14 +22,23 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-import numpy as np
 from abc import abstractmethod
-from typing import Optional, List
+from typing import List
+from typing import Optional
 
+import numpy as np
+from torch.utils.data import Dataset
 from torch.utils.data.dataloader import default_collate
 
+from disent.util import LengthIter
 
-class AugmentableDataset(object):
+
+# ========================================================================= #
+# util                                                                      #
+# ========================================================================= #
+
+
+class DisentDataset(Dataset, LengthIter):
 
     @property
     @abstractmethod
@@ -42,9 +51,6 @@ class AugmentableDataset(object):
         raise NotImplementedError
 
     def _get_augmentable_observation(self, idx):
-        raise NotImplementedError
-
-    def __len__(self):
         raise NotImplementedError
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -140,6 +146,11 @@ class AugmentableDataset(object):
         return self.dataset_batch_from_indices(sorted(indices), mode=mode)
 
 
+# ========================================================================= #
+# util                                                                      #
+# ========================================================================= #
+
+
 def _batch_to_observation(batch, obs_shape):
     """
     Convert a batch of size 1, to a single observation.
@@ -148,3 +159,8 @@ def _batch_to_observation(batch, obs_shape):
         assert batch.shape == (1, *obs_shape), f'batch.shape={repr(batch.shape)} does not correspond to obs_shape={repr(obs_shape)} with batch dimension added'
         return batch.reshape(obs_shape)
     return batch
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #

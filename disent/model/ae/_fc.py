@@ -25,8 +25,10 @@
 import numpy as np
 from torch import nn as nn, Tensor
 
-from disent.model.base import BaseEncoderModule, BaseDecoderModule
-from disent.model.common import Flatten3D, BatchView
+from disent.model import DisentDecoder
+from disent.model import DisentEncoder
+from disent.nn.modules import Flatten3D
+from disent.nn.modules import BatchView
 
 
 # ========================================================================= #
@@ -34,7 +36,7 @@ from disent.model.common import Flatten3D, BatchView
 # ========================================================================= #
 
 
-class EncoderFC(BaseEncoderModule):
+class EncoderFC(DisentEncoder):
     """
     Reference Implementation:
     https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/shared/architectures.py
@@ -45,7 +47,7 @@ class EncoderFC(BaseEncoderModule):
         """
         Fully connected encoder used in beta-VAE paper for the dSprites data.
         Based on row 1 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
-        Concepts with a Constrained Variational BaseFramework"
+        Concepts with a Constrained Variational Framework"
         (https://openreview.net/forum?id=Sy2fzU9gl).
         """
         # checks
@@ -64,7 +66,7 @@ class EncoderFC(BaseEncoderModule):
         return self.model(x)
 
 
-class DecoderFC(BaseDecoderModule):
+class DecoderFC(DisentDecoder):
     """
     From:
     https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/shared/architectures.py
@@ -75,7 +77,7 @@ class DecoderFC(BaseDecoderModule):
         """
         Fully connected encoder used in beta-VAE paper for the dSprites data.
         Based on row 1 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
-        Concepts with a Constrained Variational BaseFramework"
+        Concepts with a Constrained Variational Framework"
         (https://openreview.net/forum?id=Sy2fzU9gl)
         """
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)

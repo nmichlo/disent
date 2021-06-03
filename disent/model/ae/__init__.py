@@ -22,15 +22,14 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from ._conv64 import DecoderConv64
-from ._conv64 import EncoderConv64
-from ._conv64_alt import DecoderConv64Alt
-from ._conv64_alt import EncoderConv64Alt
-# components
-from ._fc import DecoderFC
-from ._fc import EncoderFC
-from ._simpleconv64 import DecoderSimpleConv64
-from ._simpleconv64 import EncoderSimpleConv64
-from ._simplefc import DecoderSimpleFC
-from ._simplefc import EncoderSimpleFC
-from .base import AutoEncoder
+# encoders & decoders
+from disent.model.ae._conv64 import DecoderConv64
+from disent.model.ae._conv64 import EncoderConv64
+from disent.model.ae._conv64_alt import DecoderConv64Alt
+from disent.model.ae._conv64_alt import EncoderConv64Alt
+from disent.model.ae._fc import DecoderFC
+from disent.model.ae._fc import EncoderFC
+from disent.model.ae._simpleconv64 import DecoderSimpleConv64
+from disent.model.ae._simpleconv64 import EncoderSimpleConv64
+from disent.model.ae._simplefc import DecoderSimpleFC
+from disent.model.ae._simplefc import EncoderSimpleFC

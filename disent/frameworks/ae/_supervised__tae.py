@@ -33,8 +33,8 @@ from typing import Union
 import torch
 
 from disent.frameworks.ae._unsupervised__ae import Ae
-from disent.frameworks.helper.triplet_loss import compute_triplet_loss
-from disent.frameworks.helper.triplet_loss import TripletLossConfig
+from disent.nn.loss.triplet import compute_triplet_loss
+from disent.nn.loss.triplet import TripletLossConfig
 
 
 # ========================================================================= #

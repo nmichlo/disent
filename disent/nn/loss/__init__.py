@@ -21,31 +21,3 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-
-from dataclasses import dataclass
-
-from disent.frameworks.vae.experimental._supervised__gadavae import GuidedAdaVae
-from disent.nn.loss.triplet import compute_triplet_loss
-from disent.nn.loss.triplet import TripletLossConfig
-
-
-# ========================================================================= #
-# tgadavae                                                                  #
-# ========================================================================= #
-
-
-class TripletGuidedAdaVae(GuidedAdaVae):
-
-    REQUIRED_OBS = 3
-
-    @dataclass
-    class cfg(GuidedAdaVae.cfg, TripletLossConfig):
-        pass
-
-    def hook_compute_ave_aug_loss(self, ds_posterior, ds_prior, zs_sampled, xs_partial_recon, xs_targ):
-        return compute_triplet_loss(zs=[d.mean for d in ds_posterior], cfg=self.cfg)
-
-
-# ========================================================================= #
-# END                                                                       #
-# ========================================================================= #

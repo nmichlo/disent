@@ -26,7 +26,7 @@ import torch
 import torch_optimizer
 from torch.nn import functional as F
 
-from disent.frameworks.helper.reductions import batch_loss_reduction
+from disent.nn.reductions import batch_loss_reduction
 
 
 # ========================================================================= #

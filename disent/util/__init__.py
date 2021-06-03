@@ -27,16 +27,10 @@ import logging
 import os
 import time
 from collections import Sequence
-from dataclasses import asdict
-from dataclasses import dataclass
-from dataclasses import fields
 from itertools import islice
-from pprint import pformat
-from random import random
 from typing import List
 
 import numpy as np
-import pytorch_lightning as pl
 import torch
 
 
@@ -105,7 +99,7 @@ class TempNumpySeed(object):
             self._state = None
 
 # ========================================================================= #
-# IO                                                                        #
+# Conversion                                                                #
 # ========================================================================= #
 
 
@@ -123,57 +117,6 @@ def to_numpy(array) -> np.ndarray:
         return np.stack([to_numpy(elem) for elem in array], axis=0)
     else:
         return np.array(array)
-
-
-# ========================================================================= #
-# IO                                                                        #
-# ========================================================================= #
-
-
-def atomic_save(obj, path):
-    """
-    Save a model to a file, making sure that the file will
-    never be partly written.
-
-    This prevents the model from getting corrupted in the
-    event that the process dies or the machine crashes.
-
-    FROM: my obstacle_tower project
-    """
-    import os
-    import torch
-
-    if os.path.dirname(path):
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-    torch.save(obj, path + '.tmp')
-    os.rename(path + '.tmp', path)
-
-
-def save_model(model, path):
-    atomic_save(model.state_dict(), path)
-    log.info(f'[MODEL]: saved {path}')
-
-
-def load_model(model, path, cuda=True, fail_if_missing=True):
-    """
-    FROM: my obstacle_tower project
-    """
-    import os
-    import torch
-
-    if path and os.path.exists(path):
-        model.load_state_dict(torch.load(
-            path,
-            map_location=torch.device('cuda' if cuda else 'cpu')
-        ))
-        log.info(f'[MODEL]: loaded {path} (cuda: {cuda})')
-    else:
-        if fail_if_missing:
-            raise Exception(f'Could not load model, path does not exist: {path}')
-    if cuda:
-        model = model.cuda()  # this needs to stay despite the above.
-        log.info('[MODEL]: Moved to GPU')
-    return model
 
 
 # ========================================================================= #
@@ -329,10 +272,10 @@ class LengthIter(Sequence):
             yield self[i]
 
     def __len__(self):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def __getitem__(self, item):
-        raise NotImplemented()
+        raise NotImplementedError()
 
 
 # ========================================================================= #
@@ -473,114 +416,6 @@ def get_memory_usage():
     process = psutil.Process(os.getpid())
     num_bytes = process.memory_info().rss  # in bytes
     return num_bytes
-
-
-# ========================================================================= #
-# Torch Helper                                                              #
-# ========================================================================= #
-
-
-class DisentModule(torch.nn.Module):
-
-    def _forward_unimplemented(self, *args):
-        # Annoying fix applied by torch for Module.forward:
-        # https://github.com/python/mypy/issues/8795
-        raise RuntimeError('This should never run!')
-
-    def forward(self, *args, **kwargs):
-        raise NotImplementedError
-
-
-class DisentLightningModule(pl.LightningModule):
-
-    def _forward_unimplemented(self, *args):
-        # Annoying fix applied by torch for Module.forward:
-        # https://github.com/python/mypy/issues/8795
-        raise RuntimeError('This should never run!')
-
-
-class DisentConfigurable(object):
-
-    @dataclass
-    class cfg(object):
-        def get_keys(self) -> list:
-            return list(self.to_dict().keys())
-
-        def to_dict(self) -> dict:
-            return asdict(self)
-
-        def __str__(self):
-            return pformat(self.to_dict(), sort_dicts=False)
-
-    def __init__(self, cfg: cfg = cfg()):
-        if cfg is None:
-            cfg = self.__class__.cfg()
-            log.info(f'Initialised default config {cfg=} for {self.__class__.__name__}')
-        super().__init__()
-        assert isinstance(cfg, self.__class__.cfg), f'{cfg=} ({type(cfg)}) is not an instance of {self.__class__.cfg}'
-        self.cfg = cfg
-
-
-# ========================================================================= #
-# Slot Tuple                                                                #
-# ========================================================================= #
-
-
-@dataclass
-class TupleDataClass:
-    """
-    Like a named tuple + dataclass combination, that is mutable.
-    -- requires that you still decorate the inherited class with @dataclass
-    """
-
-    __field_names_cache = None
-
-    @property
-    def __field_names(self):
-        # check for attribute and set on class only
-        if self.__class__.__field_names_cache is None:
-            self.__class__.__field_names_cache = tuple(f.name for f in fields(self))
-        return self.__class__.__field_names_cache
-
-    def __iter__(self):
-        for name in self.__field_names:
-            yield getattr(self, name)
-
-    def __len__(self):
-        return self.__field_names.__len__()
-
-    def __str__(self):
-        return str(tuple(self))
-
-    def __repr__(self):
-        return f'{self.__class__.__name__}({", ".join(f"{name}={repr(getattr(self, name))}" for name in self.__field_names)})'
-
-
-# ========================================================================= #
-# END                                                                       #
-# ========================================================================= #
-
-
-def debug_transform_tensors(obj):
-    """
-    recursively convert all tensors to their shapes for debugging
-    """
-    if isinstance(obj, (torch.Tensor, np.ndarray)):
-        return obj.shape
-    elif isinstance(obj, dict):
-        return {debug_transform_tensors(k): debug_transform_tensors(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return list(debug_transform_tensors(v) for v in obj)
-    elif isinstance(obj, tuple):
-        return tuple(debug_transform_tensors(v) for v in obj)
-    elif isinstance(obj, set):
-        return {debug_transform_tensors(k) for k in obj}
-    else:
-        return obj
-
-
-def pprint_tensors(*args, **kwargs):
-    print(*(debug_transform_tensors(arg) for arg in args), **kwargs)
 
 
 # ========================================================================= #

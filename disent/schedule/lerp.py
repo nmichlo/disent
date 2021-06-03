@@ -52,27 +52,28 @@ def lerp_step(step, max_step, a, b):
 
 
 # ========================================================================= #
+# linear interpolate                                                        #
+# ========================================================================= #
+
+
+_SCALE_RATIO_FNS = {
+    'linear':  lambda r: r,
+    'sigmoid': lambda r: 1 / (1 + np.exp(-12 * r + 6)),
+    'cosine':  lambda r: 0.5 * (1 - np.cos(r * math.pi)),
+}
+
+
+def scale_ratio(r, mode='linear'):
+    r = np.clip(r, 0., 1.)
+    return _SCALE_RATIO_FNS[mode](r)
+
+
+# ========================================================================= #
 # Cyclical Annealing Schedules                                              #
 # - https://arxiv.org/abs/1903.10145                                        #
 # - https://github.com/haofuml/cyclical_annealing                           #
 # These functions are not exactly the same, but are more flexible.          #
 # ========================================================================= #
-
-
-def activate_linear(v):  return v
-def activate_sigmoid(v): return 1 / (1 + np.exp(-12 * v + 6))
-def activate_cosine(v):  return 0.5 * (1 - np.cos(v * math.pi))
-
-
-_FLERP_ACTIVATIONS = {
-    'linear': activate_linear,
-    'sigmoid': activate_sigmoid,
-    'cosine': activate_cosine,
-}
-
-
-def activate(v, mode='linear'):
-    return _FLERP_ACTIVATIONS[mode](v)
 
 
 _END_VALUES = {
@@ -106,7 +107,7 @@ def cyclical_anneal(
     # compute increasing values
     if low_ratio + high_ratio < 1:
         r = (r - low_ratio) / (1-low_ratio-high_ratio)
-        r = activate(r, mode=mode)
+        r = scale_ratio(r, mode=mode)
     # truncate values
     r = np.where(low_mask, 0, r)
     r = np.where(high_mask, 1, r)
