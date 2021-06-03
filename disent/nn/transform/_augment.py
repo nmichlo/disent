@@ -34,9 +34,9 @@ import torch
 
 import disent
 from disent.nn.modules import DisentModule
-from disent.util.math import torch_box_kernel_2d
-from disent.util.math import torch_conv2d_channel_wise_fft
-from disent.util.math import torch_gaussian_kernel_2d
+from disent.nn.functional import torch_box_kernel_2d
+from disent.nn.functional import torch_conv2d_channel_wise_fft
+from disent.nn.functional import torch_gaussian_kernel_2d
 
 
 # ========================================================================= #

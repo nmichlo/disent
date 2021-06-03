@@ -42,7 +42,7 @@ from disent.nn.modules import DisentLightningModule
 from disent.nn.modules import DisentModule
 from disent.util import make_box_str
 from disent.util import seed
-from disent.util.math import torch_conv2d_channel_wise_fft
+from disent.nn.functional import torch_conv2d_channel_wise_fft
 from disent.nn.loss.softsort import spearman_rank_loss
 from experiment.run import hydra_append_progress_callback
 from experiment.run import hydra_check_cuda

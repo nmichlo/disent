@@ -35,8 +35,8 @@ from disent.metrics._flatness import encode_all_factors
 from disent.metrics._flatness import filter_inactive_factors
 from disent.util import iter_chunks
 from disent.util import to_numpy
-from disent.util.math import torch_mean_generalized
-from disent.util.math import torch_pca
+from disent.nn.functional import torch_mean_generalized
+from disent.nn.functional import torch_pca
 
 
 log = logging.getLogger(__name__)

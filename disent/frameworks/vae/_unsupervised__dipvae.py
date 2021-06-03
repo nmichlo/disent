@@ -30,7 +30,7 @@ from torch.distributions import Normal
 
 from disent.frameworks.helper.util import compute_ave_loss_and_logs
 from disent.frameworks.vae._unsupervised__betavae import BetaVae
-from disent.util.math import torch_cov_matrix
+from disent.nn.functional import torch_cov_matrix
 
 
 # ========================================================================= #

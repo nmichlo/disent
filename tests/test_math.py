@@ -30,18 +30,18 @@ from scipy.stats import hmean
 
 from disent.data.groundtruth import XYSquaresData
 from disent.dataset.groundtruth import GroundTruthDataset
+from disent.nn.functional import torch_conv2d_channel_wise
+from disent.nn.functional import torch_conv2d_channel_wise_fft
+from disent.nn.functional import torch_corr_matrix
+from disent.nn.functional import torch_cov_matrix
+from disent.nn.functional import torch_dct
+from disent.nn.functional import torch_dct2
+from disent.nn.functional import torch_gaussian_kernel_2d
+from disent.nn.functional import torch_idct
+from disent.nn.functional import torch_idct2
+from disent.nn.functional import torch_mean_generalized
 from disent.nn.transform import ToStandardisedTensor
-from disent.util.math import torch_conv2d_channel_wise
-from disent.util.math import torch_conv2d_channel_wise_fft
 from disent.util import to_numpy
-from disent.util.math import torch_dct
-from disent.util.math import torch_dct2
-from disent.util.math import torch_gaussian_kernel_2d
-from disent.util.math import torch_idct
-from disent.util.math import torch_idct2
-from disent.util.math import torch_corr_matrix
-from disent.util.math import torch_cov_matrix
-from disent.util.math import torch_mean_generalized
 
 
 # ========================================================================= #

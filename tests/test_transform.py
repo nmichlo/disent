@@ -26,8 +26,8 @@ import torch
 
 from disent.nn.transform import FftGaussianBlur
 from disent.nn.transform._augment import _expand_to_min_max_tuples
-from disent.util.math import torch_gaussian_kernel
-from disent.util.math import torch_gaussian_kernel_2d
+from disent.nn.functional import torch_gaussian_kernel
+from disent.nn.functional import torch_gaussian_kernel_2d
 
 
 # ========================================================================= #
