@@ -26,7 +26,7 @@ from typing import List, Tuple
 import numpy as np
 
 from disent.dataset.groundtruth._triplet import sample_radius
-from disent.util import LengthIter
+from disent.util.iters import LengthIter
 
 
 class BaseOptionEpisodesData(LengthIter):

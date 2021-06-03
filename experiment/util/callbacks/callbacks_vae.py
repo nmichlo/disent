@@ -38,9 +38,9 @@ from disent.dataset._augment_util import AugmentableDataset
 from disent.dataset.groundtruth import GroundTruthDataset
 from disent.frameworks.ae import Ae
 from disent.frameworks.vae import Vae
-from disent.util import iter_chunks
-from disent.util import TempNumpySeed
-from disent.util import Timer
+from disent.util.iters import iter_chunks
+from disent.util.seeds import TempNumpySeed
+from disent.util.profiling import Timer
 from disent.util import to_numpy
 from disent.visualize.visualize_model import latent_cycle_grid_animation
 from disent.visualize.visualize_util import make_image_grid

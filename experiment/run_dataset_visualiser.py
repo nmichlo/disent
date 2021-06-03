@@ -35,7 +35,7 @@ import torch
 from omegaconf import DictConfig
 from omegaconf import OmegaConf
 
-from disent.util import make_box_str
+from disent.util.strings import make_box_str
 from disent.visualize.visualize_util import make_image_grid
 from experiment.run import hydra_check_datadir
 from experiment.run import HydraDataModule

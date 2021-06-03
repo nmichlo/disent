@@ -45,7 +45,7 @@ from disent.data.util.in_out import download_file
 from disent.data.util.in_out import ensure_dir_exists
 from disent.data.util.in_out import retrieve_file
 from disent.data.util.state_space import StateSpace
-from disent.util import wrapped_partial
+from disent.util.function import wrapped_partial
 
 
 log = logging.getLogger(__name__)

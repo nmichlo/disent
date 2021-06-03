@@ -22,55 +22,23 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from typing import Any
-from typing import Dict
-from typing import Sequence
-from typing import Tuple
-
-import torch
-
-from disent.util.iters import aggregate_dict
-from disent.util.iters import collect_dicts
-from disent.util.iters import map_all
-
 
 # ========================================================================= #
-# AVE LOSS HELPER                                                           #
+# Function Helper                                                           #
 # ========================================================================= #
 
 
-def detach_all(tensors: Sequence[torch.tensor], if_: bool = True):
-    if if_:
-        return tuple(tensor.detach() for tensor in tensors)
-    return tensors
-
-
-# ========================================================================= #
-# AVE LOSS HELPER                                                           #
-# ========================================================================= #
-
-
-def compute_ave_loss(loss_fn, *arg_list, **common_kwargs) -> torch.Tensor:
-    # compute all losses
-    losses = map_all(loss_fn, *arg_list, collect_returned=False, common_kwargs=common_kwargs)
-    # compute mean loss
-    loss = torch.stack(losses).mean(dim=0)
-    # return!
-    return loss
-
-
-def compute_ave_loss_and_logs(loss_and_logs_fn, *arg_list, **common_kwargs) -> Tuple[torch.Tensor, Dict[str, Any]]:
-    # compute all losses
-    losses, logs = map_all(loss_and_logs_fn, *arg_list, collect_returned=True, common_kwargs=common_kwargs)
-    # compute mean loss
-    loss = torch.stack(losses).mean(dim=0)
-    # compute mean logs
-    logs = aggregate_dict(collect_dicts(logs))
-    # return!
-    return loss, logs
+def wrapped_partial(func, *args, **kwargs):
+    """
+    Like functools.partial but keeps the same __name__ and __doc__
+    on the returned function.
+    """
+    import functools
+    partial_func = functools.partial(func, *args, **kwargs)
+    functools.update_wrapper(partial_func, func)
+    return partial_func
 
 
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-

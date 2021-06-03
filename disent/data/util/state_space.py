@@ -23,7 +23,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import numpy as np
-from disent.util import LengthIter
+from disent.util.iters import LengthIter
 from disent.visualize.visualize_util import get_factor_traversal
 
 

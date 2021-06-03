@@ -35,9 +35,9 @@ from tqdm import tqdm
 from disent.data.util.in_out import AtomicSaveFile
 from disent.data.util.in_out import bytes_to_human
 from disent.util import colors as c
-from disent.util import iter_chunks
-from disent.util import LengthIter
-from disent.util import Timer
+from disent.util.iters import iter_chunks
+from disent.util.iters import LengthIter
+from disent.util.profiling import Timer
 
 
 log = logging.getLogger(__name__)

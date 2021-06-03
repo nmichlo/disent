@@ -22,55 +22,62 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from typing import Any
-from typing import Dict
-from typing import Sequence
-from typing import Tuple
+import logging
+import numpy as np
 
-import torch
 
-from disent.util.iters import aggregate_dict
-from disent.util.iters import collect_dicts
-from disent.util.iters import map_all
+log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
-# AVE LOSS HELPER                                                           #
+# seeds                                                                     #
 # ========================================================================= #
 
 
-def detach_all(tensors: Sequence[torch.tensor], if_: bool = True):
-    if if_:
-        return tuple(tensor.detach() for tensor in tensors)
-    return tensors
+def seed(long=777):
+    """
+    https://pytorch.org/docs/stable/notes/randomness.html
+    """
+    if long is None:
+        log.warning(f'[SEEDING]: no seed was specified. Seeding skipped!')
+        return
+    # seed torch - it can be slow to import
+    try:
+        import torch
+        torch.manual_seed(long)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+    except ImportError:
+        log.warning(f'[SEEDING]: torch is not installed. Skipped seeding torch methods!')
+    # seed numpy
+    np.random.seed(long)
+    # done!
+    log.info(f'[SEEDED]: {long}')
 
 
-# ========================================================================= #
-# AVE LOSS HELPER                                                           #
-# ========================================================================= #
+class TempNumpySeed(object):
+    def __init__(self, seed=None, offset=0):
+        if seed is not None:
+            try:
+                seed = int(seed)
+            except:
+                raise ValueError(f'{seed=} is not int-like!')
+        self._seed = seed
+        if seed is not None:
+            self._seed += offset
+        self._state = None
 
+    def __enter__(self):
+        if self._seed is not None:
+            self._state = np.random.get_state()
+            np.random.seed(self._seed)
 
-def compute_ave_loss(loss_fn, *arg_list, **common_kwargs) -> torch.Tensor:
-    # compute all losses
-    losses = map_all(loss_fn, *arg_list, collect_returned=False, common_kwargs=common_kwargs)
-    # compute mean loss
-    loss = torch.stack(losses).mean(dim=0)
-    # return!
-    return loss
-
-
-def compute_ave_loss_and_logs(loss_and_logs_fn, *arg_list, **common_kwargs) -> Tuple[torch.Tensor, Dict[str, Any]]:
-    # compute all losses
-    losses, logs = map_all(loss_and_logs_fn, *arg_list, collect_returned=True, common_kwargs=common_kwargs)
-    # compute mean loss
-    loss = torch.stack(losses).mean(dim=0)
-    # compute mean logs
-    logs = aggregate_dict(collect_dicts(logs))
-    # return!
-    return loss, logs
+    def __exit__(self, *args, **kwargs):
+        if self._seed is not None:
+            np.random.set_state(self._state)
+            self._state = None
 
 
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-

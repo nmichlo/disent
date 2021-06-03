@@ -36,7 +36,7 @@ import torch
 from torch.utils.data.dataloader import default_collate
 
 from disent.dataset.groundtruth import GroundTruthDataset
-from disent.util import iter_chunks
+from disent.util.iters import iter_chunks
 
 
 log = logging.getLogger(__name__)
