@@ -24,7 +24,7 @@
 
 import logging
 
-from disent.data.groundtruth.base import DlH5DataObject
+from disent.data.dataobj import DlH5DataObject
 from disent.data.groundtruth.base import Hdf5GroundTruthData
 
 

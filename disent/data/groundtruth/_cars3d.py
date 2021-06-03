@@ -30,9 +30,9 @@ from tempfile import TemporaryDirectory
 import numpy as np
 from scipy.io import loadmat
 
-from disent.data.groundtruth.base import DlGenDataObject
+from disent.data.dataobj import DlGenDataObject
 from disent.data.groundtruth.base import NumpyGroundTruthData
-from disent.data.util.in_out import AtomicSaveFile
+from disent.util.in_out import AtomicSaveFile
 
 
 log = logging.getLogger(__name__)

@@ -32,8 +32,8 @@ import h5py
 import numpy as np
 from tqdm import tqdm
 
-from disent.data.util.in_out import AtomicSaveFile
-from disent.data.util.in_out import bytes_to_human
+from disent.util.in_out import AtomicSaveFile
+from disent.util.strings import bytes_to_human
 from disent.util import colors as c
 from disent.util.iters import iter_chunks
 from disent.util.iters import LengthIter
@@ -48,7 +48,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class PickleH5pyDataset(LengthIter):
+class PickleH5pyData(LengthIter):
     """
     This class supports pickling and unpickling of a read-only
     SWMR h5py file and corresponding dataset.
@@ -97,35 +97,6 @@ class PickleH5pyDataset(LengthIter):
         self._hdf5_file.close()
         del self._hdf5_file
         del self._hdf5_data
-
-
-# ========================================================================= #
-# hdf5                                                                      #
-# ========================================================================= #
-
-
-# TODO: cleanup
-def hdf5_print_entry_data_stats(h5_dataset: h5py.Dataset, label='STATISTICS'):
-    dtype = h5_dataset.dtype
-    itemsize = h5_dataset.dtype.itemsize
-    # chunk
-    chunks = np.array(h5_dataset.chunks)
-    data_per_chunk = np.prod(chunks) * itemsize
-    # entry
-    shape = np.array([1, *h5_dataset.shape[1:]])
-    data_per_entry = np.prod(shape) * itemsize
-    # chunks per entry
-    chunks_per_dim = np.ceil(shape / chunks).astype('int')
-    chunks_per_entry = np.prod(chunks_per_dim)
-    read_data_per_entry = data_per_chunk * chunks_per_entry
-    # print info
-    tqdm.write(
-        f'[{label:3s}] '
-        f'entry: {str(list(shape)):18s} ({str(dtype):8s}) {c.lYLW}{bytes_to_human(data_per_entry)}{c.RST} '
-        f'chunk: {str(list(chunks)):18s} {c.YLW}{bytes_to_human(data_per_chunk)}{c.RST} '
-        f'chunks per entry: {str(list(chunks_per_dim)):18s} {c.YLW}{bytes_to_human(read_data_per_entry)}{c.RST} ({c.RED}{chunks_per_entry:5d}{c.RST})  |  '
-        f'compression: {repr(h5_dataset.compression)} compression lvl: {repr(h5_dataset.compression_opts)}'
-    )
 
 
 # ========================================================================= #
@@ -195,25 +166,24 @@ def hdf5_resave_file(inp_path: str, out_path: str, dataset_name, chunk_size=None
 # ========================================================================= #
 
 
-def hdf5_test_entries_per_second(h5_data: h5py.File, dataset_name, access_method='random', max_entries=48000, timeout=10, batch_size: int = 256):
-    data = h5_data[dataset_name]
+def hdf5_test_entries_per_second(h5_dataset: h5py.Dataset, access_method='random', max_entries=48000, timeout=10, batch_size: int = 256):
     # get access method
     if access_method == 'sequential':
-        indices = np.arange(len(data))
+        indices = np.arange(len(h5_dataset))
     elif access_method == 'random':
-        indices = np.arange(len(data))
+        indices = np.arange(len(h5_dataset))
         np.random.shuffle(indices)
     else:
         raise KeyError('Invalid access method')
     # num entries to test
-    n = min(len(data), max_entries)
+    n = min(len(h5_dataset), max_entries)
     indices = indices[:n]
     # iterate through dataset, exit on timeout or max_entries
     t = Timer()
     for chunk in iter_chunks(enumerate(indices), chunk_size=batch_size):
         with t:
             for i, idx in chunk:
-                entry = data[idx]
+                entry = h5_dataset[idx]
         if t.elapsed > timeout:
             break
     # calculate score
@@ -224,7 +194,36 @@ def hdf5_test_entries_per_second(h5_data: h5py.File, dataset_name, access_method
 def hdf5_test_speed(h5_path: str, dataset_name: str, access_method: str = 'random'):
     with h5py.File(h5_path, 'r') as out_h5:
         log.info('[TESTING] Access Speed...')
-        log.info(f'Random Accesses Per Second: {hdf5_test_entries_per_second(out_h5, dataset_name, access_method=access_method, max_entries=5_000):.3f}')
+        log.info(f'Random Accesses Per Second: {hdf5_test_entries_per_second(out_h5[dataset_name], access_method=access_method, max_entries=5_000):.3f}')
+
+
+# ========================================================================= #
+# hdf5 - stats                                                              #
+# ========================================================================= #
+
+
+# TODO: cleanup
+def hdf5_print_entry_data_stats(h5_dataset: h5py.Dataset, label='STATISTICS'):
+    dtype = h5_dataset.dtype
+    itemsize = h5_dataset.dtype.itemsize
+    # chunk
+    chunks = np.array(h5_dataset.chunks)
+    data_per_chunk = np.prod(chunks) * itemsize
+    # entry
+    shape = np.array([1, *h5_dataset.shape[1:]])
+    data_per_entry = np.prod(shape) * itemsize
+    # chunks per entry
+    chunks_per_dim = np.ceil(shape / chunks).astype('int')
+    chunks_per_entry = np.prod(chunks_per_dim)
+    read_data_per_entry = data_per_chunk * chunks_per_entry
+    # print info
+    tqdm.write(
+        f'[{label:3s}] '
+        f'entry: {str(list(shape)):18s} ({str(dtype):8s}) {c.lYLW}{bytes_to_human(data_per_entry)}{c.RST} '
+        f'chunk: {str(list(chunks)):18s} {c.YLW}{bytes_to_human(data_per_chunk)}{c.RST} '
+        f'chunks per entry: {str(list(chunks_per_dim)):18s} {c.YLW}{bytes_to_human(read_data_per_entry)}{c.RST} ({c.RED}{chunks_per_entry:5d}{c.RST})  |  '
+        f'compression: {repr(h5_dataset.compression)} compression lvl: {repr(h5_dataset.compression_opts)}'
+    )
 
 
 # ========================================================================= #

@@ -25,7 +25,7 @@
 import logging
 from typing import Optional
 
-from disent.data.groundtruth.base import DlDataObject
+from disent.data.dataobj import DlDataObject
 from disent.data.groundtruth.base import NumpyGroundTruthData
 
 

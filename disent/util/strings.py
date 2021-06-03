@@ -22,6 +22,35 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import math
+from disent.util import colors as c
+
+
+# ========================================================================= #
+# Byte Formatting                                                           #
+# ========================================================================= #
+
+
+_BYTES_COLR = (c.WHT, c.lGRN, c.lYLW, c.lRED, c.lRED, c.lRED, c.lRED, c.lRED, c.lRED)
+_BYTES_NAME = {
+    1024: ("B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"),
+    1000: ("B", "KB",  "MB",  "GB",  "TB",  "PB",  "EB",  "ZB",  "YB"),
+}
+
+
+def bytes_to_human(size_bytes: int, decimals: int = 3, color: bool = True, mul: int = 1024) -> str:
+    if size_bytes == 0:
+        return "0B"
+    if mul not in _BYTES_NAME:
+        raise ValueError(f'invalid bytes multiplier: {repr(mul)} must be one of: {list(_BYTES_NAME.keys())}')
+    # round correctly
+    i = int(math.floor(math.log(size_bytes, mul)))
+    s = round(size_bytes / math.pow(mul, i), decimals)
+    # generate string
+    name = f'{_BYTES_COLR[i]}{_BYTES_NAME[mul][i]}{c.RST}' if color else f'{_BYTES_NAME[mul][i]}'
+    # format string
+    return f"{s:{4+decimals}.{decimals}f} {name}"
+
 
 # ========================================================================= #
 # STRINGS                                                                   #
@@ -90,4 +119,3 @@ def concat_lines(*strings, sep=' | '):
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-

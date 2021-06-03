@@ -24,7 +24,7 @@
 
 import numpy as np
 
-from disent.data.util.state_space import StateSpace
+from disent.data.groundtruth.states import StateSpace
 
 
 # ========================================================================= #

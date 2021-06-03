@@ -31,8 +31,8 @@ from typing import Tuple
 
 import numpy as np
 
+from disent.data.dataobj import DlDataObject
 from disent.data.groundtruth.base import DiskGroundTruthData
-from disent.data.groundtruth.base import DlDataObject
 
 
 # ========================================================================= #
