@@ -27,6 +27,7 @@ import os
 from abc import ABCMeta
 from typing import Callable
 from typing import Dict
+from typing import final
 from typing import NoReturn
 from typing import Optional
 from typing import Sequence
@@ -56,6 +57,9 @@ log = logging.getLogger(__name__)
 
 
 class GroundTruthData(StateSpace):
+    """
+    Dataset that corresponds to some state space or ground truth factors
+    """
 
     def __init__(self):
         assert len(self.factor_names) == len(self.factor_sizes), 'Dimensionality mismatch of FACTOR_NAMES and FACTOR_DIMS'
@@ -99,10 +103,17 @@ class GroundTruthData(StateSpace):
 
 # ========================================================================= #
 # disk ground truth data                                                    #
+# TODO: data & data_object preparation should be split out from             #
+#       GroundTruthData, instead GroundTruthData should be a wrapper        #
 # ========================================================================= #
 
 
 class DiskGroundTruthData(GroundTruthData, metaclass=ABCMeta):
+
+    """
+    Dataset that prepares a list DataObjects into some local directory.
+    - This directory can be
+    """
 
     def __init__(self, data_root: Optional[str] = None, prepare: bool = False):
         super().__init__()
@@ -133,6 +144,10 @@ class DiskGroundTruthData(GroundTruthData, metaclass=ABCMeta):
 
 
 class NumpyGroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
+    """
+    Dataset that loads a numpy file from a DataObject
+    - if the dataset is contained in a key, set the `data_key` property
+    """
 
     def __init__(self, data_root: Optional[str] = None, prepare: bool = False):
         super().__init__(data_root=data_root, prepare=prepare)
@@ -159,6 +174,11 @@ class NumpyGroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
 
 
 class Hdf5GroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
+    """
+    Dataset that loads an Hdf5 file from a DataObject
+    - requires that the data object has the `out_dataset_name` attribute
+      that points to the hdf5 dataset in the file to load.
+    """
 
     def __init__(self, data_root: Optional[str] = None, prepare: bool = False, in_memory=False):
         super().__init__(data_root=data_root, prepare=prepare)
@@ -194,11 +214,35 @@ class Hdf5GroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
 
 # ========================================================================= #
 # data objects                                                              #
-# TODO: clean this up, this could be simplified!                            #
 # ========================================================================= #
 
 
-class DataObject(object):
+class DataObject(object, metaclass=ABCMeta):
+    """
+    base DataObject that does nothing, if the file does
+    not exist or it has the incorrect hash, then that's your problem!
+    """
+
+    def __init__(self, file_name: str):
+        self._file_name = file_name
+
+    @final
+    @property
+    def out_name(self) -> str:
+        return self._file_name
+
+    def prepare(self, out_dir: str) -> str:
+        # TODO: maybe check that the file exists or not and raise a FileNotFoundError?
+        pass
+
+
+class HashedDataObject(DataObject, metaclass=ABCMeta):
+    """
+    Abstract Class
+    - Base DataObject class that guarantees a file to exist,
+      if the file does not exist, or the hash of the file is
+      incorrect, then the file is re-generated.
+    """
 
     def __init__(
         self,
@@ -207,14 +251,10 @@ class DataObject(object):
         hash_type: str = 'md5',
         hash_mode: str = 'fast',
     ):
-        self._file_name = file_name
+        super().__init__(file_name=file_name)
         self._file_hash = file_hash
         self._hash_type = hash_type
         self._hash_mode = hash_mode
-
-    @property
-    def out_name(self) -> str:
-        return self._file_name
 
     def prepare(self, out_dir: str) -> str:
         @stalefile(file=os.path.join(out_dir, self._file_name), hash=self._file_hash, hash_type=self._hash_type, hash_mode=self._hash_mode)
@@ -223,10 +263,16 @@ class DataObject(object):
         return wrapped()
 
     def _prepare(self, out_dir: str, out_file: str) -> str:
+        # TODO: maybe raise a FileNotFoundError or a HashError instead?
         raise NotImplementedError
 
 
-class DlDataObject(DataObject):
+class DlDataObject(HashedDataObject):
+    """
+    Download a file
+    - uri can also be a file to perform a copy instead of download,
+      useful for example if you want to retrieve a file from a network drive.
+    """
 
     def __init__(
         self,
@@ -248,7 +294,11 @@ class DlDataObject(DataObject):
         retrieve_file(src_uri=self._uri, dst_path=out_file, overwrite_existing=True)
 
 
-class DlGenDataObject(DataObject):
+class DlGenDataObject(HashedDataObject, metaclass=ABCMeta):
+    """
+    Abstract class
+    - download a file and perform some processing on that file.
+    """
 
     def __init__(
         self,
@@ -286,6 +336,9 @@ class DlGenDataObject(DataObject):
 
 
 class DlH5DataObject(DlGenDataObject):
+    """
+    Downloads an hdf5 file and pre-processes it into the specified chunk_size.
+    """
 
     def __init__(
         self,
@@ -336,229 +389,7 @@ class DlH5DataObject(DlGenDataObject):
         self._hdf5_resave_file(inp_path=inp_file, out_path=out_file)
 
 
-# class DataObject(object):
-#
-#     @property
-#     def file_name(self) -> str:
-#         raise NotImplementedError
-#
-#     def prepare(self, data_dir: str):
-#         pass
-#
-#     def get_path(self, data_dir, *attrs):
-#         paths = [os.path.join(data_dir, getattr(self, attr)) for attr in attrs]
-#         if len(paths) == 1:
-#             return paths[0]
-#         return paths
-#
-#
-# class DlDataObject(DataObject):
-#
-#     def __init__(
-#         self,
-#         # download file/link
-#         uri: str,
-#         uri_hash: Optional[Union[str, Dict[str, str]]],
-#         uri_name: Optional[str] = None,  # automatically obtain uri name from url if None
-#         # hash settings
-#         hash_type: str = 'md5',
-#         hash_mode: str = 'fast',
-#     ):
-#         def _prepare(data_dir: str):
-#             dl_path = os.path.join(data_dir, self._uri_name)
-#             # cached download task
-#             @stalefile(file=dl_path, hash=uri_hash, hash_type=hash_type, hash_mode=hash_mode)
-#             def download():
-#                 retrieve_file(src_uri=uri, dst_path=dl_path, overwrite_existing=True)
-#             # run task
-#             return download()
-#
-#         # instance variables
-#         self._uri_name = basename_from_url(uri) if (uri_name is None) else uri_name
-#         self._out_name = self._uri_name
-#         self._prepare = _prepare
-#
-#     @property
-#     def file_name(self) -> str:
-#         return self._out_name
-#
-#     def prepare(self, data_dir: str):
-#         return self._prepare(data_dir)
-#
-#
-# class DlGenDataObject(DlDataObject):
-#
-#     def __init__(
-#         self,
-#         # save path
-#         file_name: str,
-#         file_hash: Optional[Union[str, Dict[str, str]]],
-#         # download file/link
-#         uri: str,
-#         uri_hash: Optional[Union[str, Dict[str, str]]],
-#         uri_name: Optional[str] = None,  # automatically obtain file name from url if None
-#         # hash settings
-#         hash_type: str = 'md5',
-#         hash_mode: str = 'fast',
-#     ):
-#         super().__init__(uri=uri, uri_hash=uri_hash, uri_name=uri_name, hash_mode=hash_mode, hash_type=hash_type)
-#
-#         def _prepare(data_dir: str):
-#             proc_path = os.path.join(data_dir, file_name)
-#             # cached process task
-#             @stalefile(file=proc_path, hash=file_hash, hash_type=hash_type, hash_mode=hash_mode)
-#             def process():
-#                 self._process_file(inp_file=self._prepare_dl(data_dir), out_file=proc_path)
-#             # run task
-#             return process()
-#
-#         self._prepare, self._prepare_dl = _prepare, self._prepare
-#         self._out_name = file_name
-#
-#     def _process_file(self, inp_file: str, out_file: str):
-#         raise NotImplementedError
-#
-#
-# class DlH5DataObject(DlGenDataObject):
-#
-#     def __init__(
-#         self,
-#         # download file/link
-#         uri: str,
-#         uri_hash: Optional[Union[str, Dict[str, str]]],
-#         # save hash
-#         file_hash: Optional[Union[str, Dict[str, str]]],
-#         # h5 re-save settings
-#         hdf5_dataset_name: str,
-#         hdf5_chunk_size: Tuple[int, ...],
-#         hdf5_compression: Optional[str] = 'gzip',
-#         hdf5_compression_lvl: Optional[int] = 4,
-#         hdf5_dtype: Optional[Union[np.dtype, str]] = None,
-#         hdf5_mutator: Optional[Callable[[np.ndarray], np.ndarray]] = None,
-#         # save path
-#         file_name: Optional[str] = None,  # automatically obtain file name from url if None
-#         # hash settings
-#         hash_type: str = 'md5',
-#         hash_mode: str = 'fast',
-#     ):
-#         file_name = basename_from_url(uri) if (file_name is None) else file_name
-#         uri_name = f'dl.{file_name}'
-#         self.hdf5_dataset_name = hdf5_dataset_name
-#
-#         super().__init__(
-#             file_name=file_name,
-#             file_hash=file_hash,
-#             uri=uri,
-#             uri_hash=uri_hash,
-#             uri_name=uri_name,
-#             hash_type=hash_type,
-#             hash_mode=hash_mode
-#         )
-#
-#         def prepare_file(inp_file: str, out_file: str):
-#             hdf5_resave_file(
-#                 inp_path=inp_file,
-#                 out_path=out_file,
-#                 dataset_name=hdf5_dataset_name,
-#                 chunk_size=hdf5_chunk_size,
-#                 compression=hdf5_compression,
-#                 compression_lvl=hdf5_compression_lvl,
-#                 batch_size=None,
-#                 out_dtype=hdf5_dtype,
-#                 out_mutator=hdf5_mutator,
-#             )
-#
-#         self._process_file = prepare_file
-
-
-DataFilePrepare = Callable[[str, str], NoReturn]
-DataPrepare = Callable[[str], str]
-
-
-def stalefile_prepare(
-    out_name,
-    out_hash: Union[str, Dict[str, str]],
-    hash_type: str = 'md5',
-    hash_mode: str = 'fast',
-) -> Callable[[DataFilePrepare], DataPrepare]:
-    def wrapper(func: DataFilePrepare) -> DataPrepare:
-        def prepare(data_dir: str) -> str:
-            out_file = os.path.join(data_dir, out_name)
-            @stalefile(file=out_file, hash=out_hash, hash_type=hash_type, hash_mode=hash_mode)
-            def run():
-                func(data_dir, out_file)
-            return run()
-        return prepare
-    return wrapper
-
-
-# def data_object_downloader(
-#     uri: str,
-#     uri_hash: Optional[Union[str, Dict[str, str]]],
-#     uri_name: Optional[str] = None,
-#     hash_type: str = 'md5',
-#     hash_mode: str = 'fast',
-# ) -> DataObject:
-#
-#     uri_name = basename_from_url(uri) if (uri_name is None) else uri_name
-#
-#     @prepare_stalefile(out_name=uri_name, out_hash=uri_hash, hash_type=hash_type, hash_mode=hash_mode)
-#     def download(out_dir: str, out_path: str):
-#         retrieve_file(src_uri=uri, dst_path=out_path, overwrite_existing=True)
-#         return out_path
-#
-#     return download
-#
-#
-# def data_object_download_h5(
-#     # save hash
-#     file_hash: Optional[Union[str, Dict[str, str]]],
-#     # download file/link
-#     uri: str,
-#     uri_hash: Optional[Union[str, Dict[str, str]]],
-#     # h5 re-save settings
-#     hdf5_dataset_name: str,
-#     hdf5_chunk_size: Tuple[int, ...],
-#     hdf5_compression: Optional[str] = 'gzip',
-#     hdf5_compression_lvl: Optional[int] = 4,
-#     hdf5_dtype: Optional[Union[np.dtype, str]] = None,
-#     hdf5_mutator: Optional[Callable[[np.ndarray], np.ndarray]] = None,
-#     # file names
-#     file_name: Optional[str] = None,
-#     uri_name: Optional[str] = None,
-#     # hash settings
-#     hash_type: str = 'md5',
-#     hash_mode: str = 'fast',
-# ) -> DataObject:
-#
-#     file_name = basename_from_url(uri) if (file_name is None) else file_name
-#     uri_name = f'dl.{basename_from_url(uri)}' if (uri_name is None) else uri_name
-#
-#     @prepare_stalefile(out_name=uri_name, out_hash=uri_hash, hash_type=hash_type, hash_mode=hash_mode)
-#     def download_to(out_dir: str, out_path: str):
-#         retrieve_file(src_uri=uri, dst_path=out_path, overwrite_existing=True)
-#
-#     @prepare_stalefile(out_name=file_name, out_hash=file_hash, hash_type=hash_type, hash_mode=hash_mode)
-#     def process_to(out_dir: str, out_path: str):
-#         inp_path = download_to(out_dir)
-#         hdf5_resave_file(
-#             inp_path=inp_path,
-#             out_path=out_path,
-#             dataset_name=hdf5_dataset_name,
-#             chunk_size=hdf5_chunk_size,
-#             compression=hdf5_compression,
-#             compression_lvl=hdf5_compression_lvl,
-#             out_dtype=hdf5_dtype,
-#             out_mutator=hdf5_mutator,
-#         )
-#
-#     return process_to
-
-
-
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-
-
 

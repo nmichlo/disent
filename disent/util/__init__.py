@@ -27,6 +27,7 @@ import logging
 import os
 import time
 from collections import Sequence
+from contextlib import ContextDecorator
 from itertools import islice
 from typing import List
 
@@ -283,7 +284,7 @@ class LengthIter(Sequence):
 # ========================================================================= #
 
 
-class Timer:
+class Timer(ContextDecorator):
 
     """
     Timer class, can be used with a with statement to
