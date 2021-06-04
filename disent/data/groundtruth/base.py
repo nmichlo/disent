@@ -52,8 +52,10 @@ class GroundTruthData(StateSpace):
     """
 
     def __init__(self):
-        assert len(self.factor_names) == len(self.factor_sizes), 'Dimensionality mismatch of FACTOR_NAMES and FACTOR_DIMS'
-        super().__init__(factor_sizes=self.factor_sizes)
+        super().__init__(
+            factor_sizes=self.factor_sizes,
+            factor_names=self.factor_names,
+        )
 
     @property
     def name(self):

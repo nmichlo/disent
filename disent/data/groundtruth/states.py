@@ -21,6 +21,9 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+from typing import Optional
+from typing import Sequence
+from typing import Tuple
 
 import numpy as np
 from disent.util.iters import LengthIter
@@ -38,13 +41,17 @@ class StateSpace(LengthIter):
     ie. State space with multiple factors of variation, where each factor can be a different size.
     """
 
-    def __init__(self, factor_sizes):
+    def __init__(self, factor_sizes: Sequence[int], factor_names: Optional[Sequence[str]] = None):
         super().__init__()
         # dimension
         self.__factor_sizes = np.array(factor_sizes)
         self.__factor_sizes.flags.writeable = False
         # total permutations
         self.__size = int(np.prod(factor_sizes))
+        # factor names
+        self.__factor_names = tuple(f'f{i}' for i in range(self.num_factors)) if (factor_names is None) else tuple(factor_names)
+        if len(self.__factor_names) != len(self.__factor_sizes):
+            raise ValueError(f'Dimensionality mismatch of factor_names and factor_sizes: len({self.__factor_names}) != len({tuple(self.__factor_sizes)})')
 
     def __len__(self):
         """Same as self.size"""
@@ -72,6 +79,11 @@ class StateSpace(LengthIter):
     def factor_sizes(self) -> np.ndarray:
         """A list of sizes or dimensionality of factors handled by this state space"""
         return self.__factor_sizes
+
+    @property
+    def factor_names(self) -> Tuple[str, ...]:
+        """A list of names of factors handled by this state space"""
+        return self.__factor_names
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Coordinate Transform - any dim array, only last axis counts!          #
