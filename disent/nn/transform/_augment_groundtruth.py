@@ -28,7 +28,7 @@
 # ========================================================================= #
 
 
-class GroundTruthDatasetBatchAugment(object):
+class DisentDatasetTransform(object):
     """
     Applies transforms to batches generated from dataloaders of
     datasets from: disent.dataset.groundtruth
@@ -40,11 +40,13 @@ class GroundTruthDatasetBatchAugment(object):
 
     def __call__(self, batch):
         # transform inputs
-        if self.transform:
-            batch = _apply_transform_to_batch_dict(batch, 'x', self.transform)
+        if self.transform is not None:
+            if 'x' not in batch:
+                batch['x'] = batch['x_targ']
+            batch['x'] = _apply_transform_to_batch_dict(batch['x'], self.transform)
         # transform targets
-        if self.transform_targ:
-            batch = _apply_transform_to_batch_dict(batch, 'x_targ', self.transform_targ)
+        if self.transform_targ is not None:
+            batch['x_targ'] = _apply_transform_to_batch_dict(batch['x_targ'], self.transform_targ)
         # done!
         return batch
 
@@ -52,16 +54,13 @@ class GroundTruthDatasetBatchAugment(object):
         return f'{self.__class__.__name__}(transform={repr(self.transform)}, transform_targ={repr(self.transform_targ)})'
 
 
-def _apply_transform_to_batch_dict(batch, key, transform):
-    observations = batch[key]
-    if isinstance(observations, tuple):
-        observations = tuple([transform(obs) for obs in observations])
-    if isinstance(observations, list):
-        observations = [transform(obs) for obs in observations]
+def _apply_transform_to_batch_dict(batch, transform):
+    if isinstance(batch, tuple):
+        return tuple(transform(obs) for obs in batch)
+    if isinstance(batch, list):
+        return list(transform(obs) for obs in batch)
     else:
-        observations = transform(observations)
-    batch[key] = observations
-    return batch
+        return transform(batch)
 
 
 # ========================================================================= #

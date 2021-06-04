@@ -23,6 +23,8 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
+import random
+
 import numpy as np
 
 
@@ -41,16 +43,18 @@ def seed(long=777):
     if long is None:
         log.warning(f'[SEEDING]: no seed was specified. Seeding skipped!')
         return
+    # seed python
+    random.seed(long)
+    # seed numpy
+    np.random.seed(long)
     # seed torch - it can be slow to import
     try:
         import torch
-        torch.manual_seed(long)
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
+        torch.manual_seed(long)  # also calls: torch.cuda.manual_seed_all
     except ImportError:
         log.warning(f'[SEEDING]: torch is not installed. Skipped seeding torch methods!')
-    # seed numpy
-    np.random.seed(long)
     # done!
     log.info(f'[SEEDED]: {long}')
 

@@ -31,3 +31,6 @@ from ._transforms import ToStandardisedTensor
 from ._augment import FftGaussianBlur
 from ._augment import FftBoxBlur
 from ._augment import FftKernel
+
+# disent dataset augment
+from ._augment_groundtruth import DisentDatasetTransform
