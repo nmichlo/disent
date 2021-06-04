@@ -31,10 +31,10 @@ from typing import Tuple
 
 import numpy as np
 
-from disent.data.dataobj import DataObject
-from disent.data.dataobj import DlH5DataObject
+from disent.data.datafile import DataFile
+from disent.data.datafile import DataFileHashedDlH5
 from disent.data.groundtruth.states import StateSpace
-from disent.data.hdf5 import PickleH5pyData
+from disent.data.hdf5 import PickleH5pyFile
 from disent.util.paths import ensure_dir_exists
 
 
@@ -93,7 +93,7 @@ class GroundTruthData(StateSpace):
 
 # ========================================================================= #
 # disk ground truth data                                                    #
-# TODO: data & data_object preparation should be split out from             #
+# TODO: data & datafile preparation should be split out from             #
 #       GroundTruthData, instead GroundTruthData should be a wrapper        #
 # ========================================================================= #
 
@@ -117,8 +117,8 @@ class DiskGroundTruthData(GroundTruthData, metaclass=ABCMeta):
         log.info(f'{self.name}: data_dir_share={repr(self._data_dir)}')
         # prepare everything
         if prepare:
-            for data_object in self.data_objects:
-                data_object.prepare(self.data_dir)
+            for datafile in self.datafiles:
+                datafile.prepare(self.data_dir)
 
     @property
     def data_dir(self) -> str:
@@ -129,7 +129,7 @@ class DiskGroundTruthData(GroundTruthData, metaclass=ABCMeta):
         return os.path.abspath(os.environ.get('DISENT_DATA_ROOT', 'data/dataset'))
 
     @property
-    def data_objects(self) -> Sequence[DataObject]:
+    def datafiles(self) -> Sequence[DataFile]:
         raise NotImplementedError
 
 
@@ -142,7 +142,14 @@ class NumpyGroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
     def __init__(self, data_root: Optional[str] = None, prepare: bool = False):
         super().__init__(data_root=data_root, prepare=prepare)
         # load dataset
-        self._data = np.load(os.path.join(self.data_dir, self.data_object.out_name))
+        load_path = os.path.join(self.data_dir, self.datafile.out_name)
+        if load_path.endswith('.gz'):
+            import gzip
+            with gzip.GzipFile(load_path, 'r') as load_file:
+                self._data = np.load(load_file)
+        else:
+            self._data = np.load(load_path)
+        # load from the key if specified
         if self.data_key is not None:
             self._data = self._data[self.data_key]
 
@@ -150,11 +157,11 @@ class NumpyGroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
         return self._data[idx]
 
     @property
-    def data_objects(self) -> Sequence[DataObject]:
-        return [self.data_object]
+    def datafiles(self) -> Sequence[DataFile]:
+        return [self.datafile]
 
     @property
-    def data_object(self) -> DataObject:
+    def datafile(self) -> DataFile:
         raise NotImplementedError
 
     @property
@@ -175,9 +182,9 @@ class Hdf5GroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
         # variables
         self._in_memory = in_memory
         # load the h5py dataset
-        data = PickleH5pyData(
-            h5_path=os.path.join(self.data_dir, self.data_object.out_name),
-            h5_dataset_name=self.data_object.out_dataset_name,
+        data = PickleH5pyFile(
+            h5_path=os.path.join(self.data_dir, self.datafile.out_name),
+            h5_dataset_name=self.datafile.dataset_name,
         )
         # handle different memory modes
         if self._in_memory:
@@ -194,11 +201,11 @@ class Hdf5GroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
         return self._data[idx]
 
     @property
-    def data_objects(self) -> Sequence[DlH5DataObject]:
-        return [self.data_object]
+    def datafiles(self) -> Sequence[DataFileHashedDlH5]:
+        return [self.datafile]
 
     @property
-    def data_object(self) -> DlH5DataObject:
+    def datafile(self) -> DataFileHashedDlH5:
         raise NotImplementedError
 
 

@@ -111,8 +111,7 @@ class Cars3dData(NumpyGroundTruthData):
     factor_sizes = (4, 24, 183)  # TOTAL: 17568
     observation_shape = (128, 128, 3)
 
-    data_key = 'images'
-    data_object = DataFileCars3d(
+    datafile = DataFileCars3d(
         uri='http://www.scottreed.info/files/nips2015-analogy-data.tar.gz',
         uri_hash={'fast': 'fe77d39e3fa9d77c31df2262660c2a67', 'full': '4e866a7919c1beedf53964e6f7a23686'},
         file_name='cars3d.npz',

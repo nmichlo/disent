@@ -69,7 +69,7 @@ class Mpi3dData(NumpyGroundTruthData):
         super().__init__(data_root=data_root, prepare=prepare)
 
     @property
-    def data_object(self) -> DataFileHashedDl:
+    def datafile(self) -> DataFileHashedDl:
         return self.MPI3D_DATASETS[self._subset]
 
 

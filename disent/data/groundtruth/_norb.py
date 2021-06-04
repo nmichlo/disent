@@ -143,32 +143,32 @@ class SmallNorbData(DiskGroundTruthData):
     factor_sizes = (5, 5, 9, 18, 6)  # TOTAL: 24300
     observation_shape = (96, 96, 1)
 
-    TRAIN_DATA_OBJECTS = {
+    TRAIN_DATA_FILES = {
         'dat': DataFileHashedDl(uri='https://cs.nyu.edu/~ylclab/data/norb-v1.0-small/smallnorb-5x46789x9x18x6x2x96x96-training-dat.mat.gz', uri_hash={'fast': '92560cccc7bcbd6512805e435448b62d', 'full': '66054832f9accfe74a0f4c36a75bc0a2'}),
         'cat': DataFileHashedDl(uri='https://cs.nyu.edu/~ylclab/data/norb-v1.0-small/smallnorb-5x46789x9x18x6x2x96x96-training-cat.mat.gz', uri_hash={'fast': '348fc3ccefd651d69f500611988b5dcd', 'full': '23c8b86101fbf0904a000b43d3ed2fd9'}),
         'info': DataFileHashedDl(uri='https://cs.nyu.edu/~ylclab/data/norb-v1.0-small/smallnorb-5x46789x9x18x6x2x96x96-training-info.mat.gz', uri_hash={'fast': 'f1b170c16925867c05f58608eb33ba7f', 'full': '51dee1210a742582ff607dfd94e332e3'}),
     }
 
-    TEST_DATA_OBJECTS = {
+    TEST_DATA_FILES = {
         'dat': DataFileHashedDl(uri='https://cs.nyu.edu/~ylclab/data/norb-v1.0-small/smallnorb-5x01235x9x18x6x2x96x96-testing-dat.mat.gz', uri_hash={'fast': '9aee0b474a4fc2a2ec392b463efb8858', 'full': 'e4ad715691ed5a3a5f138751a4ceb071'}),
         'cat': DataFileHashedDl(uri='https://cs.nyu.edu/~ylclab/data/norb-v1.0-small/smallnorb-5x01235x9x18x6x2x96x96-testing-cat.mat.gz', uri_hash={'fast': '8cfae0679f5fa2df7a0aedfce90e5673', 'full': '5aa791cd7e6016cf957ce9bdb93b8603'}),
         'info': DataFileHashedDl(uri='https://cs.nyu.edu/~ylclab/data/norb-v1.0-small/smallnorb-5x01235x9x18x6x2x96x96-testing-info.mat.gz', uri_hash={'fast': 'd2703a3f95e7b9a970ad52e91f0aaf6a', 'full': 'a9454f3864d7fd4bb3ea7fc3eb84924e'}),
     }
 
-    def __init__(self, data_root: Optional[str] = 'data/TEMP/dataset', prepare: bool = False, is_test=False):
+    def __init__(self, data_root: Optional[str] = None, prepare: bool = False, is_test=False):
         self._is_test = is_test
         # initialize
         super().__init__(data_root=data_root, prepare=prepare)
         # read dataset and sort by features
-        dat_path, cat_path, info_path = (os.path.join(self.data_dir, obj.out_name) for obj in self.data_objects)
+        dat_path, cat_path, info_path = (os.path.join(self.data_dir, obj.out_name) for obj in self.datafiles)
         self._data, _ = read_norb_dataset(dat_path=dat_path, cat_path=cat_path, info_path=info_path)
 
     def __getitem__(self, idx):
         return self._data[idx]
 
     @property
-    def data_objects(self) -> Sequence[DataFileHashedDl]:
-        norb_objects = self.TEST_DATA_OBJECTS if self._is_test else self.TRAIN_DATA_OBJECTS
+    def datafiles(self) -> Sequence[DataFileHashedDl]:
+        norb_objects = self.TEST_DATA_FILES if self._is_test else self.TRAIN_DATA_FILES
         return norb_objects['dat'], norb_objects['cat'], norb_objects['info']
 
 

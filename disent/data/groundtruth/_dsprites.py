@@ -57,17 +57,18 @@ class DSpritesData(Hdf5GroundTruthData):
     factor_sizes = (3, 6, 40, 32, 32)  # TOTAL: 737280
     observation_shape = (64, 64, 1)
 
-    data_object = DataFileHashedDlH5(
+    datafile = DataFileHashedDlH5(
         # download file/link
         uri='https://raw.githubusercontent.com/deepmind/dsprites-dataset/master/dsprites_ndarray_co1sh3sc6or40x32y32_64x64.hdf5',
         uri_hash={'fast': 'd6ee1e43db715c2f0de3c41e38863347', 'full': 'b331c4447a651c44bf5e8ae09022e230'},
         # processed dataset file
-        file_hash={'fast': '7a6e83ebf35f93a1cd9ae0210112b421', 'full': '27c674fb5170dcd6a1f9853b66c5785d'},
+        file_hash={'fast': '25013c85aebbf4b1023d72564f9413f0', 'full': '4611d1a03e709cd5d0f6fdcdc221ca0e'},
         # h5 re-save settings
         hdf5_dataset_name='imgs',
-        hdf5_chunk_size=(1, 64, 64),
+        hdf5_chunk_size=(1, 64, 64, 1),
         hdf5_dtype='uint8',
-        hdf5_mutator=lambda x: x * 255
+        hdf5_mutator=lambda x: x * 255,
+        hdf5_obs_shape=(64, 64, 1),
     )
 
 
