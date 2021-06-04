@@ -135,4 +135,5 @@ logs/
 
 # custom - root folder only
 /data/dataset
+/docs/examples/data
 *.pkl

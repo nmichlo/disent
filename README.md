@@ -39,6 +39,22 @@
 
 ----------------------
 
+### Table Of Contents
+
+- [Overview](#overview)
+- [Getting Started](#getting-started)
+- [Features](#features)
+    * [Frameworks](#frameworks)
+    * [Metrics](#metrics)
+    * [Datasets](#datasets)
+    * [Schedules & Annealing](#schedules--annealing)
+- [Examples](#examples)
+    * [Python Example](#python-example)
+    * [Hydra Config Example](#hydra-config-example)
+- [Why?](#why)
+
+----------------------
+
 ### Overview
 
 Disent is a modular disentangled representation learning framework for auto-encoders, built upon pytorch-lightning. This framework consists of various composable components that can be used to build and benchmark disentanglement pipelines.
@@ -159,7 +175,7 @@ add your own, or you have a request.
 
 </p></details>
 
-#### Datasets:
+#### Datasets
 
 Various common datasets used in disentanglement research are implemented, as well as new sythetic datasets that are generated programatically on the fly. These are convenient and lightweight, not requiring storage space.
 
@@ -181,7 +197,7 @@ Various common datasets used in disentanglement research are implemented, as wel
   - Input based transforms are supported.
   - Input and Target CPU and GPU based augmentations are supported.
 
-#### Schedules/Annealing:
+#### Schedules & Annealing
 
 Hyper-parameter annealing is supported through the use of schedules. The currently implemented schedules include:
 
@@ -189,21 +205,6 @@ Hyper-parameter annealing is supported through the use of schedules. The current
 - [Cyclic](https://arxiv.org/abs/1903.10145) Schedule
 - Cosine Wave Schedule
 - *Various other wrapper schedules*
-
-----------------------
-
-### Why?
-  
-- Created as part of my Computer Science MSc scheduled for completion in 2021.
-
-- I needed custom high quality implementations of various VAE's.
-
-- A pytorch version of [disentanglement_lib](https://github.com/google-research/disentanglement_lib).
-
-- I didn't have time to wait for [Weakly-Supervised Disentanglement Without Compromises](https://arxiv.org/abs/2002.02886) to release
-  their code as part of disentanglement_lib. (As of September 2020 it has been released, but has unresolved [discrepencies](https://github.com/google-research/disentanglement_lib/issues/31)).
-
-- disentanglement_lib still uses outdated Tensorflow 1.0, and the flow of data is unintuitive because of its use of [Gin Config](https://github.com/google/gin-config).
 
 ----------------------
 
@@ -225,7 +226,9 @@ Hyper-parameter annealing is supported through the use of schedules. The current
 
 ----------------------
 
-### Example Code
+### Examples
+
+#### Python Example
 
 The following is a basic working example of disent that trains a BetaVAE with a cyclic
 beta schedule and evaluates the trained model with various metrics.
@@ -299,10 +302,7 @@ print('metrics:', metrics)
 
 Visit the [docs](https://disent.dontpanic.sh) for more examples!
 
-
-----------------------
-
-### Hydra Experiment Example
+#### Hydra Config Example
 
 The entrypoint for basic experiments is `experiments/run.py`.
 
@@ -340,5 +340,20 @@ change the dataset from `xysquares` to `shapes3d`.
 
 [Weights and Biases](https://docs.wandb.ai/quickstart) is supported by changing `run_logging: none` to
 `run_logging: wandb`. However, you will need to login from the command line.
+
+----------------------
+
+### Why?
+  
+- Created as part of my Computer Science MSc scheduled for completion in 2021.
+
+- I needed custom high quality implementations of various VAE's.
+
+- A pytorch version of [disentanglement_lib](https://github.com/google-research/disentanglement_lib).
+
+- I didn't have time to wait for [Weakly-Supervised Disentanglement Without Compromises](https://arxiv.org/abs/2002.02886) to release
+  their code as part of disentanglement_lib. (As of September 2020 it has been released, but has unresolved [discrepencies](https://github.com/google-research/disentanglement_lib/issues/31)).
+
+- disentanglement_lib still uses outdated Tensorflow 1.0, and the flow of data is unintuitive because of its use of [Gin Config](https://github.com/google/gin-config).
 
 ----------------------
