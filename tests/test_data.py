@@ -21,18 +21,22 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
+from concurrent.futures import ProcessPoolExecutor
+from tempfile import NamedTemporaryFile
+
+import h5py
 import numpy as np
 import pytest
 
-from disent.data.groundtruth import Shapes3dData
 from disent.data.groundtruth import XYSquaresData
 from disent.data.groundtruth._xysquares import XYSquaresMinimalData
+from disent.data.hdf5 import PickleH5pyFile
 
 
 # ========================================================================= #
 # TESTS                                                                     #
 # ========================================================================= #
-from disent.data.groundtruth.base import Hdf5GroundTruthData
 
 
 def test_xysquares_similarity():
@@ -49,52 +53,41 @@ def test_xysquares_similarity():
     assert np.allclose(data_org[n-1], data_min[n-1])
 
 
+def _iterate_over_data(data, indices):
+    i = -1
+    for i, idx in enumerate(indices):
+        img = data[i]
+    return i + 1
 
 
-
-@pytest.mark.parametrize("num_workers", [0, 1, 2])
-def test_hdf5_multiproc_dataset(num_workers):
-    from disent.dataset.random import RandomDataset
-    from torch.utils.data import DataLoader
-
-    xysquares = XYSquaresData(square_size=2, image_size=4)
-
-
-    # class TestHdf5Dataset(Hdf5GroundTruthData):
-    #
-    #
-    #     factor_names = ('floor_hue', 'wall_hue', 'object_hue', 'scale', 'shape', 'orientation')
-    #     factor_sizes = (10, 10, 10, 8, 4, 15)  # TOTAL: 480000
-    #     observation_shape = (64, 64, 3)
-    #
-    #     data_object = DlH5DataObject(
-    #         # processed dataset file
-    #         file_name='3dshapes.h5',
-    #         file_hashes={'fast': 'e3a1a449b95293d4b2c25edbfcb8e804', 'full': 'b5187ee0d8b519bb33281c5ca549658c'},
-    #         # download file/link
-    #         uri='https://storage.googleapis.com/3d-shapes/3dshapes.h5',
-    #         uri_hashes={'fast': '85b20ed7cc8dc1f939f7031698d2d2ab', 'full': '099a2078d58cec4daad0702c55d06868'},
-    #         # hash settings
-    #         hash_mode='fast',
-    #         hash_type='md5',
-    #         # h5 re-save settings
-    #         hdf5_dataset_name='images',
-    #         hdf5_chunk_size=(1, 64, 64, 3),
-    #         hdf5_compression='gzip',
-    #         hdf5_compression_lvl=4,
-    #     )
-    #
-    #
-    #
-    # Shapes3dData()
-    # dataset = RandomDataset(Shapes3dData(prepare=True))
-    #
-    # dataloader = DataLoader(dataset, num_workers=num_workers, batch_size=2, shuffle=True)
-    #
-    # with tqdm(total=len(dataset)) as progress:
-    #     for batch in dataloader:
-    #         progress.update(256)
-
+def test_hdf5_pickle_dataset():
+    with NamedTemporaryFile('r') as temp_file:
+        # create temporary dataset
+        with h5py.File(temp_file.name, 'w') as file:
+            file.create_dataset(
+                name='data',
+                shape=(64, 4, 4, 3),
+                dtype='uint8',
+                data=np.stack([img for img in XYSquaresData(square_size=2, image_size=4)], axis=0)
+            )
+        # load the data
+        # - ideally we want to test this with a pytorch
+        #   DataLoader, but that is quite slow to initialise
+        with PickleH5pyFile(temp_file.name, 'data') as data:
+            indices = list(range(len(data)))
+            # test locally
+            assert _iterate_over_data(data=data, indices=indices) == 64
+            # test multiprocessing
+            executor = ProcessPoolExecutor(2)
+            future_0 = executor.submit(_iterate_over_data, data=data, indices=indices[0::2])
+            future_1 = executor.submit(_iterate_over_data, data=data, indices=indices[1::2])
+            assert future_0.result() == 32
+            assert future_1.result() == 32
+            # test multiprocessing on invalid data
+            with h5py.File(temp_file.name, 'r', swmr=True) as file:
+                with pytest.raises(TypeError, match='h5py objects cannot be pickled'):
+                    future_2 = executor.submit(_iterate_over_data, data=file['data'], indices=indices)
+                    future_2.result()
 
 
 # ========================================================================= #

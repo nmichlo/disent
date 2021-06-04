@@ -40,7 +40,8 @@ from disent.frameworks import DisentConfigurable
 from disent.frameworks import DisentFramework
 from disent.model import AutoEncoder
 from disent.nn.weights import init_model_weights
-from disent.util import make_box_str
+from disent.util.seeds import seed
+from disent.util.strings import make_box_str
 from experiment.util.callbacks import LoggerProgressCallback
 from experiment.util.callbacks import VaeDisentanglementLoggingCallback
 from experiment.util.callbacks import VaeLatentCycleLoggingCallback
@@ -244,7 +245,11 @@ def hydra_create_framework(framework_cfg, datamodule, cfg):
 
 
 def run(cfg: DictConfig):
+    # allow the cfg to be edited
     cfg = make_non_strict(cfg)
+
+    # deterministic seed
+    seed(cfg.job.setdefault('seed', None))
 
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
     # INITIALISE & SETDEFAULT IN CONFIG

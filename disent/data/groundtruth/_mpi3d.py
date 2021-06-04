@@ -25,7 +25,7 @@
 import logging
 from typing import Optional
 
-from disent.data.groundtruth.base import DlDataObject
+from disent.data.datafile import DataFileHashedDl
 from disent.data.groundtruth.base import NumpyGroundTruthData
 
 
@@ -47,9 +47,9 @@ class Mpi3dData(NumpyGroundTruthData):
     name = 'mpi3d'
 
     MPI3D_DATASETS = {
-        'toy':        DlDataObject(uri='https://storage.googleapis.com/disentanglement_dataset/Final_Dataset/mpi3d_toy.npz',       uri_hash=None),
-        'realistic':  DlDataObject(uri='https://storage.googleapis.com/disentanglement_dataset/Final_Dataset/mpi3d_realistic.npz', uri_hash=None),
-        'real':       DlDataObject(uri='https://storage.googleapis.com/disentanglement_dataset/Final_Dataset/mpi3d_real.npz',      uri_hash=None),
+        'toy':        DataFileHashedDl(uri='https://storage.googleapis.com/disentanglement_dataset/Final_Dataset/mpi3d_toy.npz',       uri_hash=None),
+        'realistic':  DataFileHashedDl(uri='https://storage.googleapis.com/disentanglement_dataset/Final_Dataset/mpi3d_realistic.npz', uri_hash=None),
+        'real':       DataFileHashedDl(uri='https://storage.googleapis.com/disentanglement_dataset/Final_Dataset/mpi3d_real.npz',      uri_hash=None),
     }
 
     factor_names = ('object_color', 'object_shape', 'object_size', 'camera_height', 'background_color', 'first_dof', 'second_dof')
@@ -69,7 +69,7 @@ class Mpi3dData(NumpyGroundTruthData):
         super().__init__(data_root=data_root, prepare=prepare)
 
     @property
-    def data_object(self) -> DlDataObject:
+    def datafile(self) -> DataFileHashedDl:
         return self.MPI3D_DATASETS[self._subset]
 
 

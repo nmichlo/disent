@@ -42,7 +42,7 @@ from disent.frameworks.helper.latent_distributions import LatentDistsHandler
 from disent.frameworks.helper.latent_distributions import make_latent_distribution
 from disent.frameworks.helper.util import detach_all
 
-from disent.util import map_all
+from disent.util.iters import map_all
 
 
 # ========================================================================= #

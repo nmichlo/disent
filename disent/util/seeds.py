@@ -22,46 +22,64 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import logging
+import random
+
+import numpy as np
+
+
+log = logging.getLogger(__name__)
+
 
 # ========================================================================= #
-# Augment                                                                   #
+# seeds                                                                     #
 # ========================================================================= #
 
 
-class GroundTruthDatasetBatchAugment(object):
+def seed(long=777):
     """
-    Applies transforms to batches generated from dataloaders of
-    datasets from: disent.dataset.groundtruth
+    https://pytorch.org/docs/stable/notes/randomness.html
     """
+    if long is None:
+        log.warning(f'[SEEDING]: no seed was specified. Seeding skipped!')
+        return
+    # seed python
+    random.seed(long)
+    # seed numpy
+    np.random.seed(long)
+    # seed torch - it can be slow to import
+    try:
+        import torch
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        torch.manual_seed(long)  # also calls: torch.cuda.manual_seed_all
+    except ImportError:
+        log.warning(f'[SEEDING]: torch is not installed. Skipped seeding torch methods!')
+    # done!
+    log.info(f'[SEEDED]: {long}')
 
-    def __init__(self, transform=None, transform_targ=None):
-        self.transform = transform
-        self.transform_targ = transform_targ
 
-    def __call__(self, batch):
-        # transform inputs
-        if self.transform:
-            batch = _apply_transform_to_batch_dict(batch, 'x', self.transform)
-        # transform targets
-        if self.transform_targ:
-            batch = _apply_transform_to_batch_dict(batch, 'x_targ', self.transform_targ)
-        # done!
-        return batch
+class TempNumpySeed(object):
+    def __init__(self, seed=None, offset=0):
+        if seed is not None:
+            try:
+                seed = int(seed)
+            except:
+                raise ValueError(f'{seed=} is not int-like!')
+        self._seed = seed
+        if seed is not None:
+            self._seed += offset
+        self._state = None
 
-    def __repr__(self):
-        return f'{self.__class__.__name__}(transform={repr(self.transform)}, transform_targ={repr(self.transform_targ)})'
+    def __enter__(self):
+        if self._seed is not None:
+            self._state = np.random.get_state()
+            np.random.seed(self._seed)
 
-
-def _apply_transform_to_batch_dict(batch, key, transform):
-    observations = batch[key]
-    if isinstance(observations, tuple):
-        observations = tuple([transform(obs) for obs in observations])
-    if isinstance(observations, list):
-        observations = [transform(obs) for obs in observations]
-    else:
-        observations = transform(observations)
-    batch[key] = observations
-    return batch
+    def __exit__(self, *args, **kwargs):
+        if self._seed is not None:
+            np.random.set_state(self._state)
+            self._state = None
 
 
 # ========================================================================= #

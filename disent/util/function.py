@@ -21,3 +21,24 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
+
+# ========================================================================= #
+# Function Helper                                                           #
+# ========================================================================= #
+
+
+def wrapped_partial(func, *args, **kwargs):
+    """
+    Like functools.partial but keeps the same __name__ and __doc__
+    on the returned function.
+    """
+    import functools
+    partial_func = functools.partial(func, *args, **kwargs)
+    functools.update_wrapper(partial_func, func)
+    return partial_func
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #

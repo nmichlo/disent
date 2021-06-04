@@ -40,7 +40,7 @@ from ._flatness_components import metric_flatness_components
 
 
 # helper imports
-from disent.util import wrapped_partial as _wrapped_partial
+from disent.util.function import wrapped_partial as _wrapped_partial
 
 
 FAST_METRICS = {

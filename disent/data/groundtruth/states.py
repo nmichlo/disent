@@ -21,9 +21,12 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+from typing import Optional
+from typing import Sequence
+from typing import Tuple
 
 import numpy as np
-from disent.util import LengthIter
+from disent.util.iters import LengthIter
 from disent.visualize.visualize_util import get_factor_traversal
 
 
@@ -38,13 +41,17 @@ class StateSpace(LengthIter):
     ie. State space with multiple factors of variation, where each factor can be a different size.
     """
 
-    def __init__(self, factor_sizes):
+    def __init__(self, factor_sizes: Sequence[int], factor_names: Optional[Sequence[str]] = None):
         super().__init__()
         # dimension
-        self._factor_sizes = np.array(factor_sizes)
-        self._factor_sizes.flags.writeable = False
+        self.__factor_sizes = np.array(factor_sizes)
+        self.__factor_sizes.flags.writeable = False
         # total permutations
-        self._size = int(np.prod(factor_sizes))
+        self.__size = int(np.prod(factor_sizes))
+        # factor names
+        self.__factor_names = tuple(f'f{i}' for i in range(self.num_factors)) if (factor_names is None) else tuple(factor_names)
+        if len(self.__factor_names) != len(self.__factor_sizes):
+            raise ValueError(f'Dimensionality mismatch of factor_names and factor_sizes: len({self.__factor_names}) != len({tuple(self.__factor_sizes)})')
 
     def __len__(self):
         """Same as self.size"""
@@ -61,17 +68,22 @@ class StateSpace(LengthIter):
     @property
     def size(self) -> int:
         """The number of permutations of factors handled by this state space"""
-        return self._size
+        return self.__size
 
     @property
     def num_factors(self) -> int:
         """The number of factors handled by this state space"""
-        return len(self._factor_sizes)
+        return len(self.__factor_sizes)
 
     @property
     def factor_sizes(self) -> np.ndarray:
         """A list of sizes or dimensionality of factors handled by this state space"""
-        return self._factor_sizes
+        return self.__factor_sizes
+
+    @property
+    def factor_names(self) -> Tuple[str, ...]:
+        """A list of names of factors handled by this state space"""
+        return self.__factor_names
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Coordinate Transform - any dim array, only last axis counts!          #
@@ -84,7 +96,7 @@ class StateSpace(LengthIter):
         - indices are integers < size
         """
         positions = np.moveaxis(positions, source=-1, destination=0)
-        return np.ravel_multi_index(positions, self._factor_sizes)
+        return np.ravel_multi_index(positions, self.__factor_sizes)
 
     def idx_to_pos(self, indices) -> np.ndarray:
         """
@@ -92,7 +104,7 @@ class StateSpace(LengthIter):
         - indices are integers < size
         - positions are lists of integers, with each element < their corresponding factor size
         """
-        positions = np.unravel_index(indices, self._factor_sizes)
+        positions = np.array(np.unravel_index(indices, self.__factor_sizes))
         return np.moveaxis(positions, source=0, destination=-1)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -110,7 +122,7 @@ class StateSpace(LengthIter):
             the same size as factor_indices, ie (*size, len(factor_indices))
         """
         # get factor sizes
-        sizes = self._factor_sizes if (factor_indices is None) else self._factor_sizes[factor_indices]
+        sizes = self.__factor_sizes if (factor_indices is None) else self.__factor_sizes[factor_indices]
         # get resample size
         if size is not None:
             # empty np.array(()) gets dtype float which is incompatible with len
@@ -268,7 +280,6 @@ class StateSpace(LengthIter):
 # ========================================================================= #
 # Hidden State Space                                                        #
 # ========================================================================= #
-
 
 # class StateSpaceRemapIndex(object):
 #     """Mapping from incorrectly ordered factors to state space indices"""

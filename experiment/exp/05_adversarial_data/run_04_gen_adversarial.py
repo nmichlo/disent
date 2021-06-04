@@ -39,10 +39,10 @@ import torch
 from tqdm import tqdm
 
 import experiment.exp.util as H
-from disent.data.util.in_out import ensure_parent_dir_exists
-from disent.util import seed
-from disent.util import TempNumpySeed
-from disent.util import Timer
+from disent.util.paths import ensure_parent_dir_exists
+from disent.util.seeds import seed
+from disent.util.seeds import TempNumpySeed
+from disent.util.profiling import Timer
 
 
 log = logging.getLogger(__name__)

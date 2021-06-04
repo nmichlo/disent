@@ -10,7 +10,7 @@ data:
   rgb: FALSE
   palette: 'white'
 transform:
-  _target_: disent.transform.ToStandardisedTensor
+  _target_: disent.nn.transform.ToStandardisedTensor
 x_shape: [1, 64, 64]
 
 data_type: ground_truth

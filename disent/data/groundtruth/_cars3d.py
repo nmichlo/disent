@@ -30,9 +30,9 @@ from tempfile import TemporaryDirectory
 import numpy as np
 from scipy.io import loadmat
 
-from disent.data.groundtruth.base import DlGenDataObject
+from disent.data.datafile import DataFileHashedDlGen
 from disent.data.groundtruth.base import NumpyGroundTruthData
-from disent.data.util.in_out import AtomicSaveFile
+from disent.util.in_out import AtomicSaveFile
 
 
 log = logging.getLogger(__name__)
@@ -83,7 +83,7 @@ def resave_cars3d_archive(orig_zipped_file, new_save_file, overwrite=False):
 # ========================================================================= #
 
 
-class Cars3dDataObject(DlGenDataObject):
+class DataFileCars3d(DataFileHashedDlGen):
     """
     download the cars3d dataset and convert it to a numpy file.
     """
@@ -111,8 +111,7 @@ class Cars3dData(NumpyGroundTruthData):
     factor_sizes = (4, 24, 183)  # TOTAL: 17568
     observation_shape = (128, 128, 3)
 
-    data_key = 'images'
-    data_object = Cars3dDataObject(
+    datafile = DataFileCars3d(
         uri='http://www.scottreed.info/files/nips2015-analogy-data.tar.gz',
         uri_hash={'fast': 'fe77d39e3fa9d77c31df2262660c2a67', 'full': '4e866a7919c1beedf53964e6f7a23686'},
         file_name='cars3d.npz',

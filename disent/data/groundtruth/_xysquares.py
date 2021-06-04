@@ -30,7 +30,7 @@ from typing import Union
 import numpy as np
 
 from disent.data.groundtruth.base import GroundTruthData
-from disent.util import iter_chunks
+from disent.util.iters import iter_chunks
 
 
 log = logging.getLogger(__name__)

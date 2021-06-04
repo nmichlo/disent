@@ -24,8 +24,11 @@
 
 import logging
 from typing import Tuple
+
 import numpy as np
+
 from disent.data.groundtruth.base import GroundTruthData
+
 
 log = logging.getLogger(__name__)
 

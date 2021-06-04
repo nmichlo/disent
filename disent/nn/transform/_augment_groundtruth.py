@@ -22,55 +22,47 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from typing import Any
-from typing import Dict
-from typing import Sequence
-from typing import Tuple
-
-import torch
-
-from disent.util.iters import aggregate_dict
-from disent.util.iters import collect_dicts
-from disent.util.iters import map_all
-
 
 # ========================================================================= #
-# AVE LOSS HELPER                                                           #
+# Augment                                                                   #
 # ========================================================================= #
 
 
-def detach_all(tensors: Sequence[torch.tensor], if_: bool = True):
-    if if_:
-        return tuple(tensor.detach() for tensor in tensors)
-    return tensors
+class DisentDatasetTransform(object):
+    """
+    Applies transforms to batches generated from dataloaders of
+    datasets from: disent.dataset.groundtruth
+    """
+
+    def __init__(self, transform=None, transform_targ=None):
+        self.transform = transform
+        self.transform_targ = transform_targ
+
+    def __call__(self, batch):
+        # transform inputs
+        if self.transform is not None:
+            if 'x' not in batch:
+                batch['x'] = batch['x_targ']
+            batch['x'] = _apply_transform_to_batch_dict(batch['x'], self.transform)
+        # transform targets
+        if self.transform_targ is not None:
+            batch['x_targ'] = _apply_transform_to_batch_dict(batch['x_targ'], self.transform_targ)
+        # done!
+        return batch
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(transform={repr(self.transform)}, transform_targ={repr(self.transform_targ)})'
 
 
-# ========================================================================= #
-# AVE LOSS HELPER                                                           #
-# ========================================================================= #
-
-
-def compute_ave_loss(loss_fn, *arg_list, **common_kwargs) -> torch.Tensor:
-    # compute all losses
-    losses = map_all(loss_fn, *arg_list, collect_returned=False, common_kwargs=common_kwargs)
-    # compute mean loss
-    loss = torch.stack(losses).mean(dim=0)
-    # return!
-    return loss
-
-
-def compute_ave_loss_and_logs(loss_and_logs_fn, *arg_list, **common_kwargs) -> Tuple[torch.Tensor, Dict[str, Any]]:
-    # compute all losses
-    losses, logs = map_all(loss_and_logs_fn, *arg_list, collect_returned=True, common_kwargs=common_kwargs)
-    # compute mean loss
-    loss = torch.stack(losses).mean(dim=0)
-    # compute mean logs
-    logs = aggregate_dict(collect_dicts(logs))
-    # return!
-    return loss, logs
+def _apply_transform_to_batch_dict(batch, transform):
+    if isinstance(batch, tuple):
+        return tuple(transform(obs) for obs in batch)
+    if isinstance(batch, list):
+        return list(transform(obs) for obs in batch)
+    else:
+        return transform(batch)
 
 
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-

@@ -36,7 +36,7 @@ from disent.data.groundtruth import Shapes3dData
 from disent.data.groundtruth import SmallNorbData
 from disent.data.groundtruth import XYSquaresData
 from disent.dataset.groundtruth import GroundTruthDataset
-from disent.util import TempNumpySeed
+from disent.util.seeds import TempNumpySeed
 
 
 # ========================================================================= #
