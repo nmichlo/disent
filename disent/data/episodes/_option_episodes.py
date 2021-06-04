@@ -22,15 +22,24 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import logging
 import os
-from typing import List, Tuple
+from typing import List
+from typing import Tuple
+
 import numpy as np
+
 from disent.data.episodes._base import BaseOptionEpisodesData
 from disent.util.in_out import download_file
 from disent.util.paths import filename_from_url
-import logging
+
 
 log = logging.getLogger(__name__)
+
+
+# ========================================================================= #
+# option episodes                                                           #
+# ========================================================================= #
 
 
 class OptionEpisodesPickledData(BaseOptionEpisodesData):
@@ -40,6 +49,10 @@ class OptionEpisodesPickledData(BaseOptionEpisodesData):
         self._required_file = required_file
         # load data
         super().__init__()
+
+    # TODO: convert this to data files?
+    # TODO: convert this to data files?
+    # TODO: convert this to data files?
 
     def _load_episode_observations(self) -> List[np.ndarray]:
         import pickle
@@ -108,6 +121,10 @@ class OptionEpisodesPickledData(BaseOptionEpisodesData):
 
 class OptionEpisodesDownloadZippedPickledData(OptionEpisodesPickledData):
 
+    # TODO: convert this to data files?
+    # TODO: convert this to data files?
+    # TODO: convert this to data files?
+
     def __init__(self, required_file: str, download_url=None, force_download=False):
         self._download_and_extract_if_needed(download_url=download_url, required_file=required_file, force_download=force_download)
         super().__init__(required_file=required_file)
@@ -142,3 +159,6 @@ class OptionEpisodesDownloadZippedPickledData(OptionEpisodesPickledData):
         # ~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
 
 
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #
