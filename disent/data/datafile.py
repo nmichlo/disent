@@ -28,6 +28,7 @@ from typing import Callable
 from typing import Dict
 from typing import final
 from typing import Optional
+from typing import Sequence
 from typing import Tuple
 from typing import Union
 
@@ -46,9 +47,9 @@ from disent.util.paths import modify_file_name
 # ========================================================================= #
 
 
-class DataObject(object, metaclass=ABCMeta):
+class DataFile(object, metaclass=ABCMeta):
     """
-    base DataObject that does nothing, if the file does
+    base DataFile that does nothing, if the file does
     not exist or it has the incorrect hash, then that's your problem!
     """
 
@@ -65,10 +66,10 @@ class DataObject(object, metaclass=ABCMeta):
         pass
 
 
-class HashedDataObject(DataObject, metaclass=ABCMeta):
+class DataFileHashed(DataFile, metaclass=ABCMeta):
     """
     Abstract Class
-    - Base DataObject class that guarantees a file to exist,
+    - Base DataFile class that guarantees a file to exist,
       if the file does not exist, or the hash of the file is
       incorrect, then the file is re-generated.
     """
@@ -96,7 +97,7 @@ class HashedDataObject(DataObject, metaclass=ABCMeta):
         raise NotImplementedError
 
 
-class DlDataObject(HashedDataObject):
+class DataFileHashedDl(DataFileHashed):
     """
     Download a file
     - uri can also be a file to perform a copy instead of download,
@@ -123,7 +124,7 @@ class DlDataObject(HashedDataObject):
         retrieve_file(src_uri=self._uri, dst_path=out_file, overwrite_existing=True)
 
 
-class DlGenDataObject(HashedDataObject, metaclass=ABCMeta):
+class DataFileHashedDlGen(DataFileHashed, metaclass=ABCMeta):
     """
     Abstract class
     - download a file and perform some processing on that file.
@@ -142,7 +143,7 @@ class DlGenDataObject(HashedDataObject, metaclass=ABCMeta):
         hash_type: str = 'md5',
         hash_mode: str = 'fast',
     ):
-        self._dl_obj = DlDataObject(
+        self._dl_obj = DataFileHashedDl(
             uri=uri,
             uri_hash=uri_hash,
             uri_name=uri_name,
@@ -164,7 +165,7 @@ class DlGenDataObject(HashedDataObject, metaclass=ABCMeta):
         raise NotImplementedError
 
 
-class DlH5DataObject(DlGenDataObject):
+class DataFileHashedDlH5(DataFileHashedDlGen):
     """
     Downloads an hdf5 file and pre-processes it into the specified chunk_size.
     """
@@ -182,6 +183,7 @@ class DlH5DataObject(DlGenDataObject):
         hdf5_compression_lvl: Optional[int] = 4,
         hdf5_dtype: Optional[Union[np.dtype, str]] = None,
         hdf5_mutator: Optional[Callable[[np.ndarray], np.ndarray]] = None,
+        hdf5_obs_shape: Optional[Sequence[int]] = None,
         # save paths
         uri_name: Optional[str] = None,
         file_name: Optional[str] = None,
@@ -206,13 +208,14 @@ class DlH5DataObject(DlGenDataObject):
             compression_lvl=hdf5_compression_lvl,
             out_dtype=hdf5_dtype,
             out_mutator=hdf5_mutator,
+            obs_shape=hdf5_obs_shape,
         )
         # save the dataset name
-        self._out_dataset_name = hdf5_dataset_name
+        self._dataset_name = hdf5_dataset_name
 
     @property
-    def out_dataset_name(self) -> str:
-        return self._out_dataset_name
+    def dataset_name(self) -> str:
+        return self._dataset_name
 
     def _generate(self, inp_file: str, out_file: str):
         self._hdf5_resave_file(inp_path=inp_file, out_path=out_file)

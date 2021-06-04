@@ -24,7 +24,7 @@
 
 import logging
 
-from disent.data.dataobj import DlH5DataObject
+from disent.data.datafile import DataFileHashedDlH5
 from disent.data.groundtruth.base import Hdf5GroundTruthData
 
 
@@ -50,7 +50,7 @@ class Shapes3dData(Hdf5GroundTruthData):
     factor_sizes = (10, 10, 10, 8, 4, 15)  # TOTAL: 480000
     observation_shape = (64, 64, 3)
 
-    data_object = DlH5DataObject(
+    data_object = DataFileHashedDlH5(
         # download file/link
         uri='https://storage.googleapis.com/3d-shapes/3dshapes.h5',
         uri_hash={'fast': '85b20ed7cc8dc1f939f7031698d2d2ab', 'full': '099a2078d58cec4daad0702c55d06868'},

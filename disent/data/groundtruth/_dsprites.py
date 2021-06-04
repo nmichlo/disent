@@ -24,13 +24,15 @@
 
 import logging
 
-from disent.data.dataobj import DlH5DataObject
+from disent.data.datafile import DataFileHashedDlH5
 from disent.data.groundtruth.base import Hdf5GroundTruthData
 
 
 # ========================================================================= #
 # dataset_dsprites                                                          #
 # ========================================================================= #
+
+
 
 
 class DSpritesData(Hdf5GroundTruthData):
@@ -55,7 +57,7 @@ class DSpritesData(Hdf5GroundTruthData):
     factor_sizes = (3, 6, 40, 32, 32)  # TOTAL: 737280
     observation_shape = (64, 64, 1)
 
-    data_object = DlH5DataObject(
+    data_object = DataFileHashedDlH5(
         # download file/link
         uri='https://raw.githubusercontent.com/deepmind/dsprites-dataset/master/dsprites_ndarray_co1sh3sc6or40x32y32_64x64.hdf5',
         uri_hash={'fast': 'd6ee1e43db715c2f0de3c41e38863347', 'full': 'b331c4447a651c44bf5e8ae09022e230'},

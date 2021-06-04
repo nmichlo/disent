@@ -41,10 +41,10 @@ class StateSpace(LengthIter):
     def __init__(self, factor_sizes):
         super().__init__()
         # dimension
-        self._factor_sizes = np.array(factor_sizes)
-        self._factor_sizes.flags.writeable = False
+        self.__factor_sizes = np.array(factor_sizes)
+        self.__factor_sizes.flags.writeable = False
         # total permutations
-        self._size = int(np.prod(factor_sizes))
+        self.__size = int(np.prod(factor_sizes))
 
     def __len__(self):
         """Same as self.size"""
@@ -61,17 +61,17 @@ class StateSpace(LengthIter):
     @property
     def size(self) -> int:
         """The number of permutations of factors handled by this state space"""
-        return self._size
+        return self.__size
 
     @property
     def num_factors(self) -> int:
         """The number of factors handled by this state space"""
-        return len(self._factor_sizes)
+        return len(self.__factor_sizes)
 
     @property
     def factor_sizes(self) -> np.ndarray:
         """A list of sizes or dimensionality of factors handled by this state space"""
-        return self._factor_sizes
+        return self.__factor_sizes
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Coordinate Transform - any dim array, only last axis counts!          #
@@ -84,7 +84,7 @@ class StateSpace(LengthIter):
         - indices are integers < size
         """
         positions = np.moveaxis(positions, source=-1, destination=0)
-        return np.ravel_multi_index(positions, self._factor_sizes)
+        return np.ravel_multi_index(positions, self.__factor_sizes)
 
     def idx_to_pos(self, indices) -> np.ndarray:
         """
@@ -92,7 +92,7 @@ class StateSpace(LengthIter):
         - indices are integers < size
         - positions are lists of integers, with each element < their corresponding factor size
         """
-        positions = np.unravel_index(indices, self._factor_sizes)
+        positions = np.array(np.unravel_index(indices, self.__factor_sizes))
         return np.moveaxis(positions, source=0, destination=-1)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -110,7 +110,7 @@ class StateSpace(LengthIter):
             the same size as factor_indices, ie (*size, len(factor_indices))
         """
         # get factor sizes
-        sizes = self._factor_sizes if (factor_indices is None) else self._factor_sizes[factor_indices]
+        sizes = self.__factor_sizes if (factor_indices is None) else self.__factor_sizes[factor_indices]
         # get resample size
         if size is not None:
             # empty np.array(()) gets dtype float which is incompatible with len
@@ -268,7 +268,6 @@ class StateSpace(LengthIter):
 # ========================================================================= #
 # Hidden State Space                                                        #
 # ========================================================================= #
-
 
 # class StateSpaceRemapIndex(object):
 #     """Mapping from incorrectly ordered factors to state space indices"""

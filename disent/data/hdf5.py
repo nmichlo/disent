@@ -74,6 +74,10 @@ class PickleH5pyFile(LengthIter):
     def __getitem__(self, item):
         return self._hdf5_data[item]
 
+    @property
+    def shape(self):
+        return self._hdf5_data.shape
+
     def __enter__(self):
         return self
 
@@ -107,7 +111,7 @@ class PickleH5pyFile(LengthIter):
 # ========================================================================= #
 
 
-def hdf5_resave_dataset(inp_h5: h5py.File, out_h5: h5py.File, dataset_name, chunk_size=None, compression=None, compression_lvl=None, batch_size=None, out_dtype=None, out_mutator=None):
+def hdf5_resave_dataset(inp_h5: h5py.File, out_h5: h5py.File, dataset_name, chunk_size=None, compression=None, compression_lvl=None, batch_size=None, out_dtype=None, out_mutator=None, obs_shape=None):
     # check out_h5 version compatibility
     if (isinstance(out_h5.libver, str) and out_h5.libver != 'earliest') or (out_h5.libver[0] != 'earliest'):
         raise RuntimeError(f'hdf5 out file has an incompatible libver: {repr(out_h5.libver)} libver should be set to: "earliest"')
@@ -115,7 +119,7 @@ def hdf5_resave_dataset(inp_h5: h5py.File, out_h5: h5py.File, dataset_name, chun
     inp_data = inp_h5[dataset_name]
     out_data = out_h5.create_dataset(
         name=dataset_name,
-        shape=inp_data.shape,
+        shape=inp_data.shape if (obs_shape is None) else (inp_data.shape[0], *obs_shape),
         dtype=out_dtype if (out_dtype is not None) else inp_data.dtype,
         chunks=chunk_size,
         compression=compression,
@@ -140,11 +144,11 @@ def hdf5_resave_dataset(inp_h5: h5py.File, out_h5: h5py.File, dataset_name, chun
     # save data
     with tqdm(total=len(inp_data)) as progress:
         for i in range(0, len(inp_data), batch_size):
-            out_data[i:i + batch_size] = out_mutator(inp_data[i:i + batch_size])
+            out_data[i:i + batch_size] = out_mutator(inp_data[i:i + batch_size]).reshape([-1, *obs_shape])
             progress.update(batch_size)
 
 
-def hdf5_resave_file(inp_path: str, out_path: str, dataset_name, chunk_size=None, compression=None, compression_lvl=None, batch_size=None, out_dtype=None, out_mutator=None):
+def hdf5_resave_file(inp_path: str, out_path: str, dataset_name, chunk_size=None, compression=None, compression_lvl=None, batch_size=None, out_dtype=None, out_mutator=None, obs_shape=None):
     # re-save datasets
     with h5py.File(inp_path, 'r') as inp_h5:
         with AtomicSaveFile(out_path, open_mode=None, overwrite=True) as tmp_h5_path:
@@ -159,6 +163,7 @@ def hdf5_resave_file(inp_path: str, out_path: str, dataset_name, chunk_size=None
                     batch_size=batch_size,
                     out_dtype=out_dtype,
                     out_mutator=out_mutator,
+                    obs_shape=obs_shape,
                 )
     # file size:
     log.info(f'[FILE SIZES] IN: {bytes_to_human(os.path.getsize(inp_path))} OUT: {bytes_to_human(os.path.getsize(out_path))}')
