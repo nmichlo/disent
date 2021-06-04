@@ -22,7 +22,10 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from disent.data.groundtruth.base import Hdf5PreprocessedGroundTruthData
+import logging
+
+from disent.data.datafile import DataFileHashedDlH5
+from disent.data.groundtruth.base import Hdf5GroundTruthData
 
 
 # ========================================================================= #
@@ -30,10 +33,12 @@ from disent.data.groundtruth.base import Hdf5PreprocessedGroundTruthData
 # ========================================================================= #
 
 
-class DSpritesData(Hdf5PreprocessedGroundTruthData):
+
+
+class DSpritesData(Hdf5GroundTruthData):
     """
     DSprites Dataset
-    - beta-VAE: Learning Basic Visual Concepts with a Constrained Variational BaseFramework
+    - beta-VAE: Learning Basic Visual Concepts with a Constrained Variational Framework
       (https://github.com/deepmind/dsprites-dataset)
 
     Files:
@@ -45,21 +50,26 @@ class DSpritesData(Hdf5PreprocessedGroundTruthData):
     # reference implementation: https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/data/ground_truth/dsprites.py
     """
 
+    name = 'dsprites'
+
+    # TODO: reference implementation has colour variants
     factor_names = ('shape', 'scale', 'orientation', 'position_x', 'position_y')
     factor_sizes = (3, 6, 40, 32, 32)  # TOTAL: 737280
-    observation_shape = (64, 64, 1)  # TODO: reference implementation has colour variants
+    observation_shape = (64, 64, 1)
 
-    dataset_url = 'https://raw.githubusercontent.com/deepmind/dsprites-dataset/master/dsprites_ndarray_co1sh3sc6or40x32y32_64x64.hdf5'
-
-    hdf5_name = 'imgs'
-    # minimum chunk size, no compression but good for random accesses
-    hdf5_chunk_size = (1, 64, 64)
-
-    def __init__(self, data_dir='data/dataset/dsprites', in_memory=False, force_download=False, force_preprocess=False):
-        super().__init__(data_dir=data_dir, in_memory=in_memory, force_download=force_download, force_preprocess=force_preprocess)
-
-    def __getitem__(self, idx):
-        return super().__getitem__(idx) * 255  # for some reason uint8 is used as datatype, but only in range 0-1
+    datafile = DataFileHashedDlH5(
+        # download file/link
+        uri='https://raw.githubusercontent.com/deepmind/dsprites-dataset/master/dsprites_ndarray_co1sh3sc6or40x32y32_64x64.hdf5',
+        uri_hash={'fast': 'd6ee1e43db715c2f0de3c41e38863347', 'full': 'b331c4447a651c44bf5e8ae09022e230'},
+        # processed dataset file
+        file_hash={'fast': '25013c85aebbf4b1023d72564f9413f0', 'full': '4611d1a03e709cd5d0f6fdcdc221ca0e'},
+        # h5 re-save settings
+        hdf5_dataset_name='imgs',
+        hdf5_chunk_size=(1, 64, 64, 1),
+        hdf5_dtype='uint8',
+        hdf5_mutator=lambda x: x * 255,
+        hdf5_obs_shape=(64, 64, 1),
+    )
 
 
 # ========================================================================= #
@@ -68,7 +78,5 @@ class DSpritesData(Hdf5PreprocessedGroundTruthData):
 
 
 if __name__ == '__main__':
-    from tqdm import tqdm
-
-    for dat in tqdm(DSpritesData(in_memory=True, force_preprocess=True)):
-        pass
+    logging.basicConfig(level=logging.DEBUG)
+    DSpritesData(prepare=True)

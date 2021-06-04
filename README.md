@@ -241,9 +241,10 @@ from disent.data.groundtruth import XYObjectData
 from disent.dataset.groundtruth import GroundTruthDataset
 from disent.frameworks.vae import BetaVae
 from disent.metrics import metric_dci, metric_mig
-from disent.model.ae import EncoderConv64, DecoderConv64, AutoEncoder
+from disent.model.ae import EncoderConv64, DecoderConv64
+from disent.model import AutoEncoder
+from disent.nn.transform import ToStandardisedTensor
 from disent.schedule import CyclicSchedule
-from disent.transform import ToStandardisedTensor
 
 # We use this internally to test this script.
 # You can remove all references to this in your own code.
@@ -297,5 +298,47 @@ print('metrics:', metrics)
 </details>
 
 Visit the [docs](https://disent.dontpanic.sh) for more examples!
+
+
+----------------------
+
+### Hydra Experiment Example
+
+The entrypoint for basic experiments is `experiments/run.py`.
+
+Some configuration will be required, but basic experiments can
+be adjusted by modifying the [Hydra Config 1.0](https://github.com/facebookresearch/hydra)
+files in `experiment/config`.
+
+Modifying the main `experiment/config/config.yaml` is all you
+need for most basic experiments. The main config file contains
+a defaults list with entries corresponding to yaml configuration
+files (config options) in the subfolders (config groups) in
+`experiment/config/<config_group>/<option>.yaml`.
+
+```yaml
+defaults:
+  # experiment
+  - framework: adavae
+  - model: conv64alt
+  - optimizer: adam
+  - dataset: xysquares
+  - augment: none
+  - sampling: full_bb
+  - metrics: fast
+  - schedule: beta_cyclic
+  # runtime
+  - run_length: long
+  - run_location: local
+  - run_callbacks: vis
+  - run_logging: none
+```
+
+Easily modify  any of these values to adjust how the basic experiment
+will be run. For example, change `framework: adavae` to `framework: betavae`, or
+change the dataset from `xysquares` to `shapes3d`.
+
+[Weights and Biases](https://docs.wandb.ai/quickstart) is supported by changing `run_logging: none` to
+`run_logging: wandb`. However, you will need to login from the command line.
 
 ----------------------

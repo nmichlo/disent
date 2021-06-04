@@ -24,11 +24,12 @@
 
 import logging
 from typing import Tuple
+
 import numpy as np
-from torch.utils.data import Dataset
 from torch.utils.data.dataloader import default_collate
+
 from disent.data.groundtruth.base import GroundTruthData
-from disent.dataset._augment_util import AugmentableDataset
+from disent.dataset import DisentDataset
 
 
 log = logging.getLogger(__name__)
@@ -39,7 +40,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class GroundTruthDataset(Dataset, GroundTruthData, AugmentableDataset):
+class GroundTruthDataset(DisentDataset, GroundTruthData):
 
     # TODO: these transformations should be a wrapper around any dataset.
     #       for example: dataset = AugmentedDataset(GroundTruthDataset(XYGridData()))
@@ -109,6 +110,11 @@ class GroundTruthDataset(Dataset, GroundTruthData, AugmentableDataset):
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # End Class                                                             #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+
+# ========================================================================= #
+# EXTRA                                                                     #
+# ========================================================================= #
 
 
 class GroundTruthDatasetAndFactors(GroundTruthDataset):

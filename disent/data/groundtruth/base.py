@@ -25,11 +25,17 @@
 import logging
 import os
 from abc import ABCMeta
-from typing import List, Tuple
-import h5py
+from typing import Optional
+from typing import Sequence
+from typing import Tuple
 
-from disent.data.util.in_out import basename_from_url, download_file, ensure_dir_exists
-from disent.data.util.state_space import StateSpace
+import numpy as np
+
+from disent.data.datafile import DataFile
+from disent.data.datafile import DataFileHashedDlH5
+from disent.data.groundtruth.states import StateSpace
+from disent.data.hdf5 import PickleH5pyFile
+from disent.util.paths import ensure_dir_exists
 
 
 log = logging.getLogger(__name__)
@@ -41,10 +47,22 @@ log = logging.getLogger(__name__)
 
 
 class GroundTruthData(StateSpace):
+    """
+    Dataset that corresponds to some state space or ground truth factors
+    """
 
     def __init__(self):
-        assert len(self.factor_names) == len(self.factor_sizes), 'Dimensionality mismatch of FACTOR_NAMES and FACTOR_DIMS'
-        super().__init__(factor_sizes=self.factor_sizes)
+        super().__init__(
+            factor_sizes=self.factor_sizes,
+            factor_names=self.factor_names,
+        )
+
+    @property
+    def name(self):
+        name = self.__class__.__name__
+        if name.endswith('Data'):
+            name = name[:-len('Data')]
+        return name.lower()
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Overrides                                                             #
@@ -76,188 +94,124 @@ class GroundTruthData(StateSpace):
 
 
 # ========================================================================= #
-# dataset helpers                                                           #
+# disk ground truth data                                                    #
+# TODO: data & datafile preparation should be split out from             #
+#       GroundTruthData, instead GroundTruthData should be a wrapper        #
 # ========================================================================= #
 
 
-class DownloadableGroundTruthData(GroundTruthData, metaclass=ABCMeta):
+class DiskGroundTruthData(GroundTruthData, metaclass=ABCMeta):
 
-    def __init__(self, data_dir='data/dataset', force_download=False):
+    """
+    Dataset that prepares a list DataObjects into some local directory.
+    - This directory can be
+    """
+
+    def __init__(self, data_root: Optional[str] = None, prepare: bool = False):
         super().__init__()
-        # paths
-        self._data_dir = ensure_dir_exists(data_dir)
-        self._data_paths = [os.path.join(self._data_dir, basename_from_url(url)) for url in self.dataset_urls]
-        # meta
-        self._force_download = force_download
-        # DOWNLOAD
-        self._do_download_dataset()
-
-    def _do_download_dataset(self):
-        for path, url in zip(self.dataset_paths, self.dataset_urls):
-            no_data = not os.path.exists(path)
-            # download data
-            if self._force_download or no_data:
-                download_file(url, path, overwrite_existing=True)
-
-    @property
-    def dataset_paths(self) -> List[str]:
-        """path that the data should be loaded from in the child class"""
-        return self._data_paths
-
-    @property
-    def dataset_urls(self) -> List[str]:
-        raise NotImplementedError()
-
-
-class PreprocessedDownloadableGroundTruthData(DownloadableGroundTruthData, metaclass=ABCMeta):
-
-    def __init__(self, data_dir='data/dataset', force_download=False, force_preprocess=False):
-        super().__init__(data_dir=data_dir, force_download=force_download)
-        # paths
-        self._proc_path = f'{self._data_path}.processed'
-        self._force_preprocess = force_preprocess
-        # PROCESS
-        self._do_download_and_process_dataset()
-
-    def _do_download_dataset(self):
-        # we skip this in favour of our new method,
-        # so that we can lazily download the data.
-        pass
-
-    def _do_download_and_process_dataset(self):
-        no_data = not os.path.exists(self._data_path)
-        no_proc = not os.path.exists(self._proc_path)
-
-        # preprocess only if required
-        do_proc = self._force_preprocess or no_proc
-        # lazily download if required for preprocessing
-        do_data = self._force_download or (no_data and do_proc)
-
-        if do_data:
-            download_file(self.dataset_url, self._data_path, overwrite_existing=True)
-
-        if do_proc:
-            # TODO: also used in io save file, convert to with syntax.
-            # save to a temporary location in case there is an error, we then know one occured.
-            path_dir, path_base = os.path.split(self._proc_path)
-            ensure_dir_exists(path_dir)
-            temp_proc_path = os.path.join(path_dir, f'.{path_base}.temp')
-
-            # process stuff
-            self._preprocess_dataset(path_src=self._data_path, path_dst=temp_proc_path)
-
-            # delete existing file if needed
-            if os.path.isfile(self._proc_path):
-                os.remove(self._proc_path)
-            # move processed file to correct place
-            os.rename(temp_proc_path, self._proc_path)
-
-            assert os.path.exists(self._proc_path), f'Overridden _preprocess_dataset method did not initialise the required dataset file: dataset_path="{self._proc_path}"'
-
-    @property
-    def _data_path(self):
-        assert len(self.dataset_paths) == 1
-        return self.dataset_paths[0]
-
-    @property
-    def dataset_urls(self):
-        return [self.dataset_url]
-
-    @property
-    def dataset_url(self):
-        raise NotImplementedError()
-
-    @property
-    def dataset_path(self):
-        """path that the dataset should be loaded from in the child class"""
-        return self._proc_path
-
-    @property
-    def dataset_path_unprocessed(self):
-        return self._data_path
-
-    def _preprocess_dataset(self, path_src, path_dst):
-        raise NotImplementedError()
-
-
-class Hdf5PreprocessedGroundTruthData(PreprocessedDownloadableGroundTruthData, metaclass=ABCMeta):
-    """
-    Automatically download and pre-process an hdf5 dataset
-    into the specific chunk sizes.
-
-    Often the (non-chunked) dataset will be optimized for random accesses,
-    while the unprocessed (chunked) dataset will be better for sequential reads.
-    - The chunk size specifies the region of data to be loaded when accessing a
-      single element of the dataset, if the chunk size is not correctly set,
-      unneeded data will be loaded when accessing observations.
-    - override `hdf5_chunk_size` to set the chunk size, for random access
-      optimized data this should be set to the minimum observation shape that can
-      be broadcast across the shape of the dataset. Eg. with observations of shape
-      (64, 64, 3), set the chunk size to (1, 64, 64, 3).
-
-    TODO: Only supports one dataset from the hdf5 file
-          itself, labels etc need a custom implementation.
-    """
-
-    def __init__(self, data_dir='data/dataset', in_memory=False, force_download=False, force_preprocess=False):
-        super().__init__(data_dir=data_dir, force_download=force_download, force_preprocess=force_preprocess)
-        self._in_memory = in_memory
-
-        # Load the entire dataset into memory if required
-        if self._in_memory:
-            with h5py.File(self.dataset_path, 'r', libver='latest', swmr=True) as db:
-                # indexing dataset objects returns numpy array
-                # instantiating np.array from the dataset requires double memory.
-                self._memory_data = db[self.hdf5_name][:]
+        # get root data folder
+        if data_root is None:
+            data_root = self.default_data_root
         else:
-            # is this thread safe?
-            self._hdf5_file = h5py.File(self.dataset_path, 'r', libver='latest', swmr=True)
-            self._hdf5_data = self._hdf5_file[self.hdf5_name]
+            data_root = os.path.abspath(data_root)
+        # get class data folder
+        self._data_dir = ensure_dir_exists(os.path.join(data_root, self.name))
+        log.info(f'{self.name}: data_dir_share={repr(self._data_dir)}')
+        # prepare everything
+        if prepare:
+            for datafile in self.datafiles:
+                datafile.prepare(self.data_dir)
+
+    @property
+    def data_dir(self) -> str:
+        return self._data_dir
+
+    @property
+    def default_data_root(self):
+        return os.path.abspath(os.environ.get('DISENT_DATA_ROOT', 'data/dataset'))
+
+    @property
+    def datafiles(self) -> Sequence[DataFile]:
+        raise NotImplementedError
+
+
+class NumpyGroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
+    """
+    Dataset that loads a numpy file from a DataObject
+    - if the dataset is contained in a key, set the `data_key` property
+    """
+
+    def __init__(self, data_root: Optional[str] = None, prepare: bool = False):
+        super().__init__(data_root=data_root, prepare=prepare)
+        # load dataset
+        load_path = os.path.join(self.data_dir, self.datafile.out_name)
+        if load_path.endswith('.gz'):
+            import gzip
+            with gzip.GzipFile(load_path, 'r') as load_file:
+                self._data = np.load(load_file)
+        else:
+            self._data = np.load(load_path)
+        # load from the key if specified
+        if self.data_key is not None:
+            self._data = self._data[self.data_key]
 
     def __getitem__(self, idx):
+        return self._data[idx]
+
+    @property
+    def datafiles(self) -> Sequence[DataFile]:
+        return [self.datafile]
+
+    @property
+    def datafile(self) -> DataFile:
+        raise NotImplementedError
+
+    @property
+    def data_key(self) -> Optional[str]:
+        # can override this!
+        return None
+
+
+class Hdf5GroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
+    """
+    Dataset that loads an Hdf5 file from a DataObject
+    - requires that the data object has the `out_dataset_name` attribute
+      that points to the hdf5 dataset in the file to load.
+    """
+
+    def __init__(self, data_root: Optional[str] = None, prepare: bool = False, in_memory=False):
+        super().__init__(data_root=data_root, prepare=prepare)
+        # variables
+        self._in_memory = in_memory
+        # load the h5py dataset
+        data = PickleH5pyFile(
+            h5_path=os.path.join(self.data_dir, self.datafile.out_name),
+            h5_dataset_name=self.datafile.dataset_name,
+        )
+        # handle different memory modes
         if self._in_memory:
-            return self._memory_data[idx]
+            # Load the entire dataset into memory if required
+            # indexing dataset objects returns numpy array
+            # instantiating np.array from the dataset requires double memory.
+            self._data = data[:]
+            data.close()
         else:
-            return self._hdf5_data[idx]
+            # Load the dataset from the disk
+            self._data = data
 
-    def __del__(self):
-        # do we need to do this?
-        if not self._in_memory:
-            self._hdf5_file.close()
-
-    def _preprocess_dataset(self, path_src, path_dst):
-        import os
-        from disent.data.util.hdf5 import hdf5_resave_dataset, hdf5_test_entries_per_second, bytes_to_human
-
-        # resave datasets
-        with h5py.File(path_src, 'r') as inp_data:
-            with h5py.File(path_dst, 'w') as out_data:
-                hdf5_resave_dataset(inp_data, out_data, self.hdf5_name, self.hdf5_chunk_size, self.hdf5_compression, self.hdf5_compression_lvl)
-                # File Size:
-                log.info(f'[FILE SIZES] IN: {bytes_to_human(os.path.getsize(path_src))} OUT: {bytes_to_human(os.path.getsize(path_dst))}\n')
-                # Test Speed:
-                log.info('[TESTING] Access Speed...')
-                log.info(f'Random Accesses Per Second: {hdf5_test_entries_per_second(out_data, self.hdf5_name, access_method="random"):.3f}')
+    def __getitem__(self, idx):
+        return self._data[idx]
 
     @property
-    def hdf5_compression(self) -> 'str':
-        return 'gzip'
+    def datafiles(self) -> Sequence[DataFileHashedDlH5]:
+        return [self.datafile]
 
     @property
-    def hdf5_compression_lvl(self) -> int:
-        # default is 4, max of 9 doesnt seem to add much cpu usage on read, but its not worth it data wise?
-        return 4
-
-    @property
-    def hdf5_name(self) -> str:
-        raise NotImplementedError()
-
-    @property
-    def hdf5_chunk_size(self) -> Tuple[int]:
-        # dramatically affects access speed, but also compression ratio.
-        raise NotImplementedError()
+    def datafile(self) -> DataFileHashedDlH5:
+        raise NotImplementedError
 
 
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
+

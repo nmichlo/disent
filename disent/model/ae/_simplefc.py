@@ -24,8 +24,10 @@
 
 from torch import nn as nn, Tensor
 
-from disent.model.base import BaseEncoderModule, BaseDecoderModule
-from disent.model.common import Flatten3D, BatchView
+from disent.model import DisentDecoder
+from disent.model import DisentEncoder
+from disent.nn.modules import Flatten3D
+from disent.nn.modules import BatchView
 
 
 # ========================================================================= #
@@ -33,7 +35,7 @@ from disent.model.common import Flatten3D, BatchView
 # ========================================================================= #
 
 
-class EncoderSimpleFC(BaseEncoderModule):
+class EncoderSimpleFC(DisentEncoder):
     """
     Custom Fully Connected Encoder.
     """
@@ -53,7 +55,7 @@ class EncoderSimpleFC(BaseEncoderModule):
         return self.model(x)
 
 
-class DecoderSimpleFC(BaseDecoderModule):
+class DecoderSimpleFC(DisentDecoder):
     """
     Custom Fully Connected Decoder.
     """

@@ -37,13 +37,14 @@ from omegaconf import OmegaConf
 from torch.nn import Parameter
 from torch.utils.data import DataLoader
 
+import disent.util.seeds
 import experiment.exp.util as H
-from disent.util import DisentLightningModule
-from disent.util import DisentModule
-from disent.util import make_box_str
-from disent.util import seed
-from disent.util.math import torch_conv2d_channel_wise_fft
-from disent.util.math_loss import spearman_rank_loss
+from disent.nn.modules import DisentLightningModule
+from disent.nn.modules import DisentModule
+from disent.util.strings import make_box_str
+from disent.util.seeds import seed
+from disent.nn.functional import torch_conv2d_channel_wise_fft
+from disent.nn.loss.softsort import spearman_rank_loss
 from experiment.run import hydra_append_progress_callback
 from experiment.run import hydra_check_cuda
 from experiment.run import hydra_make_logger
@@ -234,7 +235,7 @@ def run_disentangle_dataset_kernel(cfg):
     callbacks = []
     hydra_append_progress_callback(callbacks, cfg)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-    seed(cfg.exp.seed)
+    seed(disent.util.seeds.seed)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # initialise dataset and get factor names to disentangle
     dataset = H.make_dataset(cfg.data.name, factors=True, data_dir=cfg.dataset.data_dir)

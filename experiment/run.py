@@ -22,7 +22,6 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-import dataclasses
 import logging
 import os
 
@@ -37,11 +36,12 @@ from pytorch_lightning.loggers import LoggerCollection
 from pytorch_lightning.loggers import WandbLogger
 
 from disent import metrics
-from disent.frameworks.framework import BaseFramework
-from disent.model.ae.base import AutoEncoder
-from disent.model.init import init_model_weights
-from disent.util import DisentConfigurable
-from disent.util import make_box_str
+from disent.frameworks import DisentConfigurable
+from disent.frameworks import DisentFramework
+from disent.model import AutoEncoder
+from disent.nn.weights import init_model_weights
+from disent.util.seeds import seed
+from disent.util.strings import make_box_str
 from experiment.util.callbacks import LoggerProgressCallback
 from experiment.util.callbacks import VaeDisentanglementLoggingCallback
 from experiment.util.callbacks import VaeLatentCycleLoggingCallback
@@ -196,7 +196,7 @@ def hydra_append_correlation_callback(callbacks, cfg):
         ))
 
 
-def hydra_register_schedules(module: BaseFramework, cfg):
+def hydra_register_schedules(module: DisentFramework, cfg):
     if cfg.schedules is None:
         cfg.schedules = {}
     if cfg.schedules:
@@ -245,7 +245,11 @@ def hydra_create_framework(framework_cfg, datamodule, cfg):
 
 
 def run(cfg: DictConfig):
+    # allow the cfg to be edited
     cfg = make_non_strict(cfg)
+
+    # deterministic seed
+    seed(cfg.job.setdefault('seed', None))
 
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
     # INITIALISE & SETDEFAULT IN CONFIG

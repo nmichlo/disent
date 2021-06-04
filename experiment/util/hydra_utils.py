@@ -85,7 +85,7 @@ def merge_specializations(cfg: DictConfig, config_path: str, main_fn: callable, 
 
     # set and update specializations
     for group, specialization in cfg.specializations.items():
-        assert group not in cfg, f'{group=} already exists on cfg, specialization merging is not supported!'
+        assert group not in cfg, f'group={repr(group)} already exists on cfg, specialization merging is not supported!'
         log.info(f'merging specialization: {repr(specialization)}')
         # load specialization config
         specialization_cfg = OmegaConf.load(os.path.join(config_root, group, f'{specialization}.yaml'))

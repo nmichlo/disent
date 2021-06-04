@@ -1,6 +1,6 @@
 from disent.data.groundtruth import XYSquaresData
 
-data = XYSquaresData(square_size=1, grid_size=2, num_squares=2)
+data = XYSquaresData(square_size=1, image_size=2, num_squares=2)
 
 print(f'Number of observations: {len(data)} == {data.size}')
 print(f'Observation shape: {data.observation_shape}')

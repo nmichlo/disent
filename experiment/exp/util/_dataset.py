@@ -42,8 +42,8 @@ from disent.data.groundtruth import Shapes3dData
 from disent.data.groundtruth import XYSquaresData
 from disent.dataset.groundtruth import GroundTruthDataset
 from disent.dataset.groundtruth import GroundTruthDatasetAndFactors
-from disent.transform import ToStandardisedTensor
-from disent.util import TempNumpySeed
+from disent.nn.transform import ToStandardisedTensor
+from disent.util.seeds import TempNumpySeed
 from disent.visualize.visualize_util import make_animated_image_grid
 from disent.visualize.visualize_util import make_image_grid
 from experiment.exp.util._tasks import IN

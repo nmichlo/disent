@@ -23,54 +23,64 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
+import random
 
-from disent.util import DisentModule
+import numpy as np
 
 
 log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
-# Utility Layers                                                            #
+# seeds                                                                     #
 # ========================================================================= #
 
 
-class Print(DisentModule):
-    """From: https://github.com/1Konny/Beta-VAE/blob/master/model.py"""
-    def __init__(self, layer):
-        super().__init__()
-        self.layer = layer
-
-    def forward(self, tensor):
-        log.debug(self.layer, '|', tensor.shape, '->')
-        output = self.layer.forward(tensor)
-        log.debug(output.shape)
-        return output
-
-
-class BatchView(DisentModule):
-    """From: https://github.com/1Konny/Beta-VAE/blob/master/model.py"""
-    def __init__(self, size):
-        super().__init__()
-        self.size = (-1, *size)
-
-    def forward(self, tensor):
-        return tensor.view(*self.size)
-
-
-class Unsqueeze3D(DisentModule):
-    """From: https://github.com/amir-abdi/disentanglement-pytorch"""
-    def forward(self, x):
-        x = x.unsqueeze(-1)
-        x = x.unsqueeze(-1)
-        return x
+def seed(long=777):
+    """
+    https://pytorch.org/docs/stable/notes/randomness.html
+    """
+    if long is None:
+        log.warning(f'[SEEDING]: no seed was specified. Seeding skipped!')
+        return
+    # seed python
+    random.seed(long)
+    # seed numpy
+    np.random.seed(long)
+    # seed torch - it can be slow to import
+    try:
+        import torch
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        torch.manual_seed(long)  # also calls: torch.cuda.manual_seed_all
+    except ImportError:
+        log.warning(f'[SEEDING]: torch is not installed. Skipped seeding torch methods!')
+    # done!
+    log.info(f'[SEEDED]: {long}')
 
 
-class Flatten3D(DisentModule):
-    """From: https://github.com/amir-abdi/disentanglement-pytorch"""
-    def forward(self, x):
-        x = x.view(x.size()[0], -1)
-        return x
+class TempNumpySeed(object):
+    def __init__(self, seed=None, offset=0):
+        if seed is not None:
+            try:
+                seed = int(seed)
+            except:
+                raise ValueError(f'{seed=} is not int-like!')
+        self._seed = seed
+        if seed is not None:
+            self._seed += offset
+        self._state = None
+
+    def __enter__(self):
+        if self._seed is not None:
+            self._state = np.random.get_state()
+            np.random.seed(self._seed)
+
+    def __exit__(self, *args, **kwargs):
+        if self._seed is not None:
+            np.random.set_state(self._state)
+            self._state = None
+
 
 # ========================================================================= #
 # END                                                                       #

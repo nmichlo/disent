@@ -34,13 +34,13 @@ from pytorch_lightning.trainer.supporters import CombinedLoader
 
 import disent.metrics
 import disent.util.colors as c
-from disent.dataset._augment_util import AugmentableDataset
+from disent.dataset import DisentDataset
 from disent.dataset.groundtruth import GroundTruthDataset
 from disent.frameworks.ae import Ae
 from disent.frameworks.vae import Vae
-from disent.util import iter_chunks
-from disent.util import TempNumpySeed
-from disent.util import Timer
+from disent.util.iters import iter_chunks
+from disent.util.seeds import TempNumpySeed
+from disent.util.profiling import Timer
 from disent.util import to_numpy
 from disent.visualize.visualize_model import latent_cycle_grid_animation
 from disent.visualize.visualize_util import make_image_grid
@@ -59,7 +59,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def _get_dataset_and_vae(trainer: pl.Trainer, pl_module: pl.LightningModule) -> (AugmentableDataset, Ae):
+def _get_dataset_and_vae(trainer: pl.Trainer, pl_module: pl.LightningModule) -> (DisentDataset, Ae):
     assert isinstance(pl_module, Ae), f'{pl_module.__class__} is not an instance of {Ae}'
     # get dataset
     if hasattr(trainer, 'datamodule') and (trainer.datamodule is not None):
@@ -73,7 +73,7 @@ def _get_dataset_and_vae(trainer: pl.Trainer, pl_module: pl.LightningModule) -> 
     else:
         raise RuntimeError('could not retrieve dataset! please report this...')
     # check dataset
-    assert isinstance(dataset, AugmentableDataset), f'retrieved dataset is not an {AugmentableDataset.__name__}'
+    assert isinstance(dataset, DisentDataset), f'retrieved dataset is not an {DisentDataset.__name__}'
     # done checks
     return dataset, pl_module
 

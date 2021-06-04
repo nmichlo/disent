@@ -6,7 +6,7 @@ data:
   force_download: False
   is_test: False
 transform:
-  _target_: disent.transform.ToStandardisedTensor
+  _target_: disent.nn.transform.ToStandardisedTensor
   size: 64
 x_shape: [1, 64, 64]
 

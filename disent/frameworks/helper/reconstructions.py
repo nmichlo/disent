@@ -22,22 +22,21 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import re
 import warnings
 from typing import final
 from typing import Sequence
 from typing import Union
-import re
 
 import torch
 import torch.nn.functional as F
-
-from disent.frameworks.helper.reductions import batch_loss_reduction
-from disent.frameworks.helper.reductions import loss_reduction
-from disent.frameworks.helper.util import compute_ave_loss
-from disent.transform import FftKernel
-from disent.util import DisentModule
-
 from deprecated import deprecated
+
+from disent.frameworks.helper.util import compute_ave_loss
+from disent.nn.modules import DisentModule
+from disent.nn.loss.reduction import batch_loss_reduction
+from disent.nn.loss.reduction import loss_reduction
+from disent.nn.transform import FftKernel
 
 
 # ========================================================================= #

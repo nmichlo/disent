@@ -30,9 +30,9 @@ from tqdm import tqdm
 
 import torch.nn.functional as F
 import experiment.exp.util as H
-from disent.util.math import torch_conv2d_channel_wise_fft
-from disent.util.math import torch_box_kernel_2d
-from disent.util.math import torch_gaussian_kernel_2d
+from disent.nn.functional import torch_conv2d_channel_wise_fft
+from disent.nn.functional import torch_box_kernel_2d
+from disent.nn.functional import torch_gaussian_kernel_2d
 
 
 # ========================================================================= #

@@ -22,46 +22,58 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import pytorch_lightning as pl
+import torch
+
 
 # ========================================================================= #
-# Augment                                                                   #
+# Base Modules                                                              #
 # ========================================================================= #
 
 
-class GroundTruthDatasetBatchAugment(object):
-    """
-    Applies transforms to batches generated from dataloaders of
-    datasets from: disent.dataset.groundtruth
-    """
+class DisentModule(torch.nn.Module):
 
-    def __init__(self, transform=None, transform_targ=None):
-        self.transform = transform
-        self.transform_targ = transform_targ
+    def _forward_unimplemented(self, *args):
+        # Annoying fix applied by torch for Module.forward:
+        # https://github.com/python/mypy/issues/8795
+        raise RuntimeError('This should never run!')
 
-    def __call__(self, batch):
-        # transform inputs
-        if self.transform:
-            batch = _apply_transform_to_batch_dict(batch, 'x', self.transform)
-        # transform targets
-        if self.transform_targ:
-            batch = _apply_transform_to_batch_dict(batch, 'x_targ', self.transform_targ)
-        # done!
-        return batch
-
-    def __repr__(self):
-        return f'{self.__class__.__name__}(transform={repr(self.transform)}, transform_targ={repr(self.transform_targ)})'
+    def forward(self, *args, **kwargs):
+        raise NotImplementedError
 
 
-def _apply_transform_to_batch_dict(batch, key, transform):
-    observations = batch[key]
-    if isinstance(observations, tuple):
-        observations = tuple([transform(obs) for obs in observations])
-    if isinstance(observations, list):
-        observations = [transform(obs) for obs in observations]
-    else:
-        observations = transform(observations)
-    batch[key] = observations
-    return batch
+class DisentLightningModule(pl.LightningModule):
+
+    def _forward_unimplemented(self, *args):
+        # Annoying fix applied by torch for Module.forward:
+        # https://github.com/python/mypy/issues/8795
+        raise RuntimeError('This should never run!')
+
+
+# ========================================================================= #
+# Utility Layers                                                            #
+# ========================================================================= #
+
+
+class BatchView(DisentModule):
+    def __init__(self, size):
+        super().__init__()
+        self._size = (-1, *size)
+
+    def forward(self, x):
+        return x.view(*self._size)
+
+
+class Unsqueeze3D(DisentModule):
+    def forward(self, x):
+        assert x.ndim == 2
+        return x.view(*x.shape, 1, 1)  # (B, N) -> (B, N, 1, 1)
+
+
+class Flatten3D(DisentModule):
+    def forward(self, x):
+        assert x.ndim == 4
+        return x.view(x.shape[0], -1)  # (B, C, H, W) -> (B, C*H*W)
 
 
 # ========================================================================= #

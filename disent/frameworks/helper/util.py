@@ -29,9 +29,9 @@ from typing import Tuple
 
 import torch
 
-from disent.util import aggregate_dict
-from disent.util import collect_dicts
-from disent.util import map_all
+from disent.util.iters import aggregate_dict
+from disent.util.iters import collect_dicts
+from disent.util.iters import map_all
 
 
 # ========================================================================= #
