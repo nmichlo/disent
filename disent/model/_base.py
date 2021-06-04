@@ -40,7 +40,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class DisentLatentsBase(DisentModule):
+class DisentLatentsModule(DisentModule):
 
     def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
         super().__init__()
@@ -83,7 +83,7 @@ class DisentLatentsBase(DisentModule):
 # ========================================================================= #
 
 
-class DisentEncoder(DisentLatentsBase):
+class DisentEncoder(DisentLatentsModule):
 
     @final
     def forward(self, x) -> Tensor:
@@ -103,7 +103,7 @@ class DisentEncoder(DisentLatentsBase):
         raise NotImplementedError
 
 
-class DisentDecoder(DisentLatentsBase):
+class DisentDecoder(DisentLatentsModule):
 
     def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
         assert z_multiplier == 1, 'decoder does not support z_multiplier != 1'
@@ -130,7 +130,7 @@ class DisentDecoder(DisentLatentsBase):
 # ========================================================================= #
 
 
-class AutoEncoder(DisentLatentsBase):
+class AutoEncoder(DisentLatentsModule):
 
     def __init__(self, encoder: DisentEncoder, decoder: DisentDecoder):
         assert isinstance(encoder, DisentEncoder)

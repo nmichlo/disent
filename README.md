@@ -68,7 +68,7 @@ Disent aims to fill the following criteria:
 2. **Highlight difference** between framework implementations by overriding **hooks** and minimising duplicate code 
 3. Use **best practice** eg. `torch.distributions`
 4. Be extremely **flexible** & configurable
-
+5. Load data from disk for low memory systems
 
 #### Citing Disent
 
