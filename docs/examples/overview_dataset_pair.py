@@ -1,9 +1,10 @@
 from torch.utils.data import Dataset
-from disent.data.groundtruth import XYSquaresData, GroundTruthData
+from disent.data.groundtruth import GroundTruthData, XYSquaresData
 from disent.dataset.groundtruth import GroundTruthDatasetPairs
-from disent.transform import ToStandardisedTensor
+from disent.nn.transform import ToStandardisedTensor
 
-data: GroundTruthData = XYSquaresData(square_size=1, grid_size=2, num_squares=2)
+
+data: GroundTruthData = XYSquaresData(square_size=1, image_size=2, num_squares=2)
 dataset: Dataset = GroundTruthDatasetPairs(data, transform=ToStandardisedTensor(), augment=None)
 
 for obs in dataset:

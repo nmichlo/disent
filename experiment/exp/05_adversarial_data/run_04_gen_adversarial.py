@@ -39,10 +39,10 @@ import torch
 from tqdm import tqdm
 
 import experiment.exp.util as H
-from disent.data.util.in_out import ensure_parent_dir_exists
-from disent.util import seed
-from disent.util import TempNumpySeed
-from disent.util import Timer
+from disent.util.paths import ensure_parent_dir_exists
+from disent.util.seeds import seed
+from disent.util.seeds import TempNumpySeed
+from disent.util.profiling import Timer
 
 
 log = logging.getLogger(__name__)
@@ -111,7 +111,7 @@ def _make_hdf5_dataset(path, dataset, overwrite_mode: str = 'continue') -> str:
         raise KeyError(f'invalid overwrite_mode={repr(overwrite_mode)}')
     # open in read write mode
     log.info(f'Opening hdf5 dataset: overwrite_mode={repr(overwrite_mode)} exists={repr(os.path.exists(path))} path={repr(path)}')
-    with h5py.File(path, rw_mode, libver='latest') as f:
+    with h5py.File(path, rw_mode, libver='earliest') as f:
         # get data
         num_obs = len(dataset)
         obs_shape = dataset[0][NAME_OBS][0].shape
@@ -136,7 +136,7 @@ def _make_hdf5_dataset(path, dataset, overwrite_mode: str = 'continue') -> str:
 
 def _read_hdf5_batch(h5py_path: str, idxs, return_visits=False):
     batch, visits = [], []
-    with h5py.File(h5py_path, 'r', libver='latest', swmr=True) as f:
+    with h5py.File(h5py_path, 'r', swmr=True) as f:
         for i in idxs:
             visits.append(f[NAME_VISITS][i])
             batch.append(torch.as_tensor(f[NAME_DATA][i], dtype=torch.float32) / 255)
@@ -155,7 +155,7 @@ def _load_hdf5_batch(dataset, h5py_path: str, idxs, initial_noise: Optional[floa
       observation has not been saved into the hdf5 dataset yet.
     """
     batch, visits = [], []
-    with h5py.File(h5py_path, 'r', libver='latest', swmr=True) as f:
+    with h5py.File(h5py_path, 'r', swmr=True) as f:
         for i in idxs:
             v = f[NAME_VISITS][i]
             if v > 0:
@@ -178,7 +178,7 @@ def _save_hdf5_batch(h5py_path: str, batch, idxs):
     Save a batch to disk.
     - Can only be used by one thread at a time!
     """
-    with h5py.File(h5py_path, 'r+', libver='latest') as f:
+    with h5py.File(h5py_path, 'r+', libver='earliest') as f:
         for obs, idx in zip(batch, idxs):
             f[NAME_DATA][idx] = torch.clamp(torch.round(obs * 255), 0, 255).to(torch.uint8)
             f[NAME_VISITS][idx] += 1

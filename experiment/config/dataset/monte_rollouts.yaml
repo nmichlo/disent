@@ -6,7 +6,7 @@ data:
   download_url: 'https://raw.githubusercontent.com/nmichlo/uploads/main/monte_key.tar.xz'
   force_download: FALSE
 transform:
-  _target_: disent.transform.ToStandardisedTensor
+  _target_: disent.nn.transform.ToStandardisedTensor
   size: [64, 64]
 x_shape: [3, 64, 64]  # [3, 210, 160]
 

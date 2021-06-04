@@ -23,7 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from dataclasses import dataclass
-from distutils.dist import Distribution
 from numbers import Number
 from typing import Any
 from typing import Dict
@@ -31,12 +30,11 @@ from typing import Sequence
 from typing import Tuple
 from typing import Union
 
-import numpy as np
 import torch
 from torch.distributions import Normal
 
-from disent.frameworks.helper.triplet_loss import compute_triplet_loss
-from disent.frameworks.helper.triplet_loss import TripletLossConfig
+from disent.nn.loss.triplet import compute_triplet_loss
+from disent.nn.loss.triplet import TripletLossConfig
 from disent.frameworks.vae._unsupervised__betavae import BetaVae
 
 

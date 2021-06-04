@@ -31,7 +31,7 @@ from typing import Union
 
 import torch
 
-from disent.data.util.in_out import ensure_parent_dir_exists
+from disent.util.paths import ensure_parent_dir_exists
 
 
 # ========================================================================= #

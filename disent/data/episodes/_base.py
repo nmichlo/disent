@@ -25,8 +25,14 @@
 from typing import List, Tuple
 import numpy as np
 
+
 from disent.dataset.groundtruth._triplet import sample_radius
-from disent.util import LengthIter
+from disent.util.iters import LengthIter
+
+
+# ========================================================================= #
+# option episodes                                                           #
+# ========================================================================= #
 
 
 class BaseOptionEpisodesData(LengthIter):
@@ -86,3 +92,8 @@ class BaseOptionEpisodesData(LengthIter):
 
     def _load_episode_observations(self) -> List[np.ndarray]:
         raise NotImplementedError
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #

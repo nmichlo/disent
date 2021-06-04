@@ -38,7 +38,7 @@ from tqdm import tqdm
 import experiment.exp.util as H
 from disent.data.groundtruth import *
 from disent.dataset.groundtruth import GroundTruthDataset
-from disent.transform import ToStandardisedTensor
+from disent.nn.transform import ToStandardisedTensor
 from disent.util import to_numpy
 
 
@@ -423,14 +423,14 @@ if __name__ == '__main__':
     dfs = plot_all(
         exp_name='increasing-overlap-fixed',
         datas={
-            'XYSquares-1-8': lambda: XYSquaresData(square_size=8, grid_spacing=1, max_placements=8),
-            'XYSquares-2-8': lambda: XYSquaresData(square_size=8, grid_spacing=2, max_placements=8),
-            'XYSquares-3-8': lambda: XYSquaresData(square_size=8, grid_spacing=3, max_placements=8),
-            'XYSquares-4-8': lambda: XYSquaresData(square_size=8, grid_spacing=4, max_placements=8),
-            'XYSquares-5-8': lambda: XYSquaresData(square_size=8, grid_spacing=5, max_placements=8),
-            'XYSquares-6-8': lambda: XYSquaresData(square_size=8, grid_spacing=6, max_placements=8),
-            'XYSquares-7-8': lambda: XYSquaresData(square_size=8, grid_spacing=7, max_placements=8),
-            'XYSquares-8-8': lambda: XYSquaresData(square_size=8, grid_spacing=8, max_placements=8),
+            'XYSquares-1-8': lambda: XYSquaresData(square_size=8, grid_spacing=1, grid_size=8),
+            'XYSquares-2-8': lambda: XYSquaresData(square_size=8, grid_spacing=2, grid_size=8),
+            'XYSquares-3-8': lambda: XYSquaresData(square_size=8, grid_spacing=3, grid_size=8),
+            'XYSquares-4-8': lambda: XYSquaresData(square_size=8, grid_spacing=4, grid_size=8),
+            'XYSquares-5-8': lambda: XYSquaresData(square_size=8, grid_spacing=5, grid_size=8),
+            'XYSquares-6-8': lambda: XYSquaresData(square_size=8, grid_spacing=6, grid_size=8),
+            'XYSquares-7-8': lambda: XYSquaresData(square_size=8, grid_spacing=7, grid_size=8),
+            'XYSquares-8-8': lambda: XYSquaresData(square_size=8, grid_spacing=8, grid_size=8),
         },
         hide_extra_legends=True,
         **SHARED_SETTINGS

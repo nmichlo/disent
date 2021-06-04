@@ -33,10 +33,10 @@ from disent.dataset.groundtruth import GroundTruthDataset
 from disent.metrics._flatness import encode_all_along_factor
 from disent.metrics._flatness import encode_all_factors
 from disent.metrics._flatness import filter_inactive_factors
-from disent.util import iter_chunks
+from disent.util.iters import iter_chunks
 from disent.util import to_numpy
-from disent.util.math import torch_mean_generalized
-from disent.util.math import torch_pca
+from disent.nn.functional import torch_mean_generalized
+from disent.nn.functional import torch_pca
 
 
 log = logging.getLogger(__name__)
@@ -333,10 +333,10 @@ def aggregate_measure_distances_along_factor(
 #         return r
 #
 #     class XYOverlapData(XYSquaresData):
-#         def __init__(self, square_size=8, grid_size=64, grid_spacing=None, num_squares=3, rgb=True):
+#         def __init__(self, square_size=8, image_size=64, grid_spacing=None, num_squares=3, rgb=True):
 #             if grid_spacing is None:
 #                 grid_spacing = (square_size+1) // 2
-#             super().__init__(square_size=square_size, grid_size=grid_size, grid_spacing=grid_spacing, num_squares=num_squares, rgb=rgb)
+#             super().__init__(square_size=square_size, image_size=image_size, grid_spacing=grid_spacing, num_squares=num_squares, rgb=rgb)
 #
 #     # datasets = [XYObjectData(rgb=False, palette='white'), XYSquaresData(), XYOverlapData(), XYObjectData()]
 #     datasets = [XYObjectData()]

@@ -23,8 +23,10 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from typing import Tuple
-from disent.data.groundtruth.base import GroundTruthData
+
 import numpy as np
+
+from disent.data.groundtruth.base import GroundTruthData
 
 
 # ========================================================================= #
@@ -140,11 +142,3 @@ class XYObjectData(GroundTruthData):
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-
-# if __name__ == '__main__':
-#     print(len(XYScaleColorData()))
-#     for i in XYScaleColorData(6, 2, 2, 4, 2):
-#         print(i[:, :, 0])
-#         print(i[:, :, 1])
-#         print(i[:, :, 2])
-#         print()

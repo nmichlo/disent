@@ -9,10 +9,9 @@ from tqdm import tqdm
 
 from disent.dataset.random import RandomDataset
 from disent.frameworks.vae import AdaVae
-from disent.model.ae import AutoEncoder
-from disent.model.ae import DecoderConv64Alt
-from disent.model.ae import EncoderConv64Alt
-from disent.transform import ToStandardisedTensor
+from disent.model.ae import DecoderConv64Alt, EncoderConv64Alt
+from disent.model import AutoEncoder
+from disent.nn.transform import ToStandardisedTensor
 from disent.util import is_test_run
 
 

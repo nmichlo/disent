@@ -25,7 +25,6 @@
 import logging
 
 from torch import nn
-
 from disent.util import colors as c
 
 
@@ -33,11 +32,11 @@ log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
-# Helper                                                                    #
+# Basic Weight Initialisation                                               #
 # ========================================================================= #
 
 
-def init_model_weights(model: nn.Module, mode='xavier_normal'):
+def init_model_weights(model: nn.Module, mode='xavier_normal', log_level=logging.INFO):
     count = 0
 
     # get default mode
@@ -61,11 +60,11 @@ def init_model_weights(model: nn.Module, mode='xavier_normal'):
 
         # print messages
         if init:
-            log.info(f'| {count:03d} {c.lGRN}INIT{c.RST}: {m.__class__.__name__}')
+            log.log(log_level, f'| {count:03d} {c.lGRN}INIT{c.RST}: {m.__class__.__name__}')
         else:
-            log.info(f'| {count:03d} {c.lRED}SKIP{c.RST}: {m.__class__.__name__}')
+            log.log(log_level, f'| {count:03d} {c.lRED}SKIP{c.RST}: {m.__class__.__name__}')
 
-    log.info(f'Initialising Model Layers: {mode}')
+    log.log(log_level, f'Initialising Model Layers: {mode}')
     model.apply(init_normal)
 
     return model

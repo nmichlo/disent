@@ -24,8 +24,10 @@
 
 from torch import nn as nn, Tensor
 
-from disent.model.base import BaseEncoderModule, BaseDecoderModule
-from disent.model.common import Flatten3D, BatchView
+from disent.model import DisentDecoder
+from disent.model import DisentEncoder
+from disent.nn.modules import Flatten3D
+from disent.nn.modules import BatchView
 
 
 def _make_activations(activation='relu', inplace=True, norm='instance', num_features: int = None, norm_pre_act=True):
@@ -61,7 +63,7 @@ def _make_activations(activation='relu', inplace=True, norm='instance', num_feat
 # ========================================================================= #
 
 
-class EncoderConv64Alt(BaseEncoderModule):
+class EncoderConv64Alt(DisentEncoder):
     """
     Reference Implementation:
     https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/shared/architectures.py
@@ -72,7 +74,7 @@ class EncoderConv64Alt(BaseEncoderModule):
         """
         Convolutional encoder used in beta-VAE paper for the chairs data.
         Based on row 3 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
-        Concepts with a Constrained Variational BaseFramework"
+        Concepts with a Constrained Variational Framework"
         (https://openreview.net/forum?id=Sy2fzU9gl)
         """
         # checks
@@ -99,7 +101,7 @@ class EncoderConv64Alt(BaseEncoderModule):
         return self.model(x)
 
 
-class DecoderConv64Alt(BaseDecoderModule):
+class DecoderConv64Alt(DisentDecoder):
     """
     From:
     https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/shared/architectures.py
@@ -110,7 +112,7 @@ class DecoderConv64Alt(BaseDecoderModule):
         """
         Convolutional decoder used in beta-VAE paper for the chairs data.
         Based on row 3 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
-        Concepts with a Constrained Variational BaseFramework"
+        Concepts with a Constrained Variational Framework"
         (https://openreview.net/forum?id=Sy2fzU9gl)
         """
         assert tuple(x_shape[1:]) == (64, 64), 'This model only works with image size 64x64.'

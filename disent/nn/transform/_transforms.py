@@ -23,7 +23,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import torch
-import disent.transform.functional as F_d
+import disent.nn.transform.functional as F_d
 
 
 # ========================================================================= #

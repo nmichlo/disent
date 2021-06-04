@@ -1,12 +1,12 @@
 defaults:
   # experiment
   - framework: betavae
-  - model: conv64
+  - model: conv64alt
   - optimizer: radam
   - dataset: xysquares  # allow framework to override settings here, but placing dataset before framework in defaults
   - augment: none
   - sampling: full_bb
-  - metrics: all
+  - metrics: fast
   - schedule: none
   # runtime
   - run_length: long
@@ -23,19 +23,19 @@ job:
   project: 'DELETE'
   name: '${framework.name}:${framework.module.recon_loss}|${dataset.name}:${sampling.name}|${trainer.steps}'
   partition: stampede
+  seed: NULL
 
 framework:
     beta: 0.003
     module:
       recon_loss: mse4
       loss_reduction: mean
-      latent_distribution: cauchy
     optional:
       latent_distribution: normal  # only used by VAEs
       overlap_loss: NULL
 
 model:
-  z_size: 9
+  z_size: 25
 
 optimizer:
   lr: 5e-4
@@ -45,3 +45,4 @@ optimizer:
 # - Unfortunately this hack needs to exists as hydra does not yet support this kinda of variable interpolation in defaults.
 specializations:
   data_wrapper: ${dataset.data_type}_${framework.data_wrap_mode}
+#  data_wrapper: gt_dist_${framework.data_wrap_mode}
