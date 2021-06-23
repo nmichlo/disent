@@ -296,8 +296,8 @@ def aggregate_measure_distances_along_factor(
     results['ave_linear_ratio.std'] = score_from_unsorted(results.pop('_linear_values.std'), use_max=False, norm=True)
     results['ave_linear_ratio.var'] = score_from_unsorted(results.pop('_linear_values.var'), use_max=False, norm=True)
     # ave normalised axis alignment scores (axis_ratio is bounded by linear_ratio)
-    results['ave_axis_alignment.std'] = results['ave_axis_ratio.std'] / (results['ave_linear_ratio.std'] + 1e-20),
-    results['ave_axis_alignment.var'] = results['ave_axis_ratio.var'] / (results['ave_linear_ratio.var'] + 1e-20),
+    results['ave_axis_alignment.std'] = results['ave_axis_ratio.std'] / (results['ave_linear_ratio.std'] + 1e-20)
+    results['ave_axis_alignment.var'] = results['ave_axis_ratio.var'] / (results['ave_linear_ratio.var'] + 1e-20)
 
     return results
 
