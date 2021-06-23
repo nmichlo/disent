@@ -22,54 +22,44 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from torch import nn
-from torch import Tensor
-
-from disent.model import DisentDecoder
-from disent.model import DisentEncoder
-from disent.nn.modules import BatchView
-from disent.nn.modules import Flatten3D
+import torch
+from disent.nn.modules import DisentModule
 
 
 # ========================================================================= #
-# simple fully connected models                                             #
+# Swish                                                                     #
 # ========================================================================= #
 
 
-class EncoderSimpleFC(DisentEncoder):
+class _SwishFunction(torch.autograd.Function):
     """
-    Custom Fully Connected Encoder.
-    """
-
-    def __init__(self, x_shape=(3, 64, 64), h_size1=128, h_size2=128, z_size=6, z_multiplier=1):
-        super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
-        self.model = nn.Sequential(
-            Flatten3D(),
-            nn.Linear(in_features=self.x_size, out_features=h_size1), nn.ReLU(True),
-            nn.Linear(in_features=h_size1,     out_features=h_size2), nn.ReLU(True),
-            nn.Linear(in_features=h_size2,     out_features=self.z_total)
-        )
-
-    def encode(self, x) -> (Tensor, Tensor):
-        return self.model(x)
-
-
-class DecoderSimpleFC(DisentDecoder):
-    """
-    Custom Fully Connected Decoder.
+    Modified from:
+    https://github.com/ceshine/EfficientNet-PyTorch/blob/master/efficientnet_pytorch/utils.py
     """
 
-    def __init__(self, x_shape=(3, 64, 64), h_size1=128, h_size2=128, z_size=6, z_multiplier=1):
-        super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
-        self.model = nn.Sequential(
-            nn.Linear(in_features=self.z_size, out_features=h_size2), nn.ReLU(True),
-            nn.Linear(in_features=h_size2,     out_features=h_size1), nn.ReLU(True),
-            nn.Linear(in_features=h_size1,     out_features=self.x_size),
-            BatchView(self.x_shape),
-        )
+    # This uses less memory than the standard implementation,
+    # by re-computing the gradient on the backward pass
 
-    def decode(self, z):
-        return self.model(z)
+    @staticmethod
+    def forward(ctx, x: torch.Tensor):
+        y = x * torch.sigmoid(x)
+        ctx.save_for_backward(x)
+        return y
+
+    @staticmethod
+    def backward(ctx, grad_output: torch.Tensor):
+        x = ctx.saved_variables[0]
+        sigmoid_x = torch.sigmoid(x)
+        return grad_output * (sigmoid_x * (1 + x * (1 - sigmoid_x)))
+
+
+def swish(tensor: torch.Tensor):
+    return _SwishFunction.apply(tensor)
+
+
+class Swish(DisentModule):
+    def forward(self, tensor: torch.Tensor):
+        return _SwishFunction.apply(tensor)
 
 
 # ========================================================================= #

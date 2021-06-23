@@ -23,12 +23,13 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import numpy as np
-from torch import nn as nn, Tensor
+from torch import nn
+from torch import Tensor
 
 from disent.model import DisentDecoder
 from disent.model import DisentEncoder
-from disent.nn.modules import Flatten3D
 from disent.nn.modules import BatchView
+from disent.nn.modules import Flatten3D
 
 
 # ========================================================================= #
@@ -38,28 +39,30 @@ from disent.nn.modules import BatchView
 
 class EncoderFC(DisentEncoder):
     """
+    Fully connected encoder used in beta-VAE paper for the dSprites data.
+    Based on row 1 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
+    Concepts with a Constrained Variational Framework"
+    (https://openreview.net/forum?id=Sy2fzU9gl)
+
     Reference Implementation:
-    https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/shared/architectures.py
-    # TODO: verify, things have changed...
+        - https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/shared/architectures.py
+        >>> def fc_encoder(input_tensor, num_latent):
+        >>>     flattened = tf.layers.flatten(input_tensor)
+        >>>     e1 = tf.layers.dense(flattened, 1200, activation=tf.nn.relu, name="e1")
+        >>>     e2 = tf.layers.dense(e1,        1200, activation=tf.nn.relu, name="e2")
+        >>>     means   = tf.layers.dense(e2, num_latent, activation=None)
+        >>>     log_var = tf.layers.dense(e2, num_latent, activation=None)
+        >>>     return means, log_var
     """
 
     def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
-        """
-        Fully connected encoder used in beta-VAE paper for the dSprites data.
-        Based on row 1 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
-        Concepts with a Constrained Variational Framework"
-        (https://openreview.net/forum?id=Sy2fzU9gl).
-        """
-        # checks
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
         self.model = nn.Sequential(
             Flatten3D(),
-            nn.Linear(int(np.prod(x_shape)), 1200),
-                nn.ReLU(True),
-            nn.Linear(1200, 1200),
-                nn.ReLU(True),
-            nn.Linear(1200, self.z_total)
+            nn.Linear(in_features=int(np.prod(x_shape)), out_features=1200), nn.ReLU(True),
+            nn.Linear(in_features=1200,                  out_features=1200), nn.ReLU(True),
+            nn.Linear(in_features=1200,                  out_features=self.z_total)
         )
 
     def encode(self, x) -> (Tensor, Tensor):
@@ -68,29 +71,30 @@ class EncoderFC(DisentEncoder):
 
 class DecoderFC(DisentDecoder):
     """
-    From:
-    https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/shared/architectures.py
-    # TODO: verify, things have changed...
+    Fully connected encoder used in beta-VAE paper for the dSprites data.
+    Based on row 1 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
+    Concepts with a Constrained Variational Framework"
+    (https://openreview.net/forum?id=Sy2fzU9gl)
+
+    Reference Implementation:
+        - https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/shared/architectures.py
+        >>> def fc_decoder(latent_tensor, output_shape):
+        >>>     d1 = tf.layers.dense(latent_tensor, 1200, activation=tf.nn.tanh)
+        >>>     d2 = tf.layers.dense(d1,            1200, activation=tf.nn.tanh)
+        >>>     d3 = tf.layers.dense(d2,            1200, activation=tf.nn.tanh)
+        >>>     d4 = tf.layers.dense(d3, np.prod(output_shape))
+        >>>     return tf.reshape(d4, shape=[-1] + output_shape)
     """
 
     def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
-        """
-        Fully connected encoder used in beta-VAE paper for the dSprites data.
-        Based on row 1 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
-        Concepts with a Constrained Variational Framework"
-        (https://openreview.net/forum?id=Sy2fzU9gl)
-        """
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
         self.model = nn.Sequential(
-            nn.Linear(self.z_size, 1200),
-                nn.Tanh(),
-            nn.Linear(1200, 1200),
-                nn.Tanh(),
-            nn.Linear(1200, 1200),
-                nn.Tanh(),
-            nn.Linear(1200, int(np.prod(x_shape))),
-                BatchView(self.x_shape),
+            nn.Linear(in_features=self.z_size, out_features=1200), nn.Tanh(),
+            nn.Linear(in_features=1200,        out_features=1200), nn.Tanh(),
+            nn.Linear(in_features=1200,        out_features=1200), nn.Tanh(),
+            nn.Linear(in_features=1200,        out_features=int(np.prod(x_shape))),
+            BatchView(self.x_shape),
         )
 
     def decode(self, z) -> Tensor:

@@ -313,7 +313,7 @@ def run(cfg: DictConfig):
     log.info(f'Final Config Is:\n{make_box_str(OmegaConf.to_yaml(cfg))}')
 
     # save hparams TODO: I think this is a pytorch lightning bug... The trainer should automatically save these if hparams is set.
-    framework.hparams = cfg
+    framework.hparams.update(cfg)
     if trainer.logger:
         trainer.logger.log_hyperparams(framework.hparams)
 

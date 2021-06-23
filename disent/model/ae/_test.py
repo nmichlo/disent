@@ -22,73 +22,47 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import numpy as np
 from torch import nn
 from torch import Tensor
 
 from disent.model import DisentDecoder
 from disent.model import DisentEncoder
+from disent.nn.modules import BatchView
 from disent.nn.modules import Flatten3D
-from disent.nn.modules import Unsqueeze3D
 
 
 # ========================================================================= #
-# simple 64x64 convolutional models                                         #
+# test models                                                               #
 # ========================================================================= #
 
 
-class EncoderSimpleConv64(DisentEncoder):
-    """
-    Reference Implementation: https://github.com/amir-abdi/disentanglement-pytorch
-    # TODO: verify, things have changed...
-    """
+class EncoderTest(DisentEncoder):
 
     def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
-        # checks
-        (C, H, W) = x_shape
-        assert (H, W) == (64, 64), 'This model only works with image size 64x64.'
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
         self.model = nn.Sequential(
-            nn.Conv2d(in_channels=C,   out_channels=32,  kernel_size=4, stride=2, padding=1), nn.ReLU(True),
-            nn.Conv2d(in_channels=32,  out_channels=32,  kernel_size=4, stride=2, padding=1), nn.ReLU(True),
-            nn.Conv2d(in_channels=32,  out_channels=64,  kernel_size=4, stride=2, padding=1), nn.ReLU(True),
-            nn.Conv2d(in_channels=64,  out_channels=128, kernel_size=4, stride=2, padding=1), nn.ReLU(True),
-            nn.Conv2d(in_channels=128, out_channels=256, kernel_size=4, stride=2, padding=1), nn.ReLU(True),
-            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=4, stride=2, padding=1), nn.ReLU(True),
-                Flatten3D(),
-            nn.Linear(256, self.z_total)
+            Flatten3D(),
+            nn.Linear(in_features=int(np.prod(self.x_shape)), out_features=self.z_total)
         )
 
     def encode(self, x) -> (Tensor, Tensor):
         return self.model(x)
 
 
-class DecoderSimpleConv64(DisentDecoder):
-    """
-    From: https://github.com/amir-abdi/disentanglement-pytorch
-    # TODO: verify, things have changed...
-    """
+class DecoderTest(DisentDecoder):
 
     def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
-        # checks
-        (C, H, W) = x_shape
-        assert (H, W) == (64, 64), 'This model only works with image size 64x64.'
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
         self.model = nn.Sequential(
-            Unsqueeze3D(),
-            nn.Conv2d(in_channels=self.z_size,  out_channels=256, kernel_size=1, stride=2), nn.ReLU(True),
-            nn.ConvTranspose2d(in_channels=256, out_channels=256, kernel_size=4, stride=2, padding=1), nn.ReLU(True),
-            nn.ConvTranspose2d(in_channels=256, out_channels=128, kernel_size=4, stride=2), nn.ReLU(True),
-            nn.ConvTranspose2d(in_channels=128, out_channels=128, kernel_size=4, stride=2), nn.ReLU(True),
-            nn.ConvTranspose2d(in_channels=128, out_channels=64,  kernel_size=4, stride=2), nn.ReLU(True),
-            nn.ConvTranspose2d(in_channels=64,  out_channels=64,  kernel_size=4, stride=2), nn.ReLU(True),
-            nn.ConvTranspose2d(in_channels=64,  out_channels=C,   kernel_size=3, stride=1)
+            nn.Linear(in_features=self.z_size, out_features=int(np.prod(x_shape))),
+            BatchView(self.x_shape),
         )
-        # output shape = bs x 3 x 64 x 64
 
-    def decode(self, x):
-        return self.model(x)
+    def decode(self, z) -> Tensor:
+        return self.model(z)
 
 
 # ========================================================================= #

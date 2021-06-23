@@ -27,19 +27,20 @@ from torch import Tensor
 
 from disent.model import DisentDecoder
 from disent.model import DisentEncoder
+from disent.nn.activations import Swish
+from disent.nn.modules import BatchView
 from disent.nn.modules import Flatten3D
-from disent.nn.modules import Unsqueeze3D
 
 
 # ========================================================================= #
-# simple 64x64 convolutional models                                         #
+# disentanglement_lib Conv models                                           #
 # ========================================================================= #
 
 
-class EncoderSimpleConv64(DisentEncoder):
+class EncoderConv64Ws(DisentEncoder):
     """
-    Reference Implementation: https://github.com/amir-abdi/disentanglement-pytorch
-    # TODO: verify, things have changed...
+    Modified version of `EncoderConv64` with
+    swish activations and scaled convolutions
     """
 
     def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
@@ -49,46 +50,67 @@ class EncoderSimpleConv64(DisentEncoder):
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
         self.model = nn.Sequential(
-            nn.Conv2d(in_channels=C,   out_channels=32,  kernel_size=4, stride=2, padding=1), nn.ReLU(True),
-            nn.Conv2d(in_channels=32,  out_channels=32,  kernel_size=4, stride=2, padding=1), nn.ReLU(True),
-            nn.Conv2d(in_channels=32,  out_channels=64,  kernel_size=4, stride=2, padding=1), nn.ReLU(True),
-            nn.Conv2d(in_channels=64,  out_channels=128, kernel_size=4, stride=2, padding=1), nn.ReLU(True),
-            nn.Conv2d(in_channels=128, out_channels=256, kernel_size=4, stride=2, padding=1), nn.ReLU(True),
-            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=4, stride=2, padding=1), nn.ReLU(True),
-                Flatten3D(),
-            nn.Linear(256, self.z_total)
+            self.Conv2d(in_channels=C,  out_channels=32, kernel_size=4, stride=2, padding=2), self.Activation(),
+            self.Conv2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=2), self.Activation(),
+            self.Conv2d(in_channels=32, out_channels=64, kernel_size=2, stride=2, padding=1), self.Activation(),
+            self.Conv2d(in_channels=64, out_channels=64, kernel_size=2, stride=2, padding=1), self.Activation(),
+            Flatten3D(),
+            self.Linear(in_features=1600, out_features=256), self.Activation(),
+            self.Linear(in_features=256,  out_features=self.z_total),  # we combine the two networks in the reference implementation and use torch.chunk(2, dim=-1) to get mu & logvar
         )
 
     def encode(self, x) -> (Tensor, Tensor):
         return self.model(x)
 
+    # COMPONENTS
 
-class DecoderSimpleConv64(DisentDecoder):
+    def Activation(self):
+        return Swish()
+
+    def Conv2d(self, **kwargs):
+        from nfnets import ScaledStdConv2d
+        # This gamma value is specific to swish. For details on how to
+        # compute gamma, see appendix D of: https://arxiv.org/pdf/2101.08692.pdf
+        return ScaledStdConv2d(**kwargs, gamma=1.7872)
+
+    def Linear(self, **kwargs):
+        return nn.Linear(**kwargs)
+
+
+class DecoderConv64Ws(DisentDecoder):
     """
-    From: https://github.com/amir-abdi/disentanglement-pytorch
-    # TODO: verify, things have changed...
+    Modified version of `DecoderConv64` with
+    swish activations and scaled convolutions
     """
 
     def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
-        # checks
         (C, H, W) = x_shape
         assert (H, W) == (64, 64), 'This model only works with image size 64x64.'
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
         self.model = nn.Sequential(
-            Unsqueeze3D(),
-            nn.Conv2d(in_channels=self.z_size,  out_channels=256, kernel_size=1, stride=2), nn.ReLU(True),
-            nn.ConvTranspose2d(in_channels=256, out_channels=256, kernel_size=4, stride=2, padding=1), nn.ReLU(True),
-            nn.ConvTranspose2d(in_channels=256, out_channels=128, kernel_size=4, stride=2), nn.ReLU(True),
-            nn.ConvTranspose2d(in_channels=128, out_channels=128, kernel_size=4, stride=2), nn.ReLU(True),
-            nn.ConvTranspose2d(in_channels=128, out_channels=64,  kernel_size=4, stride=2), nn.ReLU(True),
-            nn.ConvTranspose2d(in_channels=64,  out_channels=64,  kernel_size=4, stride=2), nn.ReLU(True),
-            nn.ConvTranspose2d(in_channels=64,  out_channels=C,   kernel_size=3, stride=1)
+            self.Linear(in_features=self.z_size, out_features=256),  self.Activation(),
+            self.Linear(in_features=256,         out_features=1024), self.Activation(),
+            BatchView([64, 4, 4]),
+            self.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=4, stride=2, padding=1), self.Activation(),
+            self.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=4, stride=2, padding=1), self.Activation(),
+            self.ConvTranspose2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=1), self.Activation(),
+            self.ConvTranspose2d(in_channels=32, out_channels=C,  kernel_size=4, stride=2, padding=1),
         )
-        # output shape = bs x 3 x 64 x 64
 
-    def decode(self, x):
-        return self.model(x)
+    def decode(self, z) -> Tensor:
+        return self.model(z)
+
+    # COMPONENTS
+
+    def Activation(self):
+        return Swish()
+
+    def ConvTranspose2d(self, **kwargs):
+        return nn.ConvTranspose2d(**kwargs)
+
+    def Linear(self, **kwargs):
+        return nn.Linear(**kwargs)
 
 
 # ========================================================================= #

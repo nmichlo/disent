@@ -27,9 +27,13 @@ from disent.model.ae._conv64 import DecoderConv64
 from disent.model.ae._conv64 import EncoderConv64
 from disent.model.ae._conv64_alt import DecoderConv64Alt
 from disent.model.ae._conv64_alt import EncoderConv64Alt
+from disent.model.ae._conv64_ws import DecoderConv64Ws
+from disent.model.ae._conv64_ws import EncoderConv64Ws
 from disent.model.ae._fc import DecoderFC
 from disent.model.ae._fc import EncoderFC
 from disent.model.ae._simpleconv64 import DecoderSimpleConv64
 from disent.model.ae._simpleconv64 import EncoderSimpleConv64
 from disent.model.ae._simplefc import DecoderSimpleFC
 from disent.model.ae._simplefc import EncoderSimpleFC
+from disent.model.ae._test import DecoderTest
+from disent.model.ae._test import EncoderTest
