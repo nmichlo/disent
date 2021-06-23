@@ -22,6 +22,8 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+from typing import Tuple
+
 from torch import nn
 from torch import Tensor
 
@@ -50,10 +52,10 @@ class EncoderConv64Alt(DisentEncoder):
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
         self.model = nn.Sequential(
-            nn.Conv2d(in_channels=C,  out_channels=32, kernel_size=4, stride=2, padding=2), *_make_activations(activation=activation, norm=norm, num_features=32, norm_pre_act=norm_pre_act),
-            nn.Conv2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=2), *_make_activations(activation=activation, norm=norm, num_features=32, norm_pre_act=norm_pre_act),
-            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=2, stride=2, padding=1), *_make_activations(activation=activation, norm=norm, num_features=64, norm_pre_act=norm_pre_act),
-            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=2, stride=2, padding=1), *_make_activations(activation=activation, norm=norm, num_features=64, norm_pre_act=norm_pre_act),
+            nn.Conv2d(in_channels=C,  out_channels=32, kernel_size=4, stride=2, padding=2), *_make_activations(activation=activation, norm=norm, shape=(32, 33, 33), norm_pre_act=norm_pre_act),
+            nn.Conv2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=2), *_make_activations(activation=activation, norm=norm, shape=(32, 17, 17), norm_pre_act=norm_pre_act),
+            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=2, stride=2, padding=1), *_make_activations(activation=activation, norm=norm, shape=(64,  9,  9), norm_pre_act=norm_pre_act),
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=2, stride=2, padding=1), *_make_activations(activation=activation, norm=norm, shape=(64,  5,  5), norm_pre_act=norm_pre_act),
             Flatten3D(),
             nn.Linear(in_features=1600, out_features=256), *_make_activations(activation=activation, norm='none'),
             nn.Linear(in_features=256,  out_features=self.z_total),
@@ -79,9 +81,9 @@ class DecoderConv64Alt(DisentDecoder):
             nn.Linear(in_features=self.z_size, out_features=256),  *_make_activations(activation=activation, norm='none'),
             nn.Linear(in_features=256,         out_features=1024), *_make_activations(activation=activation, norm='none'),
             BatchView([64, 4, 4]),
-            nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=4, stride=2, padding=1), *_make_activations(activation=activation, norm=norm, num_features=64, norm_pre_act=norm_pre_act),
-            nn.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=4, stride=2, padding=1), *_make_activations(activation=activation, norm=norm, num_features=32, norm_pre_act=norm_pre_act),
-            nn.ConvTranspose2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=1), *_make_activations(activation=activation, norm=norm, num_features=32, norm_pre_act=norm_pre_act),
+            nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=4, stride=2, padding=1), *_make_activations(activation=activation, norm=norm, shape=(64,  8,  8), norm_pre_act=norm_pre_act),
+            nn.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=4, stride=2, padding=1), *_make_activations(activation=activation, norm=norm, shape=(32, 16, 16), norm_pre_act=norm_pre_act),
+            nn.ConvTranspose2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=1), *_make_activations(activation=activation, norm=norm, shape=(32, 32, 32), norm_pre_act=norm_pre_act),
             nn.ConvTranspose2d(in_channels=32, out_channels=C,  kernel_size=4, stride=2, padding=1),
         )
 
@@ -94,7 +96,7 @@ class DecoderConv64Alt(DisentDecoder):
 # ========================================================================= #
 
 
-def _make_activations(activation='relu', inplace=True, norm='instance', num_features: int = None, norm_pre_act=True):
+def _make_activations(activation='relu', inplace=True, norm='instance', shape: Tuple[int, ...] = None, norm_pre_act=True):
     # get activation layer
     if activation == 'relu':
         a_layer = nn.ReLU(inplace=inplace)
@@ -104,20 +106,23 @@ def _make_activations(activation='relu', inplace=True, norm='instance', num_feat
         a_layer = Swish()
     else:
         raise KeyError(f'invalid activation layer: {repr(activation)}')
+
     # get norm layer
     # https://www.programmersought.com/article/41731094913/
-    # nn.BatchNorm2d
-    # nn.InstanceNorm2d
-    # nn.GroupNorm
-    # nn.LayerNorm
-    if norm == 'batch':
-        n_layer = nn.BatchNorm2d(num_features=num_features)
-    elif norm == 'instance':
-        n_layer = nn.InstanceNorm2d(num_features=num_features)
-    elif norm in (None, 'none'):
+    # TODO: nn.GroupNorm
+
+    if norm in (None, 'none'):
         n_layer = None
     else:
-        raise KeyError(f'invalid norm layer: {repr(norm)}')
+        C, H, W = shape
+        if norm == 'batch':
+            n_layer = nn.BatchNorm2d(num_features=C)
+        elif norm == 'instance':
+            n_layer = nn.InstanceNorm2d(num_features=C)
+        elif norm == 'layer':
+            n_layer = nn.LayerNorm(normalized_shape=[H, W])
+        else:
+            raise KeyError(f'invalid norm layer: {repr(norm)}')
     # order layers
     layers = (n_layer, a_layer) if norm_pre_act else (a_layer, n_layer)
     # return layers
