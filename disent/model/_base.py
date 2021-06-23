@@ -27,7 +27,7 @@ import logging
 from typing import final
 
 import numpy as np
-from torch import Tensor
+import torch
 
 from disent.nn.modules import DisentModule
 
@@ -86,7 +86,7 @@ class DisentLatentsModule(DisentModule):
 class DisentEncoder(DisentLatentsModule):
 
     @final
-    def forward(self, x) -> Tensor:
+    def forward(self, x) -> torch.Tensor:
         """same as self.encode but with size checks"""
         self.assert_x_valid(x)
         # encode | p(z|x)
@@ -99,7 +99,7 @@ class DisentEncoder(DisentLatentsModule):
         # return
         return z
 
-    def encode(self, x) -> Tensor:
+    def encode(self, x) -> torch.Tensor:
         raise NotImplementedError
 
 
@@ -121,7 +121,7 @@ class DisentDecoder(DisentLatentsModule):
         # return
         return x_recon
 
-    def decode(self, z) -> Tensor:
+    def decode(self, z) -> torch.Tensor:
         raise NotImplementedError
 
 
@@ -153,12 +153,15 @@ class AutoEncoder(DisentLatentsModule):
         # extract components if necessary
         if self._z_multiplier == 1:
             return z_raw
-        elif self.z_multiplier == 2:
-            return z_raw[..., :self.z_size], z_raw[..., self.z_size:]
         else:
-            raise KeyError(f'z_multiplier={self.z_multiplier} is unsupported')
+            # TODO: we should not chunk things here! rather in the actual framework
+            # checks
+            B, Z = z_raw.shape
+            assert Z / self.z_size == self._z_multiplier
+            # split into type: Tuple[torch.Tensor, ...]
+            return torch.chunk(z_raw, chunks=2, dim=-1)
 
-    def decode(self, z: Tensor) -> Tensor:
+    def decode(self, z: torch.Tensor) -> torch.Tensor:
         """
         decode the given representation.
         the returned tensor does not have an activation applied to it!
@@ -169,4 +172,3 @@ class AutoEncoder(DisentLatentsModule):
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-

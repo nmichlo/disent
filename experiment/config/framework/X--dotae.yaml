@@ -1,7 +1,7 @@
 # @package _group_
 name: dotae
 module:
-  _target_: disent.frameworks.ae.experimental.AdaNegTripletAe
+  _target_: disent.frameworks.ae.experimental.DataOverlapTripletAe
   # disable various components
   disable_decoder: FALSE
   disable_rec_loss: FALSE
