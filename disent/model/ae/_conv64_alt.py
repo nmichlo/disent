@@ -22,12 +22,76 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from torch import nn as nn, Tensor
+from torch import nn
+from torch import Tensor
 
 from disent.model import DisentDecoder
 from disent.model import DisentEncoder
-from disent.nn.modules import Flatten3D
+from disent.nn.activations import Swish
 from disent.nn.modules import BatchView
+from disent.nn.modules import Flatten3D
+
+
+# ========================================================================= #
+# disentanglement_lib Conv models                                           #
+# ========================================================================= #
+
+
+class EncoderConv64Alt(DisentEncoder):
+    """
+    Modified version of `EncoderConv64` with
+    selectable activations and norm layers
+    """
+
+    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1, activation='leaky_relu', norm='instance', norm_pre_act=True):
+        # checks
+        (C, H, W) = x_shape
+        assert (H, W) == (64, 64), 'This model only works with image size 64x64.'
+        super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
+
+        self.model = nn.Sequential(
+            nn.Conv2d(in_channels=C,  out_channels=32, kernel_size=4, stride=2, padding=2), *_make_activations(activation=activation, norm=norm, num_features=32, norm_pre_act=norm_pre_act),
+            nn.Conv2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=2), *_make_activations(activation=activation, norm=norm, num_features=32, norm_pre_act=norm_pre_act),
+            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=2, stride=2, padding=1), *_make_activations(activation=activation, norm=norm, num_features=64, norm_pre_act=norm_pre_act),
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=2, stride=2, padding=1), *_make_activations(activation=activation, norm=norm, num_features=64, norm_pre_act=norm_pre_act),
+            Flatten3D(),
+            nn.Linear(in_features=1600, out_features=256), *_make_activations(activation=activation, norm='none'),
+            nn.Linear(in_features=256,  out_features=self.z_total),
+        )
+
+    def encode(self, x) -> (Tensor, Tensor):
+        return self.model(x)
+
+
+class DecoderConv64Alt(DisentDecoder):
+    """
+    Modified version of `DecoderConv64` with
+    selectable activations and norm layers
+    """
+
+    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1, activation='leaky_relu', norm='instance', norm_pre_act=True):
+        # checks
+        (C, H, W) = x_shape
+        assert (H, W) == (64, 64), 'This model only works with image size 64x64.'
+        super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
+
+        self.model = nn.Sequential(
+            nn.Linear(in_features=self.z_size, out_features=256),  *_make_activations(activation=activation, norm='none'),
+            nn.Linear(in_features=256,         out_features=1024), *_make_activations(activation=activation, norm='none'),
+            BatchView([64, 4, 4]),
+            nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=4, stride=2, padding=1), *_make_activations(activation=activation, norm=norm, num_features=64, norm_pre_act=norm_pre_act),
+            nn.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=4, stride=2, padding=1), *_make_activations(activation=activation, norm=norm, num_features=32, norm_pre_act=norm_pre_act),
+            nn.ConvTranspose2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=1), *_make_activations(activation=activation, norm=norm, num_features=32, norm_pre_act=norm_pre_act),
+            nn.ConvTranspose2d(in_channels=32, out_channels=C,  kernel_size=4, stride=2, padding=1),
+        )
+
+    def decode(self, z) -> Tensor:
+        return self.model(z)
+
+
+# ========================================================================= #
+# Helper                                                                    #
+# ========================================================================= #
 
 
 def _make_activations(activation='relu', inplace=True, norm='instance', num_features: int = None, norm_pre_act=True):
@@ -36,6 +100,8 @@ def _make_activations(activation='relu', inplace=True, norm='instance', num_feat
         a_layer = nn.ReLU(inplace=inplace)
     elif activation == 'leaky_relu':
         a_layer = nn.LeakyReLU(inplace=inplace)
+    elif activation == 'swish':
+        a_layer = Swish()
     else:
         raise KeyError(f'invalid activation layer: {repr(activation)}')
     # get norm layer
@@ -56,86 +122,6 @@ def _make_activations(activation='relu', inplace=True, norm='instance', num_feat
     layers = (n_layer, a_layer) if norm_pre_act else (a_layer, n_layer)
     # return layers
     return tuple(l for l in layers if l is not None)
-
-
-# ========================================================================= #
-# disentanglement_lib Conv models                                           #
-# ========================================================================= #
-
-
-class EncoderConv64Alt(DisentEncoder):
-    """
-    Reference Implementation:
-    https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/shared/architectures.py
-    # TODO: verify, things have changed...
-    """
-
-    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1, activation='leaky_relu', norm='instance', norm_pre_act=True):
-        """
-        Convolutional encoder used in beta-VAE paper for the chairs data.
-        Based on row 3 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
-        Concepts with a Constrained Variational Framework"
-        (https://openreview.net/forum?id=Sy2fzU9gl)
-        """
-        # checks
-        assert tuple(x_shape[1:]) == (64, 64), 'This model only works with image size 64x64.'
-        num_channels = x_shape[0]
-        super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
-
-        self.model = nn.Sequential(
-            nn.Conv2d(in_channels=num_channels, out_channels=32, kernel_size=4, stride=2, padding=2),
-                *_make_activations(activation=activation, norm=norm, num_features=32, norm_pre_act=norm_pre_act),
-            nn.Conv2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=2),
-                *_make_activations(activation=activation, norm=norm, num_features=32, norm_pre_act=norm_pre_act),
-            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=2, stride=2, padding=1),
-                *_make_activations(activation=activation, norm=norm, num_features=64, norm_pre_act=norm_pre_act),
-            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=2, stride=2, padding=1),
-                *_make_activations(activation=activation, norm=norm, num_features=64, norm_pre_act=norm_pre_act),
-            Flatten3D(),
-            nn.Linear(1600, 256),
-                *_make_activations(activation=activation, norm='none'),
-            nn.Linear(256, self.z_total),
-        )
-
-    def encode(self, x) -> (Tensor, Tensor):
-        return self.model(x)
-
-
-class DecoderConv64Alt(DisentDecoder):
-    """
-    From:
-    https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/shared/architectures.py
-    # TODO: verify, things have changed...
-    """
-
-    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1, activation='leaky_relu', norm='instance', norm_pre_act=True):
-        """
-        Convolutional decoder used in beta-VAE paper for the chairs data.
-        Based on row 3 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
-        Concepts with a Constrained Variational Framework"
-        (https://openreview.net/forum?id=Sy2fzU9gl)
-        """
-        assert tuple(x_shape[1:]) == (64, 64), 'This model only works with image size 64x64.'
-        num_channels = x_shape[0]
-        super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
-
-        self.model = nn.Sequential(
-            nn.Linear(self.z_size, 256),
-                *_make_activations(activation=activation, norm='none'),
-            nn.Linear(256, 1024),
-                *_make_activations(activation=activation, norm='none'),
-            BatchView([64, 4, 4]),
-            nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=4, stride=2, padding=1),
-                *_make_activations(activation=activation, norm=norm, num_features=64, norm_pre_act=norm_pre_act),
-            nn.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=4, stride=2, padding=1),
-                *_make_activations(activation=activation, norm=norm, num_features=32, norm_pre_act=norm_pre_act),
-            nn.ConvTranspose2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=1),
-                *_make_activations(activation=activation, norm=norm, num_features=32, norm_pre_act=norm_pre_act),
-            nn.ConvTranspose2d(in_channels=32, out_channels=num_channels, kernel_size=4, stride=2, padding=1),
-        )
-
-    def decode(self, z) -> Tensor:
-        return self.model(z)
 
 
 # ========================================================================= #

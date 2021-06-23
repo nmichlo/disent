@@ -22,12 +22,13 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from torch import nn as nn, Tensor
+from torch import nn
+from torch import Tensor
 
 from disent.model import DisentDecoder
 from disent.model import DisentEncoder
-from disent.nn.modules import Flatten3D
 from disent.nn.modules import BatchView
+from disent.nn.modules import Flatten3D
 
 
 # ========================================================================= #
@@ -44,11 +45,9 @@ class EncoderSimpleFC(DisentEncoder):
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
         self.model = nn.Sequential(
             Flatten3D(),
-            nn.Linear(self.x_size, h_size1),
-                nn.ReLU(True),
-            nn.Linear(h_size1, h_size2),
-                nn.ReLU(True),
-            nn.Linear(h_size2, self.z_total)
+            nn.Linear(in_features=self.x_size, out_features=h_size1), nn.ReLU(True),
+            nn.Linear(in_features=h_size1,     out_features=h_size2), nn.ReLU(True),
+            nn.Linear(in_features=h_size2,     out_features=self.z_total)
         )
 
     def encode(self, x) -> (Tensor, Tensor):
@@ -63,12 +62,10 @@ class DecoderSimpleFC(DisentDecoder):
     def __init__(self, x_shape=(3, 64, 64), h_size1=128, h_size2=128, z_size=6, z_multiplier=1):
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
         self.model = nn.Sequential(
-            nn.Linear(self.z_size, h_size2),
-                nn.ReLU(True),
-            nn.Linear(h_size2, h_size1),
-                nn.ReLU(True),
-            nn.Linear(h_size1, self.x_size),
-                BatchView(self.x_shape),
+            nn.Linear(in_features=self.z_size, out_features=h_size2), nn.ReLU(True),
+            nn.Linear(in_features=h_size2,     out_features=h_size1), nn.ReLU(True),
+            nn.Linear(in_features=h_size1,     out_features=self.x_size),
+            BatchView(self.x_shape),
         )
 
     def decode(self, z):

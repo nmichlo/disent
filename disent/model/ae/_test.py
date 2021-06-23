@@ -23,12 +23,13 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import numpy as np
-from torch import nn as nn, Tensor
+from torch import nn
+from torch import Tensor
 
 from disent.model import DisentDecoder
 from disent.model import DisentEncoder
-from disent.nn.modules import Flatten3D
 from disent.nn.modules import BatchView
+from disent.nn.modules import Flatten3D
 
 
 # ========================================================================= #

@@ -22,12 +22,13 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from torch import nn as nn, Tensor
+from torch import nn
+from torch import Tensor
 
 from disent.model import DisentDecoder
 from disent.model import DisentEncoder
-from disent.nn.modules import Flatten3D
 from disent.nn.modules import BatchView
+from disent.nn.modules import Flatten3D
 
 
 # ========================================================================= #
@@ -37,36 +38,39 @@ from disent.nn.modules import BatchView
 
 class EncoderConv64(DisentEncoder):
     """
+    Convolutional encoder used in beta-VAE paper for the chairs data.
+    Based on row 3 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
+    Concepts with a Constrained Variational Framework"
+    (https://openreview.net/forum?id=Sy2fzU9gl)
+
     Reference Implementation:
-    https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/shared/architectures.py
-    # TODO: verify, things have changed...
+        - https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/shared/architectures.py
+        >>> def conv_encoder(input_tensor, num_latent):
+        >>>     e1 = tf.layers.conv2d(inputs=input_tensor, filters=32, kernel_size=4, strides=2, activation=tf.nn.relu, padding="same", name="e1",)
+        >>>     e2 = tf.layers.conv2d(inputs=e1,           filters=32, kernel_size=4, strides=2, activation=tf.nn.relu, padding="same", name="e2",)
+        >>>     e3 = tf.layers.conv2d(inputs=e2,           filters=64, kernel_size=2, strides=2, activation=tf.nn.relu, padding="same", name="e3",)
+        >>>     e4 = tf.layers.conv2d(inputs=e3,           filters=64, kernel_size=2, strides=2, activation=tf.nn.relu, padding="same", name="e4",)
+        >>>     flat_e4 = tf.layers.flatten(e4)
+        >>>     e5      = tf.layers.dense(flat_e4, 256,        activation=tf.nn.relu, name="e5")
+        >>>     means   = tf.layers.dense(e5,      num_latent, activation=None,       name="means")
+        >>>     log_var = tf.layers.dense(e5,      num_latent, activation=None,       name="log_var")
+        >>>     return means, log_var
     """
 
     def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
-        """
-        Convolutional encoder used in beta-VAE paper for the chairs data.
-        Based on row 3 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
-        Concepts with a Constrained Variational Framework"
-        (https://openreview.net/forum?id=Sy2fzU9gl)
-        """
         # checks
-        assert tuple(x_shape[1:]) == (64, 64), 'This model only works with image size 64x64.'
-        num_channels = x_shape[0]
+        (C, H, W) = x_shape
+        assert (H, W) == (64, 64), 'This model only works with image size 64x64.'
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
         self.model = nn.Sequential(
-            nn.Conv2d(in_channels=num_channels, out_channels=32, kernel_size=4, stride=2, padding=2),
-                nn.ReLU(inplace=True),
-            nn.Conv2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=2),
-                nn.ReLU(inplace=True),
-            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=2, stride=2, padding=1),
-                nn.ReLU(inplace=True),
-            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=2, stride=2, padding=1),
-                nn.ReLU(inplace=True),
+            nn.Conv2d(in_channels=C,  out_channels=32, kernel_size=4, stride=2, padding=2), nn.ReLU(inplace=True),
+            nn.Conv2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=2), nn.ReLU(inplace=True),
+            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=2, stride=2, padding=1), nn.ReLU(inplace=True),
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=2, stride=2, padding=1), nn.ReLU(inplace=True),
             Flatten3D(),
-            nn.Linear(1600, 256),
-                nn.ReLU(inplace=True),
-            nn.Linear(256, self.z_total),
+            nn.Linear(in_features=1600, out_features=256), nn.ReLU(inplace=True),
+            nn.Linear(in_features=256,  out_features=self.z_total),  # we combine the two networks in the reference implementation and use torch.chunk(2, dim=-1) to get mu & logvar
         )
 
     def encode(self, x) -> (Tensor, Tensor):
@@ -75,35 +79,37 @@ class EncoderConv64(DisentEncoder):
 
 class DecoderConv64(DisentDecoder):
     """
-    From:
-    https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/shared/architectures.py
-    # TODO: verify, things have changed...
+    Convolutional decoder used in beta-VAE paper for the chairs data.
+    Based on row 3 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
+    Concepts with a Constrained Variational Framework"
+    (https://openreview.net/forum?id=Sy2fzU9gl)
+
+    Reference Implementation:
+        - https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/shared/architectures.py
+        >>> def deconv_decoder(latent_tensor, output_shape):
+        >>>     d1 = tf.layers.dense(latent_tensor,  256, activation=tf.nn.relu)
+        >>>     d2 = tf.layers.dense(d1,            1024, activation=tf.nn.relu)
+        >>>     d2_reshaped = tf.reshape(d2, shape=[-1, 4, 4, 64])
+        >>>     d3 = tf.layers.conv2d_transpose(inputs=d2_reshaped, filters=64,              kernel_size=4, strides=2, activation=tf.nn.relu, padding="same")
+        >>>     d4 = tf.layers.conv2d_transpose(inputs=d3,          filters=32,              kernel_size=4, strides=2, activation=tf.nn.relu, padding="same")
+        >>>     d5 = tf.layers.conv2d_transpose(inputs=d4,          filters=32,              kernel_size=4, strides=2, activation=tf.nn.relu, padding="same")
+        >>>     d6 = tf.layers.conv2d_transpose(inputs=d5,          filters=output_shape[2], kernel_size=4, strides=2, padding="same")
+        >>>     return tf.reshape(d6, [-1] + output_shape)
     """
 
     def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
-        """
-        Convolutional decoder used in beta-VAE paper for the chairs data.
-        Based on row 3 of Table 1 on page 13 of "beta-VAE: Learning Basic Visual
-        Concepts with a Constrained Variational Framework"
-        (https://openreview.net/forum?id=Sy2fzU9gl)
-        """
-        assert tuple(x_shape[1:]) == (64, 64), 'This model only works with image size 64x64.'
-        num_channels = x_shape[0]
+        (C, H, W) = x_shape
+        assert (H, W) == (64, 64), 'This model only works with image size 64x64.'
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
         self.model = nn.Sequential(
-            nn.Linear(self.z_size, 256),
-                nn.ReLU(inplace=True),
-            nn.Linear(256, 1024),
-                nn.ReLU(inplace=True),
+            nn.Linear(in_features=self.z_size, out_features=256),  nn.ReLU(inplace=True),
+            nn.Linear(in_features=256,         out_features=1024), nn.ReLU(inplace=True),
             BatchView([64, 4, 4]),
-            nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=4, stride=2, padding=1),
-                nn.ReLU(inplace=True),
-            nn.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=4, stride=2, padding=1),
-                nn.ReLU(inplace=True),
-            nn.ConvTranspose2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=1),
-                nn.ReLU(inplace=True),
-            nn.ConvTranspose2d(in_channels=32, out_channels=num_channels, kernel_size=4, stride=2, padding=1),
+            nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=4, stride=2, padding=1), nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=4, stride=2, padding=1), nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=1), nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(in_channels=32, out_channels=C,  kernel_size=4, stride=2, padding=1),
         )
 
     def decode(self, z) -> Tensor:

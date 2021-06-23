@@ -22,7 +22,8 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from torch import nn as nn, Tensor
+from torch import nn
+from torch import Tensor
 
 from disent.model import DisentDecoder
 from disent.model import DisentEncoder
@@ -43,23 +44,17 @@ class EncoderSimpleConv64(DisentEncoder):
 
     def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
         # checks
-        assert tuple(x_shape[1:]) == (64, 64), 'This model only works with image size 64x64.'
-        num_channels = x_shape[0]
+        (C, H, W) = x_shape
+        assert (H, W) == (64, 64), 'This model only works with image size 64x64.'
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
         self.model = nn.Sequential(
-            nn.Conv2d(in_channels=num_channels, out_channels=32, kernel_size=4, stride=2, padding=1),
-                nn.ReLU(True),
-            nn.Conv2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=1),
-                nn.ReLU(True),
-            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2, padding=1),
-                nn.ReLU(True),
-            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=4, stride=2, padding=1),
-                nn.ReLU(True),
-            nn.Conv2d(in_channels=128, out_channels=256, kernel_size=4, stride=2, padding=1),
-                nn.ReLU(True),
-            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=4, stride=2, padding=1),
-                nn.ReLU(True),
+            nn.Conv2d(in_channels=C,   out_channels=32,  kernel_size=4, stride=2, padding=1), nn.ReLU(True),
+            nn.Conv2d(in_channels=32,  out_channels=32,  kernel_size=4, stride=2, padding=1), nn.ReLU(True),
+            nn.Conv2d(in_channels=32,  out_channels=64,  kernel_size=4, stride=2, padding=1), nn.ReLU(True),
+            nn.Conv2d(in_channels=64,  out_channels=128, kernel_size=4, stride=2, padding=1), nn.ReLU(True),
+            nn.Conv2d(in_channels=128, out_channels=256, kernel_size=4, stride=2, padding=1), nn.ReLU(True),
+            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=4, stride=2, padding=1), nn.ReLU(True),
                 Flatten3D(),
             nn.Linear(256, self.z_total)
         )
@@ -76,25 +71,19 @@ class DecoderSimpleConv64(DisentDecoder):
 
     def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
         # checks
-        assert tuple(x_shape[1:]) == (64, 64), 'This model only works with image size 64x64.'
-        num_channels = x_shape[0]
+        (C, H, W) = x_shape
+        assert (H, W) == (64, 64), 'This model only works with image size 64x64.'
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
         self.model = nn.Sequential(
             Unsqueeze3D(),
-            nn.Conv2d(in_channels=self.z_size, out_channels=256, kernel_size=1, stride=2),
-                nn.ReLU(True),
-            nn.ConvTranspose2d(in_channels=256, out_channels=256, kernel_size=4, stride=2, padding=1),
-                nn.ReLU(True),
-            nn.ConvTranspose2d(in_channels=256, out_channels=128, kernel_size=4, stride=2),
-                nn.ReLU(True),
-            nn.ConvTranspose2d(in_channels=128, out_channels=128, kernel_size=4, stride=2),
-                nn.ReLU(True),
-            nn.ConvTranspose2d(in_channels=128, out_channels=64, kernel_size=4, stride=2),
-                nn.ReLU(True),
-            nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=4, stride=2),
-                nn.ReLU(True),
-            nn.ConvTranspose2d(in_channels=64, out_channels=num_channels, kernel_size=3, stride=1)
+            nn.Conv2d(in_channels=self.z_size,  out_channels=256, kernel_size=1, stride=2), nn.ReLU(True),
+            nn.ConvTranspose2d(in_channels=256, out_channels=256, kernel_size=4, stride=2, padding=1), nn.ReLU(True),
+            nn.ConvTranspose2d(in_channels=256, out_channels=128, kernel_size=4, stride=2), nn.ReLU(True),
+            nn.ConvTranspose2d(in_channels=128, out_channels=128, kernel_size=4, stride=2), nn.ReLU(True),
+            nn.ConvTranspose2d(in_channels=128, out_channels=64,  kernel_size=4, stride=2), nn.ReLU(True),
+            nn.ConvTranspose2d(in_channels=64,  out_channels=64,  kernel_size=4, stride=2), nn.ReLU(True),
+            nn.ConvTranspose2d(in_channels=64,  out_channels=C,   kernel_size=3, stride=1)
         )
         # output shape = bs x 3 x 64 x 64
 
