@@ -152,7 +152,6 @@ def _compute_variances(
       Vector with the variance of each dimension.
     """
     observations = ground_truth_dataset.dataset_sample_batch(batch_size, mode='input')
-    observations = observations.cuda()
     representations = to_numpy(utils.obtain_representation(observations, representation_function, eval_batch_size))
     representations = np.transpose(representations)
     assert representations.shape[0] == batch_size
@@ -185,7 +184,7 @@ def _generate_training_sample(
     # Fix the selected factor across mini-batch.
     factors[:, factor_index] = factors[0, factor_index]
     # Obtain the observations.
-    observations = ground_truth_dataset.dataset_batch_from_factors(factors, mode='input').cuda()
+    observations = ground_truth_dataset.dataset_batch_from_factors(factors, mode='input')
     representations = to_numpy(representation_function(observations))
     local_variances = np.var(representations, axis=0, ddof=1)
     argmin = np.argmin(local_variances[active_dims] / global_variances[active_dims])
