@@ -150,7 +150,7 @@ class DataOverlapRankVae(TripletVae):
         elif (self.cfg.overlap_augment_mode == 'augment') or (self.cfg.overlap_augment_mode == 'augment_each'):
             # recreate augment each time
             if self.cfg.overlap_augment_mode == 'augment_each':
-                self._augment = instantiate_recursive(self.cfg.augments)
+                self._augment = instantiate_recursive(self.cfg.overlap_augment)
             # augment on correct device
             aug_xs_targ = [self._augment(x_targ) for x_targ in xs_targ]
             # checks
