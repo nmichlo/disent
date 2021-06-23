@@ -45,7 +45,7 @@ class EncoderConv64Alt(DisentEncoder):
     selectable activations and norm layers
     """
 
-    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1, activation='leaky_relu', norm='instance', norm_pre_act=True):
+    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1, activation='leaky_relu', norm='layer', norm_pre_act=True):
         # checks
         (C, H, W) = x_shape
         assert (H, W) == (64, 64), 'This model only works with image size 64x64.'
@@ -71,7 +71,7 @@ class DecoderConv64Alt(DisentDecoder):
     selectable activations and norm layers
     """
 
-    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1, activation='leaky_relu', norm='instance', norm_pre_act=True):
+    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1, activation='leaky_relu', norm='layer', norm_pre_act=True):
         # checks
         (C, H, W) = x_shape
         assert (H, W) == (64, 64), 'This model only works with image size 64x64.'
@@ -96,7 +96,7 @@ class DecoderConv64Alt(DisentDecoder):
 # ========================================================================= #
 
 
-def _make_activations(activation='relu', inplace=True, norm='instance', shape: Tuple[int, ...] = None, norm_pre_act=True):
+def _make_activations(activation='relu', inplace=True, norm='layer', shape: Tuple[int, ...] = None, norm_pre_act=True):
     # get activation layer
     if activation == 'relu':
         a_layer = nn.ReLU(inplace=inplace)
@@ -121,6 +121,8 @@ def _make_activations(activation='relu', inplace=True, norm='instance', shape: T
             n_layer = nn.InstanceNorm2d(num_features=C)
         elif norm == 'layer':
             n_layer = nn.LayerNorm(normalized_shape=[H, W])
+        elif norm == 'layer_chn':
+            n_layer = nn.LayerNorm(normalized_shape=[C, H, W])
         else:
             raise KeyError(f'invalid norm layer: {repr(norm)}')
     # order layers

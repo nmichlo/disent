@@ -19,5 +19,5 @@ decoder:
 
 # vars
 activation: leaky_relu  # leaky_relu, relu
-norm: instance  # batch, instance, none
+norm: layer  # batch, instance, layer, layer_chn, none
 norm_pre_act: TRUE
