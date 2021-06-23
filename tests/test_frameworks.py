@@ -51,12 +51,13 @@ from disent.nn.transform import ToStandardisedTensor
 
 @pytest.mark.parametrize(['Framework', 'cfg_kwargs', 'Data'], [
     # AE - unsupervised
-    (Ae,                   dict(), XYObjectData),
-    (TripletAe,            dict(), XYObjectData),
+    (Ae,                   dict(),                                                                      XYObjectData),
+    (DataOverlapTripletAe, dict(overlap_mine_triplet_mode='hard_neg'),                                  XYObjectData),
     # AE - weakly supervised
-    (AdaAe,                dict(), XYObjectData),
+    (AdaAe,                dict(),                                                                      XYObjectData),
     # AE - supervised
-    (AdaNegTripletAe,      dict(), XYObjectData),
+    (TripletAe,            dict(),                                                                      XYObjectData),
+    (AdaNegTripletAe,      dict(),                                                                      XYObjectData),
     # VAE - unsupervised
     (Vae,                  dict(),                                                                      XYObjectData),
     (BetaVae,              dict(),                                                                      XYObjectData),

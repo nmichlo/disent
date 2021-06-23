@@ -255,6 +255,12 @@ def aggregate_measure_distances_along_factor(
         linear_values_std = compute_unsorted_linear_values(zs_traversal, use_std=True)
         linear_values_var = compute_unsorted_linear_values(zs_traversal, use_std=False)
 
+        # compute scores
+        axis_ratio_std = score_from_unsorted(axis_values_std, use_max=False, norm=True)
+        axis_ratio_var = score_from_unsorted(axis_values_var, use_max=False, norm=True)
+        linear_ratio_std = score_from_unsorted(linear_values_std, use_max=False, norm=True)
+        linear_ratio_var = score_from_unsorted(linear_values_var, use_max=False, norm=True)
+
         # save variables
         measures.append({
             'factor_swap_ratio_near.l1': near_swap_ratio_l1,
@@ -264,13 +270,16 @@ def aggregate_measure_distances_along_factor(
             # axis ratios
             '_axis_values.std': axis_values_std,
             '_axis_values.var': axis_values_var,
-            'axis_ratio.std':   score_from_unsorted(axis_values_std, use_max=False, norm=True),
-            'axis_ratio.var':   score_from_unsorted(axis_values_var, use_max=False, norm=True),
+            'axis_ratio.std':   axis_ratio_std,
+            'axis_ratio.var':   axis_ratio_var,
             # linear ratios
             '_linear_values.std': linear_values_std,
             '_linear_values.var': linear_values_var,
-            'linear_ratio.std':   score_from_unsorted(linear_values_std, use_max=False, norm=True),
-            'linear_ratio.var':   score_from_unsorted(linear_values_var, use_max=False, norm=True),
+            'linear_ratio.std':   linear_ratio_std,
+            'linear_ratio.var':   linear_ratio_var,
+            # normalised axis alignment scores (axis_ratio is bounded by linear_ratio)
+            'axis_alignment.std':  axis_ratio_std / (linear_ratio_std + 1e-20),
+            'axis_alignment.var':  axis_ratio_var / (linear_ratio_var + 1e-20),
         })
 
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -286,6 +295,9 @@ def aggregate_measure_distances_along_factor(
     results['ave_axis_ratio.var']   = score_from_unsorted(results.pop('_axis_values.var'),   use_max=False, norm=True)
     results['ave_linear_ratio.std'] = score_from_unsorted(results.pop('_linear_values.std'), use_max=False, norm=True)
     results['ave_linear_ratio.var'] = score_from_unsorted(results.pop('_linear_values.var'), use_max=False, norm=True)
+    # ave normalised axis alignment scores (axis_ratio is bounded by linear_ratio)
+    results['ave_axis_alignment.std'] = results['ave_axis_ratio.std'] / (results['ave_linear_ratio.std'] + 1e-20),
+    results['ave_axis_alignment.var'] = results['ave_axis_ratio.var'] / (results['ave_linear_ratio.var'] + 1e-20),
 
     return results
 

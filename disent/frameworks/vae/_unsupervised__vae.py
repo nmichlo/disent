@@ -166,11 +166,11 @@ class Vae(Ae):
 
     @final
     def hook_ae_intercept_zs(self, zs: Sequence[torch.Tensor]) -> Tuple[Sequence[torch.Tensor], Dict[str, Any]]:
-        raise NotImplementedError('This function should never be used or overridden by VAE methods!')  # pragma: no cover
+        raise RuntimeError('This function should never be used or overridden by VAE methods!')  # pragma: no cover
 
     @final
     def hook_ae_compute_ave_aug_loss(self, zs: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
-        raise NotImplementedError('This function should never be used or overridden by VAE methods!')  # pragma: no cover
+        raise RuntimeError('This function should never be used or overridden by VAE methods!')  # pragma: no cover
 
     # --------------------------------------------------------------------- #
     # Private Hooks                                                         #
@@ -225,4 +225,3 @@ class Vae(Ae):
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-
