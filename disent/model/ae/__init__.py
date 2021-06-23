@@ -33,3 +33,5 @@ from disent.model.ae._simpleconv64 import DecoderSimpleConv64
 from disent.model.ae._simpleconv64 import EncoderSimpleConv64
 from disent.model.ae._simplefc import DecoderSimpleFC
 from disent.model.ae._simplefc import EncoderSimpleFC
+from disent.model.ae._test import DecoderTest
+from disent.model.ae._test import EncoderTest

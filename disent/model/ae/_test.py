@@ -22,60 +22,46 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-import pytorch_lightning as pl
-import torch
+import numpy as np
+from torch import nn as nn, Tensor
+
+from disent.model import DisentDecoder
+from disent.model import DisentEncoder
+from disent.nn.modules import Flatten3D
+from disent.nn.modules import BatchView
 
 
 # ========================================================================= #
-# Base Modules                                                              #
+# test models                                                               #
 # ========================================================================= #
 
 
-class DisentModule(torch.nn.Module):
+class EncoderTest(DisentEncoder):
 
-    def _forward_unimplemented(self, *args):
-        # Annoying fix applied by torch for Module.forward:
-        # https://github.com/python/mypy/issues/8795
-        raise RuntimeError('This should never run!')
+    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
+        super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
-    def forward(self, *args, **kwargs):
-        raise NotImplementedError
+        self.model = nn.Sequential(
+            Flatten3D(),
+            nn.Linear(in_features=int(np.prod(self.x_shape)), out_features=self.z_total)
+        )
 
-
-class DisentLightningModule(pl.LightningModule):
-
-    def _forward_unimplemented(self, *args):
-        # Annoying fix applied by torch for Module.forward:
-        # https://github.com/python/mypy/issues/8795
-        raise RuntimeError('This should never run!')
+    def encode(self, x) -> (Tensor, Tensor):
+        return self.model(x)
 
 
-# ========================================================================= #
-# Utility Layers                                                            #
-# ========================================================================= #
+class DecoderTest(DisentDecoder):
 
+    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
+        super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
-class BatchView(DisentModule):
-    # TODO: this is replaced in pytorch 1.9 with nn.Unflatten
-    def __init__(self, size):
-        super().__init__()
-        self._size = (-1, *size)
-    def forward(self, x):
-        return x.view(*self._size)
+        self.model = nn.Sequential(
+            nn.Linear(in_features=self.z_size, out_features=int(np.prod(x_shape))),
+            BatchView(self.x_shape),
+        )
 
-
-class Unsqueeze3D(DisentModule):
-    # TODO: this is replaced in pytorch 1.9 with nn.Unflatten
-    def forward(self, x):
-        assert x.ndim == 2
-        return x.view(*x.shape, 1, 1)  # (B, N) -> (B, N, 1, 1)
-
-
-class Flatten3D(DisentModule):
-    # TODO: this is replaced in pytorch 1.9 with nn.Flatten
-    def forward(self, x):
-        assert x.ndim == 4
-        return x.view(x.shape[0], -1)  # (B, C, H, W) -> (B, C*H*W)
+    def decode(self, z) -> Tensor:
+        return self.model(z)
 
 
 # ========================================================================= #
