@@ -39,7 +39,7 @@ from disent.nn.modules import Flatten3D
 # ========================================================================= #
 
 
-class EncoderConv64Alt(DisentEncoder):
+class EncoderConv64Norm(DisentEncoder):
     """
     Modified version of `EncoderConv64` with
     selectable activations and norm layers
@@ -65,7 +65,7 @@ class EncoderConv64Alt(DisentEncoder):
         return self.model(x)
 
 
-class DecoderConv64Alt(DisentDecoder):
+class DecoderConv64Norm(DisentDecoder):
     """
     Modified version of `DecoderConv64` with
     selectable activations and norm layers

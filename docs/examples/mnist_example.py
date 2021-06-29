@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 from disent.dataset.random import RandomDataset
 from disent.frameworks.vae import AdaVae
-from disent.model.ae import DecoderConv64Alt, EncoderConv64Alt
+from disent.model.ae import DecoderConv64Norm, EncoderConv64Norm
 from disent.model import AutoEncoder
 from disent.nn.transform import ToStandardisedTensor
 from disent.util import is_test_run
@@ -35,8 +35,8 @@ dataloader_test  = DataLoader(dataset=dataset_test,  batch_size=64, shuffle=True
 module = AdaVae(
     make_optimizer_fn=lambda params: Adam(params, lr=1e-3),
     make_model_fn=lambda: AutoEncoder(
-        encoder=EncoderConv64Alt(x_shape=(1, 64, 64), z_size=9, z_multiplier=2),
-        decoder=DecoderConv64Alt(x_shape=(1, 64, 64), z_size=9),
+        encoder=EncoderConv64Norm(x_shape=(1, 64, 64), z_size=9, z_multiplier=2),
+        decoder=DecoderConv64Norm(x_shape=(1, 64, 64), z_size=9),
     ),
     cfg=AdaVae.cfg(beta=4, recon_loss='mse', loss_reduction='mean_sum')  # "mean_sum" is the traditional reduction, rather than "mean"
 )
