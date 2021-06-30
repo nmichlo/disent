@@ -26,7 +26,7 @@ from typing import Tuple
 
 import numpy as np
 
-from disent.dataset.data.dataset import Hdf5Dataset
+from disent.dataset.data._raw import Hdf5Dataset
 from disent.dataset.data.groundtruth import GroundTruthData
 
 

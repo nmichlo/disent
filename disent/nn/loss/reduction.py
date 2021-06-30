@@ -31,21 +31,15 @@ import torch
 # ========================================================================= #
 
 
-def loss_reduction_sum(x: torch.Tensor) -> torch.Tensor:
-    return x.sum()
-
-
 def loss_reduction_mean(x: torch.Tensor) -> torch.Tensor:
     return x.mean()
 
 
 def loss_reduction_mean_sum(x: torch.Tensor) -> torch.Tensor:
-    return x.reshape(x.shape[0], -1).sum(dim=-1).mean()
+    return torch.flatten(x, start_dim=1).sum(dim=-1).mean()
 
 
 _LOSS_REDUCTION_STRATEGIES = {
-    # 'none': lambda tensor: tensor,
-    'sum': loss_reduction_sum,
     'mean': loss_reduction_mean,
     'mean_sum': loss_reduction_mean_sum,
 }
@@ -65,12 +59,10 @@ def get_mean_loss_scale(x: torch.Tensor, reduction: str):
     assert 2 <= x.ndim <= 4, 'unsupported number of dims, must be one of: BxC, BxHxW, BxCxHxW'
 
     # get the loss scaling
-    if reduction == 'mean_sum':
+    if reduction == 'sum':
         return np.prod(x.shape[1:])  # MEAN(B, SUM(C x H x W))
     elif reduction == 'mean':
         return 1
-    elif reduction == 'sum':
-        return np.prod(x.shape)  # SUM(B x C x H x W)
     else:
         raise KeyError('unsupported loss reduction mode')
 
@@ -86,6 +78,8 @@ _REDUCTION_FNS = {
 }
 
 
+# applying this function and then taking the
+# mean should give the same result as loss_reduction
 def batch_loss_reduction(tensor: torch.Tensor, reduction_dtype=None, reduction='mean') -> torch.Tensor:
     # mean over final dims
     if tensor.ndim >= 2:

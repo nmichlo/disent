@@ -22,9 +22,9 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from disent.dataset.data.episodes import BaseOptionEpisodesData
-from disent.dataset._base import DisentSampler
-from disent.dataset.samplers.groundtruth._triplet import sample_radius as sample_radius_fn
+from disent.dataset.data import BaseEpisodesData
+from disent.dataset.sampling._base import BaseDisentSampler
+from disent.dataset.sampling._groundtruth__triplet import sample_radius as sample_radius_fn
 
 
 # ========================================================================= #
@@ -32,14 +32,14 @@ from disent.dataset.samplers.groundtruth._triplet import sample_radius as sample
 # ========================================================================= #
 
 
-class RandomEpisodeSampler(DisentSampler):
+class RandomEpisodeSampler(BaseDisentSampler):
 
     def __init__(self, num_samples=1, sample_radius=None):
         super().__init__(num_samples=num_samples)
         self._sample_radius = sample_radius
 
     def _init(self, dataset):
-        assert isinstance(dataset, BaseOptionEpisodesData), f'data ({type(dataset)}) is not an instance of {BaseOptionEpisodesData}'
+        assert isinstance(dataset, BaseEpisodesData), f'data ({type(dataset)}) is not an instance of {BaseEpisodesData}'
         # TODO: reference to dataset is not ideal here
         self._dataset = dataset
 

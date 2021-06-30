@@ -31,7 +31,7 @@ import logging
 import numpy as np
 from sklearn import svm
 
-from disent.dataset import DisentGroundTruthSamplingDataset
+from disent.dataset import DisentDataset
 from disent.metrics import utils
 
 
@@ -44,7 +44,7 @@ log = logging.getLogger(__name__)
 
 
 def metric_sap(
-        ground_truth_data: DisentGroundTruthSamplingDataset,
+        ground_truth_data: DisentDataset,
         representation_function,
         num_train=10000,
         num_test=5000,

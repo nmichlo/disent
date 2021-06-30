@@ -22,8 +22,5 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from disent.dataset._base import DisentSampler
-
-# wrappers
-from disent.dataset._base import DisentSamplingDataset
-from disent.dataset._base import DisentGroundTruthSamplingDataset
+# wrapper
+from disent.dataset._wrapper import DisentDataset

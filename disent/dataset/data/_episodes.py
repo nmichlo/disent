@@ -32,11 +32,11 @@ from disent.util.iters import LengthIter
 
 
 # ========================================================================= #
-# option episodes                                                           #
+# custom episodes -- base                                                   #
 # ========================================================================= #
 
 
-class BaseOptionEpisodesData(Dataset, LengthIter):
+class BaseEpisodesData(Dataset, LengthIter):
 
     def __init__(self, transform=None):
         self._transform = transform

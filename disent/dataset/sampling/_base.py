@@ -22,6 +22,42 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from disent.dataset.data.episodes._base import BaseOptionEpisodesData
-from disent.dataset.data.episodes._option_episodes import OptionEpisodesPickledData
-from disent.dataset.data.episodes._option_episodes import OptionEpisodesDownloadZippedPickledData
+from typing import final
+from typing import Tuple
+
+
+# ========================================================================= #
+# Base Sampler                                                              #
+# ========================================================================= #
+
+
+class BaseDisentSampler(object):
+
+    def __init__(self, num_samples: int):
+        self._num_samples = num_samples
+
+    @property
+    def num_samples(self) -> int:
+        return self._num_samples
+
+    __initialized = False
+
+    @final
+    def init(self, dataset) -> 'BaseDisentSampler':
+        if self.__initialized:
+            raise RuntimeError(f'Sampler: {repr(self.__class__.__name__)} has already been initialized, are you sure it is not being reused?')
+        # initialize
+        self.__initialized = True
+        self._init(dataset)
+        return self
+
+    def _init(self, dataset):
+        pass
+
+    def __call__(self, idx: int) -> Tuple[int, ...]:
+        raise NotImplementedError
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #

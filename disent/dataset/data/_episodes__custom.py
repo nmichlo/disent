@@ -29,7 +29,7 @@ from typing import Tuple
 
 import numpy as np
 
-from disent.dataset.data.episodes import BaseOptionEpisodesData
+from disent.dataset.data import BaseEpisodesData
 from disent.util.in_out import download_file
 from disent.util.paths import filename_from_url
 
@@ -38,11 +38,11 @@ log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
-# option episodes                                                           #
+# custom episodes -- impl                                                   #
 # ========================================================================= #
 
 
-class OptionEpisodesPickledData(BaseOptionEpisodesData):
+class EpisodesPickledData(BaseEpisodesData):
 
     def __init__(self, required_file: str, transform=None):
         assert os.path.isabs(required_file), f'{required_file=} must be an absolute path.'
@@ -119,7 +119,7 @@ class OptionEpisodesPickledData(BaseOptionEpisodesData):
         return episodes
 
 
-class OptionEpisodesDownloadZippedPickledData(OptionEpisodesPickledData):
+class EpisodesDownloadZippedPickledData(EpisodesPickledData):
 
     # TODO: convert this to data files?
     # TODO: convert this to data files?

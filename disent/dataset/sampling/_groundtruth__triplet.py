@@ -24,8 +24,8 @@
 
 import logging
 import numpy as np
-from disent.dataset.data.groundtruth.base import GroundTruthData
-from disent.dataset._base import DisentSampler
+from disent.dataset.data import GroundTruthData
+from disent.dataset.sampling._base import BaseDisentSampler
 
 
 log = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class GroundTruthTripleSampler(DisentSampler):
+class GroundTruthTripleSampler(BaseDisentSampler):
 
     def __init__(
             self,

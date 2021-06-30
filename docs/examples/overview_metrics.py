@@ -1,24 +1,23 @@
 import pytorch_lightning as pl
 from torch.optim import Adam
 from torch.utils.data import DataLoader
-from disent.dataset.data.groundtruth import XYObjectData
-from disent.dataset import DisentGroundTruthSamplingDataset
-from disent.dataset.samplers.groundtruth import GroundTruthSingleSampler
+from disent.dataset import DisentDataset
+from disent.dataset.data import XYObjectData
+from disent.dataset.sampling import SingleSampler
 from disent.frameworks.vae import BetaVae
-from disent.metrics import metric_dci, metric_mig
-from disent.model.ae import DecoderConv64, EncoderConv64
 from disent.model import AutoEncoder
+from disent.model.ae import DecoderConv64, EncoderConv64
 from disent.nn.transform import ToStandardisedTensor
+from disent.metrics import metric_dci, metric_mig
 from disent.util import is_test_run
 
-
 data = XYObjectData()
-dataset = DisentGroundTruthSamplingDataset(data, GroundTruthSingleSampler(), transform=ToStandardisedTensor(), augment=None)
+dataset = DisentDataset(data, transform=ToStandardisedTensor(), augment=None)
 dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True)
 
 def make_vae(beta):
     return BetaVae(
-        make_optimizer_fn=lambda params: Adam(params, lr=5e-3),
+        make_optimizer_fn=lambda params: Adam(params, lr=1e-3),
         make_model_fn=lambda: AutoEncoder(
             encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2),
             decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),

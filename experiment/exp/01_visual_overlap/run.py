@@ -37,7 +37,7 @@ from tqdm import tqdm
 
 import experiment.exp.util as H
 from disent.dataset.data.groundtruth import *
-from disent.dataset.samplers.groundtruth import GroundTruthDataset
+from disent.dataset.sampling.groundtruth import GroundTruthDataset
 from disent.nn.transform import ToStandardisedTensor
 from disent.util import to_numpy
 

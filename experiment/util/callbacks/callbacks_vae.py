@@ -34,8 +34,8 @@ from pytorch_lightning.trainer.supporters import CombinedLoader
 
 import disent.metrics
 import disent.util.colors as c
-from disent.dataset.samplers import DisentDataset
-from disent.dataset.samplers.groundtruth import GroundTruthDataset
+from disent.dataset.sampling import DisentDataset
+from disent.dataset.sampling.groundtruth import GroundTruthDataset
 from disent.frameworks.ae import Ae
 from disent.frameworks.vae import Vae
 from disent.util.iters import iter_chunks

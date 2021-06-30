@@ -39,8 +39,8 @@ from disent.dataset.data.groundtruth import Cars3dData
 from disent.dataset.data.groundtruth import GroundTruthData
 from disent.dataset.data.groundtruth import Shapes3dData
 from disent.dataset.data.groundtruth import XYSquaresData
-from disent.dataset.samplers.groundtruth import GroundTruthDataset
-from disent.dataset.samplers.groundtruth import GroundTruthDatasetAndFactors
+from disent.dataset.sampling.groundtruth import GroundTruthDataset
+from disent.dataset.sampling.groundtruth import GroundTruthDatasetAndFactors
 from disent.nn.transform import ToStandardisedTensor
 from disent.util.seeds import TempNumpySeed
 from disent.visualize.visualize_util import make_animated_image_grid

@@ -24,11 +24,11 @@
 
 import numpy as np
 
-from disent.dataset.data.groundtruth import GroundTruthData
-from disent.dataset._base import DisentSampler
+from disent.dataset.data import GroundTruthData
+from disent.dataset.sampling._base import BaseDisentSampler
 
 
-class GroundTruthDistSampler(DisentSampler):
+class GroundTruthDistSampler(BaseDisentSampler):
 
     def __init__(
             self,

@@ -22,4 +22,29 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from disent.dataset.samplers.episodes._random_episodes import RandomEpisodeSampler
+from typing import Tuple
+
+import numpy as np
+from disent.dataset.sampling._base import BaseDisentSampler
+
+
+# ========================================================================= #
+# Randomly Paired Dataset                                                   #
+# ========================================================================= #
+
+
+class SingleSampler(BaseDisentSampler):
+
+    def __init__(self):
+        super().__init__(num_samples=1)
+
+    def _init(self, dataset):
+        pass
+
+    def __call__(self, idx: int) -> Tuple[int, ...]:
+        return (idx,)
+
+
+# ========================================================================= #
+# End                                                                       #
+# ========================================================================= #

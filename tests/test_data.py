@@ -29,9 +29,9 @@ import h5py
 import numpy as np
 import pytest
 
-from disent.dataset.data.dataset import Hdf5Dataset
-from disent.dataset.data.groundtruth import XYSquaresData
-from disent.dataset.data.groundtruth import XYSquaresMinimalData
+from disent.dataset.data import Hdf5Dataset
+from disent.dataset.data import XYSquaresData
+from disent.dataset.data import XYSquaresMinimalData
 
 
 # ========================================================================= #

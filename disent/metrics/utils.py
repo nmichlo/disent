@@ -27,7 +27,7 @@ import numpy as np
 import sklearn
 from tqdm import tqdm
 
-from disent.dataset import DisentGroundTruthSamplingDataset
+from disent.dataset import DisentDataset
 from disent.util import to_numpy
 
 
@@ -37,7 +37,7 @@ from disent.util import to_numpy
 
 
 def generate_batch_factor_code(
-        ground_truth_dataset: DisentGroundTruthSamplingDataset,
+        ground_truth_dataset: DisentDataset,
         representation_function,
         num_points,
         batch_size,

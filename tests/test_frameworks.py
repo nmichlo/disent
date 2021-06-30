@@ -30,11 +30,11 @@ import pytorch_lightning as pl
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 
-from disent.dataset.data.groundtruth import XYObjectData
-from disent.dataset import DisentSamplingDataset
-from disent.dataset.samplers.groundtruth import GroundTruthSingleSampler
-from disent.dataset.samplers.groundtruth import GroundTruthPairSampler
-from disent.dataset.samplers.groundtruth import GroundTruthTripleSampler
+from disent.dataset.data import XYObjectData
+from disent.dataset import DisentDataset
+from disent.dataset.sampling import GroundTruthSingleSampler
+from disent.dataset.sampling import GroundTruthPairSampler
+from disent.dataset.sampling import GroundTruthTripleSampler
 from disent.frameworks.ae import *
 from disent.frameworks.ae.experimental import *
 from disent.frameworks.vae import *
@@ -101,7 +101,7 @@ def test_frameworks(Framework, cfg_kwargs, Data):
     }[Framework.REQUIRED_OBS]
 
     data = XYObjectData() if (Data is None) else Data()
-    dataset = DisentSamplingDataset(data, DataSampler(), transform=ToStandardisedTensor())
+    dataset = DisentDataset(data, DataSampler(), transform=ToStandardisedTensor())
     dataloader = DataLoader(dataset=dataset, batch_size=4, shuffle=True)
 
     framework = Framework(

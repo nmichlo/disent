@@ -22,79 +22,94 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from typing import final
-from typing import List
-from typing import Tuple
+from functools import wraps
+from typing import Optional
+from typing import Sequence
 
 import numpy as np
 from torch.utils.data import Dataset
 from torch.utils.data.dataloader import default_collate
-from torch.utils.data.dataset import T_co
 
-from disent.dataset.data.groundtruth import GroundTruthData
+from disent.dataset.sampling import BaseDisentSampler
+from disent.dataset.data import GroundTruthData
+from disent.dataset.sampling import SingleSampler
 from disent.util.iters import LengthIter
 
 
 # ========================================================================= #
-# Base Sampler                                                              #
+# Helper                                                                    #
+# -- Checking if the wrapped data is an instance of GroundTruthData adds    #
+#    complexity, but it means the user doesn't have to worry about handling #
+#    potentially different instances of the DisentDataset class             #
 # ========================================================================= #
 
 
-class DisentSampler(object):
+class NotGroundTruthDataError(Exception):
+    """
+    This error is thrown if the wrapped dataset is not GroundTruthData
+    """
 
-    def __init__(self, num_samples: int):
-        self._num_samples = num_samples
 
-    @property
-    def num_samples(self) -> int:
-        return self._num_samples
-
-    __initialized = False
-
-    @final
-    def init(self, dataset) -> 'DisentSampler':
-        if self.__initialized:
-            raise RuntimeError(f'Sampler: {repr(self.__class__.__name__)} has already been initialized, are you sure it is not being reused?')
-        # initialize
-        self.__initialized = True
-        self._init(dataset)
-        return self
-
-    def _init(self, dataset):
-        pass
-
-    def __call__(self, idx: int) -> Tuple[int, ...]:
-        raise NotImplementedError
+def groundtruth_only(func):
+    @wraps(func)
+    def wrapper(self: 'DisentDataset', *args, **kwargs):
+        if not self.is_ground_truth:
+            raise NotGroundTruthDataError(f'Check `is_ground_truth` first before calling `{func.__name__}`, the dataset wrapped by {repr(self.__class__.__name__)} is not a {repr(GroundTruthData.__name__)}, instead got: {repr(self._dataset)}.')
+        return func(self, *args, **kwargs)
+    return wrapper
 
 
 # ========================================================================= #
-# Base Dataset                                                              #
+# Dataset Wrapper                                                           #
 # ========================================================================= #
 
 
-class DisentSamplingDataset(Dataset, LengthIter):
+class DisentDataset(Dataset, LengthIter):
 
-    # TODO: this can be simplified
-
-    def __init__(self, dataset, sampler: DisentSampler, transform=None, augment=None):
+    def __init__(self, dataset, sampler: Optional[BaseDisentSampler] = None, transform=None, augment=None):
+        super().__init__()
+        # save attributes
         self._dataset = dataset
-        self._sampler = sampler
+        self._sampler = SingleSampler() if (sampler is None) else sampler
         self._transform = transform
         self._augment = augment
         # initialize sampler
         self._sampler.init(dataset)
-        # initialize
-        super().__init__()
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Properties                                                            #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     @property
-    def dataset(self):
+    def data(self) -> Dataset:
         return self._dataset
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Ground Truth Only                                                     #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    @property
+    def is_ground_truth(self):
+        return isinstance(self._dataset, GroundTruthData)
+
+    @property
+    @groundtruth_only
+    def ground_truth_data(self) -> GroundTruthData:
+        return self._dataset
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Dataset                                                               #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     def __len__(self):
         return len(self._dataset)
 
-    def __getitem__(self, idx) -> T_co:
-        idxs = self._sampler(idx)
+    def __getitem__(self, idx):
+        if self._sampler is not None:
+            idxs = self._sampler(idx)
+        else:
+            idxs = (idx,)
+        # get the observations
         return self.dataset_get_observation(*idxs)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -178,7 +193,7 @@ class DisentSamplingDataset(Dataset, LengthIter):
     # Batches                                                               #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def dataset_batch_from_indices(self, indices: List[int], mode: str):
+    def dataset_batch_from_indices(self, indices: Sequence[int], mode: str):
         """Get a batch of observations X from a batch of factors Y."""
         return default_collate([self.dataset_get(idx, mode=mode) for idx in indices])
 
@@ -190,6 +205,30 @@ class DisentSamplingDataset(Dataset, LengthIter):
             indices.add(np.random.randint(0, len(self)))
         # done
         return self.dataset_batch_from_indices(sorted(indices), mode=mode)
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Batches -- Ground Truth Only                                          #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    @groundtruth_only
+    def dataset_batch_from_factors(self, factors: np.ndarray, mode: str):
+        """Get a batch of observations X from a batch of factors Y."""
+        indices = self.ground_truth_data.pos_to_idx(factors)
+        return self.dataset_batch_from_indices(indices, mode=mode)
+
+    @groundtruth_only
+    def dataset_sample_batch_with_factors(self, num_samples: int, mode: str):
+        """Sample a batch of observations X and factors Y."""
+        factors = self.ground_truth_data.sample_factors(num_samples)
+        batch = self.dataset_batch_from_factors(factors, mode=mode)
+        return batch, default_collate(factors)
+
+    @groundtruth_only
+    def dataset_sample_batch(self, num_samples: int, mode: str):
+        """Sample a batch of observations X."""
+        factors = self.ground_truth_data.sample_factors(num_samples)
+        batch = self.dataset_batch_from_factors(factors, mode=mode)
+        return batch
 
 
 # ========================================================================= #
@@ -208,64 +247,10 @@ def _batch_to_observation(batch, obs_shape):
 
 
 # ========================================================================= #
-# Ground Truth Dataset                                                      #
-# ========================================================================= #
-
-
-class DisentGroundTruthSamplingDataset(DisentSamplingDataset, GroundTruthData):
-
-    def __init__(self, dataset, sampler: DisentSampler, transform=None, augment=None):
-        assert isinstance(dataset, GroundTruthData), f'dataset is not an instance of {repr(GroundTruthData.__class__.__name__)}, got: {repr(dataset)}'
-        # initialize parents -- this is a weird merge of classes, consider splitting this out?
-        DisentSamplingDataset.__init__(self, dataset, sampler, transform=transform, augment=augment)
-        GroundTruthData.__init__(self, transform=transform)
-
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # Single Datapoints                                                     #
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-
-    @property
-    def factor_names(self) -> Tuple[str, ...]:
-        return self.dataset.factor_names
-
-    @property
-    def factor_sizes(self) -> Tuple[int, ...]:
-        return self.dataset.factor_sizes
-
-    @property
-    def observation_shape(self) -> Tuple[int, ...]:
-        return self.dataset.observation_shape
-
-    @final
-    def _get_observation(self, idx):
-        raise RuntimeError(f'`_get_observation` should never be called on instances of {repr(DisentGroundTruthSamplingDataset.__class__.__name__)}')
-
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # Single Datapoints                                                     #
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-
-    def dataset_batch_from_factors(self, factors: np.ndarray, mode: str):
-        """Get a batch of observations X from a batch of factors Y."""
-        return self.dataset_batch_from_indices(self.pos_to_idx(factors), mode=mode)
-
-    def dataset_sample_batch_with_factors(self, num_samples: int, mode: str):
-        """Sample a batch of observations X and factors Y."""
-        factors = self.sample_factors(num_samples)
-        batch = self.dataset_batch_from_factors(factors, mode=mode)
-        return batch, default_collate(factors)
-
-    def dataset_sample_batch(self, num_samples: int, mode: str):
-        """Sample a batch of observations X."""
-        factors = self.sample_factors(num_samples)
-        batch = self.dataset_batch_from_factors(factors, mode=mode)
-        return batch
-
-
-# ========================================================================= #
 # EXTRA                                                                     #
 # ========================================================================= #
 
-
+# TODO fix references to this!
 # class GroundTruthDatasetAndFactors(GroundTruthDataset):
 #     def dataset_get_observation(self, *idxs):
 #         return {

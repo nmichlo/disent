@@ -22,11 +22,23 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+#  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+#  MIT License
+#
+#
+#  Permission is hereby granted, free of charge, to any person obtaining a copy
+#  of this software and associated documentation files (the "Software"), to deal
+#  in the Software without restriction, including without limitation the rights
+#  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+#  copies of the Software, and to permit persons to whom the Software is
+#  furnished to do so, subject to the following conditions:
+#
+#
 import logging
 from typing import Optional
 
-from disent.dataset.data.datafile import DataFileHashedDl
-from disent.dataset.data.groundtruth.base import NumpyGroundTruthData
+from disent.dataset.util.datafile import DataFileHashedDl
+from disent.dataset.data._groundtruth import NumpyGroundTruthData
 
 
 log = logging.getLogger(__name__)

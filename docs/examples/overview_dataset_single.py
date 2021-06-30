@@ -1,14 +1,15 @@
-from torch.utils.data import Dataset
-from disent.dataset.data.groundtruth import GroundTruthData, XYSquaresData
-from disent.dataset import DisentGroundTruthSamplingDataset
-from disent.dataset.samplers.groundtruth import GroundTruthSingleSampler
+from disent.dataset.data import XYSquaresData
+from disent.dataset import DisentDataset
 
+# prepare the data
+# - DisentDataset is a generic wrapper around torch Datasets that prepares
+#   the data for the various frameworks according to some sampling strategy
+#   by default this sampling strategy just returns the data at the given idx.
+data = XYSquaresData(square_size=1, image_size=2, num_squares=2)
+dataset = DisentDataset(data, transform=None, augment=None)
 
-data: GroundTruthData = XYSquaresData(square_size=1, image_size=2, num_squares=2)
-dataset: Dataset = DisentGroundTruthSamplingDataset(data, sampler=GroundTruthSingleSampler(), transform=None, augment=None)
-
+# iterate over single epoch
 for obs in dataset:
-    # transform is applied to data to get x_targ, then augment to get x
-    # if augment is None then 'x' doesn't exist in the obs
+    # transform(data[i]) gives 'x_targ', then augment(x_targ) gives 'x'
     (x0,) = obs['x_targ']
     print(x0.dtype, x0.min(), x0.max(), x0.shape)

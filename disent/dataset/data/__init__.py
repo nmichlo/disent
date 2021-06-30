@@ -21,3 +21,31 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
+# custom episodes -- base
+from disent.dataset.data._episodes import BaseEpisodesData
+
+# custom episodes -- impl
+from disent.dataset.data._episodes__custom import EpisodesPickledData
+from disent.dataset.data._episodes__custom import EpisodesDownloadZippedPickledData
+
+# groundtruth -- base
+from disent.dataset.data._groundtruth import GroundTruthData
+from disent.dataset.data._groundtruth import DiskGroundTruthData
+from disent.dataset.data._groundtruth import NumpyGroundTruthData
+from disent.dataset.data._groundtruth import Hdf5GroundTruthData
+
+# groundtruth -- impl
+from disent.dataset.data._groundtruth__cars3d import Cars3dData
+from disent.dataset.data._groundtruth__dsprites import DSpritesData
+from disent.dataset.data._groundtruth__mpi3d import Mpi3dData
+from disent.dataset.data._groundtruth__norb import SmallNorbData
+from disent.dataset.data._groundtruth__shapes3d import Shapes3dData
+from disent.dataset.data._groundtruth__xyblocks import XYBlocksData
+from disent.dataset.data._groundtruth__xyobject import XYObjectData
+from disent.dataset.data._groundtruth__xysquares import XYSquaresData
+from disent.dataset.data._groundtruth__xysquares import XYSquaresMinimalData
+
+# raw
+from disent.dataset.data._raw import NumpyDataset
+from disent.dataset.data._raw import Hdf5Dataset

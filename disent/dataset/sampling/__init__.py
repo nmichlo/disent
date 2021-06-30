@@ -22,32 +22,21 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-import logging
-from disent.dataset.data.groundtruth.base import GroundTruthData
-from disent.dataset._base import DisentSampler
+# base sampler
+from disent.dataset.sampling._base import BaseDisentSampler
 
+# single sampler
+from disent.dataset.sampling._single import SingleSampler
 
-log = logging.getLogger(__name__)
+# ground truth samplers
+from disent.dataset.sampling._groundtruth__dist import GroundTruthDistSampler
+from disent.dataset.sampling._groundtruth__pair import GroundTruthPairSampler
+from disent.dataset.sampling._groundtruth__pair_orig import GroundTruthPairOrigSampler
+from disent.dataset.sampling._groundtruth__single import GroundTruthSingleSampler
+from disent.dataset.sampling._groundtruth__triplet import GroundTruthTripleSampler
 
+# any dataset samplers
+from disent.dataset.sampling._random__any import RandomSampler
 
-# ========================================================================= #
-# Convert ground truth data to a dataset                                    #
-# ========================================================================= #
-
-
-class GroundTruthSingleSampler(DisentSampler):
-
-    def __init__(self):
-        super().__init__(num_samples=1)
-
-    def _init(self, dataset):
-        assert isinstance(dataset, GroundTruthData), f'dataset must be an instance of {repr(GroundTruthData.__class__.__name__)}, got: {repr(dataset)}'
-        self._data = dataset
-
-    def __call__(self, idx):
-        return (idx,)
-
-
-# ========================================================================= #
-# END                                                                       #
-# ========================================================================= #
+# episode samplers
+from disent.dataset.sampling._random__episodes import RandomEpisodeSampler

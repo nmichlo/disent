@@ -32,10 +32,10 @@ from typing import Tuple
 import numpy as np
 from torch.utils.data import Dataset
 
-from disent.dataset.data.datafile import DataFile
-from disent.dataset.data.datafile import DataFileHashedDlH5
-from disent.dataset.data.dataset import Hdf5Dataset
-from disent.dataset.data.groundtruth.states import StateSpace
+from disent.dataset.util.datafile import DataFile
+from disent.dataset.util.datafile import DataFileHashedDlH5
+from disent.dataset.data._raw import Hdf5Dataset
+from disent.dataset.util.state_space import StateSpace
 from disent.util.paths import ensure_dir_exists
 
 

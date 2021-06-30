@@ -35,7 +35,7 @@ from typing import Union
 import torch
 from torch.utils.data.dataloader import default_collate
 
-from disent.dataset import DisentGroundTruthSamplingDataset
+from disent.dataset import DisentDataset
 from disent.util.iters import iter_chunks
 
 
@@ -48,7 +48,7 @@ log = logging.getLogger(__name__)
 
 
 def metric_flatness(
-        ground_truth_dataset: DisentGroundTruthSamplingDataset,
+        ground_truth_dataset: DisentDataset,
         representation_function: callable,
         factor_repeats: int = 1024,
         batch_size: int = 64,
@@ -78,18 +78,20 @@ def metric_flatness(
         informativeness (train and test).
     """
     p_fs_measures = aggregate_measure_distances_along_all_factors(ground_truth_dataset, representation_function, repeats=factor_repeats, batch_size=batch_size, ps=(1, 2))
+    # get info
+    factor_sizes = ground_truth_dataset.ground_truth_data.factor_sizes
     # aggregate data
     results = {
-        'flatness.ave_flatness':    compute_flatness(widths=p_fs_measures[2]['fs_ave_widths'], lengths=p_fs_measures[1]['fs_ave_lengths'], factor_sizes=ground_truth_dataset.factor_sizes),
-        'flatness.ave_flatness_l1': compute_flatness(widths=p_fs_measures[1]['fs_ave_widths'], lengths=p_fs_measures[1]['fs_ave_lengths'], factor_sizes=ground_truth_dataset.factor_sizes),
-        'flatness.ave_flatness_l2': compute_flatness(widths=p_fs_measures[2]['fs_ave_widths'], lengths=p_fs_measures[2]['fs_ave_lengths'], factor_sizes=ground_truth_dataset.factor_sizes),
+        'flatness.ave_flatness':    compute_flatness(widths=p_fs_measures[2]['fs_ave_widths'], lengths=p_fs_measures[1]['fs_ave_lengths'], factor_sizes=factor_sizes),
+        'flatness.ave_flatness_l1': compute_flatness(widths=p_fs_measures[1]['fs_ave_widths'], lengths=p_fs_measures[1]['fs_ave_lengths'], factor_sizes=factor_sizes),
+        'flatness.ave_flatness_l2': compute_flatness(widths=p_fs_measures[2]['fs_ave_widths'], lengths=p_fs_measures[2]['fs_ave_lengths'], factor_sizes=factor_sizes),
         # distances
-        'flatness.ave_width_l1':    torch.mean(filter_inactive_factors(p_fs_measures[1]['fs_ave_widths'], factor_sizes=ground_truth_dataset.factor_sizes)),
-        'flatness.ave_width_l2':    torch.mean(filter_inactive_factors(p_fs_measures[2]['fs_ave_widths'], factor_sizes=ground_truth_dataset.factor_sizes)),
-        'flatness.ave_length_l1':   torch.mean(filter_inactive_factors(p_fs_measures[1]['fs_ave_lengths'], factor_sizes=ground_truth_dataset.factor_sizes)),
-        'flatness.ave_length_l2':   torch.mean(filter_inactive_factors(p_fs_measures[2]['fs_ave_lengths'], factor_sizes=ground_truth_dataset.factor_sizes)),
+        'flatness.ave_width_l1':    torch.mean(filter_inactive_factors(p_fs_measures[1]['fs_ave_widths'], factor_sizes=factor_sizes)),
+        'flatness.ave_width_l2':    torch.mean(filter_inactive_factors(p_fs_measures[2]['fs_ave_widths'], factor_sizes=factor_sizes)),
+        'flatness.ave_length_l1':   torch.mean(filter_inactive_factors(p_fs_measures[1]['fs_ave_lengths'], factor_sizes=factor_sizes)),
+        'flatness.ave_length_l2':   torch.mean(filter_inactive_factors(p_fs_measures[2]['fs_ave_lengths'], factor_sizes=factor_sizes)),
         # angles
-        'flatness.cosine_angles':   (1 / math.pi) * torch.mean(filter_inactive_factors(p_fs_measures[1]['fs_ave_angles'], factor_sizes=ground_truth_dataset.factor_sizes)),
+        'flatness.cosine_angles':   (1 / math.pi) * torch.mean(filter_inactive_factors(p_fs_measures[1]['fs_ave_angles'], factor_sizes=factor_sizes)),
     }
     # convert values from torch
     return {k: float(v) for k, v in results.items()}
@@ -118,7 +120,7 @@ def filter_inactive_factors(tensor, factor_sizes):
 
 
 def aggregate_measure_distances_along_all_factors(
-        ground_truth_dataset,
+        ground_truth_dataset: DisentDataset,
         representation_function,
         repeats: int,
         batch_size: int,
@@ -128,7 +130,7 @@ def aggregate_measure_distances_along_all_factors(
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     fs_p_measures = [
         aggregate_measure_distances_along_factor(ground_truth_dataset, representation_function, f_idx=f_idx, repeats=repeats, batch_size=batch_size, ps=ps)
-        for f_idx in range(ground_truth_dataset.num_factors)
+        for f_idx in range(ground_truth_dataset.ground_truth_data.num_factors)
     ]
 
     # FINALIZE FOR EACH FACTOR
@@ -138,7 +140,7 @@ def aggregate_measure_distances_along_all_factors(
         fs_ave_widths = fs_measures['ave_width']
         # get number of spaces deltas (number of points minus 1)
         # compute length: estimated version of factors_ave_width = factors_num_deltas * factors_ave_delta
-        _fs_num_deltas = torch.as_tensor(ground_truth_dataset.factor_sizes, device=fs_ave_widths.device) - 1
+        _fs_num_deltas = torch.as_tensor(ground_truth_dataset.ground_truth_data.factor_sizes, device=fs_ave_widths.device) - 1
         _fs_ave_deltas = fs_measures['ave_delta']
         fs_ave_lengths = _fs_num_deltas * _fs_ave_deltas
         # angles
@@ -149,7 +151,7 @@ def aggregate_measure_distances_along_all_factors(
 
 
 def aggregate_measure_distances_along_factor(
-        ground_truth_dataset,
+        ground_truth_dataset: DisentDataset,
         representation_function,
         f_idx: int,
         repeats: int,
@@ -157,7 +159,7 @@ def aggregate_measure_distances_along_factor(
         ps: Iterable[Union[str, int]] = (1, 2),
         cycle_fail: bool = False,
 ) -> dict:
-    f_size = ground_truth_dataset.factor_sizes[f_idx]
+    f_size = ground_truth_dataset.ground_truth_data.factor_sizes[f_idx]
 
     if f_size == 1:
         if cycle_fail:
@@ -212,15 +214,15 @@ def aggregate_measure_distances_along_factor(
 # ========================================================================= #
 
 
-def encode_all_along_factor(ground_truth_dataset, representation_function, f_idx: int, batch_size: int):
+def encode_all_along_factor(ground_truth_dataset: DisentDataset, representation_function, f_idx: int, batch_size: int):
     # generate repeated factors, varying one factor over a range (f_size, f_dims)
-    factors = ground_truth_dataset.sample_random_factor_traversal(f_idx=f_idx)
+    factors = ground_truth_dataset.ground_truth_data.sample_random_factor_traversal(f_idx=f_idx)
     # get the representations of all the factors (f_size, z_size)
     sequential_zs = encode_all_factors(ground_truth_dataset, representation_function, factors=factors, batch_size=batch_size)
     return sequential_zs
 
 
-def encode_all_factors(ground_truth_dataset, representation_function, factors, batch_size: int) -> torch.Tensor:
+def encode_all_factors(ground_truth_dataset: DisentDataset, representation_function, factors, batch_size: int) -> torch.Tensor:
     zs = []
     with torch.no_grad():
         for batch_factors in iter_chunks(factors, chunk_size=batch_size):
@@ -230,7 +232,7 @@ def encode_all_factors(ground_truth_dataset, representation_function, factors, b
     return torch.cat(zs, dim=0)
 
 
-def get_device(ground_truth_dataset, representation_function):
+def get_device(ground_truth_dataset: DisentDataset, representation_function):
     # this is a hack...
     return representation_function(ground_truth_dataset.dataset_sample_batch(1, mode='input')).device
 

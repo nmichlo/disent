@@ -29,7 +29,7 @@ Representations" (https://openreview.net/forum?id=By-7dz-AZ).
 import logging
 from tqdm import tqdm
 
-from disent.dataset import DisentGroundTruthSamplingDataset
+from disent.dataset import DisentDataset
 from disent.metrics import utils
 import numpy as np
 import scipy
@@ -45,7 +45,7 @@ log = logging.getLogger(__name__)
 
 
 def metric_dci(
-        ground_truth_dataset: DisentGroundTruthSamplingDataset,
+        ground_truth_dataset: DisentDataset,
         representation_function: callable,
         num_train: int = 10000,
         num_test: int = 5000,

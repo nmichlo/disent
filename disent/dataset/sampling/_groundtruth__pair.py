@@ -23,9 +23,9 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import numpy as np
-from disent.dataset.data.groundtruth.base import GroundTruthData
-from disent.dataset._base import DisentSampler
-from disent.dataset.samplers.groundtruth._triplet import sample_radius, normalise_range_pair, FactorSizeError
+from disent.dataset.data import GroundTruthData
+from disent.dataset.sampling._base import BaseDisentSampler
+from disent.dataset.sampling._groundtruth__triplet import sample_radius, normalise_range_pair, FactorSizeError
 
 
 # ========================================================================= #
@@ -33,7 +33,7 @@ from disent.dataset.samplers.groundtruth._triplet import sample_radius, normalis
 # ========================================================================= #
 
 
-class GroundTruthPairSampler(DisentSampler):
+class GroundTruthPairSampler(BaseDisentSampler):
 
     def __init__(
             self,

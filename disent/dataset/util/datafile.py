@@ -34,7 +34,7 @@ from typing import Union
 
 import numpy as np
 
-from disent.dataset.data._utils_hdf5 import hdf5_resave_file
+from disent.dataset.util.hdf5 import hdf5_resave_file
 from disent.util.cache import stalefile
 from disent.util.function import wrapped_partial
 from disent.util.in_out import retrieve_file
@@ -128,7 +128,6 @@ class DataFileHashedDl(DataFileHashed):
 
     def __repr__(self):
         return f'{self.__class__.__name__}(uri={repr(self._uri)}, out_name={repr(self.out_name)})'
-
 
 
 class DataFileHashedDlGen(DataFileHashed, metaclass=ABCMeta):
