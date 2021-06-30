@@ -24,5 +24,5 @@
 
 
 # expose base dataset
-from disent.dataset._base import DisentDataset
-
+from disent.dataset._base import DisentSamplingDataset
+from disent.dataset._base import DisentGroundTruthSamplingDataset

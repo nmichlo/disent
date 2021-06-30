@@ -23,51 +23,90 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from abc import abstractmethod
+from typing import final
 from typing import List
 from typing import Optional
+from typing import Tuple
 
 import numpy as np
 from torch.utils.data import Dataset
 from torch.utils.data.dataloader import default_collate
+from torch.utils.data.dataset import T_co
 
+from disent.data.groundtruth import GroundTruthData
 from disent.util.iters import LengthIter
 
 
 # ========================================================================= #
-# util                                                                      #
+# Base Sampler                                                              #
 # ========================================================================= #
 
 
-class DisentDataset(Dataset, LengthIter):
+class DisentSampler(object):
+
+    def __init__(self, num_samples: int):
+        self._num_samples = num_samples
 
     @property
-    @abstractmethod
-    def transform(self) -> Optional[callable]:
+    def num_samples(self) -> int:
+        return self._num_samples
+
+    __initialized = False
+
+    @final
+    def init(self, dataset) -> 'DisentSampler':
+        if self.__initialized:
+            raise RuntimeError(f'Sampler: {repr(self.__class__.__name__)} has already been initialized, are you sure it is not being reused?')
+        # initialize
+        self.__initialized = True
+        self._init(dataset)
+        return self
+
+    def _init(self, dataset):
+        pass
+
+    def __call__(self, idx: int) -> Tuple[int, ...]:
         raise NotImplementedError
+
+
+# ========================================================================= #
+# Base Dataset                                                              #
+# ========================================================================= #
+
+
+class DisentSamplingDataset(Dataset, LengthIter):
+
+    # TODO: this can be simplified
+
+    def __init__(self, dataset, sampler: DisentSampler, transform=None, augment=None):
+        self._dataset = dataset
+        self._sampler = sampler
+        self._transform = transform
+        self._augment = augment
+        # initialize sampler
+        self._sampler.init(dataset)
+        # initialize
+        super().__init__()
 
     @property
-    @abstractmethod
-    def augment(self) -> Optional[callable]:
-        raise NotImplementedError
-
-    def _get_augmentable_observation(self, idx):
-        raise NotImplementedError
+    def dataset(self):
+        return self._dataset
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Single Datapoints                                                     #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def _datapoint_raw_to_target(self, dat):
-        x_targ = dat
-        if self.transform is not None:
-            x_targ = self.transform(x_targ)
+    def _datapoint_raw_to_target(self, x_targ):
+        # dat -> x_targ
+        if self._transform is not None:
+            x_targ = self._transform(x_targ)
         return x_targ
 
-    def _datapoint_target_to_input(self, x_targ):
-        x = x_targ
-        if self.augment is not None:
-            x = self.augment(x)
-            x = _batch_to_observation(batch=x, obs_shape=x_targ.shape)
+    def _datapoint_target_to_input(self, x):
+        # x_targ -> x
+        if self._augment is not None:
+            x = self._augment(x)
+            x = _batch_to_observation(batch=x, obs_shape=x.shape)
         return x
 
     def dataset_get(self, idx, mode: str):
@@ -92,7 +131,7 @@ class DisentDataset(Dataset, LengthIter):
         except:
             raise TypeError(f'Indices must be integer-like ({type(idx)}): {idx}')
         # we do not support indexing by lists
-        x_raw = self._get_augmentable_observation(idx)
+        x_raw = self._dataset[idx]
         # return correct data
         if mode == 'pair':
             x_targ = self._datapoint_raw_to_target(x_raw)  # applies self.transform
@@ -117,7 +156,7 @@ class DisentDataset(Dataset, LengthIter):
     def dataset_get_observation(self, *idxs):
         xs, xs_targ = zip(*(self.dataset_get(idx, mode='pair') for idx in idxs))
         # handle cases
-        if self.augment is None:
+        if self._augment is None:
             # makes 5-10% faster
             return {
                 'x_targ': xs_targ,
@@ -127,6 +166,13 @@ class DisentDataset(Dataset, LengthIter):
                 'x': xs,
                 'x_targ': xs_targ,
             }
+
+    def __getitem__(self, idx) -> T_co:
+        idxs = self._sampler(idx)
+        return self.dataset_get_observation(*idxs)
+
+    def __len__(self):
+        return len(self._dataset)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Batches                                                               #
@@ -160,6 +206,70 @@ def _batch_to_observation(batch, obs_shape):
         return batch.reshape(obs_shape)
     return batch
 
+
+# ========================================================================= #
+# Ground Truth Dataset                                                      #
+# ========================================================================= #
+
+
+class DisentGroundTruthSamplingDataset(DisentSamplingDataset, GroundTruthData):
+
+    def __init__(self, dataset, sampler: DisentSampler, transform=None, augment=None):
+        assert isinstance(dataset, GroundTruthData), f'dataset is not an instance of {repr(GroundTruthData.__class__.__name__)}, got: {repr(dataset)}'
+        super().__init__(dataset, sampler, transform=transform, augment=augment)
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Single Datapoints                                                     #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    @property
+    def factor_names(self) -> Tuple[str, ...]:
+        return self.dataset.factor_names
+
+    @property
+    def factor_sizes(self) -> Tuple[int, ...]:
+        return self.dataset.factor_sizes
+
+    @property
+    def observation_shape(self) -> Tuple[int, ...]:
+        return self.dataset.observation_shape
+
+    @final
+    def _get_observation(self, idx):
+        raise RuntimeError(f'`_get_observation` should never be called on instances of {repr(DisentGroundTruthSamplingDataset.__class__.__name__)}')
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Single Datapoints                                                     #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    def dataset_batch_from_factors(self, factors: np.ndarray, mode: str):
+        """Get a batch of observations X from a batch of factors Y."""
+        return self.dataset_batch_from_indices(self.pos_to_idx(factors), mode=mode)
+
+    def dataset_sample_batch_with_factors(self, num_samples: int, mode: str):
+        """Sample a batch of observations X and factors Y."""
+        factors = self.sample_factors(num_samples)
+        batch = self.dataset_batch_from_factors(factors, mode=mode)
+        return batch, default_collate(factors)
+
+    def dataset_sample_batch(self, num_samples: int, mode: str):
+        """Sample a batch of observations X."""
+        factors = self.sample_factors(num_samples)
+        batch = self.dataset_batch_from_factors(factors, mode=mode)
+        return batch
+
+
+# ========================================================================= #
+# EXTRA                                                                     #
+# ========================================================================= #
+
+
+# class GroundTruthDatasetAndFactors(GroundTruthDataset):
+#     def dataset_get_observation(self, *idxs):
+#         return {
+#             **super().dataset_get_observation(*idxs),
+#             'factors': tuple(self.idx_to_pos(idxs))
+#         }
 
 # ========================================================================= #
 # END                                                                       #

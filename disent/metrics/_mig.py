@@ -30,6 +30,7 @@ import logging
 
 import numpy as np
 
+from disent.dataset import DisentGroundTruthSamplingDataset
 from disent.metrics import utils
 
 
@@ -42,7 +43,7 @@ log = logging.getLogger(__name__)
 
 
 def metric_mig(
-        ground_truth_data,
+        ground_truth_data: DisentGroundTruthSamplingDataset,
         representation_function,
         num_train=10000,
         batch_size=16,

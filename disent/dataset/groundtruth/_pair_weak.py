@@ -24,36 +24,39 @@
 
 import numpy as np
 from disent.data.groundtruth.base import GroundTruthData
-from disent.dataset.groundtruth._single import GroundTruthDataset
+from disent.dataset._base import DisentSampler
 
 
-class GroundTruthDatasetOrigWeakPairs(GroundTruthDataset):
+class GroundTruthOrigPairSampler(DisentSampler):
 
     def __init__(
             self,
-            ground_truth_data: GroundTruthData,
-            transform=None,
-            augment=None,
             # num_differing_factors
             p_k: int = 1,
     ):
         """
-        Dataset that emulates choosing factors like:
+        Sampler that emulates choosing factors like:
         https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/weak/train_weak_lib.py
         """
-        super().__init__(ground_truth_data=ground_truth_data, transform=transform, augment=augment)
+        super().__init__(num_samples=2)
         # DIFFERING FACTORS
         self.p_k = p_k
+        # dataset variable
+        self._data: GroundTruthData
+
+    def _init(self, dataset):
+        assert isinstance(dataset, GroundTruthData), f'dataset must be an instance of {repr(GroundTruthData.__class__.__name__)}, got: {repr(dataset)}'
+        self._data = dataset
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # CORE                                                                  #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def __getitem__(self, idx):
+    def __call__(self, idx):
         f0, f1 = self.datapoint_sample_factors_pair(idx)
-        return self.dataset_get_observation(
-            self.data.pos_to_idx(f0),
-            self.data.pos_to_idx(f1),
+        return (
+            self._data.pos_to_idx(f0),
+            self._data.pos_to_idx(f1),
         )
 
     def datapoint_sample_factors_pair(self, idx):
@@ -62,9 +65,9 @@ class GroundTruthDatasetOrigWeakPairs(GroundTruthDataset):
         Except deterministic for the first item in the pair, based off of idx.
         """
         # randomly sample the first observation -- In our case we just use the idx
-        sampled_factors = self.data.idx_to_pos(idx)
+        sampled_factors = self._data.idx_to_pos(idx)
         # sample the next observation with k differing factors
-        next_factors, k = _sample_k_differing(sampled_factors, self.data, k=self.p_k)
+        next_factors, k = _sample_k_differing(sampled_factors, self._data, k=self.p_k)
         # return the samples
         return sampled_factors, next_factors
 

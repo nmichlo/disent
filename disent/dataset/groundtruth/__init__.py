@@ -22,9 +22,8 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from ._single import GroundTruthDataset
-from ._single import GroundTruthDatasetAndFactors
-from ._pair import GroundTruthDatasetPairs
-from ._pair_weak import GroundTruthDatasetOrigWeakPairs
-from ._triplet import GroundTruthDatasetTriples
-from ._random_dist import GroundTruthDistDataset
+from ._single import GroundTruthSingleSampler
+from ._pair import GroundTruthPairSampler
+from ._pair_weak import GroundTruthOrigPairSampler
+from ._triplet import GroundTruthTripleSampler
+from ._random_dist import GroundTruthDistSampler

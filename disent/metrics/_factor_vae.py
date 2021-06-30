@@ -30,7 +30,7 @@ import logging
 import numpy as np
 from tqdm import tqdm
 
-from disent.dataset.groundtruth import GroundTruthDataset
+from disent.dataset import DisentGroundTruthSamplingDataset
 from disent.metrics import utils
 from disent.util import to_numpy
 
@@ -44,7 +44,7 @@ log = logging.getLogger(__name__)
 
 
 def metric_factor_vae(
-        ground_truth_dataset: GroundTruthDataset,
+        ground_truth_dataset: DisentGroundTruthSamplingDataset,
         representation_function: callable,
         batch_size: int = 64,
         num_train: int = 10000,
@@ -137,7 +137,7 @@ def _prune_dims(variances, threshold=0.):
 
 
 def _compute_variances(
-        ground_truth_dataset: GroundTruthDataset,
+        ground_truth_dataset: DisentGroundTruthSamplingDataset,
         representation_function: callable,
         batch_size: int,
         eval_batch_size: int = 64
@@ -159,7 +159,7 @@ def _compute_variances(
 
 
 def _generate_training_sample(
-        ground_truth_dataset: GroundTruthDataset,
+        ground_truth_dataset: DisentGroundTruthSamplingDataset,
         representation_function: callable,
         batch_size: int,
         global_variances: np.ndarray,
@@ -192,7 +192,7 @@ def _generate_training_sample(
 
 
 def _generate_training_batch(
-        ground_truth_dataset: GroundTruthDataset,
+        ground_truth_dataset: DisentGroundTruthSamplingDataset,
         representation_function: callable,
         batch_size: int,
         num_points: int,

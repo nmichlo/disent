@@ -22,63 +22,29 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from typing import Sequence
+from typing import Tuple
 
 import numpy as np
-from disent.dataset import DisentDataset
-
+from disent.dataset._base import DisentSampler
 
 # ========================================================================= #
 # Randomly Paired Dataset                                                   #
 # ========================================================================= #
 
 
-class RandomDataset(DisentDataset):
+class RandomSampler(DisentSampler):
 
-    def __init__(
-            self,
-            data: Sequence,
-            transform=None,
-            augment=None,
-            num_samples=1,
-    ):
-        self._data = data
-        self._num_samples = num_samples
-        # augmentable dataset
-        self._transform = transform
-        self._augment = augment
-        super().__init__()
+    def __init__(self, num_samples=1):
+        super().__init__(num_samples=num_samples)
 
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # Augmentable Dataset Overrides                                         #
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    def _init(self, dataset):
+        self._len = len(dataset)
 
-    @property
-    def transform(self):
-        return self._transform
-
-    @property
-    def augment(self):
-        return self._augment
-
-    def _get_augmentable_observation(self, idx):
-        return self._data[idx]
-
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # Sampling                                                              #
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-
-    def __len__(self):
-        return len(self._data)
-
-    def __getitem__(self, idx):
+    def __call__(self, idx: int) -> Tuple[int, ...]:
         # sample indices
-        indices = (idx, *np.random.randint(0, len(self), size=self._num_samples-1))
-        # get data
-        return self.dataset_get_observation(*indices)
+        return (idx, *np.random.randint(0, len(self._len), size=self._num_samples-1))
 
 
 # ========================================================================= #
 # End                                                                       #
 # ========================================================================= #
-

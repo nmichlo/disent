@@ -26,7 +26,8 @@ import pytest
 import torch
 
 from disent.data.groundtruth import XYSquaresMinimalData
-from disent.dataset.groundtruth import GroundTruthDataset
+from disent.dataset import DisentGroundTruthSamplingDataset
+from disent.dataset.random import RandomSampler
 from disent.metrics import *
 from disent.nn.transform import ToStandardisedTensor
 from disent.util.function import wrapped_partial
@@ -49,7 +50,8 @@ from disent.util.function import wrapped_partial
 def test_metrics(metric_fn):
     z_size = 16
     # ground truth data
-    dataset = GroundTruthDataset(XYSquaresMinimalData(), transform=ToStandardisedTensor())
+    # TODO: DisentGroundTruthSamplingDataset should not be needed to compute metrics!
+    dataset = DisentGroundTruthSamplingDataset(XYSquaresMinimalData(transform=ToStandardisedTensor()), sampler=RandomSampler(num_samples=1))
     # randomly sampled representation
     get_repr = lambda x: torch.randn(len(x), z_size)
     # evaluate

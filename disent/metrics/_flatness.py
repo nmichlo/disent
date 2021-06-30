@@ -35,7 +35,7 @@ from typing import Union
 import torch
 from torch.utils.data.dataloader import default_collate
 
-from disent.dataset.groundtruth import GroundTruthDataset
+from disent.dataset import DisentGroundTruthSamplingDataset
 from disent.util.iters import iter_chunks
 
 
@@ -48,7 +48,7 @@ log = logging.getLogger(__name__)
 
 
 def metric_flatness(
-        ground_truth_dataset: GroundTruthDataset,
+        ground_truth_dataset: DisentGroundTruthSamplingDataset,
         representation_function: callable,
         factor_repeats: int = 1024,
         batch_size: int = 64,
