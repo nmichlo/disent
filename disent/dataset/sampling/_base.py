@@ -54,6 +54,10 @@ class BaseDisentSampler(object):
     def _init(self, dataset):
         pass
 
+    @property
+    def is_init(self) -> bool:
+        return self.__initialized
+
     def __call__(self, idx: int) -> Tuple[int, ...]:
         raise NotImplementedError
 

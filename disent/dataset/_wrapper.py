@@ -74,7 +74,8 @@ class DisentDataset(Dataset, LengthIter):
         self._transform = transform
         self._augment = augment
         # initialize sampler
-        self._sampler.init(dataset)
+        if not self._sampler.is_init:
+            self._sampler.init(dataset)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Properties                                                            #
