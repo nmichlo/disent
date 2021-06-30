@@ -82,9 +82,9 @@ def hydra_check_cuda(cfg):
 
 
 def hydra_check_datadir(prepare_data_per_node, cfg):
-    if not os.path.isabs(cfg.dataset.data_dir):
+    if not os.path.isabs(cfg.dataset.data_root):
         log.warning(
-            f'A relative path was specified for dataset.data_dir={repr(cfg.dataset.data_dir)}.'
+            f'A relative path was specified for dataset.data_root={repr(cfg.dataset.data_root)}.'
             f' This is probably an error! Using relative paths can have unintended consequences'
             f' and performance drawbacks if the current working directory is on a shared/network drive.'
             f' Hydra config also uses a new working directory for each run of the program, meaning'
@@ -92,11 +92,11 @@ def hydra_check_datadir(prepare_data_per_node, cfg):
         )
         if prepare_data_per_node:
             log.error(
-                f'trainer.prepare_data_per_node={repr(prepare_data_per_node)} but  dataset.data_dir='
-                f'{repr(cfg.dataset.data_dir)} is a relative path which may be an error! Try specifying an'
-                f' absolute path that is guaranteed to be unique from each node, eg. dataset.data_dir=/tmp/dataset'
+                f'trainer.prepare_data_per_node={repr(prepare_data_per_node)} but  dataset.data_root='
+                f'{repr(cfg.dataset.data_root)} is a relative path which may be an error! Try specifying an'
+                f' absolute path that is guaranteed to be unique from each node, eg. dataset.data_root=/tmp/dataset'
             )
-        raise RuntimeError('dataset.data_dir={repr(cfg.dataset.data_dir)} is a relative path!')
+        raise RuntimeError(f'dataset.data_root={repr(cfg.dataset.data_root)} is a relative path!')
 
 
 def hydra_make_logger(cfg):

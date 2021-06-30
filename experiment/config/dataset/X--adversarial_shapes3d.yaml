@@ -5,7 +5,7 @@ data:
   h5_path: "/home/nmichlo/workspace/research/disent/out/overlap/fixed_masked_randm_shapes3d_adam_0.01_True_None_mse_12288_shuffle_5120_10240_None_None_False_8_125.hdf5"
   base_data:
     _target_: disent.data.groundtruth.Shapes3dData
-    data_root: ${dataset.data_dir}
+    data_root: ${dataset.data_root}
     in_memory: ${dataset.try_in_memory}
     prepare: True
 transform:
