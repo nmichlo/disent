@@ -120,6 +120,7 @@ class DiskGroundTruthData(GroundTruthData, metaclass=ABCMeta):
         # prepare everything
         if prepare:
             for datafile in self.datafiles:
+                log.debug(f'[preparing]: {datafile} into data dir: {self._data_dir}')
                 datafile.prepare(self.data_dir)
 
     @property

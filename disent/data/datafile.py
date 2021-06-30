@@ -65,6 +65,9 @@ class DataFile(object, metaclass=ABCMeta):
         # TODO: maybe check that the file exists or not and raise a FileNotFoundError?
         pass
 
+    def __repr__(self):
+        return f'{self.__class__.__name__}(out_name={repr(self.out_name)})'
+
 
 class DataFileHashed(DataFile, metaclass=ABCMeta):
     """
@@ -123,6 +126,10 @@ class DataFileHashedDl(DataFileHashed):
     def _prepare(self, out_dir: str, out_file: str):
         retrieve_file(src_uri=self._uri, dst_path=out_file, overwrite_existing=True)
 
+    def __repr__(self):
+        return f'{self.__class__.__name__}(uri={repr(self._uri)}, out_name={repr(self.out_name)})'
+
+
 
 class DataFileHashedDlGen(DataFileHashed, metaclass=ABCMeta):
     """
@@ -163,6 +170,9 @@ class DataFileHashedDlGen(DataFileHashed, metaclass=ABCMeta):
 
     def _generate(self, inp_file: str, out_file: str):
         raise NotImplementedError
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(uri={repr(self._dl_obj._uri)}, uri_name={repr(self._dl_obj.out_name)}, out_name={repr(self.out_name)})'
 
 
 class DataFileHashedDlH5(DataFileHashedDlGen):

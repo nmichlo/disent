@@ -16,7 +16,7 @@
 
 # GRAPHING & DISPLAY
 # ==================
-# matplotlib>=3.4.2
+matplotlib>=3.4.2
 # seaborn>=0.11.1
 # wandb>=0.10.32
 

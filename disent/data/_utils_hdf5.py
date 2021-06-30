@@ -52,11 +52,15 @@ def hdf5_resave_dataset(inp_h5: h5py.File, out_h5: h5py.File, dataset_name, chun
     # check out_h5 version compatibility
     if (isinstance(out_h5.libver, str) and out_h5.libver != 'earliest') or (out_h5.libver[0] != 'earliest'):
         raise RuntimeError(f'hdf5 out file has an incompatible libver: {repr(out_h5.libver)} libver should be set to: "earliest"')
-    # create new dataset
+    # get existing dataset
     inp_data = inp_h5[dataset_name]
+    # get observation size
+    if obs_shape is None:
+        obs_shape = inp_data.shape[1:]
+    # create new dataset
     out_data = out_h5.create_dataset(
         name=dataset_name,
-        shape=inp_data.shape if (obs_shape is None) else (inp_data.shape[0], *obs_shape),
+        shape=(inp_data.shape[0], *obs_shape),
         dtype=out_dtype if (out_dtype is not None) else inp_data.dtype,
         chunks=chunk_size,
         compression=compression,

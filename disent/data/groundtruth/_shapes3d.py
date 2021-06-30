@@ -59,6 +59,7 @@ class Shapes3dData(Hdf5GroundTruthData):
         # h5 re-save settings
         hdf5_dataset_name='images',
         hdf5_chunk_size=(1, 64, 64, 3),
+        hdf5_obs_shape=observation_shape,
     )
 
 
