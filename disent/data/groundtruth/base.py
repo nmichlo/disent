@@ -33,8 +33,8 @@ import numpy as np
 
 from disent.data.datafile import DataFile
 from disent.data.datafile import DataFileHashedDlH5
+from disent.data.dataset import Hdf5Dataset
 from disent.data.groundtruth.states import StateSpace
-from disent.data.hdf5 import PickleH5pyFile
 from disent.util.paths import ensure_dir_exists
 
 
@@ -184,7 +184,7 @@ class Hdf5GroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
         # variables
         self._in_memory = in_memory
         # load the h5py dataset
-        data = PickleH5pyFile(
+        data = Hdf5Dataset(
             h5_path=os.path.join(self.data_dir, self.datafile.out_name),
             h5_dataset_name=self.datafile.dataset_name,
         )
@@ -214,4 +214,3 @@ class Hdf5GroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-
