@@ -22,6 +22,7 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import warnings
 from typing import Tuple
 
 from torch import nn
@@ -49,6 +50,9 @@ class EncoderConv64Norm(DisentEncoder):
         assert (H, W) == (64, 64), 'This model only works with image size 64x64.'
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
+        # warnings
+        warnings.warn(f'this model: {self.__class__.__name__} is non-standard in VAE research!')
+
         self.model = nn.Sequential(
             nn.Conv2d(in_channels=C,  out_channels=32, kernel_size=4, stride=2, padding=2), *_make_activations(activation=activation, norm=norm, shape=(32, 33, 33), norm_pre_act=norm_pre_act),
             nn.Conv2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=2), *_make_activations(activation=activation, norm=norm, shape=(32, 17, 17), norm_pre_act=norm_pre_act),
@@ -74,6 +78,9 @@ class DecoderConv64Norm(DisentDecoder):
         (C, H, W) = x_shape
         assert (H, W) == (64, 64), 'This model only works with image size 64x64.'
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
+
+        # warnings
+        warnings.warn(f'this model: {self.__class__.__name__} is non-standard in VAE research!')
 
         self.model = nn.Sequential(
             nn.Linear(in_features=self.z_size, out_features=256),  *_make_activations(activation=activation, norm='none'),

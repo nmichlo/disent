@@ -1,16 +1,12 @@
 # @package _group_
-name: simplefc
+name: vae_fc
 weight_init: 'xavier_normal'
 encoder:
-  _target_: disent.model.ae.EncoderSimpleFC
+  _target_: disent.model.ae.EncoderFC
   x_shape: ${dataset.x_shape}
   z_size: ${model.z_size}
   z_multiplier: ${framework.model_z_multiplier}
-  h_size1: 256
-  h_size2: 128
 decoder:
-  _target_: disent.model.ae.DecoderSimpleFC
+  _target_: disent.model.ae.DecoderFC
   x_shape: ${dataset.x_shape}
   z_size: ${model.z_size}
-  h_size1: 256
-  h_size2: 128
