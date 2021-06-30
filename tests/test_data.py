@@ -22,6 +22,8 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import contextlib
+import time
 from concurrent.futures import ProcessPoolExecutor
 from tempfile import NamedTemporaryFile
 
@@ -32,6 +34,11 @@ import pytest
 from disent.dataset.data import Hdf5Dataset
 from disent.dataset.data import XYSquaresData
 from disent.dataset.data import XYSquaresMinimalData
+from disent.dataset.util.hdf5 import hdf5_resave_file
+from disent.util.hashing import hash_file
+
+from tests.util import no_stderr
+from tests.util import no_stdout
 
 
 # ========================================================================= #
@@ -60,20 +67,25 @@ def _iterate_over_data(data, indices):
     return i + 1
 
 
+@contextlib.contextmanager
+def create_temp_h5data(track_times=False, **h5py_dataset_kwargs):
+    # generate data
+    data = np.stack([img for img in XYSquaresData(square_size=2, image_size=4)], axis=0)
+    # create temp file
+    with NamedTemporaryFile('r') as out_file:
+        # create temp files
+        with h5py.File(out_file.name, 'w', libver='earliest') as file:
+            file.create_dataset(name='data', shape=(64, 4, 4, 3), dtype='uint8', data=data, track_times=track_times, **h5py_dataset_kwargs)
+        # return the data & file
+        yield out_file.name, data
+
+
 def test_hdf5_pickle_dataset():
-    with NamedTemporaryFile('r') as temp_file:
-        # create temporary dataset
-        with h5py.File(temp_file.name, 'w') as file:
-            file.create_dataset(
-                name='data',
-                shape=(64, 4, 4, 3),
-                dtype='uint8',
-                data=np.stack([img for img in XYSquaresData(square_size=2, image_size=4)], axis=0)
-            )
+    with create_temp_h5data() as (tmp_path, raw_data):
         # load the data
         # - ideally we want to test this with a pytorch
         #   DataLoader, but that is quite slow to initialise
-        with Hdf5Dataset(temp_file.name, 'data') as data:
+        with Hdf5Dataset(tmp_path, 'data') as data:
             indices = list(range(len(data)))
             # test locally
             assert _iterate_over_data(data=data, indices=indices) == 64
@@ -84,10 +96,65 @@ def test_hdf5_pickle_dataset():
             assert future_0.result() == 32
             assert future_1.result() == 32
             # test multiprocessing on invalid data
-            with h5py.File(temp_file.name, 'r', swmr=True) as file:
+            with h5py.File(tmp_path, 'r', swmr=True) as file:
                 with pytest.raises(TypeError, match='h5py objects cannot be pickled'):
                     future_2 = executor.submit(_iterate_over_data, data=file['data'], indices=indices)
                     future_2.result()
+
+
+@pytest.mark.parametrize(['hash_mode', 'target_hash'], [
+    ('full', 'eec6e5d78b513f697f13bc5b43e3e361'),
+    ('fast', '598983f80047af65b9f85b5b1cf60e19'),
+])
+def test_hdf5_determinism(hash_mode: str, target_hash: str):
+    # check hashing a
+    def make_and_hash(track_times=False, **h5py_dataset_kwargs):
+        with create_temp_h5data(track_times=track_times, **h5py_dataset_kwargs) as (path_a, raw_data_a):
+            a = hash_file(path_a, hash_type='md5', hash_mode=hash_mode, missing_ok=False)
+        # track times only has a resolution of 1 second
+        # TODO: this test is slow ~4.4 seconds of sleeping...
+        time.sleep(1.1)
+        # redo the same task
+        with create_temp_h5data(track_times=track_times, **h5py_dataset_kwargs) as (path_b, raw_data_b):
+            b = hash_file(path_b, hash_type='md5', hash_mode=hash_mode, missing_ok=False)
+        return a, b
+    # compute hashes
+    deterministic_hash_a, deterministic_hash_b = make_and_hash(track_times=False)
+    stochastic_hash_a,    stochastic_hash_b    = make_and_hash(track_times=True)
+    # check hashes
+    assert deterministic_hash_a == deterministic_hash_b
+    assert stochastic_hash_a != stochastic_hash_b
+    # check against target
+    assert deterministic_hash_a == target_hash
+    assert deterministic_hash_b == target_hash
+    assert stochastic_hash_a != target_hash
+    assert stochastic_hash_b != target_hash
+
+
+def test_hdf5_resave_dataset():
+    with no_stdout(), no_stderr():
+        with create_temp_h5data(chunks=(64, 4, 4, 3)) as (inp_path, raw_data), create_temp_h5data(chunks=None) as (out_path, _):
+            # convert dataset
+            hdf5_resave_file(
+                inp_path=inp_path,
+                out_path=out_path,
+                dataset_name='data',
+                chunk_size=(1, 4, 4, 3),
+                compression=None,
+                compression_lvl=None,
+                batch_size=None,
+                out_dtype=None,
+                out_mutator=None,
+                obs_shape=None,
+                write_mode='w',
+            )
+            # check datasets
+            with h5py.File(inp_path, 'r') as inp:
+                assert np.all(inp['data'][...] == raw_data)
+                assert inp['data'].chunks == (64, 4, 4, 3)
+            with h5py.File(out_path, 'r') as out:
+                assert np.all(out['data'][...] == raw_data)
+                assert out['data'].chunks == (1, 4, 4, 3)
 
 
 # ========================================================================= #

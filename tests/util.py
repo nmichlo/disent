@@ -41,6 +41,14 @@ def no_stdout():
     sys.stdout = old_stdout
 
 
+@contextmanager
+def no_stderr():
+    old_stderr = sys.stderr
+    sys.stderr = open(os.devnull, 'w')
+    yield
+    sys.stderr = old_stderr
+
+
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #

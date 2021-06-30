@@ -28,6 +28,11 @@ Utilities for converting and testing different chunk sizes of hdf5 files
 
 import logging
 import os
+from typing import Callable
+from typing import Literal
+from typing import Optional
+from typing import Tuple
+from typing import Union
 
 import h5py
 import numpy as np
@@ -67,9 +72,15 @@ def hdf5_resave_dataset(inp_h5: h5py.File, out_h5: h5py.File, dataset_name, chun
         compression_opts=compression_lvl,
         # non-deterministic time stamps are added to the file if this is not
         # disabled, resulting in different hash sums when the file is re-generated!
-        # https://github.com/h5py/h5py/issues/225
-        # https://stackoverflow.com/questions/16019656
+        # - https://github.com/h5py/h5py/issues/225
+        # - https://stackoverflow.com/questions/16019656
+        # other properties:
+        # - https://docs.h5py.org/en/stable/high/group.html#h5py.Group.create_dataset
         track_times=False,
+        # track_order=False,
+        # fletcher32=True,  # checksum for each chunk
+        # shuffle=True,     # reorder chunk values to possibly help compression
+        # scaleoffset=<int> # enable lossy compression, ints: number of bits to keep (0 is automatic lossless), floats: number of digits after decimal
     )
     # print stats
     tqdm.write('')
@@ -77,7 +88,7 @@ def hdf5_resave_dataset(inp_h5: h5py.File, out_h5: h5py.File, dataset_name, chun
     hdf5_print_entry_data_stats(out_data, label=f'OUT')
     # choose batch size for copying data
     if batch_size is None:
-        batch_size = inp_data.chunks[0]
+        batch_size = inp_data.chunks[0] if inp_data.chunks else 32
         log.debug(f're-saving h5 dataset using automatic batch size of: {batch_size}')
     # get default
     if out_mutator is None:
@@ -89,11 +100,31 @@ def hdf5_resave_dataset(inp_h5: h5py.File, out_h5: h5py.File, dataset_name, chun
             progress.update(batch_size)
 
 
-def hdf5_resave_file(inp_path: str, out_path: str, dataset_name, chunk_size=None, compression=None, compression_lvl=None, batch_size=None, out_dtype=None, out_mutator=None, obs_shape=None):
+def hdf5_resave_file(
+    inp_path: str,
+    out_path: str,
+    dataset_name: str,  # input and output dataset name
+    chunk_size: Optional[Union[Tuple[int, ...], Literal[True]]] = None,  # True: auto determine, Tuple: specific chunk size, None: disable chunking
+    compression: Optional[Union[Literal['gzip'], Literal['lzf']]] = None,  # compression type, only works if chunks is specified
+    compression_lvl: Optional[int] = None,  # 0 through 9
+    batch_size: Optional[int] = None,  # batch size to process / save at a time
+    out_dtype: Optional[Union[np.dtype, str]] = None,  # output dtype of the dataset
+    out_mutator: Optional[Callable[[np.ndarray], np.ndarray]] = None,  # mutate batches before saving
+    obs_shape: Optional[Tuple[int, ...]] = None,  # resize batches to this shape
+    write_mode: str = Union[Literal['atomic_w'], Literal['w'], Literal['a']],
+):
     # re-save datasets
     with h5py.File(inp_path, 'r') as inp_h5:
-        with AtomicSaveFile(out_path, open_mode=None, overwrite=True) as tmp_h5_path:
-            with h5py.File(tmp_h5_path, 'w', libver='earliest') as out_h5:  # TODO: libver='latest' is not deterministic, even with track_times=False
+        # get context manager
+        if write_mode == 'atomic_w':
+            save_context = AtomicSaveFile(out_path, open_mode=None, overwrite=True)
+            write_mode = 'w'
+        else:
+            import contextlib
+            save_context = contextlib.nullcontext(out_path)
+        # handle saving to file
+        with save_context as tmp_h5_path:
+            with h5py.File(tmp_h5_path, write_mode, libver='earliest') as out_h5:  # TODO: libver='latest' is not deterministic, even with track_times=False
                 hdf5_resave_dataset(
                     inp_h5=inp_h5,
                     out_h5=out_h5,
@@ -153,24 +184,32 @@ def hdf5_test_speed(h5_path: str, dataset_name: str, access_method: str = 'rando
 
 # TODO: cleanup
 def hdf5_print_entry_data_stats(h5_dataset: h5py.Dataset, label='STATISTICS'):
-    dtype = h5_dataset.dtype
     itemsize = h5_dataset.dtype.itemsize
-    # chunk
-    chunks = np.array(h5_dataset.chunks)
-    data_per_chunk = np.prod(chunks) * itemsize
     # entry
     shape = np.array([1, *h5_dataset.shape[1:]])
     data_per_entry = np.prod(shape) * itemsize
+    # chunk
+    chunks = np.array(h5_dataset.chunks) if (h5_dataset.chunks is not None) else np.ones(h5_dataset.ndim, dtype='int')
+    data_per_chunk = np.prod(chunks) * itemsize
     # chunks per entry
     chunks_per_dim = np.ceil(shape / chunks).astype('int')
     chunks_per_entry = np.prod(chunks_per_dim)
     read_data_per_entry = data_per_chunk * chunks_per_entry
+    # format
+    chunks              = f'{str(list(chunks)):18s}'
+    data_per_chunk      = f'{bytes_to_human(data_per_chunk):20s}'
+    chunks_per_dim      = f'{str(list(chunks_per_dim)):18s}'
+    chunks_per_entry    = f'{chunks_per_entry:5d}'
+    read_data_per_entry = f'{bytes_to_human(read_data_per_entry):20s}'
+    # format remaining
+    entry          = f'{str(list(shape)):18s}'
+    data_per_entry = f'{bytes_to_human(data_per_entry)}'
     # print info
     tqdm.write(
         f'[{label:3s}] '
-        f'entry: {str(list(shape)):18s} ({str(dtype):8s}) {c.lYLW}{bytes_to_human(data_per_entry)}{c.RST} '
-        f'chunk: {str(list(chunks)):18s} {c.YLW}{bytes_to_human(data_per_chunk)}{c.RST} '
-        f'chunks per entry: {str(list(chunks_per_dim)):18s} {c.YLW}{bytes_to_human(read_data_per_entry)}{c.RST} ({c.RED}{chunks_per_entry:5d}{c.RST})  |  '
+        f'entry: {entry} ({str(h5_dataset.dtype):8s}) {c.lYLW}{data_per_entry}{c.RST} '
+        f'chunk: {chunks} {c.YLW}{data_per_chunk}{c.RST} '
+        f'chunks per entry: {chunks_per_dim} {c.YLW}{read_data_per_entry}{c.RST} ({c.RED}{chunks_per_entry}{c.RST})  |  '
         f'compression: {repr(h5_dataset.compression)} compression lvl: {repr(h5_dataset.compression_opts)}'
     )
 

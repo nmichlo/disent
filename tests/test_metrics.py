@@ -48,10 +48,10 @@ from disent.util.function import wrapped_partial
     wrapped_partial(metric_flatness_components, factor_repeats=7),
 ])
 def test_metrics(metric_fn):
-    z_size = 16
+    z_size = 8
     # ground truth data
     # TODO: DisentDataset should not be needed to compute metrics!
-    dataset = DisentDataset(XYSquaresMinimalData(transform=ToStandardisedTensor()), sampler=RandomSampler(num_samples=1))
+    dataset = DisentDataset(XYSquaresMinimalData(), transform=ToStandardisedTensor())
     # randomly sampled representation
     get_repr = lambda x: torch.randn(len(x), z_size)
     # evaluate

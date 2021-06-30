@@ -121,7 +121,8 @@ def _make_hdf5_dataset(path, dataset, overwrite_mode: str = 'continue') -> str:
                 NAME_DATA,
                 shape=(num_obs, *obs_shape),
                 dtype='uint8',
-                chunks=(1, *obs_shape)
+                chunks=(1, *obs_shape),
+                track_times=False,
             )
         # make set_dset
         if NAME_VISITS not in f:
@@ -129,7 +130,8 @@ def _make_hdf5_dataset(path, dataset, overwrite_mode: str = 'continue') -> str:
                 NAME_VISITS,
                 shape=(num_obs,),
                 dtype='int64',
-                chunks=(1,)
+                chunks=(1,),
+                track_times=False,
             )
     return path
 

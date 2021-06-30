@@ -40,8 +40,8 @@ from disent.frameworks.ae.experimental import *
 from disent.frameworks.vae import *
 from disent.frameworks.vae.experimental import *
 from disent.model import AutoEncoder
-from disent.model.ae import DecoderConv64
-from disent.model.ae import EncoderConv64
+from disent.model.ae import DecoderTest
+from disent.model.ae import EncoderTest
 from disent.nn.transform import ToStandardisedTensor
 
 
@@ -107,8 +107,8 @@ def test_frameworks(Framework, cfg_kwargs, Data):
     framework = Framework(
         make_optimizer_fn=lambda params: Adam(params, lr=1e-3),
         make_model_fn=lambda: AutoEncoder(
-            encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2 if issubclass(Framework, Vae) else 1),
-            decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
+            encoder=EncoderTest(x_shape=data.x_shape, z_size=6, z_multiplier=2 if issubclass(Framework, Vae) else 1),
+            decoder=DecoderTest(x_shape=data.x_shape, z_size=6),
         ),
         cfg=Framework.cfg(**cfg_kwargs)
     )
