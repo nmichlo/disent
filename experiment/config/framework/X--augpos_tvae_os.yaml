@@ -18,6 +18,23 @@ module:
   triplet_margin_max: 1
   triplet_scale: 0.1
   triplet_p: 1
+  # overlap
+  overlap_augment:
+    _target_: disent.transform.FftBoxBlur
+    p: 1.0
+    radius: [ 16, 16 ]
+    random_mode: "batch"
+    random_same_xy: TRUE
+
+  # TODO: try original
+  # overlap_augment:
+    # size = a_x.shape[2:4]
+    # self._augment = torchvision.transforms.RandomOrder([
+    #     kornia.augmentation.ColorJitter(brightness=0.25, contrast=0.25, saturation=0, hue=0.15),
+    #     kornia.augmentation.RandomCrop(size=size, padding=8),
+    #     # kornia.augmentation.RandomPerspective(distortion_scale=0.05, p=1.0),
+    #     # kornia.augmentation.RandomRotation(degrees=4),
+    # ])
 
 # settings used elsewhere
 data_wrap_mode: weak_pair

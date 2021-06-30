@@ -21,35 +21,15 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
 import inspect
 import logging
 
-import hydra
 from omegaconf import DictConfig
-from omegaconf import ListConfig
 from omegaconf import OmegaConf
 
 
 log = logging.getLogger(__name__)
-
-
-# ========================================================================= #
-# Recursive Hydra Instantiation                                             #
-# TODO: use https://github.com/facebookresearch/hydra/pull/989              #
-#       I think this is quicker? Just doesn't perform checks...             #
-# ========================================================================= #
-
-
-def call_recursive(config):
-    if isinstance(config, (dict, DictConfig)):
-        c = {k: call_recursive(v) for k, v in config.items() if k != '_target_'}
-        if '_target_' in config:
-            config = hydra.utils.instantiate({'_target_': config['_target_']}, **c)
-    elif isinstance(config, (tuple, list, ListConfig)):
-        config = [call_recursive(v) for v in config]
-    return config
-
-instantiate_recursive = call_recursive
 
 
 # ========================================================================= #

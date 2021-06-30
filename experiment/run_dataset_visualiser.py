@@ -28,7 +28,6 @@ from collections import defaultdict
 
 import hydra
 import hydra.experimental
-import kornia
 import numpy as np
 import streamlit as st
 import torch
@@ -37,6 +36,7 @@ from omegaconf import OmegaConf
 
 from disent.util.strings import make_box_str
 from disent.visualize.visualize_util import make_image_grid
+from experiment.exp.util import to_imgs
 from experiment.run import hydra_check_datadir
 from experiment.run import HydraDataModule
 from experiment.util.hydra_utils import make_non_strict
@@ -98,8 +98,8 @@ def visualise(cfg: DictConfig):
         obs = dataset[idx]
 
         # convert augmented images to observations
-        x      = [(kornia.tensor_to_image(torch.clamp(obs, 0, 1))*255).astype('uint8') for obs in obs['x']]
-        x_targ = [(kornia.tensor_to_image(torch.clamp(obs, 0, 1))*255).astype('uint8') for obs in obs['x_targ']]
+        x      = [to_imgs(torch.clamp(obs, 0, 1)).numpy() for obs in obs['x']]
+        x_targ = [to_imgs(torch.clamp(obs, 0, 1)).numpy() for obs in obs['x_targ']]
         img = make_image_grid(x + x_targ, pad=PADDING, border=False, bg_color=255, num_cols=len(x))
 
         # send images to server

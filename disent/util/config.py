@@ -22,52 +22,43 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-import logging
-from dataclasses import dataclass
-from typing import Union
-
-import torch
-
-from disent.frameworks.vae._supervised__tvae import TripletVae
-from disent.util.config import instantiate_object_if_needed
-
-
-log = logging.getLogger(__name__)
-
 
 # ========================================================================= #
-# Guided Ada Vae                                                            #
+# Recursive Hydra Instantiation                                             #
+# TODO: use https://github.com/facebookresearch/hydra/pull/989              #
+#       I think this is quicker? Just doesn't perform checks...             #
 # ========================================================================= #
 
 
-class AugPosTripletVae(TripletVae):
+def call_recursive(config):
+    # import hydra
+    try:
+        import hydra
+        from omegaconf import DictConfig
+        from omegaconf import ListConfig
+    except ImportError:
+        raise ImportError('please install hydra-core for call_recursive/instantiate_recursive support')
+    # recurse
+    def _call_recursive(config):
+        if isinstance(config, (dict, DictConfig)):
+            c = {k: _call_recursive(v) for k, v in config.items() if k != '_target_'}
+            if '_target_' in config:
+                config = hydra.utils.instantiate({'_target_': config['_target_']}, **c)
+        elif isinstance(config, (tuple, list, ListConfig)):
+            config = [_call_recursive(v) for v in config]
+        return config
+    return _call_recursive(config)
 
-    REQUIRED_OBS = 2  # third obs is generated from augmentations
 
-    @dataclass
-    class cfg(TripletVae.cfg):
-        overlap_augment: Union[dict, callable] = None
+# export alias
+instantiate_recursive = call_recursive
 
-    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
-        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
-        self._augment = None
-        # initialise & check augment
-        self._augment = instantiate_object_if_needed(self.cfg.overlap_augment)
-        assert callable(self._augment), f'augment is not callable: {repr(self._augment)}'
 
-    def do_training_step(self, batch, batch_idx):
-        (a_x, n_x), (a_x_targ, n_x_targ) = self._get_xs_and_targs(batch, batch_idx)
-
-        # generate augmented items
-        with torch.no_grad():
-            p_x_targ = a_x_targ
-            p_x = self._augment(a_x)
-            # a_x = self._aug(a_x)
-            # n_x = self._aug(n_x)
-
-        batch['x'], batch['x_targ'] = (a_x, p_x, n_x), (a_x_targ, p_x_targ, n_x_targ)
-        # compute!
-        return super().do_training_step(batch, batch_idx)
+def instantiate_object_if_needed(config_or_object):
+    if isinstance(config_or_object, dict):
+        return instantiate_recursive(config_or_object)
+    else:
+        return config_or_object
 
 
 # ========================================================================= #
