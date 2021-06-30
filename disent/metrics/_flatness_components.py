@@ -29,7 +29,7 @@ import numpy as np
 import torch
 from torch.utils.data.dataloader import default_collate
 
-from disent.dataset.groundtruth import GroundTruthDataset
+from disent.dataset import DisentGroundTruthSamplingDataset
 from disent.metrics._flatness import encode_all_along_factor
 from disent.metrics._flatness import encode_all_factors
 from disent.metrics._flatness import filter_inactive_factors
@@ -48,7 +48,7 @@ log = logging.getLogger(__name__)
 
 
 def metric_flatness_components(
-        ground_truth_dataset: GroundTruthDataset,
+        ground_truth_dataset: DisentGroundTruthSamplingDataset,
         representation_function: callable,
         factor_repeats: int = 1024,
         batch_size: int = 64,

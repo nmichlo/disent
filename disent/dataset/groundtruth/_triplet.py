@@ -25,7 +25,7 @@
 import logging
 import numpy as np
 from disent.data.groundtruth.base import GroundTruthData
-from disent.dataset.groundtruth._single import GroundTruthDataset
+from disent.dataset._base import DisentSampler
 
 
 log = logging.getLogger(__name__)
@@ -36,13 +36,10 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class GroundTruthDatasetTriples(GroundTruthDataset):
+class GroundTruthTripleSampler(DisentSampler):
 
     def __init__(
             self,
-            ground_truth_data: GroundTruthData,
-            transform=None,
-            augment=None,
             # factor sampling
             p_k_range=(0, -1),
             n_k_range=(0, -1),
@@ -56,46 +53,58 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
             swap_metric=None,
             swap_chance=None,
     ):
-        super().__init__(ground_truth_data=ground_truth_data, transform=transform, augment=augment)
+        super().__init__(num_samples=3)
         # checks
         assert swap_metric in {None, 'k', 'manhattan', 'manhattan_norm', 'euclidean', 'euclidean_norm'}, f'Invalid {swap_metric=}'
         assert n_k_sample_mode in {'offset', 'bounded_below', 'random'}, f'Invalid {n_k_sample_mode=}'
         assert n_radius_sample_mode in {'offset', 'bounded_below', 'random'}, f'Invalid {n_radius_sample_mode=}'
-        # DIFFERING FACTORS
+        # factors
+        self.p_k_range = p_k_range
+        self.n_k_range = n_k_range
         self.n_k_sample_mode = n_k_sample_mode
         self.n_k_is_shared = n_k_is_shared
-        self.p_k_min, self.p_k_max, self.n_k_min, self.n_k_max = self._min_max_from_range(
-            p_range=p_k_range,
-            n_range=n_k_range,
-            max_values=self.data.num_factors,
-            n_sample_mode=n_k_sample_mode,
-            is_radius=False
-        )
-        # RADIUS SAMPLING
+        # radius
+        self.p_radius_range = p_radius_range
+        self.n_radius_range = n_radius_range
         self.n_radius_sample_mode = n_radius_sample_mode
-        self.p_radius_min, self.p_radius_max, self.n_radius_min, self.n_radius_max = self._min_max_from_range(
-            p_range=p_radius_range,
-            n_range=n_radius_range,
-            max_values=self.data.factor_sizes,
-            n_sample_mode=n_radius_sample_mode,
-            is_radius=True
-        )
         # SWAP: if negative is not further than the positive
         self._swap_metric = swap_metric
         self._swap_chance = swap_chance
         if swap_chance is not None:
             assert 0 <= swap_chance <= 1, f'{swap_chance=} must be in range 0 to 1.'
+        # dataset variable
+        self._data: GroundTruthData
+
+    def _init(self, dataset):
+        assert isinstance(dataset, GroundTruthData), f'dataset must be an instance of {repr(GroundTruthData.__class__.__name__)}, got: {repr(dataset)}'
+        self._data = dataset
+        # DIFFERING FACTORS
+        self.p_k_min, self.p_k_max, self.n_k_min, self.n_k_max = self._min_max_from_range(
+            p_range=self.p_k_range,
+            n_range=self.n_k_range,
+            max_values=self._data.num_factors,
+            n_sample_mode=self.n_k_sample_mode,
+            is_radius=False
+        )
+        # RADIUS SAMPLING
+        self.p_radius_min, self.p_radius_max, self.n_radius_min, self.n_radius_max = self._min_max_from_range(
+            p_range=self.p_radius_range,
+            n_range=self.n_radius_range,
+            max_values=self._data.factor_sizes,
+            n_sample_mode=self.n_radius_sample_mode,
+            is_radius=True
+        )
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # CORE                                                                  #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def __getitem__(self, idx):
+    def __call__(self, idx):
         f0, f1, f2 = self.datapoint_sample_factors_triplet(idx)
-        return self.dataset_get_observation(
-            self.data.pos_to_idx(f0),
-            self.data.pos_to_idx(f1),
-            self.data.pos_to_idx(f2),
+        return (
+            self._data.pos_to_idx(f0),
+            self._data.pos_to_idx(f1),
+            self._data.pos_to_idx(f2),
         )
 
     def datapoint_sample_factors_triplet(self, idx):
@@ -103,7 +112,7 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
         p_k, n_k = self._sample_num_factors()
         p_shared_indices, n_shared_indices = self._sample_shared_indices(p_k, n_k)
         # SAMPLE FACTORS - sample, resample and replace shared factors with originals
-        anchor_factors = self.data.idx_to_pos(idx)
+        anchor_factors = self._data.idx_to_pos(idx)
         positive_factors, negative_factors = self._resample_factors(anchor_factors)
         positive_factors[p_shared_indices] = anchor_factors[p_shared_indices]
         negative_factors[n_shared_indices] = anchor_factors[n_shared_indices]
@@ -163,7 +172,7 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
         p_k = np.random.randint(self.p_k_min, self.p_k_max + 1)
         # sample for negative
         if self.n_k_sample_mode == 'offset':
-            n_k = np.random.randint(p_k + self.n_k_min, min(p_k + self.n_k_max, self.data.num_factors) + 1)
+            n_k = np.random.randint(p_k + self.n_k_min, min(p_k + self.n_k_max, self._data.num_factors) + 1)
         elif self.n_k_sample_mode == 'bounded_below':
             n_k = np.random.randint(max(p_k, self.n_k_min), self.n_k_max + 1)
         elif self.n_k_sample_mode == 'random':
@@ -174,18 +183,18 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
         return p_k, n_k
 
     def _sample_shared_indices(self, p_k, n_k):
-        p_shared_indices = np.random.choice(self.data.num_factors, size=self.data.num_factors-p_k, replace=False)
+        p_shared_indices = np.random.choice(self._data.num_factors, size=self._data.num_factors-p_k, replace=False)
         # sample for negative
         if self.n_k_is_shared:
-            n_shared_indices = p_shared_indices[:self.data.num_factors-n_k]
+            n_shared_indices = p_shared_indices[:self._data.num_factors-n_k]
         else:
-            n_shared_indices = np.random.choice(self.data.num_factors, size=self.data.num_factors-n_k, replace=False)
+            n_shared_indices = np.random.choice(self._data.num_factors, size=self._data.num_factors-n_k, replace=False)
         # we're done!
         return p_shared_indices, n_shared_indices
 
     def _resample_factors(self, anchor_factors):
         # sample positive
-        positive_factors = sample_radius(anchor_factors, low=0, high=self.data.factor_sizes, r_low=self.p_radius_min, r_high=self.p_radius_max + 1)
+        positive_factors = sample_radius(anchor_factors, low=0, high=self._data.factor_sizes, r_low=self.p_radius_min, r_high=self.p_radius_max + 1)
         # negative arguments
         if self.n_radius_sample_mode == 'offset':
             sampled_radius = np.abs(anchor_factors - positive_factors)
@@ -201,7 +210,7 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
         else:
             raise KeyError(f'Unknown mode: {self.n_radius_sample_mode=}')
         # sample negative
-        negative_factors = sample_radius(anchor_factors, low=0, high=self.data.factor_sizes, r_low=n_r_low, r_high=n_r_high)
+        negative_factors = sample_radius(anchor_factors, low=0, high=self._data.factor_sizes, r_low=n_r_low, r_high=n_r_high)
         # we're done!
         return positive_factors, negative_factors
 
@@ -213,14 +222,14 @@ class GroundTruthDatasetTriples(GroundTruthDataset):
             p_dist = np.sum(np.abs(anchor_factors - positive_factors))
             n_dist = np.sum(np.abs(anchor_factors - negative_factors))
         elif self._swap_metric == 'manhattan_norm':
-            p_dist = np.sum(np.abs((anchor_factors - positive_factors) / np.subtract(self.data.factor_sizes, 1)))
-            n_dist = np.sum(np.abs((anchor_factors - negative_factors) / np.subtract(self.data.factor_sizes, 1)))
+            p_dist = np.sum(np.abs((anchor_factors - positive_factors) / np.subtract(self._data.factor_sizes, 1)))
+            n_dist = np.sum(np.abs((anchor_factors - negative_factors) / np.subtract(self._data.factor_sizes, 1)))
         elif self._swap_metric == 'euclidean':
             p_dist = np.linalg.norm(anchor_factors - positive_factors)
             n_dist = np.linalg.norm(anchor_factors - negative_factors)
         elif self._swap_metric == 'euclidean_norm':
-            p_dist = np.linalg.norm((anchor_factors - positive_factors) / np.subtract(self.data.factor_sizes, 1))
-            n_dist = np.linalg.norm((anchor_factors - negative_factors) / np.subtract(self.data.factor_sizes, 1))
+            p_dist = np.linalg.norm((anchor_factors - positive_factors) / np.subtract(self._data.factor_sizes, 1))
+            n_dist = np.linalg.norm((anchor_factors - negative_factors) / np.subtract(self._data.factor_sizes, 1))
         else:
             raise KeyError
         # perform swap

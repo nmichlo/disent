@@ -23,42 +23,60 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from disent.data.episodes import BaseOptionEpisodesData
-from disent.dataset.random import RandomDataset
+from disent.dataset._base import DisentSampler
+from disent.dataset.groundtruth._triplet import sample_radius as sample_radius_fn
 
 
-class RandomEpisodeDataset(RandomDataset):
+# ========================================================================= #
+# Episode Sampler                                                           #
+# ========================================================================= #
 
-    # type hint, override RandomDataset
-    _data: BaseOptionEpisodesData
 
-    def __init__(
-            self,
-            data: BaseOptionEpisodesData,
-            transform=None,
-            augment=None,
-            num_samples=1,
-            sample_radius=None
-    ):
-        super().__init__(
-            data=data,
-            transform=transform,
-            augment=augment,
-            num_samples=num_samples
-        )
-        # checks
-        assert isinstance(self._data, BaseOptionEpisodesData), f'data ({type(self._data)}) is not an instance of {BaseOptionEpisodesData}'
+class RandomEpisodeSampler(DisentSampler):
+
+    def __init__(self, num_samples=1, sample_radius=None):
+        super().__init__(num_samples=num_samples)
         self._sample_radius = sample_radius
+
+    def _init(self, dataset):
+        assert isinstance(dataset, BaseOptionEpisodesData), f'data ({type(dataset)}) is not an instance of {BaseOptionEpisodesData}'
+        # TODO: reference to dataset is not ideal here
+        self._dataset = dataset
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Sampling                                                              #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def __getitem__(self, idx):
-        # sample for observations
+    def __call__(self, idx):
         # TODO: are we actually sampling distances correctly?
-        episode, idx, offset = self._data.get_episode_and_idx(idx)
-        indices = self._data.sample_episode_indices(episode, idx, n=self._num_samples, radius=self._sample_radius)
+        # sample for observations
+        episode, idx, offset = self._dataset.get_episode_and_idx(idx)
+        indices = self.sample_episode_indices(episode, idx, n=self._num_samples, radius=self._sample_radius)
         # transform back to original indices
-        indices = [i + offset for i in indices]
-        # TODO: this is inefficient, we have to perform multiple searches for the same thing!
-        return self.dataset_get_observation(*indices)
+        return tuple(i + offset for i in indices)
+
+    @staticmethod
+    def sample_episode_indices(episode, idx, n=1, radius=None):
+        # TODO: update this to use the same API
+        #       as ground truth triplet and pair.
+        # default value
+        if radius is None:
+            radius = len(episode)
+        elif radius < 0:
+            radius = len(episode) + radius + 1
+        assert n <= len(episode)
+        assert n <= radius
+        # sample values
+        indices = {idx}
+        while len(indices) < n:
+            indices.add(sample_radius_fn(idx, low=0, high=len(episode), r_low=0, r_high=radius))
+        # sort indices from highest to lowest.
+        # - anchor is the newest
+        # - positive is close in the past
+        # - negative is far in the past
+        return sorted(indices)[::-1]
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #

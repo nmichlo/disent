@@ -31,9 +31,10 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 
 from disent.data.groundtruth import XYObjectData
-from disent.dataset.groundtruth import GroundTruthDataset
-from disent.dataset.groundtruth import GroundTruthDatasetPairs
-from disent.dataset.groundtruth import GroundTruthDatasetTriples
+from disent.dataset import DisentSamplingDataset
+from disent.dataset.groundtruth import GroundTruthSingleSampler
+from disent.dataset.groundtruth import GroundTruthPairSampler
+from disent.dataset.groundtruth import GroundTruthTripleSampler
 from disent.frameworks.ae import *
 from disent.frameworks.ae.experimental import *
 from disent.frameworks.vae import *
@@ -93,14 +94,14 @@ from disent.nn.transform import ToStandardisedTensor
     (AdaAveTripletVae,     dict(adat_share_mask_mode='sample_each'),                                    XYObjectData),
 ])
 def test_frameworks(Framework, cfg_kwargs, Data):
-    DataWrapper = {
-        1: GroundTruthDataset,
-        2: GroundTruthDatasetPairs,
-        3: GroundTruthDatasetTriples,
+    DataSampler = {
+        1: GroundTruthSingleSampler,
+        2: GroundTruthPairSampler,
+        3: GroundTruthTripleSampler,
     }[Framework.REQUIRED_OBS]
 
     data = XYObjectData() if (Data is None) else Data()
-    dataset = DataWrapper(data, transform=ToStandardisedTensor())
+    dataset = DisentSamplingDataset(data, DataSampler(), transform=ToStandardisedTensor())
     dataloader = DataLoader(dataset=dataset, batch_size=4, shuffle=True)
 
     framework = Framework(

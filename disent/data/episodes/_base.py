@@ -66,7 +66,7 @@ class BaseOptionEpisodesData(Dataset, LengthIter):
         # linear search for episode & shift idx accordingly
         # TODO: This could be better...
         # TODO: add caching?
-        offset = 0
+        episode, offset = None, 0
         for episode in self._episodes:
             length = len(episode)
             if idx < length:
@@ -76,27 +76,6 @@ class BaseOptionEpisodesData(Dataset, LengthIter):
                 idx -= length
         # return found
         return episode, idx, offset
-
-    @staticmethod
-    def sample_episode_indices(episode, idx, n=1, radius=None):
-        # TODO: update this to use the same API
-        #       as ground truth triplet and pair.
-        # default value
-        if radius is None:
-            radius = len(episode)
-        elif radius < 0:
-            radius = len(episode) + radius + 1
-        assert n <= len(episode)
-        assert n <= radius
-        # sample values
-        indices = {idx}
-        while len(indices) < n:
-            indices.add(sample_radius(idx, low=0, high=len(episode), r_low=0, r_high=radius))
-        # sort indices from highest to lowest.
-        # - anchor is the newest
-        # - positive is close in the past
-        # - negative is far in the past
-        return sorted(indices)[::-1]
 
     def _load_episode_observations(self) -> List[np.ndarray]:
         raise NotImplementedError

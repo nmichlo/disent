@@ -2,7 +2,8 @@ import pytorch_lightning as pl
 from torch.optim import Adam
 from torch.utils.data import DataLoader, Dataset
 from disent.data.groundtruth import GroundTruthData, XYSquaresData
-from disent.dataset.groundtruth import GroundTruthDataset
+from disent.dataset import DisentGroundTruthSamplingDataset
+from disent.dataset.groundtruth import GroundTruthSingleSampler
 from disent.frameworks.vae import BetaVae
 from disent.model.ae import DecoderConv64, EncoderConv64
 from disent.model import AutoEncoder
@@ -12,7 +13,7 @@ from disent.util import is_test_run
 
 
 data: GroundTruthData = XYSquaresData()
-dataset: Dataset = GroundTruthDataset(data, transform=ToStandardisedTensor())
+dataset: Dataset = DisentGroundTruthSamplingDataset(data, GroundTruthSingleSampler(), transform=ToStandardisedTensor())
 dataloader = DataLoader(dataset=dataset, batch_size=4, shuffle=True)
 
 module: pl.LightningModule = BetaVae(

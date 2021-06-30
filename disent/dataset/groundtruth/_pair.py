@@ -23,8 +23,8 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import numpy as np
-from disent.dataset.groundtruth._single import GroundTruthDataset
 from disent.data.groundtruth.base import GroundTruthData
+from disent.dataset._base import DisentSampler
 from disent.dataset.groundtruth._triplet import sample_radius, normalise_range_pair, FactorSizeError
 
 
@@ -33,13 +33,10 @@ from disent.dataset.groundtruth._triplet import sample_radius, normalise_range_p
 # ========================================================================= #
 
 
-class GroundTruthDatasetPairs(GroundTruthDataset):
+class GroundTruthPairSampler(DisentSampler):
 
     def __init__(
             self,
-            ground_truth_data: GroundTruthData,
-            transform=None,
-            augment=None,
             # factor sampling
             p_k_range=(1, -1),
             # radius sampling
@@ -52,21 +49,29 @@ class GroundTruthDatasetPairs(GroundTruthDataset):
         k: An integer (k), None (k=d-1), or "uniform" (random k in range 1 to d-1)
         variation_factor_indices: The indices of the factors of variation that are sampled between pairs, if None (all factors are sampled)
         """
-        super().__init__(ground_truth_data=ground_truth_data, transform=transform, augment=augment)
+        super().__init__(num_samples=2)
+        self.p_k_range = p_k_range
+        self.p_radius_range = p_radius_range
+        # dataset variable
+        self._data: GroundTruthData
+
+    def _init(self, dataset):
+        assert isinstance(dataset, GroundTruthData), f'dataset must be an instance of {repr(GroundTruthData.__class__.__name__)}, got: {repr(dataset)}'
+        self._data = dataset
         # DIFFERING FACTORS
-        self.p_k_min, self.p_k_max = self._min_max_from_range(p_range=p_k_range, max_values=self.data.num_factors)
+        self.p_k_min, self.p_k_max = self._min_max_from_range(p_range=self.p_k_range, max_values=self._data.num_factors)
         # RADIUS SAMPLING
-        self.p_radius_min, self.p_radius_max = self._min_max_from_range(p_range=p_radius_range, max_values=self.data.factor_sizes)
+        self.p_radius_min, self.p_radius_max = self._min_max_from_range(p_range=self.p_radius_range, max_values=self._data.factor_sizes)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # CORE                                                                  #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def __getitem__(self, idx):
+    def __call__(self, idx):
         f0, f1 = self.datapoint_sample_factors_pair(idx)
-        return self.dataset_get_observation(
-            self.data.pos_to_idx(f0),
-            self.data.pos_to_idx(f1),
+        return (
+            self._data.pos_to_idx(f0),
+            self._data.pos_to_idx(f1),
         )
 
     def datapoint_sample_factors_pair(self, idx):
@@ -90,7 +95,7 @@ class GroundTruthDatasetPairs(GroundTruthDataset):
         p_k = self._sample_num_factors()
         p_shared_indices = self._sample_shared_indices(p_k)
         # SAMPLE FACTORS - sample, resample and replace shared factors with originals
-        anchor_factors = self.data.idx_to_pos(idx)
+        anchor_factors = self._data.idx_to_pos(idx)
         positive_factors = self._resample_factors(anchor_factors)
         positive_factors[p_shared_indices] = anchor_factors[p_shared_indices]
         return anchor_factors, positive_factors
@@ -113,11 +118,11 @@ class GroundTruthDatasetPairs(GroundTruthDataset):
         return p_k
 
     def _sample_shared_indices(self, p_k):
-        p_shared_indices = np.random.choice(self.data.num_factors, size=self.data.num_factors-p_k, replace=False)
+        p_shared_indices = np.random.choice(self._data.num_factors, size=self._data.num_factors-p_k, replace=False)
         return p_shared_indices
 
     def _resample_factors(self, anchor_factors):
-        positive_factors = sample_radius(anchor_factors, low=0, high=self.data.factor_sizes, r_low=self.p_radius_min, r_high=self.p_radius_max + 1)
+        positive_factors = sample_radius(anchor_factors, low=0, high=self._data.factor_sizes, r_low=self.p_radius_min, r_high=self.p_radius_max + 1)
         return positive_factors
 
 

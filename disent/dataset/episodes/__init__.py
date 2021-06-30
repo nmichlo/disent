@@ -22,4 +22,4 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from ._random_episodes import RandomEpisodeDataset
+from ._random_episodes import RandomEpisodeSampler
