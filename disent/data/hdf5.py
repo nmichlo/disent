@@ -28,17 +28,20 @@ Utilities for converting and testing different chunk sizes of hdf5 files
 
 import logging
 import os
+import warnings
 
 import h5py
 import numpy as np
+from torch.utils.data import Dataset
 from tqdm import tqdm
 
-from disent.util.in_out import AtomicSaveFile
-from disent.util.strings import bytes_to_human
+from disent.data.dataset import NumpyDataset
 from disent.util import colors as c
+from disent.util.in_out import AtomicSaveFile
 from disent.util.iters import iter_chunks
 from disent.util.iters import LengthIter
 from disent.util.profiling import Timer
+from disent.util.strings import bytes_to_human
 
 
 log = logging.getLogger(__name__)
@@ -49,18 +52,19 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class PickleH5pyFile(LengthIter):
+class Hdf5Dataset(Dataset, LengthIter):
     """
     This class supports pickling and unpickling of a read-only
     SWMR h5py file and corresponding dataset.
 
-    WARNING: this should probably not be used across multiple hosts?
+    WARNING: this should probably not be used across multiple hosts...
     """
 
-    def __init__(self, h5_path: str, h5_dataset_name: str):
+    def __init__(self, h5_path: str, h5_dataset_name: str = 'data', transform=None):
         self._h5_path = h5_path
         self._h5_dataset_name = h5_dataset_name
         self._hdf5_file, self._hdf5_data = self._make_hdf5()
+        self._transform = transform
 
     def _make_hdf5(self):
         # TODO: can this cause a memory leak if it is never closed?
@@ -72,11 +76,17 @@ class PickleH5pyFile(LengthIter):
         return self._hdf5_data.shape[0]
 
     def __getitem__(self, item):
-        return self._hdf5_data[item]
+        elem = self._hdf5_data[item]
+        if self._transform is not None:
+            elem = self._transform(elem)
+        return elem
 
     @property
     def shape(self):
         return self._hdf5_data.shape
+
+    def numpy_dataset(self) -> NumpyDataset:
+        return NumpyDataset(data=self._hdf5_data[:], transform=self._transform)
 
     def __enter__(self):
         return self
