@@ -23,6 +23,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
+import warnings
 from dataclasses import dataclass
 from typing import Union
 
@@ -53,6 +54,9 @@ class AugPosTripletVae(TripletVae):
         self._augment = None
         # initialise & check augment
         self._augment = instantiate_object_if_needed(self.cfg.overlap_augment)
+        if self._augment is None:
+            self._augment = torch.nn.Identity()
+            warnings.warn(f'{self.__class__.__name__}, no overlap_augment was specified, defaulting to nn.Identity which WILL break things!')
         assert callable(self._augment), f'augment is not callable: {repr(self._augment)}'
 
     def do_training_step(self, batch, batch_idx):

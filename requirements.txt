@@ -2,19 +2,19 @@ pip>=21.0
 
 # DATA SCIENCE & ML
 # =================
-numpy==1.21.0
-torch==1.9.0
-torchvision==0.10.0
-pytorch-lightning==1.3.7
-scipy==1.7.0
-scikit-learn==0.24.2
+numpy>=1.21.0
+torch>=1.9.0
+torchvision>=0.10.0
+pytorch-lightning>=1.3.7
+scipy>=1.7.0
+scikit-learn>=0.24.2
 
 # INPUT & OUTPUT
 # ================
-Pillow==8.2.0
+Pillow>=8.2.0
 h5py>=2.10.0  # as of tensorflow 2.4 it does not support h5py 3+
 
 # UTILITY
 # =======
-tqdm==4.60.0
-Deprecated==1.2.12
+tqdm>=4.60.0
+Deprecated>=1.2.12

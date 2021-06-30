@@ -1,22 +1,24 @@
 
 # DATA SCIENCE & ML
 # =================
-# pandas==1.2.5
-# torch-optimizer==0.1.0  # optional install
-# torchsort==0.1.4 # optional install
-# kornia==0.5.5  # requires numpy<=1.9, but this can be relaxed or overridden
+# pandas>=1.2.5
+# torch-optimizer>=0.1.0  # optional install
+# kornia>=0.5.5  # requires numpy<=1.9, but this can be relaxed or overridden
+
+# requires pytorch to be installed first (duplicated in requirements-test.txt)
+# torchsort>=0.1.4
 
 # INPUT / OUTPUT
 # ================
-# psutil==5.8.0
-# imageio==2.9.0  # required for wandb video logging
-# moviepy==1.0.3  # required for wandb video logging
+# psutil>=5.8.0
+# imageio>=2.9.0  # required for wandb video logging
+# moviepy>=1.0.3  # required for wandb video logging
 
 # GRAPHING & DISPLAY
 # ==================
-# matplotlib==3.4.2
-# seaborn==0.11.1
-# wandb==0.10.32
+# matplotlib>=3.4.2
+# seaborn>=0.11.1
+# wandb>=0.10.32
 
 # UTILITY
 # =======

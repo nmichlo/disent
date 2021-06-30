@@ -1,2 +1,5 @@
-pytest == 6.2.2
-pytest-cov == 2.11.1
+pytest>=6.2.4
+pytest-cov>=2.12.1
+
+# requires pytorch to be installed first (duplicated in requirements-exp.txt)
+torchsort>=0.1.4
