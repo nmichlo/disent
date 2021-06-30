@@ -29,9 +29,9 @@ import h5py
 import numpy as np
 import pytest
 
+from disent.data.dataset import Hdf5Dataset
 from disent.data.groundtruth import XYSquaresData
-from disent.data.groundtruth._xysquares import XYSquaresMinimalData
-from disent.data.hdf5 import PickleH5pyFile
+from disent.data.groundtruth import XYSquaresMinimalData
 
 
 # ========================================================================= #
@@ -73,7 +73,7 @@ def test_hdf5_pickle_dataset():
         # load the data
         # - ideally we want to test this with a pytorch
         #   DataLoader, but that is quite slow to initialise
-        with PickleH5pyFile(temp_file.name, 'data') as data:
+        with Hdf5Dataset(temp_file.name, 'data') as data:
             indices = list(range(len(data)))
             # test locally
             assert _iterate_over_data(data=data, indices=indices) == 64
@@ -93,4 +93,3 @@ def test_hdf5_pickle_dataset():
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-

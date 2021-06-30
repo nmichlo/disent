@@ -33,77 +33,14 @@ import h5py
 import numpy as np
 from tqdm import tqdm
 
-from disent.util.in_out import AtomicSaveFile
-from disent.util.strings import bytes_to_human
 from disent.util import colors as c
+from disent.util.in_out import AtomicSaveFile
 from disent.util.iters import iter_chunks
-from disent.util.iters import LengthIter
 from disent.util.profiling import Timer
+from disent.util.strings import bytes_to_human
 
 
 log = logging.getLogger(__name__)
-
-
-# ========================================================================= #
-# hdf5 pickle dataset                                                       #
-# ========================================================================= #
-
-
-class PickleH5pyFile(LengthIter):
-    """
-    This class supports pickling and unpickling of a read-only
-    SWMR h5py file and corresponding dataset.
-
-    WARNING: this should probably not be used across multiple hosts?
-    """
-
-    def __init__(self, h5_path: str, h5_dataset_name: str):
-        self._h5_path = h5_path
-        self._h5_dataset_name = h5_dataset_name
-        self._hdf5_file, self._hdf5_data = self._make_hdf5()
-
-    def _make_hdf5(self):
-        # TODO: can this cause a memory leak if it is never closed?
-        hdf5_file = h5py.File(self._h5_path, 'r', swmr=True)
-        hdf5_data = hdf5_file[self._h5_dataset_name]
-        return hdf5_file, hdf5_data
-
-    def __len__(self):
-        return self._hdf5_data.shape[0]
-
-    def __getitem__(self, item):
-        return self._hdf5_data[item]
-
-    @property
-    def shape(self):
-        return self._hdf5_data.shape
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, error_type, error, traceback):
-        self.close()
-
-    # CUSTOM PICKLE HANDLING -- h5py files are not supported!
-    # https://docs.python.org/3/library/pickle.html#pickle-state
-    # https://docs.python.org/3/library/pickle.html#object.__getstate__
-    # https://docs.python.org/3/library/pickle.html#object.__setstate__
-    # TODO: this might duplicate in-memory stuffs.
-
-    def __getstate__(self):
-        state = self.__dict__.copy()
-        state.pop('_hdf5_file', None)
-        state.pop('_hdf5_data', None)
-        return state
-
-    def __setstate__(self, state):
-        self.__dict__.update(state)
-        self._hdf5_file, self._hdf5_data = self._make_hdf5()
-
-    def close(self):
-        self._hdf5_file.close()
-        del self._hdf5_file
-        del self._hdf5_data
 
 
 # ========================================================================= #
@@ -115,11 +52,15 @@ def hdf5_resave_dataset(inp_h5: h5py.File, out_h5: h5py.File, dataset_name, chun
     # check out_h5 version compatibility
     if (isinstance(out_h5.libver, str) and out_h5.libver != 'earliest') or (out_h5.libver[0] != 'earliest'):
         raise RuntimeError(f'hdf5 out file has an incompatible libver: {repr(out_h5.libver)} libver should be set to: "earliest"')
-    # create new dataset
+    # get existing dataset
     inp_data = inp_h5[dataset_name]
+    # get observation size
+    if obs_shape is None:
+        obs_shape = inp_data.shape[1:]
+    # create new dataset
     out_data = out_h5.create_dataset(
         name=dataset_name,
-        shape=inp_data.shape if (obs_shape is None) else (inp_data.shape[0], *obs_shape),
+        shape=(inp_data.shape[0], *obs_shape),
         dtype=out_dtype if (out_dtype is not None) else inp_data.dtype,
         chunks=chunk_size,
         compression=compression,
