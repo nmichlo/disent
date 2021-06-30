@@ -35,6 +35,8 @@ from disent.dataset.data import Hdf5Dataset
 from disent.dataset.data import XYSquaresData
 from disent.dataset.data import XYSquaresMinimalData
 from disent.dataset.util.hdf5 import hdf5_resave_file
+from disent.dataset.util.hdf5 import hdf5_test_entries_per_second
+from disent.dataset.util.hdf5 import hdf5_test_speed
 from disent.util.hashing import hash_file
 
 from tests.util import no_stderr
@@ -155,6 +157,15 @@ def test_hdf5_resave_dataset():
             with h5py.File(out_path, 'r') as out:
                 assert np.all(out['data'][...] == raw_data)
                 assert out['data'].chunks == (1, 4, 4, 3)
+
+
+def test_hdf5_speed_test():
+    with create_temp_h5data(chunks=(64, 4, 4, 3)) as (path, _):
+        hdf5_test_speed(path, dataset_name='data', access_method='random')
+    with create_temp_h5data(chunks=(1, 4, 4, 3)) as (path, _):
+        hdf5_test_speed(path, dataset_name='data', access_method='sequential')
+    with create_temp_h5data(chunks=None) as (path, _):
+        hdf5_test_speed(path, dataset_name='data', access_method='sequential')
 
 
 # ========================================================================= #
