@@ -1,8 +1,8 @@
 # @package _group_
-name: conv64
+name: norm_conv64
 weight_init: 'xavier_normal'
 encoder:
-  _target_: disent.model.ae.EncoderConv64Alt
+  _target_: disent.model.ae.EncoderConv64Norm
   x_shape: ${dataset.x_shape}
   z_size: ${model.z_size}
   z_multiplier: ${framework.model_z_multiplier}
@@ -18,6 +18,6 @@ decoder:
   norm_pre_act: ${model.norm_pre_act}
 
 # vars
-activation: leaky_relu  # leaky_relu, relu
+activation: swish  # leaky_relu, relu
 norm: layer  # batch, instance, layer, layer_chn, none
 norm_pre_act: TRUE

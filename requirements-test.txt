@@ -1,8 +1,2 @@
 pytest == 6.2.2
 pytest-cov == 2.11.1
-
-# requires torch to be installed first
-torchsort==0.1.4
-
-# weight scaled neural nets & conv layers
-nfnets-pytorch==0.1.3

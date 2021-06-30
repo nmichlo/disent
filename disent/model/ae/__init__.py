@@ -23,15 +23,11 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 # encoders & decoders
-from disent.model.ae._conv64 import DecoderConv64
-from disent.model.ae._conv64 import EncoderConv64
-from disent.model.ae._conv64norm import DecoderConv64Norm
-from disent.model.ae._conv64norm import EncoderConv64Norm
-from disent.model.ae._fc import DecoderFC
-from disent.model.ae._fc import EncoderFC
-from disent.model.ae._simpleconv64 import DecoderSimpleConv64
-from disent.model.ae._simpleconv64 import EncoderSimpleConv64
-from disent.model.ae._simplefc import DecoderSimpleFC
-from disent.model.ae._simplefc import EncoderSimpleFC
+from disent.model.ae._vae_conv64 import DecoderConv64
+from disent.model.ae._vae_conv64 import EncoderConv64
+from disent.model.ae._norm_conv64 import DecoderConv64Norm
+from disent.model.ae._norm_conv64 import EncoderConv64Norm
+from disent.model.ae._vae_fc import DecoderFC
+from disent.model.ae._vae_fc import EncoderFC
 from disent.model.ae._test import DecoderTest
 from disent.model.ae._test import EncoderTest

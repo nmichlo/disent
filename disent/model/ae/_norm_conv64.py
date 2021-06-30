@@ -22,6 +22,7 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import warnings
 from typing import Tuple
 
 from torch import nn
@@ -30,8 +31,6 @@ from torch import Tensor
 from disent.model import DisentDecoder
 from disent.model import DisentEncoder
 from disent.nn.activations import Swish
-from disent.nn.modules import BatchView
-from disent.nn.modules import Flatten3D
 
 
 # ========================================================================= #
@@ -51,12 +50,15 @@ class EncoderConv64Norm(DisentEncoder):
         assert (H, W) == (64, 64), 'This model only works with image size 64x64.'
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
+        # warnings
+        warnings.warn(f'this model: {self.__class__.__name__} is non-standard in VAE research!')
+
         self.model = nn.Sequential(
             nn.Conv2d(in_channels=C,  out_channels=32, kernel_size=4, stride=2, padding=2), *_make_activations(activation=activation, norm=norm, shape=(32, 33, 33), norm_pre_act=norm_pre_act),
             nn.Conv2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=2), *_make_activations(activation=activation, norm=norm, shape=(32, 17, 17), norm_pre_act=norm_pre_act),
             nn.Conv2d(in_channels=32, out_channels=64, kernel_size=2, stride=2, padding=1), *_make_activations(activation=activation, norm=norm, shape=(64,  9,  9), norm_pre_act=norm_pre_act),
             nn.Conv2d(in_channels=64, out_channels=64, kernel_size=2, stride=2, padding=1), *_make_activations(activation=activation, norm=norm, shape=(64,  5,  5), norm_pre_act=norm_pre_act),
-            Flatten3D(),
+            nn.Flatten(),
             nn.Linear(in_features=1600, out_features=256), *_make_activations(activation=activation, norm='none'),
             nn.Linear(in_features=256,  out_features=self.z_total),
         )
@@ -77,10 +79,13 @@ class DecoderConv64Norm(DisentDecoder):
         assert (H, W) == (64, 64), 'This model only works with image size 64x64.'
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
+        # warnings
+        warnings.warn(f'this model: {self.__class__.__name__} is non-standard in VAE research!')
+
         self.model = nn.Sequential(
             nn.Linear(in_features=self.z_size, out_features=256),  *_make_activations(activation=activation, norm='none'),
             nn.Linear(in_features=256,         out_features=1024), *_make_activations(activation=activation, norm='none'),
-            BatchView([64, 4, 4]),
+            nn.Unflatten(dim=1, unflattened_size=[64, 4, 4]),
             nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=4, stride=2, padding=1), *_make_activations(activation=activation, norm=norm, shape=(64,  8,  8), norm_pre_act=norm_pre_act),
             nn.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=4, stride=2, padding=1), *_make_activations(activation=activation, norm=norm, shape=(32, 16, 16), norm_pre_act=norm_pre_act),
             nn.ConvTranspose2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=1), *_make_activations(activation=activation, norm=norm, shape=(32, 32, 32), norm_pre_act=norm_pre_act),

@@ -29,7 +29,7 @@ from omegaconf import DictConfig
 
 from disent.dataset import DisentDataset
 from disent.nn.transform import DisentDatasetTransform
-from experiment.util.hydra_utils import instantiate_recursive
+from disent.util.config import instantiate_recursive
 
 
 # ========================================================================= #

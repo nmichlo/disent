@@ -22,54 +22,43 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from torch import nn
-from torch import Tensor
-
-from disent.model import DisentDecoder
-from disent.model import DisentEncoder
-from disent.nn.modules import BatchView
-from disent.nn.modules import Flatten3D
-
 
 # ========================================================================= #
-# simple fully connected models                                             #
+# Recursive Hydra Instantiation                                             #
+# TODO: use https://github.com/facebookresearch/hydra/pull/989              #
+#       I think this is quicker? Just doesn't perform checks...             #
 # ========================================================================= #
 
 
-class EncoderSimpleFC(DisentEncoder):
-    """
-    Custom Fully Connected Encoder.
-    """
+def call_recursive(config):
+    # import hydra
+    try:
+        import hydra
+        from omegaconf import DictConfig
+        from omegaconf import ListConfig
+    except ImportError:
+        raise ImportError('please install hydra-core for call_recursive/instantiate_recursive support')
+    # recurse
+    def _call_recursive(config):
+        if isinstance(config, (dict, DictConfig)):
+            c = {k: _call_recursive(v) for k, v in config.items() if k != '_target_'}
+            if '_target_' in config:
+                config = hydra.utils.instantiate({'_target_': config['_target_']}, **c)
+        elif isinstance(config, (tuple, list, ListConfig)):
+            config = [_call_recursive(v) for v in config]
+        return config
+    return _call_recursive(config)
 
-    def __init__(self, x_shape=(3, 64, 64), h_size1=128, h_size2=128, z_size=6, z_multiplier=1):
-        super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
-        self.model = nn.Sequential(
-            Flatten3D(),
-            nn.Linear(in_features=self.x_size, out_features=h_size1), nn.ReLU(True),
-            nn.Linear(in_features=h_size1,     out_features=h_size2), nn.ReLU(True),
-            nn.Linear(in_features=h_size2,     out_features=self.z_total)
-        )
 
-    def encode(self, x) -> (Tensor, Tensor):
-        return self.model(x)
+# export alias
+instantiate_recursive = call_recursive
 
 
-class DecoderSimpleFC(DisentDecoder):
-    """
-    Custom Fully Connected Decoder.
-    """
-
-    def __init__(self, x_shape=(3, 64, 64), h_size1=128, h_size2=128, z_size=6, z_multiplier=1):
-        super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
-        self.model = nn.Sequential(
-            nn.Linear(in_features=self.z_size, out_features=h_size2), nn.ReLU(True),
-            nn.Linear(in_features=h_size2,     out_features=h_size1), nn.ReLU(True),
-            nn.Linear(in_features=h_size1,     out_features=self.x_size),
-            BatchView(self.x_shape),
-        )
-
-    def decode(self, z):
-        return self.model(z)
+def instantiate_object_if_needed(config_or_object):
+    if isinstance(config_or_object, dict):
+        return instantiate_recursive(config_or_object)
+    else:
+        return config_or_object
 
 
 # ========================================================================= #
