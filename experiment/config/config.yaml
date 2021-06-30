@@ -1,8 +1,8 @@
 defaults:
   # experiment
   - framework: betavae
-  - model: conv64alt
-  - optimizer: radam
+  - model: vae_conv64
+  - optimizer: adam
   - dataset: xysquares  # allow framework to override settings here, but placing dataset before framework in defaults
   - augment: none
   - sampling: full_bb
@@ -26,9 +26,9 @@ job:
   seed: NULL
 
 framework:
-    beta: 0.003
+    beta: 0.001
     module:
-      recon_loss: mse4
+      recon_loss: mse
       loss_reduction: mean
     optional:
       latent_distribution: normal  # only used by VAEs
@@ -38,7 +38,7 @@ model:
   z_size: 25
 
 optimizer:
-  lr: 5e-4
+  lr: 1e-4
 
 # CUSTOM DEFAULTS SPECIALIZATION
 # - This key is deleted on load and the correct key on the root config is set similar to defaults.
