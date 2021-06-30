@@ -155,15 +155,15 @@ class SmallNorbData(DiskGroundTruthData):
         'info': DataFileHashedDl(uri='https://cs.nyu.edu/~ylclab/data/norb-v1.0-small/smallnorb-5x01235x9x18x6x2x96x96-testing-info.mat.gz', uri_hash={'fast': 'd2703a3f95e7b9a970ad52e91f0aaf6a', 'full': 'a9454f3864d7fd4bb3ea7fc3eb84924e'}),
     }
 
-    def __init__(self, data_root: Optional[str] = None, prepare: bool = False, is_test=False):
+    def __init__(self, data_root: Optional[str] = None, prepare: bool = False, is_test=False, transform=None):
         self._is_test = is_test
         # initialize
-        super().__init__(data_root=data_root, prepare=prepare)
+        super().__init__(data_root=data_root, prepare=prepare, transform=transform)
         # read dataset and sort by features
         dat_path, cat_path, info_path = (os.path.join(self.data_dir, obj.out_name) for obj in self.datafiles)
         self._data, _ = read_norb_dataset(dat_path=dat_path, cat_path=cat_path, info_path=info_path)
 
-    def __getitem__(self, idx):
+    def _get_observation(self, idx):
         return self._data[idx]
 
     @property

@@ -22,9 +22,11 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from typing import List, Tuple
-import numpy as np
+from typing import List
+from typing import Tuple
 
+import numpy as np
+from torch.utils.data import Dataset
 
 from disent.dataset.groundtruth._triplet import sample_radius
 from disent.util.iters import LengthIter
@@ -35,9 +37,11 @@ from disent.util.iters import LengthIter
 # ========================================================================= #
 
 
-class BaseOptionEpisodesData(LengthIter):
+class BaseOptionEpisodesData(Dataset, LengthIter):
 
-    def __init__(self):
+    def __init__(self, transform=None):
+        self._transform = transform
+        # load episodes
         self._episodes = self._load_episode_observations()
         assert len(self._episodes) > 0, 'There must be at least one episode!'
         # total length
@@ -50,8 +54,12 @@ class BaseOptionEpisodesData(LengthIter):
 
     def __getitem__(self, idx):
         # this can be slow!
+        # linear search is conducted!
         episode, idx, _ = self.get_episode_and_idx(idx)
-        return episode[idx]
+        obs = episode[idx]
+        if self._transform is not None:
+            obs = self._transform(obs)
+        return obs
 
     def get_episode_and_idx(self, idx) -> Tuple[np.ndarray, int, int]:
         assert idx >= 0, 'Negative indices are not supported.'

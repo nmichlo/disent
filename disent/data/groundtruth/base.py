@@ -30,6 +30,7 @@ from typing import Sequence
 from typing import Tuple
 
 import numpy as np
+from torch.utils.data import Dataset
 
 from disent.data.datafile import DataFile
 from disent.data.datafile import DataFileHashedDlH5
@@ -46,16 +47,17 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class GroundTruthData(StateSpace):
+class GroundTruthData(Dataset, StateSpace):
     """
     Dataset that corresponds to some state space or ground truth factors
     """
 
-    def __init__(self):
+    def __init__(self, transform=None):
         super().__init__(
             factor_sizes=self.factor_sizes,
             factor_names=self.factor_names,
         )
+        self._transform = transform
 
     @property
     def name(self):
@@ -90,8 +92,13 @@ class GroundTruthData(StateSpace):
         return shape[-1], *shape[:-1]
 
     def __getitem__(self, idx):
-        raise NotImplementedError
+        obs = self._get_observation(idx)
+        if self._transform is not None:
+            obs = self._transform(obs)
+        return obs
 
+    def _get_observation(self, idx):
+        raise NotImplementedError
 
 # ========================================================================= #
 # disk ground truth data                                                    #
@@ -107,8 +114,8 @@ class DiskGroundTruthData(GroundTruthData, metaclass=ABCMeta):
     - This directory can be
     """
 
-    def __init__(self, data_root: Optional[str] = None, prepare: bool = False):
-        super().__init__()
+    def __init__(self, data_root: Optional[str] = None, prepare: bool = False, transform=None):
+        super().__init__(transform=transform)
         # get root data folder
         if data_root is None:
             data_root = self.default_data_root
@@ -142,8 +149,8 @@ class NumpyGroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
     - if the dataset is contained in a key, set the `data_key` property
     """
 
-    def __init__(self, data_root: Optional[str] = None, prepare: bool = False):
-        super().__init__(data_root=data_root, prepare=prepare)
+    def __init__(self, data_root: Optional[str] = None, prepare: bool = False, transform=None):
+        super().__init__(data_root=data_root, prepare=prepare, transform=transform)
         # load dataset
         load_path = os.path.join(self.data_dir, self.datafile.out_name)
         if load_path.endswith('.gz'):
@@ -156,7 +163,7 @@ class NumpyGroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
         if self.data_key is not None:
             self._data = self._data[self.data_key]
 
-    def __getitem__(self, idx):
+    def _get_observation(self, idx):
         return self._data[idx]
 
     @property
@@ -180,8 +187,8 @@ class Hdf5GroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
       that points to the hdf5 dataset in the file to load.
     """
 
-    def __init__(self, data_root: Optional[str] = None, prepare: bool = False, in_memory=False):
-        super().__init__(data_root=data_root, prepare=prepare)
+    def __init__(self, data_root: Optional[str] = None, prepare: bool = False, in_memory=False, transform=None):
+        super().__init__(data_root=data_root, prepare=prepare, transform=transform)
         # variables
         self._in_memory = in_memory
         # load the h5py dataset
@@ -200,7 +207,7 @@ class Hdf5GroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
             # Load the dataset from the disk
             self._data = data
 
-    def __getitem__(self, idx):
+    def _get_observation(self, idx):
         return self._data[idx]
 
     @property

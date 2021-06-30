@@ -44,11 +44,11 @@ log = logging.getLogger(__name__)
 
 class OptionEpisodesPickledData(BaseOptionEpisodesData):
 
-    def __init__(self, required_file: str):
+    def __init__(self, required_file: str, transform=None):
         assert os.path.isabs(required_file), f'{required_file=} must be an absolute path.'
         self._required_file = required_file
         # load data
-        super().__init__()
+        super().__init__(transform=transform)
 
     # TODO: convert this to data files?
     # TODO: convert this to data files?
@@ -125,9 +125,9 @@ class OptionEpisodesDownloadZippedPickledData(OptionEpisodesPickledData):
     # TODO: convert this to data files?
     # TODO: convert this to data files?
 
-    def __init__(self, required_file: str, download_url=None, force_download=False):
+    def __init__(self, required_file: str, download_url=None, force_download=False, transform=None):
         self._download_and_extract_if_needed(download_url=download_url, required_file=required_file, force_download=force_download)
-        super().__init__(required_file=required_file)
+        super().__init__(required_file=required_file, transform=transform)
 
     def _download_and_extract_if_needed(self, download_url: str, required_file: str, force_download: bool):
         # TODO: this function should probably be moved to the io file.

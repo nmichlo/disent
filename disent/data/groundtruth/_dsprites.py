@@ -33,8 +33,6 @@ from disent.data.groundtruth.base import Hdf5GroundTruthData
 # ========================================================================= #
 
 
-
-
 class DSpritesData(Hdf5GroundTruthData):
     """
     DSprites Dataset

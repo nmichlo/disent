@@ -56,7 +56,7 @@ class Mpi3dData(NumpyGroundTruthData):
     factor_sizes = (4, 4, 2, 3, 3, 40, 40)  # TOTAL: 460800
     observation_shape = (64, 64, 3)
 
-    def __init__(self, data_root: Optional[str] = None, prepare: bool = False, subset='realistic', in_memory=False):
+    def __init__(self, data_root: Optional[str] = None, prepare: bool = False, subset='realistic', in_memory=False, transform=None):
         # check subset is correct
         assert subset in self.MPI3D_DATASETS, f'Invalid MPI3D subset: {repr(subset)} must be one of: {set(self.MPI3D_DATASETS.keys())}'
         self._subset = subset
@@ -66,7 +66,7 @@ class Mpi3dData(NumpyGroundTruthData):
         else:
             raise NotImplementedError('TODO: add support for converting to h5py for fast disk access')  # TODO!
         # initialise
-        super().__init__(data_root=data_root, prepare=prepare)
+        super().__init__(data_root=data_root, prepare=prepare, transform=transform)
 
     @property
     def datafile(self) -> DataFileHashedDl:

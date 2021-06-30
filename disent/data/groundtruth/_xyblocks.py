@@ -94,7 +94,7 @@ class XYBlocksData(GroundTruthData):
     def observation_shape(self) -> Tuple[int, ...]:
         return self._observation_shape
     
-    def __init__(self, grid_size=64, grid_levels=(1, 2, 3), rgb=True, palette='rgb', invert_bg=False):
+    def __init__(self, grid_size=64, grid_levels=(1, 2, 3), rgb=True, palette='rgb', invert_bg=False, transform=None):
         # colors
         self._rgb = rgb
         if palette != 'rgb':
@@ -129,9 +129,9 @@ class XYBlocksData(GroundTruthData):
         self._observation_shape = (grid_size, grid_size, 3 if self._rgb else 1)
         
         # initialise
-        super().__init__()
+        super().__init__(transform=transform)
 
-    def __getitem__(self, idx):
+    def _get_observation(self, idx):
         positions = self.idx_to_pos(idx)
         cs, xs, ys = positions[:self._grid_dims*1], positions[self._grid_dims*1:self._grid_dims*2], positions[self._grid_dims*2:]
         assert len(xs) == len(ys) == len(cs)

@@ -110,7 +110,7 @@ class XYObjectData(GroundTruthData):
     def observation_shape(self) -> Tuple[int, ...]:
         return self._width, self._width, (3 if self._rgb else 1)
 
-    def __init__(self, grid_size=64, grid_spacing=1, min_square_size=3, max_square_size=9, square_size_spacing=2, rgb=True, palette='colors'):
+    def __init__(self, grid_size=64, grid_spacing=1, min_square_size=3, max_square_size=9, square_size_spacing=2, rgb=True, palette='colors', transform=None):
         # generation
         self._rgb = rgb
         if rgb:
@@ -126,9 +126,9 @@ class XYObjectData(GroundTruthData):
         # x, y
         self._spacing = grid_spacing
         self._placements = (self._width - max_square_size) // grid_spacing + 1
-        super().__init__()
+        super().__init__(transform=transform)
     
-    def __getitem__(self, idx):
+    def _get_observation(self, idx):
         x, y, s, c = self.idx_to_pos(idx)
         s = self._square_scales[s]
         r = (self._max_square_size - s) // 2

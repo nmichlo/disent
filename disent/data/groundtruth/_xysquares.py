@@ -70,7 +70,7 @@ class XYSquaresMinimalData(GroundTruthData):
     def observation_shape(self) -> Tuple[int, ...]:
         return 64, 64, 3
 
-    def __getitem__(self, idx):
+    def _get_observation(self, idx):
         # get factors
         factors = np.reshape(np.unravel_index(idx, self.factor_sizes), (-1, 2))
         # GENERATE
@@ -122,6 +122,7 @@ class XYSquaresData(GroundTruthData):
         fill_value: Optional[Union[float, int]] = None,
         dtype: Union[np.dtype, str] = np.uint8,
         no_warnings: bool = False,
+        transform=None,
     ):
         """
         :param square_size: the size of the individual squares in pixels
@@ -175,9 +176,9 @@ class XYSquaresData(GroundTruthData):
         # center elements
         self._offset = (self._width - (self._square_size + (self._placements-1)*self._spacing)) // 2
         # initialise parents -- they depend on self.factors
-        super().__init__()
-    
-    def __getitem__(self, idx):
+        super().__init__(transform=transform)
+
+    def _get_observation(self, idx):
         # get factors
         factors = self.idx_to_pos(idx)
         offset, space, size = self._offset, self._spacing, self._square_size
