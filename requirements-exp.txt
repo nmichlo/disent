@@ -11,17 +11,17 @@
 # INPUT / OUTPUT
 # ================
 # psutil>=5.8.0
-# imageio>=2.9.0  # required for wandb video logging
-# moviepy>=1.0.3  # required for wandb video logging
+imageio>=2.9.0  # required for wandb video logging
+moviepy>=1.0.3  # required for wandb video logging
 
 # GRAPHING & DISPLAY
 # ==================
 matplotlib>=3.4.2
 # seaborn>=0.11.1
-# wandb>=0.10.32
+wandb>=0.10.32
 
 # UTILITY
 # =======
-# hydra-core==1.0.6
-# hydra-colorlog==1.0.1
-# hydra-submitit-launcher==1.1.1
+hydra-core==1.0.6
+hydra-colorlog==1.0.1
+hydra-submitit-launcher==1.1.1

@@ -67,11 +67,11 @@ class HydraDataModule(pl.LightningDataModule):
         data = dict(self.hparams.dataset.data)
         if 'in_memory' in data:
             del data['in_memory']
-        hydra.utils.instantiate(data)
+        instantiate_recursive(data)
 
     def setup(self, stage=None) -> None:
         # ground truth data
-        data = hydra.utils.instantiate(self.hparams.dataset.data)
+        data = instantiate_recursive(self.hparams.dataset.data)
         # Wrap the data for the framework some datasets need triplets, pairs, etc.
         # Augmentation is done inside the frameworks so that it can be done on the GPU, otherwise things are very slow.
         self.dataset_train_noaug = hydra.utils.instantiate(self.hparams.data_wrapper.wrapper, data, transform=self.data_transform, augment=None)

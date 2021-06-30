@@ -23,7 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import torch
-import torch_optimizer
 from torch.nn import functional as F
 
 from disent.nn.loss.reduction import batch_loss_reduction
@@ -46,7 +45,9 @@ def make_optimizer(model: torch.nn.Module, name: str = 'sgd', lr=1e-3, weight_de
     if   name == 'sgd':   return torch.optim.SGD(params,       lr=lr, weight_decay=weight_decay)
     elif name == 'sgd_m': return torch.optim.SGD(params,       lr=lr, weight_decay=weight_decay, momentum=0.1)
     elif name == 'adam':  return torch.optim.Adam(params,      lr=lr, weight_decay=weight_decay)
-    elif name == 'radam': return torch_optimizer.RAdam(params, lr=lr, weight_decay=weight_decay)
+    elif name == 'radam':
+        import torch_optimizer
+        return torch_optimizer.RAdam(params, lr=lr, weight_decay=weight_decay)
     else: raise KeyError(f'invalid optimizer name: {repr(name)}')
 
 
