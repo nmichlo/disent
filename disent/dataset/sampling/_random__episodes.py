@@ -37,6 +37,11 @@ class RandomEpisodeSampler(BaseDisentSampler):
     def __init__(self, num_samples=1, sample_radius=None):
         super().__init__(num_samples=num_samples)
         self._sample_radius = sample_radius
+        # checks
+        if sample_radius is not None:
+            if sample_radius >= 0:
+                if num_samples > sample_radius:
+                    raise RuntimeError(f'sample radius: {sample_radius} cannot be less than the number of requested samples: {num_samples}')
 
     def _init(self, dataset):
         assert isinstance(dataset, BaseEpisodesData), f'data ({type(dataset)}) is not an instance of {BaseEpisodesData}'
@@ -55,21 +60,25 @@ class RandomEpisodeSampler(BaseDisentSampler):
         # transform back to original indices
         return tuple(i + offset for i in indices)
 
-    @staticmethod
-    def sample_episode_indices(episode, idx, n=1, radius=None):
+    def sample_episode_indices(self, episode, idx, n=1, radius=None):
         # TODO: update this to use the same API
         #       as ground truth triplet and pair.
         # default value
         if radius is None:
             radius = len(episode)
         elif radius < 0:
+            # TODO: I think this is the same as None? radius > len(episode) makes no difference?
             radius = len(episode) + radius + 1
         assert n <= len(episode)
         assert n <= radius
         # sample values
-        indices = {idx}
-        while len(indices) < n:
+        attempts, indices = 0, {idx}
+        while (len(indices) < n) and (attempts < n * 100):
             indices.add(sample_radius_fn(idx, low=0, high=len(episode), r_low=0, r_high=radius))
+            attempts += 1
+        # checks
+        if len(indices) != n:
+            raise RuntimeError('consider increasing the radius')
         # sort indices from highest to lowest.
         # - anchor is the newest
         # - positive is close in the past

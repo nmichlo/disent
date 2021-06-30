@@ -48,13 +48,38 @@ class TestEpisodesData(BaseEpisodesData):
 @pytest.mark.parametrize(['dataset', 'num_samples', 'check_mode', 'sampler'], [
     [XYSquaresMinimalData(), 1, 'first', SingleSampler()],
     [XYSquaresMinimalData(), 1, 'first', GroundTruthSingleSampler()],
+
+    # original AdaVAE sampling method
+    [XYSquaresMinimalData(), 2, 'first', GroundTruthPairOrigSampler(p_k=1)],
+    [XYSquaresMinimalData(), 2, 'first', GroundTruthPairOrigSampler(p_k=2)],
+    [XYSquaresMinimalData(), 2, 'first', GroundTruthPairOrigSampler(p_k=-1)],
+
+    # TODO: consider removing the pair sampler... it is difficult to maintain and confusing
     [XYSquaresMinimalData(), 2, 'first', GroundTruthPairSampler()],
-    [XYSquaresMinimalData(), 2, 'first', GroundTruthPairOrigSampler()],
+
+    # TODO: consider removing the triplet sampler... it is difficult to maintain and confusing
     [XYSquaresMinimalData(), 3, 'first', GroundTruthTripleSampler()],
+    [XYSquaresMinimalData(), 3, 'first', GroundTruthTripleSampler(swap_metric='k')],
+    [XYSquaresMinimalData(), 3, 'first', GroundTruthTripleSampler(swap_metric='manhattan')],
+    [XYSquaresMinimalData(), 3, 'first', GroundTruthTripleSampler(swap_metric='manhattan_norm')],
+    [XYSquaresMinimalData(), 3, 'first', GroundTruthTripleSampler(swap_metric='euclidean')],
+    [XYSquaresMinimalData(), 3, 'first', GroundTruthTripleSampler(swap_metric='euclidean_norm')],
+    # [XYSquaresMinimalData(), 3, 'first', GroundTruthTripleSampler(n_k_sample_mode='offset')],  # TODO: these are broken
+    [XYSquaresMinimalData(), 3, 'first', GroundTruthTripleSampler(n_k_sample_mode='bounded_below')],
+    [XYSquaresMinimalData(), 3, 'first', GroundTruthTripleSampler(n_k_sample_mode='random')],
+    # [XYSquaresMinimalData(), 3, 'first', GroundTruthTripleSampler(n_radius_sample_mode='offset')],  # TODO: these are broken
+    [XYSquaresMinimalData(), 3, 'first', GroundTruthTripleSampler(n_radius_sample_mode='bounded_below')],
+    [XYSquaresMinimalData(), 3, 'first', GroundTruthTripleSampler(n_radius_sample_mode='random')],
 
     [XYSquaresMinimalData(), 1, 'first', GroundTruthDistSampler(num_samples=1)],
     [XYSquaresMinimalData(), 2, 'first', GroundTruthDistSampler(num_samples=2)],
     [XYSquaresMinimalData(), 3, 'first', GroundTruthDistSampler(num_samples=3)],
+    [XYSquaresMinimalData(), 3, 'first', GroundTruthDistSampler(num_samples=3, triplet_sample_mode='random')],
+    [XYSquaresMinimalData(), 3, 'first', GroundTruthDistSampler(num_samples=3, triplet_sample_mode='factors')],
+    [XYSquaresMinimalData(), 3, 'first', GroundTruthDistSampler(num_samples=3, triplet_sample_mode='manhattan')],
+    [XYSquaresMinimalData(), 3, 'first', GroundTruthDistSampler(num_samples=3, triplet_sample_mode='manhattan_scaled')],
+    [XYSquaresMinimalData(), 3, 'first', GroundTruthDistSampler(num_samples=3, triplet_sample_mode='combined')],
+    [XYSquaresMinimalData(), 3, 'first', GroundTruthDistSampler(num_samples=3, triplet_sample_mode='combined_scaled')],
 
     [XYSquaresMinimalData(), 1, 'first', RandomSampler(num_samples=1)],
     [XYSquaresMinimalData(), 2, 'first', RandomSampler(num_samples=2)],
@@ -63,6 +88,9 @@ class TestEpisodesData(BaseEpisodesData):
     [TestEpisodesData(), 1, 'any', RandomEpisodeSampler(num_samples=1)],
     [TestEpisodesData(), 2, 'any', RandomEpisodeSampler(num_samples=2)],
     [TestEpisodesData(), 3, 'any', RandomEpisodeSampler(num_samples=3)],
+    [TestEpisodesData(), 3, 'any', RandomEpisodeSampler(num_samples=3, sample_radius=3)],  # sample_radius >= num_samples
+    [TestEpisodesData(), 3, 'any', RandomEpisodeSampler(num_samples=3, sample_radius=4)],
+    [TestEpisodesData(), 3, 'any', RandomEpisodeSampler(num_samples=3, sample_radius=-1)],
 ])
 def test_samplers(dataset, num_samples: int, check_mode: Union[Literal['first'], Literal['any']], sampler: BaseDisentSampler):
     # check dataset

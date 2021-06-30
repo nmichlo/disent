@@ -98,7 +98,7 @@ def _sample_k_differing(factors, ground_truth_data: GroundTruthData, k=1):
     return factors, k
 
 
-def _sample_weak_pair_factors(gt_data: GroundTruthData):
+def _sample_weak_pair_factors(gt_data: GroundTruthData):  # pragma: no cover
     """
     Sample a weakly supervised pair from the given GroundTruthData.
       - Based on weak_dataset_generator() from:
