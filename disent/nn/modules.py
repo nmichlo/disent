@@ -51,33 +51,5 @@ class DisentLightningModule(pl.LightningModule):
 
 
 # ========================================================================= #
-# Utility Layers                                                            #
-# ========================================================================= #
-
-
-class BatchView(DisentModule):
-    # TODO: this is replaced in pytorch 1.9 with nn.Unflatten
-    def __init__(self, size):
-        super().__init__()
-        self._size = (-1, *size)
-    def forward(self, x):
-        return x.view(*self._size)
-
-
-class Unsqueeze3D(DisentModule):
-    # TODO: this is replaced in pytorch 1.9 with nn.Unflatten
-    def forward(self, x):
-        assert x.ndim == 2
-        return x.view(*x.shape, 1, 1)  # (B, N) -> (B, N, 1, 1)
-
-
-class Flatten3D(DisentModule):
-    # TODO: this is replaced in pytorch 1.9 with nn.Flatten
-    def forward(self, x):
-        assert x.ndim == 4
-        return x.view(x.shape[0], -1)  # (B, C, H, W) -> (B, C*H*W)
-
-
-# ========================================================================= #
 # END                                                                       #
 # ========================================================================= #

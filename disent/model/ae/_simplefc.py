@@ -27,8 +27,6 @@ from torch import Tensor
 
 from disent.model import DisentDecoder
 from disent.model import DisentEncoder
-from disent.nn.modules import BatchView
-from disent.nn.modules import Flatten3D
 
 
 # ========================================================================= #
@@ -44,7 +42,7 @@ class EncoderSimpleFC(DisentEncoder):
     def __init__(self, x_shape=(3, 64, 64), h_size1=128, h_size2=128, z_size=6, z_multiplier=1):
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
         self.model = nn.Sequential(
-            Flatten3D(),
+            nn.Flatten(),
             nn.Linear(in_features=self.x_size, out_features=h_size1), nn.ReLU(True),
             nn.Linear(in_features=h_size1,     out_features=h_size2), nn.ReLU(True),
             nn.Linear(in_features=h_size2,     out_features=self.z_total)
@@ -65,7 +63,7 @@ class DecoderSimpleFC(DisentDecoder):
             nn.Linear(in_features=self.z_size, out_features=h_size2), nn.ReLU(True),
             nn.Linear(in_features=h_size2,     out_features=h_size1), nn.ReLU(True),
             nn.Linear(in_features=h_size1,     out_features=self.x_size),
-            BatchView(self.x_shape),
+            nn.Unflatten(dim=1, unflattened_size=self.x_shape),
         )
 
     def decode(self, z):

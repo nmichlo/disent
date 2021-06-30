@@ -27,8 +27,6 @@ from torch import Tensor
 
 from disent.model import DisentDecoder
 from disent.model import DisentEncoder
-from disent.nn.modules import Flatten3D
-from disent.nn.modules import Unsqueeze3D
 
 
 # ========================================================================= #
@@ -55,7 +53,7 @@ class EncoderSimpleConv64(DisentEncoder):
             nn.Conv2d(in_channels=64,  out_channels=128, kernel_size=4, stride=2, padding=1), nn.ReLU(True),
             nn.Conv2d(in_channels=128, out_channels=256, kernel_size=4, stride=2, padding=1), nn.ReLU(True),
             nn.Conv2d(in_channels=256, out_channels=256, kernel_size=4, stride=2, padding=1), nn.ReLU(True),
-                Flatten3D(),
+                nn.Flatten(),
             nn.Linear(256, self.z_total)
         )
 
@@ -76,7 +74,7 @@ class DecoderSimpleConv64(DisentDecoder):
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
         self.model = nn.Sequential(
-            Unsqueeze3D(),
+            nn.Unflatten(dim=1, unflattened_size=[self.z_size, 1, 1]),
             nn.Conv2d(in_channels=self.z_size,  out_channels=256, kernel_size=1, stride=2), nn.ReLU(True),
             nn.ConvTranspose2d(in_channels=256, out_channels=256, kernel_size=4, stride=2, padding=1), nn.ReLU(True),
             nn.ConvTranspose2d(in_channels=256, out_channels=128, kernel_size=4, stride=2), nn.ReLU(True),
