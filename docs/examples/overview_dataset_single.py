@@ -1,7 +1,7 @@
 from torch.utils.data import Dataset
-from disent.data.groundtruth import GroundTruthData, XYSquaresData
+from disent.dataset.data.groundtruth import GroundTruthData, XYSquaresData
 from disent.dataset import DisentGroundTruthSamplingDataset
-from disent.dataset.groundtruth import GroundTruthSingleSampler
+from disent.dataset.samplers.groundtruth import GroundTruthSingleSampler
 
 
 data: GroundTruthData = XYSquaresData(square_size=1, image_size=2, num_squares=2)

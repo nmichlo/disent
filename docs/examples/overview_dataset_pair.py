@@ -1,7 +1,7 @@
 from torch.utils.data import Dataset
-from disent.data.groundtruth import GroundTruthData, XYSquaresData
+from disent.dataset.data.groundtruth import GroundTruthData, XYSquaresData
 from disent.dataset import DisentGroundTruthSamplingDataset
-from disent.dataset.groundtruth import GroundTruthPairSampler
+from disent.dataset.samplers.groundtruth import GroundTruthPairSampler
 from disent.nn.transform import ToStandardisedTensor
 
 

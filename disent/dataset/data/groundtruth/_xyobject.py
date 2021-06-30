@@ -26,7 +26,7 @@ from typing import Tuple
 
 import numpy as np
 
-from disent.data.groundtruth.base import GroundTruthData
+from disent.dataset.data.groundtruth.base import GroundTruthData
 
 
 # ========================================================================= #

@@ -25,8 +25,8 @@
 import logging
 from typing import Optional
 
-from disent.data.datafile import DataFileHashedDl
-from disent.data.groundtruth.base import NumpyGroundTruthData
+from disent.dataset.data.datafile import DataFileHashedDl
+from disent.dataset.data.groundtruth.base import NumpyGroundTruthData
 
 
 log = logging.getLogger(__name__)

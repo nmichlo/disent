@@ -27,7 +27,7 @@ import torch.utils.data
 import pytorch_lightning as pl
 from omegaconf import DictConfig
 
-from disent.dataset import DisentDataset
+from disent.dataset.samplers import DisentDataset
 from disent.nn.transform import DisentDatasetTransform
 from disent.util.config import instantiate_recursive
 

@@ -29,13 +29,13 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 import experiment.exp.util as H
-from disent.data.groundtruth import Cars3dData
-from disent.data.groundtruth import DSpritesData
-from disent.data.groundtruth import GroundTruthData
-from disent.data.groundtruth import Shapes3dData
-from disent.data.groundtruth import SmallNorbData
-from disent.data.groundtruth import XYSquaresData
-from disent.dataset.groundtruth import GroundTruthDataset
+from disent.dataset.data.groundtruth import Cars3dData
+from disent.dataset.data.groundtruth import DSpritesData
+from disent.dataset.data.groundtruth import GroundTruthData
+from disent.dataset.data.groundtruth import Shapes3dData
+from disent.dataset.data.groundtruth import SmallNorbData
+from disent.dataset.data.groundtruth import XYSquaresData
+from disent.dataset.samplers.groundtruth import GroundTruthDataset
 from disent.util.seeds import TempNumpySeed
 
 
@@ -152,5 +152,3 @@ if __name__ == '__main__':
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-
-

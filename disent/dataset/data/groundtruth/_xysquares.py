@@ -29,7 +29,7 @@ from typing import Union
 
 import numpy as np
 
-from disent.data.groundtruth.base import GroundTruthData
+from disent.dataset.data.groundtruth.base import GroundTruthData
 from disent.util.iters import iter_chunks
 
 

@@ -25,9 +25,9 @@
 import pytest
 import torch
 
-from disent.data.groundtruth import XYSquaresMinimalData
+from disent.dataset.data.groundtruth import XYSquaresMinimalData
 from disent.dataset import DisentGroundTruthSamplingDataset
-from disent.dataset.random import RandomSampler
+from disent.dataset.samplers.random import RandomSampler
 from disent.metrics import *
 from disent.nn.transform import ToStandardisedTensor
 from disent.util.function import wrapped_partial

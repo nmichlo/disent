@@ -32,10 +32,10 @@ from typing import Tuple
 import numpy as np
 from torch.utils.data import Dataset
 
-from disent.data.datafile import DataFile
-from disent.data.datafile import DataFileHashedDlH5
-from disent.data.dataset import Hdf5Dataset
-from disent.data.groundtruth.states import StateSpace
+from disent.dataset.data.datafile import DataFile
+from disent.dataset.data.datafile import DataFileHashedDlH5
+from disent.dataset.data.dataset import Hdf5Dataset
+from disent.dataset.data.groundtruth.states import StateSpace
 from disent.util.paths import ensure_dir_exists
 
 
@@ -53,11 +53,11 @@ class GroundTruthData(Dataset, StateSpace):
     """
 
     def __init__(self, transform=None):
+        self._transform = transform
         super().__init__(
             factor_sizes=self.factor_sizes,
             factor_names=self.factor_names,
         )
-        self._transform = transform
 
     @property
     def name(self):

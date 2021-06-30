@@ -22,10 +22,8 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from abc import abstractmethod
 from typing import final
 from typing import List
-from typing import Optional
 from typing import Tuple
 
 import numpy as np
@@ -33,7 +31,7 @@ from torch.utils.data import Dataset
 from torch.utils.data.dataloader import default_collate
 from torch.utils.data.dataset import T_co
 
-from disent.data.groundtruth import GroundTruthData
+from disent.dataset.data.groundtruth import GroundTruthData
 from disent.util.iters import LengthIter
 
 
@@ -92,21 +90,30 @@ class DisentSamplingDataset(Dataset, LengthIter):
     def dataset(self):
         return self._dataset
 
+    def __len__(self):
+        return len(self._dataset)
+
+    def __getitem__(self, idx) -> T_co:
+        idxs = self._sampler(idx)
+        return self.dataset_get_observation(*idxs)
+
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Single Datapoints                                                     #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def _datapoint_raw_to_target(self, x_targ):
-        # dat -> x_targ
+    def _datapoint_raw_to_target(self, dat):
+        x_targ = dat
         if self._transform is not None:
             x_targ = self._transform(x_targ)
         return x_targ
 
-    def _datapoint_target_to_input(self, x):
-        # x_targ -> x
+    def _datapoint_target_to_input(self, x_targ):
+        x = x_targ
         if self._augment is not None:
             x = self._augment(x)
-            x = _batch_to_observation(batch=x, obs_shape=x.shape)
+            # some augmentations may convert a (C, H, W) to (1, C, H, W), undo this change
+            # TODO: this should not be here! this should be handled by the user instead!
+            x = _batch_to_observation(batch=x, obs_shape=x_targ.shape)
         return x
 
     def dataset_get(self, idx, mode: str):
@@ -167,13 +174,6 @@ class DisentSamplingDataset(Dataset, LengthIter):
                 'x_targ': xs_targ,
             }
 
-    def __getitem__(self, idx) -> T_co:
-        idxs = self._sampler(idx)
-        return self.dataset_get_observation(*idxs)
-
-    def __len__(self):
-        return len(self._dataset)
-
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Batches                                                               #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -216,7 +216,9 @@ class DisentGroundTruthSamplingDataset(DisentSamplingDataset, GroundTruthData):
 
     def __init__(self, dataset, sampler: DisentSampler, transform=None, augment=None):
         assert isinstance(dataset, GroundTruthData), f'dataset is not an instance of {repr(GroundTruthData.__class__.__name__)}, got: {repr(dataset)}'
-        super().__init__(dataset, sampler, transform=transform, augment=augment)
+        # initialize parents -- this is a weird merge of classes, consider splitting this out?
+        DisentSamplingDataset.__init__(self, dataset, sampler, transform=transform, augment=augment)
+        GroundTruthData.__init__(self, transform=transform)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Single Datapoints                                                     #

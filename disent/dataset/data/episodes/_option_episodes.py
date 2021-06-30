@@ -29,7 +29,7 @@ from typing import Tuple
 
 import numpy as np
 
-from disent.data.episodes._base import BaseOptionEpisodesData
+from disent.dataset.data.episodes import BaseOptionEpisodesData
 from disent.util.in_out import download_file
 from disent.util.paths import filename_from_url
 

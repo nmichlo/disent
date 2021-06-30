@@ -29,7 +29,7 @@ import torch.nn.functional as F
 import torchvision
 import matplotlib.pyplot as plt
 
-from disent.data.groundtruth import Shapes3dData
+from disent.dataset.data.groundtruth import Shapes3dData
 from experiment.exp.util._data import AdversarialOptimizedData
 from experiment.exp.util._data import TransformDataset
 

@@ -31,8 +31,8 @@ from typing import Tuple
 
 import numpy as np
 
-from disent.data.datafile import DataFileHashedDl
-from disent.data.groundtruth.base import DiskGroundTruthData
+from disent.dataset.data.datafile import DataFileHashedDl
+from disent.dataset.data.groundtruth.base import DiskGroundTruthData
 
 
 # ========================================================================= #

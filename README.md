@@ -240,8 +240,8 @@ beta schedule and evaluates the trained model with various metrics.
 import pytorch_lightning as pl
 from torch.optim import Adam
 from torch.utils.data import DataLoader
-from disent.data.groundtruth import XYObjectData
-from disent.dataset.groundtruth import GroundTruthDataset
+from disent.dataset.data.groundtruth import XYObjectData
+from disent.dataset.samplers.groundtruth import GroundTruthDataset
 from disent.frameworks.vae import BetaVae
 from disent.metrics import metric_dci, metric_mig
 from disent.model.ae import EncoderConv64, DecoderConv64

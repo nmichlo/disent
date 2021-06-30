@@ -1,9 +1,9 @@
 import pytorch_lightning as pl
 from torch.optim import Adam
 from torch.utils.data import DataLoader
-from disent.data.groundtruth import XYObjectData
+from disent.dataset.data.groundtruth import XYObjectData
 from disent.dataset import DisentGroundTruthSamplingDataset
-from disent.dataset.groundtruth import GroundTruthSingleSampler
+from disent.dataset.samplers.groundtruth import GroundTruthSingleSampler
 from disent.frameworks.vae import BetaVae
 from disent.metrics import metric_dci, metric_mig
 from disent.model.ae import DecoderConv64, EncoderConv64

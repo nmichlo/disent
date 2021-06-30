@@ -22,6 +22,32 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from ._option_episodes import BaseOptionEpisodesData
-from ._option_episodes import OptionEpisodesPickledData
-from ._option_episodes import OptionEpisodesDownloadZippedPickledData
+import logging
+from disent.dataset.data.groundtruth.base import GroundTruthData
+from disent.dataset._base import DisentSampler
+
+
+log = logging.getLogger(__name__)
+
+
+# ========================================================================= #
+# Convert ground truth data to a dataset                                    #
+# ========================================================================= #
+
+
+class GroundTruthSingleSampler(DisentSampler):
+
+    def __init__(self):
+        super().__init__(num_samples=1)
+
+    def _init(self, dataset):
+        assert isinstance(dataset, GroundTruthData), f'dataset must be an instance of {repr(GroundTruthData.__class__.__name__)}, got: {repr(dataset)}'
+        self._data = dataset
+
+    def __call__(self, idx):
+        return (idx,)
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #

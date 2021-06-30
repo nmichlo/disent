@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 from torchvision import datasets
 from tqdm import tqdm
 
-from disent.dataset.random import RandomSampler
+from disent.dataset.samplers import RandomSampler
 from disent.frameworks.vae import AdaVae
 from disent.model.ae import DecoderConv64Norm, EncoderConv64Norm
 from disent.model import AutoEncoder

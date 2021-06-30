@@ -24,7 +24,7 @@
 
 import numpy as np
 
-from disent.data.groundtruth import GroundTruthData
+from disent.dataset.data.groundtruth import GroundTruthData
 from disent.dataset._base import DisentSampler
 
 

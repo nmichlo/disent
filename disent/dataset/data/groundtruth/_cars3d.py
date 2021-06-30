@@ -30,8 +30,8 @@ from tempfile import TemporaryDirectory
 import numpy as np
 from scipy.io import loadmat
 
-from disent.data.datafile import DataFileHashedDlGen
-from disent.data.groundtruth.base import NumpyGroundTruthData
+from disent.dataset.data.datafile import DataFileHashedDlGen
+from disent.dataset.data.groundtruth.base import NumpyGroundTruthData
 from disent.util.in_out import AtomicSaveFile
 
 

@@ -28,9 +28,9 @@ import torch
 from scipy.stats import gmean
 from scipy.stats import hmean
 
-from disent.data.groundtruth import XYSquaresData
+from disent.dataset.data.groundtruth import XYSquaresData
 from disent.dataset import DisentGroundTruthSamplingDataset
-from disent.dataset.random import RandomSampler
+from disent.dataset.samplers.random import RandomSampler
 from disent.nn.functional import torch_conv2d_channel_wise
 from disent.nn.functional import torch_conv2d_channel_wise_fft
 from disent.nn.functional import torch_corr_matrix

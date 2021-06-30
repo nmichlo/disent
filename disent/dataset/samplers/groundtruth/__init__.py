@@ -22,4 +22,8 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from ._random_dataset import RandomSampler
+from disent.dataset.samplers.groundtruth._single import GroundTruthSingleSampler
+from disent.dataset.samplers.groundtruth._pair import GroundTruthPairSampler
+from disent.dataset.samplers.groundtruth._pair_weak import GroundTruthOrigPairSampler
+from disent.dataset.samplers.groundtruth._triplet import GroundTruthTripleSampler
+from disent.dataset.samplers.groundtruth._random_dist import GroundTruthDistSampler

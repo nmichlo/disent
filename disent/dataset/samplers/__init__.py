@@ -21,9 +21,3 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-
-from disent.dataset._base import DisentSampler
-
-# wrappers
-from disent.dataset._base import DisentSamplingDataset
-from disent.dataset._base import DisentGroundTruthSamplingDataset

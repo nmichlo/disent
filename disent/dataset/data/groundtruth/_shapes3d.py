@@ -24,8 +24,8 @@
 
 import logging
 
-from disent.data.datafile import DataFileHashedDlH5
-from disent.data.groundtruth.base import Hdf5GroundTruthData
+from disent.dataset.data.datafile import DataFileHashedDlH5
+from disent.dataset.data.groundtruth.base import Hdf5GroundTruthData
 
 
 # ========================================================================= #

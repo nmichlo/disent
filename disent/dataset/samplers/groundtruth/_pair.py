@@ -23,9 +23,9 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import numpy as np
-from disent.data.groundtruth.base import GroundTruthData
+from disent.dataset.data.groundtruth.base import GroundTruthData
 from disent.dataset._base import DisentSampler
-from disent.dataset.groundtruth._triplet import sample_radius, normalise_range_pair, FactorSizeError
+from disent.dataset.samplers.groundtruth._triplet import sample_radius, normalise_range_pair, FactorSizeError
 
 
 # ========================================================================= #

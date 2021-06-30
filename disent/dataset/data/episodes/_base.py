@@ -28,7 +28,6 @@ from typing import Tuple
 import numpy as np
 from torch.utils.data import Dataset
 
-from disent.dataset.groundtruth._triplet import sample_radius
 from disent.util.iters import LengthIter
 
 

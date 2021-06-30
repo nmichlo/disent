@@ -1,9 +1,9 @@
 import pytorch_lightning as pl
 from torch.optim import Adam
 from torch.utils.data import DataLoader, Dataset
-from disent.data.groundtruth import GroundTruthData, XYSquaresData
+from disent.dataset.data.groundtruth import GroundTruthData, XYSquaresData
 from disent.dataset import DisentGroundTruthSamplingDataset
-from disent.dataset.groundtruth import GroundTruthOrigPairSampler
+from disent.dataset.samplers.groundtruth import GroundTruthOrigPairSampler
 from disent.frameworks.vae import AdaVae
 from disent.model.ae import DecoderConv64, EncoderConv64
 from disent.model import AutoEncoder

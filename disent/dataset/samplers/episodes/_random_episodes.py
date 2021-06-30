@@ -22,9 +22,9 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from disent.data.episodes import BaseOptionEpisodesData
+from disent.dataset.data.episodes import BaseOptionEpisodesData
 from disent.dataset._base import DisentSampler
-from disent.dataset.groundtruth._triplet import sample_radius as sample_radius_fn
+from disent.dataset.samplers.groundtruth._triplet import sample_radius as sample_radius_fn
 
 
 # ========================================================================= #

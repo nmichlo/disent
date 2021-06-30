@@ -22,32 +22,14 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-import logging
-from disent.data.groundtruth.base import GroundTruthData
-from disent.dataset._base import DisentSampler
+from disent.dataset.data.groundtruth.base import GroundTruthData
 
-
-log = logging.getLogger(__name__)
-
-
-# ========================================================================= #
-# Convert ground truth data to a dataset                                    #
-# ========================================================================= #
-
-
-class GroundTruthSingleSampler(DisentSampler):
-
-    def __init__(self):
-        super().__init__(num_samples=1)
-
-    def _init(self, dataset):
-        assert isinstance(dataset, GroundTruthData), f'dataset must be an instance of {repr(GroundTruthData.__class__.__name__)}, got: {repr(dataset)}'
-        self._data = dataset
-
-    def __call__(self, idx):
-        return (idx,)
-
-
-# ========================================================================= #
-# END                                                                       #
-# ========================================================================= #
+# others
+from disent.dataset.data.groundtruth._cars3d import Cars3dData
+from disent.dataset.data.groundtruth._dsprites import DSpritesData
+from disent.dataset.data.groundtruth._mpi3d import Mpi3dData
+from disent.dataset.data.groundtruth._norb import SmallNorbData
+from disent.dataset.data.groundtruth._shapes3d import Shapes3dData
+from disent.dataset.data.groundtruth._xyobject import XYObjectData
+from disent.dataset.data.groundtruth._xysquares import XYSquaresData, XYSquaresMinimalData
+from disent.dataset.data.groundtruth._xyblocks import XYBlocksData
