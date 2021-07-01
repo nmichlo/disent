@@ -111,7 +111,7 @@ def test_samplers(dataset, num_samples: int, check_mode: Union[Literal['first'],
             assert i == indices[0]
         elif check_mode == 'any':
             assert i in indices
-        else:
+        else:  # pragma: no cover
             raise RuntimeError('test mode is invalid!')
     # check indices
     check_samples(0)
