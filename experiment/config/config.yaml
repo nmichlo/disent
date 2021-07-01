@@ -12,7 +12,7 @@ defaults:
   - run_length: long
   - run_location: cluster_many
   - run_callbacks: vis_slow
-  - run_logging: wandb
+  - run_logging: none
   # plugins
   - hydra/job_logging: colorlog
   - hydra/hydra_logging: colorlog
