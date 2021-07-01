@@ -10,5 +10,5 @@ module:
   ada_thresh_ratio: 0.5
 
 # settings used elsewhere
-data_wrap_mode: pair
+data_sample_mode: pair
 model_z_multiplier: 1

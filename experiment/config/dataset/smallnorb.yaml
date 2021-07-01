@@ -1,7 +1,7 @@
 # @package _group_
 name: smallnorb
 data:
-  _target_: disent.data.groundtruth.SmallNorbData
+  _target_: disent.dataset.data.SmallNorbData
   data_root: ${dataset.data_root}
   prepare: True
   is_test: False

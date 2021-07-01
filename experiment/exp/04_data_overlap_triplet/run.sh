@@ -26,7 +26,7 @@
 #    run_length=medium \
 #    model.z_size=25 \
 #    \
-#    specializations.data_wrapper='gt_dist_${framework.data_wrap_mode}' \
+#    specializations.dataset_sampler='gt_dist_${framework.data_sample_mode}' \
 #    schedule=adavae_up_all,adavae_up_ratio,none \
 #    sampling=gt_dist_manhat \
 #    sampling.triplet_swap_chance=0 \

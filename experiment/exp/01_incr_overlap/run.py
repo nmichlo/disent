@@ -24,7 +24,7 @@
 
 
 import numpy as np
-from disent.data.groundtruth import XYSquaresData
+from disent.dataset.data.groundtruth import XYSquaresData
 
 
 class XYSquaresSampler(XYSquaresData):
@@ -70,5 +70,3 @@ if __name__ == '__main__':
         ss, gs = 8, 8-i
         d = XYSquaresSampler(square_size=ss, grid_spacing=gs, max_placements=None, no_warnings=True)
         print('ss={:2d} gs={:1d} overlap={:7.4f} delta={:7.4f}'.format(ss, gs, d.sample_1d_overlap(size=1_000_000).mean(), d.sample_1d_delta(size=1_000_000).mean()))
-
-

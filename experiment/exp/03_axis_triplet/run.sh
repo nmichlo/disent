@@ -31,7 +31,7 @@ submit_sweep \
     framework.module.triplet_scale=0.1 \
     framework.module.triplet_p=1 \
     sampling=gt_dist_manhat \
-    specializations.data_wrapper='gt_dist_${framework.data_wrap_mode}' \
+    specializations.data_wrapper='gt_dist_${framework.data_sample_mode}' \
     \
     model.z_size=25,9 \
     \

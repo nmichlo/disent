@@ -1,5 +1,0 @@
-# @package _global_
-sampling:
-  name: dist_combined
-  triplet_sample_mode: "combined" # random, factors, manhattan, manhattan_scaled, combined, combined_scaled
-  triplet_swap_chance: 0

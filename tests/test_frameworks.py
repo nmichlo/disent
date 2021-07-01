@@ -30,17 +30,18 @@ import pytorch_lightning as pl
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 
-from disent.data.groundtruth import XYObjectData
-from disent.dataset.groundtruth import GroundTruthDataset
-from disent.dataset.groundtruth import GroundTruthDatasetPairs
-from disent.dataset.groundtruth import GroundTruthDatasetTriples
+from disent.dataset.data import XYObjectData
+from disent.dataset import DisentDataset
+from disent.dataset.sampling import GroundTruthSingleSampler
+from disent.dataset.sampling import GroundTruthPairSampler
+from disent.dataset.sampling import GroundTruthTripleSampler
 from disent.frameworks.ae import *
 from disent.frameworks.ae.experimental import *
 from disent.frameworks.vae import *
 from disent.frameworks.vae.experimental import *
 from disent.model import AutoEncoder
-from disent.model.ae import DecoderConv64
-from disent.model.ae import EncoderConv64
+from disent.model.ae import DecoderTest
+from disent.model.ae import EncoderTest
 from disent.nn.transform import ToStandardisedTensor
 
 
@@ -93,21 +94,21 @@ from disent.nn.transform import ToStandardisedTensor
     (AdaAveTripletVae,     dict(adat_share_mask_mode='sample_each'),                                    XYObjectData),
 ])
 def test_frameworks(Framework, cfg_kwargs, Data):
-    DataWrapper = {
-        1: GroundTruthDataset,
-        2: GroundTruthDatasetPairs,
-        3: GroundTruthDatasetTriples,
+    DataSampler = {
+        1: GroundTruthSingleSampler,
+        2: GroundTruthPairSampler,
+        3: GroundTruthTripleSampler,
     }[Framework.REQUIRED_OBS]
 
     data = XYObjectData() if (Data is None) else Data()
-    dataset = DataWrapper(data, transform=ToStandardisedTensor())
+    dataset = DisentDataset(data, DataSampler(), transform=ToStandardisedTensor())
     dataloader = DataLoader(dataset=dataset, batch_size=4, shuffle=True)
 
     framework = Framework(
         make_optimizer_fn=lambda params: Adam(params, lr=1e-3),
         make_model_fn=lambda: AutoEncoder(
-            encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2 if issubclass(Framework, Vae) else 1),
-            decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
+            encoder=EncoderTest(x_shape=data.x_shape, z_size=6, z_multiplier=2 if issubclass(Framework, Vae) else 1),
+            decoder=DecoderTest(x_shape=data.x_shape, z_size=6),
         ),
         cfg=Framework.cfg(**cfg_kwargs)
     )

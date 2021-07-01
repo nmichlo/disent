@@ -37,7 +37,7 @@ submit_sweep \
     run_length=short \
     model.z_size=25 \
     \
-    specializations.data_wrapper='gt_dist_${framework.data_wrap_mode}' \
+    specializations.data_wrapper='gt_dist_${framework.data_sample_mode}' \
     schedule=adavae_up_all,adavae_up_ratio,adavae_up_thresh \
     sampling=gt_dist_manhat \
     sampling.triplet_swap_chance=0 \
@@ -83,7 +83,7 @@ submit_sweep \
 #    run_length=short \
 #    model.z_size=25 \
 #    \
-#    specializations.data_wrapper='gt_dist_${framework.data_wrap_mode}' \
+#    specializations.dataset_sampler='gt_dist_${framework.data_sample_mode}' \
 #    schedule=adavae_all,adavae_thresh,adavae_ratio \
 #    sampling=gt_dist_manhat \
 #    sampling.triplet_swap_chance=0 \

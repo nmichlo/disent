@@ -26,8 +26,8 @@ from typing import Tuple
 
 import numpy as np
 
-from disent.data.dataset import Hdf5Dataset
-from disent.data.groundtruth import GroundTruthData
+from disent.dataset.data._raw import Hdf5Dataset
+from disent.dataset.data.groundtruth import GroundTruthData
 
 
 class TransformDataset(GroundTruthData):

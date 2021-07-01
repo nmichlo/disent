@@ -29,7 +29,7 @@ import numpy as np
 import torch
 from torch.utils.data.dataloader import default_collate
 
-from disent.dataset.groundtruth import GroundTruthDataset
+from disent.dataset import DisentDataset
 from disent.metrics._flatness import encode_all_along_factor
 from disent.metrics._flatness import encode_all_factors
 from disent.metrics._flatness import filter_inactive_factors
@@ -48,7 +48,7 @@ log = logging.getLogger(__name__)
 
 
 def metric_flatness_components(
-        ground_truth_dataset: GroundTruthDataset,
+        ground_truth_dataset: DisentDataset,
         representation_function: callable,
         factor_repeats: int = 1024,
         batch_size: int = 64,
@@ -71,7 +71,7 @@ def metric_flatness_components(
 
     results = {}
     for k, v in fs_measures.items():
-        results[f'flatness_components.{k}'] = float(filtered_mean(v, p='geometric', factor_sizes=ground_truth_dataset.factor_sizes))
+        results[f'flatness_components.{k}'] = float(filtered_mean(v, p='geometric', factor_sizes=ground_truth_dataset.ground_truth_data.factor_sizes))
     for k, v in ran_measures.items():
         results[f'flatness_components.{k}'] = float(v.mean(dim=0))
 
@@ -93,7 +93,7 @@ def filtered_mean(values, p, factor_sizes):
 
 
 def aggregate_measure_distances_along_all_factors(
-        ground_truth_dataset,
+        ground_truth_dataset: DisentDataset,
         representation_function,
         repeats: int,
         batch_size: int,
@@ -103,16 +103,16 @@ def aggregate_measure_distances_along_all_factors(
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     fs_measures = default_collate([
         aggregate_measure_distances_along_factor(ground_truth_dataset, representation_function, f_idx=f_idx, repeats=repeats, batch_size=batch_size)
-        for f_idx in range(ground_truth_dataset.num_factors)
+        for f_idx in range(ground_truth_dataset.ground_truth_data.num_factors)
     ])
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     # COMPUTE RANDOM SWAP RATIO
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     values = []
-    num_samples = int(np.mean(ground_truth_dataset.factor_sizes) * repeats)
+    num_samples = int(np.mean(ground_truth_dataset.ground_truth_data.factor_sizes) * repeats)
     for idxs in iter_chunks(range(num_samples), batch_size):
         # encode factors
-        factors = ground_truth_dataset.sample_factors(size=len(idxs))
+        factors = ground_truth_dataset.ground_truth_data.sample_factors(size=len(idxs))
         zs = encode_all_factors(ground_truth_dataset, representation_function, factors, batch_size=batch_size)
         # get random triplets from factors
         rai, rpi, rni = np.random.randint(0, len(factors), size=(3, len(factors) * 4))
@@ -221,7 +221,7 @@ def compute_linear_score(zs_traversal: torch.Tensor, use_std: bool = True, use_m
 
 
 def aggregate_measure_distances_along_factor(
-        ground_truth_dataset,
+        ground_truth_dataset: DisentDataset,
         representation_function,
         f_idx: int,
         repeats: int,

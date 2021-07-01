@@ -19,5 +19,5 @@ module:
   lambda_od: 0.5  # off diagonal weight
 
 # settings used elsewhere
-data_wrap_mode: single
+data_sample_mode: single
 model_z_multiplier: 2

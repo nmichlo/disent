@@ -29,6 +29,7 @@ import logging
 import numpy as np
 import scipy
 
+from disent.dataset import DisentDataset
 from disent.metrics import utils
 
 log = logging.getLogger(__name__)
@@ -40,7 +41,7 @@ log = logging.getLogger(__name__)
 
 
 def metric_unsupervised(
-        ground_truth_data,
+        ground_truth_data: DisentDataset,
         representation_function,
         num_train=10000,
         batch_size=16

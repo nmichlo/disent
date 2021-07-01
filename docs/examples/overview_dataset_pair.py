@@ -1,12 +1,14 @@
-from torch.utils.data import Dataset
-from disent.data.groundtruth import GroundTruthData, XYSquaresData
-from disent.dataset.groundtruth import GroundTruthDatasetPairs
+from disent.dataset import DisentDataset
+from disent.dataset.data import XYSquaresData
+from disent.dataset.sampling import GroundTruthPairOrigSampler
 from disent.nn.transform import ToStandardisedTensor
 
 
-data: GroundTruthData = XYSquaresData(square_size=1, image_size=2, num_squares=2)
-dataset: Dataset = GroundTruthDatasetPairs(data, transform=ToStandardisedTensor(), augment=None)
+# prepare the data
+data = XYSquaresData(square_size=1, image_size=2, num_squares=2)
+dataset = DisentDataset(data, sampler=GroundTruthPairOrigSampler(), transform=ToStandardisedTensor())
 
+# iterate over single epoch
 for obs in dataset:
     # singles are contained in tuples of size 1 for compatibility with pairs with size 2
     (x0, x1) = obs['x_targ']

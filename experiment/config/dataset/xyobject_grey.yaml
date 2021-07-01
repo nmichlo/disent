@@ -1,7 +1,7 @@
 # @package _group_
 name: xyobject_grey
 data:
-  _target_: disent.data.groundtruth.XYObjectData
+  _target_: disent.dataset.data.XYObjectData
   grid_size: 64
   grid_spacing: 1
   min_square_size: 3

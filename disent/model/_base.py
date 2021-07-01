@@ -40,6 +40,12 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
+# TODO: vae models should be implemented here!
+#       models should potentially output distributions!
+#       - but how do we handle mixmatch of stuff in frameworks?
+#       - can the framework detect if the output is a distribution or not and handle accordingly?
+
+
 class DisentLatentsModule(DisentModule):
 
     def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
@@ -68,15 +74,6 @@ class DisentLatentsModule(DisentModule):
     def z_total(self):
         return self._z_size * self._z_multiplier
 
-    def assert_x_valid(self, x):
-        assert x.ndim == 4
-        assert x.shape[1:] == self.x_shape, f'X shape mismatch. Required: {self.x_shape} Got: {x.shape[1:]}'
-    def assert_z_valid(self, z):
-        assert z.ndim == 2
-        assert z.shape[1] == self.z_total, f'Z size mismatch. Required: {self.z_size} (x{self.z_multiplier}) = {self.z_total} Got: {z.shape[1]}'
-    def assert_lengths(self, x, z):
-        assert len(x) == len(z)
-
 
 # ========================================================================= #
 # Base Encoder & Base Decoder                                               #
@@ -86,17 +83,20 @@ class DisentLatentsModule(DisentModule):
 class DisentEncoder(DisentLatentsModule):
 
     @final
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x, chunk=True) -> torch.Tensor:
         """same as self.encode but with size checks"""
-        self.assert_x_valid(x)
+        # checks
+        assert x.ndim == 4
+        assert x.shape[1:] == self.x_shape
         # encode | p(z|x)
         # for a gaussian encoder, we treat z as concat(z_mean, z_logvar) where z_mean.shape == z_logvar.shape
         # ie. the first half of z is z_mean, the second half of z is z_logvar
         z = self.encode(x)
         # checks
-        self.assert_z_valid(z)
-        self.assert_lengths(x, z)
-        # return
+        assert z.shape == (x.size(0), self.z_total)
+        if chunk:
+            z = z.split(self.z_size, dim=-1)
+            assert all(s.size(1) == self.z_size for s in z)
         return z
 
     def encode(self, x) -> torch.Tensor:
@@ -112,13 +112,13 @@ class DisentDecoder(DisentLatentsModule):
     @final
     def forward(self, z):
         """same as self.decode but with size checks"""
-        self.assert_z_valid(z)
+        # checks
+        assert z.ndim == 2
+        assert z.size(1) == self.z_size
         # decode | p(x|z)
         x_recon = self.decode(z)
-        # checks
-        self.assert_x_valid(x_recon)
-        self.assert_lengths(x_recon, z)
         # return
+        assert x_recon.shape == (z.size(0), *self.x_shape)
         return x_recon
 
     def decode(self, z) -> torch.Tensor:
@@ -148,18 +148,9 @@ class AutoEncoder(DisentLatentsModule):
     def forward(self, x):
         raise RuntimeError('This has been disabled')
 
-    def encode(self, x):
-        z_raw = self._encoder(x)
-        # extract components if necessary
-        if self._z_multiplier == 1:
-            return z_raw
-        else:
-            # TODO: we should not chunk things here! rather in the actual framework
-            # checks
-            B, Z = z_raw.shape
-            assert Z / self.z_size == self._z_multiplier
-            # split into type: Tuple[torch.Tensor, ...]
-            return torch.chunk(z_raw, chunks=2, dim=-1)
+    def encode(self, x, chunk=False):
+        z_raw = self._encoder(x, chunk=chunk)
+        return z_raw
 
     def decode(self, z: torch.Tensor) -> torch.Tensor:
         """

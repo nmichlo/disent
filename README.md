@@ -240,8 +240,8 @@ beta schedule and evaluates the trained model with various metrics.
 import pytorch_lightning as pl
 from torch.optim import Adam
 from torch.utils.data import DataLoader
-from disent.data.groundtruth import XYObjectData
-from disent.dataset.groundtruth import GroundTruthDataset
+from disent.dataset.data.groundtruth import XYObjectData
+from disent.dataset.sampling.groundtruth import GroundTruthDataset
 from disent.frameworks.vae import BetaVae
 from disent.metrics import metric_dci, metric_mig
 from disent.model.ae import EncoderConv64, DecoderConv64
@@ -253,6 +253,7 @@ from disent.schedule import CyclicSchedule
 # You can remove all references to this in your own code.
 from disent.util import is_test_run
 
+
 # create the dataset & dataloaders
 # - ToStandardisedTensor transforms images from numpy arrays to tensors and performs checks
 data = XYObjectData()
@@ -262,21 +263,23 @@ dataloader = DataLoader(dataset=dataset, batch_size=4, shuffle=True)
 # create the BetaVAE model
 # - adjusting the beta, learning rate, and representation size.
 module = BetaVae(
-    make_optimizer_fn=lambda params: Adam(params, lr=5e-4),
-    make_model_fn=lambda: AutoEncoder(
-        # z_multiplier is needed to output mu & logvar when parameterising normal distribution
-        encoder=EncoderConv64(x_shape=dataset.x_shape, z_size=6, z_multiplier=2),
-        decoder=DecoderConv64(x_shape=dataset.x_shape, z_size=6),
-    ),
-    cfg=BetaVae.cfg(beta=0.004)
+  make_optimizer_fn=lambda params: Adam(params, lr=5e-4),
+  make_model_fn=lambda: AutoEncoder(
+    # z_multiplier is needed to output mu & logvar when parameterising normal distribution
+    encoder=EncoderConv64(x_shape=dataset.x_shape, z_size=6, z_multiplier=2),
+    decoder=DecoderConv64(x_shape=dataset.x_shape, z_size=6),
+  ),
+  cfg=BetaVae.cfg(beta=0.004)
 )
 
 # cyclic schedule for target 'beta' in the config/cfg. The initial value from the
 # config is saved and multiplied by the ratio from the schedule on each step.
 # - based on: https://arxiv.org/abs/1903.10145
-module.register_schedule('beta', CyclicSchedule(
+module.register_schedule(
+  'beta', CyclicSchedule(
     period=1024,  # repeat every: trainer.global_step % period
-))
+  )
+)
 
 # train model
 # - for 65536 batches/steps
@@ -289,8 +292,10 @@ trainer.fit(module, dataloader)
 get_repr = lambda x: module.encode(x.to(module.device))
 
 metrics = {
-    **metric_dci(dataset, get_repr, num_train=10 if is_test_run() else 1000, num_test=5 if is_test_run() else 500, show_progress=True),
-    **metric_mig(dataset, get_repr, num_train=20 if is_test_run() else 2000),
+  **metric_dci(
+    dataset, get_repr, num_train=10 if is_test_run() else 1000, num_test=5 if is_test_run() else 500, show_progress=True
+  ),
+  **metric_mig(dataset, get_repr, num_train=20 if is_test_run() else 2000),
 }
 
 # evaluate

@@ -1,4 +1,4 @@
-from disent.data.groundtruth import XYSquaresData
+from disent.dataset.data import XYSquaresData
 
 data = XYSquaresData(square_size=1, image_size=2, num_squares=2)
 

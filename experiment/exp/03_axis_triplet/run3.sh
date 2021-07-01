@@ -36,7 +36,7 @@ clog_cudaless_nodes "$PARTITION" 86400 "C-disent" # 24 hours
 #    framework.module.triplet_margin_max=1.0 \
 #    framework.module.triplet_scale=0.1 \
 #    framework.module.triplet_p=1 \
-#    specializations.data_wrapper='gt_dist_${framework.data_wrap_mode}' \
+#    specializations.dataset_sampler='gt_dist_${framework.data_sample_mode}' \
 #    sampling=gt_dist_manhat,gt_dist_manhat_scaled \
 #    \
 #    framework.module.thresh_ratio=0.5 \
@@ -57,7 +57,7 @@ submit_sweep \
     run_length=medium \
     model.z_size=25 \
     \
-    specializations.data_wrapper='gt_dist_${framework.data_wrap_mode}' \
+    specializations.data_wrapper='gt_dist_${framework.data_sample_mode}' \
     sampling=gt_dist_manhat_scaled,gt_dist_manhat \
     schedule=adavae_all,adavae_thresh,adavae_ratio \
     sampling.triplet_swap_chance=0,0.1 \

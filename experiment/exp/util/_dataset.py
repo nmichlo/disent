@@ -22,7 +22,6 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-import os
 from numbers import Number
 from typing import List
 from typing import Optional
@@ -36,12 +35,12 @@ import torch
 from torch.utils.data import BatchSampler
 from torch.utils.data import Sampler
 
-from disent.data.groundtruth import Cars3dData
-from disent.data.groundtruth import GroundTruthData
-from disent.data.groundtruth import Shapes3dData
-from disent.data.groundtruth import XYSquaresData
-from disent.dataset.groundtruth import GroundTruthDataset
-from disent.dataset.groundtruth import GroundTruthDatasetAndFactors
+from disent.dataset.data.groundtruth import Cars3dData
+from disent.dataset.data.groundtruth import GroundTruthData
+from disent.dataset.data.groundtruth import Shapes3dData
+from disent.dataset.data.groundtruth import XYSquaresData
+from disent.dataset.sampling.groundtruth import GroundTruthDataset
+from disent.dataset.sampling.groundtruth import GroundTruthDatasetAndFactors
 from disent.nn.transform import ToStandardisedTensor
 from disent.util.seeds import TempNumpySeed
 from disent.visualize.visualize_util import make_animated_image_grid

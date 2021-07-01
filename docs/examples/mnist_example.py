@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 from torchvision import datasets
 from tqdm import tqdm
 
-from disent.dataset.random import RandomDataset
+from disent.dataset.sampling import RandomSampler
 from disent.frameworks.vae import AdaVae
 from disent.model.ae import DecoderConv64Norm, EncoderConv64Norm
 from disent.model import AutoEncoder
@@ -24,7 +24,7 @@ class MNIST(datasets.MNIST, Sequence):
 
 # make mnist dataset -- adjust num_samples here to match framework. TODO: add tests that can fail with a warning -- dataset downloading is not always reliable
 data_folder   = os.path.abspath(os.path.join(__file__, '../data/dataset'))
-dataset_train = RandomDataset(MNIST(data_folder, train=True,  download=True, transform=ToStandardisedTensor(size=64)), num_samples=2)
+dataset_train = RandomSampler(MNIST(data_folder, train=True,  download=True, transform=ToStandardisedTensor(size=64)), num_samples=2)
 dataset_test  =               MNIST(data_folder, train=False, download=True, transform=ToStandardisedTensor(size=64))
 
 # create the dataloaders

@@ -35,7 +35,7 @@ from pytorch_lightning.trainer.supporters import CombinedLoader
 import disent.metrics
 import disent.util.colors as c
 from disent.dataset import DisentDataset
-from disent.dataset.groundtruth import GroundTruthDataset
+from disent.dataset.data import GroundTruthData
 from disent.frameworks.ae import Ae
 from disent.frameworks.vae import Vae
 from disent.util.iters import iter_chunks
@@ -76,14 +76,6 @@ def _get_dataset_and_vae(trainer: pl.Trainer, pl_module: pl.LightningModule) -> 
     assert isinstance(dataset, DisentDataset), f'retrieved dataset is not an {DisentDataset.__name__}'
     # done checks
     return dataset, pl_module
-
-
-def _should_skip_groundtruth_callback(callback, dataset):
-    # TODO: this might be a hack and should be implemented some other way?
-    if not isinstance(dataset, GroundTruthDataset):
-        warnings.warn(f'{dataset.__class__.__name__} is not an instance of {GroundTruthDataset.__name__}. Skipping callback: {callback.__class__.__name__}!')
-        return True
-    return False
 
 
 # ========================================================================= #
@@ -151,7 +143,8 @@ class VaeDisentanglementLoggingCallback(_PeriodicCallback):
         # get dataset and vae framework from trainer and module
         dataset, vae = _get_dataset_and_vae(trainer, pl_module)
         # check if we need to skip
-        if _should_skip_groundtruth_callback(self, dataset):
+        if not dataset.is_ground_truth:
+            warnings.warn(f'{dataset.__class__.__name__} is not an instance of {GroundTruthData.__name__}. Skipping callback: {self.__class__.__name__}!')
             return
         # compute all metrics
         for metric in metrics:
@@ -195,7 +188,8 @@ class VaeLatentCorrelationLoggingCallback(_PeriodicCallback):
         # get dataset and vae framework from trainer and module
         dataset, vae = _get_dataset_and_vae(trainer, pl_module)
         # check if we need to skip
-        if _should_skip_groundtruth_callback(self, dataset):
+        if not dataset.is_ground_truth:
+            warnings.warn(f'{dataset.__class__.__name__} is not an instance of {GroundTruthData.__name__}. Skipping callback: {self.__class__.__name__}!')
             return
         # TODO: CONVERT THIS TO A METRIC!
         # log the correspondence between factors and the latent space.

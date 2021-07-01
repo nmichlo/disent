@@ -1,5 +1,0 @@
-# @package _group_
-name: random_triplet
-wrapper:
-  _target_: disent.dataset.random.RandomDataset
-  num_samples: 3
