@@ -20,5 +20,5 @@ module:
   swap_chance: 0.1
 
 # settings used elsewhere
-data_wrap_mode: pair
+data_sample_mode: pair
 model_z_multiplier: 2

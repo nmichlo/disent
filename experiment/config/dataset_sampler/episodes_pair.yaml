@@ -1,7 +1,7 @@
 # @package _group_
-name: episode_single
-wrapper:
-  _target_: disent.dataset.episodes.RandomEpisodeDataset
-  num_samples: 1
+name: episode_pair
+sampler:
+  _target_: disent.dataset.sampling.RandomEpisodeSampler
+  num_samples: 2
   # TODO: this needs to be updated to use the same API as ground_truth wrappers.
   sample_radius: 32

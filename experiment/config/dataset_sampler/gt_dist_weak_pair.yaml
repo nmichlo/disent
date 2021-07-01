@@ -1,10 +1,10 @@
 # @package _group_
 name: gt_dist_pair
-wrapper:
-  _target_: disent.dataset.groundtruth.GroundTruthDistDataset
+sampler:
+  _target_: disent.dataset.sampling.GroundTruthDistSampler
   num_samples: 2
-  triplet_sample_mode: ${sampling.triplet_sample_mode} # random, factors, manhattan, combined
-  triplet_swap_chance: ${sampling.triplet_swap_chance}
+  triplet_sample_mode: ${dataset_sampling.triplet_sample_mode} # random, factors, manhattan, combined
+  triplet_swap_chance: ${dataset_sampling.triplet_swap_chance}
 
 # ================================================== #
 # NOTE!!! THIS IS A DUMMY WRAPPER ,SO WE DON'T CRASH #

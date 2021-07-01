@@ -36,5 +36,5 @@ module:
   adaave_decode_orig: FALSE     # decode & regularize original OR averaged embeddings
 
 # settings used elsewhere
-data_wrap_mode: triplet
+data_sample_mode: triplet
 model_z_multiplier: 2

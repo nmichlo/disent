@@ -26,5 +26,5 @@ module:
   triplet_p: 1
 
 # settings used elsewhere
-data_wrap_mode: triplet
+data_sample_mode: triplet
 model_z_multiplier: 2

@@ -33,5 +33,5 @@ module:
   adat_share_ave_mode: all       # Only works for: adat_triplet_loss == "triplet_hard_ave_all"
 
 # settings used elsewhere
-data_wrap_mode: triplet
+data_sample_mode: triplet
 model_z_multiplier: 2

@@ -1,5 +1,0 @@
-# @package _group_
-name: random_pair
-wrapper:
-  _target_: disent.dataset.random.RandomDataset
-  num_samples: 2

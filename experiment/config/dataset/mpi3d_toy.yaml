@@ -1,7 +1,7 @@
 # @package _group_
 name: mpi3d_toy
 data:
-  _target_: disent.data.groundtruth.Mpi3dData
+  _target_: disent.dataset.data.Mpi3dData
   data_root: ${dataset.data_root}
   prepare: True
   in_memory: ${dataset.try_in_memory}

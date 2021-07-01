@@ -1,7 +1,7 @@
 # @package _group_
 name: xysquares_grey
 data:
-  _target_: disent.data.groundtruth.XYSquaresData
+  _target_: disent.dataset.data.XYSquaresData
   square_size: 8
   grid_size: 64
   grid_spacing: 8

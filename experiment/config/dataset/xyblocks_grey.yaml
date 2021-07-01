@@ -1,7 +1,7 @@
 # @package _group_
 name: xyblocks_grey
 data:
-  _target_: disent.data.groundtruth.XYBlocksData
+  _target_: disent.dataset.data.XYBlocksData
   grid_size: 64
   grid_levels: [1, 2, 3]
   rgb: False

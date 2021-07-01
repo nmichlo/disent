@@ -18,5 +18,5 @@ module:
   adat_triplet_share_scale: 0.95  # >> USE WITH A SCHEDULE << only works for: adat_triplet_loss == "triplet_hard_neg_ave_scaled"
 
 # settings used elsewhere
-data_wrap_mode: triplet
+data_sample_mode: triplet
 model_z_multiplier: 1

@@ -37,5 +37,5 @@ module:
     # ])
 
 # settings used elsewhere
-data_wrap_mode: weak_pair
+data_sample_mode: weak_pair
 model_z_multiplier: 2

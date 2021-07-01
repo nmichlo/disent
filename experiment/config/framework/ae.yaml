@@ -8,5 +8,5 @@ module:
   disable_aug_loss: FALSE
 
 # settings used elsewhere
-data_wrap_mode: single
+data_sample_mode: single
 model_z_multiplier: 1

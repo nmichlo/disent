@@ -14,5 +14,5 @@ module:
   beta: ${framework.beta}
 
 # settings used elsewhere
-data_wrap_mode: single
+data_sample_mode: single
 model_z_multiplier: 2
