@@ -26,7 +26,7 @@ import logging
 from typing import Optional
 
 from disent.dataset.util.datafile import DataFileHashedDl
-from disent.dataset.data._groundtruth import NumpyGroundTruthData
+from disent.dataset.data._groundtruth import NumpyFileGroundTruthData
 
 
 log = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class Mpi3dData(NumpyGroundTruthData):
+class Mpi3dData(NumpyFileGroundTruthData):
     """
     MPI3D Dataset
     - https://github.com/rr-learning/disentanglement_dataset

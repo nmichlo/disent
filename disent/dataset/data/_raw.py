@@ -30,28 +30,28 @@ from disent.util.iters import LengthIter
 
 # ========================================================================= #
 # hdf5 utils                                                                #
-# NOTE: this class is taken from disent -- github.com/nmichlo/disent        #
 # ========================================================================= #
 
 
-class NumpyDataset(Dataset, LengthIter):
+class ArrayDataset(Dataset, LengthIter):
 
-    def __init__(self, data, transform=None):
-        self._data = data
+    def __init__(self, array, transform=None):
+        self._array = array
         self._transform = transform
 
     def __len__(self):
-        return self._data.shape[0]
+        return self._array.shape[0]
 
     def __getitem__(self, item):
-        elem = self._data[item]
+        assert isinstance(item, int)  # disable smart array accesses
+        elem = self._array[item]
         if self._transform is not None:
             elem = self._transform(elem)
         return elem
 
     @property
     def shape(self):
-        return self._data.shape
+        return self._array.shape
 
 
 # ========================================================================= #
@@ -92,8 +92,9 @@ class Hdf5Dataset(Dataset, LengthIter):
     def shape(self):
         return self._hdf5_data.shape
 
-    def numpy_dataset(self) -> NumpyDataset:
-        return NumpyDataset(data=self._hdf5_data[:], transform=self._transform)
+    def numpy_dataset(self) -> ArrayDataset:
+        # TODO: make this function global
+        return ArrayDataset(array=self._hdf5_data[:], transform=self._transform)
 
     def __enter__(self):
         return self

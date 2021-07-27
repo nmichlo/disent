@@ -100,9 +100,51 @@ class GroundTruthData(Dataset, StateSpace):
     def _get_observation(self, idx):
         raise NotImplementedError
 
+
+# ========================================================================= #
+# Basic Array Ground Truth Dataset                                          #
+# ========================================================================= #
+
+
+class ArrayGroundTruthData(GroundTruthData):
+
+    def __init__(self, array, factor_names: Tuple[str, ...], factor_sizes: Tuple[int, ...], observation_shape: Optional[Tuple[int, ...]] = None, transform=None):
+        self.__factor_names = tuple(factor_names)
+        self.__factor_sizes = tuple(factor_sizes)
+        print(array.shape)
+        self.__observation_shape = tuple(observation_shape if (observation_shape is not None) else array.shape[1:])
+        self._array = array
+        # initialize
+        super().__init__(transform=transform)
+
+    @property
+    def factor_names(self) -> Tuple[str, ...]:
+        return self.__factor_names
+
+    @property
+    def factor_sizes(self) -> Tuple[int, ...]:
+        return self.__factor_sizes
+
+    @property
+    def observation_shape(self) -> Tuple[int, ...]:
+        return self.__observation_shape
+
+    def _get_observation(self, idx):
+        return self._array[idx]
+
+    @classmethod
+    def new_like(cls, array, dataset: GroundTruthData):
+        return cls(
+            array=array,
+            factor_names=dataset.factor_names,
+            factor_sizes=dataset.factor_sizes,
+            observation_shape=None,  # infer from array
+            transform=None,
+        )
+
 # ========================================================================= #
 # disk ground truth data                                                    #
-# TODO: data & datafile preparation should be split out from             #
+# TODO: data & datafile preparation should be split out from                #
 #       GroundTruthData, instead GroundTruthData should be a wrapper        #
 # ========================================================================= #
 
@@ -143,7 +185,7 @@ class DiskGroundTruthData(GroundTruthData, metaclass=ABCMeta):
         raise NotImplementedError
 
 
-class NumpyGroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
+class NumpyFileGroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
     """
     Dataset that loads a numpy file from a DataObject
     - if the dataset is contained in a key, set the `data_key` property
