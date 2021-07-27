@@ -119,6 +119,9 @@ class Cars3dData(NumpyGroundTruthData):
         hash_mode='fast'
     )
 
+    # override
+    data_key = 'images'
+
 
 # ========================================================================= #
 # END                                                                       #
