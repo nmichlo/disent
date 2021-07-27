@@ -48,7 +48,7 @@ from disent.nn.loss.softsort import spearman_rank_loss
 from experiment.run import hydra_append_progress_callback
 from experiment.run import hydra_check_cuda
 from experiment.run import hydra_make_logger
-from experiment.util.callbacks.callbacks_base import _PeriodicCallback
+from experiment.util.callbacks import _PeriodicCallback
 from experiment.util.hydra_utils import make_non_strict
 from experiment.util.logger_util import wb_log_metrics
 
@@ -166,8 +166,8 @@ class Kernel(DisentModule):
                     return H.to_imgs(pl_module.forward(batch.to(pl_module.device)), scale=True)
                 # get augmented traversals
                 with torch.no_grad():
-                    orig_wandb_image, orig_wandb_animation = H.dataset_traversal_tasks(dataset, tasks=('image_wandb', 'animation_wandb'))
-                    augm_wandb_image, augm_wandb_animation = H.dataset_traversal_tasks(dataset, tasks=('image_wandb', 'animation_wandb'), augment_fn=augment_fn, data_mode='input')
+                    orig_wandb_image, orig_wandb_animation = H.visualize_dataset_traversal(dataset)
+                    augm_wandb_image, augm_wandb_animation = H.visualize_dataset_traversal(dataset, augment_fn=augment_fn, data_mode='input')
                 # log images to WANDB
                 wb_log_metrics(trainer.logger, {
                     'kernel': wandb.Image(kernel),

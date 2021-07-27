@@ -64,12 +64,11 @@ def plot_dataset_traversals(
     f_idxs = H.get_factor_idxs(gt_data, f_idxs)
     # get traversal grid
     row_labels = [gt_data.factor_names[i] for i in f_idxs]
-    grid = H.dataset_traversal_tasks(
-        gt_data=gt_data,
-        tasks='grid',
+    grid, _, _ = H.visualize_dataset_traversal(
+        dataset=gt_data,
         data_mode='raw',
         factor_names=f_idxs,
-        num=num_cols,
+        num_frames=num_cols,
         seed=seed,
         base_factors=base_factors,
         traverse_mode='interval',
