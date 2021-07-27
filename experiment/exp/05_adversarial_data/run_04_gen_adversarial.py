@@ -443,8 +443,10 @@ def main():
     for i, kwargs in enumerate([
         # dict(save_prefix='fixed_masked_randm_', obs_masked=True,  loss_const_targ=None, obs_initial_noise=None),
         # dict(save_prefix='fixed_masked_const_', obs_masked=True,  loss_const_targ=0.1,  obs_initial_noise=None),
-        dict(save_prefix='e64_lr0.001_radam__fixed_unmask_const_', obs_masked=False, loss_const_targ=0.1,  obs_initial_noise=None),
-        dict(save_prefix='e64_lr0.001_radam__fixed_unmask_randm_', obs_masked=False, loss_const_targ=None, obs_initial_noise=None),
+        dict(save_prefix='e128_lr0.003_radam__fixed_unmask_const_', obs_masked=False, loss_const_targ=0.1,  obs_initial_noise=None, optimizer='radam'),
+        dict(save_prefix='e128_lr0.003_radam__fixed_unmask_randm_', obs_masked=False, loss_const_targ=None, obs_initial_noise=None, optimizer='radam'),
+        dict(save_prefix='e128_lr0.003_adabelief__fixed_unmask_const_', obs_masked=False, loss_const_targ=0.1,  obs_initial_noise=None, optimizer='adabelief'),
+        dict(save_prefix='e128_lr0.003_adabelief__fixed_unmask_randm_', obs_masked=False, loss_const_targ=None, obs_initial_noise=None, optimizer='adabelief'),
         # dict(save_prefix='noise_unmask_randm_', obs_masked=False, loss_const_targ=None, obs_initial_noise=0.001),
         # dict(save_prefix='noise_unmask_const_', obs_masked=False, loss_const_targ=0.1,  obs_initial_noise=0.001),
     ]):
@@ -452,13 +454,12 @@ def main():
         try:
             path = run_generate_and_save_adversarial_dataset_mp(
                 dataset_name=DATASET_NAME,
-                train_epochs=64,
-                train_optim_steps=125,
+                train_epochs=128,
+                train_optim_steps=250,
                 seed_=777,
                 overwrite_mode='overwrite',
                 dataset_load_into_memory=True,
-                lr=1e-3,
-                optimizer='radam',
+                lr=3e-3,
                 # batch_sample_mode='range',
                 **kwargs
             )

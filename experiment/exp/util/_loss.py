@@ -48,6 +48,9 @@ def make_optimizer(model: torch.nn.Module, name: str = 'sgd', lr=1e-3, weight_de
     elif name == 'radam':
         import torch_optimizer
         return torch_optimizer.RAdam(params, lr=lr, weight_decay=weight_decay)
+    elif name == 'adabelief':
+        import torch_optimizer
+        return torch_optimizer.AdaBelief(params, lr=lr, weight_decay=weight_decay)
     else: raise KeyError(f'invalid optimizer name: {repr(name)}')
 
 

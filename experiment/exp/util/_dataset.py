@@ -46,11 +46,11 @@ from disent.nn.transform import ToStandardisedTensor
 
 
 # ========================================================================= #
-# dataset                                                                   #
+# dataset io                                                                #
 # ========================================================================= #
 
 
-def _load_dataset_into_memory(gt_data: GroundTruthData, obs_shape: Tuple[int, ...], batch_size=64, num_workers=os.cpu_count() // 2, dtype=torch.float32):
+def load_dataset_into_memory(gt_data: GroundTruthData, obs_shape: Tuple[int, ...], batch_size=64, num_workers=os.cpu_count() // 2, dtype=torch.float32):
     assert dtype in {torch.float16, torch.float32}
     # TODO: this should be part of disent?
     from torch.utils.data import DataLoader
@@ -68,6 +68,11 @@ def _load_dataset_into_memory(gt_data: GroundTruthData, obs_shape: Tuple[int, ..
     return ArrayGroundTruthData.new_like(array=data, dataset=gt_data)
 
 
+# ========================================================================= #
+# dataset                                                                   #
+# ========================================================================= #
+
+
 def make_dataset(name: str = 'xysquares', factors: bool = False, data_root='data/dataset', load_into_memory: bool = False, load_memory_dtype=torch.float16) -> DisentDataset:
     # make data
     if   name == 'xysquares':      data = XYSquaresData(transform=ToStandardisedTensor())
@@ -81,7 +86,7 @@ def make_dataset(name: str = 'xysquares', factors: bool = False, data_root='data
     else: raise KeyError(f'invalid data name: {repr(name)}')
     # load into memory
     if load_into_memory:
-        data = _load_dataset_into_memory(data, obs_shape=(3, 64, 64), dtype=load_memory_dtype)
+        data = load_dataset_into_memory(data, obs_shape=(3, 64, 64), dtype=load_memory_dtype)
     # make dataset
     if factors:
         raise NotImplementedError('factor returning is not yet implemented in the rewrite! this needs to be fixed!')  # TODO!
