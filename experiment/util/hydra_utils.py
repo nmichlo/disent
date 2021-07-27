@@ -22,9 +22,9 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-import inspect
 import logging
 
+from deprecated import deprecated
 from omegaconf import DictConfig
 from omegaconf import OmegaConf
 
@@ -39,10 +39,12 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
+@deprecated('replace with hydra 1.1')
 def make_non_strict(cfg: DictConfig):
     return OmegaConf.create({**cfg})
 
 
+@deprecated('replace with hydra 1.1')
 def merge_specializations(cfg: DictConfig, config_path: str, main_fn: callable, strict=True):
     # TODO: this should eventually be replaced with hydra recursive defaults
     # TODO: this makes config non-strict, allows setdefault to work even if key does not exist in config
@@ -77,62 +79,6 @@ def merge_specializations(cfg: DictConfig, config_path: str, main_fn: callable, 
 
     # done
     return cfg
-
-
-# ========================================================================= #
-# Make Target Helper                                                        #
-# - from https://github.com/nmichlo/eunomia                                 #
-# ========================================================================= #
-
-
-def _fn_get_kwargs(func) -> dict:
-    signature = inspect.signature(func)
-    return {
-        k: v.default
-        for k, v in signature.parameters.items()
-        if v.default is not inspect.Parameter.empty
-    }
-
-
-def _fn_get_args(func) -> list:
-    signature = inspect.signature(func)
-    return [
-        k
-        for k, v in signature.parameters.items()
-        if v.default is inspect.Parameter.empty
-    ]
-
-
-def _fn_get_all_args(func) -> list:
-    signature = inspect.signature(func)
-    return list(signature.parameters.keys())
-
-
-def _fn_get_module_path(obj):
-    # get package search paths
-    import os
-    import sys
-    # get module path
-    path = os.path.abspath(inspect.getmodule(obj).__file__)
-    # return the shortest relative path from all the packages
-    rel_paths = []
-    for site in sys.path:
-        site = os.path.abspath(site)
-        if os.path.commonprefix([site, path]) == site:
-            rel_paths.append(os.path.relpath(path, site))
-    # get shortest rel path
-    rel_paths = sorted(rel_paths, key=str.__len__)
-    assert len(rel_paths) > 0, f'no valid path found to: {obj}'
-    # get the correct path
-    path = rel_paths[0]
-    assert path.endswith('.py')
-    path = path[:-len('.py')]
-    return os.path.normpath(path)
-
-
-def _fn_get_import_path(obj):
-    module_path = '.'.join(_fn_get_module_path(obj).split('/'))
-    return f'{module_path}.{obj.__name__}'
 
 
 # ========================================================================= #
