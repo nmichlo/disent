@@ -22,10 +22,12 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import os
 from typing import List
 from typing import Optional
 from typing import Sequence
 from typing import Sized
+from typing import Tuple
 from typing import Union
 
 import numpy as np
@@ -37,6 +39,7 @@ from disent.dataset import DisentDataset
 from disent.dataset.data import Cars3dData
 from disent.dataset.data import GroundTruthData
 from disent.dataset.data import Shapes3dData
+from disent.dataset.data import SmallNorbData
 from disent.dataset.data import XYSquaresData
 from disent.dataset.sampling import GroundTruthSingleSampler
 from disent.nn.transform import ToStandardisedTensor
@@ -47,18 +50,42 @@ from disent.nn.transform import ToStandardisedTensor
 # ========================================================================= #
 
 
-def make_dataset(name: str = 'xysquares', factors: bool = False, data_root='data/dataset') -> DisentDataset:
-    sampler = -1 if factors else GroundTruthSingleSampler()
-    # make dataset
-    if   name == 'xysquares':      dataset = DisentDataset(XYSquaresData(),                   sampler=sampler, transform=ToStandardisedTensor())
-    elif name == 'xysquares_1x1':  dataset = DisentDataset(XYSquaresData(square_size=1),      sampler=sampler, transform=ToStandardisedTensor())
-    elif name == 'xysquares_2x2':  dataset = DisentDataset(XYSquaresData(square_size=2),      sampler=sampler, transform=ToStandardisedTensor())
-    elif name == 'xysquares_4x4':  dataset = DisentDataset(XYSquaresData(square_size=4),      sampler=sampler, transform=ToStandardisedTensor())
-    elif name == 'xysquares_8x8':  dataset = DisentDataset(XYSquaresData(square_size=8),      sampler=sampler, transform=ToStandardisedTensor())
-    elif name == 'cars3d':         dataset = DisentDataset(Cars3dData(data_root=data_root),   sampler=sampler, transform=ToStandardisedTensor(size=64))
-    elif name == 'shapes3d':       dataset = DisentDataset(Shapes3dData(data_root=data_root), sampler=sampler, transform=ToStandardisedTensor())
+def _load_dataset_into_memory(gt_data: GroundTruthData, obs_shape: Tuple[int, ...], batch_size=64, num_workers=os.cpu_count() // 2, dtype=torch.float32):
+    assert dtype in {torch.float16, torch.float32}
+    # TODO: this should be part of disent?
+    from torch.utils.data import DataLoader
+    from tqdm import tqdm
+    from disent.dataset.data import ArrayGroundTruthData
+    # load dataset into memory manually!
+    data = torch.zeros(len(gt_data), *obs_shape, dtype=dtype)
+    # load all batches
+    dataloader = DataLoader(gt_data, batch_size=batch_size, shuffle=False, num_workers=num_workers, drop_last=False)
+    idx = 0
+    for batch in tqdm(dataloader, desc='loading dataset into memory'):
+        data[idx:idx+len(batch)] = batch.to(dtype)
+        idx += len(batch)
+    # done!
+    return ArrayGroundTruthData.new_like(array=data, dataset=gt_data)
+
+
+def make_dataset(name: str = 'xysquares', factors: bool = False, data_root='data/dataset', load_into_memory: bool = False, load_memory_dtype=torch.float16) -> DisentDataset:
+    # make data
+    if   name == 'xysquares':      data = XYSquaresData(transform=ToStandardisedTensor())
+    elif name == 'xysquares_1x1':  data = XYSquaresData(square_size=1, transform=ToStandardisedTensor())
+    elif name == 'xysquares_2x2':  data = XYSquaresData(square_size=2, transform=ToStandardisedTensor())
+    elif name == 'xysquares_4x4':  data = XYSquaresData(square_size=4, transform=ToStandardisedTensor())
+    elif name == 'xysquares_8x8':  data = XYSquaresData(square_size=8, transform=ToStandardisedTensor())
+    elif name == 'cars3d':         data = Cars3dData(data_root=data_root,    prepare=True, transform=ToStandardisedTensor(size=64))
+    elif name == 'smallnorb':      data = SmallNorbData(data_root=data_root, prepare=True, transform=ToStandardisedTensor(size=64))
+    elif name == 'shapes3d':       data = Shapes3dData(data_root=data_root,  prepare=True, transform=ToStandardisedTensor())
     else: raise KeyError(f'invalid data name: {repr(name)}')
-    return dataset
+    # load into memory
+    if load_into_memory:
+        data = _load_dataset_into_memory(data, obs_shape=(3, 64, 64), dtype=load_memory_dtype)
+    # make dataset
+    if factors:
+        raise NotImplementedError('factor returning is not yet implemented in the rewrite! this needs to be fixed!')  # TODO!
+    return DisentDataset(data, sampler=GroundTruthSingleSampler())
 
 
 def get_single_batch(dataloader, cuda=True):

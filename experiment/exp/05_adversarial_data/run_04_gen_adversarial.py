@@ -88,6 +88,15 @@ NAME_DATA = 'data'
 NAME_VISITS = 'visits'
 NAME_OBS = 'x_targ'
 
+_SAVE_TYPE_LOOKUP = {
+    'uint8': torch.uint8,
+    'float16': torch.float16,
+    'float32': torch.float32,
+}
+
+SAVE_TYPE = 'float16'
+assert SAVE_TYPE in _SAVE_TYPE_LOOKUP
+
 
 def _make_hdf5_dataset(path, dataset, overwrite_mode: str = 'continue') -> str:
     path = ensure_parent_dir_exists(path)
@@ -120,7 +129,7 @@ def _make_hdf5_dataset(path, dataset, overwrite_mode: str = 'continue') -> str:
             f.create_dataset(
                 NAME_DATA,
                 shape=(num_obs, *obs_shape),
-                dtype='uint8',
+                dtype=SAVE_TYPE,
                 chunks=(1, *obs_shape),
                 track_times=False,
             )
@@ -136,22 +145,25 @@ def _make_hdf5_dataset(path, dataset, overwrite_mode: str = 'continue') -> str:
     return path
 
 
-def _read_hdf5_batch(h5py_path: str, idxs, return_visits=False):
-    batch, visits = [], []
-    with h5py.File(h5py_path, 'r', swmr=True) as f:
-        for i in idxs:
-            visits.append(f[NAME_VISITS][i])
-            batch.append(torch.as_tensor(f[NAME_DATA][i], dtype=torch.float32) / 255)
-    # return values
-    if return_visits:
-        return torch.stack(batch, dim=0), np.array(visits, dtype=np.int64)
-    else:
-        return torch.stack(batch, dim=0)
+# def _read_hdf5_batch(h5py_path: str, idxs, return_visits=False):
+#     batch, visits = [], []
+#     with h5py.File(h5py_path, 'r', swmr=True) as f:
+#         for i in idxs:
+#             visits.append(f[NAME_VISITS][i])
+#             obs = torch.as_tensor(f[NAME_DATA][i], dtype=torch.float32)
+#             if SAVE_TYPE == 'uint8':
+#                 obs /= 255
+#             batch.append(obs)
+#     # return values
+#     if return_visits:
+#         return torch.stack(batch, dim=0), np.array(visits, dtype=np.int64)
+#     else:
+#         return torch.stack(batch, dim=0)
 
 
 def _load_hdf5_batch(dataset, h5py_path: str, idxs, initial_noise: Optional[float] = None, return_visits=True):
     """
-    Load a batch from the disk.
+    Load a batch from the disk -- always return float32
     - Can be used by multiple threads at a time.
     - returns an item from the original dataset if an
       observation has not been saved into the hdf5 dataset yet.
@@ -161,28 +173,38 @@ def _load_hdf5_batch(dataset, h5py_path: str, idxs, initial_noise: Optional[floa
         for i in idxs:
             v = f[NAME_VISITS][i]
             if v > 0:
-                obs = torch.as_tensor(f[NAME_DATA][i], dtype=torch.float32) / 255
+                obs = torch.as_tensor(f[NAME_DATA][i], dtype=torch.float32)
+                if SAVE_TYPE == 'uint8':
+                    obs /= 255
             else:
                 (obs,) = dataset[i][NAME_OBS]
+                obs = obs.to(torch.float32)
                 if initial_noise is not None:
                     obs += (torch.randn_like(obs) * initial_noise)
             batch.append(obs)
             visits.append(v)
+    # stack and check values
+    batch = torch.stack(batch, dim=0)
+    assert batch.dtype == torch.float32
     # return values
     if return_visits:
-        return torch.stack(batch, dim=0), np.array(visits, dtype=np.int64)
+        return batch, np.array(visits, dtype=np.int64)
     else:
-        return torch.stack(batch, dim=0)
+        return batch
 
 
 def _save_hdf5_batch(h5py_path: str, batch, idxs):
     """
-    Save a batch to disk.
+    Save a float32 batch to disk.
     - Can only be used by one thread at a time!
     """
+    assert batch.dtype == torch.float32
     with h5py.File(h5py_path, 'r+', libver='earliest') as f:
         for obs, idx in zip(batch, idxs):
-            f[NAME_DATA][idx] = torch.clamp(torch.round(obs * 255), 0, 255).to(torch.uint8)
+            if SAVE_TYPE == 'uint8':
+                f[NAME_DATA][idx] = torch.clamp(torch.round(obs * 255), 0, 255).to(torch.uint8)
+            else:
+                f[NAME_DATA][idx] = obs.to(_SAVE_TYPE_LOOKUP[SAVE_TYPE])
             f[NAME_VISITS][idx] += 1
 
 
@@ -257,6 +279,7 @@ def _wait_for_save_future(future: Future):
 
 def run_generate_and_save_adversarial_dataset_mp(
     dataset_name: str = 'shapes3d',
+    dataset_load_into_memory: bool = False,
     optimizer: str = 'adam',
     lr: float = 1e-2,
     obs_masked: bool = True,
@@ -286,7 +309,7 @@ def run_generate_and_save_adversarial_dataset_mp(
 
     # ↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓=↓ #
     # make dataset
-    dataset = H.make_dataset(dataset_name)
+    dataset = H.make_dataset(dataset_name, load_into_memory=dataset_load_into_memory, load_memory_dtype=torch.float16)
     # get save path
     assert not ('/' in save_prefix or '\\' in save_prefix)
     name = H.params_as_string(H.get_caller_params(exclude=["save_folder", "save_prefix", "overwrite_mode", "seed_"]))
@@ -316,6 +339,8 @@ def run_generate_and_save_adversarial_dataset_mp(
             (x, visits), load_time = _wait_for_load_future(load_future)
             x = x.cuda().requires_grad_(True)
             # ↑=↑=↑=↑=↑=↑=↑=↑=↑=↑=↑=↑=↑=↑=↑=↑ #
+
+            print(x.dtype)
 
             # queue loading an extra batch
             if (n+1) < len(batch_idxs):
@@ -414,28 +439,26 @@ def run_generate_adversarial_data(
 def main():
     logging.basicConfig(level=logging.INFO, format='(%(asctime)s) %(name)s:%(lineno)d [%(levelname)s]: %(message)s')
 
-    DATASET_NAME = 'shapes3d'
-
-    with TempNumpySeed(42):
-        display_idxs = H.sample_unique_batch_indices(num_obs=len(H.make_dataset(DATASET_NAME)), num_samples=9)
+    DATASET_NAME = 'cars3d'
 
     paths = []
     for i, kwargs in enumerate([
-        dict(save_prefix='fixed_masked_const_', obs_masked=True,  loss_const_targ=0.1,  obs_initial_noise=None),
-        dict(save_prefix='fixed_masked_randm_', obs_masked=True,  loss_const_targ=None, obs_initial_noise=None),
-        dict(save_prefix='fixed_unmask_const_', obs_masked=False, loss_const_targ=0.1,  obs_initial_noise=None),
-        dict(save_prefix='fixed_unmask_randm_', obs_masked=False, loss_const_targ=None, obs_initial_noise=None),
-        dict(save_prefix='noise_unmask_const_', obs_masked=False, loss_const_targ=0.1,  obs_initial_noise=0.001),
-        dict(save_prefix='noise_unmask_randm_', obs_masked=False, loss_const_targ=None, obs_initial_noise=0.001),
+        # dict(save_prefix='fixed_masked_randm_', obs_masked=True,  loss_const_targ=None, obs_initial_noise=None),
+        # dict(save_prefix='fixed_masked_const_', obs_masked=True,  loss_const_targ=0.1,  obs_initial_noise=None),
+        dict(save_prefix='e32_fixed_unmask_const_', obs_masked=False, loss_const_targ=0.1,  obs_initial_noise=None),
+        dict(save_prefix='e32_fixed_unmask_randm_', obs_masked=False, loss_const_targ=None, obs_initial_noise=None),
+        # dict(save_prefix='noise_unmask_randm_', obs_masked=False, loss_const_targ=None, obs_initial_noise=0.001),
+        # dict(save_prefix='noise_unmask_const_', obs_masked=False, loss_const_targ=0.1,  obs_initial_noise=0.001),
     ]):
         # generate dataset
         try:
             path = run_generate_and_save_adversarial_dataset_mp(
                 dataset_name=DATASET_NAME,
-                train_epochs=8,
+                train_epochs=32,
                 train_optim_steps=125,
                 seed_=777,
-                # overwrite_mode='continue',
+                overwrite_mode='overwrite',
+                dataset_load_into_memory=True,
                 # batch_sample_mode='range',
                 **kwargs
             )
