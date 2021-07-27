@@ -25,6 +25,7 @@
 from functools import wraps
 from typing import Optional
 from typing import Sequence
+from typing import Union
 
 import numpy as np
 from torch.utils.data import Dataset
@@ -66,7 +67,7 @@ def groundtruth_only(func):
 
 class DisentDataset(Dataset, LengthIter):
 
-    def __init__(self, dataset, sampler: Optional[BaseDisentSampler] = None, transform=None, augment=None):
+    def __init__(self, dataset: Union[Dataset, GroundTruthData], sampler: Optional[BaseDisentSampler] = None, transform=None, augment=None):
         super().__init__()
         # save attributes
         self._dataset = dataset
@@ -90,7 +91,7 @@ class DisentDataset(Dataset, LengthIter):
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     @property
-    def is_ground_truth(self):
+    def is_ground_truth(self) -> bool:
         return isinstance(self._dataset, GroundTruthData)
 
     @property

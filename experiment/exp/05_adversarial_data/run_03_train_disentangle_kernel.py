@@ -48,9 +48,9 @@ from disent.nn.loss.softsort import spearman_rank_loss
 from experiment.run import hydra_append_progress_callback
 from experiment.run import hydra_check_cuda
 from experiment.run import hydra_make_logger
-from experiment.util.callbacks import _PeriodicCallback
+from disent.lightning.callbacks import BaseCallbackPeriodic
 from experiment.util.hydra_utils import make_non_strict
-from experiment.util.logger_util import wb_log_metrics
+from disent.lightning.logger_util import wb_log_metrics
 
 
 log = logging.getLogger(__name__)
@@ -156,8 +156,8 @@ class Kernel(DisentModule):
     def forward(self, xs):
         return torch_conv2d_channel_wise_fft(xs, self._kernel)
 
-    def make_train_periodic_callback(self, cfg, dataset) -> _PeriodicCallback:
-        class ImShowCallback(_PeriodicCallback):
+    def make_train_periodic_callback(self, cfg, dataset) -> BaseCallbackPeriodic:
+        class ImShowCallback(BaseCallbackPeriodic):
             def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
                 # get kernel image
                 kernel = H.to_img(pl_module.model._kernel[0], scale=True).numpy()

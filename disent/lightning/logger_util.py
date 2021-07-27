@@ -25,7 +25,9 @@
 import logging
 import warnings
 from typing import Iterable
+from typing import Optional
 
+from pytorch_lightning.loggers import LightningLoggerBase
 from pytorch_lightning.loggers import LoggerCollection
 from pytorch_lightning.loggers import WandbLogger
 
@@ -38,19 +40,44 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def yield_wandb_loggers(logger) -> Iterable[WandbLogger]:
+def log_metrics(logger: Optional[LightningLoggerBase], metrics_dct: dict):
+    """
+     Log the given values to the given logger.
+     - warn the user if something goes wrong
+    """
+    if logger:
+        try:
+            logger.log_metrics(metrics_dct)
+        except:
+            warnings.warn(f'Failed to log metrics: {repr(metrics_dct)}')
+    else:
+        warnings.warn('no trainer.logger found!')
+
+
+# ========================================================================= #
+# W&B Logger Utils                                                          #
+# ========================================================================= #
+
+
+def wb_yield_loggers(logger: Optional[LightningLoggerBase]) -> Iterable[WandbLogger]:
+    """
+    Recursively yield all the loggers or sub-loggers that are an instance of WandbLogger
+    """
     if logger:
         if isinstance(logger, WandbLogger):
             yield logger
         elif isinstance(logger, LoggerCollection):
             for l in logger:
-                yield from yield_wandb_loggers(l)
+                yield from wb_yield_loggers(l)
 
 
-def wb_log_metrics(logger, metrics_dct: dict):
+def wb_log_metrics(logger: Optional[LightningLoggerBase], metrics_dct: dict):
+    """
+    Log the given values only to loggers that are an instance of WandbLogger
+    """
     wb_logger = None
     # iterate over loggers & update metrics
-    for wb_logger in yield_wandb_loggers(logger):
+    for wb_logger in wb_yield_loggers(logger):
         wb_logger.log_metrics(metrics_dct)
     # warn if nothing logged
     if wb_logger is None:
@@ -64,11 +91,15 @@ _SUMMARY_REDICTIONS = {
 }
 
 
-def wb_log_reduced_summaries(logger, summary_dct: dict, reduction='max'):
+def wb_log_reduced_summaries(logger: Optional[LightningLoggerBase], summary_dct: dict, reduction='max'):
+    """
+    Aggregate the given values only to loggers that are an instance of WandbLogger
+    - supported reduction modes are `"max"` and `"min"`
+    """
     reduce_fn = _SUMMARY_REDICTIONS[reduction]
     wb_logger = None
     # iterate over loggers & update summaries
-    for wb_logger in yield_wandb_loggers(logger):
+    for wb_logger in wb_yield_loggers(logger):
         for key, val_current in summary_dct.items():
             key = f'{key}.{reduction}'
             try:
@@ -80,16 +111,6 @@ def wb_log_reduced_summaries(logger, summary_dct: dict, reduction='max'):
     # warn if nothing logged!
     if wb_logger is None:
         warnings.warn('no wandb logger found to log metrics to!')
-
-
-def log_metrics(logger, metrics_dct: dict):
-    if logger:
-        try:
-            logger.log_metrics(metrics_dct)
-        except:
-            warnings.warn(f'Failed to log metrics: {repr(metrics_dct)}')
-    else:
-        warnings.warn('no trainer.logger found!')
 
 
 # ========================================================================= #
