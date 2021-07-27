@@ -33,6 +33,43 @@ from disent.util.config import instantiate_recursive
 
 
 # ========================================================================= #
+# DISENT DATASET MODULE                                                     #
+# TODO: possible implementation outline for disent                          #
+# ========================================================================= #
+
+
+# class DisentDatasetModule(pl.LightningDataModule):
+#
+#     def prepare_data(self, *args, **kwargs):
+#         raise NotImplementedError
+#
+#     def setup(self, stage: Optional[str] = None):
+#         raise NotImplementedError
+#
+#     # DATASET HANDLING
+#
+#     @property
+#     def dataset_train(self) -> DisentDataset:
+#         # this property should check `framework_applies_augment` to return the
+#         # dataset with the correct transforms/augments applied.
+#         # - train_dataloader() should create the DataLoader from this dataset object
+#         raise NotImplementedError
+#
+#     # FRAMEWORK AUGMENTATION HANDLING
+#
+#     @property
+#     def framework_applies_augment(self) -> bool:
+#         # if we augment the data in the framework rather, we can augment on the GPU instead
+#         # framework needs manual handling of this augmentation mode
+#         raise NotImplementedError
+#
+#     def framework_augment(self, batch):
+#         # the augment to be applied if `framework_applies_augment` is `True`, otherwise
+#         # this method should do nothing!
+#         raise NotImplementedError
+
+
+# ========================================================================= #
 # DATASET                                                                   #
 # ========================================================================= #
 
