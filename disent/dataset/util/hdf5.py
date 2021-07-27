@@ -111,7 +111,7 @@ def hdf5_resave_file(
     out_dtype: Optional[Union[np.dtype, str]] = None,  # output dtype of the dataset
     out_mutator: Optional[Callable[[np.ndarray], np.ndarray]] = None,  # mutate batches before saving
     obs_shape: Optional[Tuple[int, ...]] = None,  # resize batches to this shape
-    write_mode: str = Union[Literal['atomic_w'], Literal['w'], Literal['a']],
+    write_mode: Union[Literal['atomic_w'], Literal['w'], Literal['a']] = 'atomic_w',
 ):
     # re-save datasets
     with h5py.File(inp_path, 'r') as inp_h5:
