@@ -25,7 +25,7 @@
 import logging
 import pytorch_lightning as pl
 
-from disent.lightning.callbacks._callbacks_base import BaseCallbackTimed
+from disent.util.lightning.callbacks._callbacks_base import BaseCallbackTimed
 
 
 log = logging.getLogger(__name__)

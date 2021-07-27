@@ -22,10 +22,10 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from disent.lightning.callbacks._callbacks_base import BaseCallbackPeriodic
-from disent.lightning.callbacks._callbacks_base import BaseCallbackTimed
+from disent.util.lightning.callbacks._callbacks_base import BaseCallbackPeriodic
+from disent.util.lightning.callbacks._callbacks_base import BaseCallbackTimed
 
-from disent.lightning.callbacks._callbacks_pl import LoggerProgressCallback
+from disent.util.lightning.callbacks._callbacks_pl import LoggerProgressCallback
 
-from disent.lightning.callbacks._callbacks_vae import VaeDisentanglementLoggingCallback
-from disent.lightning.callbacks._callbacks_vae import VaeLatentCycleLoggingCallback
+from disent.util.lightning.callbacks._callbacks_vae import VaeDisentanglementLoggingCallback
+from disent.util.lightning.callbacks._callbacks_vae import VaeLatentCycleLoggingCallback

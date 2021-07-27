@@ -38,11 +38,11 @@ import h5py
 import numpy as np
 from tqdm import tqdm
 
-from disent.util import colors as c
-from disent.util.in_out import AtomicSaveFile
+from disent.util.strings import colors as c
+from disent.util.inout.files import AtomicSaveFile
 from disent.util.iters import iter_chunks
 from disent.util.profiling import Timer
-from disent.util.strings import bytes_to_human
+from disent.util.strings.fmt import bytes_to_human
 
 
 log = logging.getLogger(__name__)

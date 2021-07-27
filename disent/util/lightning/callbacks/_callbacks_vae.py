@@ -33,19 +33,19 @@ import wandb
 from pytorch_lightning.trainer.supporters import CombinedLoader
 
 import disent.metrics
-import disent.util.colors as c
+import disent.util.strings.colors as c
 from disent.dataset import DisentDataset
 from disent.dataset.data import GroundTruthData
 from disent.frameworks.ae import Ae
 from disent.frameworks.vae import Vae
-from disent.lightning.callbacks._callbacks_base import BaseCallbackPeriodic
-from disent.lightning.logger_util import log_metrics
-from disent.lightning.logger_util import wb_log_metrics
-from disent.lightning.logger_util import wb_log_reduced_summaries
+from disent.util.lightning.callbacks._callbacks_base import BaseCallbackPeriodic
+from disent.util.lightning.logger_util import log_metrics
+from disent.util.lightning.logger_util import wb_log_metrics
+from disent.util.lightning.logger_util import wb_log_reduced_summaries
 from disent.util.profiling import Timer
 from disent.util.seeds import TempNumpySeed
-from disent.visualize.visualize_model import latent_cycle_grid_animation
-from disent.visualize.visualize_util import make_image_grid
+from disent.util.visualize.vis_model import latent_cycle_grid_animation
+from disent.util.visualize.vis_util import make_image_grid
 
 
 log = logging.getLogger(__name__)

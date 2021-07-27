@@ -32,7 +32,7 @@ from scipy.io import loadmat
 
 from disent.dataset.util.datafile import DataFileHashedDlGen
 from disent.dataset.data._groundtruth import NumpyGroundTruthData
-from disent.util.in_out import AtomicSaveFile
+from disent.util.inout.files import AtomicSaveFile
 
 
 log = logging.getLogger(__name__)

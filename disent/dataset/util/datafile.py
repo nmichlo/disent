@@ -35,11 +35,11 @@ from typing import Union
 import numpy as np
 
 from disent.dataset.util.hdf5 import hdf5_resave_file
-from disent.util.cache import stalefile
+from disent.util.inout.cache import stalefile
 from disent.util.function import wrapped_partial
-from disent.util.in_out import retrieve_file
-from disent.util.paths import filename_from_url
-from disent.util.paths import modify_file_name
+from disent.util.inout.files import retrieve_file
+from disent.util.inout.paths import filename_from_url
+from disent.util.inout.paths import modify_file_name
 
 
 # ========================================================================= #

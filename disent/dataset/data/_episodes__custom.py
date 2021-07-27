@@ -30,8 +30,8 @@ from typing import Tuple
 import numpy as np
 
 from disent.dataset.data import BaseEpisodesData
-from disent.util.in_out import download_file
-from disent.util.paths import filename_from_url
+from disent.util.inout.files import download_file
+from disent.util.inout.paths import filename_from_url
 
 
 log = logging.getLogger(__name__)

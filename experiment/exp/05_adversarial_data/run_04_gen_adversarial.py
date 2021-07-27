@@ -39,7 +39,7 @@ import torch
 from tqdm import tqdm
 
 import experiment.exp.util as H
-from disent.util.paths import ensure_parent_dir_exists
+from disent.util.inout.paths import ensure_parent_dir_exists
 from disent.util.seeds import seed
 from disent.util.seeds import TempNumpySeed
 from disent.util.profiling import Timer

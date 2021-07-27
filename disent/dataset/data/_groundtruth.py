@@ -36,7 +36,7 @@ from disent.dataset.util.datafile import DataFile
 from disent.dataset.util.datafile import DataFileHashedDlH5
 from disent.dataset.data._raw import Hdf5Dataset
 from disent.dataset.util.state_space import StateSpace
-from disent.util.paths import ensure_dir_exists
+from disent.util.inout.paths import ensure_dir_exists
 
 
 log = logging.getLogger(__name__)

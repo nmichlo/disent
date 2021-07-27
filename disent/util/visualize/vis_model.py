@@ -27,9 +27,9 @@ import numpy as np
 import torch
 
 from disent.util import to_numpy
-from disent.visualize import visualize_util
-from disent.visualize.visualize_util import make_animated_image_grid
-from disent.visualize.visualize_util import reconstructions_to_images
+from disent.util.visualize import vis_util
+from disent.util.visualize.vis_util import make_animated_image_grid
+from disent.util.visualize.vis_util import reconstructions_to_images
 
 
 log = logging.getLogger(__name__)
@@ -52,7 +52,7 @@ log = logging.getLogger(__name__)
 def _z_std_gaussian_cycle(base_z, z_means, z_logvars, z_idx, num_frames):
     # Cycle through quantiles of a standard Gaussian.
     zs = np.repeat(np.expand_dims(base_z, 0), num_frames, axis=0)
-    zs[:, z_idx] = visualize_util.cycle_gaussian(base_z[z_idx], num_frames, loc=0, scale=1)
+    zs[:, z_idx] = vis_util.cycle_gaussian(base_z[z_idx], num_frames, loc=0, scale=1)
     return zs
 
 
@@ -61,14 +61,14 @@ def _z_fitted_gaussian_cycle(base_z, z_means, z_logvars, z_idx, num_frames):
     zs = np.repeat(np.expand_dims(base_z, 0), num_frames, axis=0)
     loc = np.mean(z_means[:, z_idx])
     total_variance = np.mean(np.exp(z_logvars[:, z_idx])) + np.var(z_means[:, z_idx])
-    zs[:, z_idx] = visualize_util.cycle_gaussian(base_z[z_idx], num_frames, loc=loc, scale=np.sqrt(total_variance))
+    zs[:, z_idx] = vis_util.cycle_gaussian(base_z[z_idx], num_frames, loc=loc, scale=np.sqrt(total_variance))
     return zs
 
 
 def _z_fixed_interval_cycle(base_z, z_means, z_logvars, z_idx, num_frames):
     # Cycle through [-2, 2] interval.
     zs = np.repeat(np.expand_dims(base_z, 0), num_frames, axis=0)
-    zs[:, z_idx] = visualize_util.cycle_interval(base_z[z_idx], num_frames, -2., 2.)
+    zs[:, z_idx] = vis_util.cycle_interval(base_z[z_idx], num_frames, -2., 2.)
     return zs
 
 
@@ -78,14 +78,14 @@ def _z_conf_interval_cycle(base_z, z_means, z_logvars, z_idx, num_frames):
     loc = np.mean(z_means[:, z_idx])
     total_variance = np.mean(np.exp(z_logvars[:, z_idx])) + np.var(z_means[:, z_idx])
     scale = np.sqrt(total_variance)
-    zs[:, z_idx] = visualize_util.cycle_interval(base_z[z_idx], num_frames, loc - 2. * scale, loc + 2. * scale)
+    zs[:, z_idx] = vis_util.cycle_interval(base_z[z_idx], num_frames, loc - 2. * scale, loc + 2. * scale)
     return zs
 
 
 def _z_minmax_interval_cycle(base_z, z_means, z_logvars, z_idx, num_frames):
     # Cycle linearly through minmax of a fitted Gaussian.
     zs = np.repeat(np.expand_dims(base_z, 0), num_frames, axis=0)
-    zs[:, z_idx] = visualize_util.cycle_interval(base_z[z_idx], num_frames, np.min(z_means[:, z_idx]), np.max(z_means[:, z_idx]))
+    zs[:, z_idx] = vis_util.cycle_interval(base_z[z_idx], num_frames, np.min(z_means[:, z_idx]), np.max(z_means[:, z_idx]))
     return zs
 
 
