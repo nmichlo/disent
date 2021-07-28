@@ -1,7 +1,5 @@
 # @package _group_
 metric_list:
-  - flatness:
-  - flatness_components:
   - mig:
 
 # these are the default settings, these can be placed in the list above
