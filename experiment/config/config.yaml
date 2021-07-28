@@ -1,17 +1,17 @@
 defaults:
   # system
-  - framework: betavae
+  - framework: adavae
   - model: vae_conv64
   - optimizer: adam
   - schedule: none
   # data
-  - dataset: shapes3d
+  - dataset: xyobject
   - dataset_sampling: full_bb
   - augment: none
   # runtime
   - metrics: fast
   - run_length: short
-  - run_location: heartofgold
+  - run_location: local
   - run_callbacks: vis
   - run_logging: wandb
   # plugins
@@ -31,6 +31,8 @@ framework:
     module:
       recon_loss: mse
       loss_reduction: mean_sum
+
+    # only some frameworks support these features
     optional:
       latent_distribution: normal  # only used by VAEs
       overlap_loss: NULL
@@ -45,5 +47,8 @@ optimizer:
 # - This key is deleted on load and the correct key on the root config is set similar to defaults.
 # - Unfortunately this hack needs to exists as hydra does not yet support this kinda of variable interpolation in defaults.
 specializations:
-  dataset_sampler: ${dataset.data_type}_${framework.data_sample_mode}
-#  dataset_sampler: gt_dist_${framework.data_sample_mode}
+  # original samplers --
+  # dataset_sampler: ${dataset.data_type}_${framework.data_sample_mode}
+
+  # newer samplers -- only active for frameworks that require 3 observations, otherwise random for 2, and exact for 1
+  dataset_sampler: gt_dist_${framework.data_sample_mode}
