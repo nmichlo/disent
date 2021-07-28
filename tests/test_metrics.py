@@ -25,9 +25,8 @@
 import pytest
 import torch
 
-from disent.dataset.data import XYSquaresMinimalData
+from disent.dataset.data import XYObjectData
 from disent.dataset import DisentDataset
-from disent.dataset.sampling import RandomSampler
 from disent.metrics import *
 from disent.nn.transform import ToStandardisedTensor
 from disent.util.function import wrapped_partial
@@ -44,14 +43,12 @@ from disent.util.function import wrapped_partial
     wrapped_partial(metric_dci,          num_train=7, num_test=7),
     wrapped_partial(metric_sap,          num_train=7, num_test=7),
     wrapped_partial(metric_factor_vae,   num_train=7, num_eval=7, num_variance_estimate=7),
-    wrapped_partial(metric_flatness,            factor_repeats=7),
-    wrapped_partial(metric_flatness_components, factor_repeats=7),
 ])
 def test_metrics(metric_fn):
     z_size = 8
     # ground truth data
     # TODO: DisentDataset should not be needed to compute metrics!
-    dataset = DisentDataset(XYSquaresMinimalData(), transform=ToStandardisedTensor())
+    dataset = DisentDataset(XYObjectData(), transform=ToStandardisedTensor())
     # randomly sampled representation
     get_repr = lambda x: torch.randn(len(x), z_size)
     # evaluate

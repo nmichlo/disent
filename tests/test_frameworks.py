@@ -36,9 +36,7 @@ from disent.dataset.sampling import GroundTruthSingleSampler
 from disent.dataset.sampling import GroundTruthPairSampler
 from disent.dataset.sampling import GroundTruthTripleSampler
 from disent.frameworks.ae import *
-from disent.frameworks.ae.experimental import *
 from disent.frameworks.vae import *
-from disent.frameworks.vae.experimental import *
 from disent.model import AutoEncoder
 from disent.model.ae import DecoderTest
 from disent.model.ae import EncoderTest
@@ -53,12 +51,9 @@ from disent.nn.transform import ToStandardisedTensor
 @pytest.mark.parametrize(['Framework', 'cfg_kwargs', 'Data'], [
     # AE - unsupervised
     (Ae,                   dict(),                                                                      XYObjectData),
-    (DataOverlapTripletAe, dict(overlap_mine_triplet_mode='hard_neg'),                                  XYObjectData),
     # AE - weakly supervised
-    (AdaAe,                dict(),                                                                      XYObjectData),
     # AE - supervised
     (TripletAe,            dict(),                                                                      XYObjectData),
-    (AdaNegTripletAe,      dict(),                                                                      XYObjectData),
     # VAE - unsupervised
     (Vae,                  dict(),                                                                      XYObjectData),
     (BetaVae,              dict(),                                                                      XYObjectData),
@@ -68,30 +63,12 @@ from disent.nn.transform import ToStandardisedTensor
     (DfcVae,               dict(),                                                                      XYObjectData),
     (DfcVae,               dict(),                                                                      partial(XYObjectData, rgb=False)),
     (BetaTcVae,            dict(),                                                                      XYObjectData),
-    (DataOverlapTripletVae,dict(overlap_mine_triplet_mode='none'),                                      XYObjectData),
-    (DataOverlapTripletVae,dict(overlap_mine_triplet_mode='semi_hard_neg'),                             XYObjectData),
-    (DataOverlapTripletVae,dict(overlap_mine_triplet_mode='hard_neg'),                                  XYObjectData),
-    (DataOverlapTripletVae,dict(overlap_mine_triplet_mode='hard_pos'),                                  XYObjectData),
-    (DataOverlapTripletVae,dict(overlap_mine_triplet_mode='easy_pos'),                                  XYObjectData),
-    (DataOverlapRankVae,   dict(),                                                                      XYObjectData),
     # VAE - weakly supervised
     (AdaVae,               dict(),                                                                      XYObjectData),
     (AdaVae,               dict(ada_average_mode='ml-vae'),                                             XYObjectData),
-    (SwappedTargetAdaVae,  dict(swap_chance=1.0),                                                       XYObjectData),
-    (SwappedTargetBetaVae, dict(swap_chance=1.0),                                                       XYObjectData),
-    (AugPosTripletVae,     dict(),                                                                      XYObjectData),
     # VAE - supervised
     (TripletVae,           dict(),                                                                      XYObjectData),
     (TripletVae,           dict(disable_decoder=True, disable_reg_loss=True, disable_posterior_scale=0.5), XYObjectData),
-    (BoundedAdaVae,        dict(),                                                                      XYObjectData),
-    (GuidedAdaVae,         dict(),                                                                      XYObjectData),
-    (GuidedAdaVae,         dict(gada_anchor_ave_mode='thresh'),                                         XYObjectData),
-    (TripletBoundedAdaVae, dict(),                                                                      XYObjectData),
-    (TripletGuidedAdaVae,  dict(),                                                                      XYObjectData),
-    (AdaTripletVae,        dict(),                                                                      XYObjectData),
-    (AdaAveTripletVae,     dict(adat_share_mask_mode='posterior'),                                      XYObjectData),
-    (AdaAveTripletVae,     dict(adat_share_mask_mode='sample'),                                         XYObjectData),
-    (AdaAveTripletVae,     dict(adat_share_mask_mode='sample_each'),                                    XYObjectData),
 ])
 def test_frameworks(Framework, cfg_kwargs, Data):
     DataSampler = {
