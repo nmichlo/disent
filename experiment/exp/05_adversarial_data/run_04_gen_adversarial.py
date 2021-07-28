@@ -287,8 +287,8 @@ def run_generate_and_save_adversarial_dataset_mp(
     loss_fn: str = 'mse',
     batch_size: int = 1024*12,                # approx
     batch_sample_mode: str = 'shuffle',       # range, shuffle, random
-    loss_num_pairs: int = 1024*5,
-    loss_num_samples: int = 1024*5*2,         # only applies if loss_const_targ=None
+    loss_num_pairs: int = 1024*4,
+    loss_num_samples: int = 1024*4*2,         # only applies if loss_const_targ=None
     loss_top_k: Optional[int] = None,
     loss_const_targ: Optional[float] = 0.1,   # replace stochastic pairwise constant loss with deterministic loss target
     loss_reg_out_of_bounds: bool = False,
@@ -331,6 +331,12 @@ def run_generate_and_save_adversarial_dataset_mp(
         batch_idxs = H.generate_epoch_batch_idxs(num_obs=len(dataset), num_batches=train_batches, mode=batch_sample_mode)
         # first data load
         load_future = _submit_load_batch_futures(executor, num_splits=NUM_WORKERS, dataset=dataset, h5py_path=path, idxs=batch_idxs[0], initial_noise=obs_initial_noise)
+
+        # TODO: log to WANDB
+        # TODO: SAMPLING STRATEGY MIGHT NEED TO CHANGE!
+        #       - currently random pairs are generated, but the pairs that matter are the nearby ones.
+        #       - sample pairs that increase and decrease along an axis
+        #       - sample pairs that are nearby according to the factor distance metric
 
         # BATCHES:
         for n in range(len(batch_idxs)):
@@ -437,35 +443,28 @@ def run_generate_adversarial_data(
 def main():
     logging.basicConfig(level=logging.INFO, format='(%(asctime)s) %(name)s:%(lineno)d [%(levelname)s]: %(message)s')
 
-    DATASET_NAME = 'cars3d'
-
     paths = []
     for i, kwargs in enumerate([
-        # dict(save_prefix='fixed_masked_randm_', obs_masked=True,  loss_const_targ=None, obs_initial_noise=None),
-        # dict(save_prefix='fixed_masked_const_', obs_masked=True,  loss_const_targ=0.1,  obs_initial_noise=None),
-        dict(save_prefix='e128_lr0.003_radam__fixed_unmask_const_', obs_masked=False, loss_const_targ=0.1,  obs_initial_noise=None, optimizer='radam'),
-        dict(save_prefix='e128_lr0.003_radam__fixed_unmask_randm_', obs_masked=False, loss_const_targ=None, obs_initial_noise=None, optimizer='radam'),
-        dict(save_prefix='e128_lr0.003_adabelief__fixed_unmask_const_', obs_masked=False, loss_const_targ=0.1,  obs_initial_noise=None, optimizer='adabelief'),
-        dict(save_prefix='e128_lr0.003_adabelief__fixed_unmask_randm_', obs_masked=False, loss_const_targ=None, obs_initial_noise=None, optimizer='adabelief'),
-        # dict(save_prefix='noise_unmask_randm_', obs_masked=False, loss_const_targ=None, obs_initial_noise=0.001),
-        # dict(save_prefix='noise_unmask_const_', obs_masked=False, loss_const_targ=0.1,  obs_initial_noise=0.001),
+        # dict(save_prefix='e128__fixed_unmask_const_', obs_masked=False, loss_const_targ=0.1,  obs_initial_noise=None, optimizer='adam', dataset_name='cars3d'),
+        # dict(save_prefix='e128__fixed_unmask_const_', obs_masked=False, loss_const_targ=0.1,  obs_initial_noise=None, optimizer='adam', dataset_name='smallnorb'),
+        # dict(save_prefix='e128__fixed_unmask_randm_', obs_masked=False, loss_const_targ=None, obs_initial_noise=None, optimizer='adam', dataset_name='cars3d'),
+        # dict(save_prefix='e128__fixed_unmask_randm_', obs_masked=False, loss_const_targ=None, obs_initial_noise=None, optimizer='adam', dataset_name='smallnorb'),
     ]):
         # generate dataset
         try:
             path = run_generate_and_save_adversarial_dataset_mp(
-                dataset_name=DATASET_NAME,
                 train_epochs=128,
-                train_optim_steps=250,
+                train_optim_steps=175,
                 seed_=777,
                 overwrite_mode='overwrite',
                 dataset_load_into_memory=True,
-                lr=3e-3,
+                lr=5e-3,
                 # batch_sample_mode='range',
                 **kwargs
             )
             paths.append(path)
         except Exception as e:
-            log.error(f'[{i}] FAILED RUN: {e} -- {repr(kwargs)}')
+            log.error(f'[{i}] FAILED RUN: {e} -- {repr(kwargs)}', exc_info=True)
         # load some samples and display them
         try:
             log.warning(f'visualisation of `_read_hdf5_batch(paths[-1], display_idxs)` was disabled')

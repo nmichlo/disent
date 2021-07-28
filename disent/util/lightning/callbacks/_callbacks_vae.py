@@ -83,12 +83,14 @@ def _get_dataset_and_vae(trainer: pl.Trainer, pl_module: pl.LightningModule) -> 
 
 class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
 
-    def __init__(self, seed=7777, every_n_steps=None, begin_first_step=False, mode='fitted_gaussian_cycle', plt_show=False, plt_block_size=1.0):
+    def __init__(self, seed=7777, every_n_steps=None, begin_first_step=False, mode='fitted_gaussian_cycle', plt_show=False, plt_block_size=1.0, recon_min=0., recon_max=1.):
         super().__init__(every_n_steps, begin_first_step)
         self.seed = seed
         self.mode = mode
         self.plt_show = plt_show
         self.plt_block_size = plt_block_size
+        self._recon_min = recon_min
+        self._recon_max = recon_max
 
     def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         # get dataset and vae framework from trainer and module
@@ -111,7 +113,11 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
 
             # produce latent cycle grid animation
             # TODO: this needs to be fixed to not use logvar, but rather the representations or distributions themselves
-            frames, stills = latent_cycle_grid_animation(vae.decode, zs_mean, zs_logvar, mode=self.mode, num_frames=21, decoder_device=vae.device, tensor_style_channels=False, return_stills=True, to_uint8=True)
+            frames, stills = latent_cycle_grid_animation(
+                vae.decode, zs_mean, zs_logvar,
+                mode=self.mode, num_frames=21, decoder_device=vae.device, tensor_style_channels=False, return_stills=True,
+                to_uint8=True, recon_min=self._recon_min, recon_max=self._recon_max,
+            )
 
         # log video
         wb_log_metrics(trainer.logger, {

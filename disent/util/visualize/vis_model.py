@@ -103,7 +103,7 @@ _LATENT_CYCLE_MODES_MAP = {
 # ========================================================================= #
 
 
-def latent_cycle(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', num_animations=4, num_frames=20, decoder_device=None):
+def latent_cycle(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', num_animations=4, num_frames=20, decoder_device=None, recon_min=0., recon_max=1.):
     assert len(z_means) > 1 and len(z_logvars) > 1, 'not enough samples to average'
     # convert
     z_means, z_logvars = to_numpy(z_means), to_numpy(z_logvars)
@@ -117,14 +117,14 @@ def latent_cycle(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', 
         for j in range(z_means.shape[1]):
             z = z_gen_func(base_z, z_means, z_logvars, j, num_frames)
             z = torch.as_tensor(z, device=decoder_device)
-            frames.append(reconstructions_to_images(decoder_func(z)))
+            frames.append(reconstructions_to_images(decoder_func(z), recon_min=recon_min, recon_max=recon_max))
         animations.append(frames)
     return to_numpy(animations)
 
 
-def latent_cycle_grid_animation(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', num_frames=21, pad=4, border=True, bg_color=0.5, decoder_device=None, tensor_style_channels=True, always_rgb=True, return_stills=False, to_uint8=False):
+def latent_cycle_grid_animation(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', num_frames=21, pad=4, border=True, bg_color=0.5, decoder_device=None, tensor_style_channels=True, always_rgb=True, return_stills=False, to_uint8=False, recon_min=0., recon_max=1.):
     # produce latent cycle animation & merge frames
-    stills = latent_cycle(decoder_func, z_means, z_logvars, mode=mode, num_animations=1, num_frames=num_frames, decoder_device=decoder_device)[0]
+    stills = latent_cycle(decoder_func, z_means, z_logvars, mode=mode, num_animations=1, num_frames=num_frames, decoder_device=decoder_device, recon_min=recon_min, recon_max=recon_max)[0]
     # check and add missing channel if needed (convert greyscale to rgb images)
     if always_rgb:
         assert stills.shape[-1] in {1, 3}, f'Invalid number of image channels: {stills.shape} ({stills.shape[-1]})'

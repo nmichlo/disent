@@ -217,7 +217,7 @@ def cycle_interval(starting_value, num_frames, min_val, max_val):
 
 # TODO: this functionality is duplicated elsewhere!
 # TODO: similar functions exist: output_image, to_img, to_imgs, reconstructions_to_images
-def reconstructions_to_images(recon, mode='float', moveaxis=True):
+def reconstructions_to_images(recon, mode='float', moveaxis=True, recon_min=0., recon_max=1.):
     """
     Convert a batch of reconstructions to images.
     A batch in this case consists of an arbitrary number of dimensions of an array,
@@ -232,6 +232,9 @@ def reconstructions_to_images(recon, mode='float', moveaxis=True):
     # checks
     assert img.ndim >= 3
     assert img.dtype in (np.float32, np.float64)
+    # scale image
+    img = (img - recon_min) / (recon_max - recon_min)
+    # check image bounds
     if np.min(img) < 0 or np.max(img) > 1:
         warnings.warn('images are being clipped between 0 and 1')
     img = np.clip(img, 0, 1)
@@ -486,4 +489,3 @@ def reconstructions_to_images(recon, mode='float', moveaxis=True):
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-
