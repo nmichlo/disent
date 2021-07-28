@@ -23,19 +23,18 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import os
-from typing import Union
 
 import numpy as np
 from matplotlib import pyplot as plt
 
 import experiment.exp.util as H
-from disent.dataset.data.groundtruth import Cars3dData
-from disent.dataset.data.groundtruth import DSpritesData
-from disent.dataset.data.groundtruth import GroundTruthData
-from disent.dataset.data.groundtruth import Shapes3dData
-from disent.dataset.data.groundtruth import SmallNorbData
-from disent.dataset.data.groundtruth import XYSquaresData
-from disent.dataset.sampling.groundtruth import GroundTruthDataset
+from disent.dataset import DisentDataset
+from disent.dataset.data import Cars3dData
+from disent.dataset.data import DSpritesData
+from disent.dataset.data import GroundTruthData
+from disent.dataset.data import Shapes3dData
+from disent.dataset.data import SmallNorbData
+from disent.dataset.data import XYSquaresData
 from disent.util.seeds import TempNumpySeed
 
 
@@ -45,7 +44,7 @@ from disent.util.seeds import TempNumpySeed
 
 
 def plot_dataset_traversals(
-    gt_data: Union[GroundTruthData, GroundTruthDataset],
+    gt_data: GroundTruthData,
     f_idxs=None,
     num_cols=8,
     base_factors=None,
@@ -59,13 +58,12 @@ def plot_dataset_traversals(
     plt_scale=4.5,
     offset=0.75
 ):
-    if not isinstance(gt_data, GroundTruthDataset):
-        gt_data = GroundTruthDataset(gt_data)
+    dataset = DisentDataset(gt_data)
     f_idxs = H.get_factor_idxs(gt_data, f_idxs)
     # get traversal grid
     row_labels = [gt_data.factor_names[i] for i in f_idxs]
     grid, _, _ = H.visualize_dataset_traversal(
-        dataset=gt_data,
+        dataset=dataset,
         data_mode='raw',
         factor_names=f_idxs,
         num_frames=num_cols,
@@ -81,7 +79,7 @@ def plot_dataset_traversals(
         with TempNumpySeed(seed):
             row_labels = ['random'] + row_labels
             grid = np.concatenate([
-                gt_data.dataset_sample_batch(num_samples=num_cols, mode='raw')[None, ...],
+                dataset.dataset_sample_batch(num_samples=num_cols, mode='raw')[None, ...],
                 grid
             ])
     # add missing channel
