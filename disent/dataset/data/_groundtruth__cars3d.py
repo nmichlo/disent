@@ -31,8 +31,8 @@ import numpy as np
 from scipy.io import loadmat
 
 from disent.dataset.util.datafile import DataFileHashedDlGen
-from disent.dataset.data._groundtruth import NumpyGroundTruthData
-from disent.util.in_out import AtomicSaveFile
+from disent.dataset.data._groundtruth import NumpyFileGroundTruthData
+from disent.util.inout.files import AtomicSaveFile
 
 
 log = logging.getLogger(__name__)
@@ -96,7 +96,7 @@ class DataFileCars3d(DataFileHashedDlGen):
 # ========================================================================= #
 
 
-class Cars3dData(NumpyGroundTruthData):
+class Cars3dData(NumpyFileGroundTruthData):
     """
     Cars3D Dataset
     - Deep Visual Analogy-Making (https://papers.nips.cc/paper/5845-deep-visual-analogy-making)
@@ -118,6 +118,9 @@ class Cars3dData(NumpyGroundTruthData):
         file_hash={'fast': 'ef5d86d1572ddb122b466ec700b3abf2', 'full': 'dc03319a0b9118fbe0e23d13220a745b'},
         hash_mode='fast'
     )
+
+    # override
+    data_key = 'images'
 
 
 # ========================================================================= #

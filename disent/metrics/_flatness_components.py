@@ -22,6 +22,11 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+"""
+Flatness Metric Components
+- Nathan Michlo 2021 (Unpublished)
+- Cite disent
+"""
 
 import logging
 
@@ -54,10 +59,16 @@ def metric_flatness_components(
         batch_size: int = 64,
 ):
     """
-    Computes the dual flatness metrics (ordering & linearity):
-        swap_ratio: percent of correctly ordered ground truth factors in the latent space
-        ave_corr: average of the correlation matrix (Pearson's) for latent traversals
-        ave_rank_corr: average of the rank correlation matrix (Spearman's) for latent traversals
+    Computes the flatness metric components (ordering, linearity & axis alignment):
+        global_swap_ratio:      how swapped embeddings are compared to ground truth factors
+        factor_swap_ratio_near: how swapped embeddings are compared to ground truth factors
+        factor_swap_ratio:      how swapped embeddings are compared to ground truth factors
+        axis_ratio:             largest singular values over sum of singular values
+        ave_axis_ratio:         largest singular values over sum of singular values
+        linear_ratio:           largest std/variance over sum of std/variance
+        ave_linear_ratio:       largest std/variance over sum of std/variance
+        axis_alignment:         axis ratio is bounded by linear ratio - compute: axis / linear
+        ave_axis_alignment:     axis ratio is bounded by linear ratio - compute: axis / linear
 
     Args:
       ground_truth_dataset: GroundTruthData to be sampled from.

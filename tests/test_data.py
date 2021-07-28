@@ -35,9 +35,8 @@ from disent.dataset.data import Hdf5Dataset
 from disent.dataset.data import XYSquaresData
 from disent.dataset.data import XYSquaresMinimalData
 from disent.dataset.util.hdf5 import hdf5_resave_file
-from disent.dataset.util.hdf5 import hdf5_test_entries_per_second
 from disent.dataset.util.hdf5 import hdf5_test_speed
-from disent.util.hashing import hash_file
+from disent.util.inout.hashing import hash_file
 
 from tests.util import no_stderr
 from tests.util import no_stdout

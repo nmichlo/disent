@@ -69,12 +69,14 @@ class ToStandardisedTensor(object):
     See: disent.transform.functional.to_standardised_tensor
     """
 
-    def __init__(self, size=None, check=True):
+    def __init__(self, size=None, cast_f32=False, check=True, check_range=True):
         self._size = size
+        self._cast_f32 = cast_f32  # cast after resizing before checks -- disabled by default to so dtype errors can be seen
         self._check = check
+        self._check_range = check_range  # if check is `False` then `check_range` can never be `True`
 
     def __call__(self, obs) -> torch.Tensor:
-        return F_d.to_standardised_tensor(obs, size=self._size, check=self._check)
+        return F_d.to_standardised_tensor(obs, size=self._size, cast_f32=self._cast_f32, check=self._check, check_range=self._check_range)
 
     def __repr__(self):
         return f'{self.__class__.__name__}(size={repr(self._size)})'

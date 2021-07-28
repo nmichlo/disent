@@ -25,6 +25,7 @@
 from functools import wraps
 from typing import Optional
 from typing import Sequence
+from typing import Union
 
 import numpy as np
 from torch.utils.data import Dataset
@@ -66,7 +67,7 @@ def groundtruth_only(func):
 
 class DisentDataset(Dataset, LengthIter):
 
-    def __init__(self, dataset, sampler: Optional[BaseDisentSampler] = None, transform=None, augment=None):
+    def __init__(self, dataset: Union[Dataset, GroundTruthData], sampler: Optional[BaseDisentSampler] = None, transform=None, augment=None):
         super().__init__()
         # save attributes
         self._dataset = dataset
@@ -90,7 +91,7 @@ class DisentDataset(Dataset, LengthIter):
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     @property
-    def is_ground_truth(self):
+    def is_ground_truth(self) -> bool:
         return isinstance(self._dataset, GroundTruthData)
 
     @property
@@ -198,14 +199,16 @@ class DisentDataset(Dataset, LengthIter):
         """Get a batch of observations X from a batch of factors Y."""
         return default_collate([self.dataset_get(idx, mode=mode) for idx in indices])
 
-    def dataset_sample_batch(self, num_samples: int, mode: str):
+    def dataset_sample_batch(self, num_samples: int, mode: str, replace: bool = False):
         """Sample a batch of observations X."""
+        # create seeded pseudo random number generator
+        # - built in np.random.choice cannot handle large values: https://github.com/numpy/numpy/issues/5299#issuecomment-497915672
+        # - PCG64 is the default: https://numpy.org/doc/stable/reference/random/bit_generators/index.html
+        # - PCG64 has good statistical properties and is fast: https://numpy.org/doc/stable/reference/random/performance.html
+        g = np.random.Generator(np.random.PCG64(seed=np.random.randint(0, 2**32)))
         # sample indices
-        indices = set()
-        while len(indices) < num_samples:
-            indices.add(np.random.randint(0, len(self)))
-        # done
-        return self.dataset_batch_from_indices(sorted(indices), mode=mode)
+        indices = g.choice(len(self), num_samples, replace=replace)
+        return self.dataset_batch_from_indices(indices, mode=mode)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Batches -- Ground Truth Only                                          #
@@ -223,13 +226,6 @@ class DisentDataset(Dataset, LengthIter):
         factors = self.ground_truth_data.sample_factors(num_samples)
         batch = self.dataset_batch_from_factors(factors, mode=mode)
         return batch, default_collate(factors)
-
-    @groundtruth_only
-    def dataset_sample_batch(self, num_samples: int, mode: str):
-        """Sample a batch of observations X."""
-        factors = self.ground_truth_data.sample_factors(num_samples)
-        batch = self.dataset_batch_from_factors(factors, mode=mode)
-        return batch
 
 
 # ========================================================================= #

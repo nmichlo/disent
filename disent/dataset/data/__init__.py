@@ -32,7 +32,7 @@ from disent.dataset.data._episodes__custom import EpisodesDownloadZippedPickledD
 # groundtruth -- base
 from disent.dataset.data._groundtruth import GroundTruthData
 from disent.dataset.data._groundtruth import DiskGroundTruthData
-from disent.dataset.data._groundtruth import NumpyGroundTruthData
+from disent.dataset.data._groundtruth import NumpyFileGroundTruthData
 from disent.dataset.data._groundtruth import Hdf5GroundTruthData
 
 # groundtruth -- impl
@@ -46,6 +46,10 @@ from disent.dataset.data._groundtruth__xyobject import XYObjectData
 from disent.dataset.data._groundtruth__xysquares import XYSquaresData
 from disent.dataset.data._groundtruth__xysquares import XYSquaresMinimalData
 
+# raw -- groundtruth
+# TODO: hdf5 version
+from disent.dataset.data._groundtruth import ArrayGroundTruthData
+
 # raw
-from disent.dataset.data._raw import NumpyDataset
+from disent.dataset.data._raw import ArrayDataset
 from disent.dataset.data._raw import Hdf5Dataset

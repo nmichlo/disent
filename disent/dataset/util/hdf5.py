@@ -38,11 +38,11 @@ import h5py
 import numpy as np
 from tqdm import tqdm
 
-from disent.util import colors as c
-from disent.util.in_out import AtomicSaveFile
+from disent.util.strings import colors as c
+from disent.util.inout.files import AtomicSaveFile
 from disent.util.iters import iter_chunks
 from disent.util.profiling import Timer
-from disent.util.strings import bytes_to_human
+from disent.util.strings.fmt import bytes_to_human
 
 
 log = logging.getLogger(__name__)
@@ -111,7 +111,7 @@ def hdf5_resave_file(
     out_dtype: Optional[Union[np.dtype, str]] = None,  # output dtype of the dataset
     out_mutator: Optional[Callable[[np.ndarray], np.ndarray]] = None,  # mutate batches before saving
     obs_shape: Optional[Tuple[int, ...]] = None,  # resize batches to this shape
-    write_mode: str = Union[Literal['atomic_w'], Literal['w'], Literal['a']],
+    write_mode: Union[Literal['atomic_w'], Literal['w'], Literal['a']] = 'atomic_w',
 ):
     # re-save datasets
     with h5py.File(inp_path, 'r') as inp_h5:

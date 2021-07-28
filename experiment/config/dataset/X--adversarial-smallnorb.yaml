@@ -1,0 +1,21 @@
+# @package _group_
+name: adversarial_smallnorb
+data:
+  _target_: experiment.exp.util._data.AdversarialOptimizedData
+  h5_path: "/home/nmichlo/workspace/research/disent/out/overlap/e128__fixed_unmask_const_smallnorb_True_adam_0.005_False_None_mse_12288_shuffle_4096_8192_None_0.1_False_128_175.hdf5"
+#  h5_path: "/home/nmichlo/workspace/research/disent/out/overlap/e128__fixed_unmask_randm_smallnorb_True_adam_0.005_False_None_mse_12288_shuffle_4096_8192_None_None_False_128_175.hdf5"
+  base_data:
+    _target_: disent.dataset.data.SmallnorbData
+    data_root: ${dataset.data_root}
+    in_memory: False
+    prepare: True
+transform:
+  _target_: disent.nn.transform.ToStandardisedTensor
+  cast_f32: True
+  check_range: False
+x_shape: [1, 64, 64]
+
+data_type: ground_truth
+
+vis_min: -1.0
+vis_max:  1.0

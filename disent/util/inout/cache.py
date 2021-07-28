@@ -30,9 +30,9 @@ from typing import NoReturn
 from typing import Optional
 from typing import Union
 
-from disent.util.hashing import normalise_hash
-from disent.util.hashing import hash_file
-from disent.util.hashing import validate_file_hash
+from disent.util.inout.hashing import normalise_hash
+from disent.util.inout.hashing import hash_file
+from disent.util.inout.hashing import validate_file_hash
 
 
 log = logging.getLogger(__name__)
@@ -91,4 +91,3 @@ class stalefile(object):
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-

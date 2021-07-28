@@ -23,11 +23,18 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from numbers import Number
-from typing import Sequence
+from typing import Optional
 
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
+
+from disent.dataset import DisentDataset
+from disent.util.seeds import TempNumpySeed
+from disent.util.visualize.vis_util import make_animated_image_grid
+from disent.util.visualize.vis_util import make_image_grid
+from experiment.exp.util._dataset import get_factor_idxs
+from experiment.exp.util._dataset import NonNormalisedFactors
 
 
 # ========================================================================= #
@@ -218,6 +225,82 @@ def plt_hide_axis(ax, hide_xaxis=True, hide_yaxis=True, hide_border=True, hide_a
     if hide_grid:
         ax.grid(False)
     return ax
+
+
+# ========================================================================= #
+# Dataset Visualisation / Traversals                                        #
+# ========================================================================= #
+
+
+def visualize_dataset_traversal(
+    dataset: DisentDataset,
+    # inputs
+    factor_names: Optional[NonNormalisedFactors] = None,
+    num_frames: int = 9,
+    seed: int = 777,
+    base_factors=None,
+    traverse_mode='cycle',
+    # images & animations
+    pad: int = 4,
+    border: bool = True,
+    bg_color: Number = None,
+    # augment
+    augment_fn: callable = None,
+    data_mode: str = 'raw',
+    # output
+    output_wandb: bool = False,
+):
+    """
+    Generic function that can return multiple parts of the dataset & factor traversal pipeline.
+    - This only evaluates what is needed to compute the next components.
+
+    Tasks include:
+        - factor_idxs
+        - factors
+        - grid
+        - image
+        - image_wandb
+        - image_plt
+        - animation
+        - animation_wandb
+    """
+
+    # get factors from dataset
+    factor_idxs = get_factor_idxs(dataset.ground_truth_data, factor_names)
+
+    # get factor traversals
+    with TempNumpySeed(seed):
+        factors = np.stack([
+            dataset.ground_truth_data.sample_random_factor_traversal(f_idx, base_factors=base_factors, num=num_frames, mode=traverse_mode)
+            for f_idx in factor_idxs
+        ], axis=0)
+
+    # retrieve and augment image grid
+    grid = [dataset.dataset_batch_from_factors(f, mode=data_mode) for f in factors]
+    if augment_fn is not None:
+        grid = [augment_fn(batch) for batch in grid]
+    grid = np.stack(grid, axis=0)
+
+    # generate visuals
+    image = make_image_grid(np.concatenate(grid, axis=0), pad=pad, border=border, bg_color=bg_color, num_cols=num_frames)
+    animation = make_animated_image_grid(np.stack(grid, axis=0), pad=pad, border=border, bg_color=bg_color, num_cols=None)
+
+    # convert to wandb
+    if output_wandb:
+        import wandb
+        wandb_image = wandb.Image(image)
+        wandb_animation = wandb.Video(np.transpose(animation, [0, 3, 1, 2]), fps=5, format='mp4')
+        return (
+            wandb_image,
+            wandb_animation,
+        )
+
+    # return values
+    return (
+        grid,       # (FACTORS, NUM_FRAMES, H, W, C)
+        image,      # ([[H+PAD]*[FACTORS+1]], [[W+PAD]*[NUM_FRAMES+1]], C)
+        animation,  # (NUM_FRAMES, [H & FACTORS], [W & FACTORS], C) -- size is auto-chosen
+    )
 
 
 # ========================================================================= #

@@ -27,8 +27,8 @@ import os
 from typing import Optional
 from uuid import uuid4
 
-from disent.util.paths import uri_parse_file_or_url
-from disent.util.paths import modify_file_name
+from disent.util.inout.paths import uri_parse_file_or_url
+from disent.util.inout.paths import modify_file_name
 
 
 log = logging.getLogger(__name__)

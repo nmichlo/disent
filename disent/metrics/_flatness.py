@@ -24,7 +24,8 @@
 
 """
 Flatness Metric
-- Nathan Michlo et. al
+- Nathan Michlo 2021 (Unpublished)
+- Cite disent
 """
 
 import logging
@@ -33,6 +34,7 @@ from typing import Iterable
 from typing import Union
 
 import torch
+from deprecated import deprecated
 from torch.utils.data.dataloader import default_collate
 
 from disent.dataset import DisentDataset
@@ -47,6 +49,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
+@deprecated('flatness metric is deprecated in favour of flatness_components, this metric still gives useful alternative info however.')
 def metric_flatness(
         ground_truth_dataset: DisentDataset,
         representation_function: callable,

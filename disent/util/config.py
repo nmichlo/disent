@@ -23,6 +23,9 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 
+from deprecated import deprecated
+
+
 # ========================================================================= #
 # Recursive Hydra Instantiation                                             #
 # TODO: use https://github.com/facebookresearch/hydra/pull/989              #
@@ -30,6 +33,7 @@
 # ========================================================================= #
 
 
+@deprecated('replace with hydra 1.1')
 def call_recursive(config):
     # import hydra
     try:
@@ -50,10 +54,13 @@ def call_recursive(config):
     return _call_recursive(config)
 
 
-# export alias
-instantiate_recursive = call_recursive
+# alias
+@deprecated('replace with hydra 1.1')
+def instantiate_recursive(config):
+    return call_recursive(config)
 
 
+@deprecated('replace with hydra 1.1')
 def instantiate_object_if_needed(config_or_object):
     if isinstance(config_or_object, dict):
         return instantiate_recursive(config_or_object)

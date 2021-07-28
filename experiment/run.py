@@ -42,11 +42,10 @@ from disent.frameworks import DisentFramework
 from disent.model import AutoEncoder
 from disent.nn.weights import init_model_weights
 from disent.util.seeds import seed
-from disent.util.strings import make_box_str
-from experiment.util.callbacks import LoggerProgressCallback
-from experiment.util.callbacks import VaeDisentanglementLoggingCallback
-from experiment.util.callbacks import VaeLatentCycleLoggingCallback
-from experiment.util.callbacks.callbacks_vae import VaeLatentCorrelationLoggingCallback
+from disent.util.strings.fmt import make_box_str
+from disent.util.lightning.callbacks import LoggerProgressCallback
+from disent.util.lightning.callbacks import VaeDisentanglementLoggingCallback
+from disent.util.lightning.callbacks import VaeLatentCycleLoggingCallback
 from experiment.util.hydra_data import HydraDataModule
 from experiment.util.hydra_utils import make_non_strict
 from experiment.util.hydra_utils import merge_specializations
@@ -149,6 +148,8 @@ def hydra_append_latent_cycle_logger_callback(callbacks, cfg):
                 every_n_steps=cfg.callbacks.latent_cycle.every_n_steps,
                 begin_first_step=False,
                 mode=cfg.callbacks.latent_cycle.mode,
+                recon_min=cfg.dataset.setdefault('vis_min', 0.),
+                recon_max=cfg.dataset.setdefault('vis_max', 1.),
             ))
         else:
             log.warning('latent_cycle callback is not being used because wandb is not enabled!')
@@ -189,11 +190,12 @@ def hydra_append_metric_callback(callbacks, cfg):
 
 def hydra_append_correlation_callback(callbacks, cfg):
     if 'correlation' in cfg.callbacks:
-        callbacks.append(VaeLatentCorrelationLoggingCallback(
-            repeats_per_factor=cfg.callbacks.correlation.repeats_per_factor,
-            every_n_steps=cfg.callbacks.correlation.every_n_steps,
-            begin_first_step=False,
-        ))
+        log.warning('Correlation callback has been disabled. skipping!')
+        # callbacks.append(VaeLatentCorrelationLoggingCallback(
+        #     repeats_per_factor=cfg.callbacks.correlation.repeats_per_factor,
+        #     every_n_steps=cfg.callbacks.correlation.every_n_steps,
+        #     begin_first_step=False,
+        # ))
 
 
 def hydra_register_schedules(module: DisentFramework, cfg):

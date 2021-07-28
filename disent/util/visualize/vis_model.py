@@ -27,9 +27,9 @@ import numpy as np
 import torch
 
 from disent.util import to_numpy
-from disent.visualize import visualize_util
-from disent.visualize.visualize_util import make_animated_image_grid
-from disent.visualize.visualize_util import reconstructions_to_images
+from disent.util.visualize import vis_util
+from disent.util.visualize.vis_util import make_animated_image_grid
+from disent.util.visualize.vis_util import reconstructions_to_images
 
 
 log = logging.getLogger(__name__)
@@ -52,7 +52,7 @@ log = logging.getLogger(__name__)
 def _z_std_gaussian_cycle(base_z, z_means, z_logvars, z_idx, num_frames):
     # Cycle through quantiles of a standard Gaussian.
     zs = np.repeat(np.expand_dims(base_z, 0), num_frames, axis=0)
-    zs[:, z_idx] = visualize_util.cycle_gaussian(base_z[z_idx], num_frames, loc=0, scale=1)
+    zs[:, z_idx] = vis_util.cycle_gaussian(base_z[z_idx], num_frames, loc=0, scale=1)
     return zs
 
 
@@ -61,14 +61,14 @@ def _z_fitted_gaussian_cycle(base_z, z_means, z_logvars, z_idx, num_frames):
     zs = np.repeat(np.expand_dims(base_z, 0), num_frames, axis=0)
     loc = np.mean(z_means[:, z_idx])
     total_variance = np.mean(np.exp(z_logvars[:, z_idx])) + np.var(z_means[:, z_idx])
-    zs[:, z_idx] = visualize_util.cycle_gaussian(base_z[z_idx], num_frames, loc=loc, scale=np.sqrt(total_variance))
+    zs[:, z_idx] = vis_util.cycle_gaussian(base_z[z_idx], num_frames, loc=loc, scale=np.sqrt(total_variance))
     return zs
 
 
 def _z_fixed_interval_cycle(base_z, z_means, z_logvars, z_idx, num_frames):
     # Cycle through [-2, 2] interval.
     zs = np.repeat(np.expand_dims(base_z, 0), num_frames, axis=0)
-    zs[:, z_idx] = visualize_util.cycle_interval(base_z[z_idx], num_frames, -2., 2.)
+    zs[:, z_idx] = vis_util.cycle_interval(base_z[z_idx], num_frames, -2., 2.)
     return zs
 
 
@@ -78,14 +78,14 @@ def _z_conf_interval_cycle(base_z, z_means, z_logvars, z_idx, num_frames):
     loc = np.mean(z_means[:, z_idx])
     total_variance = np.mean(np.exp(z_logvars[:, z_idx])) + np.var(z_means[:, z_idx])
     scale = np.sqrt(total_variance)
-    zs[:, z_idx] = visualize_util.cycle_interval(base_z[z_idx], num_frames, loc - 2. * scale, loc + 2. * scale)
+    zs[:, z_idx] = vis_util.cycle_interval(base_z[z_idx], num_frames, loc - 2. * scale, loc + 2. * scale)
     return zs
 
 
 def _z_minmax_interval_cycle(base_z, z_means, z_logvars, z_idx, num_frames):
     # Cycle linearly through minmax of a fitted Gaussian.
     zs = np.repeat(np.expand_dims(base_z, 0), num_frames, axis=0)
-    zs[:, z_idx] = visualize_util.cycle_interval(base_z[z_idx], num_frames, np.min(z_means[:, z_idx]), np.max(z_means[:, z_idx]))
+    zs[:, z_idx] = vis_util.cycle_interval(base_z[z_idx], num_frames, np.min(z_means[:, z_idx]), np.max(z_means[:, z_idx]))
     return zs
 
 
@@ -103,7 +103,7 @@ _LATENT_CYCLE_MODES_MAP = {
 # ========================================================================= #
 
 
-def latent_cycle(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', num_animations=4, num_frames=20, decoder_device=None):
+def latent_cycle(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', num_animations=4, num_frames=20, decoder_device=None, recon_min=0., recon_max=1.):
     assert len(z_means) > 1 and len(z_logvars) > 1, 'not enough samples to average'
     # convert
     z_means, z_logvars = to_numpy(z_means), to_numpy(z_logvars)
@@ -117,14 +117,14 @@ def latent_cycle(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', 
         for j in range(z_means.shape[1]):
             z = z_gen_func(base_z, z_means, z_logvars, j, num_frames)
             z = torch.as_tensor(z, device=decoder_device)
-            frames.append(reconstructions_to_images(decoder_func(z)))
+            frames.append(reconstructions_to_images(decoder_func(z), recon_min=recon_min, recon_max=recon_max))
         animations.append(frames)
     return to_numpy(animations)
 
 
-def latent_cycle_grid_animation(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', num_frames=21, pad=4, border=True, bg_color=0.5, decoder_device=None, tensor_style_channels=True, always_rgb=True, return_stills=False, to_uint8=False):
+def latent_cycle_grid_animation(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', num_frames=21, pad=4, border=True, bg_color=0.5, decoder_device=None, tensor_style_channels=True, always_rgb=True, return_stills=False, to_uint8=False, recon_min=0., recon_max=1.):
     # produce latent cycle animation & merge frames
-    stills = latent_cycle(decoder_func, z_means, z_logvars, mode=mode, num_animations=1, num_frames=num_frames, decoder_device=decoder_device)[0]
+    stills = latent_cycle(decoder_func, z_means, z_logvars, mode=mode, num_animations=1, num_frames=num_frames, decoder_device=decoder_device, recon_min=recon_min, recon_max=recon_max)[0]
     # check and add missing channel if needed (convert greyscale to rgb images)
     if always_rgb:
         assert stills.shape[-1] in {1, 3}, f'Invalid number of image channels: {stills.shape} ({stills.shape[-1]})'

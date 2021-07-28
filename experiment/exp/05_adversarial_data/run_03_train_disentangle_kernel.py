@@ -41,16 +41,16 @@ import disent.util.seeds
 import experiment.exp.util as H
 from disent.nn.modules import DisentLightningModule
 from disent.nn.modules import DisentModule
-from disent.util.strings import make_box_str
+from disent.util.strings.fmt import make_box_str
 from disent.util.seeds import seed
 from disent.nn.functional import torch_conv2d_channel_wise_fft
 from disent.nn.loss.softsort import spearman_rank_loss
 from experiment.run import hydra_append_progress_callback
 from experiment.run import hydra_check_cuda
 from experiment.run import hydra_make_logger
-from experiment.util.callbacks.callbacks_base import _PeriodicCallback
+from disent.util.lightning.callbacks import BaseCallbackPeriodic
 from experiment.util.hydra_utils import make_non_strict
-from experiment.util.logger_util import wb_log_metrics
+from disent.util.lightning.logger_util import wb_log_metrics
 
 
 log = logging.getLogger(__name__)
@@ -156,8 +156,8 @@ class Kernel(DisentModule):
     def forward(self, xs):
         return torch_conv2d_channel_wise_fft(xs, self._kernel)
 
-    def make_train_periodic_callback(self, cfg, dataset) -> _PeriodicCallback:
-        class ImShowCallback(_PeriodicCallback):
+    def make_train_periodic_callback(self, cfg, dataset) -> BaseCallbackPeriodic:
+        class ImShowCallback(BaseCallbackPeriodic):
             def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
                 # get kernel image
                 kernel = H.to_img(pl_module.model._kernel[0], scale=True).numpy()
@@ -166,8 +166,8 @@ class Kernel(DisentModule):
                     return H.to_imgs(pl_module.forward(batch.to(pl_module.device)), scale=True)
                 # get augmented traversals
                 with torch.no_grad():
-                    orig_wandb_image, orig_wandb_animation = H.dataset_traversal_tasks(dataset, tasks=('image_wandb', 'animation_wandb'))
-                    augm_wandb_image, augm_wandb_animation = H.dataset_traversal_tasks(dataset, tasks=('image_wandb', 'animation_wandb'), augment_fn=augment_fn, data_mode='input')
+                    orig_wandb_image, orig_wandb_animation = H.visualize_dataset_traversal(dataset)
+                    augm_wandb_image, augm_wandb_animation = H.visualize_dataset_traversal(dataset, augment_fn=augment_fn, data_mode='input')
                 # log images to WANDB
                 wb_log_metrics(trainer.logger, {
                     'kernel': wandb.Image(kernel),
