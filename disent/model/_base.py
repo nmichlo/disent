@@ -86,8 +86,8 @@ class DisentEncoder(DisentLatentsModule):
     def forward(self, x, chunk=True) -> torch.Tensor:
         """same as self.encode but with size checks"""
         # checks
-        assert x.ndim == 4
-        assert x.shape[1:] == self.x_shape
+        assert x.ndim == 4, f'ndim mismatch: 4 (required) != {x.ndim} (given)'
+        assert x.shape[1:] == self.x_shape, f'x_shape mismatch: {self.x_shape} (required) != {x.shape[1:]} (batch)'
         # encode | p(z|x)
         # for a gaussian encoder, we treat z as concat(z_mean, z_logvar) where z_mean.shape == z_logvar.shape
         # ie. the first half of z is z_mean, the second half of z is z_logvar
