@@ -122,8 +122,9 @@ are not available from `pip install`.
 
 ## Features
 
-Disent includes implementations of modules, metrics and datasets
-from various papers. As well as many custom experimental frameworks.
+Disent includes implementations of modules, metrics and
+datasets from various papers. Please note that items marked
+  with a "🧵" are introduced in and are unique to disent!
 
 ### Frameworks
 - **Unsupervised**:
@@ -180,6 +181,13 @@ low-memory disk-based access.
   + MPI3D
   + SmallNORB
   + Shapes3D
+
+- **Ground Truth Synthetic**:
+  + 🧵 XYObject: *A simplistic version of dSprites with a single square.*
+
+  <p align="center">
+    <img width="384" src="docs/img/xy-object-traversal.png" alt="XYObject Dataset Factor Traversals">
+  </p>
 
   #### Input Transforms + Input/Target Augmentations
   
@@ -290,6 +298,9 @@ a defaults list with entries corresponding to yaml configuration
 files (config options) in the subfolders (config groups) in
 `experiment/config/<config_group>/<option>.yaml`.
 
+<details><summary><b>Config Defaults Example</b></summary>
+<p>
+
 ```yaml
 defaults:
   # system
@@ -311,6 +322,9 @@ defaults:
 # <rest of config.yaml left out>
 ...
 ```
+
+</p>
+</details>
 
 Easily modify  any of these values to adjust how the basic experiment
 will be run. For example, change `framework: adavae` to `framework: betavae`, or
