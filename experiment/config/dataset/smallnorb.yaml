@@ -1,9 +1,9 @@
 # @package _group_
 name: smallnorb
 data:
-  _target_: disent.data.groundtruth.SmallNorbData
-  data_dir: ${dataset.data_dir}/smallnorb
-  force_download: False
+  _target_: disent.dataset.data.SmallNorbData
+  data_root: ${dataset.data_root}
+  prepare: True
   is_test: False
 transform:
   _target_: disent.nn.transform.ToStandardisedTensor

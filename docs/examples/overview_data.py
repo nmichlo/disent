@@ -1,6 +1,6 @@
-from disent.data.groundtruth import XYSquaresData
+from disent.dataset.data import XYObjectData
 
-data = XYSquaresData(square_size=1, image_size=2, num_squares=2)
+data = XYObjectData(grid_size=4, min_square_size=1, max_square_size=2, square_size_spacing=1, palette='rgb')
 
 print(f'Number of observations: {len(data)} == {data.size}')
 print(f'Observation shape: {data.observation_shape}')

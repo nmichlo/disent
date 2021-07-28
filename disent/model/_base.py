@@ -27,7 +27,7 @@ import logging
 from typing import final
 
 import numpy as np
-from torch import Tensor
+import torch
 
 from disent.nn.modules import DisentModule
 
@@ -40,7 +40,13 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class DisentLatentsBase(DisentModule):
+# TODO: vae models should be implemented here!
+#       models should potentially output distributions!
+#       - but how do we handle mixmatch of stuff in frameworks?
+#       - can the framework detect if the output is a distribution or not and handle accordingly?
+
+
+class DisentLatentsModule(DisentModule):
 
     def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
         super().__init__()
@@ -68,42 +74,36 @@ class DisentLatentsBase(DisentModule):
     def z_total(self):
         return self._z_size * self._z_multiplier
 
-    def assert_x_valid(self, x):
-        assert x.ndim == 4
-        assert x.shape[1:] == self.x_shape, f'X shape mismatch. Required: {self.x_shape} Got: {x.shape[1:]}'
-    def assert_z_valid(self, z):
-        assert z.ndim == 2
-        assert z.shape[1] == self.z_total, f'Z size mismatch. Required: {self.z_size} (x{self.z_multiplier}) = {self.z_total} Got: {z.shape[1]}'
-    def assert_lengths(self, x, z):
-        assert len(x) == len(z)
-
 
 # ========================================================================= #
 # Base Encoder & Base Decoder                                               #
 # ========================================================================= #
 
 
-class DisentEncoder(DisentLatentsBase):
+class DisentEncoder(DisentLatentsModule):
 
     @final
-    def forward(self, x) -> Tensor:
+    def forward(self, x, chunk=True) -> torch.Tensor:
         """same as self.encode but with size checks"""
-        self.assert_x_valid(x)
+        # checks
+        assert x.ndim == 4, f'ndim mismatch: 4 (required) != {x.ndim} (given)'
+        assert x.shape[1:] == self.x_shape, f'x_shape mismatch: {self.x_shape} (required) != {x.shape[1:]} (batch)'
         # encode | p(z|x)
         # for a gaussian encoder, we treat z as concat(z_mean, z_logvar) where z_mean.shape == z_logvar.shape
         # ie. the first half of z is z_mean, the second half of z is z_logvar
         z = self.encode(x)
         # checks
-        self.assert_z_valid(z)
-        self.assert_lengths(x, z)
-        # return
+        assert z.shape == (x.size(0), self.z_total)
+        if chunk:
+            z = z.split(self.z_size, dim=-1)
+            assert all(s.size(1) == self.z_size for s in z)
         return z
 
-    def encode(self, x) -> Tensor:
+    def encode(self, x) -> torch.Tensor:
         raise NotImplementedError
 
 
-class DisentDecoder(DisentLatentsBase):
+class DisentDecoder(DisentLatentsModule):
 
     def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
         assert z_multiplier == 1, 'decoder does not support z_multiplier != 1'
@@ -112,16 +112,16 @@ class DisentDecoder(DisentLatentsBase):
     @final
     def forward(self, z):
         """same as self.decode but with size checks"""
-        self.assert_z_valid(z)
+        # checks
+        assert z.ndim == 2
+        assert z.size(1) == self.z_size
         # decode | p(x|z)
         x_recon = self.decode(z)
-        # checks
-        self.assert_x_valid(x_recon)
-        self.assert_lengths(x_recon, z)
         # return
+        assert x_recon.shape == (z.size(0), *self.x_shape)
         return x_recon
 
-    def decode(self, z) -> Tensor:
+    def decode(self, z) -> torch.Tensor:
         raise NotImplementedError
 
 
@@ -130,7 +130,7 @@ class DisentDecoder(DisentLatentsBase):
 # ========================================================================= #
 
 
-class AutoEncoder(DisentLatentsBase):
+class AutoEncoder(DisentLatentsModule):
 
     def __init__(self, encoder: DisentEncoder, decoder: DisentDecoder):
         assert isinstance(encoder, DisentEncoder)
@@ -148,17 +148,11 @@ class AutoEncoder(DisentLatentsBase):
     def forward(self, x):
         raise RuntimeError('This has been disabled')
 
-    def encode(self, x):
-        z_raw = self._encoder(x)
-        # extract components if necessary
-        if self._z_multiplier == 1:
-            return z_raw
-        elif self.z_multiplier == 2:
-            return z_raw[..., :self.z_size], z_raw[..., self.z_size:]
-        else:
-            raise KeyError(f'z_multiplier={self.z_multiplier} is unsupported')
+    def encode(self, x, chunk=False):
+        z_raw = self._encoder(x, chunk=chunk)
+        return z_raw
 
-    def decode(self, z: Tensor) -> Tensor:
+    def decode(self, z: torch.Tensor) -> torch.Tensor:
         """
         decode the given representation.
         the returned tensor does not have an activation applied to it!
@@ -169,4 +163,3 @@ class AutoEncoder(DisentLatentsBase):
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-

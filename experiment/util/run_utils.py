@@ -32,7 +32,7 @@ import logging
 from pytorch_lightning import Trainer
 from pytorch_lightning.loggers import LoggerCollection
 
-from experiment.util.logger_util import yield_wandb_loggers
+from disent.util.lightning.logger_util import wb_yield_loggers
 
 log = logging.getLogger(__name__)
 
@@ -107,7 +107,7 @@ def log_error_and_exit(err_type: str, err_msg: str, exit_code: int = 1, exc_info
             'error_msg': err_msg,
             'error_occurred': True,
         })
-        for wb_logger in yield_wandb_loggers(_PL_LOGGER):
+        for wb_logger in wb_yield_loggers(_PL_LOGGER):
             # so I dont have to scroll up... I'm lazy...
             run_url = wb_logger.experiment._get_run_url()
             project_url = wb_logger.experiment._get_project_url()

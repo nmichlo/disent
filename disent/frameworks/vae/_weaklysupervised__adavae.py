@@ -97,6 +97,7 @@ class AdaVae(BetaVae):
         # shared elements that need to be averaged, computed per pair in the batch.
         # [𝛿_i ...]
         if thresh_mode == 'kl':
+            # ORIGINAL
             deltas = torch.distributions.kl_divergence(d1_posterior, d0_posterior)
         elif thresh_mode == 'symmetric_kl':
             # FROM: https://openreview.net/pdf?id=8VXvj1QNRl1
@@ -187,7 +188,6 @@ class AdaVae(BetaVae):
         return ave_z0, ave_z1
 
 
-
 # ========================================================================= #
 # Averaging Functions                                                       #
 # ========================================================================= #
@@ -249,7 +249,7 @@ def compute_average_distribution(d0_posterior: Normal, d1_posterior: Normal, ave
         z1_mean=d1_posterior.mean, z1_var=d1_posterior.variance,
         average_mode=average_mode,
     )
-    return d0_posterior.__class__(loc=ave_mean, scale=torch.sqrt(ave_var))
+    return Normal(loc=ave_mean, scale=torch.sqrt(ave_var))
 
 
 # def compute_average_params(z0_params: 'Params', z1_params: 'Params', average_mode: str) -> 'Params':

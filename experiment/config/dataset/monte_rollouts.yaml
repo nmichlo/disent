@@ -1,8 +1,8 @@
 # @package _group_
 name: monte_rollouts
 data:
-  _target_: disent.data.episodes.OptionEpisodesDownloadZippedPickledData
-  required_file: ${dataset.data_dir}/episodes/monte.pkl
+  _target_: disent.dataset.data.EpisodesDownloadZippedPickledData
+  required_file: ${dataset.data_root}/episodes/monte.pkl
   download_url: 'https://raw.githubusercontent.com/nmichlo/uploads/main/monte_key.tar.xz'
   force_download: FALSE
 transform:

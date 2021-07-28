@@ -1,11 +1,11 @@
 # @package _group_
 name: mpi3d_real
 data:
-  _target_: disent.data.groundtruth.Mpi3dData
-  subset: 'real'
-  data_dir: ${dataset.data_dir}/mpi3d
+  _target_: disent.dataset.data.Mpi3dData
+  data_root: ${dataset.data_root}
+  prepare: True
   in_memory: ${dataset.try_in_memory}
-  force_download: False
+  subset: 'real'
 transform:
   _target_: disent.nn.transform.ToStandardisedTensor
 x_shape: [3, 64, 64]

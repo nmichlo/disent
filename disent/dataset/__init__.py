@@ -22,7 +22,5 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-
-# expose base dataset
-from disent.dataset._base import DisentDataset
-
+# wrapper
+from disent.dataset._wrapper import DisentDataset

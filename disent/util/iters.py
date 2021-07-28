@@ -112,8 +112,7 @@ class LengthIter(Sequence):
     def __iter__(self):
         # this takes priority over __getitem__, otherwise __getitem__ would need to
         # raise an IndexError if out of bounds to signal the end of iteration
-        for i in range(len(self)):
-            yield self[i]
+        yield from (self[i] for i in range(len(self)))
 
     def __len__(self):
         raise NotImplementedError()
@@ -125,4 +124,3 @@ class LengthIter(Sequence):
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-

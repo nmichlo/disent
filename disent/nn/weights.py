@@ -25,7 +25,7 @@
 import logging
 
 from torch import nn
-from disent.util import colors as c
+from disent.util.strings import colors as c
 
 
 log = logging.getLogger(__name__)

@@ -1,7 +1,0 @@
-# @package _group_
-name: gt_dist_single
-wrapper:
-  _target_: disent.dataset.groundtruth.GroundTruthDistDataset
-  num_samples: 1
-  triplet_sample_mode: ${sampling.triplet_sample_mode} # random, factors, manhattan, combined
-  triplet_swap_chance: ${sampling.triplet_swap_chance}

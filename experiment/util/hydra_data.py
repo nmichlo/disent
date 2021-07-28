@@ -29,7 +29,44 @@ from omegaconf import DictConfig
 
 from disent.dataset import DisentDataset
 from disent.nn.transform import DisentDatasetTransform
-from experiment.util.hydra_utils import instantiate_recursive
+from disent.util.config import instantiate_recursive
+
+
+# ========================================================================= #
+# DISENT DATASET MODULE                                                     #
+# TODO: possible implementation outline for disent                          #
+# ========================================================================= #
+
+
+# class DisentDatasetModule(pl.LightningDataModule):
+#
+#     def prepare_data(self, *args, **kwargs):
+#         raise NotImplementedError
+#
+#     def setup(self, stage: Optional[str] = None):
+#         raise NotImplementedError
+#
+#     # DATASET HANDLING
+#
+#     @property
+#     def dataset_train(self) -> DisentDataset:
+#         # this property should check `framework_applies_augment` to return the
+#         # dataset with the correct transforms/augments applied.
+#         # - train_dataloader() should create the DataLoader from this dataset object
+#         raise NotImplementedError
+#
+#     # FRAMEWORK AUGMENTATION HANDLING
+#
+#     @property
+#     def framework_applies_augment(self) -> bool:
+#         # if we augment the data in the framework rather, we can augment on the GPU instead
+#         # framework needs manual handling of this augmentation mode
+#         raise NotImplementedError
+#
+#     def framework_augment(self, batch):
+#         # the augment to be applied if `framework_applies_augment` is `True`, otherwise
+#         # this method should do nothing!
+#         raise NotImplementedError
 
 
 # ========================================================================= #
@@ -67,15 +104,15 @@ class HydraDataModule(pl.LightningDataModule):
         data = dict(self.hparams.dataset.data)
         if 'in_memory' in data:
             del data['in_memory']
-        hydra.utils.instantiate(data)
+        instantiate_recursive(data)
 
     def setup(self, stage=None) -> None:
         # ground truth data
-        data = hydra.utils.instantiate(self.hparams.dataset.data)
+        data = instantiate_recursive(self.hparams.dataset.data)
         # Wrap the data for the framework some datasets need triplets, pairs, etc.
         # Augmentation is done inside the frameworks so that it can be done on the GPU, otherwise things are very slow.
-        self.dataset_train_noaug = hydra.utils.instantiate(self.hparams.data_wrapper.wrapper, data, transform=self.data_transform, augment=None)
-        self.dataset_train_aug = hydra.utils.instantiate(self.hparams.data_wrapper.wrapper, data, transform=self.data_transform, augment=self.input_transform)
+        self.dataset_train_noaug = DisentDataset(data, hydra.utils.instantiate(self.hparams.dataset_sampler.sampler), transform=self.data_transform, augment=None)
+        self.dataset_train_aug = DisentDataset(data, hydra.utils.instantiate(self.hparams.dataset_sampler.sampler), transform=self.data_transform, augment=self.input_transform)
         # TODO: make these assertions more general with some base-class
         assert isinstance(self.dataset_train_noaug, DisentDataset)
         assert isinstance(self.dataset_train_aug, DisentDataset)

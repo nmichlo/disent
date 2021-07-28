@@ -21,6 +21,8 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+from typing import Optional
+
 from PIL.Image import Image
 import torch
 import torchvision.transforms.functional as F_tv
@@ -38,7 +40,7 @@ def noop(obs):
     return obs
 
 
-def check_tensor(obs, low=0., high=1., dtype=torch.float32):
+def check_tensor(obs, low: Optional[float] = 0., high: Optional[float] = 1., dtype=torch.float32):
     """
     Check that the input is a tensor, its datatype matches, and
     that it is in the required range.
@@ -49,13 +51,15 @@ def check_tensor(obs, low=0., high=1., dtype=torch.float32):
     if dtype is not None:
         assert obs.dtype == dtype, f'tensor type {obs.dtype} is not required type {dtype}'
     # check range | TODO: are assertion strings inefficient?
-    assert low <= obs.min(), f'minimum value of tensor {obs.min()} is less than allowed minimum value: {low}'
-    assert obs.max() <= high, f'maximum value of tensor {obs.max()} is greater than allowed maximum value: {high}'
+    if low is not None:
+        assert low <= obs.min(), f'minimum value of tensor {obs.min()} is less than allowed minimum value: {low}'
+    if high is not None:
+        assert obs.max() <= high, f'maximum value of tensor {obs.max()} is greater than allowed maximum value: {high}'
     # DONE!
     return obs
 
 
-def to_standardised_tensor(obs, size=None, check=True):
+def to_standardised_tensor(obs, size=None, cast_f32=False, check=True, check_range=True):
     """
     Basic transform that should be applied to
     any dataset before augmentation.
@@ -70,9 +74,15 @@ def to_standardised_tensor(obs, size=None, check=True):
         obs = F_tv.resize(obs, size=size)
     # transform to tensor
     obs = F_tv.to_tensor(obs)
+    # cast if needed
+    if cast_f32:
+        obs = obs.to(torch.float32)
     # check that tensor is valid
     if check:
-        obs = check_tensor(obs, low=0, high=1, dtype=torch.float32)
+        if check_range:
+            obs = check_tensor(obs, low=0, high=1, dtype=torch.float32)
+        else:
+            obs = check_tensor(obs, low=None, high=None, dtype=torch.float32)
     return obs
 
 

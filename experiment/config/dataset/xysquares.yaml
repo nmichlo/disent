@@ -1,9 +1,0 @@
-# @package _group_
-name: xysquares_minimal
-data:
-  _target_: disent.data.groundtruth.XYSquaresMinimalData
-transform:
-  _target_: disent.nn.transform.ToStandardisedTensor
-x_shape: [3, 64, 64]
-
-data_type: ground_truth

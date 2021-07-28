@@ -2,7 +2,7 @@
 <p align="center">
     <h1 align="center">🧶 Disent</h1>
     <p align="center">
-        <i>A modular disentangled representation learning framework for pytorch</i>
+        <i>A modular disentangled representation learning framework built with PyTorch Lightning</i>
     </p>
 </p>
 
@@ -28,7 +28,6 @@
 </p>
 
 <p align="center">
-<!--     <p align="center">⚠️ API is not yet stable</p> -->
     <p align="center">
         Visit the <a href="https://disent.dontpanic.sh/">docs</a> for more info, or browse the  <a href="https://github.com/nmichlo/disent/releases">releases</a>.
     </p>
@@ -39,10 +38,9 @@
 
 ----------------------
 
-### Table Of Contents
+## Table Of Contents
 
 - [Overview](#overview)
-- [Getting Started](#getting-started)
 - [Features](#features)
     * [Frameworks](#frameworks)
     * [Metrics](#metrics)
@@ -55,24 +53,28 @@
 
 ----------------------
 
-### Overview
+## Overview
 
-Disent is a modular disentangled representation learning framework for auto-encoders, built upon pytorch-lightning. This framework consists of various composable components that can be used to build and benchmark disentanglement pipelines.
+Disent is a modular disentangled representation learning framework for auto-encoders,
+built upon PyTorch-Lightning. This framework consists of various composable components
+that can be used to build and benchmark various disentanglement vision tasks.
 
 > The name of the framework is derived from both **disent**anglement and scientific **dissent**.
 
-#### Goals
+Get started with disent by installing it with $`pip install disent` or cloning this repository.
+
+### Goals
 
 Disent aims to fill the following criteria:
 1. Provide **high quality**, **readable**, **consistent** and **easily comparable** implementations of frameworks
 2. **Highlight difference** between framework implementations by overriding **hooks** and minimising duplicate code 
 3. Use **best practice** eg. `torch.distributions`
 4. Be extremely **flexible** & configurable
+5. Support low memory systems
 
+### Citing Disent
 
-#### Citing Disent
-
-Please use the following citation if you use Disent in your research:
+Please use the following citation if you use Disent in your own research:
 
 ```bibtex
 @Misc{Michlo2021Disent,
@@ -86,42 +88,44 @@ Please use the following citation if you use Disent in your research:
 
 ----------------------
 
-### Warning ⚠️
+## Architecture
 
-Disent is still under active development. Features and APIs are not considered stable, and should be expected to change! A very limited set of tests currently exist which will be expanded upon in time.
+The disent directory structure:
+
+- `disent/dataset`: dataset wrappers, datasets & sampling strategies
+    + `disent/dataset/data`: raw datasets
+    + `disent/dataset/sampling`: sampling strategies for `DisentDataset`
+- `disent/framework`: frameworks, including Auto-Encoders and VAEs
+- `disent/metric`: metrics for evaluating disentanglement using ground truth datasets
+- `disent/model`: common encoder and decoder models used for VAE research
+- `disent/nn`: torch components for building models including layers, transforms, losses and general maths
+- `disent/schedule`: annealing schedules that can be registered to a framework
+- `disent/util`: helper classes, functions, callbacks, anything unrelated to a pytorch system/model/framework.
+
+**Please Note The API Is Still Unstable ⚠️**
+
+Disent is still under active development. Features and APIs are not considered stable,
+and should be expected to change! A limited set of tests currently exist which will be
+expanded upon in time.
+
+**Hydra Experiment Directories**
+
+Easily run experiments with hydra config, these files
+are not available from `pip install`.
+
+- `experiment/run.py`: entrypoint for running basic experiments with [hydra](https://github.com/facebookresearch/hydra) config
+- `experiment/config`: root folder for [hydra](https://github.com/facebookresearch/hydra) config files
+- `experiment/util`: various helper code for experiments
+
 
 ----------------------
 
-### Getting Started
+## Features
 
-The easiest way to use disent is by running `experiement/run.py` and changing the root config in `experiements/config/config.yaml`. Configurations are managed with [Hydra Config](https://github.com/facebookresearch/hydra). This mode is only available if you clone the repo directly.
+Disent includes implementations of modules, metrics and datasets
+from various papers. As well as many custom experimental frameworks.
 
-**Pypi**:
-
-1. Make sure `pip3` is upgraded: `pip3 install --upgrade pip`
-
-2. Install `disent` with: `pip3 install disent` (for up-to-date versions, rather clone the `dev` branch)
-
-3. Visit the [docs & examples](https://disent.dontpanic.sh)!
-
-**Source**:
-
-1. Clone with: `git clone --branch dev https://github.com/nmichlo/disent.git`
-
-2. Change your working directory to the root of the repo: `cd disent`
-
-3. Install the requirements for python 3.8 with `pip3 install -r requirements.txt` 
-
-4. Run the default experiment after configuring `experiment/config/config.yaml`
-   by running `PYTHONPATH=. python3 experiment/run.py`
-
-----------------------
-
-### Features
-
-Disent includes implementations of modules, metrics and datasets from various papers. However modules marked with a "🧵" are introduced in disent for [my](https://github.com/nmichlo) MSc. research.
-
-#### Frameworks
+### Frameworks
 - **Unsupervised**:
   + [VAE](https://arxiv.org/abs/1312.6114)
   + [Beta-VAE](https://openreview.net/forum?id=Sy2fzU9gl)
@@ -134,12 +138,6 @@ Disent includes implementations of modules, metrics and datasets from various pa
   + [Ada-ML-VAE](https://arxiv.org/abs/2002.02886) *`AdaVae(..., average_mode='ml-vae')`*
 - **Supervised**:
   + [TVAE](https://arxiv.org/abs/1802.04403)
-- **Experimental**:
-  + 🧵 Ada-TVAE
-    - Adaptive Triplet VAE
-  + 🧵 DO-TVAE (DO-Ada-TVAE)
-    - Data Overlap Adaptive Triplet VAE
-  + *various others not worth mentioning*
 
 Many popular disentanglement frameworks still need to be added, please
 submit an issue if you have a request for an additional framework.
@@ -152,18 +150,13 @@ submit an issue if you have a request for an additional framework.
 
 </p></details>
 
-#### Metrics
+### Metrics
 - **Disentanglement**:
   + [FactorVAE Score](https://arxiv.org/abs/1802.05983)
   + [DCI](https://openreview.net/forum?id=By-7dz-AZ)
   + [MIG](https://arxiv.org/abs/1802.04942)
   + [SAP](https://arxiv.org/abs/1711.00848)
   + [Unsupervised Scores](https://github.com/google-research/disentanglement_lib)
-  + 🧵 Flatness Score
-    - Measures max width (furthest two points) over path length (sum of distances between consecutive points) of factor traversal embeddings. A combined measure of linearity and ordering, (weighted towards axis alignment if l2 width over l1 path length is used).
-  + 🧵 Flatness Components - Linearity & Axis Alignment
-    - Measure **linearity**, how much the largest eigen vector explains a factor traversal, ie. the largest singular value of latent variables over the sum of singular values.
-    - Measure **axis-alignment**, how much the largest standard basis vector explains a factor traversal, ie. the largest standard deviation of latent variables over the sum of standard deviations.
 
 Some popular metrics still need to be added, please submit an issue if you wish to
 add your own, or you have a request.
@@ -175,9 +168,11 @@ add your own, or you have a request.
 
 </p></details>
 
-#### Datasets
+### Datasets
 
-Various common datasets used in disentanglement research are implemented, as well as new sythetic datasets that are generated programatically on the fly. These are convenient and lightweight, not requiring storage space.
+Various common datasets used in disentanglement research are included, with hash
+verification and automatic chunk-size optimization of underlying hdf5 formats for
+low-memory disk-based access.
 
 - **Ground Truth**:
   + Cars3D
@@ -186,20 +181,15 @@ Various common datasets used in disentanglement research are implemented, as wel
   + SmallNORB
   + Shapes3D
 
-- **Ground Truth Synthetic**:
-  + 🧵 XYSquares: (**non-overlapping**) *3 squares (R, G, B) that move across a non-overlapping grid. Obervations have no channel-wise loss overlap.*
-  + 🧵 XYObject: *A simplistic version of dSprites with a single square.*
-  + 🧵 XYBlocks: *3 blocks of decreasing size that move across a grid. Blocks can be one of three colors R, G, B. if a smaller block overlaps a larger one and is the same color, the block is xor'd to black.*
-
-
-  ##### Input Transforms + Input/Target Augmentations
+  #### Input Transforms + Input/Target Augmentations
   
   - Input based transforms are supported.
   - Input and Target CPU and GPU based augmentations are supported.
 
-#### Schedules & Annealing
+### Schedules & Annealing
 
-Hyper-parameter annealing is supported through the use of schedules. The currently implemented schedules include:
+Hyper-parameter annealing is supported through the use of schedules.
+The currently implemented schedules include:
 
 - Linear Schedule
 - [Cyclic](https://arxiv.org/abs/1903.10145) Schedule
@@ -208,27 +198,9 @@ Hyper-parameter annealing is supported through the use of schedules. The current
 
 ----------------------
 
-### Architecture
+## Examples
 
-**disent**
-- `disent/data`: raw groundtruth datasets
-- `disent/dataset`: dataset wrappers & sampling strategies
-- `disent/framework`: frameworks, including Auto-Encoders and VAEs
-- `disent/metrics`: metrics for evaluating disentanglement using ground truth datasets
-- `disent/model`: common encoder and decoder models used for VAE research
-- `disent/schedule`: annealing schedules that can be registered to a framework
-- `disent/transform`: transform operations for processing & augmenting input and target data from datasets
-
-**experiment**
-- `experiment/run.py`: entrypoint for running basic experiments with [hydra](https://github.com/facebookresearch/hydra) config
-- `experiment/config`: root folder for [hydra](https://github.com/facebookresearch/hydra) config files
-- `experiment/util`: various helper code, pytorch lightning callbacks & visualisation tools for experiments
-
-----------------------
-
-### Examples
-
-#### Python Example
+### Python Example
 
 The following is a basic working example of disent that trains a BetaVAE with a cyclic
 beta schedule and evaluates the trained model with various metrics.
@@ -237,50 +209,51 @@ beta schedule and evaluates the trained model with various metrics.
 <p>
 
 ```python3
+import os
 import pytorch_lightning as pl
+import torch
 from torch.optim import Adam
 from torch.utils.data import DataLoader
-from disent.data.groundtruth import XYObjectData
-from disent.dataset.groundtruth import GroundTruthDataset
+from disent.dataset import DisentDataset
+from disent.dataset.data import XYObjectData
+from disent.dataset.sampling import SingleSampler
 from disent.frameworks.vae import BetaVae
 from disent.metrics import metric_dci, metric_mig
-from disent.model.ae import EncoderConv64, DecoderConv64
 from disent.model import AutoEncoder
+from disent.model.ae import DecoderConv64, EncoderConv64
 from disent.nn.transform import ToStandardisedTensor
 from disent.schedule import CyclicSchedule
-
-# We use this internally to test this script.
-# You can remove all references to this in your own code.
-from disent.util import is_test_run
 
 # create the dataset & dataloaders
 # - ToStandardisedTensor transforms images from numpy arrays to tensors and performs checks
 data = XYObjectData()
-dataset = GroundTruthDataset(data, transform=ToStandardisedTensor())
-dataloader = DataLoader(dataset=dataset, batch_size=4, shuffle=True)
+dataset = DisentDataset(dataset=data, sampler=SingleSampler(), transform=ToStandardisedTensor())
+dataloader = DataLoader(dataset=dataset, batch_size=128, shuffle=True, num_workers=os.cpu_count())
 
 # create the BetaVAE model
 # - adjusting the beta, learning rate, and representation size.
 module = BetaVae(
-    make_optimizer_fn=lambda params: Adam(params, lr=5e-4),
-    make_model_fn=lambda: AutoEncoder(
-        # z_multiplier is needed to output mu & logvar when parameterising normal distribution
-        encoder=EncoderConv64(x_shape=dataset.x_shape, z_size=6, z_multiplier=2),
-        decoder=DecoderConv64(x_shape=dataset.x_shape, z_size=6),
-    ),
-    cfg=BetaVae.cfg(beta=0.004)
+  make_optimizer_fn=lambda params: Adam(params, lr=1e-4),
+  make_model_fn=lambda: AutoEncoder(
+    # z_multiplier is needed to output mu & logvar when parameterising normal distribution
+    encoder=EncoderConv64(x_shape=data.x_shape, z_size=10, z_multiplier=2),
+    decoder=DecoderConv64(x_shape=data.x_shape, z_size=10),
+  ),
+  cfg=BetaVae.cfg(loss_reduction='mean_sum', beta=4)
 )
 
 # cyclic schedule for target 'beta' in the config/cfg. The initial value from the
 # config is saved and multiplied by the ratio from the schedule on each step.
 # - based on: https://arxiv.org/abs/1903.10145
-module.register_schedule('beta', CyclicSchedule(
+module.register_schedule(
+  'beta', CyclicSchedule(
     period=1024,  # repeat every: trainer.global_step % period
-))
+  )
+)
 
 # train model
-# - for 65536 batches/steps
-trainer = pl.Trainer(logger=False, checkpoint_callback=False, max_steps=65536, fast_dev_run=is_test_run())
+# - for 2048 batches/steps
+trainer = pl.Trainer(max_steps=2048, gpus=1 if torch.cuda.is_available() else None, logger=False, checkpoint_callback=False)
 trainer.fit(module, dataloader)
 
 # compute disentanglement metrics
@@ -289,8 +262,8 @@ trainer.fit(module, dataloader)
 get_repr = lambda x: module.encode(x.to(module.device))
 
 metrics = {
-    **metric_dci(dataset, get_repr, num_train=10 if is_test_run() else 1000, num_test=5 if is_test_run() else 500, show_progress=True),
-    **metric_mig(dataset, get_repr, num_train=20 if is_test_run() else 2000),
+  **metric_dci(dataset, get_repr, num_train=1000, num_test=500, show_progress=True),
+  **metric_mig(dataset, get_repr, num_train=2000),
 }
 
 # evaluate
@@ -302,13 +275,14 @@ print('metrics:', metrics)
 
 Visit the [docs](https://disent.dontpanic.sh) for more examples!
 
-#### Hydra Config Example
 
-The entrypoint for basic experiments is `experiments/run.py`.
+### Hydra Config Example
+
+The entrypoint for basic experiments is `experiment/run.py`.
 
 Some configuration will be required, but basic experiments can
 be adjusted by modifying the [Hydra Config 1.0](https://github.com/facebookresearch/hydra)
-files in `experiment/config`.
+files in `experiment/config` (Please note that hydra 1.1 is not yet supported).
 
 Modifying the main `experiment/config/config.yaml` is all you
 need for most basic experiments. The main config file contains
@@ -318,42 +292,45 @@ files (config options) in the subfolders (config groups) in
 
 ```yaml
 defaults:
-  # experiment
+  # system
   - framework: adavae
-  - model: conv64alt
+  - model: vae_conv64
   - optimizer: adam
-  - dataset: xysquares
+  - schedule: none
+  # data
+  - dataset: xyobject
+  - dataset_sampling: full_bb
   - augment: none
-  - sampling: full_bb
-  - metrics: fast
-  - schedule: beta_cyclic
   # runtime
-  - run_length: long
+  - metrics: fast
+  - run_length: short
   - run_location: local
   - run_callbacks: vis
-  - run_logging: none
+  - run_logging: wandb
+
+# <rest of config.yaml left out>
+...
 ```
 
 Easily modify  any of these values to adjust how the basic experiment
 will be run. For example, change `framework: adavae` to `framework: betavae`, or
-change the dataset from `xysquares` to `shapes3d`.
+change the dataset from `xyobject` to `shapes3d`. Add new options by adding new
+yaml files in the config group folders.
 
 [Weights and Biases](https://docs.wandb.ai/quickstart) is supported by changing `run_logging: none` to
-`run_logging: wandb`. However, you will need to login from the command line.
+`run_logging: wandb`. However, you will need to login from the command line. W&B logging supports
+visualisations of latent traversals.
+
 
 ----------------------
 
 ### Why?
   
 - Created as part of my Computer Science MSc scheduled for completion in 2021.
-
 - I needed custom high quality implementations of various VAE's.
-
 - A pytorch version of [disentanglement_lib](https://github.com/google-research/disentanglement_lib).
-
 - I didn't have time to wait for [Weakly-Supervised Disentanglement Without Compromises](https://arxiv.org/abs/2002.02886) to release
   their code as part of disentanglement_lib. (As of September 2020 it has been released, but has unresolved [discrepencies](https://github.com/google-research/disentanglement_lib/issues/31)).
-
 - disentanglement_lib still uses outdated Tensorflow 1.0, and the flow of data is unintuitive because of its use of [Gin Config](https://github.com/google/gin-config).
 
 ----------------------

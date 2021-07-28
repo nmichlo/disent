@@ -30,7 +30,7 @@ import logging
 import numpy as np
 from tqdm import tqdm
 
-from disent.dataset.groundtruth import GroundTruthDataset
+from disent.dataset import DisentDataset
 from disent.metrics import utils
 from disent.util import to_numpy
 
@@ -44,7 +44,7 @@ log = logging.getLogger(__name__)
 
 
 def metric_factor_vae(
-        ground_truth_dataset: GroundTruthDataset,
+        ground_truth_dataset: DisentDataset,
         representation_function: callable,
         batch_size: int = 64,
         num_train: int = 10000,
@@ -137,7 +137,7 @@ def _prune_dims(variances, threshold=0.):
 
 
 def _compute_variances(
-        ground_truth_dataset: GroundTruthDataset,
+        ground_truth_dataset: DisentDataset,
         representation_function: callable,
         batch_size: int,
         eval_batch_size: int = 64
@@ -152,7 +152,6 @@ def _compute_variances(
       Vector with the variance of each dimension.
     """
     observations = ground_truth_dataset.dataset_sample_batch(batch_size, mode='input')
-    observations = observations.cuda()
     representations = to_numpy(utils.obtain_representation(observations, representation_function, eval_batch_size))
     representations = np.transpose(representations)
     assert representations.shape[0] == batch_size
@@ -160,7 +159,7 @@ def _compute_variances(
 
 
 def _generate_training_sample(
-        ground_truth_dataset: GroundTruthDataset,
+        ground_truth_dataset: DisentDataset,
         representation_function: callable,
         batch_size: int,
         global_variances: np.ndarray,
@@ -179,13 +178,13 @@ def _generate_training_sample(
       argmin: Index of representation coordinate with the least variance.
     """
     # Select random coordinate to keep fixed.
-    factor_index = np.random.randint(ground_truth_dataset.num_factors)
+    factor_index = np.random.randint(ground_truth_dataset.ground_truth_data.num_factors)
     # Sample two mini batches of latent variables.
-    factors = ground_truth_dataset.sample_factors(batch_size)
+    factors = ground_truth_dataset.ground_truth_data.sample_factors(batch_size)
     # Fix the selected factor across mini-batch.
     factors[:, factor_index] = factors[0, factor_index]
     # Obtain the observations.
-    observations = ground_truth_dataset.dataset_batch_from_factors(factors, mode='input').cuda()
+    observations = ground_truth_dataset.dataset_batch_from_factors(factors, mode='input')
     representations = to_numpy(representation_function(observations))
     local_variances = np.var(representations, axis=0, ddof=1)
     argmin = np.argmin(local_variances[active_dims] / global_variances[active_dims])
@@ -193,7 +192,7 @@ def _generate_training_sample(
 
 
 def _generate_training_batch(
-        ground_truth_dataset: GroundTruthDataset,
+        ground_truth_dataset: DisentDataset,
         representation_function: callable,
         batch_size: int,
         num_points: int,
@@ -212,7 +211,7 @@ def _generate_training_batch(
     Returns:
       (num_factors, dim_representation)-sized numpy array with votes.
     """
-    votes = np.zeros((ground_truth_dataset.num_factors, global_variances.shape[0]), dtype=np.int64)
+    votes = np.zeros((ground_truth_dataset.ground_truth_data.num_factors, global_variances.shape[0]), dtype=np.int64)
     for _ in tqdm(range(num_points), disable=(not show_progress)):
         factor_index, argmin = _generate_training_sample(ground_truth_dataset, representation_function, batch_size, global_variances, active_dims)
         votes[factor_index, argmin] += 1

@@ -29,6 +29,7 @@ import hydra
 import pytorch_lightning as pl
 import torch
 import torch.utils.data
+from disent.util.config import instantiate_recursive
 from omegaconf import DictConfig
 from omegaconf import OmegaConf
 from pytorch_lightning.loggers import CometLogger
@@ -41,13 +42,11 @@ from disent.frameworks import DisentFramework
 from disent.model import AutoEncoder
 from disent.nn.weights import init_model_weights
 from disent.util.seeds import seed
-from disent.util.strings import make_box_str
-from experiment.util.callbacks import LoggerProgressCallback
-from experiment.util.callbacks import VaeDisentanglementLoggingCallback
-from experiment.util.callbacks import VaeLatentCycleLoggingCallback
-from experiment.util.callbacks.callbacks_vae import VaeLatentCorrelationLoggingCallback
+from disent.util.strings.fmt import make_box_str
+from disent.util.lightning.callbacks import LoggerProgressCallback
+from disent.util.lightning.callbacks import VaeDisentanglementLoggingCallback
+from disent.util.lightning.callbacks import VaeLatentCycleLoggingCallback
 from experiment.util.hydra_data import HydraDataModule
-from experiment.util.hydra_utils import instantiate_recursive
 from experiment.util.hydra_utils import make_non_strict
 from experiment.util.hydra_utils import merge_specializations
 from experiment.util.run_utils import log_error_and_exit
@@ -82,9 +81,9 @@ def hydra_check_cuda(cfg):
 
 
 def hydra_check_datadir(prepare_data_per_node, cfg):
-    if not os.path.isabs(cfg.dataset.data_dir):
+    if not os.path.isabs(cfg.dataset.data_root):
         log.warning(
-            f'A relative path was specified for dataset.data_dir={repr(cfg.dataset.data_dir)}.'
+            f'A relative path was specified for dataset.data_root={repr(cfg.dataset.data_root)}.'
             f' This is probably an error! Using relative paths can have unintended consequences'
             f' and performance drawbacks if the current working directory is on a shared/network drive.'
             f' Hydra config also uses a new working directory for each run of the program, meaning'
@@ -92,11 +91,11 @@ def hydra_check_datadir(prepare_data_per_node, cfg):
         )
         if prepare_data_per_node:
             log.error(
-                f'trainer.prepare_data_per_node={repr(prepare_data_per_node)} but  dataset.data_dir='
-                f'{repr(cfg.dataset.data_dir)} is a relative path which may be an error! Try specifying an'
-                f' absolute path that is guaranteed to be unique from each node, eg. dataset.data_dir=/tmp/dataset'
+                f'trainer.prepare_data_per_node={repr(prepare_data_per_node)} but  dataset.data_root='
+                f'{repr(cfg.dataset.data_root)} is a relative path which may be an error! Try specifying an'
+                f' absolute path that is guaranteed to be unique from each node, eg. dataset.data_root=/tmp/dataset'
             )
-        raise RuntimeError('dataset.data_dir={repr(cfg.dataset.data_dir)} is a relative path!')
+        raise RuntimeError(f'dataset.data_root={repr(cfg.dataset.data_root)} is a relative path!')
 
 
 def hydra_make_logger(cfg):
@@ -149,6 +148,8 @@ def hydra_append_latent_cycle_logger_callback(callbacks, cfg):
                 every_n_steps=cfg.callbacks.latent_cycle.every_n_steps,
                 begin_first_step=False,
                 mode=cfg.callbacks.latent_cycle.mode,
+                recon_min=cfg.dataset.setdefault('vis_min', 0.),
+                recon_max=cfg.dataset.setdefault('vis_max', 1.),
             ))
         else:
             log.warning('latent_cycle callback is not being used because wandb is not enabled!')
@@ -189,11 +190,12 @@ def hydra_append_metric_callback(callbacks, cfg):
 
 def hydra_append_correlation_callback(callbacks, cfg):
     if 'correlation' in cfg.callbacks:
-        callbacks.append(VaeLatentCorrelationLoggingCallback(
-            repeats_per_factor=cfg.callbacks.correlation.repeats_per_factor,
-            every_n_steps=cfg.callbacks.correlation.every_n_steps,
-            begin_first_step=False,
-        ))
+        log.warning('Correlation callback has been disabled. skipping!')
+        # callbacks.append(VaeLatentCorrelationLoggingCallback(
+        #     repeats_per_factor=cfg.callbacks.correlation.repeats_per_factor,
+        #     every_n_steps=cfg.callbacks.correlation.every_n_steps,
+        #     begin_first_step=False,
+        # ))
 
 
 def hydra_register_schedules(module: DisentFramework, cfg):
@@ -313,7 +315,7 @@ def run(cfg: DictConfig):
     log.info(f'Final Config Is:\n{make_box_str(OmegaConf.to_yaml(cfg))}')
 
     # save hparams TODO: I think this is a pytorch lightning bug... The trainer should automatically save these if hparams is set.
-    framework.hparams = cfg
+    framework.hparams.update(cfg)
     if trainer.logger:
         trainer.logger.log_hyperparams(framework.hparams)
 

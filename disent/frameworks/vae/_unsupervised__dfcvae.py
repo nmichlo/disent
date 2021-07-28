@@ -26,19 +26,21 @@ from dataclasses import dataclass
 from numbers import Number
 from typing import Any
 from typing import Dict
-from typing import List, Optional, Union
+from typing import List
+from typing import Optional
 from typing import Sequence
 from typing import Tuple
+from typing import Union
 
-import kornia
 import torch
+import torchvision
 from torch import Tensor
-from torchvision.models import vgg19_bn
 from torch.nn import functional as F
+from torchvision.models import vgg19_bn
 
-from disent.nn.loss.reduction import get_mean_loss_scale
 from disent.frameworks.helper.util import compute_ave_loss
 from disent.frameworks.vae._unsupervised__betavae import BetaVae
+from disent.nn.loss.reduction import get_mean_loss_scale
 from disent.nn.transform.functional import check_tensor
 
 
@@ -155,7 +157,7 @@ class DfcLossModule(torch.nn.Module):
         """
         inputs = self._process_inputs(inputs)
         # normalise: https://pytorch.org/docs/stable/torchvision/models.html
-        result = kornia.normalize(inputs, mean=torch.tensor([0.485, 0.456, 0.406]), std=torch.tensor([0.229, 0.224, 0.225]))
+        result = torchvision.transforms.functional.normalize(inputs, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         # calculate all features
         features = []
         for (key, module) in self.feature_network.features._modules.items():
