@@ -24,12 +24,41 @@
 
 import logging
 
+import hydra
 from deprecated import deprecated
 from omegaconf import DictConfig
+from omegaconf import ListConfig
 from omegaconf import OmegaConf
 
 
 log = logging.getLogger(__name__)
+
+
+# ========================================================================= #
+# Recursive Hydra Instantiation                                             #
+# TODO: use https://github.com/facebookresearch/hydra/pull/989              #
+#       I think this is quicker? Just doesn't perform checks...             #
+# ========================================================================= #
+
+
+@deprecated('replace with hydra 1.1')
+def call_recursive(config):
+    # recurse
+    def _call_recursive(config):
+        if isinstance(config, (dict, DictConfig)):
+            c = {k: _call_recursive(v) for k, v in config.items() if k != '_target_'}
+            if '_target_' in config:
+                config = hydra.utils.instantiate({'_target_': config['_target_']}, **c)
+        elif isinstance(config, (tuple, list, ListConfig)):
+            config = [_call_recursive(v) for v in config]
+        return config
+    return _call_recursive(config)
+
+
+# alias
+@deprecated('replace with hydra 1.1')
+def instantiate_recursive(config):
+    return call_recursive(config)
 
 
 # ========================================================================= #
