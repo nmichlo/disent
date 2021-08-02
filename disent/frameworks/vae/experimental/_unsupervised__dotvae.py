@@ -35,7 +35,6 @@ from disent.frameworks.helper.reconstructions import make_reconstruction_loss
 from disent.frameworks.helper.reconstructions import ReconLossHandler
 from disent.frameworks.vae.experimental._supervised__adaneg_tvae import AdaNegTripletVae
 from disent.nn.loss.triplet_mining import configured_idx_mine
-from disent.util.config import instantiate_object_if_needed
 
 
 log = logging.getLogger(__name__)
@@ -78,6 +77,8 @@ class DataOverlapMixin(object):
         if self.cfg.overlap_augment_mode != 'none':
             assert self.cfg.overlap_augment is not None, 'if cfg.overlap_augment_mode is not "none", then cfg.overlap_augment must be defined.'
         if self.cfg.overlap_augment is not None:
+            # TODO: this should not reference experiments!
+            from experiment.util.hydra_utils import instantiate_object_if_needed
             self._augment = instantiate_object_if_needed(self.cfg.overlap_augment)
             assert callable(self._augment), f'augment is not callable: {repr(self._augment)}'
         # get overlap loss

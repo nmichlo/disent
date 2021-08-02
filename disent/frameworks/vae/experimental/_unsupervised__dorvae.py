@@ -36,7 +36,6 @@ from disent.frameworks.vae._supervised__tvae import TripletVae
 from disent.frameworks.vae._weaklysupervised__adavae import AdaVae
 from disent.nn.loss.softsort import torch_mse_rank_loss
 from disent.nn.loss.softsort import spearman_rank_loss
-from disent.util.config import instantiate_object_if_needed
 
 
 # ========================================================================= #
@@ -78,6 +77,8 @@ class DataOverlapRankVae(TripletVae):
         if self.cfg.overlap_augment_mode != 'none':
             assert self.cfg.overlap_augment is not None, 'if cfg.overlap_augment_mode is not "none", then cfg.overlap_augment must be defined.'
         if self.cfg.overlap_augment is not None:
+            # TODO: this should not reference experiments!
+            from experiment.util.hydra_utils import instantiate_object_if_needed
             self._augment = instantiate_object_if_needed(self.cfg.overlap_augment)
             assert callable(self._augment), f'augment is not callable: {repr(self._augment)}'
         # get overlap loss
