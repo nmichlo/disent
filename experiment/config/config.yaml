@@ -1,35 +1,38 @@
 defaults:
-  # experiment
-  - framework: betavae
+  # system
+  - framework: adavae
   - model: vae_conv64
   - optimizer: adam
-  - dataset: xysquares  # allow framework to override settings here, but placing dataset before framework in defaults
+  - schedule: none
+  # data
+  - dataset: xyobject
   - dataset_sampling: full_bb
   - augment: none
-  - schedule: none
-  - metrics: fast
   # runtime
-  - run_length: long
-  - run_location: cluster_many
-  - run_callbacks: vis_slow
-  - run_logging: none
+  - metrics: fast
+  - run_length: short
+  - run_location: local
+  - run_callbacks: vis
+  - run_logging: wandb
   # plugins
   - hydra/job_logging: colorlog
   - hydra/hydra_logging: colorlog
   - hydra/launcher: submitit_slurm
 
 job:
-  user: 'n_michlo'
-  project: 'DELETE'
+  user: '${env:USER}'
+  project: 'test-project'
   name: '${framework.name}:${framework.module.recon_loss}|${dataset.name}:${dataset_sampling.name}|${trainer.steps}'
-  partition: stampede
+  partition: batch
   seed: NULL
 
 framework:
-    beta: 0.001
+    beta: 4
     module:
       recon_loss: mse
-      loss_reduction: mean
+      loss_reduction: mean_sum
+
+    # only some frameworks support these features
     optional:
       latent_distribution: normal  # only used by VAEs
       overlap_loss: NULL
@@ -38,11 +41,14 @@ model:
   z_size: 25
 
 optimizer:
-  lr: 1e-4
+  lr: 1e-3
 
 # CUSTOM DEFAULTS SPECIALIZATION
 # - This key is deleted on load and the correct key on the root config is set similar to defaults.
 # - Unfortunately this hack needs to exists as hydra does not yet support this kinda of variable interpolation in defaults.
 specializations:
-  dataset_sampler: ${dataset.data_type}_${framework.data_sample_mode}
-#  dataset_sampler: gt_dist_${framework.data_sample_mode}
+  # original samplers --
+  # dataset_sampler: ${dataset.data_type}_${framework.data_sample_mode}
+
+  # newer samplers -- only active for frameworks that require 3 observations, otherwise random for 2, and exact for 1
+  dataset_sampler: gt_dist_${framework.data_sample_mode}

@@ -1,11 +1,11 @@
-from disent.dataset.data import XYSquaresData
+from disent.dataset.data import XYObjectData
 from disent.dataset import DisentDataset
 
 # prepare the data
 # - DisentDataset is a generic wrapper around torch Datasets that prepares
 #   the data for the various frameworks according to some sampling strategy
 #   by default this sampling strategy just returns the data at the given idx.
-data = XYSquaresData(square_size=1, image_size=2, num_squares=2)
+data = XYObjectData(grid_size=4, min_square_size=1, max_square_size=2, square_size_spacing=1, palette='rgb')
 dataset = DisentDataset(data, transform=None, augment=None)
 
 # iterate over single epoch

@@ -29,7 +29,6 @@ import hydra
 import pytorch_lightning as pl
 import torch
 import torch.utils.data
-from disent.util.config import instantiate_recursive
 from omegaconf import DictConfig
 from omegaconf import OmegaConf
 from pytorch_lightning.loggers import CometLogger
@@ -49,6 +48,7 @@ from disent.util.lightning.callbacks import VaeLatentCycleLoggingCallback
 from experiment.util.hydra_data import HydraDataModule
 from experiment.util.hydra_utils import make_non_strict
 from experiment.util.hydra_utils import merge_specializations
+from experiment.util.hydra_utils import instantiate_recursive
 from experiment.util.run_utils import log_error_and_exit
 from experiment.util.run_utils import set_debug_logger
 from experiment.util.run_utils import set_debug_trainer
