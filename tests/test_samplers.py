@@ -32,7 +32,7 @@ import pytest
 from disent.dataset import DisentDataset
 from disent.dataset.data import BaseEpisodesData
 from disent.dataset.sampling import *
-from disent.dataset.data import XYSquaresMinimalData
+from disent.dataset.data import XYObjectData
 
 
 class TestEpisodesData(BaseEpisodesData):
@@ -46,44 +46,44 @@ class TestEpisodesData(BaseEpisodesData):
 
 
 @pytest.mark.parametrize(['dataset', 'num_samples', 'check_mode', 'sampler'], [
-    [XYSquaresMinimalData(), 1, 'first', SingleSampler()],
-    [XYSquaresMinimalData(), 1, 'first', GroundTruthSingleSampler()],
+    [XYObjectData(), 1, 'first', SingleSampler()],
+    [XYObjectData(), 1, 'first', GroundTruthSingleSampler()],
 
     # original AdaVAE sampling method
-    [XYSquaresMinimalData(), 2, 'first', GroundTruthPairOrigSampler(p_k=1)],
-    [XYSquaresMinimalData(), 2, 'first', GroundTruthPairOrigSampler(p_k=2)],
-    [XYSquaresMinimalData(), 2, 'first', GroundTruthPairOrigSampler(p_k=-1)],
+    [XYObjectData(), 2, 'first', GroundTruthPairOrigSampler(p_k=1)],
+    [XYObjectData(), 2, 'first', GroundTruthPairOrigSampler(p_k=2)],
+    [XYObjectData(), 2, 'first', GroundTruthPairOrigSampler(p_k=-1)],
 
     # TODO: consider removing the pair sampler... it is difficult to maintain and confusing
-    [XYSquaresMinimalData(), 2, 'first', GroundTruthPairSampler()],
+    [XYObjectData(), 2, 'first', GroundTruthPairSampler()],
 
     # TODO: consider removing the triplet sampler... it is difficult to maintain and confusing
-    [XYSquaresMinimalData(), 3, 'first', GroundTruthTripleSampler()],
-    [XYSquaresMinimalData(), 3, 'first', GroundTruthTripleSampler(swap_metric='k')],
-    [XYSquaresMinimalData(), 3, 'first', GroundTruthTripleSampler(swap_metric='manhattan')],
-    [XYSquaresMinimalData(), 3, 'first', GroundTruthTripleSampler(swap_metric='manhattan_norm')],
-    [XYSquaresMinimalData(), 3, 'first', GroundTruthTripleSampler(swap_metric='euclidean')],
-    [XYSquaresMinimalData(), 3, 'first', GroundTruthTripleSampler(swap_metric='euclidean_norm')],
-    # [XYSquaresMinimalData(), 3, 'first', GroundTruthTripleSampler(n_k_sample_mode='offset')],  # TODO: these are broken
-    [XYSquaresMinimalData(), 3, 'first', GroundTruthTripleSampler(n_k_sample_mode='bounded_below')],
-    [XYSquaresMinimalData(), 3, 'first', GroundTruthTripleSampler(n_k_sample_mode='random')],
-    # [XYSquaresMinimalData(), 3, 'first', GroundTruthTripleSampler(n_radius_sample_mode='offset')],  # TODO: these are broken
-    [XYSquaresMinimalData(), 3, 'first', GroundTruthTripleSampler(n_radius_sample_mode='bounded_below')],
-    [XYSquaresMinimalData(), 3, 'first', GroundTruthTripleSampler(n_radius_sample_mode='random')],
+    [XYObjectData(), 3, 'first', GroundTruthTripleSampler()],
+    [XYObjectData(), 3, 'first', GroundTruthTripleSampler(swap_metric='k')],
+    [XYObjectData(), 3, 'first', GroundTruthTripleSampler(swap_metric='manhattan')],
+    [XYObjectData(), 3, 'first', GroundTruthTripleSampler(swap_metric='manhattan_norm')],
+    [XYObjectData(), 3, 'first', GroundTruthTripleSampler(swap_metric='euclidean')],
+    [XYObjectData(), 3, 'first', GroundTruthTripleSampler(swap_metric='euclidean_norm')],
+    # [XYObjectData(), 3, 'first', GroundTruthTripleSampler(n_k_sample_mode='offset')],  # TODO: these are broken
+    [XYObjectData(), 3, 'first', GroundTruthTripleSampler(n_k_sample_mode='bounded_below')],
+    [XYObjectData(), 3, 'first', GroundTruthTripleSampler(n_k_sample_mode='random')],
+    # [XYObjectData(), 3, 'first', GroundTruthTripleSampler(n_radius_sample_mode='offset')],  # TODO: these are broken
+    [XYObjectData(), 3, 'first', GroundTruthTripleSampler(n_radius_sample_mode='bounded_below')],
+    [XYObjectData(), 3, 'first', GroundTruthTripleSampler(n_radius_sample_mode='random')],
 
-    [XYSquaresMinimalData(), 1, 'first', GroundTruthDistSampler(num_samples=1)],
-    [XYSquaresMinimalData(), 2, 'first', GroundTruthDistSampler(num_samples=2)],
-    [XYSquaresMinimalData(), 3, 'first', GroundTruthDistSampler(num_samples=3)],
-    [XYSquaresMinimalData(), 3, 'first', GroundTruthDistSampler(num_samples=3, triplet_sample_mode='random')],
-    [XYSquaresMinimalData(), 3, 'first', GroundTruthDistSampler(num_samples=3, triplet_sample_mode='factors')],
-    [XYSquaresMinimalData(), 3, 'first', GroundTruthDistSampler(num_samples=3, triplet_sample_mode='manhattan')],
-    [XYSquaresMinimalData(), 3, 'first', GroundTruthDistSampler(num_samples=3, triplet_sample_mode='manhattan_scaled')],
-    [XYSquaresMinimalData(), 3, 'first', GroundTruthDistSampler(num_samples=3, triplet_sample_mode='combined')],
-    [XYSquaresMinimalData(), 3, 'first', GroundTruthDistSampler(num_samples=3, triplet_sample_mode='combined_scaled')],
+    [XYObjectData(), 1, 'first', GroundTruthDistSampler(num_samples=1)],
+    [XYObjectData(), 2, 'first', GroundTruthDistSampler(num_samples=2)],
+    [XYObjectData(), 3, 'first', GroundTruthDistSampler(num_samples=3)],
+    [XYObjectData(), 3, 'first', GroundTruthDistSampler(num_samples=3, triplet_sample_mode='random')],
+    [XYObjectData(), 3, 'first', GroundTruthDistSampler(num_samples=3, triplet_sample_mode='factors')],
+    [XYObjectData(), 3, 'first', GroundTruthDistSampler(num_samples=3, triplet_sample_mode='manhattan')],
+    [XYObjectData(), 3, 'first', GroundTruthDistSampler(num_samples=3, triplet_sample_mode='manhattan_scaled')],
+    [XYObjectData(), 3, 'first', GroundTruthDistSampler(num_samples=3, triplet_sample_mode='combined')],
+    [XYObjectData(), 3, 'first', GroundTruthDistSampler(num_samples=3, triplet_sample_mode='combined_scaled')],
 
-    [XYSquaresMinimalData(), 1, 'first', RandomSampler(num_samples=1)],
-    [XYSquaresMinimalData(), 2, 'first', RandomSampler(num_samples=2)],
-    [XYSquaresMinimalData(), 3, 'first', RandomSampler(num_samples=3)],
+    [XYObjectData(), 1, 'first', RandomSampler(num_samples=1)],
+    [XYObjectData(), 2, 'first', RandomSampler(num_samples=2)],
+    [XYObjectData(), 3, 'first', RandomSampler(num_samples=3)],
 
     [TestEpisodesData(), 1, 'any', RandomEpisodeSampler(num_samples=1)],
     [TestEpisodesData(), 2, 'any', RandomEpisodeSampler(num_samples=2)],
