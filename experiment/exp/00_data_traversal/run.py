@@ -34,6 +34,8 @@ from disent.dataset.data import DSpritesData
 from disent.dataset.data import GroundTruthData
 from disent.dataset.data import Shapes3dData
 from disent.dataset.data import SmallNorbData
+from disent.dataset.data import XYBlocksData
+from disent.dataset.data import XYObjectData
 from disent.dataset.data import XYSquaresData
 from disent.util.seeds import TempNumpySeed
 
@@ -120,6 +122,18 @@ if __name__ == '__main__':
             rel_path=f'plots/xy-squares-traversal-spacing{i}',
             seed=7, add_random_traversal=add_random_traversal, num_cols=num_cols
         )
+
+    plot_dataset_traversals(
+        XYObjectData(),
+        rel_path=f'plots/xy-object-traversal',
+        seed=47, add_random_traversal=add_random_traversal, num_cols=num_cols
+    )
+
+    plot_dataset_traversals(
+        XYBlocksData(),
+        rel_path=f'plots/xy-blocks-traversal',
+        seed=47, add_random_traversal=add_random_traversal, num_cols=num_cols
+    )
 
     plot_dataset_traversals(
         Shapes3dData(),
