@@ -48,6 +48,7 @@
     * [Schedules & Annealing](#schedules--annealing)
 - [Examples](#examples)
     * [Python Example](#python-example)
+    * [Hydra Config Example](#hydra-config-example)
 - [Why?](#why)
 
 ----------------------
@@ -99,7 +100,7 @@ The disent directory structure:
 - `disent/model`: common encoder and decoder models used for VAE research
 - `disent/nn`: torch components for building models including layers, transforms, losses and general maths
 - `disent/schedule`: annealing schedules that can be registered to a framework
-- `disent/util`: helper functions for the rest of the framework
+- `disent/util`: helper classes, functions, callbacks, anything unrelated to a pytorch system/model/framework.
 
 **Please Note The API Is Still Unstable ⚠️**
 
@@ -107,12 +108,23 @@ Disent is still under active development. Features and APIs are not considered s
 and should be expected to change! A limited set of tests currently exist which will be
 expanded upon in time.
 
+**Hydra Experiment Directories**
+
+Easily run experiments with hydra config, these files
+are not available from `pip install`.
+
+- `experiment/run.py`: entrypoint for running basic experiments with [hydra](https://github.com/facebookresearch/hydra) config
+- `experiment/config`: root folder for [hydra](https://github.com/facebookresearch/hydra) config files
+- `experiment/util`: various helper code for experiments
+
+
 ----------------------
 
 ## Features
 
-Disent includes implementations of modules, metrics and datasets
-from various papers. As well as many custom experimental frameworks.
+Disent includes implementations of modules, metrics and
+datasets from various papers. Please note that items marked
+  with a "🧵" are introduced in and are unique to disent!
 
 ### Frameworks
 - **Unsupervised**:
@@ -169,6 +181,13 @@ low-memory disk-based access.
   + MPI3D
   + SmallNORB
   + Shapes3D
+
+- **Ground Truth Synthetic**:
+  + 🧵 XYObject: *A simplistic version of dSprites with a single square.*
+
+  <p align="center">
+    <img width="384" src="docs/img/xy-object-traversal.png" alt="XYObject Dataset Factor Traversals">
+  </p>
 
   #### Input Transforms + Input/Target Augmentations
   
@@ -263,6 +282,59 @@ print('metrics:', metrics)
 </details>
 
 Visit the [docs](https://disent.dontpanic.sh) for more examples!
+
+
+### Hydra Config Example
+
+The entrypoint for basic experiments is `experiment/run.py`.
+
+Some configuration will be required, but basic experiments can
+be adjusted by modifying the [Hydra Config 1.0](https://github.com/facebookresearch/hydra)
+files in `experiment/config` (Please note that hydra 1.1 is not yet supported).
+
+Modifying the main `experiment/config/config.yaml` is all you
+need for most basic experiments. The main config file contains
+a defaults list with entries corresponding to yaml configuration
+files (config options) in the subfolders (config groups) in
+`experiment/config/<config_group>/<option>.yaml`.
+
+<details><summary><b>Config Defaults Example</b></summary>
+<p>
+
+```yaml
+defaults:
+  # system
+  - framework: adavae
+  - model: vae_conv64
+  - optimizer: adam
+  - schedule: none
+  # data
+  - dataset: xyobject
+  - dataset_sampling: full_bb
+  - augment: none
+  # runtime
+  - metrics: fast
+  - run_length: short
+  - run_location: local
+  - run_callbacks: vis
+  - run_logging: wandb
+
+# <rest of config.yaml left out>
+...
+```
+
+</p>
+</details>
+
+Easily modify  any of these values to adjust how the basic experiment
+will be run. For example, change `framework: adavae` to `framework: betavae`, or
+change the dataset from `xyobject` to `shapes3d`. Add new options by adding new
+yaml files in the config group folders.
+
+[Weights and Biases](https://docs.wandb.ai/quickstart) is supported by changing `run_logging: none` to
+`run_logging: wandb`. However, you will need to login from the command line. W&B logging supports
+visualisations of latent traversals.
+
 
 ----------------------
 

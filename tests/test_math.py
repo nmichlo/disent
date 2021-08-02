@@ -29,7 +29,7 @@ from scipy.stats import gmean
 from scipy.stats import hmean
 
 from disent.dataset import DisentDataset
-from disent.dataset.data import XYSquaresData
+from disent.dataset.data import XYObjectData
 from disent.dataset.sampling import RandomSampler
 from disent.nn.functional import torch_conv2d_channel_wise
 from disent.nn.functional import torch_conv2d_channel_wise_fft
@@ -131,7 +131,7 @@ def test_dct():
 
 
 def test_fft_conv2d():
-    data = XYSquaresData()
+    data = XYObjectData()
     dataset = DisentDataset(data, RandomSampler(), transform=ToStandardisedTensor(), augment=None)
     # sample data
     factors = dataset.ground_truth_data.sample_random_factor_traversal(f_idx=2)

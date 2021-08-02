@@ -30,7 +30,6 @@ from typing import Union
 import torch
 
 from disent.frameworks.vae._supervised__tvae import TripletVae
-from disent.util.config import instantiate_object_if_needed
 
 
 log = logging.getLogger(__name__)
@@ -51,9 +50,13 @@ class AugPosTripletVae(TripletVae):
 
     def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
-        self._augment = None
         # initialise & check augment
-        self._augment = instantiate_object_if_needed(self.cfg.overlap_augment)
+        self._augment = None
+        if self.cfg.overlap_augment is not None:
+            # TODO: this should not reference experiments!
+            from experiment.util.hydra_utils import instantiate_object_if_needed
+            self._augment = instantiate_object_if_needed(self.cfg.overlap_augment)
+            assert callable(self._augment), f'augment is not callable: {repr(self._augment)}'
         if self._augment is None:
             self._augment = torch.nn.Identity()
             warnings.warn(f'{self.__class__.__name__}, no overlap_augment was specified, defaulting to nn.Identity which WILL break things!')
