@@ -1,0 +1,38 @@
+defaults:
+  # runtime
+  - run_length: short
+  - run_logging: wandb
+  - run_location: cluster_many
+  # plugins
+  - hydra/job_logging: colorlog
+  - hydra/hydra_logging: colorlog
+  - hydra/launcher: submitit_slurm
+
+trainer:
+  cuda: TRUE
+  steps: 10000
+
+
+franework:
+  dataset_name: 'smallnorb'
+  dataset_num_workers: 0
+  # optimizer
+  optimizer_name: adam
+  optimizer_lr: 3e-3
+
+#  entangle_factors: NULL
+#  pairs_ratio: 8.0
+#  loss: mse
+
+exp:
+  seed: 777
+  rel_save_dir: data/adversarial_kernel
+  save_name: ${job.name}.pt
+  show_every_n_steps: 1000
+
+
+job:
+  user: 'n_michlo'
+  project: 'exp-disentangle-kernel'
+  name: r${kernel.radius}-${kernel.channels}_s${trainer.steps}_${optimizer.name}_lr${optimizer.lr}_wd${optimizer.weight_decay}_${data.name}
+  partition: stampede

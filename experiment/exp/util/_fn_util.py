@@ -25,6 +25,8 @@
 import inspect
 from typing import Sequence
 
+from deprecated import deprecated
+
 
 # ========================================================================= #
 # Function Arguments                                                        #
@@ -43,6 +45,7 @@ def _get_fn_from_stack(fn_name: str, stack):
     return fn
 
 
+@deprecated('function uses bad mechanics, see commented implementation below')
 def get_caller_params(sort: bool = False, exclude: Sequence[str] = None) -> dict:
     stack = inspect.stack()
     fn_name = stack[1].function
@@ -68,6 +71,42 @@ def params_as_string(params: dict, sep: str = '_', names: bool = False):
         return sep.join(f"{k}={v}" for k, v in params.items())
     else:
         return sep.join(f"{v}" for k, v in params.items())
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #
+
+
+# TODO: replace function above
+#
+# class DELETED(object):
+#     def __str__(self): return '<DELETED>'
+#     def __repr__(self): return str(self)
+#
+#
+# DELETED = DELETED()
+#
+#
+# def get_hparams(exclude: Union[Sequence[str], Set[str]] = None):
+#     # check values
+#     if exclude is None:
+#         exclude = {}
+#     else:
+#         exclude = set(exclude)
+#     # get frame and values
+#     args = inspect.getargvalues(frame=inspect.currentframe().f_back)
+#     # sort values
+#     arg_names = list(args.args)
+#     if args.varargs is not None: arg_names.append(args.varargs)
+#     if args.keywords is not None: arg_names.append(args.keywords)
+#     # filter values
+#     from argparse import Namespace
+#     return Namespace(**{
+#         name: args.locals.get(name, DELETED)
+#         for name in arg_names
+#         if (name not in exclude)
+#     })
 
 
 # ========================================================================= #
