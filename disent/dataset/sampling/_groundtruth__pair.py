@@ -25,7 +25,8 @@
 import numpy as np
 from disent.dataset.data import GroundTruthData
 from disent.dataset.sampling._base import BaseDisentSampler
-from disent.dataset.sampling._groundtruth__triplet import sample_radius, normalise_range_pair, FactorSizeError
+from disent.dataset.sampling._groundtruth__triplet import normalise_range_pair, FactorSizeError
+from disent.util.math.random import sample_radius
 
 
 # ========================================================================= #

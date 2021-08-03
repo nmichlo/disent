@@ -99,6 +99,12 @@ class DisentDataset(Dataset, LengthIter):
     def ground_truth_data(self) -> GroundTruthData:
         return self._dataset
 
+    @property
+    @groundtruth_only
+    def gt_data(self) -> GroundTruthData:
+        # TODO: deprecate this or the long version
+        return self._dataset
+
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Dataset                                                               #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #

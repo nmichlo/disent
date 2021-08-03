@@ -24,7 +24,7 @@
 
 from disent.dataset.data import BaseEpisodesData
 from disent.dataset.sampling._base import BaseDisentSampler
-from disent.dataset.sampling._groundtruth__triplet import sample_radius as sample_radius_fn
+from disent.util.math.random import sample_radius as sample_radius_fn
 
 
 # ========================================================================= #

@@ -80,16 +80,32 @@ class GroundTruthData(Dataset, StateSpace):
 
     @property
     def observation_shape(self) -> Tuple[int, ...]:
+        # TODO: deprecate this!
+        # TODO: observation_shape should be called img_shape
         # shape as would be for a non-batched observation
         # eg. H x W x C
         raise NotImplementedError()
 
     @property
     def x_shape(self) -> Tuple[int, ...]:
+        # TODO: deprecate this!
+        # TODO: x_shape should be called obs_shape
         # shape as would be for a single observation in a torch batch
         # eg. C x H x W
         shape = self.observation_shape
         return shape[-1], *shape[:-1]
+
+    @property
+    def img_shape(self) -> Tuple[int, ...]:
+        # shape as would be for an original image
+        # eg. H x W x C
+        return self.observation_shape
+
+    @property
+    def obs_shape(self) -> Tuple[int, ...]:
+        # shape as would be for a single observation in a torch batch
+        # eg. C x H x W
+        return self.x_shape
 
     def __getitem__(self, idx):
         obs = self._get_observation(idx)

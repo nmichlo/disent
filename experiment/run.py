@@ -129,6 +129,7 @@ def hydra_make_logger(cfg):
     else:
         cfg.logging.setdefault('cometml', dict(enabled=False))
 
+    # TODO: maybe return DummyLogger instead?
     return LoggerCollection(loggers) if loggers else None  # lists are turned into a LoggerCollection by pl
 
 
