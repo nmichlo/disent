@@ -168,8 +168,6 @@ def adversarial_loss(a_x: torch.Tensor, p_x: torch.Tensor, n_x: torch.Tensor, lo
 
 def make_adversarial_class(batch_optimizer: bool, gpu: bool, fp16: bool = True):
     # check values
-    if not batch_optimizer:
-        raise ValueError('`batch_optimizer=False` is disabled, must be `True`')
     if fp16 and (not gpu):
         warnings.warn('`fp16=True` is not supported on CPU, overriding setting to `False`')
         fp16 = False
@@ -258,9 +256,9 @@ def make_adversarial_class(batch_optimizer: bool, gpu: bool, fp16: bool = True):
             if batch_optimizer:
                 (a_x, p_x, n_x), (params, param_idxs, optimizer) = self._load_batch(a_idx, p_idx, n_idx)
             else:
-                a_x = self.array[a_idx]  #.to(DST_DTYPE)
-                p_x = self.array[p_idx]  #.to(DST_DTYPE)
-                n_x = self.array[n_idx]  #.to(DST_DTYPE)
+                a_x = self.array[a_idx]
+                p_x = self.array[p_idx]
+                n_x = self.array[n_idx]
             # compute loss
             loss = adversarial_loss(
                 a_x=a_x,
@@ -271,20 +269,15 @@ def make_adversarial_class(batch_optimizer: bool, gpu: bool, fp16: bool = True):
                 adversarial_mode=self.hparams.loss_mode,
             )
             # log results
-            self.log('loss', loss)
+            self.log_dict({
+                'loss': loss.float(),
+                'adv_loss': loss.float(),
+            }, prog_bar=True)
             # done!
             if batch_optimizer:
-                with torch.no_grad():
-                    print()
-                    print(a_x.mean(), a_x.mean(dtype=torch.float32), a_x.dtype, loss, loss.dtype, params.dtype)
-                    print()
                 self._update_with_batch(loss, params, param_idxs, optimizer)
                 return None
             else:
-                with torch.no_grad():
-                    print()
-                    print(a_x.mean(), a_x.mean(dtype=torch.float32), a_x.dtype, loss, loss.dtype)
-                    print()
                 return loss
 
         # ================================== #
@@ -323,10 +316,17 @@ def make_adversarial_class(batch_optimizer: bool, gpu: bool, fp16: bool = True):
                     n_idx.detach().cpu().numpy(),
                 ], axis=0)
                 # find unique values
-                unique_indices, param_idxs, inverse_indices = np.unique(all_indices.flatten(), return_index=True, return_inverse=True)
+                param_idxs, inverse_indices = np.unique(all_indices.flatten(), return_inverse=True)
                 inverse_indices = inverse_indices.reshape(all_indices.shape)
-            # load data with values & move to gpu
-            params = self.array[unique_indices].to(device=self.device, dtype=DST_DTYPE)
+                # load data with values & move to gpu
+                # - for batch size (256*3, 3, 64, 64) with num_workers=0, this is 5% faster
+                #   than .to(device=self.device, dtype=DST_DTYPE) in one call, as we reduce
+                #   the memory overhead in the transfer. This does slightly increase the
+                #   memory usage on the target device.
+                # - for batch size (1024*3, 3, 64, 64) with num_workers=12, this is 15% faster
+                #   but consumes slightly more memory: 2492MiB vs. 2510MiB
+                params = self.array[param_idxs].to(device=self.device).to(dtype=DST_DTYPE)
+            # make params and optimizer
             params = torch.nn.Parameter(params, requires_grad=True)
             optimizer = self._make_optimizer(params)
             # get batches -- it is ok to index by a numpy array without conversion
@@ -420,21 +420,25 @@ def make_adversarial_class(batch_optimizer: bool, gpu: bool, fp16: bool = True):
 
 if __name__ == '__main__':
 
-    batch_optimizer, gpu, fp16 = False, True, True
+    batch_optimizer, gpu, fp16 = True, True, True
 
-    # WORKING:
-    # - batch_optimizer=False, gpu=True,  f16=True   : (DISABLED) NAN     [4.91it/s]
-    # - batch_optimizer=False, gpu=True,  f16=False  : (DISABLED) out of mem
-    # - batch_optimizer=False, gpu=False, f16=True   : (DISABLED)         [same as fp16=False]
-    # - batch_optimizer=False, gpu=False, f16=False  : (DISABLED) working [0.57it/s]
+    # BENCHMARK (batch_size=256, optimizer=sgd, lr=1e-2, dataset_num_workers=0):
+    # - batch_optimizer=False, gpu=True,  fp16=True   : [3168MiB/5932MiB, 3.32/11.7G, 5.52it/s]
+    # - batch_optimizer=False, gpu=True,  fp16=False  : [5248MiB/5932MiB, 3.72/11.7G, 4.84it/s]
+    # - batch_optimizer=False, gpu=False, fp16=True   : [same as fp16=False]
+    # - batch_optimizer=False, gpu=False, fp16=False  : [0003MiB/5932MiB, 4.60/11.7G, 1.05it/s]
 
-    # - batch_optimizer=True,  gpu=True,  f16=True   : NAN                [3.75it/s]
-    # - batch_optimizer=True,  gpu=True,  f16=False  : NAN                [4.18it/s]
-    # - batch_optimizer=True,  gpu=False, f16=True   :                    [same as fp16=False]
-    # - batch_optimizer=True,  gpu=False, f16=False  : NAN                [3.46it/s]
+    # - batch_optimizer=True,  gpu=True,  fp16=True   : [1284MiB/5932MiB, 3.45/11.7G, 4.31it/s]
+    # - batch_optimizer=True,  gpu=True,  fp16=False  : [1284MiB/5932MiB, 3.72/11.7G, 4.31it/s]
+    # - batch_optimizer=True,  gpu=False, fp16=True   : [same as fp16=False]
+    # - batch_optimizer=True,  gpu=False, fp16=False  : [0003MiB/5932MiB, 1.80/11.7G, 4.18it/s]
 
-    AdversarialModel = make_adversarial_class(batch_optimizer=True, gpu=gpu, fp16=fp16)
-    framework = AdversarialModel()
+    # BENCHMARK (batch_size=1024, optimizer=sgd, lr=1e-2, dataset_num_workers=12):
+    # - batch_optimizer=True,  gpu=True,  fp16=True   : [2510MiB/5932MiB, 4.10/11.7G, 4.75it/s, 20% gpu util] (to(device).to(dtype))
+    # - batch_optimizer=True,  gpu=True,  fp16=True   : [2492MiB/5932MiB, 4.10/11.7G, 4.12it/s, 19% gpu util] (to(device, dtype))
+
+    AdversarialModel = make_adversarial_class(batch_optimizer=batch_optimizer, gpu=gpu, fp16=fp16)
+    framework = AdversarialModel(optimizer_lr=1e-2, optimizer_name='sgd', dataset_batch_size=1024, dataset_num_workers=12)
 
     trainer = pl.Trainer(
         log_every_n_steps=50,
@@ -442,7 +446,6 @@ if __name__ == '__main__':
         logger=False,
         callbacks=None,
         gpus=1 if gpu else 0,
-        precision=16 if fp16 else 32,
         max_epochs=None,
         max_steps=10000,
         # progress_bar_refresh_rate=0,  # ptl 0.9
