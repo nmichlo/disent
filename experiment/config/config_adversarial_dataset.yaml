@@ -1,6 +1,5 @@
 defaults:
   # runtime
-  - run_length: short
   - run_logging: wandb
   - run_location: heartofgold
   # plugins
@@ -14,8 +13,8 @@ trainer:
 
 framework:
   # optimizer options
-  optimizer_name: 'sgd'
-  optimizer_lr: 5e-2
+  optimizer_name: 'adam'
+  optimizer_lr: 1e-2
   optimizer_kwargs: NULL
   # dataset config options
   dataset_name: 'cars3d'
@@ -24,20 +23,21 @@ framework:
   data_root: ${dataset.data_root}
   # loss config options
   loss_fn: 'mse'
-  loss_mode: 'self'
-  loss_const_targ: 0.1
+  loss_mode: 'const'
+  loss_const_targ: 0.02
   # sampling config
   sampler_name: 'close_far'
   sampler_kwargs: NULL
   # train options
   train_batch_optimizer: TRUE
-  train_dataset_fp16: TRUE
+  train_dataset_fp16: FALSE
 
 exp:
   seed: 777
+  show_every_n_steps: 100
+
 #  rel_save_dir: data/adversarial_kernel
 #  save_name: ${job.name}.pt
-#  show_every_n_steps: 100
 
 job:
   user: 'n_michlo'

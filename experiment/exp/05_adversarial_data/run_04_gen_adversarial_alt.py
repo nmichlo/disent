@@ -33,6 +33,7 @@ import hydra
 import numpy as np
 import pytorch_lightning as pl
 import torch
+import wandb
 from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
 from torch.utils.data import IterableDataset
@@ -43,8 +44,12 @@ from disent.dataset import DisentDataset
 from disent.dataset.data import GroundTruthData
 from disent.dataset.sampling import BaseDisentSampler
 from disent.dataset.sampling import GroundTruthPairSampler
+from disent.util.lightning.callbacks import BaseCallbackPeriodic
+from disent.util.lightning.logger_util import wb_log_metrics
 from disent.util.seeds import seed
+from disent.util.seeds import TempNumpySeed
 from disent.util.strings.fmt import make_box_str
+from disent.util.visualize.vis_util import make_image_grid
 from experiment.run import hydra_append_progress_callback
 from experiment.run import hydra_check_cuda
 from experiment.run import hydra_make_logger
@@ -245,8 +250,8 @@ class AdversarialModel(pl.LightningModule):
         )
         # log results
         self.log_dict({
-            'loss': loss.float(),
-            'adv_loss': loss.float(),
+            'loss': loss,
+            'adv_loss': loss,
         }, prog_bar=True)
         # done!
         if self.hparams.train_batch_optimizer:
@@ -254,29 +259,6 @@ class AdversarialModel(pl.LightningModule):
             return None
         else:
             return loss
-
-    # ================================== #
-    # dataset                            #
-    # ================================== #
-
-    def train_dataloader(self):
-        # sampling in dataloader
-        sampler = self.sampler
-        data_len = len(self.dataset.gt_data)
-        # generate the indices in a multi-threaded environment -- this is not deterministic if num_workers > 0
-        class SamplerIndicesDataset(IterableDataset):
-            def __getitem__(self, index) -> T_co:
-                raise RuntimeError('this should never be called on an iterable dataset')
-            def __iter__(self) -> Iterator[T_co]:
-                while True:
-                    yield {'idx': sampler(np.random.randint(0, data_len))}
-        # create data loader!
-        return DataLoader(
-            SamplerIndicesDataset(),
-            batch_size=self.hparams.dataset_batch_size,
-            num_workers=self.hparams.dataset_num_workers,
-            shuffle=False,
-        )
 
     # ================================== #
     # optimizer for each batch mode      #
@@ -312,11 +294,59 @@ class AdversarialModel(pl.LightningModule):
         return (a_x, p_x, n_x), (params, param_idxs, optimizer)
 
     def _update_with_batch(self, loss, params, param_idxs, optimizer):
+        with TempNumpySeed(777):
+            std, mean = torch.std_mean(self.array[np.random.randint(0, len(self.array), size=128)])
+            std, mean = std.cpu().numpy().tolist(), mean.cpu().numpy().tolist()
+            self.log_dict({'approx_mean': mean, 'approx_std': std}, prog_bar=True)
         # backprop
         H.step_optimizer(optimizer, loss)
         # save values to dataset
         with torch.no_grad():
             self.array[param_idxs] = params.detach().cpu().to(self._dtype_src)
+
+    # ================================== #
+    # dataset                            #
+    # ================================== #
+
+    def train_dataloader(self):
+        # sampling in dataloader
+        sampler = self.sampler
+        data_len = len(self.dataset.gt_data)
+        # generate the indices in a multi-threaded environment -- this is not deterministic if num_workers > 0
+        class SamplerIndicesDataset(IterableDataset):
+            def __getitem__(self, index) -> T_co:
+                raise RuntimeError('this should never be called on an iterable dataset')
+            def __iter__(self) -> Iterator[T_co]:
+                while True:
+                    yield {'idx': sampler(np.random.randint(0, data_len))}
+        # create data loader!
+        return DataLoader(
+            SamplerIndicesDataset(),
+            batch_size=self.hparams.dataset_batch_size,
+            num_workers=self.hparams.dataset_num_workers,
+            shuffle=False,
+        )
+
+    def make_train_periodic_callback(self, cfg) -> BaseCallbackPeriodic:
+        class ImShowCallback(BaseCallbackPeriodic):
+            def do_step(this, trainer: pl.Trainer, pl_module: pl.LightningModule):
+                if self.dataset is None:
+                    log.warning('dataset not initialized, skipping visualisation')
+                # get kernel image
+                with TempNumpySeed(777):
+                    mean, std = torch.std_mean(self.dataset.dataset_sample_batch(num_samples=128, mode='raw').to(torch.float32))
+                    self.dataset._transform = lambda x: H.to_img((x.to(torch.float32) - mean) / std)
+                    # get images
+                    image = make_image_grid(self.dataset.dataset_sample_batch(num_samples=16, mode='input'))
+                # get augmented traversals
+                with torch.no_grad():
+                    wandb_image, wandb_animation = H.visualize_dataset_traversal(self.dataset, data_mode='input', output_wandb=True)
+                # log images to WANDB
+                wb_log_metrics(trainer.logger, {
+                    'random_images': wandb.Image(image),
+                    'traversal_image': wandb_image, 'traversal_animation': wandb_animation,
+                })
+        return ImShowCallback(every_n_steps=cfg.exp.show_every_n_steps, begin_first_step=True)
 
 
 # ========================================================================= #
@@ -356,6 +386,7 @@ def run_gen_adversarial_dataset(cfg):
         train_is_gpu=cfg.trainer.cuda,
         **cfg.framework
     )
+    callbacks.append(framework.make_train_periodic_callback(cfg))
     # train
     trainer = pl.Trainer(
         log_every_n_steps=cfg.logging.setdefault('log_every_n_steps', 50),
