@@ -22,53 +22,33 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-import itertools
 import logging
 import os
-import time
 import warnings
-from argparse import Namespace
 from typing import Iterator
-from typing import List
 from typing import Optional
-from typing import Sequence
 from typing import Tuple
 
-import dataset as dataset
 import hydra
 import numpy as np
 import pytorch_lightning as pl
 import torch
-import wandb
-from omegaconf import DictConfig
 from omegaconf import OmegaConf
-from pytorch_lightning.loggers import WandbLogger
-from torch.nn import Parameter
 from torch.utils.data import DataLoader
 from torch.utils.data import IterableDataset
 from torch.utils.data.dataset import T_co
 
-import disent.util.seeds
 import experiment.exp.util as H
 from disent.dataset import DisentDataset
-from disent.dataset.data import ArrayGroundTruthData
 from disent.dataset.data import GroundTruthData
 from disent.dataset.sampling import BaseDisentSampler
 from disent.dataset.sampling import GroundTruthPairSampler
-from disent.frameworks import DisentConfigurable
-from disent.nn.modules import DisentLightningModule
-from disent.nn.modules import DisentModule
-from disent.util.strings.fmt import make_box_str
 from disent.util.seeds import seed
-from disent.nn.functional import torch_conv2d_channel_wise_fft
-from disent.nn.loss.softsort import spearman_rank_loss
+from disent.util.strings.fmt import make_box_str
 from experiment.run import hydra_append_progress_callback
 from experiment.run import hydra_check_cuda
 from experiment.run import hydra_make_logger
-from disent.util.lightning.callbacks import BaseCallbackPeriodic
 from experiment.util.hydra_utils import make_non_strict
-from disent.util.lightning.logger_util import wb_log_metrics
-from disent.util.math.random import randint2, sample_radius
 
 
 log = logging.getLogger(__name__)
@@ -166,184 +146,177 @@ def adversarial_loss(a_x: torch.Tensor, p_x: torch.Tensor, n_x: torch.Tensor, lo
 # ========================================================================= #
 
 
-def make_adversarial_class(batch_optimizer: bool, gpu: bool, fp16: bool = True):
-    # check values
-    if fp16 and (not gpu):
-        warnings.warn('`fp16=True` is not supported on CPU, overriding setting to `False`')
-        fp16 = False
+class AdversarialModel(pl.LightningModule):
 
-    # get dtypes
-    SRC_DTYPE = torch.float16 if fp16 else torch.float32
-    DST_DTYPE = torch.float32
+    def __init__(
+        self,
+        # optimizer options
+            optimizer_name: str = 'sgd',
+            optimizer_lr: float = 5e-2,
+            optimizer_kwargs: Optional[dict] = None,
+        # dataset config options
+            dataset_name: str = 'cars3d',
+            dataset_num_workers: int = os.cpu_count() // 2,
+            dataset_batch_size: int = 1024,  # approx
+            data_root: str = 'data/dataset',
+        # loss config options
+            loss_fn: str = 'mse',
+            loss_mode: str = 'self',
+            loss_const_targ: Optional[float] = 0.1,  # replace stochastic pairwise constant loss with deterministic loss target
+        # sampling config
+            sampler_name: str = 'close_far',
+            sampler_kwargs: Optional[dict] = None,
+        # train options
+            train_batch_optimizer: bool = True,
+            train_dataset_fp16: bool = True,
+            train_is_gpu: bool = False,
+    ):
+        super().__init__()
+        # check values
+        if train_dataset_fp16 and (not train_is_gpu):
+            warnings.warn('`train_dataset_fp16=True` is not supported on CPU, overriding setting to `False`')
+            train_dataset_fp16 = False
+        self._dtype_dst = torch.float32
+        self._dtype_src = torch.float16 if train_dataset_fp16 else torch.float32
+        # modify hparams
+        if optimizer_kwargs is None:
+            optimizer_kwargs = {}
+        if sampler_kwargs is None:
+            sampler_kwargs = {}
+        # save hparams
+        self.save_hyperparameters()
+        # variables
+        self.dataset: DisentDataset = None
+        self.array: torch.Tensor = None
+        self.sampler: BaseDisentSampler = None
 
-    class AdversarialModel(pl.LightningModule):
+    # ================================== #
+    # setup                              #
+    # ================================== #
 
-        def __init__(
-            self,
-            # optimizer options
-                optimizer_name: str = 'adam',
-                optimizer_lr: float = 1e-2,
-                optimizer_kwargs: Optional[dict] = None,
-            # dataset config options
-                dataset_name: str = 'cars3d',
-                dataset_num_workers: int = 0,
-                dataset_batch_size: int = 256,  # approx
-                # batch_sample_mode: str = 'shuffle',  # range, shuffle, random
-            # initialize params from dataset
-                # params_masked: bool = True,
-                # params_initial_noise: Optional[float] = None,
-            # loss config options
-                loss_fn: str = 'mse',
-                loss_mode: str = 'self',
-                loss_const_targ: Optional[float] = 0.1, # replace stochastic pairwise constant loss with deterministic loss target
-                # loss_num_pairs: int = 1024 * 4,
-                # loss_num_samples: int = 1024 * 4 * 2,  # only applies if loss_const_targ=None
-                # loss_reg_out_of_bounds: bool = False,
-                # loss_top_k: Optional[int] = None,
-            # sampling config
-                sampler_name: str = 'close_far',
-                sampler_kwargs: Optional[dict] = None,
-        ):
-            super().__init__()
-            # modify hparams
-            if optimizer_kwargs is None: optimizer_kwargs = {}
-            if sampler_kwargs is None: sampler_kwargs = {}
-            # save hparams
-            self.save_hyperparameters()
-            # variables
-            self.dataset: DisentDataset = None
-            self.array: torch.Tensor = None
-            self.sampler: BaseDisentSampler = None
+    def prepare_data(self) -> None:
+        # create dataset
+        self.dataset = H.make_dataset(self.hparams.dataset_name, load_into_memory=True, load_memory_dtype=self._dtype_src, data_root=self.hparams.data_root)
+        # load dataset into memory as fp16
+        if self.hparams.train_batch_optimizer:
+            self.array = self.dataset.gt_data.array
+        else:
+            self.array = torch.nn.Parameter(self.dataset.gt_data.array, requires_grad=True)  # move with model to correct device
+        # create sampler
+        assert self.hparams.sampler_name == 'close_far', '`close_far` is the only mode currently supported!'
+        self.sampler = AdversarialSampler_CloseFar(**self.hparams.sampler_kwargs).init(self.dataset.gt_data)
 
-        # ================================== #
-        # setup                              #
-        # ================================== #
+    def _make_optimizer(self, params):
+        return H.make_optimizer(
+            params,
+            name=self.hparams.optimizer_name,
+            lr=self.hparams.optimizer_lr,
+            **self.hparams.optimizer_kwargs,
+        )
 
-        def prepare_data(self) -> None:
-            # create dataset
-            self.dataset = H.make_dataset(self.hparams.dataset_name, load_into_memory=True, load_memory_dtype=SRC_DTYPE)
-            # load dataset into memory as fp16
-            if batch_optimizer:
-                self.array = self.dataset.gt_data.array
-            else:
-                self.array = torch.nn.Parameter(self.dataset.gt_data.array, requires_grad=True)  # move with model to correct device
-            # create sampler
-            assert self.hparams.sampler_name == 'close_far', '`close_far` is the only mode currently supported!'
-            self.sampler = AdversarialSampler_CloseFar(**self.hparams.sampler_kwargs).init(self.dataset.gt_data)
+    def configure_optimizers(self):
+        if self.hparams.train_batch_optimizer:
+            return None
+        else:
+            return self._make_optimizer(self.array)
 
-        def _make_optimizer(self, params):
-            return H.make_optimizer(
-                params,
-                name=self.hparams.optimizer_name,
-                lr=self.hparams.optimizer_lr,
-                **self.hparams.optimizer_kwargs,
-            )
+    # ================================== #
+    # train step                         #
+    # ================================== #
 
-        def configure_optimizers(self):
-            if batch_optimizer:
-                return None
-            else:
-                return self._make_optimizer(self.array)
+    def training_step(self, batch, batch_idx):
+        # get indices
+        (a_idx, p_idx, n_idx) = batch['idx']
+        # generate batches & transfer to correct device
+        if self.hparams.train_batch_optimizer:
+            (a_x, p_x, n_x), (params, param_idxs, optimizer) = self._load_batch(a_idx, p_idx, n_idx)
+        else:
+            a_x = self.array[a_idx]
+            p_x = self.array[p_idx]
+            n_x = self.array[n_idx]
+        # compute loss
+        loss = adversarial_loss(
+            a_x=a_x,
+            p_x=p_x,
+            n_x=n_x,
+            loss=self.hparams.loss_fn,
+            target=self.hparams.loss_const_targ,
+            adversarial_mode=self.hparams.loss_mode,
+        )
+        # log results
+        self.log_dict({
+            'loss': loss.float(),
+            'adv_loss': loss.float(),
+        }, prog_bar=True)
+        # done!
+        if self.hparams.train_batch_optimizer:
+            self._update_with_batch(loss, params, param_idxs, optimizer)
+            return None
+        else:
+            return loss
 
-        # ================================== #
-        # train step                         #
-        # ================================== #
+    # ================================== #
+    # dataset                            #
+    # ================================== #
 
-        def training_step(self, batch, batch_idx):
-            # get indices
-            (a_idx, p_idx, n_idx) = batch['idx']
-            # generate batches & transfer to correct device
-            if batch_optimizer:
-                (a_x, p_x, n_x), (params, param_idxs, optimizer) = self._load_batch(a_idx, p_idx, n_idx)
-            else:
-                a_x = self.array[a_idx]
-                p_x = self.array[p_idx]
-                n_x = self.array[n_idx]
-            # compute loss
-            loss = adversarial_loss(
-                a_x=a_x,
-                p_x=p_x,
-                n_x=n_x,
-                loss=self.hparams.loss_fn,
-                target=self.hparams.loss_const_targ,
-                adversarial_mode=self.hparams.loss_mode,
-            )
-            # log results
-            self.log_dict({
-                'loss': loss.float(),
-                'adv_loss': loss.float(),
-            }, prog_bar=True)
-            # done!
-            if batch_optimizer:
-                self._update_with_batch(loss, params, param_idxs, optimizer)
-                return None
-            else:
-                return loss
+    def train_dataloader(self):
+        # sampling in dataloader
+        sampler = self.sampler
+        data_len = len(self.dataset.gt_data)
+        # generate the indices in a multi-threaded environment -- this is not deterministic if num_workers > 0
+        class SamplerIndicesDataset(IterableDataset):
+            def __getitem__(self, index) -> T_co:
+                raise RuntimeError('this should never be called on an iterable dataset')
+            def __iter__(self) -> Iterator[T_co]:
+                while True:
+                    yield {'idx': sampler(np.random.randint(0, data_len))}
+        # create data loader!
+        return DataLoader(
+            SamplerIndicesDataset(),
+            batch_size=self.hparams.dataset_batch_size,
+            num_workers=self.hparams.dataset_num_workers,
+            shuffle=False,
+        )
 
-        # ================================== #
-        # dataset                            #
-        # ================================== #
+    # ================================== #
+    # optimizer for each batch mode      #
+    # ================================== #
 
-        def train_dataloader(self):
-            # sampling in dataloader
-            sampler = self.sampler
-            data_len = len(self.dataset.gt_data)
-            # generate the indices in a multi-threaded environment -- this is not deterministic if num_workers > 0
-            class SamplerIndicesDataset(IterableDataset):
-                def __getitem__(self, index) -> T_co:
-                    raise RuntimeError('this should never be called on an iterable dataset')
-                def __iter__(self) -> Iterator[T_co]:
-                    while True:
-                        yield {'idx': sampler(np.random.randint(0, data_len))}
-            # create data loader!
-            return DataLoader(
-                SamplerIndicesDataset(),
-                batch_size=self.hparams.dataset_batch_size,
-                num_workers=self.hparams.dataset_num_workers,
-                shuffle=False,
-            )
+    def _load_batch(self, a_idx, p_idx, n_idx):
+        with torch.no_grad():
+            # get all indices
+            all_indices = np.stack([
+                a_idx.detach().cpu().numpy(),
+                p_idx.detach().cpu().numpy(),
+                n_idx.detach().cpu().numpy(),
+            ], axis=0)
+            # find unique values
+            param_idxs, inverse_indices = np.unique(all_indices.flatten(), return_inverse=True)
+            inverse_indices = inverse_indices.reshape(all_indices.shape)
+            # load data with values & move to gpu
+            # - for batch size (256*3, 3, 64, 64) with num_workers=0, this is 5% faster
+            #   than .to(device=self.device, dtype=DST_DTYPE) in one call, as we reduce
+            #   the memory overhead in the transfer. This does slightly increase the
+            #   memory usage on the target device.
+            # - for batch size (1024*3, 3, 64, 64) with num_workers=12, this is 15% faster
+            #   but consumes slightly more memory: 2492MiB vs. 2510MiB
+            params = self.array[param_idxs].to(device=self.device).to(dtype=self._dtype_dst)
+        # make params and optimizer
+        params = torch.nn.Parameter(params, requires_grad=True)
+        optimizer = self._make_optimizer(params)
+        # get batches -- it is ok to index by a numpy array without conversion
+        a_x = params[inverse_indices[0, :]]
+        p_x = params[inverse_indices[1, :]]
+        n_x = params[inverse_indices[2, :]]
+        # return values
+        return (a_x, p_x, n_x), (params, param_idxs, optimizer)
 
-        # ================================== #
-        # optimizer for each batch mode      #
-        # ================================== #
-
-        def _load_batch(self, a_idx, p_idx, n_idx):
-            with torch.no_grad():
-                # get all indices
-                all_indices = np.stack([
-                    a_idx.detach().cpu().numpy(),
-                    p_idx.detach().cpu().numpy(),
-                    n_idx.detach().cpu().numpy(),
-                ], axis=0)
-                # find unique values
-                param_idxs, inverse_indices = np.unique(all_indices.flatten(), return_inverse=True)
-                inverse_indices = inverse_indices.reshape(all_indices.shape)
-                # load data with values & move to gpu
-                # - for batch size (256*3, 3, 64, 64) with num_workers=0, this is 5% faster
-                #   than .to(device=self.device, dtype=DST_DTYPE) in one call, as we reduce
-                #   the memory overhead in the transfer. This does slightly increase the
-                #   memory usage on the target device.
-                # - for batch size (1024*3, 3, 64, 64) with num_workers=12, this is 15% faster
-                #   but consumes slightly more memory: 2492MiB vs. 2510MiB
-                params = self.array[param_idxs].to(device=self.device).to(dtype=DST_DTYPE)
-            # make params and optimizer
-            params = torch.nn.Parameter(params, requires_grad=True)
-            optimizer = self._make_optimizer(params)
-            # get batches -- it is ok to index by a numpy array without conversion
-            a_x = params[inverse_indices[0, :]]
-            p_x = params[inverse_indices[1, :]]
-            n_x = params[inverse_indices[2, :]]
-            # return values
-            return (a_x, p_x, n_x), (params, param_idxs, optimizer)
-
-        def _update_with_batch(self, loss, params, param_idxs, optimizer):
-            # backprop
-            H.step_optimizer(optimizer, loss)
-            # save values to dataset
-            with torch.no_grad():
-                self.array[param_idxs] = params.detach().cpu().to(SRC_DTYPE)
-
-    return AdversarialModel
+    def _update_with_batch(self, loss, params, param_idxs, optimizer):
+        # backprop
+        H.step_optimizer(optimizer, loss)
+        # save values to dataset
+        with torch.no_grad():
+            self.array[param_idxs] = params.detach().cpu().to(self._dtype_src)
 
 
 # ========================================================================= #
@@ -351,83 +324,75 @@ def make_adversarial_class(batch_optimizer: bool, gpu: bool, fp16: bool = True):
 # ========================================================================= #
 
 
-# ROOT_DIR = os.path.abspath(__file__ + '/../../../..')
-#
-#
-# @hydra.main(config_path=os.path.join(ROOT_DIR, 'experiment/config'), config_name="config_adversarial_dataset")
-# def run_gen_adversarial_dataset(cfg):
-#     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-#     cfg = make_non_strict(cfg)
-#     # - - - - - - - - - - - - - - - #
-#     # check CUDA setting
-#     cfg.trainer.setdefault('cuda', 'try_cuda')
-#     hydra_check_cuda(cfg)
-#     # create logger
-#     logger = hydra_make_logger(cfg)
-#     # create callbacks
-#     callbacks = []
-#     hydra_append_progress_callback(callbacks, cfg)
-#     # - - - - - - - - - - - - - - - #
-#     # get the logger and initialize
-#     if logger is not None:
-#         wandb_experiment = logger.experiment  # initialize
-#         logger.log_hyperparams(cfg)
-#     # print the final config!
-#     log.info('Final Config' + make_box_str(OmegaConf.to_yaml(cfg)))
-#     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-#     # | | | | | | | | | | | | | | | #
-#     seed(disent.util.seeds.seed)
-#     # | | | | | | | | | | | | | | | #
-#     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-#
-#
-#
-#
-#     # train
-#     trainer = pl.Trainer(
-#         log_every_n_steps=cfg.logging.setdefault('log_every_n_steps', 50),
-#         flush_logs_every_n_steps=cfg.logging.setdefault('flush_logs_every_n_steps', 100),
-#         logger=logger,
-#         callbacks=callbacks,
-#         gpus=1 if cfg.trainer.cuda else 0,
-#         max_epochs=cfg.trainer.setdefault('epochs', None),
-#         max_steps=cfg.trainer.setdefault('steps', 10000),
-#         progress_bar_refresh_rate=0,  # ptl 0.9
-#         terminate_on_nan=True,  # we do this here so we don't run the final metrics
-#         checkpoint_callback=False,
-#     )
-#     trainer.fit(framework, dataloader)
-#     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-#     # save kernel
-#     if cfg.exp.rel_save_dir is not None:
-#         assert not os.path.isabs(cfg.exp.rel_save_dir), f'rel_save_dir must be relative: {repr(cfg.exp.rel_save_dir)}'
-#         save_dir = os.path.join(ROOT_DIR, cfg.exp.rel_save_dir)
-#         assert os.path.isabs(save_dir), f'save_dir must be absolute: {repr(save_dir)}'
-#         # save kernel
-#         H.torch_write(os.path.join(save_dir, cfg.exp.save_name), framework.model._kernel)
-#
-#
-# # ========================================================================= #
-# # Entry Point                                                               #
-# # ========================================================================= #
-#
-#
-# if __name__ == '__main__':
-#     # EXP ARGS:
-#     # $ ... -m dataset=smallnorb,shapes3d
-#     run_gen_adversarial_dataset()
+ROOT_DIR = os.path.abspath(__file__ + '/../../../..')
+
+
+@hydra.main(config_path=os.path.join(ROOT_DIR, 'experiment/config'), config_name="config_adversarial_dataset")
+def run_gen_adversarial_dataset(cfg):
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    cfg = make_non_strict(cfg)
+    # - - - - - - - - - - - - - - - #
+    # check CUDA setting
+    cfg.trainer.setdefault('cuda', 'try_cuda')
+    hydra_check_cuda(cfg)
+    # create logger
+    logger = hydra_make_logger(cfg)
+    # create callbacks
+    callbacks = []
+    hydra_append_progress_callback(callbacks, cfg)
+    # - - - - - - - - - - - - - - - #
+    # get the logger and initialize
+    if logger is not None:
+        logger.log_hyperparams(cfg)
+    # print the final config!
+    log.info('Final Config' + make_box_str(OmegaConf.to_yaml(cfg)))
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # | | | | | | | | | | | | | | | #
+    seed(cfg.exp.seed)
+    # | | | | | | | | | | | | | | | #
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # make framework
+    framework = AdversarialModel(
+        train_is_gpu=cfg.trainer.cuda,
+        **cfg.framework
+    )
+    # train
+    trainer = pl.Trainer(
+        log_every_n_steps=cfg.logging.setdefault('log_every_n_steps', 50),
+        flush_logs_every_n_steps=cfg.logging.setdefault('flush_logs_every_n_steps', 100),
+        logger=logger,
+        callbacks=callbacks,
+        gpus=1 if cfg.trainer.cuda else 0,
+        max_epochs=cfg.trainer.setdefault('epochs', None),
+        max_steps=cfg.trainer.setdefault('steps', 10000),
+        progress_bar_refresh_rate=0,  # ptl 0.9
+        terminate_on_nan=True,  # we do this here so we don't run the final metrics
+        checkpoint_callback=False,
+    )
+    trainer.fit(framework)
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # save kernel
+    if cfg.exp.rel_save_dir is not None:
+        assert not os.path.isabs(cfg.exp.rel_save_dir), f'rel_save_dir must be relative: {repr(cfg.exp.rel_save_dir)}'
+        save_dir = os.path.join(ROOT_DIR, cfg.exp.rel_save_dir)
+        assert os.path.isabs(save_dir), f'save_dir must be absolute: {repr(save_dir)}'
+        # save kernel
+        H.torch_write(os.path.join(save_dir, cfg.exp.save_name), framework.model._kernel)
+
+
+# ========================================================================= #
+# Entry Point                                                               #
+# ========================================================================= #
 
 
 if __name__ == '__main__':
-
-    batch_optimizer, gpu, fp16 = True, True, True
 
     # BENCHMARK (batch_size=256, optimizer=sgd, lr=1e-2, dataset_num_workers=0):
     # - batch_optimizer=False, gpu=True,  fp16=True   : [3168MiB/5932MiB, 3.32/11.7G, 5.52it/s]
     # - batch_optimizer=False, gpu=True,  fp16=False  : [5248MiB/5932MiB, 3.72/11.7G, 4.84it/s]
     # - batch_optimizer=False, gpu=False, fp16=True   : [same as fp16=False]
     # - batch_optimizer=False, gpu=False, fp16=False  : [0003MiB/5932MiB, 4.60/11.7G, 1.05it/s]
-
+    # ---------
     # - batch_optimizer=True,  gpu=True,  fp16=True   : [1284MiB/5932MiB, 3.45/11.7G, 4.31it/s]
     # - batch_optimizer=True,  gpu=True,  fp16=False  : [1284MiB/5932MiB, 3.72/11.7G, 4.31it/s]
     # - batch_optimizer=True,  gpu=False, fp16=True   : [same as fp16=False]
@@ -437,20 +402,6 @@ if __name__ == '__main__':
     # - batch_optimizer=True,  gpu=True,  fp16=True   : [2510MiB/5932MiB, 4.10/11.7G, 4.75it/s, 20% gpu util] (to(device).to(dtype))
     # - batch_optimizer=True,  gpu=True,  fp16=True   : [2492MiB/5932MiB, 4.10/11.7G, 4.12it/s, 19% gpu util] (to(device, dtype))
 
-    AdversarialModel = make_adversarial_class(batch_optimizer=batch_optimizer, gpu=gpu, fp16=fp16)
-    framework = AdversarialModel(optimizer_lr=1e-2, optimizer_name='sgd', dataset_batch_size=1024, dataset_num_workers=12)
-
-    trainer = pl.Trainer(
-        log_every_n_steps=50,
-        flush_logs_every_n_steps=100,
-        logger=False,
-        callbacks=None,
-        gpus=1 if gpu else 0,
-        max_epochs=None,
-        max_steps=10000,
-        # progress_bar_refresh_rate=0,  # ptl 0.9
-        terminate_on_nan=False,  # we do this here so we don't run the final metrics
-        checkpoint_callback=False,
-    )
-
-    trainer.fit(framework)
+    # EXP ARGS:
+    # $ ... -m dataset=smallnorb,shapes3d
+    run_gen_adversarial_dataset()

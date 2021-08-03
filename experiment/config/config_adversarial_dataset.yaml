@@ -2,7 +2,7 @@ defaults:
   # runtime
   - run_length: short
   - run_logging: wandb
-  - run_location: cluster_many
+  - run_location: heartofgold
   # plugins
   - hydra/job_logging: colorlog
   - hydra/hydra_logging: colorlog
@@ -12,27 +12,35 @@ trainer:
   cuda: TRUE
   steps: 10000
 
-
-franework:
-  dataset_name: 'smallnorb'
-  dataset_num_workers: 0
-  # optimizer
-  optimizer_name: adam
-  optimizer_lr: 3e-3
-
-#  entangle_factors: NULL
-#  pairs_ratio: 8.0
-#  loss: mse
+framework:
+  # optimizer options
+  optimizer_name: 'sgd'
+  optimizer_lr: 5e-2
+  optimizer_kwargs: NULL
+  # dataset config options
+  dataset_name: 'cars3d'
+  dataset_num_workers: 12
+  dataset_batch_size: 1024  # x3
+  data_root: ${dataset.data_root}
+  # loss config options
+  loss_fn: 'mse'
+  loss_mode: 'self'
+  loss_const_targ: 0.1
+  # sampling config
+  sampler_name: 'close_far'
+  sampler_kwargs: NULL
+  # train options
+  train_batch_optimizer: TRUE
+  train_dataset_fp16: TRUE
 
 exp:
   seed: 777
-  rel_save_dir: data/adversarial_kernel
-  save_name: ${job.name}.pt
-  show_every_n_steps: 1000
-
+#  rel_save_dir: data/adversarial_kernel
+#  save_name: ${job.name}.pt
+#  show_every_n_steps: 100
 
 job:
   user: 'n_michlo'
-  project: 'exp-disentangle-kernel'
-  name: r${kernel.radius}-${kernel.channels}_s${trainer.steps}_${optimizer.name}_lr${optimizer.lr}_wd${optimizer.weight_decay}_${data.name}
+  project: 'exp-disentangle-dataset'
+  name: s${trainer.steps}_${framework.optimizer_name}_${framework.optimizer_lr}_${framework.loss_mode}_${framework.loss_fn}_${framework.loss_const_targ}_${framework.dataset_name}
   partition: stampede
