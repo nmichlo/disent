@@ -50,12 +50,16 @@ from disent.nn.transform import ToStandardisedTensor
 # ========================================================================= #
 
 
-def load_dataset_into_memory(gt_data: GroundTruthData, obs_shape: Tuple[int, ...], batch_size=64, num_workers=os.cpu_count() // 2, dtype=torch.float32):
+def load_dataset_into_memory(gt_data: GroundTruthData, obs_shape: Optional[Tuple[int, ...]] = None, batch_size=64, num_workers=os.cpu_count() // 2, dtype=torch.float32, raw_array=False):
     assert dtype in {torch.float16, torch.float32}
     # TODO: this should be part of disent?
     from torch.utils.data import DataLoader
     from tqdm import tqdm
     from disent.dataset.data import ArrayGroundTruthData
+    # get observation shape
+    # - manually specify this if the gt_data has a transform applied that resizes the observations for example!
+    if obs_shape is None:
+        obs_shape = gt_data.obs_shape
     # load dataset into memory manually!
     data = torch.zeros(len(gt_data), *obs_shape, dtype=dtype)
     # load all batches
@@ -65,7 +69,10 @@ def load_dataset_into_memory(gt_data: GroundTruthData, obs_shape: Tuple[int, ...
         data[idx:idx+len(batch)] = batch.to(dtype)
         idx += len(batch)
     # done!
-    return ArrayGroundTruthData.new_like(array=data, dataset=gt_data)
+    if raw_array:
+        return data
+    else:
+        return ArrayGroundTruthData.new_like(array=data, dataset=gt_data)
 
 
 # ========================================================================= #
@@ -86,7 +93,7 @@ def make_dataset(name: str = 'xysquares', factors: bool = False, data_root='data
     else: raise KeyError(f'invalid data name: {repr(name)}')
     # load into memory
     if load_into_memory:
-        data = load_dataset_into_memory(data, obs_shape=(3, 64, 64), dtype=load_memory_dtype)
+        data = load_dataset_into_memory(data, dtype=load_memory_dtype, obs_shape=(data.img_channels, 64, 64))
     # make dataset
     if factors:
         raise NotImplementedError('factor returning is not yet implemented in the rewrite! this needs to be fixed!')  # TODO!

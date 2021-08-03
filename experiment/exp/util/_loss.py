@@ -73,10 +73,6 @@ def _unreduced_mae_loss(pred: torch.Tensor, targ: torch.Tensor) -> torch.Tensor:
     return torch.abs(pred - targ)
 
 
-def _unreduced_msae_loss(pred: torch.Tensor, targ: torch.Tensor) -> torch.Tensor:
-    return torch.abs(pred - targ) + F.mse_loss(pred, targ, reduction='none')
-
-
 def unreduced_loss(pred: torch.Tensor, targ: torch.Tensor, mode='mse') -> torch.Tensor:
     return _LOSS_FNS[mode](pred, targ)
 
@@ -84,7 +80,6 @@ def unreduced_loss(pred: torch.Tensor, targ: torch.Tensor, mode='mse') -> torch.
 _LOSS_FNS = {
     'mse': _unreduced_mse_loss,
     'mae': _unreduced_mae_loss,
-    'msae': _unreduced_msae_loss,
 }
 
 
