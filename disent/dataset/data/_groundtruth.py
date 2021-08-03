@@ -107,6 +107,12 @@ class GroundTruthData(Dataset, StateSpace):
         # eg. C x H x W
         return self.x_shape
 
+    @property
+    def img_channels(self) -> int:
+        channels = self.img_shape[-1]
+        assert channels in (1, 3), f'invalid number of channels for dataset: {self.__class__.__name__}, got: {repr(channels)}, required: 1 or 3'
+        return channels
+
     def __getitem__(self, idx):
         obs = self._get_observation(idx)
         if self._transform is not None:
@@ -132,6 +138,10 @@ class ArrayGroundTruthData(GroundTruthData):
         self._array = array
         # initialize
         super().__init__(transform=transform)
+
+    @property
+    def array(self):
+        return self._array
 
     @property
     def factor_names(self) -> Tuple[str, ...]:

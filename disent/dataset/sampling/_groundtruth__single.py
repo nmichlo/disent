@@ -44,7 +44,7 @@ class GroundTruthSingleSampler(BaseDisentSampler):
         assert isinstance(dataset, GroundTruthData), f'dataset must be an instance of {repr(GroundTruthData.__class__.__name__)}, got: {repr(dataset)}'
         self._data = dataset
 
-    def __call__(self, idx):
+    def _sample_idx(self, idx):
         return (idx,)
 
 

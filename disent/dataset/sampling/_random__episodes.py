@@ -52,7 +52,7 @@ class RandomEpisodeSampler(BaseDisentSampler):
     # Sampling                                                              #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def __call__(self, idx):
+    def _sample_idx(self, idx):
         # TODO: are we actually sampling distances correctly?
         # sample for observations
         episode, idx, offset = self._dataset.get_episode_and_idx(idx)

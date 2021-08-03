@@ -63,7 +63,7 @@ class GroundTruthDistSampler(BaseDisentSampler):
     # Sampling                                                              #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def __call__(self, idx):
+    def _sample_idx(self, idx):
         # sample indices
         indices = (idx, *np.random.randint(0, len(self._data), size=self._num_samples-1))
         # sort based on mode
