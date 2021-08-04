@@ -178,34 +178,43 @@ def _adversarial_const_loss(a_x: torch.Tensor, p_x: torch.Tensor, n_x: torch.Ten
     return loss
 
 
-def _adversarial_self_loss(a_x: torch.Tensor, p_x: torch.Tensor, n_x: torch.Tensor, loss: str = 'mse', target: None = None):
-    if target is not None:
-        warnings.warn(f'adversarial_self_loss does not support a value for target, this is kept for compatibility reasons!')
-    # compute deltas
-    p_deltas = H.pairwise_loss(a_x, p_x, mode=loss, mean_dtype=torch.float64)
-    n_deltas = H.pairwise_loss(a_x, n_x, mode=loss, mean_dtype=torch.float64)
-    # compute loss
-    loss = torch.abs(n_deltas - p_deltas).mean()  # should this be l2 dist instead?
-    # done!
-    return loss
-
-
-def _adversarial_inverse_loss(a_x: torch.Tensor, p_x: torch.Tensor, n_x: torch.Tensor, loss: str = 'mse', target: None = None):
+def _adversarial_deltas(a_x: torch.Tensor, p_x: torch.Tensor, n_x: torch.Tensor, loss: str = 'mse', target: None = None):
     if target is not None:
         warnings.warn(f'adversarial_inverse_loss does not support a value for target, this is kept for compatibility reasons!')
     # compute deltas
     p_deltas = H.pairwise_loss(a_x, p_x, mode=loss, mean_dtype=torch.float32)
     n_deltas = H.pairwise_loss(a_x, n_x, mode=loss, mean_dtype=torch.float32)
-    # compute loss (unbounded)
-    loss = (n_deltas - p_deltas).mean()
+    deltas = (n_deltas - p_deltas)
     # done!
+    return deltas
+
+
+def _adversarial_self_loss(a_x: torch.Tensor, p_x: torch.Tensor, n_x: torch.Tensor, loss: str = 'mse', target: None = None):
+    deltas = _adversarial_deltas(a_x=a_x, p_x=p_x, n_x=n_x, loss=loss, target=target)
+    # compute loss
+    loss = torch.abs(deltas).mean()  # should this be l2 dist instead?
+    return loss
+
+
+def _adversarial_invert_unbounded_loss(a_x: torch.Tensor, p_x: torch.Tensor, n_x: torch.Tensor, loss: str = 'mse', target: None = None):
+    deltas = _adversarial_deltas(a_x=a_x, p_x=p_x, n_x=n_x, loss=loss, target=target)
+    # compute loss (unbounded)
+    loss = deltas.mean()
+    return loss
+
+
+def _adversarial_invert_loss(a_x: torch.Tensor, p_x: torch.Tensor, n_x: torch.Tensor, loss: str = 'mse', target: None = None):
+    deltas = _adversarial_deltas(a_x=a_x, p_x=p_x, n_x=n_x, loss=loss, target=target)
+    # compute loss (bounded)
+    loss = torch.maximum(deltas, torch.zeros_like(deltas)).mean()
     return loss
 
 
 _ADVERSARIAL_LOSS_FNS = {
     'const': _adversarial_const_loss,
     'self': _adversarial_self_loss,
-    'inverse': _adversarial_inverse_loss,
+    'invert_unbounded': _adversarial_invert_unbounded_loss,
+    'invert': _adversarial_invert_loss,
 }
 
 

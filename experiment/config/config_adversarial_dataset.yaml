@@ -29,7 +29,7 @@ framework:
   sampler_name: 'same_factor'   # close_far, close_factor_far_random, close_far_same_factor, same_factor, random_bb, random_swap_manhat, random_swap_manhat_norm
   # train options
   train_batch_optimizer: TRUE
-  train_dataset_fp16: FALSE
+  train_dataset_fp16: TRUE
 
 exp:
   seed: 777
@@ -41,5 +41,5 @@ exp:
 job:
   user: 'n_michlo'
   project: 'exp-disentangle-dataset'
-  name: s${trainer.steps}_${framework.optimizer_name}_${framework.optimizer_lr}_${framework.loss_mode}_${framework.loss_fn}_${framework.loss_const_targ}_${framework.dataset_name}
+  name: ${framework.sampler_name}_${framework.loss_mode}_${framework.loss_fn}_C${framework.loss_const_targ}_${framework.dataset_name}_s${trainer.steps}_${framework.optimizer_name}_lr${framework.optimizer_lr}
   partition: stampede
