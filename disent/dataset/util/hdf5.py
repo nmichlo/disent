@@ -139,7 +139,7 @@ def hdf5_save_array(
             batch = inp_data[i:i + batch_size]
             batch = _normalize_out_array(batch)
             batch = out_mutator(batch)
-            assert batch.shape == (batch_size, *obs_shape), f'batch shape: {tuple(batch.shape)} from processed input data does not match required obs shape: {(batch_size, *obs_shape)}, try changing the `obs_shape` or resizing the batch in the `out_mutator`.'
+            assert batch.shape[1:] == obs_shape, f'obs shape: {tuple(batch.shape[1:])} from processed input data does not match required obs shape: {tuple(obs_shape)}, try changing the `obs_shape` or resizing the batch in the `out_mutator`.'
             # save the batch
             out_data[i:i + batch_size] = batch
             progress.update(batch_size)

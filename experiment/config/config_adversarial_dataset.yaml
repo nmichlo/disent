@@ -5,11 +5,11 @@ defaults:
   # plugins
   - hydra/job_logging: colorlog
   - hydra/hydra_logging: colorlog
-  - hydra/launcher: submitit_slurm
+#  - hydra/launcher: submitit_slurm
 
 trainer:
   cuda: TRUE
-  steps: 10000
+  steps: 1601
 
 framework:
   # optimizer options
@@ -17,7 +17,7 @@ framework:
   optimizer_lr: 1e-2
   optimizer_kwargs: NULL
   # dataset config options
-  dataset_name: 'cars3d'  # cars3d, smallnorb, xysquares_8x8_mini
+  dataset_name: 'smallnorb'  # cars3d, smallnorb, xysquares_8x8_mini
   dataset_num_workers: 12
   dataset_batch_size: 1024  # x3
   data_root: ${dataset.data_root}
@@ -33,8 +33,8 @@ framework:
 
 exp:
   seed: 777
-  show_every_n_steps: 100
-  rel_save_dir: data/out/adversarial_data
+  show_every_n_steps: 200
+  rel_save_dir: 'out/adversarial_data'
 
 job:
   user: 'n_michlo'

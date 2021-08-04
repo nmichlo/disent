@@ -46,9 +46,7 @@ from disent.dataset.data import GroundTruthData
 from disent.dataset.sampling import BaseDisentSampler
 from disent.dataset.sampling import GroundTruthPairSampler
 from disent.dataset.sampling import GroundTruthTripleSampler
-from disent.dataset.sampling import RandomSampler
 from disent.dataset.util.hdf5 import hdf5_resave_file
-from disent.dataset.util.hdf5 import hdf5_save_array
 from disent.util.lightning.callbacks import BaseCallbackPeriodic
 from disent.util.lightning.logger_util import wb_log_metrics
 from disent.util.math.random import random_choice_prng
@@ -61,6 +59,7 @@ from experiment.run import hydra_append_progress_callback
 from experiment.run import hydra_check_cuda
 from experiment.run import hydra_make_logger
 from experiment.util.hydra_utils import make_non_strict
+from experiment.util.run_utils import log_error_and_exit
 
 
 log = logging.getLogger(__name__)
@@ -126,7 +125,7 @@ def make_adversarial_sampler(mode: str = 'close_far'):
     if mode == 'close_far':
         return AdversarialSampler_CloseFar(
             close_p_k_range=(1, 1), close_p_radius_range=(1, 1),
-            far_p_k_range=(1, -1), far_p_radius_range=(1, -1),
+            far_p_k_range=(0, -1), far_p_radius_range=(0, -1),
         )
     elif mode == 'close_factor_far_random':
         return GroundTruthTripleSampler(
@@ -414,8 +413,11 @@ class AdversarialModel(pl.LightningModule):
                     log.warning('dataset not initialized, skipping visualisation')
                 # get dataset images
                 with TempNumpySeed(777):
-                    mean, std = torch.std_mean(self.dataset.dataset_sample_batch(num_samples=128, mode='raw').to(torch.float32))
-                    self.dataset._transform = lambda x: H.to_img((x.to(torch.float32) - mean) / std)  # this is hacky
+                    # get scaling values
+                    samples = self.dataset.dataset_sample_batch(num_samples=128, mode='raw').to(torch.float32)
+                    m, M = float(torch.min(samples)), float(torch.max(samples))
+                    # add transform to dataset
+                    self.dataset._transform = lambda x: H.to_img((x.to(torch.float32) - m) / (M - m))  # this is hacky, scale values to [0, 1] then to [0, 255]
                     # get images
                     image = make_image_grid(self.dataset.dataset_sample_batch(num_samples=16, mode='input'))
                 # get augmented traversals
@@ -437,8 +439,13 @@ class AdversarialModel(pl.LightningModule):
 ROOT_DIR = os.path.abspath(__file__ + '/../../../..')
 
 
-@hydra.main(config_path=os.path.join(ROOT_DIR, 'experiment/config'), config_name="config_adversarial_dataset")
 def run_gen_adversarial_dataset(cfg):
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # cleanup from old runs:
+    try:
+        wandb.finish()
+    except:
+        pass
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     cfg = make_non_strict(cfg)
     # - - - - - - - - - - - - - - - #
@@ -489,7 +496,8 @@ def run_gen_adversarial_dataset(cfg):
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     save_path = os.path.join(save_dir, f'{cfg.job.name}.h5')
     log.info(f'saving dataset to path: {repr(save_path)}')
-    # compute standard deviation when saving
+    # compute standard deviation when saving and scale so
+    # that we have mean=0 and std=1 of the saved data!
     with TempNumpySeed(777):
         std, mean = torch.std_mean(framework.array[random_choice_prng(len(framework.array), size=2048, replace=False)])
         std, mean = float(std), float(mean)
@@ -508,6 +516,7 @@ def run_gen_adversarial_dataset(cfg):
         write_mode='atomic_w'
     )
     log.info('done generating and saving adversarial dataset!')
+    # finish
 
 
 # ========================================================================= #
@@ -532,6 +541,22 @@ if __name__ == '__main__':
     # - batch_optimizer=True,  gpu=True,  fp16=True   : [2510MiB/5932MiB, 4.10/11.7G, 4.75it/s, 20% gpu util] (to(device).to(dtype))
     # - batch_optimizer=True,  gpu=True,  fp16=True   : [2492MiB/5932MiB, 4.10/11.7G, 4.12it/s, 19% gpu util] (to(device, dtype))
 
+    @hydra.main(config_path=os.path.join(ROOT_DIR, 'experiment/config'), config_name="config_adversarial_dataset")
+    def main(cfg):
+        try:
+            run_gen_adversarial_dataset(cfg)
+        except Exception as e:
+            # truncate error
+            err_msg = str(e)
+            err_msg = err_msg[:244] + ' <TRUNCATED>' if len(err_msg) > 244 else err_msg
+            # log something at least
+            log.error(f'exiting: experiment error | {err_msg}', exc_info=True)
+
     # EXP ARGS:
     # $ ... -m dataset=smallnorb,shapes3d
-    run_gen_adversarial_dataset()
+    try:
+        main()
+    except KeyboardInterrupt as e:
+        log_error_and_exit(err_type='interrupted', err_msg=str(e), exc_info=False)
+    except Exception as e:
+        log_error_and_exit(err_type='hydra error', err_msg=str(e))
