@@ -221,7 +221,7 @@ class Kernel(DisentModule):
 ROOT_DIR = os.path.abspath(__file__ + '/../../../..')
 
 
-@hydra.main(config_path=os.path.join(ROOT_DIR, 'experiment/config'), config_name="config_05_adversarial_03_gen")
+@hydra.main(config_path=os.path.join(ROOT_DIR, 'experiment/config'), config_name="config_adversarial_kernel")
 def run_disentangle_dataset_kernel(cfg):
     cfg = make_non_strict(cfg)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #

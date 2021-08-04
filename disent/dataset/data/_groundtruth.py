@@ -80,16 +80,38 @@ class GroundTruthData(Dataset, StateSpace):
 
     @property
     def observation_shape(self) -> Tuple[int, ...]:
+        # TODO: deprecate this!
+        # TODO: observation_shape should be called img_shape
         # shape as would be for a non-batched observation
         # eg. H x W x C
         raise NotImplementedError()
 
     @property
     def x_shape(self) -> Tuple[int, ...]:
+        # TODO: deprecate this!
+        # TODO: x_shape should be called obs_shape
         # shape as would be for a single observation in a torch batch
         # eg. C x H x W
         shape = self.observation_shape
         return shape[-1], *shape[:-1]
+
+    @property
+    def img_shape(self) -> Tuple[int, ...]:
+        # shape as would be for an original image
+        # eg. H x W x C
+        return self.observation_shape
+
+    @property
+    def obs_shape(self) -> Tuple[int, ...]:
+        # shape as would be for a single observation in a torch batch
+        # eg. C x H x W
+        return self.x_shape
+
+    @property
+    def img_channels(self) -> int:
+        channels = self.img_shape[-1]
+        assert channels in (1, 3), f'invalid number of channels for dataset: {self.__class__.__name__}, got: {repr(channels)}, required: 1 or 3'
+        return channels
 
     def __getitem__(self, idx):
         obs = self._get_observation(idx)
@@ -108,14 +130,27 @@ class GroundTruthData(Dataset, StateSpace):
 
 class ArrayGroundTruthData(GroundTruthData):
 
-    def __init__(self, array, factor_names: Tuple[str, ...], factor_sizes: Tuple[int, ...], observation_shape: Optional[Tuple[int, ...]] = None, transform=None):
+    def __init__(self, array, factor_names: Tuple[str, ...], factor_sizes: Tuple[int, ...], array_chn_is_last: bool = True, observation_shape: Optional[Tuple[int, ...]] = None, transform=None):
         self.__factor_names = tuple(factor_names)
         self.__factor_sizes = tuple(factor_sizes)
-        print(array.shape)
-        self.__observation_shape = tuple(observation_shape if (observation_shape is not None) else array.shape[1:])
         self._array = array
+        # get shape
+        if observation_shape is not None:
+            C, H, W = observation_shape
+        elif array_chn_is_last:
+            H, W, C = array.shape[1:]
+        else:
+            C, H, W = array.shape[1:]
+        # set observation shape
+        self.__observation_shape = (H, W, C)
         # initialize
         super().__init__(transform=transform)
+        # check shapes -- it is up to the user to handle which method they choose
+        assert (array.shape[1:] == self.img_shape) or (array.shape[1:] == self.obs_shape)
+
+    @property
+    def array(self):
+        return self._array
 
     @property
     def factor_names(self) -> Tuple[str, ...]:
@@ -133,11 +168,12 @@ class ArrayGroundTruthData(GroundTruthData):
         return self._array[idx]
 
     @classmethod
-    def new_like(cls, array, dataset: GroundTruthData):
+    def new_like(cls, array, dataset: GroundTruthData, array_chn_is_last: bool = True):
         return cls(
             array=array,
             factor_names=dataset.factor_names,
             factor_sizes=dataset.factor_sizes,
+            array_chn_is_last=array_chn_is_last,
             observation_shape=None,  # infer from array
             transform=None,
         )

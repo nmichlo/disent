@@ -39,10 +39,11 @@ log = logging.getLogger(__name__)
 class LoggerProgressCallback(BaseCallbackTimed):
     
     def do_interval(self, trainer: pl.Trainer, pl_module: pl.LightningModule, current_time, start_time):
+        trainer_max_epochs = trainer.max_epochs if (trainer.max_epochs is not None) else 1
         # vars
         batch, max_batches = trainer.batch_idx + 1, trainer.num_training_batches
-        epoch, max_epoch = trainer.current_epoch + 1, min(trainer.max_epochs, (trainer.max_steps + max_batches - 1) // max_batches)
-        global_step, global_steps = trainer.global_step + 1, min(trainer.max_epochs * max_batches, trainer.max_steps)
+        epoch, max_epoch = trainer.current_epoch + 1, min(trainer_max_epochs, (trainer.max_steps + max_batches - 1) // max_batches)
+        global_step, global_steps = trainer.global_step + 1, min(trainer_max_epochs * max_batches, trainer.max_steps)
         # computed
         train_pct = global_step / global_steps
         # completion

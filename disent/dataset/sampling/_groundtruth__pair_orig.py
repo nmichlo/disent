@@ -52,7 +52,7 @@ class GroundTruthPairOrigSampler(BaseDisentSampler):
     # CORE                                                                  #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def __call__(self, idx):
+    def _sample_idx(self, idx):
         f0, f1 = self.datapoint_sample_factors_pair(idx)
         return (
             self._data.pos_to_idx(f0),

@@ -25,7 +25,8 @@
 import numpy as np
 from disent.dataset.data import GroundTruthData
 from disent.dataset.sampling._base import BaseDisentSampler
-from disent.dataset.sampling._groundtruth__triplet import sample_radius, normalise_range_pair, FactorSizeError
+from disent.dataset.sampling._groundtruth__triplet import normalise_range_pair, FactorSizeError
+from disent.util.math.random import sample_radius
 
 
 # ========================================================================= #
@@ -46,7 +47,7 @@ class GroundTruthPairSampler(BaseDisentSampler):
         Dataset that pairs together samples with at most k differing factors of variation.
 
         dataset: A dataset that extends GroundTruthData
-        k: An integer (k), None (k=d-1), or "uniform" (random k in range 1 to d-1)
+        k: An integer (k), None (k=d-1), or "uniform" (random k in range 1 to d-1) -- inclusive of end value, not exclusive like np.random.randint
         variation_factor_indices: The indices of the factors of variation that are sampled between pairs, if None (all factors are sampled)
         """
         super().__init__(num_samples=2)
@@ -67,7 +68,7 @@ class GroundTruthPairSampler(BaseDisentSampler):
     # CORE                                                                  #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def __call__(self, idx):
+    def _sample_idx(self, idx):
         f0, f1 = self.datapoint_sample_factors_pair(idx)
         return (
             self._data.pos_to_idx(f0),

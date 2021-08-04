@@ -281,6 +281,11 @@ def visualize_dataset_traversal(
         grid = [augment_fn(batch) for batch in grid]
     grid = np.stack(grid, axis=0)
 
+    # TODO: this is kinda hacky, maybe rather add a check?
+    # - animations glitch out if they do not have 3 channels
+    if grid.shape[-1] == 1:
+        grid = grid.repeat(3, axis=-1)
+
     # generate visuals
     image = make_image_grid(np.concatenate(grid, axis=0), pad=pad, border=border, bg_color=bg_color, num_cols=num_frames)
     animation = make_animated_image_grid(np.stack(grid, axis=0), pad=pad, border=border, bg_color=bg_color, num_cols=None)

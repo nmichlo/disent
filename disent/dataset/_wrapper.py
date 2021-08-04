@@ -35,6 +35,7 @@ from disent.dataset.sampling import BaseDisentSampler
 from disent.dataset.data import GroundTruthData
 from disent.dataset.sampling import SingleSampler
 from disent.util.iters import LengthIter
+from disent.util.math.random import random_choice_prng
 
 
 # ========================================================================= #
@@ -97,6 +98,12 @@ class DisentDataset(Dataset, LengthIter):
     @property
     @groundtruth_only
     def ground_truth_data(self) -> GroundTruthData:
+        return self._dataset
+
+    @property
+    @groundtruth_only
+    def gt_data(self) -> GroundTruthData:
+        # TODO: deprecate this or the long version
         return self._dataset
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -201,13 +208,9 @@ class DisentDataset(Dataset, LengthIter):
 
     def dataset_sample_batch(self, num_samples: int, mode: str, replace: bool = False):
         """Sample a batch of observations X."""
-        # create seeded pseudo random number generator
-        # - built in np.random.choice cannot handle large values: https://github.com/numpy/numpy/issues/5299#issuecomment-497915672
-        # - PCG64 is the default: https://numpy.org/doc/stable/reference/random/bit_generators/index.html
-        # - PCG64 has good statistical properties and is fast: https://numpy.org/doc/stable/reference/random/performance.html
-        g = np.random.Generator(np.random.PCG64(seed=np.random.randint(0, 2**32)))
-        # sample indices
-        indices = g.choice(len(self), num_samples, replace=replace)
+        # built in np.random.choice cannot handle large values: https://github.com/numpy/numpy/issues/5299#issuecomment-497915672
+        indices = random_choice_prng(len(self), size=num_samples, replace=replace)
+        # return batch
         return self.dataset_batch_from_indices(indices, mode=mode)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -242,18 +245,6 @@ def _batch_to_observation(batch, obs_shape):
         return batch.reshape(obs_shape)
     return batch
 
-
-# ========================================================================= #
-# EXTRA                                                                     #
-# ========================================================================= #
-
-# TODO fix references to this!
-# class GroundTruthDatasetAndFactors(GroundTruthDataset):
-#     def dataset_get_observation(self, *idxs):
-#         return {
-#             **super().dataset_get_observation(*idxs),
-#             'factors': tuple(self.idx_to_pos(idxs))
-#         }
 
 # ========================================================================= #
 # END                                                                       #

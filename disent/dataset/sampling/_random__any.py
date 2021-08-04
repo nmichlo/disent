@@ -41,7 +41,7 @@ class RandomSampler(BaseDisentSampler):
     def _init(self, dataset):
         self._len = len(dataset)
 
-    def __call__(self, idx: int) -> Tuple[int, ...]:
+    def _sample_idx(self, idx: int) -> Tuple[int, ...]:
         # sample indices
         return (idx, *np.random.randint(0, self._len, size=self._num_samples-1))
 

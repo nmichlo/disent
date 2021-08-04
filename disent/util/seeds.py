@@ -61,14 +61,17 @@ def seed(long=777):
 
 class TempNumpySeed(object):
     def __init__(self, seed=None, offset=0):
+        # check and normalize seed
         if seed is not None:
             try:
                 seed = int(seed)
             except:
                 raise ValueError(f'{seed=} is not int-like!')
-        self._seed = seed
+        # offset seed
         if seed is not None:
-            self._seed += offset
+            seed += offset
+        # save values
+        self._seed = seed
         self._state = None
 
     def __enter__(self):

@@ -41,7 +41,7 @@ class SingleSampler(BaseDisentSampler):
     def _init(self, dataset):
         pass
 
-    def __call__(self, idx: int) -> Tuple[int, ...]:
+    def _sample_idx(self, idx: int) -> Tuple[int, ...]:
         return (idx,)
 
 

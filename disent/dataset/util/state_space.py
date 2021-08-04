@@ -28,7 +28,7 @@ from typing import Tuple
 
 import numpy as np
 from disent.util.iters import LengthIter
-from disent.util.visualize.vis_util import get_factor_traversal
+from disent.util.visualize.vis_util import get_idx_traversal
 
 
 # ========================================================================= #
@@ -197,10 +197,14 @@ class StateSpace(LengthIter):
         return f_idx, base_factors, num
 
     def sample_random_factor_traversal(self, f_idx: int = None, base_factors=None, num: int = None, mode='interval') -> np.ndarray:
+        """
+        Sample a single random factor traversal along the
+        given factor index, starting from some random base sample.
+        """
         f_idx, base_factors, num = self._get_f_idx_and_factors_and_size(f_idx=f_idx, base_factors=base_factors, num=num)
         # generate traversal
-        base_factors[:, f_idx] = get_factor_traversal(self.factor_sizes[f_idx], num_frames=num, mode=mode)
-        # return factors
+        base_factors[:, f_idx] = get_idx_traversal(self.factor_sizes[f_idx], num_frames=num, mode=mode)
+        # return factors (num_frames, num_factors)
         return base_factors
 
 
