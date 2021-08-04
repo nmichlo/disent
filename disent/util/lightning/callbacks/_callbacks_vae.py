@@ -24,6 +24,8 @@
 
 import logging
 import warnings
+from typing import Literal
+from typing import Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -83,7 +85,7 @@ def _get_dataset_and_vae(trainer: pl.Trainer, pl_module: pl.LightningModule) -> 
 
 class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
 
-    def __init__(self, seed=7777, every_n_steps=None, begin_first_step=False, mode='fitted_gaussian_cycle', plt_show=False, plt_block_size=1.0, recon_min=0., recon_max=1.):
+    def __init__(self, seed=7777, every_n_steps=None, begin_first_step=False, mode='fitted_gaussian_cycle', plt_show=False, plt_block_size=1.0, recon_min: Union[int, Literal['auto']] = 0., recon_max: Union[int, Literal['auto']] = 1.):
         super().__init__(every_n_steps, begin_first_step)
         self.seed = seed
         self.mode = mode
@@ -110,6 +112,12 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
                 # auto-encoder
                 zs_mean = vae.encode(obs)
                 zs_logvar = torch.ones_like(zs_mean)
+
+            # get min and max if auto
+            if (self._recon_min == 'auto') or (self._recon_max == 'auto'):
+                if self._recon_min == 'auto': self._recon_min = float(torch.min(obs).cpu())
+                if self._recon_max == 'auto': self._recon_max = float(torch.max(obs).cpu())
+                log.info(f'auto visualisation min: {self._recon_min} and max: {self._recon_max} obtained from {len(obs)} samples')
 
             # produce latent cycle grid animation
             # TODO: this needs to be fixed to not use logvar, but rather the representations or distributions themselves

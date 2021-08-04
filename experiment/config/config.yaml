@@ -38,7 +38,7 @@ model:
   z_size: 25
 
 optimizer:
-  lr: 1e-4
+  lr: 1e-3
 
 # CUSTOM DEFAULTS SPECIALIZATION
 # - This key is deleted on load and the correct key on the root config is set similar to defaults.
