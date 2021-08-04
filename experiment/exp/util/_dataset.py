@@ -72,7 +72,8 @@ def load_dataset_into_memory(gt_data: GroundTruthData, obs_shape: Optional[Tuple
     if raw_array:
         return data
     else:
-        return ArrayGroundTruthData.new_like(array=data, dataset=gt_data)
+        # channels get swapped by the below ToStandardisedTensor(), maybe allow `array_chn_is_last` as param
+        return ArrayGroundTruthData.new_like(array=data, dataset=gt_data, array_chn_is_last=False)
 
 
 # ========================================================================= #
@@ -94,7 +95,7 @@ def make_dataset(name: str = 'xysquares', factors: bool = False, data_root='data
     else: raise KeyError(f'invalid data name: {repr(name)}')
     # load into memory
     if load_into_memory:
-        data = load_dataset_into_memory(data, dtype=load_memory_dtype, obs_shape=(data.img_channels, 64, 64))
+        old_data, data = data, load_dataset_into_memory(data, dtype=load_memory_dtype, obs_shape=(data.img_channels, 64, 64))
     # make dataset
     if factors:
         raise NotImplementedError('factor returning is not yet implemented in the rewrite! this needs to be fixed!')  # TODO!

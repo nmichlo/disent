@@ -47,8 +47,11 @@ from disent.dataset.sampling import BaseDisentSampler
 from disent.dataset.sampling import GroundTruthPairSampler
 from disent.dataset.sampling import GroundTruthTripleSampler
 from disent.dataset.sampling import RandomSampler
+from disent.dataset.util.hdf5 import hdf5_resave_file
+from disent.dataset.util.hdf5 import hdf5_save_array
 from disent.util.lightning.callbacks import BaseCallbackPeriodic
 from disent.util.lightning.logger_util import wb_log_metrics
+from disent.util.math.random import random_choice_prng
 from disent.util.seeds import seed
 from disent.util.seeds import TempNumpySeed
 from disent.util.strings import colors as c
@@ -409,10 +412,10 @@ class AdversarialModel(pl.LightningModule):
             def do_step(this, trainer: pl.Trainer, pl_module: pl.LightningModule):
                 if self.dataset is None:
                     log.warning('dataset not initialized, skipping visualisation')
-                # get kernel image
+                # get dataset images
                 with TempNumpySeed(777):
                     mean, std = torch.std_mean(self.dataset.dataset_sample_batch(num_samples=128, mode='raw').to(torch.float32))
-                    self.dataset._transform = lambda x: H.to_img((x.to(torch.float32) - mean) / std)
+                    self.dataset._transform = lambda x: H.to_img((x.to(torch.float32) - mean) / std)  # this is hacky
                     # get images
                     image = make_image_grid(self.dataset.dataset_sample_batch(num_samples=16, mode='input'))
                 # get augmented traversals
@@ -448,6 +451,11 @@ def run_gen_adversarial_dataset(cfg):
     callbacks = []
     hydra_append_progress_callback(callbacks, cfg)
     # - - - - - - - - - - - - - - - #
+    # check save dirs
+    assert not os.path.isabs(cfg.exp.rel_save_dir), f'rel_save_dir must be relative: {repr(cfg.exp.rel_save_dir)}'
+    save_dir = os.path.join(ROOT_DIR, cfg.exp.rel_save_dir)
+    assert os.path.isabs(save_dir), f'save_dir must be absolute: {repr(save_dir)}'
+    # - - - - - - - - - - - - - - - #
     # get the logger and initialize
     if logger is not None:
         logger.log_hyperparams(cfg)
@@ -479,13 +487,27 @@ def run_gen_adversarial_dataset(cfg):
     )
     trainer.fit(framework)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-    # save kernel
-    if cfg.exp.rel_save_dir is not None:
-        assert not os.path.isabs(cfg.exp.rel_save_dir), f'rel_save_dir must be relative: {repr(cfg.exp.rel_save_dir)}'
-        save_dir = os.path.join(ROOT_DIR, cfg.exp.rel_save_dir)
-        assert os.path.isabs(save_dir), f'save_dir must be absolute: {repr(save_dir)}'
-        # save kernel
-        H.torch_write(os.path.join(save_dir, cfg.exp.save_name), framework.model._kernel)
+    save_path = os.path.join(save_dir, f'{cfg.job.name}.h5')
+    log.info(f'saving dataset to path: {repr(save_path)}')
+    # compute standard deviation when saving
+    with TempNumpySeed(777):
+        std, mean = torch.std_mean(framework.array[random_choice_prng(len(framework.array), size=2048, replace=False)])
+        std, mean = float(std), float(mean)
+        log.info(f'normalizing saved dataset of shape: {tuple(framework.array.shape)} and dtype: {framework.array.dtype} with mean: {repr(mean)} and std: {repr(std)}')
+    # save dataset
+    hdf5_resave_file(
+        framework.array,
+        out_path=save_path,
+        dataset_name='data',
+        chunk_size=(1, *framework.dataset.gt_data.img_shape),
+        compression='gzip',
+        compression_lvl=9,
+        out_dtype='float16',
+        out_mutator=lambda x: np.moveaxis((x.astype('float32') - mean) / std, -3, -1).astype('float16'),
+        obs_shape=framework.dataset.gt_data.img_shape,
+        write_mode='atomic_w'
+    )
+    log.info('done generating and saving adversarial dataset!')
 
 
 # ========================================================================= #

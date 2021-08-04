@@ -34,9 +34,7 @@ framework:
 exp:
   seed: 777
   show_every_n_steps: 100
-
-#  rel_save_dir: data/adversarial_kernel
-#  save_name: ${job.name}.pt
+  rel_save_dir: data/out/adversarial_data
 
 job:
   user: 'n_michlo'

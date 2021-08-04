@@ -28,6 +28,7 @@ Utilities for converting and testing different chunk sizes of hdf5 files
 
 import logging
 import os
+import warnings
 from typing import Callable
 from typing import Literal
 from typing import Optional
@@ -36,6 +37,7 @@ from typing import Union
 
 import h5py
 import numpy as np
+import torch
 from tqdm import tqdm
 
 from disent.util.strings import colors as c
@@ -53,12 +55,49 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def hdf5_resave_dataset(inp_h5: h5py.File, out_h5: h5py.File, dataset_name, chunk_size=None, compression=None, compression_lvl=None, batch_size=None, out_dtype=None, out_mutator=None, obs_shape=None):
+# def _get_normalized_factor_names(gt_dataset, max_len=32):
+#     # check inputs
+#     if (factor_names is not None) and (factor_sizes is not None):
+#         factor_names = tuple(s.encode('ascii') for s in factor_names)
+#         factor_sizes = tuple(factor_sizes)
+#         if any(len(s) > max_len for s in factor_names):
+#             raise ValueError(f'factor names must be at most 32 ascii characters long')
+#         if len(factor_names) != len(factor_sizes):
+#             raise ValueError(f'length of factor names must be length of factor sizes: len({factor_names}) != len({factor_sizes})')
+#         return factor_names, factor_sizes
+#     elif not ((factor_names is None) and (factor_sizes is None)):
+#         raise ValueError('factor_names and factor_sizes must both be given together.')
+#     return None
+
+
+def _normalize_dtype(dtype: Union[torch.dtype, np.dtype, str]) -> np.dtype:
+    if isinstance(dtype, torch.dtype):
+        dtype: str = torch.finfo(torch.float32).dtype
+    return np.dtype(dtype)
+
+
+def _normalize_out_array(array: Union[torch.Tensor, np.ndarray]) -> np.ndarray:
+    if isinstance(array, torch.Tensor):
+        return array.cpu().detach().numpy()
+    return np.array(array)
+
+
+def hdf5_save_array(
+    inp_data: Union[h5py.Dataset, np.ndarray, 'torch.Tensor'],
+    out_h5: h5py.File,
+    dataset_name: str,  # input and output dataset name
+    chunk_size: Optional[Union[Tuple[int, ...], Literal[True]]] = None,  # True: auto determine, Tuple: specific chunk size, None: disable chunking
+    compression: Optional[Union[Literal['gzip'], Literal['lzf']]] = None,  # compression type, only works if chunks is specified
+    compression_lvl: Optional[int] = None,  # 0 through 9
+    batch_size: Optional[int] = None,  # batch size to process / save at a time
+    out_dtype: Optional[Union[np.dtype, str]] = None,  # output dtype of the dataset
+    out_mutator: Optional[Callable[[np.ndarray], np.ndarray]] = None,  # mutate batches before saving
+    obs_shape: Optional[Tuple[int, ...]] = None,  # resize batches to this shape
+):
+    # TODO: this should take in an array object and output the file!
     # check out_h5 version compatibility
     if (isinstance(out_h5.libver, str) and out_h5.libver != 'earliest') or (out_h5.libver[0] != 'earliest'):
         raise RuntimeError(f'hdf5 out file has an incompatible libver: {repr(out_h5.libver)} libver should be set to: "earliest"')
-    # get existing dataset
-    inp_data = inp_h5[dataset_name]
     # get observation size
     if obs_shape is None:
         obs_shape = inp_data.shape[1:]
@@ -66,7 +105,7 @@ def hdf5_resave_dataset(inp_h5: h5py.File, out_h5: h5py.File, dataset_name, chun
     out_data = out_h5.create_dataset(
         name=dataset_name,
         shape=(inp_data.shape[0], *obs_shape),
-        dtype=out_dtype if (out_dtype is not None) else inp_data.dtype,
+        dtype=out_dtype if (out_dtype is not None) else _normalize_dtype(inp_data.dtype),
         chunks=chunk_size,
         compression=compression,
         compression_opts=compression_lvl,
@@ -88,20 +127,26 @@ def hdf5_resave_dataset(inp_h5: h5py.File, out_h5: h5py.File, dataset_name, chun
     hdf5_print_entry_data_stats(out_data, label=f'OUT')
     # choose batch size for copying data
     if batch_size is None:
-        batch_size = inp_data.chunks[0] if inp_data.chunks else 32
-        log.debug(f're-saving h5 dataset using automatic batch size of: {batch_size}')
+        batch_size = inp_data.chunks[0] if (hasattr(inp_data, 'chunks') and inp_data.chunks) else 32
+        log.debug(f'saving h5 dataset using automatic batch size of: {batch_size}')
     # get default
     if out_mutator is None:
         out_mutator = lambda x: x
     # save data
     with tqdm(total=len(inp_data)) as progress:
         for i in range(0, len(inp_data), batch_size):
-            out_data[i:i + batch_size] = out_mutator(inp_data[i:i + batch_size]).reshape([-1, *obs_shape])
+            # load and modify the batch
+            batch = inp_data[i:i + batch_size]
+            batch = _normalize_out_array(batch)
+            batch = out_mutator(batch)
+            assert batch.shape == (batch_size, *obs_shape), f'batch shape: {tuple(batch.shape)} from processed input data does not match required obs shape: {(batch_size, *obs_shape)}, try changing the `obs_shape` or resizing the batch in the `out_mutator`.'
+            # save the batch
+            out_data[i:i + batch_size] = batch
             progress.update(batch_size)
 
 
 def hdf5_resave_file(
-    inp_path: str,
+    inp_path: Union[str, torch.Tensor, np.ndarray],
     out_path: str,
     dataset_name: str,  # input and output dataset name
     chunk_size: Optional[Union[Tuple[int, ...], Literal[True]]] = None,  # True: auto determine, Tuple: specific chunk size, None: disable chunking
@@ -113,8 +158,16 @@ def hdf5_resave_file(
     obs_shape: Optional[Tuple[int, ...]] = None,  # resize batches to this shape
     write_mode: Union[Literal['atomic_w'], Literal['w'], Literal['a']] = 'atomic_w',
 ):
+    if isinstance(inp_path, str):
+        inp_context = h5py.File(inp_path, 'r')
+    else:
+        import contextlib
+        inp_context = contextlib.nullcontext(inp_path)
     # re-save datasets
-    with h5py.File(inp_path, 'r') as inp_h5:
+    with inp_context as inp_data:
+        # get input dataset from h5 file
+        if isinstance(inp_data, h5py.File):
+            inp_data = inp_data[dataset_name]
         # get context manager
         if write_mode == 'atomic_w':
             save_context = AtomicSaveFile(out_path, open_mode=None, overwrite=True)
@@ -125,8 +178,8 @@ def hdf5_resave_file(
         # handle saving to file
         with save_context as tmp_h5_path:
             with h5py.File(tmp_h5_path, write_mode, libver='earliest') as out_h5:  # TODO: libver='latest' is not deterministic, even with track_times=False
-                hdf5_resave_dataset(
-                    inp_h5=inp_h5,
+                hdf5_save_array(
+                    inp_data=inp_data,
                     out_h5=out_h5,
                     dataset_name=dataset_name,
                     chunk_size=chunk_size,
@@ -138,7 +191,7 @@ def hdf5_resave_file(
                     obs_shape=obs_shape,
                 )
     # file size:
-    log.info(f'[FILE SIZES] IN: {bytes_to_human(os.path.getsize(inp_path))} OUT: {bytes_to_human(os.path.getsize(out_path))}')
+    log.info(f'[FILE SIZES] IN: {bytes_to_human(os.path.getsize(inp_path)) if isinstance(inp_path, str) else "N/A"} OUT: {bytes_to_human(os.path.getsize(out_path))}')
 
 
 # ========================================================================= #
@@ -184,7 +237,15 @@ def hdf5_test_speed(h5_path: str, dataset_name: str, access_method: str = 'rando
 
 # TODO: cleanup
 def hdf5_print_entry_data_stats(h5_dataset: h5py.Dataset, label='STATISTICS'):
-    itemsize = h5_dataset.dtype.itemsize
+    if not isinstance(h5_dataset, h5py.Dataset):
+        tqdm.write(
+            f'[{label:3s}] '
+            f'array: {tuple(h5_dataset.shape)} ({str(h5_dataset.dtype):8s})'
+            + (f' ({h5_dataset.device})' if isinstance(h5_dataset, torch.Tensor) else '')
+        )
+        return
+    # get info
+    itemsize = _normalize_dtype(h5_dataset.dtype).itemsize
     # entry
     shape = np.array([1, *h5_dataset.shape[1:]])
     data_per_entry = np.prod(shape) * itemsize
