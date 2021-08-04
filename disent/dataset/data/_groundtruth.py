@@ -130,14 +130,23 @@ class GroundTruthData(Dataset, StateSpace):
 
 class ArrayGroundTruthData(GroundTruthData):
 
-    def __init__(self, array, factor_names: Tuple[str, ...], factor_sizes: Tuple[int, ...], observation_shape: Optional[Tuple[int, ...]] = None, transform=None):
+    def __init__(self, array, factor_names: Tuple[str, ...], factor_sizes: Tuple[int, ...], array_chn_is_last: bool = True, observation_shape: Optional[Tuple[int, ...]] = None, transform=None):
         self.__factor_names = tuple(factor_names)
         self.__factor_sizes = tuple(factor_sizes)
-        print(array.shape)
-        self.__observation_shape = tuple(observation_shape if (observation_shape is not None) else array.shape[1:])
         self._array = array
+        # get shape
+        if observation_shape is not None:
+            C, H, W = observation_shape
+        elif array_chn_is_last:
+            H, W, C = array.shape[1:]
+        else:
+            C, H, W = array.shape[1:]
+        # set observation shape
+        self.__observation_shape = (H, W, C)
         # initialize
         super().__init__(transform=transform)
+        # check shapes -- it is up to the user to handle which method they choose
+        assert (array.shape[1:] == self.img_shape) or (array.shape[1:] == self.obs_shape)
 
     @property
     def array(self):
@@ -159,11 +168,12 @@ class ArrayGroundTruthData(GroundTruthData):
         return self._array[idx]
 
     @classmethod
-    def new_like(cls, array, dataset: GroundTruthData):
+    def new_like(cls, array, dataset: GroundTruthData, array_chn_is_last: bool = True):
         return cls(
             array=array,
             factor_names=dataset.factor_names,
             factor_sizes=dataset.factor_sizes,
+            array_chn_is_last=array_chn_is_last,
             observation_shape=None,  # infer from array
             transform=None,
         )

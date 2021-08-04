@@ -27,6 +27,23 @@ import numpy as np
 
 
 # ========================================================================= #
+# Better Choice                                                             #
+# ========================================================================= #
+
+
+def random_choice_prng(a, size=None, replace=True):
+    # create seeded pseudo random number generator
+    # - built in np.random.choice cannot handle large values: https://github.com/numpy/numpy/issues/5299#issuecomment-497915672
+    # - PCG64 is the default: https://numpy.org/doc/stable/reference/random/bit_generators/index.html
+    # - PCG64 has good statistical properties and is fast: https://numpy.org/doc/stable/reference/random/performance.html
+    g = np.random.Generator(np.random.PCG64(seed=np.random.randint(0, 2**32)))
+    # sample indices
+    choices = g.choice(a, size=size, replace=replace)
+    # done!
+    return choices
+
+
+# ========================================================================= #
 # Random Ranges                                                             #
 # ========================================================================= #
 
