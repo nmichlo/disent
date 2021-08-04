@@ -86,7 +86,8 @@ def make_dataset(name: str = 'xysquares', factors: bool = False, data_root='data
     elif name == 'xysquares_1x1':  data = XYSquaresData(square_size=1, transform=ToStandardisedTensor())
     elif name == 'xysquares_2x2':  data = XYSquaresData(square_size=2, transform=ToStandardisedTensor())
     elif name == 'xysquares_4x4':  data = XYSquaresData(square_size=4, transform=ToStandardisedTensor())
-    elif name == 'xysquares_8x8':  data = XYSquaresData(square_size=8, transform=ToStandardisedTensor())
+    elif name == 'xysquares_8x8':  data = XYSquaresData(square_size=8, transform=ToStandardisedTensor())  # 8x8x8x8x8x8 = 262144
+    elif name == 'xysquares_8x8_mini':  data = XYSquaresData(square_size=8, grid_spacing=14, transform=ToStandardisedTensor())  # 5x5x5x5x5x5 = 15625
     elif name == 'cars3d':         data = Cars3dData(data_root=data_root,    prepare=True, transform=ToStandardisedTensor(size=64))
     elif name == 'smallnorb':      data = SmallNorbData(data_root=data_root, prepare=True, transform=ToStandardisedTensor(size=64))
     elif name == 'shapes3d':       data = Shapes3dData(data_root=data_root,  prepare=True, transform=ToStandardisedTensor())
