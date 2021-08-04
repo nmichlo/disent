@@ -96,6 +96,56 @@ class AdversarialSampler_CloseFar(BaseDisentSampler):
         return anchor, pos, neg
 
 
+class AdversarialSampler_SameK(BaseDisentSampler):
+
+    def __init__(self):
+        super().__init__(3)
+        self._gt_data: GroundTruthData = None
+
+    def _init(self, gt_data: GroundTruthData):
+        self._gt_data = gt_data
+
+    def _sample_idx(self, idx: int) -> Tuple[int, ...]:
+        a_factors = self._gt_data.idx_to_pos(idx)
+        # SAMPLE FACTOR INDICES
+        k = np.random.randint(1, self._gt_data.num_factors+1)  # end exclusive, ie. [1, num_factors+1)
+        # get shared mask
+        shared_indices = np.random.choice(self._gt_data.num_factors, size=self._gt_data.num_factors-k, replace=False)
+        shared_mask = np.zeros(a_factors.shape, dtype='bool')
+        shared_mask[shared_indices] = True
+        # generate values
+        p_factors = self._sample_shared(a_factors, shared_mask)
+        n_factors = self._sample_shared(a_factors, shared_mask)
+        # swap values if wrong
+        if np.sum(np.abs(a_factors - p_factors)) > np.sum(np.abs(a_factors - n_factors)):
+            p_factors, n_factors = n_factors, p_factors
+        # check values
+        assert np.sum(a_factors != p_factors) == k, 'this should never happen!'
+        assert np.sum(a_factors != n_factors) == k, 'this should never happen!'
+        # return values
+        return tuple(self._gt_data.pos_to_idx([
+            a_factors,
+            p_factors,
+            n_factors,
+        ]))
+
+    def _sample_shared(self, base_factors, shared_mask, tries=100):
+        sampled_factors = base_factors.copy()
+        generate_mask = ~shared_mask
+        # generate values
+        for i in range(tries):
+            sampled_factors[generate_mask] = np.random.randint(0, np.array(self._gt_data.factor_sizes)[generate_mask])
+            # update mask
+            sampled_shared_mask = (sampled_factors == base_factors)
+            generate_mask &= sampled_shared_mask
+            # check everything
+            if np.sum(sampled_shared_mask) == np.sum(shared_mask):
+                assert np.sum(generate_mask) == 0
+                return sampled_factors
+            # we need to try again!
+        raise RuntimeError('could not generate factors: {}')
+
+
 def sampler_print_test(sampler: Union[str, BaseDisentSampler], gt_data: GroundTruthData = None, steps=100):
     # make data
     if gt_data is None:
@@ -127,6 +177,8 @@ def make_adversarial_sampler(mode: str = 'close_far'):
             close_p_k_range=(1, 1), close_p_radius_range=(1, 1),
             far_p_k_range=(0, -1), far_p_radius_range=(0, -1),
         )
+    elif mode == 'same_k':
+        return AdversarialSampler_SameK()
     elif mode == 'close_factor_far_random':
         return GroundTruthTripleSampler(
             p_k_range=(1, 1), n_k_range=(1, -1), n_k_sample_mode='bounded_below', n_k_is_shared=True,
