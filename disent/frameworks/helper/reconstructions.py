@@ -24,8 +24,12 @@
 
 import re
 import warnings
+from typing import Dict
 from typing import final
+from typing import List
 from typing import Sequence
+from typing import Tuple
+from typing import Type
 from typing import Union
 
 import torch
@@ -283,38 +287,43 @@ class AugmentedReconLossHandler(ReconLossHandler):
 
 
 # ========================================================================= #
-# Factory                                                                   #
+# Registry & Factory                                                        #
 # ========================================================================= #
 
 
-_RECON_LOSSES = {
-    # ================================= #
-    # from the normal distribution - real values in the range [0, 1]
-    'mse': ReconLossHandlerMse,
-    # mean absolute error
-    'mae': ReconLossHandlerMae,
-    # from the bernoulli distribution - binary values in the set {0, 1}
-    'bce': ReconLossHandlerBce,
-    # reduces to bce - binary values in the set {0, 1}
-    'bernoulli': ReconLossHandlerBernoulli,
-    # bernoulli with a computed offset to handle values in the range [0, 1]
-    'continuous_bernoulli': ReconLossHandlerContinuousBernoulli,
-    # handle all real values
-    'normal': ReconLossHandlerNormal,
-    # ================================= #
-    # EXPERIMENTAL -- im just curious what would happen, haven't actually
-    #                 done the maths or thought about this much.
-    'mse4': ReconLossHandlerMse4,  # scaled as if computed over outputs of the range [-1, 1] instead of [0, 1]
-    'mae2': ReconLossHandlerMae2,  # scaled as if computed over outputs of the range [-1, 1] instead of [0, 1]
-}
+# standard reconstruction losses
+_RECON_LOSSES: Dict[str, Type[ReconLossHandler]] = {}
 
 
-_ARG_RECON_LOSSES = [
+# TODO: add ability to register parameterized reconstruction losses
+_ARG_RECON_LOSSES: List[Tuple[re.Pattern, str, callable]] = [
     # (REGEX, EXAMPLE, FACTORY_FUNC)
     # - factory function takes at min one arg: fn(reduction) with one arg after that per regex capture group
     # - regex expressions are tested in order, expressions should be mutually exclusive or ordered such that more specialized versions occur first.
     (re.compile(r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_w(\d+\.\d+)$'), 'mse4_xy8_r47_w1.0', lambda reduction, loss, kern, weight: AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, kernel_weight=float(weight))),
 ]
+
+
+def register_reconstruction_loss(name: str, handler: Type[ReconLossHandler] = None):
+    # we can use this function as a decorator!
+    def wrapper(handler_cls: Type[ReconLossHandler]):
+        # check the name value
+        if (not isinstance(name, str)) or (not name) or (not name.isidentifier()):
+            raise ValueError(f'reconstruction loss name must be a valid string identifier, got: {repr(name)}')
+        # check the handler type
+        if (not isinstance(handler_cls, type)) or (not issubclass(handler_cls, ReconLossHandler)):
+            raise TypeError(f'reconstruction loss handler must be a subclass of type {ReconLossHandler.__name__}, got: {handler}')
+        # check the name does not already exist!
+        if name in _RECON_LOSSES:
+            raise RuntimeError(f'reconstruction loss with name: {repr(name)}, already exists!')
+        # register the handler
+        _RECON_LOSSES[name] = handler_cls
+        return handler_cls
+    # decorator or direct call
+    if handler is None:
+        return wrapper
+    else:
+        return wrapper(handler_cls=handler)
 
 
 # NOTE: this function compliments make_kernel in transform/_augment.py
@@ -330,6 +339,31 @@ def make_reconstruction_loss(name: str, reduction: str) -> ReconLossHandler:
                 return fn(reduction, *result.groups())
     # we couldn't find anything
     raise KeyError(f'Invalid vae reconstruction loss: {repr(name)} Valid losses include: {list(_RECON_LOSSES.keys())}, examples of additional argument based losses include: {[example for _, example, _ in _ARG_RECON_LOSSES]}')
+
+
+# ========================================================================= #
+# Register Everything                                                       #
+# ========================================================================= #
+
+# STANDARD LOSSES:
+# from the normal distribution - real values in the range [0, 1]
+register_reconstruction_loss(name='mse', handler=ReconLossHandlerMse)
+# mean absolute error
+register_reconstruction_loss(name='mae', handler=ReconLossHandlerMae)
+
+# STANDARD DISTRIBUTIONS:
+# from the bernoulli distribution - binary values in the set {0, 1}
+register_reconstruction_loss(name='bce', handler=ReconLossHandlerBce)
+# reduces to bce - binary values in the set {0, 1}
+register_reconstruction_loss(name='bernoulli', handler=ReconLossHandlerBernoulli)
+# bernoulli with a computed offset to handle values in the range [0, 1]
+register_reconstruction_loss(name='continuous_bernoulli', handler=ReconLossHandlerContinuousBernoulli)
+# handle all real values
+register_reconstruction_loss(name='normal', handler=ReconLossHandlerNormal)
+
+# EXPERIMENTAL LOSSES -- im just curious what would happen, haven't actually done the maths or thought about this much.
+register_reconstruction_loss(name='mse4', handler=ReconLossHandlerMse4)  # scaled as if computed over outputs of the range [-1, 1] instead of [0, 1]
+register_reconstruction_loss(name='mae2', handler=ReconLossHandlerMae2)  # scaled as if computed over outputs of the range [-1, 1] instead of [0, 1]
 
 
 # ========================================================================= #
