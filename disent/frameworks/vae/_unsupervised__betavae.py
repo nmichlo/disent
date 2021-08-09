@@ -42,6 +42,9 @@ from disent.frameworks.vae._unsupervised__vae import Vae
 
 
 class BetaVae(Vae):
+    """
+    beta-VAE: https://arxiv.org/abs/1312.6114
+    """
 
     REQUIRED_OBS = 1
 
@@ -55,16 +58,24 @@ class BetaVae(Vae):
         #      loss = mean_recon_loss + beta * mean_kl_loss
         #   -- for loss_reduction='mean_sum' we usually have:
         #      loss = (H*W*C) * mean_recon_loss + beta * (z_size) * mean_kl_loss
-        # So when switching from one mode to the other, we need to scale beta to preserve these loss ratios.
+        #
+        # So when switching from one mode to the other, we need to scale beta to
+        # preserve these loss ratios:
         #   -- 'mean_sum' to 'mean':
         #      beta <- beta * (z_size) / (H*W*C)
         #   -- 'mean' to 'mean_sum':
         #      beta <- beta * (H*W*C) / (z_size)
+        #
         # We obtain an equivalent beta for 'mean_sum' to 'mean':
         #   -- given values: beta=4 for 'mean_sum', with (H*W*C)=(64*64*3) and z_size=9
         #      beta = beta * ((z_size) / (H*W*C))
         #          ~= 4 * 0.0007324
         #          ~= 0,003
+        #
+        # This is similar to appendix A.6: `INTERPRETING NORMALISED β` of the beta-Vae paper:
+        # - Published as a conference paper at ICLR 2017 (22 pages)
+        # - https://openreview.net/forum?id=Sy2fzU9gl
+        #
         beta: float = 0.003  # approximately equal to mean_sum beta of 4
 
     def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
