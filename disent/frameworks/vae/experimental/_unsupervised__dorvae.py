@@ -70,9 +70,9 @@ class DataOverlapRankVae(TripletVae):
         overlap_inward_pressure_masked: bool = False
         overlap_inward_pressure_scale: float = 0.1
 
-    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
+    def __init__(self, model: 'AutoEncoder', cfg: cfg = None, batch_augment=None):
         # TODO: duplicate code
-        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
+        super().__init__(model=model, cfg=cfg, batch_augment=batch_augment)
         # initialise
         if self.cfg.overlap_augment_mode != 'none':
             assert self.cfg.overlap_augment is not None, 'if cfg.overlap_augment_mode is not "none", then cfg.overlap_augment must be defined.'

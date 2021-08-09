@@ -18,12 +18,14 @@ dataloader = DataLoader(dataset=dataset, batch_size=4, shuffle=True)
 
 # create the pytorch lightning system
 module: pl.LightningModule = AdaVae(
-    make_optimizer_fn=lambda params: Adam(params, lr=1e-3),
-    make_model_fn=lambda: AutoEncoder(
+    model=AutoEncoder(
         encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2),
         decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
     ),
-    cfg=AdaVae.cfg(loss_reduction='mean_sum', beta=4, ada_average_mode='gvae', ada_thresh_mode='kl')
+    cfg=AdaVae.cfg(
+        optimizer='adam', optimizer_kwargs=dict(lr=1e-3),
+        loss_reduction='mean_sum', beta=4, ada_average_mode='gvae', ada_thresh_mode='kl',
+    )
 )
 
 # train the model

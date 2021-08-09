@@ -30,12 +30,14 @@ dataloader_test  = DataLoader(dataset=dataset_test,  batch_size=128, shuffle=Tru
 
 # create the model
 module = AdaVae(
-    make_optimizer_fn=lambda params: Adam(params, lr=1e-3),
-    make_model_fn=lambda: AutoEncoder(
+    model=AutoEncoder(
         encoder=EncoderFC(x_shape=(1, 28, 28), z_size=9, z_multiplier=2),
         decoder=DecoderFC(x_shape=(1, 28, 28), z_size=9),
     ),
-    cfg=AdaVae.cfg(beta=4, recon_loss='mse', loss_reduction='mean_sum')  # "mean_sum" is the traditional reduction, rather than "mean"
+    cfg=AdaVae.cfg(
+        optimizer='adam', optimizer_kwargs=dict(lr=1e-3),
+        beta=4, recon_loss='mse', loss_reduction='mean_sum',  # "mean_sum" is the traditional loss reduction mode, rather than "mean"
+    )
 )
 
 # train the model

@@ -18,12 +18,11 @@ dataloader = DataLoader(dataset=dataset, batch_size=4, shuffle=True)
 
 # create the pytorch lightning system
 module: pl.LightningModule = Ae(
-    make_optimizer_fn=lambda params: Adam(params, lr=1e-3),
-    make_model_fn=lambda: AutoEncoder(
+    model=AutoEncoder(
         encoder=EncoderConv64(x_shape=data.x_shape, z_size=6),
         decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
     ),
-    cfg=Ae.cfg(loss_reduction='mean_sum')
+    cfg=Ae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=1e-3), loss_reduction='mean_sum')
 )
 
 # train the model

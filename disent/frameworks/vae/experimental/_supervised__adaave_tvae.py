@@ -65,8 +65,8 @@ class AdaAveTripletVae(AdaTripletVae):
         adaave_augment_orig: bool = True  # triplet over original OR averaged embeddings
         adaave_decode_orig: bool = True  # decode & regularize original OR averaged embeddings
 
-    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg=cfg):
-        super().__init__(make_optimizer_fn=make_optimizer_fn, make_model_fn=make_model_fn, batch_augment=batch_augment, cfg=cfg)
+    def __init__(self, model: 'AutoEncoder', cfg: cfg = None, batch_augment=None):
+        super().__init__(model=model, cfg=cfg, batch_augment=batch_augment)
         # checks
         if self.cfg.ada_thresh_mode != 'dist':
             warnings.warn(f'cfg.ada_thresh_mode == {repr(self.cfg.ada_thresh_mode)}. Modes other than "dist" do not work well!')

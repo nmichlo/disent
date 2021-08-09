@@ -105,8 +105,7 @@ def test_frameworks(Framework, cfg_kwargs, Data):
     dataloader = DataLoader(dataset=dataset, batch_size=4, shuffle=True)
 
     framework = Framework(
-        make_optimizer_fn=lambda params: Adam(params, lr=1e-3),
-        make_model_fn=lambda: AutoEncoder(
+        model=AutoEncoder(
             encoder=EncoderTest(x_shape=data.x_shape, z_size=6, z_multiplier=2 if issubclass(Framework, Vae) else 1),
             decoder=DecoderTest(x_shape=data.x_shape, z_size=6),
         ),
@@ -118,8 +117,11 @@ def test_frameworks(Framework, cfg_kwargs, Data):
 
 
 def test_framework_config_defaults():
+    import torch.optim
     # we test that defaults are working recursively
     assert asdict(BetaVae.cfg()) == dict(
+        optimizer=torch.optim.Adam,
+        optimizer_kwargs=None,
         recon_loss='mse',
         disable_aug_loss=False,
         disable_decoder=False,
@@ -132,6 +134,8 @@ def test_framework_config_defaults():
         beta=0.003,
     )
     assert asdict(BetaVae.cfg(recon_loss='bce', kl_loss_mode='approx')) == dict(
+        optimizer=torch.optim.Adam,
+        optimizer_kwargs=None,
         recon_loss='bce',
         disable_aug_loss=False,
         disable_decoder=False,

@@ -101,9 +101,9 @@ class Vae(Ae):
         disable_reg_loss: bool = False
         disable_posterior_scale: Optional[float] = None
 
-    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
+    def __init__(self, model: 'AutoEncoder', cfg: cfg = None, batch_augment=None):
         # required_z_multiplier
-        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
+        super().__init__(model=model, cfg=cfg, batch_augment=batch_augment)
         # vae distribution
         self.__latents_handler = make_latent_distribution(self.cfg.latent_distribution, kl_mode=self.cfg.kl_loss_mode, reduction=self.cfg.loss_reduction)
 

@@ -89,11 +89,10 @@ class Ae(DisentFramework):
         disable_rec_loss: bool = False
         disable_aug_loss: bool = False
 
-    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
-        super().__init__(make_optimizer_fn, batch_augment=batch_augment, cfg=cfg)
+    def __init__(self, model: AutoEncoder, cfg: cfg = None, batch_augment=None):
+        super().__init__(cfg=cfg, batch_augment=batch_augment)
         # vae model
-        assert callable(make_model_fn)
-        self._model: AutoEncoder = make_model_fn()  # TODO: move into property
+        self._model = model
         # check the model
         assert isinstance(self._model, AutoEncoder)
         assert self._model.z_multiplier == self.REQUIRED_Z_MULTIPLIER, f'model z_multiplier is {repr(self._model.z_multiplier)} but {self.__class__.__name__} requires that it is: {repr(self.REQUIRED_Z_MULTIPLIER)}'

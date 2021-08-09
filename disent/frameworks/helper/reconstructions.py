@@ -25,13 +25,16 @@
 import re
 import warnings
 from typing import final
+from typing import List
 from typing import Sequence
+from typing import Tuple
 from typing import Union
 
 import torch
 import torch.nn.functional as F
 from deprecated import deprecated
 
+from disent import registry
 from disent.frameworks.helper.util import compute_ave_loss
 from disent.nn.modules import DisentModule
 from disent.nn.loss.reduction import batch_loss_reduction
@@ -283,33 +286,12 @@ class AugmentedReconLossHandler(ReconLossHandler):
 
 
 # ========================================================================= #
-# Factory                                                                   #
+# Registry & Factory                                                        #
 # ========================================================================= #
 
 
-_RECON_LOSSES = {
-    # ================================= #
-    # from the normal distribution - real values in the range [0, 1]
-    'mse': ReconLossHandlerMse,
-    # mean absolute error
-    'mae': ReconLossHandlerMae,
-    # from the bernoulli distribution - binary values in the set {0, 1}
-    'bce': ReconLossHandlerBce,
-    # reduces to bce - binary values in the set {0, 1}
-    'bernoulli': ReconLossHandlerBernoulli,
-    # bernoulli with a computed offset to handle values in the range [0, 1]
-    'continuous_bernoulli': ReconLossHandlerContinuousBernoulli,
-    # handle all real values
-    'normal': ReconLossHandlerNormal,
-    # ================================= #
-    # EXPERIMENTAL -- im just curious what would happen, haven't actually
-    #                 done the maths or thought about this much.
-    'mse4': ReconLossHandlerMse4,  # scaled as if computed over outputs of the range [-1, 1] instead of [0, 1]
-    'mae2': ReconLossHandlerMae2,  # scaled as if computed over outputs of the range [-1, 1] instead of [0, 1]
-}
-
-
-_ARG_RECON_LOSSES = [
+# TODO: add ability to register parameterized reconstruction losses
+_ARG_RECON_LOSSES: List[Tuple[re.Pattern, str, callable]] = [
     # (REGEX, EXAMPLE, FACTORY_FUNC)
     # - factory function takes at min one arg: fn(reduction) with one arg after that per regex capture group
     # - regex expressions are tested in order, expressions should be mutually exclusive or ordered such that more specialized versions occur first.
@@ -319,9 +301,9 @@ _ARG_RECON_LOSSES = [
 
 # NOTE: this function compliments make_kernel in transform/_augment.py
 def make_reconstruction_loss(name: str, reduction: str) -> ReconLossHandler:
-    if name in _RECON_LOSSES:
+    if name in registry.RECON_LOSS:
         # search normal losses!
-        return _RECON_LOSSES[name](reduction)
+        return registry.RECON_LOSS[name](reduction)
     else:
         # regex search losses, and call with args!
         for r, _, fn in _ARG_RECON_LOSSES:
@@ -329,7 +311,7 @@ def make_reconstruction_loss(name: str, reduction: str) -> ReconLossHandler:
             if result is not None:
                 return fn(reduction, *result.groups())
     # we couldn't find anything
-    raise KeyError(f'Invalid vae reconstruction loss: {repr(name)} Valid losses include: {list(_RECON_LOSSES.keys())}, examples of additional argument based losses include: {[example for _, example, _ in _ARG_RECON_LOSSES]}')
+    raise KeyError(f'Invalid vae reconstruction loss: {repr(name)} Valid losses include: {sorted(registry.RECON_LOSS)}, examples of additional argument based losses include: {[example for _, example, _ in _ARG_RECON_LOSSES]}')
 
 
 # ========================================================================= #

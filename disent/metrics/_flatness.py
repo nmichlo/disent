@@ -319,12 +319,11 @@ def angles_between(a, b, dim=-1, nan_to_angle=None):
 #         dataset = GroundTruthDatasetPairs(data, transform=ToStandardisedTensor())
 #         dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True, pin_memory=True)
 #         module = AdaVae(
-#             make_optimizer_fn=lambda params: Adam(params, lr=5e-4),
-#             make_model_fn=lambda: AutoEncoder(
+#             model=AutoEncoder(
 #                 encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2),
 #                 decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
 #             ),
-#             cfg=AdaVae.cfg(beta=0.001, loss_reduction='mean')
+#             cfg=AdaVae.cfg(beta=0.001, loss_reduction='mean', optimizer=torch.optim.Adam, optimizer_kwargs=dict(lr=5e-4))
 #         )
 #         # we cannot guarantee which device the representation is on
 #         get_repr = lambda x: module.encode(x.to(module.device))

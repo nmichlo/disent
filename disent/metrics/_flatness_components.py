@@ -373,23 +373,21 @@ def aggregate_measure_distances_along_factor(
 #         # dataset = GroundTruthDistDataset(data, transform=ToStandardisedTensor(), num_samples=2, triplet_sample_mode='manhattan')
 #         # dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True, pin_memory=True)
 #         # module = AdaVae(
-#         #     make_optimizer_fn=lambda params: Adam(params, lr=5e-4),
-#         #     make_model_fn=lambda: AutoEncoder(
+#         #     model=AutoEncoder(
 #         #         encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2),
 #         #         decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
 #         #     ),
-#         #     cfg=AdaVae.cfg(beta=0.001, loss_reduction='mean')
+#         #     cfg=AdaVae.cfg(beta=0.001, loss_reduction='mean', optimizer=torch.optim.Adam, optimizer_kwargs=dict(lr=5e-4))
 #         # )
 #
 #         dataset = GroundTruthDistDataset(data, transform=ToStandardisedTensor(), num_samples=3, triplet_sample_mode='manhattan')
 #         dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True, pin_memory=True)
 #         module = TripletVae(
-#             make_optimizer_fn=lambda params: Adam(params, lr=5e-4),
-#             make_model_fn=lambda: AutoEncoder(
+#             model=AutoEncoder(
 #                 encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2),
 #                 decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
 #             ),
-#             cfg=TripletVae.cfg(beta=0.003, loss_reduction='mean', triplet_p=1, triplet_margin_max=10.0, triplet_scale=10.0)
+#             cfg=TripletVae.cfg(beta=0.003, loss_reduction='mean', triplet_p=1, triplet_margin_max=10.0, triplet_scale=10.0, optimizer=torch.optim.Adam, optimizer_kwargs=dict(lr=5e-4))
 #         )
 #
 #         # we cannot guarantee which device the representation is on
