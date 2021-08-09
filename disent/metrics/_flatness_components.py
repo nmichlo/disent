@@ -378,7 +378,7 @@ def aggregate_measure_distances_along_factor(
 #         #         encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2),
 #         #         decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
 #         #     ),
-#         #     cfg=AdaVae.cfg(beta=0.001, loss_reduction='mean')
+#         #     cfg=AdaVae.cfg(beta=0.001)
 #         # )
 #
 #         dataset = GroundTruthDistDataset(data, transform=ToStandardisedTensor(), num_samples=3, triplet_sample_mode='manhattan')
@@ -389,7 +389,7 @@ def aggregate_measure_distances_along_factor(
 #                 encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2),
 #                 decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
 #             ),
-#             cfg=TripletVae.cfg(beta=0.003, loss_reduction='mean', triplet_p=1, triplet_margin_max=10.0, triplet_scale=10.0)
+#             cfg=TripletVae.cfg(beta=4, triplet_p=1, triplet_margin_max=10.0, triplet_scale=10.0)
 #         )
 #
 #         # we cannot guarantee which device the representation is on

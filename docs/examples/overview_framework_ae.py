@@ -23,7 +23,7 @@ module: pl.LightningModule = Ae(
         encoder=EncoderConv64(x_shape=data.x_shape, z_size=6),
         decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
     ),
-    cfg=Ae.cfg(loss_reduction='mean_sum')
+    cfg=Ae.cfg()
 )
 
 # train the model

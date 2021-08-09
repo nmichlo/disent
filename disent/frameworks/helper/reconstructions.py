@@ -250,6 +250,7 @@ class ReconLossHandlerNormal(ReconLossHandlerMse):
     def compute_unreduced_loss(self, x_recon, x_targ):
         # this is almost the same as MSE, but scaled with a tiny offset
         # A value for scale should actually be passed...
+        # MSE = - (1 / pi) * Normal(x_recon, scale=sqrt(1/(2*pi))).log_prob(x_targ)  # double check this
         warnings.warn('Using normal distribution for reconstruction loss. This is not yet recommended!')
         return -torch.distributions.Normal(x_recon, 1.0).log_prob(x_targ)
 

@@ -247,7 +247,7 @@ module = BetaVae(
     encoder=EncoderConv64(x_shape=data.x_shape, z_size=10, z_multiplier=2),
     decoder=DecoderConv64(x_shape=data.x_shape, z_size=10),
   ),
-  cfg=BetaVae.cfg(loss_reduction='mean_sum', beta=4)
+  cfg=BetaVae.cfg(beta=4)
 )
 
 # cyclic schedule for target 'beta' in the config/cfg. The initial value from the

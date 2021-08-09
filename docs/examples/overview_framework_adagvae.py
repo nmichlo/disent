@@ -23,7 +23,7 @@ module: pl.LightningModule = AdaVae(
         encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2),
         decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
     ),
-    cfg=AdaVae.cfg(loss_reduction='mean_sum', beta=4, ada_average_mode='gvae', ada_thresh_mode='kl')
+    cfg=AdaVae.cfg(beta=4, ada_average_mode='gvae', ada_thresh_mode='kl')
 )
 
 # train the model

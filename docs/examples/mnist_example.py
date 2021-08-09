@@ -35,7 +35,7 @@ module = AdaVae(
         encoder=EncoderFC(x_shape=(1, 28, 28), z_size=9, z_multiplier=2),
         decoder=DecoderFC(x_shape=(1, 28, 28), z_size=9),
     ),
-    cfg=AdaVae.cfg(beta=4, recon_loss='mse', loss_reduction='mean_sum')  # "mean_sum" is the traditional reduction, rather than "mean"
+    cfg=AdaVae.cfg(beta=4, recon_loss='mse')  # "mean_sum" is the traditional reduction, rather than "mean"
 )
 
 # train the model

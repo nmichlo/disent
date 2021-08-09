@@ -324,7 +324,7 @@ def angles_between(a, b, dim=-1, nan_to_angle=None):
 #                 encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2),
 #                 decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
 #             ),
-#             cfg=AdaVae.cfg(beta=0.001, loss_reduction='mean')
+#             cfg=AdaVae.cfg(beta=0.001)
 #         )
 #         # we cannot guarantee which device the representation is on
 #         get_repr = lambda x: module.encode(x.to(module.device))

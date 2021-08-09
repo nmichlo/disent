@@ -23,7 +23,7 @@ module: pl.LightningModule = BetaVae(
         encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2),
         decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
     ),
-    cfg=BetaVae.cfg(loss_reduction='mean_sum', beta=4)
+    cfg=BetaVae.cfg(beta=4)
 )
 
 # register the scheduler with the DisentFramework
