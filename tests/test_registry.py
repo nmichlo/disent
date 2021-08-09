@@ -41,8 +41,7 @@ def test_registry_loading():
         'optimizer': 38,
         'metric': 7,
         'schedule': 5,
-        'model_encoder': 4,
-        'model_decoder': 4,
+        'model': 8,
     }
     # load everything and check the counts
     total = 0

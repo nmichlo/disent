@@ -71,39 +71,55 @@ class _PathBuilder(object):
         return obj
 
 
-class _LazyImportPathsMeta:
+def _LazyImportPathsMeta(to_lowercase: bool = True):
     """
     Lazy import paths metaclass checks for stored instances of `_PathBuilder` on a class and returns the
     imported version of the attribute instead of the `_PathBuilder` itself.
       - Used to perform lazy importing of classes and objects inside a module
     """
 
-    def __init__(cls, name, bases, dct):
-        cls.__unimported = {}  # Dict[str, _PathBuilder]
-        cls.__imported = {}    # Dict[str, Any]
-        # check annotations
-        for key, value in dct.items():
-            if isinstance(value, _PathBuilder):
-                assert str.islower(key) and str.isidentifier(key), f'registry key is not a lowercase identifier: {repr(key)}'
-                cls.__unimported[key] = value
+    if to_lowercase:
+        def transform(item):
+            if isinstance(item, str):
+                return item.lower()
+            return item
+    else:
+        def transform(item):
+            return item
 
-    def __contains__(cls, item):
-        return (item in cls.__unimported)
+    class _Meta:
+        def __init__(cls, name, bases, dct):
+            cls.__unimported = {}  # Dict[str, _PathBuilder]
+            cls.__imported = {}    # Dict[str, Any]
+            # check annotations
+            for key, value in dct.items():
+                if isinstance(value, _PathBuilder):
+                    assert str.isidentifier(key), f'registry key is not an identifier: {repr(key)}'
+                    key = transform(key)
+                    cls.__unimported[key] = value
 
-    def __getitem__(cls, item):
-        if item not in cls.__unimported:
-            raise KeyError(f'invalid key: {repr(item)}, must be one of: {sorted(cls.__unimported.keys())}')
-        if item not in cls.__imported:
-            cls.__imported[item] = cls.__unimported[item]._do_import_()
-        return cls.__imported[item]
+        def __contains__(cls, item):
+            item = transform(item)
+            return (item in cls.__unimported)
 
-    def __getattr__(cls, item):
-        if item not in cls.__unimported:
-            raise AttributeError(f'invalid attribute: {repr(item)}, must be one of: {sorted(cls.__unimported.keys())}')
-        return cls[item]
+        def __getitem__(cls, item):
+            item = transform(item)
+            if item not in cls.__imported:
+                if item not in cls.__unimported:
+                    raise KeyError(f'invalid key: {repr(item)}, must be one of: {sorted(cls.__unimported.keys())}')
+                cls.__imported[item] = cls.__unimported[item]._do_import_()
+            return cls.__imported[item]
 
-    def __iter__(self):
-        yield from self.__unimported.keys()
+        def __getattr__(cls, item):
+            item = transform(item)
+            if item not in cls.__unimported:
+                raise AttributeError(f'invalid attribute: {repr(item)}, must be one of: {sorted(cls.__unimported.keys())}')
+            return cls[item]
+
+        def __iter__(self):
+            yield from (transform(item) for item in self.__unimported.keys())
+
+    return _Meta
 
 
 # ========================================================================= #
@@ -141,158 +157,134 @@ if False:
 
 
 # changes here should also update `disent/dataset/data/__init__.py`
-class DATASET(metaclass=_LazyImportPathsMeta):
-    # groundtruth -- impl
-    cars3d            = _disent.dataset.data._groundtruth__cars3d.Cars3dData
-    dsprites          = _disent.dataset.data._groundtruth__dsprites.DSpritesData
-    mpi3d             = _disent.dataset.data._groundtruth__mpi3d.Mpi3dData
-    smallnorb         = _disent.dataset.data._groundtruth__norb.SmallNorbData
-    shapes3d          = _disent.dataset.data._groundtruth__shapes3d.Shapes3dData
-    xyblocks          = _disent.dataset.data._groundtruth__xyblocks.XYBlocksData
-    xyobject          = _disent.dataset.data._groundtruth__xyobject.XYObjectData
-    xysquares         = _disent.dataset.data._groundtruth__xysquares.XYSquaresData
-    xysquares_minimal = _disent.dataset.data._groundtruth__xysquares.XYSquaresMinimalData
+class DATASET(metaclass=_LazyImportPathsMeta()):
+    # [groundtruth -- impl]
+    Cars3d            = _disent.dataset.data._groundtruth__cars3d.Cars3dData
+    DSprites          = _disent.dataset.data._groundtruth__dsprites.DSpritesData
+    Mpi3d             = _disent.dataset.data._groundtruth__mpi3d.Mpi3dData
+    SmallNorb         = _disent.dataset.data._groundtruth__norb.SmallNorbData
+    Shapes3d          = _disent.dataset.data._groundtruth__shapes3d.Shapes3dData
+    XYBlocks          = _disent.dataset.data._groundtruth__xyblocks.XYBlocksData
+    XYObject          = _disent.dataset.data._groundtruth__xyobject.XYObjectData
+    XYSquares         = _disent.dataset.data._groundtruth__xysquares.XYSquaresData
+    XYSquares_Minimal = _disent.dataset.data._groundtruth__xysquares.XYSquaresMinimalData
 
 
 # changes here should also update `disent/dataset/sampling/__init__.py`
-class SAMPLER(metaclass=_LazyImportPathsMeta):
-    # single sampler
-    single         = _disent.dataset.sampling._single.SingleSampler
-    # ground truth samplers
-    gt_dist        = _disent.dataset.sampling._groundtruth__dist.GroundTruthDistSampler
-    gt_pair        = _disent.dataset.sampling._groundtruth__pair.GroundTruthPairSampler
-    gt_pair_orig   = _disent.dataset.sampling._groundtruth__pair_orig.GroundTruthPairOrigSampler
-    gt_single      = _disent.dataset.sampling._groundtruth__single.GroundTruthSingleSampler
-    gt_triple      = _disent.dataset.sampling._groundtruth__triplet.GroundTruthTripleSampler
-    # any dataset samplers
-    random         = _disent.dataset.sampling._random__any.RandomSampler
-    # episode samplers
-    random_episode = _disent.dataset.sampling._random__episodes.RandomEpisodeSampler
+class SAMPLER(metaclass=_LazyImportPathsMeta()):
+    # [ground truth samplers]
+    GT_Dist        = _disent.dataset.sampling._groundtruth__dist.GroundTruthDistSampler
+    GT_Pair        = _disent.dataset.sampling._groundtruth__pair.GroundTruthPairSampler
+    GT_PairOrig   = _disent.dataset.sampling._groundtruth__pair_orig.GroundTruthPairOrigSampler
+    GT_Single      = _disent.dataset.sampling._groundtruth__single.GroundTruthSingleSampler
+    GT_Triple      = _disent.dataset.sampling._groundtruth__triplet.GroundTruthTripleSampler
+    # [any dataset samplers]
+    Single         = _disent.dataset.sampling._single.SingleSampler
+    Random         = _disent.dataset.sampling._random__any.RandomSampler
+    # [episode samplers]
+    RandomEpisode = _disent.dataset.sampling._random__episodes.RandomEpisodeSampler
 
 
 # changes here should also update `disent/frameworks/ae/__init__.py` & `disent/frameworks/vae/__init__.py`
-class FRAMEWORK(metaclass=_LazyImportPathsMeta):
-    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
-    # [AE] - supervised frameworks
-    tae              = _disent.frameworks.ae._supervised__tae.TripletAe
-    # [AE] - unsupervised frameworks
-    ae               = _disent.frameworks.ae._unsupervised__ae.Ae
-    # [AE] - weakly supervised frameworks
-    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
-    # [VAE] - supervised frameworks
-    tvae             = _disent.frameworks.vae._supervised__tvae.TripletVae
-    # [VAE] - unsupervised frameworks
-    betatcvae        = _disent.frameworks.vae._unsupervised__betatcvae.BetaTcVae
-    betavae          = _disent.frameworks.vae._unsupervised__betavae.BetaVae
-    dfcvae           = _disent.frameworks.vae._unsupervised__dfcvae.DfcVae
-    dipvae           = _disent.frameworks.vae._unsupervised__dipvae.DipVae
-    infovae          = _disent.frameworks.vae._unsupervised__infovae.InfoVae
-    vae              = _disent.frameworks.vae._unsupervised__vae.Vae
-    # [VAE] - weakly supervised frameworks
-    adavae           = _disent.frameworks.vae._weaklysupervised__adavae.AdaVae
-    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
-    # [AE - EXPERIMENTAL] - supervised frameworks
-    exp__adanegtae   = _disent.frameworks.ae.experimental._supervised__adaneg_tae.AdaNegTripletAe
-    # [AE - EXPERIMENTAL] - unsupervised frameworks
-    exp__dotae       = _disent.frameworks.ae.experimental._unsupervised__dotae.DataOverlapTripletAe
-    # [AE - EXPERIMENTAL] - weakly supervised frameworks
-    exp__adaae       = _disent.frameworks.ae.experimental._weaklysupervised__adaae.AdaAe
-    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
-    # [VAE - EXPERIMENTAL] - supervised frameworks
-    exp__adaavetvae  = _disent.frameworks.vae.experimental._supervised__adaave_tvae.AdaAveTripletVae
-    exp__adanegtvae  = _disent.frameworks.vae.experimental._supervised__adaneg_tvae.AdaNegTripletVae
-    exp__adatvae     = _disent.frameworks.vae.experimental._supervised__adatvae.AdaTripletVae
-    exp__badavae     = _disent.frameworks.vae.experimental._supervised__badavae.BoundedAdaVae
-    exp__gadavae     = _disent.frameworks.vae.experimental._supervised__gadavae.GuidedAdaVae
-    exp__badatvae    = _disent.frameworks.vae.experimental._supervised__tbadavae.TripletBoundedAdaVae
-    exp__gadatvae    = _disent.frameworks.vae.experimental._supervised__tgadavae.TripletGuidedAdaVae
-    # [VAE - EXPERIMENTAL] - unsupervised frameworks
-    exp__dorvae      = _disent.frameworks.vae.experimental._unsupervised__dorvae.DataOverlapRankVae
-    exp__dotvae      = _disent.frameworks.vae.experimental._unsupervised__dotvae.DataOverlapTripletVae
-    # [VAE - EXPERIMENTAL] - weakly supervised frameworks
-    exp__augpos_tvae = _disent.frameworks.vae.experimental._weaklysupervised__augpostriplet.AugPosTripletVae
-    exp__st_adavae   = _disent.frameworks.vae.experimental._weaklysupervised__st_adavae.SwappedTargetAdaVae
-    exp__st_betavae  = _disent.frameworks.vae.experimental._weaklysupervised__st_betavae.SwappedTargetBetaVae
-    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+class FRAMEWORK(metaclass=_LazyImportPathsMeta()):
+    # [AE]
+    TripletAe              = _disent.frameworks.ae._supervised__tae.TripletAe
+    Ae                     = _disent.frameworks.ae._unsupervised__ae.Ae
+    # [VAE]
+    TripletVae             = _disent.frameworks.vae._supervised__tvae.TripletVae
+    BetaTcVae              = _disent.frameworks.vae._unsupervised__betatcvae.BetaTcVae
+    BetaVae                = _disent.frameworks.vae._unsupervised__betavae.BetaVae
+    DfcVae                 = _disent.frameworks.vae._unsupervised__dfcvae.DfcVae
+    DipVae                 = _disent.frameworks.vae._unsupervised__dipvae.DipVae
+    InfoVae                = _disent.frameworks.vae._unsupervised__infovae.InfoVae
+    Vae                    = _disent.frameworks.vae._unsupervised__vae.Vae
+    AdaVae                 = _disent.frameworks.vae._weaklysupervised__adavae.AdaVae
+    # [AE - EXPERIMENTAL]
+    E_AdaNegTripletAe      = _disent.frameworks.ae.experimental._supervised__adaneg_tae.AdaNegTripletAe
+    E_DataOverlapTripletAe = _disent.frameworks.ae.experimental._unsupervised__dotae.DataOverlapTripletAe
+    E_AdaAe                = _disent.frameworks.ae.experimental._weaklysupervised__adaae.AdaAe
+    # [VAE - EXPERIMENTAL]
+    E_AdaAveTripletVae     = _disent.frameworks.vae.experimental._supervised__adaave_tvae.AdaAveTripletVae
+    E_AdaNegTripletVae     = _disent.frameworks.vae.experimental._supervised__adaneg_tvae.AdaNegTripletVae
+    E_AdaTripletVae        = _disent.frameworks.vae.experimental._supervised__adatvae.AdaTripletVae
+    E_BoundedAdaVae        = _disent.frameworks.vae.experimental._supervised__badavae.BoundedAdaVae
+    E_GuidedAdaVae         = _disent.frameworks.vae.experimental._supervised__gadavae.GuidedAdaVae
+    E_TripletBoundedAdaVae = _disent.frameworks.vae.experimental._supervised__tbadavae.TripletBoundedAdaVae
+    E_TripletGuidedAdaVae  = _disent.frameworks.vae.experimental._supervised__tgadavae.TripletGuidedAdaVae
+    E_DataOverlapRankVae   = _disent.frameworks.vae.experimental._unsupervised__dorvae.DataOverlapRankVae
+    E_DataOverlapTripletVae= _disent.frameworks.vae.experimental._unsupervised__dotvae.DataOverlapTripletVae
+    E_AugPosTripletVae     = _disent.frameworks.vae.experimental._weaklysupervised__augpostriplet.AugPosTripletVae
+    E_SwappedTargetAdaVae  = _disent.frameworks.vae.experimental._weaklysupervised__st_adavae.SwappedTargetAdaVae
+    E_SwappedTargetBetaVae = _disent.frameworks.vae.experimental._weaklysupervised__st_betavae.SwappedTargetBetaVae
 
 
 # changes here should also update `disent/frameworks/helper/reconstructions.py`
-class RECON_LOSS(metaclass=_LazyImportPathsMeta):
-    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+class RECON_LOSS(metaclass=_LazyImportPathsMeta(to_lowercase=True)):
     # [STANDARD LOSSES]
-    # from the normal distribution - real values in the range [0, 1]
-    mse                  = _disent.frameworks.helper.reconstructions.ReconLossHandlerMse
-    # mean absolute error
-    mae                  = _disent.frameworks.helper.reconstructions.ReconLossHandlerMae
-    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    Mse                 = _disent.frameworks.helper.reconstructions.ReconLossHandlerMse  # from the normal distribution - real values in the range [0, 1]
+    Mae                 = _disent.frameworks.helper.reconstructions.ReconLossHandlerMae  # mean absolute error
     # [STANDARD DISTRIBUTIONS]
-    # from the bernoulli distribution - binary values in the set {0, 1}
-    bce                  = _disent.frameworks.helper.reconstructions.ReconLossHandlerBce
-    # reduces to bce - binary values in the set {0, 1}
-    bernoulli            = _disent.frameworks.helper.reconstructions.ReconLossHandlerBernoulli
-    # bernoulli with a computed offset to handle values in the range [0, 1]
-    continuous_bernoulli = _disent.frameworks.helper.reconstructions.ReconLossHandlerContinuousBernoulli
-    # handle all real values
-    normal               = _disent.frameworks.helper.reconstructions.ReconLossHandlerNormal
-    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    Bce                 = _disent.frameworks.helper.reconstructions.ReconLossHandlerBce                  # from the bernoulli distribution - binary values in the set {0, 1}
+    Bernoulli           = _disent.frameworks.helper.reconstructions.ReconLossHandlerBernoulli            # reduces to bce - binary values in the set {0, 1}
+    ContinuousBernoulli = _disent.frameworks.helper.reconstructions.ReconLossHandlerContinuousBernoulli  # bernoulli with a computed offset to handle values in the range [0, 1]
+    Normal              = _disent.frameworks.helper.reconstructions.ReconLossHandlerNormal               # handle all real values
     # [EXPERIMENTAL LOSSES]
-    mse4                 = _disent.frameworks.helper.reconstructions.ReconLossHandlerMse4  # scaled as if computed over outputs of the range [-1, 1] instead of [0, 1]
-    mae2                 = _disent.frameworks.helper.reconstructions.ReconLossHandlerMae2  # scaled as if computed over outputs of the range [-1, 1] instead of [0, 1]
-    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    Mse4                = _disent.frameworks.helper.reconstructions.ReconLossHandlerMse4  # scaled as if computed over outputs of the range [-1, 1] instead of [0, 1]
+    Mae2                = _disent.frameworks.helper.reconstructions.ReconLossHandlerMae2  # scaled as if computed over outputs of the range [-1, 1] instead of [0, 1]
 
 
 # changes here should also update `disent/frameworks/helper/latent_distributions.py`
-class LATENT_DIST(metaclass=_LazyImportPathsMeta):
-    normal = _disent.frameworks.helper.latent_distributions.LatentDistsHandlerNormal
-    laplace = _disent.frameworks.helper.latent_distributions.LatentDistsHandlerLaplace
+class LATENT_DIST(metaclass=_LazyImportPathsMeta()):
+    Normal = _disent.frameworks.helper.latent_distributions.LatentDistsHandlerNormal
+    Laplace = _disent.frameworks.helper.latent_distributions.LatentDistsHandlerLaplace
 
 
 # non-disent classes
-class OPTIMIZER(metaclass=_LazyImportPathsMeta):
-    # torch
-    adadelta    = _torch.optim.adadelta.Adadelta
-    adagrad     = _torch.optim.adagrad.Adagrad
-    adam        = _torch.optim.adam.Adam
-    adamax      = _torch.optim.adamax.Adamax
-    adam_w      = _torch.optim.adamw.AdamW
-    asgd        = _torch.optim.asgd.ASGD
-    lbfgs       = _torch.optim.lbfgs.LBFGS
-    rmsprop     = _torch.optim.rmsprop.RMSprop
-    rprop       = _torch.optim.rprop.Rprop
-    sgd         = _torch.optim.sgd.SGD
-    sparse_adam = _torch.optim.sparse_adam.SparseAdam
-    # torch_optimizer  [non-optimizers: Lookahead]
-    a2grad_exp  = _torch_optimizer.A2GradExp
-    a2grad_inc  = _torch_optimizer.A2GradInc
-    a2grad_uni  = _torch_optimizer.A2GradUni
-    acc_sgd     = _torch_optimizer.AccSGD
-    adabelief   = _torch_optimizer.AdaBelief
-    adabound    = _torch_optimizer.AdaBound
-    adamod      = _torch_optimizer.AdaMod
-    adafactor   = _torch_optimizer.Adafactor
-    adahessian  = _torch_optimizer.Adahessian
-    adam_p      = _torch_optimizer.AdamP
-    aggmo       = _torch_optimizer.AggMo
-    apollo      = _torch_optimizer.Apollo
-    diffgrad    = _torch_optimizer.DiffGrad
-    lamb        = _torch_optimizer.Lamb
-    novograd    = _torch_optimizer.NovoGrad
-    pid         = _torch_optimizer.PID
-    qhadam      = _torch_optimizer.QHAdam
-    qhm         = _torch_optimizer.QHM
-    radam       = _torch_optimizer.RAdam
-    ranger      = _torch_optimizer.Ranger
-    ranger_qh   = _torch_optimizer.RangerQH
-    ranger_va   = _torch_optimizer.RangerVA
-    sgd_p       = _torch_optimizer.SGDP
-    sgd_w       = _torch_optimizer.SGDW
-    swats       = _torch_optimizer.SWATS
-    shampoo     = _torch_optimizer.Shampoo
-    yogi        = _torch_optimizer.Yogi
+class OPTIMIZER(metaclass=_LazyImportPathsMeta()):
+    # [torch]
+    Adadelta  = _torch.optim.adadelta.Adadelta
+    Adagrad   = _torch.optim.adagrad.Adagrad
+    Adam      = _torch.optim.adam.Adam
+    Adamax    = _torch.optim.adamax.Adamax
+    AdamW     = _torch.optim.adamw.AdamW
+    ASGD      = _torch.optim.asgd.ASGD
+    LBFGS     = _torch.optim.lbfgs.LBFGS
+    RMSprop   = _torch.optim.rmsprop.RMSprop
+    Rprop     = _torch.optim.rprop.Rprop
+    SGD       = _torch.optim.sgd.SGD
+    SparseAdam= _torch.optim.sparse_adam.SparseAdam
+    # [torch_optimizer] - non-optimizers: Lookahead
+    A2GradExp = _torch_optimizer.A2GradExp
+    A2GradInc = _torch_optimizer.A2GradInc
+    A2GradUni = _torch_optimizer.A2GradUni
+    AccSGD    = _torch_optimizer.AccSGD
+    AdaBelief = _torch_optimizer.AdaBelief
+    AdaBound  = _torch_optimizer.AdaBound
+    AdaMod    = _torch_optimizer.AdaMod
+    Adafactor = _torch_optimizer.Adafactor
+    Adahessian= _torch_optimizer.Adahessian
+    AdamP     = _torch_optimizer.AdamP
+    AggMo     = _torch_optimizer.AggMo
+    Apollo    = _torch_optimizer.Apollo
+    DiffGrad  = _torch_optimizer.DiffGrad
+    Lamb      = _torch_optimizer.Lamb
+    NovoGrad  = _torch_optimizer.NovoGrad
+    PID       = _torch_optimizer.PID
+    QHAdam    = _torch_optimizer.QHAdam
+    QHM       = _torch_optimizer.QHM
+    RAdam     = _torch_optimizer.RAdam
+    Ranger    = _torch_optimizer.Ranger
+    RangerQH  = _torch_optimizer.RangerQH
+    RangerVA  = _torch_optimizer.RangerVA
+    SGDP      = _torch_optimizer.SGDP
+    SGDW      = _torch_optimizer.SGDW
+    SWATS     = _torch_optimizer.SWATS
+    Shampoo   = _torch_optimizer.Shampoo
+    Yogi      = _torch_optimizer.Yogi
 
 
 # changes here should also update `disent/metrics/__init__.py`
-class METRIC(metaclass=_LazyImportPathsMeta):
+class METRIC(metaclass=_LazyImportPathsMeta()):
     dci                 = _disent.metrics._dci.metric_dci
     factor_vae          = _disent.metrics._factor_vae.metric_factor_vae
     flatness            = _disent.metrics._flatness.metric_flatness
@@ -303,28 +295,26 @@ class METRIC(metaclass=_LazyImportPathsMeta):
 
 
 # changes here should also update `disent/schedule/__init__.py`
-class SCHEDULE(metaclass=_LazyImportPathsMeta):
-    clip   = _disent.schedule._schedule.ClipSchedule
-    cosine = _disent.schedule._schedule.CosineWaveSchedule
-    cyclic = _disent.schedule._schedule.CyclicSchedule
-    linear = _disent.schedule._schedule.LinearSchedule
-    noop   = _disent.schedule._schedule.NoopSchedule
+class SCHEDULE(metaclass=_LazyImportPathsMeta()):
+    Clip       = _disent.schedule._schedule.ClipSchedule
+    CosineWave = _disent.schedule._schedule.CosineWaveSchedule
+    Cyclic     = _disent.schedule._schedule.CyclicSchedule
+    Linear     = _disent.schedule._schedule.LinearSchedule
+    Noop       = _disent.schedule._schedule.NoopSchedule
 
 
 # changes here should also update `disent/model/ae/__init__.py`
-class MODEL_ENCODER(metaclass=_LazyImportPathsMeta):
-    conv64     = _disent.model.ae._vae_conv64.EncoderConv64
-    conv64norm = _disent.model.ae._norm_conv64.EncoderConv64Norm
-    fc         = _disent.model.ae._vae_fc.EncoderFC
-    test       = _disent.model.ae._test.EncoderTest
-
-
-# changes here should also update `disent/model/ae/__init__.py`
-class MODEL_DECODER(metaclass=_LazyImportPathsMeta):
-    conv64     = _disent.model.ae._vae_conv64.DecoderConv64
-    conv64norm = _disent.model.ae._norm_conv64.DecoderConv64Norm
-    fc         = _disent.model.ae._vae_fc.DecoderFC
-    test       = _disent.model.ae._test.DecoderTest
+class MODEL(metaclass=_LazyImportPathsMeta()):
+    # [DECODER]
+    EncoderConv64     = _disent.model.ae._vae_conv64.EncoderConv64
+    EncoderConv64Norm = _disent.model.ae._norm_conv64.EncoderConv64Norm
+    EncoderFC         = _disent.model.ae._vae_fc.EncoderFC
+    EncoderTest       = _disent.model.ae._test.EncoderTest
+    # [ENCODER]
+    DecoderConv64     = _disent.model.ae._vae_conv64.DecoderConv64
+    DecoderConv64Norm = _disent.model.ae._norm_conv64.DecoderConv64Norm
+    DecoderFC         = _disent.model.ae._vae_fc.DecoderFC
+    DecoderTest       = _disent.model.ae._test.DecoderTest
 
 
 # ========================================================================= #
@@ -333,17 +323,16 @@ class MODEL_DECODER(metaclass=_LazyImportPathsMeta):
 
 
 # self-reference -- for testing purposes
-class REGISTRY(metaclass=_LazyImportPathsMeta):
-    dataset       = _disent.registry.DATASET
-    sampler       = _disent.registry.SAMPLER
-    framework     = _disent.registry.FRAMEWORK
-    recon_loss    = _disent.registry.RECON_LOSS
-    latent_dist   = _disent.registry.LATENT_DIST
-    optimizer     = _disent.registry.OPTIMIZER
-    metric        = _disent.registry.METRIC
-    schedule      = _disent.registry.SCHEDULE
-    model_encoder = _disent.registry.MODEL_ENCODER
-    model_decoder = _disent.registry.MODEL_DECODER
+class REGISTRY(metaclass=_LazyImportPathsMeta()):
+    DATASET       = _disent.registry.DATASET
+    SAMPLER       = _disent.registry.SAMPLER
+    FRAMEWORK     = _disent.registry.FRAMEWORK
+    RECON_LOSS    = _disent.registry.RECON_LOSS
+    LATENT_DIST   = _disent.registry.LATENT_DIST
+    OPTIMIZER     = _disent.registry.OPTIMIZER
+    METRIC        = _disent.registry.METRIC
+    SCHEDULE      = _disent.registry.SCHEDULE
+    MODEL         = _disent.registry.MODEL
 
 
 # ========================================================================= #
@@ -354,3 +343,6 @@ class REGISTRY(metaclass=_LazyImportPathsMeta):
 del _disent
 del _torch
 del _torch_optimizer
+
+del _PathBuilder
+del _LazyImportPathsMeta
