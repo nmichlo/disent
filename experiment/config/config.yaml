@@ -3,16 +3,16 @@ defaults:
   - framework: betavae
   - model: vae_conv64
   - optimizer: adam
-  - dataset: xysquares  # allow framework to override settings here, but placing dataset before framework in defaults
+  - dataset: xysquares
   - dataset_sampling: full_bb
   - augment: none
   - schedule: none
   - metrics: fast
   # runtime
-  - run_length: long
-  - run_location: cluster_many
-  - run_callbacks: vis_slow
-  - run_logging: none
+  - run_length: short
+  - run_location: heartofgold
+  - run_callbacks: vis
+  - run_logging: wandb
   # plugins
   - hydra/job_logging: colorlog
   - hydra/hydra_logging: colorlog
@@ -26,10 +26,11 @@ job:
   seed: NULL
 
 framework:
-    beta: 0.001
+    beta: 4
     module:
       recon_loss: mse
       loss_reduction: mean
+      beta_normalize: TRUE
     optional:
       latent_distribution: normal  # only used by VAEs
       overlap_loss: NULL

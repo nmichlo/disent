@@ -22,6 +22,7 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import logging
 from dataclasses import dataclass
 from numbers import Number
 from typing import Any
@@ -30,10 +31,14 @@ from typing import Sequence
 from typing import Tuple
 from typing import Union
 
+import numpy as np
 import torch
 from torch.distributions import Distribution
 
 from disent.frameworks.vae._unsupervised__vae import Vae
+
+
+log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
@@ -77,10 +82,19 @@ class BetaVae(Vae):
         # - https://openreview.net/forum?id=Sy2fzU9gl
         #
         beta: float = 0.003  # approximately equal to mean_sum beta of 4
+        beta_normalize: bool = False  # apply beta normalization: norm_beta = beta * ((Z) / (C*H*W))
 
     def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
         assert self.cfg.beta >= 0, 'beta must be >= 0'
+        # normalize beta if required
+        self.cfg.beta_orig = self.cfg.beta
+        self.cfg.beta_norm = self.cfg.beta * ((self._model.z_size) / np.prod(self._model.x_shape))
+        # normalize beta
+        if self.cfg.beta_normalize:
+            assert self.cfg.loss_reduction == 'mean', '`cfg.beta_normalize=True` is only allowed when `cfg.loss_reduction="mean"`'
+            self.cfg.beta = self.cfg.beta_norm
+            log.info(f'{self.__class__.__name__}: beta normalization applied, set: cfg.beta={self.cfg.beta} [{self.cfg.beta_orig} * {self._model.z_size}/({"*".join(str(d) for d in self._model.x_shape)})]')
 
     # --------------------------------------------------------------------- #
     # Overrides                                                             #
