@@ -79,11 +79,6 @@ class Ae(DisentFramework):
     @dataclass
     class cfg(DisentFramework.cfg):
         recon_loss: str = 'mse'
-        # multiple reduction modes exist for the various loss components.
-        # - 'sum': sum over the entire batch
-        # - 'mean': mean over the entire batch
-        # - 'mean_sum': sum each observation, returning the mean sum over the batch
-        loss_reduction: str = 'mean'
         # disable various components
         disable_decoder: bool = False
         disable_rec_loss: bool = False
@@ -98,7 +93,7 @@ class Ae(DisentFramework):
         assert isinstance(self._model, AutoEncoder)
         assert self._model.z_multiplier == self.REQUIRED_Z_MULTIPLIER, f'model z_multiplier is {repr(self._model.z_multiplier)} but {self.__class__.__name__} requires that it is: {repr(self.REQUIRED_Z_MULTIPLIER)}'
         # recon loss & activation fn
-        self.__recon_handler: ReconLossHandler = make_reconstruction_loss(self.cfg.recon_loss, reduction=self.cfg.loss_reduction)
+        self.__recon_handler: ReconLossHandler = make_reconstruction_loss(self.cfg.recon_loss, reduction='mean_sum')
 
     @final
     @property

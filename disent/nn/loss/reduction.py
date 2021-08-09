@@ -31,21 +31,23 @@ import torch
 # ========================================================================= #
 
 
-def loss_reduction_mean(x: torch.Tensor) -> torch.Tensor:
-    return x.mean()
+# def _loss_reduction_mean(x: torch.Tensor) -> torch.Tensor:
+#     return x.mean()
 
 
-def loss_reduction_mean_sum(x: torch.Tensor) -> torch.Tensor:
+def _loss_reduction_mean_sum(x: torch.Tensor) -> torch.Tensor:
+    # eg. mean(B, sum(C, H, W)) -> mean(B, sum(C*H*W))
+    # eg. mean(B, sum(Z))
     return torch.flatten(x, start_dim=1).sum(dim=-1).mean()
 
 
 _LOSS_REDUCTION_STRATEGIES = {
-    'mean': loss_reduction_mean,
-    'mean_sum': loss_reduction_mean_sum,
+    # 'mean': _loss_reduction_mean,
+    'mean_sum': _loss_reduction_mean_sum,
 }
 
 
-def loss_reduction(tensor: torch.Tensor, reduction='mean'):
+def loss_reduction(tensor: torch.Tensor, reduction: str):
     return _LOSS_REDUCTION_STRATEGIES[reduction](tensor)
 
 

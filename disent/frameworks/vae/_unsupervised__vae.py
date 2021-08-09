@@ -105,7 +105,7 @@ class Vae(Ae):
         # required_z_multiplier
         super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
         # vae distribution
-        self.__latents_handler = make_latent_distribution(self.cfg.latent_distribution, kl_mode=self.cfg.kl_loss_mode, reduction=self.cfg.loss_reduction)
+        self.__latents_handler = make_latent_distribution(self.cfg.latent_distribution, kl_mode=self.cfg.kl_loss_mode)
 
     @final
     @property

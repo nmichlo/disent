@@ -29,7 +29,6 @@ framework:
     beta: 0.001
     module:
       recon_loss: mse
-      loss_reduction: mean
     optional:
       latent_distribution: normal  # only used by VAEs
       overlap_loss: NULL

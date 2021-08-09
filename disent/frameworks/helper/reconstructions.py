@@ -50,9 +50,9 @@ from disent.nn.transform import FftKernel
 
 class ReconLossHandler(DisentModule):
 
-    def __init__(self, reduction: str = 'mean'):
+    def __init__(self):
         super().__init__()
-        self._reduction = reduction
+        self._reduction = 'mean_sum'
 
     def forward(self, *args, **kwargs):
         raise RuntimeError(f'Cannot call forward() on {self.__class__.__name__}')
@@ -331,7 +331,7 @@ def register_reconstruction_loss(name: str, handler: Type[ReconLossHandler] = No
 def make_reconstruction_loss(name: str, reduction: str) -> ReconLossHandler:
     if name in _RECON_LOSSES:
         # search normal losses!
-        return _RECON_LOSSES[name](reduction)
+        return _RECON_LOSSES[name]()
     else:
         # regex search losses, and call with args!
         for r, _, fn in _ARG_RECON_LOSSES:

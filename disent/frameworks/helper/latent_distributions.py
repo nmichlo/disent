@@ -46,9 +46,9 @@ from disent.nn.loss.reduction import loss_reduction
 
 class LatentDistsHandler(object):
 
-    def __init__(self,  kl_mode: str = 'direct', reduction='mean'):
+    def __init__(self,  kl_mode: str = 'direct'):
         self._kl_mode = kl_mode
-        self._reduction = reduction
+        self._reduction = 'mean_sum'
 
     def encoding_to_representation(self, z_raw: Tuple[torch.Tensor, ...]) -> torch.Tensor:
         raise NotImplementedError
@@ -167,13 +167,13 @@ _LATENT_HANDLERS = {
 }
 
 
-def make_latent_distribution(name: str, kl_mode: str, reduction: str) -> LatentDistsHandler:
+def make_latent_distribution(name: str, kl_mode: str) -> LatentDistsHandler:
     try:
         cls = _LATENT_HANDLERS[name]
     except KeyError:
         raise KeyError(f'unknown vae distribution name: {repr(name)}, must be one of: {sorted(_LATENT_HANDLERS.keys())}')
     # make instance
-    return cls(kl_mode=kl_mode, reduction=reduction)
+    return cls(kl_mode=kl_mode)
 
 
 # ========================================================================= #
