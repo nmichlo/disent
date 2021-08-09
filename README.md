@@ -241,13 +241,15 @@ dataloader = DataLoader(dataset=dataset, batch_size=128, shuffle=True, num_worke
 # create the BetaVAE model
 # - adjusting the beta, learning rate, and representation size.
 module = BetaVae(
-  make_optimizer_fn=lambda params: Adam(params, lr=1e-4),
-  make_model_fn=lambda: AutoEncoder(
+  model=AutoEncoder(
     # z_multiplier is needed to output mu & logvar when parameterising normal distribution
     encoder=EncoderConv64(x_shape=data.x_shape, z_size=10, z_multiplier=2),
     decoder=DecoderConv64(x_shape=data.x_shape, z_size=10),
   ),
-  cfg=BetaVae.cfg(loss_reduction='mean_sum', beta=4)
+  cfg=BetaVae.cfg(
+    optimizer='adam', optimizer_kwargs=dict(lr=1e-3),
+    loss_reduction='mean_sum', beta=4,
+  )
 )
 
 # cyclic schedule for target 'beta' in the config/cfg. The initial value from the

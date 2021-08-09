@@ -78,8 +78,8 @@ class BetaVae(Vae):
         #
         beta: float = 0.003  # approximately equal to mean_sum beta of 4
 
-    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
-        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
+    def __init__(self, model: 'AutoEncoder', cfg: cfg = None, batch_augment=None):
+        super().__init__(model=model, cfg=cfg, batch_augment=batch_augment)
         assert self.cfg.beta >= 0, 'beta must be >= 0'
 
     # --------------------------------------------------------------------- #

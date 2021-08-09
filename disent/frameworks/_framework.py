@@ -22,7 +22,6 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-import logging
 from dataclasses import asdict
 from dataclasses import dataclass
 from dataclasses import fields
@@ -31,7 +30,9 @@ from pprint import pformat
 from typing import Any
 from typing import Dict
 from typing import final
+from typing import Optional
 from typing import Tuple
+from typing import Type
 from typing import Union
 
 import logging
@@ -72,6 +73,26 @@ class DisentConfigurable(object):
 
 
 # ========================================================================= #
+# optimizers                                                                #
+# ========================================================================= #
+
+
+def _get_optimizer_list() -> Dict[str, Type[torch.optim.Optimizer]]:
+    # generate list of optimizers from torch
+    # - optimizer names are lowercase, eg. adam & rmsprop
+    optimizers = {}
+    for k in dir(torch.optim):
+        optim = getattr(torch.optim, k)
+        if isinstance(optim, type) and issubclass(optim, torch.optim.Optimizer) and (optim != torch.optim.Optimizer):
+            optimizers[k.lower()] = optim
+    return optimizers
+
+
+# list of optimizers
+_OPTIMIZERS = _get_optimizer_list()
+
+
+# ========================================================================= #
 # framework                                                                 #
 # ========================================================================= #
 
@@ -80,24 +101,51 @@ class DisentFramework(DisentConfigurable, DisentLightningModule):
 
     @dataclass
     class cfg(DisentConfigurable.cfg):
-        pass
+        # optimizer config
+        optimizer: Union[str, Type[torch.optim.Optimizer]] = torch.optim.Adam
+        optimizer_kwargs: Optional[Dict[str, Union[str, float, int]]] = None
 
-    def __init__(self, make_optimizer_fn, batch_augment=None, cfg: cfg = None):
+    def __init__(
+        self,
+        cfg: cfg = None,
+        # apply the batch augmentations on the GPU instead
+        batch_augment: callable = None,
+    ):
+        # save the config values to the class
         super().__init__(cfg=cfg)
-        # optimiser
-        assert callable(make_optimizer_fn)
-        self._make_optimiser_fn = make_optimizer_fn
-        # batch augmentations: not implemented as dataset transforms because we want to apply these on the GPU
-        assert (batch_augment is None) or callable(batch_augment)
+        # get the optimizer
+        if isinstance(self.cfg.optimizer, str):
+            if self.cfg.optimizer not in _OPTIMIZERS:
+                raise KeyError(f'invalid optimizer: {repr(self.cfg.optimizer)}, valid optimizers are: {sorted(_OPTIMIZERS.keys())}, otherwise pass a torch.optim.Optimizer class instead.')
+            self.cfg.optimizer = _OPTIMIZERS[self.cfg.optimizer]
+        # check the optimizer values
+        assert isinstance(self.cfg.optimizer, type) and issubclass(self.cfg.optimizer, torch.optim.Optimizer) and (self.cfg.optimizer != torch.optim.Optimizer)
+        assert isinstance(self.cfg.optimizer_kwargs, dict) or (self.cfg.optimizer_kwargs is None)
+        # set default values for optimizer
+        if self.cfg.optimizer_kwargs is None:
+            self.cfg.optimizer_kwargs = dict()
+        if 'lr' not in self.cfg.optimizer_kwargs:
+            self.cfg.optimizer_kwargs['lr'] = 1e-3
+            log.info('lr not specified in `optimizer_kwargs`, setting to default value of `1e-3`')
+        # batch augmentations may not be implemented as dataset
+        # transforms so we can apply these on the GPU instead
+        assert callable(batch_augment) or (batch_augment is None)
         self._batch_augment = batch_augment
         # schedules
+        # - maybe add support for schedules in the config?
         self._registered_schedules = set()
         self._active_schedules: Dict[str, Tuple[Any, Schedule]] = {}
 
     @final
     def configure_optimizers(self):
-        # return optimizers
-        return self._make_optimiser_fn(self.parameters())
+        optimizer = self.cfg.optimizer
+        # instantiate the optimizer!
+        if issubclass(optimizer, torch.optim.Optimizer):
+            optimizer = optimizer(self.parameters(), **self.cfg.optimizer_kwargs)
+        elif not isinstance(optimizer, torch.optim.Optimizer):
+            raise TypeError(f'unsupported optimizer type: {type(optimizer)}')
+        # return the optimizer
+        return optimizer
 
     @final
     def training_step(self, batch, batch_idx):
