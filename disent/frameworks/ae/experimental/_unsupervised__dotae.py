@@ -52,8 +52,8 @@ class DataOverlapTripletAe(AdaNegTripletAe, DataOverlapMixin):
     class cfg(AdaNegTripletAe.cfg, DataOverlapMixin.cfg):
         pass
 
-    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
-        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
+    def __init__(self, model: 'AutoEncoder', cfg: cfg = None, batch_augment=None):
+        super().__init__(model=model, cfg=cfg, batch_augment=batch_augment)
         # initialise mixin
         self.init_data_overlap_mixin()
 

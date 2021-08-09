@@ -55,8 +55,8 @@ class DipVae(BetaVae):
         lambda_d: float = 10.
         lambda_od: float = 5.
 
-    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
-        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
+    def __init__(self, model: 'AutoEncoder', cfg: cfg = None, batch_augment=None):
+        super().__init__(model=model, cfg=cfg, batch_augment=batch_augment)
         # checks
         assert self.cfg.dip_mode in {'i', 'ii'}, f'unsupported dip_mode={repr(self.cfg.dip_mode)} for {self.__class__.__name__}. Must be one of: {{"i", "ii"}}'
         assert self.cfg.dip_beta >= 0, 'dip_beta must be >= 0'

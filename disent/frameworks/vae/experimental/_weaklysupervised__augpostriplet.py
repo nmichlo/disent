@@ -48,8 +48,8 @@ class AugPosTripletVae(TripletVae):
     class cfg(TripletVae.cfg):
         overlap_augment: Union[dict, callable] = None
 
-    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
-        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
+    def __init__(self, model: 'AutoEncoder', cfg: cfg = None, batch_augment=None):
+        super().__init__(model=model, cfg=cfg, batch_augment=batch_augment)
         # initialise & check augment
         self._augment = None
         if self.cfg.overlap_augment is not None:
