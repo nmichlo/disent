@@ -87,6 +87,9 @@ class _LazyImportPathsMeta:
                 assert str.islower(key) and str.isidentifier(key), f'registry key is not a lowercase identifier: {repr(key)}'
                 cls.__unimported[key] = value
 
+    def __contains__(cls, item):
+        return (item in cls.__unimported)
+
     def __getitem__(cls, item):
         if item not in cls.__unimported:
             raise KeyError(f'invalid key: {repr(item)}, must be one of: {sorted(cls.__unimported.keys())}')
@@ -111,25 +114,25 @@ class _LazyImportPathsMeta:
 # this is to trick the PyCharm type hinting system, used in
 # conjunction with the `if False: import ...` statements which
 # should never actually be run!
-disent = _PathBuilder('disent')
-torch = _PathBuilder('torch')
-torch_optimizer = _PathBuilder('torch_optimizer')
+_disent          = _PathBuilder('disent')
+_torch           = _PathBuilder('torch')
+_torch_optimizer = _PathBuilder('torch_optimizer')
 
 if False:
-    # disent
-    import disent.dataset.data
-    import disent.dataset.sampling
-    import disent.frameworks.ae
-    import disent.frameworks.vae
-    import disent.frameworks.helper.reconstructions
-    import disent.frameworks.helper.latent_distributions
-    import disent.metrics
-    import disent.schedule
-    import disent.model.ae
-    # torch
-    import torch.optim
-    # torch_optimizer
-    import torch_optimizer
+    import disent           as _disent
+    import torch            as _torch
+    import torch_optimizer  as _torch_optimizer
+    # force pycharm to load hints
+    import disent.dataset.data                           as _
+    import disent.dataset.sampling                       as _
+    import disent.frameworks.ae                          as _
+    import disent.frameworks.vae                         as _
+    import disent.frameworks.helper.reconstructions      as _
+    import disent.frameworks.helper.latent_distributions as _
+    import disent.metrics                                as _
+    import disent.schedule                               as _
+    import disent.model.ae                               as _
+    import torch.optim                                   as _
 
 
 # ========================================================================= #
@@ -140,171 +143,188 @@ if False:
 # changes here should also update `disent/dataset/data/__init__.py`
 class DATASET(metaclass=_LazyImportPathsMeta):
     # groundtruth -- impl
-    cars3d            = disent.dataset.data._groundtruth__cars3d.Cars3dData
-    dsprites          = disent.dataset.data._groundtruth__dsprites.DSpritesData
-    mpi3d             = disent.dataset.data._groundtruth__mpi3d.Mpi3dData
-    smallnorb         = disent.dataset.data._groundtruth__norb.SmallNorbData
-    shapes3d          = disent.dataset.data._groundtruth__shapes3d.Shapes3dData
-    xyblocks          = disent.dataset.data._groundtruth__xyblocks.XYBlocksData
-    xyobject          = disent.dataset.data._groundtruth__xyobject.XYObjectData
-    xysquares         = disent.dataset.data._groundtruth__xysquares.XYSquaresData
-    xysquares_minimal = disent.dataset.data._groundtruth__xysquares.XYSquaresMinimalData
+    cars3d            = _disent.dataset.data._groundtruth__cars3d.Cars3dData
+    dsprites          = _disent.dataset.data._groundtruth__dsprites.DSpritesData
+    mpi3d             = _disent.dataset.data._groundtruth__mpi3d.Mpi3dData
+    smallnorb         = _disent.dataset.data._groundtruth__norb.SmallNorbData
+    shapes3d          = _disent.dataset.data._groundtruth__shapes3d.Shapes3dData
+    xyblocks          = _disent.dataset.data._groundtruth__xyblocks.XYBlocksData
+    xyobject          = _disent.dataset.data._groundtruth__xyobject.XYObjectData
+    xysquares         = _disent.dataset.data._groundtruth__xysquares.XYSquaresData
+    xysquares_minimal = _disent.dataset.data._groundtruth__xysquares.XYSquaresMinimalData
 
 
 # changes here should also update `disent/dataset/sampling/__init__.py`
 class SAMPLER(metaclass=_LazyImportPathsMeta):
     # single sampler
-    single         = disent.dataset.sampling._single.SingleSampler
+    single         = _disent.dataset.sampling._single.SingleSampler
     # ground truth samplers
-    gt_dist        = disent.dataset.sampling._groundtruth__dist.GroundTruthDistSampler
-    gt_pair        = disent.dataset.sampling._groundtruth__pair.GroundTruthPairSampler
-    gt_pair_orig   = disent.dataset.sampling._groundtruth__pair_orig.GroundTruthPairOrigSampler
-    gt_single      = disent.dataset.sampling._groundtruth__single.GroundTruthSingleSampler
-    gt_triple      = disent.dataset.sampling._groundtruth__triplet.GroundTruthTripleSampler
+    gt_dist        = _disent.dataset.sampling._groundtruth__dist.GroundTruthDistSampler
+    gt_pair        = _disent.dataset.sampling._groundtruth__pair.GroundTruthPairSampler
+    gt_pair_orig   = _disent.dataset.sampling._groundtruth__pair_orig.GroundTruthPairOrigSampler
+    gt_single      = _disent.dataset.sampling._groundtruth__single.GroundTruthSingleSampler
+    gt_triple      = _disent.dataset.sampling._groundtruth__triplet.GroundTruthTripleSampler
     # any dataset samplers
-    random         = disent.dataset.sampling._random__any.RandomSampler
+    random         = _disent.dataset.sampling._random__any.RandomSampler
     # episode samplers
-    random_episode = disent.dataset.sampling._random__episodes.RandomEpisodeSampler
+    random_episode = _disent.dataset.sampling._random__episodes.RandomEpisodeSampler
 
 
 # changes here should also update `disent/frameworks/ae/__init__.py` & `disent/frameworks/vae/__init__.py`
 class FRAMEWORK(metaclass=_LazyImportPathsMeta):
-    # [AE]
-    # - supervised frameworks
-    triplet_ae  = disent.frameworks.ae._supervised__tae.TripletAe
-    # - unsupervised frameworks
-    ae          = disent.frameworks.ae._unsupervised__ae.Ae
-    # - weakly supervised frameworks
-    # <ADD>
-
-    # [VAE]
-    # - supervised frameworks
-    triplet_vae  = disent.frameworks.vae._supervised__tvae.TripletVae
-    # - unsupervised frameworks
-    beta_tc_vae  = disent.frameworks.vae._unsupervised__betatcvae.BetaTcVae
-    beta_vae     = disent.frameworks.vae._unsupervised__betavae.BetaVae
-    dfc_vae      = disent.frameworks.vae._unsupervised__dfcvae.DfcVae
-    dip_vae      = disent.frameworks.vae._unsupervised__dipvae.DipVae
-    info_vae     = disent.frameworks.vae._unsupervised__infovae.InfoVae
-    vae          = disent.frameworks.vae._unsupervised__vae.Vae
-    # - weakly supervised frameworks
-    ada_vae      = disent.frameworks.vae._weaklysupervised__adavae.AdaVae
-
-    # [AE - EXPERIMENTAL]
-
-
-
-    # [VAE - EXPERIMENTAL]
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # [AE] - supervised frameworks
+    tae              = _disent.frameworks.ae._supervised__tae.TripletAe
+    # [AE] - unsupervised frameworks
+    ae               = _disent.frameworks.ae._unsupervised__ae.Ae
+    # [AE] - weakly supervised frameworks
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # [VAE] - supervised frameworks
+    tvae             = _disent.frameworks.vae._supervised__tvae.TripletVae
+    # [VAE] - unsupervised frameworks
+    betatcvae        = _disent.frameworks.vae._unsupervised__betatcvae.BetaTcVae
+    betavae          = _disent.frameworks.vae._unsupervised__betavae.BetaVae
+    dfcvae           = _disent.frameworks.vae._unsupervised__dfcvae.DfcVae
+    dipvae           = _disent.frameworks.vae._unsupervised__dipvae.DipVae
+    infovae          = _disent.frameworks.vae._unsupervised__infovae.InfoVae
+    vae              = _disent.frameworks.vae._unsupervised__vae.Vae
+    # [VAE] - weakly supervised frameworks
+    adavae           = _disent.frameworks.vae._weaklysupervised__adavae.AdaVae
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # [AE - EXPERIMENTAL] - supervised frameworks
+    exp__adanegtae   = _disent.frameworks.ae.experimental._supervised__adaneg_tae.AdaNegTripletAe
+    # [AE - EXPERIMENTAL] - unsupervised frameworks
+    exp__dotae       = _disent.frameworks.ae.experimental._unsupervised__dotae.DataOverlapTripletAe
+    # [AE - EXPERIMENTAL] - weakly supervised frameworks
+    exp__adaae       = _disent.frameworks.ae.experimental._weaklysupervised__adaae.AdaAe
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # [VAE - EXPERIMENTAL] - supervised frameworks
+    exp__adaavetvae  = _disent.frameworks.vae.experimental._supervised__adaave_tvae.AdaAveTripletVae
+    exp__adanegtvae  = _disent.frameworks.vae.experimental._supervised__adaneg_tvae.AdaNegTripletVae
+    exp__adatvae     = _disent.frameworks.vae.experimental._supervised__adatvae.AdaTripletVae
+    exp__badavae     = _disent.frameworks.vae.experimental._supervised__badavae.BoundedAdaVae
+    exp__gadavae     = _disent.frameworks.vae.experimental._supervised__gadavae.GuidedAdaVae
+    exp__badatvae    = _disent.frameworks.vae.experimental._supervised__tbadavae.TripletBoundedAdaVae
+    exp__gadatvae    = _disent.frameworks.vae.experimental._supervised__tgadavae.TripletGuidedAdaVae
+    # [VAE - EXPERIMENTAL] - unsupervised frameworks
+    exp__dorvae      = _disent.frameworks.vae.experimental._unsupervised__dorvae.DataOverlapRankVae
+    exp__dotvae      = _disent.frameworks.vae.experimental._unsupervised__dotvae.DataOverlapTripletVae
+    # [VAE - EXPERIMENTAL] - weakly supervised frameworks
+    exp__augpos_tvae = _disent.frameworks.vae.experimental._weaklysupervised__augpostriplet.AugPosTripletVae
+    exp__st_adavae   = _disent.frameworks.vae.experimental._weaklysupervised__st_adavae.SwappedTargetAdaVae
+    exp__st_betavae  = _disent.frameworks.vae.experimental._weaklysupervised__st_betavae.SwappedTargetBetaVae
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
 
 # changes here should also update `disent/frameworks/helper/reconstructions.py`
 class RECON_LOSS(metaclass=_LazyImportPathsMeta):
-    # STANDARD LOSSES:
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # [STANDARD LOSSES]
     # from the normal distribution - real values in the range [0, 1]
-    mse = disent.frameworks.helper.reconstructions.ReconLossHandlerMse
+    mse                  = _disent.frameworks.helper.reconstructions.ReconLossHandlerMse
     # mean absolute error
-    mae = disent.frameworks.helper.reconstructions.ReconLossHandlerMae
-
-    # STANDARD DISTRIBUTIONS:
+    mae                  = _disent.frameworks.helper.reconstructions.ReconLossHandlerMae
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # [STANDARD DISTRIBUTIONS]
     # from the bernoulli distribution - binary values in the set {0, 1}
-    bce = disent.frameworks.helper.reconstructions.ReconLossHandlerBce
+    bce                  = _disent.frameworks.helper.reconstructions.ReconLossHandlerBce
     # reduces to bce - binary values in the set {0, 1}
-    bernoulli = disent.frameworks.helper.reconstructions.ReconLossHandlerBernoulli
+    bernoulli            = _disent.frameworks.helper.reconstructions.ReconLossHandlerBernoulli
     # bernoulli with a computed offset to handle values in the range [0, 1]
-    continuous_bernoulli = disent.frameworks.helper.reconstructions.ReconLossHandlerContinuousBernoulli
+    continuous_bernoulli = _disent.frameworks.helper.reconstructions.ReconLossHandlerContinuousBernoulli
     # handle all real values
-    normal = disent.frameworks.helper.reconstructions.ReconLossHandlerNormal
-
-    # EXPERIMENTAL LOSSES -- im just curious what would happen, haven't actually done the maths or thought about this much.
-    mse4 = disent.frameworks.helper.reconstructions.ReconLossHandlerMse4  # scaled as if computed over outputs of the range [-1, 1] instead of [0, 1]
-    mae2 = disent.frameworks.helper.reconstructions.ReconLossHandlerMae2  # scaled as if computed over outputs of the range [-1, 1] instead of [0, 1]
+    normal               = _disent.frameworks.helper.reconstructions.ReconLossHandlerNormal
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # [EXPERIMENTAL LOSSES]
+    mse4                 = _disent.frameworks.helper.reconstructions.ReconLossHandlerMse4  # scaled as if computed over outputs of the range [-1, 1] instead of [0, 1]
+    mae2                 = _disent.frameworks.helper.reconstructions.ReconLossHandlerMae2  # scaled as if computed over outputs of the range [-1, 1] instead of [0, 1]
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
 
 # changes here should also update `disent/frameworks/helper/latent_distributions.py`
 class LATENT_DIST(metaclass=_LazyImportPathsMeta):
-    normal = disent.frameworks.helper.latent_distributions.LatentDistsHandlerNormal
-    laplace = disent.frameworks.helper.latent_distributions.LatentDistsHandlerLaplace
+    normal = _disent.frameworks.helper.latent_distributions.LatentDistsHandlerNormal
+    laplace = _disent.frameworks.helper.latent_distributions.LatentDistsHandlerLaplace
 
 
 # non-disent classes
 class OPTIMIZER(metaclass=_LazyImportPathsMeta):
     # torch
-    adadelta    = torch.optim.adadelta.Adadelta
-    adagrad     = torch.optim.adagrad.Adagrad
-    adam        = torch.optim.adam.Adam
-    adamax      = torch.optim.adamax.Adamax
-    adam_w       = torch.optim.adamw.AdamW
-    asgd        = torch.optim.asgd.ASGD
-    lbfgs       = torch.optim.lbfgs.LBFGS
-    rmsprop     = torch.optim.rmsprop.RMSprop
-    rprop       = torch.optim.rprop.Rprop
-    sgd         = torch.optim.sgd.SGD
-    sparse_adam = torch.optim.sparse_adam.SparseAdam
-    # torch_optimizer
-    a2grad_exp  = torch_optimizer.A2GradExp
-    a2grad_inc  = torch_optimizer.A2GradInc
-    a2grad_uni  = torch_optimizer.A2GradUni
-    acc_sgd     = torch_optimizer.AccSGD
-    adabelief  = torch_optimizer.AdaBelief
-    adabound   = torch_optimizer.AdaBound
-    adamod     = torch_optimizer.AdaMod
-    adafactor  = torch_optimizer.Adafactor
-    adahessian = torch_optimizer.Adahessian
-    adam_p     = torch_optimizer.AdamP
-    aggmo      = torch_optimizer.AggMo
-    apollo     = torch_optimizer.Apollo
-    diffgrad   = torch_optimizer.DiffGrad
-    lamb       = torch_optimizer.Lamb
-    # lookahead  = torch_optimizer.Lookahead
-    novograd   = torch_optimizer.NovoGrad
-    pid        = torch_optimizer.PID
-    qhadam     = torch_optimizer.QHAdam
-    qhm        = torch_optimizer.QHM
-    radam      = torch_optimizer.RAdam
-    ranger     = torch_optimizer.Ranger
-    ranger_qh  = torch_optimizer.RangerQH
-    ranger_va  = torch_optimizer.RangerVA
-    sgd_p      = torch_optimizer.SGDP
-    sgd_w      = torch_optimizer.SGDW
-    swats      = torch_optimizer.SWATS
-    shampoo    = torch_optimizer.Shampoo
-    yogi       = torch_optimizer.Yogi
+    adadelta    = _torch.optim.adadelta.Adadelta
+    adagrad     = _torch.optim.adagrad.Adagrad
+    adam        = _torch.optim.adam.Adam
+    adamax      = _torch.optim.adamax.Adamax
+    adam_w      = _torch.optim.adamw.AdamW
+    asgd        = _torch.optim.asgd.ASGD
+    lbfgs       = _torch.optim.lbfgs.LBFGS
+    rmsprop     = _torch.optim.rmsprop.RMSprop
+    rprop       = _torch.optim.rprop.Rprop
+    sgd         = _torch.optim.sgd.SGD
+    sparse_adam = _torch.optim.sparse_adam.SparseAdam
+    # torch_optimizer  [non-optimizers: Lookahead]
+    a2grad_exp  = _torch_optimizer.A2GradExp
+    a2grad_inc  = _torch_optimizer.A2GradInc
+    a2grad_uni  = _torch_optimizer.A2GradUni
+    acc_sgd     = _torch_optimizer.AccSGD
+    adabelief   = _torch_optimizer.AdaBelief
+    adabound    = _torch_optimizer.AdaBound
+    adamod      = _torch_optimizer.AdaMod
+    adafactor   = _torch_optimizer.Adafactor
+    adahessian  = _torch_optimizer.Adahessian
+    adam_p      = _torch_optimizer.AdamP
+    aggmo       = _torch_optimizer.AggMo
+    apollo      = _torch_optimizer.Apollo
+    diffgrad    = _torch_optimizer.DiffGrad
+    lamb        = _torch_optimizer.Lamb
+    novograd    = _torch_optimizer.NovoGrad
+    pid         = _torch_optimizer.PID
+    qhadam      = _torch_optimizer.QHAdam
+    qhm         = _torch_optimizer.QHM
+    radam       = _torch_optimizer.RAdam
+    ranger      = _torch_optimizer.Ranger
+    ranger_qh   = _torch_optimizer.RangerQH
+    ranger_va   = _torch_optimizer.RangerVA
+    sgd_p       = _torch_optimizer.SGDP
+    sgd_w       = _torch_optimizer.SGDW
+    swats       = _torch_optimizer.SWATS
+    shampoo     = _torch_optimizer.Shampoo
+    yogi        = _torch_optimizer.Yogi
 
 
 # changes here should also update `disent/metrics/__init__.py`
 class METRIC(metaclass=_LazyImportPathsMeta):
-    dci                 = disent.metrics._dci.metric_dci
-    factor_vae          = disent.metrics._factor_vae.metric_factor_vae
-    flatness            = disent.metrics._flatness.metric_flatness
-    flatness_components = disent.metrics._flatness_components.metric_flatness_components
-    mig                 = disent.metrics._mig.metric_mig
-    sap                 = disent.metrics._sap.metric_sap
-    unsupervised        = disent.metrics._unsupervised.metric_unsupervised
+    dci                 = _disent.metrics._dci.metric_dci
+    factor_vae          = _disent.metrics._factor_vae.metric_factor_vae
+    flatness            = _disent.metrics._flatness.metric_flatness
+    flatness_components = _disent.metrics._flatness_components.metric_flatness_components
+    mig                 = _disent.metrics._mig.metric_mig
+    sap                 = _disent.metrics._sap.metric_sap
+    unsupervised        = _disent.metrics._unsupervised.metric_unsupervised
 
 
 # changes here should also update `disent/schedule/__init__.py`
 class SCHEDULE(metaclass=_LazyImportPathsMeta):
-    clip   = disent.schedule._schedule.ClipSchedule
-    cosine = disent.schedule._schedule.CosineWaveSchedule
-    cyclic = disent.schedule._schedule.CyclicSchedule
-    linear = disent.schedule._schedule.LinearSchedule
-    noop   = disent.schedule._schedule.NoopSchedule
+    clip   = _disent.schedule._schedule.ClipSchedule
+    cosine = _disent.schedule._schedule.CosineWaveSchedule
+    cyclic = _disent.schedule._schedule.CyclicSchedule
+    linear = _disent.schedule._schedule.LinearSchedule
+    noop   = _disent.schedule._schedule.NoopSchedule
 
 
 # changes here should also update `disent/model/ae/__init__.py`
 class MODEL_ENCODER(metaclass=_LazyImportPathsMeta):
-    conv64     = disent.model.ae._vae_conv64.EncoderConv64
-    conv64norm = disent.model.ae._norm_conv64.EncoderConv64Norm
-    fc         = disent.model.ae._vae_fc.EncoderFC
-    test       = disent.model.ae._test.EncoderTest
+    conv64     = _disent.model.ae._vae_conv64.EncoderConv64
+    conv64norm = _disent.model.ae._norm_conv64.EncoderConv64Norm
+    fc         = _disent.model.ae._vae_fc.EncoderFC
+    test       = _disent.model.ae._test.EncoderTest
 
 
 # changes here should also update `disent/model/ae/__init__.py`
 class MODEL_DECODER(metaclass=_LazyImportPathsMeta):
-    conv64     = disent.model.ae._vae_conv64.DecoderConv64
-    conv64norm = disent.model.ae._norm_conv64.DecoderConv64Norm
-    fc         = disent.model.ae._vae_fc.DecoderFC
-    test       = disent.model.ae._test.DecoderTest
+    conv64     = _disent.model.ae._vae_conv64.DecoderConv64
+    conv64norm = _disent.model.ae._norm_conv64.DecoderConv64Norm
+    fc         = _disent.model.ae._vae_fc.DecoderFC
+    test       = _disent.model.ae._test.DecoderTest
 
 
 # ========================================================================= #
@@ -314,18 +334,23 @@ class MODEL_DECODER(metaclass=_LazyImportPathsMeta):
 
 # self-reference -- for testing purposes
 class REGISTRY(metaclass=_LazyImportPathsMeta):
-    dataset       = disent.registry.DATASET
-    sampler       = disent.registry.SAMPLER
-    framework     = disent.registry.FRAMEWORK
-    recon_loss    = disent.registry.RECON_LOSS
-    latent_dist   = disent.registry.LATENT_DIST
-    optimizer     = disent.registry.OPTIMIZER
-    metric        = disent.registry.METRIC
-    schedule      = disent.registry.SCHEDULE
-    model_encoder = disent.registry.MODEL_ENCODER
-    model_decoder = disent.registry.MODEL_DECODER
+    dataset       = _disent.registry.DATASET
+    sampler       = _disent.registry.SAMPLER
+    framework     = _disent.registry.FRAMEWORK
+    recon_loss    = _disent.registry.RECON_LOSS
+    latent_dist   = _disent.registry.LATENT_DIST
+    optimizer     = _disent.registry.OPTIMIZER
+    metric        = _disent.registry.METRIC
+    schedule      = _disent.registry.SCHEDULE
+    model_encoder = _disent.registry.MODEL_ENCODER
+    model_decoder = _disent.registry.MODEL_DECODER
 
 
 # ========================================================================= #
-# Registry - Framework                                                      #
+# cleanup                                                                   #
 # ========================================================================= #
+
+
+del _disent
+del _torch
+del _torch_optimizer

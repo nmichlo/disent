@@ -35,7 +35,7 @@ def test_registry_loading():
     COUNTS = {
         'dataset': 9,
         'sampler': 8,
-        'framework': 10,
+        'framework': 25,
         'recon_loss': 8,
         'latent_dist': 2,
         'optimizer': 38,
