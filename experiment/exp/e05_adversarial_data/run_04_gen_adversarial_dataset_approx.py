@@ -21,9 +21,10 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-import contextlib
+
 import logging
 import os
+from datetime import datetime
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
@@ -36,21 +37,27 @@ import torch
 import wandb
 from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
+from torch.utils.data.dataloader import default_collate
 
 import experiment.exp.util as H
 from disent import registry
 from disent.dataset import DisentDataset
 from disent.dataset.sampling import BaseDisentSampler
+from disent.dataset.util.hdf5 import h5_open
+from disent.dataset.util.hdf5 import H5Builder
+from disent.dataset.util.hdf5 import hdf5_resave_file
 from disent.model import AutoEncoder
 from disent.nn.activations import Swish
 from disent.nn.modules import DisentModule
 from disent.util import to_numpy
+from disent.util.inout.paths import ensure_parent_dir_exists
 from disent.util.lightning.callbacks import BaseCallbackPeriodic
 from disent.util.lightning.logger_util import wb_has_logger
 from disent.util.lightning.logger_util import wb_log_metrics
-from disent.util.lightning.logger_util import wb_yield_loggers
+from disent.util.math.random import random_choice_prng
 from disent.util.seeds import seed
 from disent.util.seeds import TempNumpySeed
+from disent.util.strings.fmt import bytes_to_human
 from disent.util.strings.fmt import make_box_str
 from disent.util.visualize.vis_util import make_image_grid
 from experiment.exp.e05_adversarial_data.util_04_gen_adversarial_dataset import adversarial_loss
@@ -98,14 +105,16 @@ def gen_approx_dataset_mask(dataset: DisentDataset, model_mask_mode: Optional[st
 # ========================================================================= #
 
 
+class AeModel(AutoEncoder):
+    def forward(self, x):
+        return self.decode(self.encode(x))
+
+
 def make_delta_model(model_type: str, x_shape: Tuple[int, ...]):
     C, H, W = x_shape
     # get model
     if model_type.startswith('ae_'):
-        class AE(AutoEncoder):
-            def forward(self, x):
-                return self.decode(self.encode(x))
-        return AE(
+        return AeModel(
             encoder=registry.MODEL[f'encoder{model_type[len("ae_"):]}'](x_shape=x_shape, z_size=32, z_multiplier=1),
             decoder=registry.MODEL[f'decoder{model_type[len("ae_"):]}'](x_shape=x_shape, z_size=32, z_multiplier=1),
         )
@@ -124,10 +133,11 @@ def make_delta_model(model_type: str, x_shape: Tuple[int, ...]):
 
 class AdversarialAugmentModel(DisentModule):
 
-    def __init__(self, model_type: str, x_shape=(3, 64, 64), mask=None):
+    def __init__(self, model_type: str, x_shape=(3, 64, 64), mask=None, meta: dict = None):
         super().__init__()
         # make layers
         self.delta_model = make_delta_model(model_type=model_type, x_shape=x_shape)
+        self.meta = meta if meta else {}
         # mask
         if mask is not None:
             self.register_buffer('mask', mask[None, ...])
@@ -206,6 +216,12 @@ class AdversarialModel(pl.LightningModule):
             model_type=self.hparams.model_type,
             x_shape=(self.dataset.gt_data.img_channels, 64, 64),
             mask=gen_approx_dataset_mask(dataset=self.dataset, model_mask_mode=self.hparams.model_mask_mode),
+            # if we save the model we can restore things!
+            meta=dict(
+                dataset_name=self.hparams.dataset_name,
+                sampler_name=self.hparams.sampler_name,
+                hparams=dict(self.hparams)
+            ),
         )
 
     def train_dataloader(self):
@@ -296,26 +312,24 @@ class AdversarialModel(pl.LightningModule):
     # dataset                            #
     # ================================== #
 
+    def batch_to_adversarial_imgs(self, batch, m=0, M=0):
+        batch = batch.to(device=self.device, dtype=torch.float32)
+        batch = self.model(batch)
+        batch = (batch - m) / (M - m)
+        return H.to_imgs(batch)
+
     def make_train_periodic_callbacks(self, cfg) -> Sequence[BaseCallbackPeriodic]:
         # dataset transform helper
+        @TempNumpySeed(42)
         def make_dataset_transform():
-            # get dataset images
-            with TempNumpySeed(42):
-                # get scaling values
-                if self.hparams.logging_img_scale:
-                    samples = self.dataset.dataset_sample_batch(num_samples=128, mode='raw').to(torch.float32)
-                    samples = self.model(samples.to(self.device)).cpu()
-                    m, M = float(torch.min(samples)), float(torch.max(samples))
-                else:
-                    m, M = 0, 1
-                # add transform to dataset
-                def transform(x):
-                    x = x.to(device=self.device, dtype=torch.float32)
-                    x = self.model(x[None, ...])[0].cpu()
-                    x = (x - m) / (M - m)
-                    x = H.to_img(x)
-                    return x
-            return transform
+            # get scaling values
+            if self.hparams.logging_img_scale:
+                samples = self.dataset.dataset_sample_batch(num_samples=128, mode='raw').to(torch.float32)
+                samples = self.model(samples.to(self.device)).cpu()
+                m, M = float(torch.min(samples)), float(torch.max(samples))
+            else:
+                m, M = 0, 1
+            return lambda x: self.batch_to_adversarial_imgs(x[None, ...], m=m, M=M)[0]
         # show image callback
         class _BaseDatasetCallback(BaseCallbackPeriodic):
             @TempNumpySeed(777)
@@ -328,6 +342,7 @@ class AdversarialModel(pl.LightningModule):
                     return
                 log.info(f'visualising: {this.__class__.__name__}')
                 # hack to get transformed data
+                assert self.dataset._transform is None
                 self.dataset._transform = make_dataset_transform()
                 this._do_step(trainer, pl_module)
                 self.dataset._transform = None
@@ -380,6 +395,8 @@ ROOT_DIR = os.path.abspath(__file__ + '/../../../..')
 
 
 def run_gen_adversarial_dataset(cfg):
+    time_string = datetime.today().strftime('%Y-%m-%d--%H-%M-%S')
+    log.info(f'Starting run at time: {time_string}')
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # cleanup from old runs:
     try:
@@ -430,31 +447,43 @@ def run_gen_adversarial_dataset(cfg):
         checkpoint_callback=False,
     )
     trainer.fit(framework)
-
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-    save_path = os.path.join(save_dir, f'{cfg.job.name}.h5')
-    log.info(f'saving dataset to path: {repr(save_path)}')
-    # compute standard deviation when saving and scale so
-    # that we have mean=0 and std=1 of the saved data!
-    # with TempNumpySeed(777):
-    #     std, mean = torch.std_mean(framework.array[random_choice_prng(len(framework.array), size=2048, replace=False)])
-    #     std, mean = float(std), float(mean)
-    #     log.info(f'normalizing saved dataset of shape: {tuple(framework.array.shape)} and dtype: {framework.array.dtype} with mean: {repr(mean)} and std: {repr(std)}')
-    # # save dataset
-    # hdf5_resave_file(
-    #     framework.array,
-    #     out_path=save_path,
-    #     dataset_name='data',
-    #     chunk_size=(1, *framework.dataset.gt_data.img_shape),
-    #     compression='gzip',
-    #     compression_lvl=9,
-    #     out_dtype='float16',
-    #     out_mutator=lambda x: np.moveaxis((x.astype('float32') - mean) / std, -3, -1).astype('float16'),
-    #     obs_shape=framework.dataset.gt_data.img_shape,
-    #     write_mode='atomic_w'
-    # )
-    # log.info('done generating and saving adversarial dataset!')
-    # # finish
+    # get save paths
+    save_path_data = ensure_parent_dir_exists(save_dir, f'{time_string}_{cfg.job.name}', f'data.h5')
+    save_path_model = ensure_parent_dir_exists(save_dir, f'{time_string}_{cfg.job.name}', f'model.pt')
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # save adversarial model
+    log.info(f'saving model to path: {repr(save_path_model)}')
+    torch.save(framework.model, save_path_model)
+    log.info(f'saved model size: {bytes_to_human(os.path.getsize(save_path_model))}')
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # save dataset
+    log.info(f'saving data to path: {repr(save_path_data)}')
+    # transfer to GPU
+    if torch.cuda.is_available():
+        framework = framework.cuda()
+    # create new h5py file
+    with h5_open(path=save_path_data, mode='atomic_w') as h5_file:
+        H5Builder(h5_file).add_dataset(
+            name='data',
+            shape=(len(framework.dataset.gt_data), 64, 64, framework.dataset.gt_data.img_channels),
+            dtype='uint8',
+            chunk_shape='batch',
+            compression=True,
+            compression_lvl=9,
+            attrs=dict(
+                dataset_name=framework.hparams.dataset_name,
+                sampler_name=framework.hparams.sampler_name,
+            )
+        ).fill_dataset_from_array(
+            name='data',
+            array=framework.dataset.gt_data,  # transform is applied to gt_data not with dataset so this is ok
+            batch_size='auto',
+            show_progress=True,
+            mutator=lambda batch: framework.batch_to_adversarial_imgs(default_collate(batch)),
+        )
+    log.info(f'saved data size: {bytes_to_human(os.path.getsize(save_path_data))}')
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
 
 # ========================================================================= #
