@@ -71,6 +71,12 @@ def wb_yield_loggers(logger: Optional[LightningLoggerBase]) -> Iterable[WandbLog
                 yield from wb_yield_loggers(l)
 
 
+def wb_has_logger(logger: Optional[LightningLoggerBase]) -> bool:
+    for l in wb_yield_loggers(logger):
+        return True
+    return False
+
+
 def wb_log_metrics(logger: Optional[LightningLoggerBase], metrics_dct: dict):
     """
     Log the given values only to loggers that are an instance of WandbLogger
