@@ -31,108 +31,21 @@ classes and functions, no interfaces are included.
 *NB* All modules and classes are lazily imported!
 """
 
-
-# ========================================================================= #
-# Registry Helper                                                           #
-# ========================================================================= #
-
-
-class _PathBuilder(object):
-    """
-    Path builder stores the path taken down attributes
-      - This is used to trick pycharm type hinting. In the example
-        below, `Cars3dData` will be an instance of `_PathBuilder`,
-        but will type hint to `disent.dataset.data.Cars3dData`
-        ```
-        disent = _PathBuilder()
-        if False:
-            import disent.dataset.data
-        Cars3dData = disent.dataset.data._groundtruth__cars3d.Cars3dData
-        ```
-    """
-
-    def __init__(self, *segments):
-        self.__segments = tuple(segments)
-
-    def __getattr__(self, item: str):
-        return _PathBuilder(*self.__segments, item)
-
-    def _do_import_(self):
-        import importlib
-        import_module, import_name = '.'.join(self.__segments[:-1]), self.__segments[-1]
-        try:
-            module = importlib.import_module(import_module)
-        except Exception as e:
-            raise ImportError(f'failed to import module: {repr(import_module)} ({".".join(self.__segments)})') from e
-        try:
-            obj = getattr(module, import_name)
-        except Exception as e:
-            raise ImportError(f'failed to get attribute on module: {repr(import_name)} ({".".join(self.__segments)})') from e
-        return obj
-
-
-def _LazyImportPathsMeta(to_lowercase: bool = True):
-    """
-    Lazy import paths metaclass checks for stored instances of `_PathBuilder` on a class and returns the
-    imported version of the attribute instead of the `_PathBuilder` itself.
-      - Used to perform lazy importing of classes and objects inside a module
-    """
-
-    if to_lowercase:
-        def transform(item):
-            if isinstance(item, str):
-                return item.lower()
-            return item
-    else:
-        def transform(item):
-            return item
-
-    class _Meta:
-        def __init__(cls, name, bases, dct):
-            cls.__unimported = {}  # Dict[str, _PathBuilder]
-            cls.__imported = {}    # Dict[str, Any]
-            # check annotations
-            for key, value in dct.items():
-                if isinstance(value, _PathBuilder):
-                    assert str.isidentifier(key), f'registry key is not an identifier: {repr(key)}'
-                    key = transform(key)
-                    cls.__unimported[key] = value
-
-        def __contains__(cls, item):
-            item = transform(item)
-            return (item in cls.__unimported)
-
-        def __getitem__(cls, item):
-            item = transform(item)
-            if item not in cls.__imported:
-                if item not in cls.__unimported:
-                    raise KeyError(f'invalid key: {repr(item)}, must be one of: {sorted(cls.__unimported.keys())}')
-                cls.__imported[item] = cls.__unimported[item]._do_import_()
-            return cls.__imported[item]
-
-        def __getattr__(cls, item):
-            item = transform(item)
-            if item not in cls.__unimported:
-                raise AttributeError(f'invalid attribute: {repr(item)}, must be one of: {sorted(cls.__unimported.keys())}')
-            return cls[item]
-
-        def __iter__(self):
-            yield from (transform(item) for item in self.__unimported.keys())
-
-    return _Meta
-
-
 # ========================================================================= #
 # Fake Imports                                                              #
 # ========================================================================= #
 
 
+from disent.registry import _registry_util as _R
+
+
 # this is to trick the PyCharm type hinting system, used in
 # conjunction with the `if False: import ...` statements which
 # should never actually be run!
-_disent          = _PathBuilder('disent')
-_torch           = _PathBuilder('torch')
-_torch_optimizer = _PathBuilder('torch_optimizer')
+_disent          = _R.PathBuilder('disent')
+_torch           = _R.PathBuilder('torch')
+_torch_optimizer = _R.PathBuilder('torch_optimizer')
+
 
 if False:
     import disent           as _disent
@@ -153,11 +66,12 @@ if False:
 
 # ========================================================================= #
 # Registries                                                                #
+# TODO: registries should support multiple aliases
 # ========================================================================= #
 
 
 # changes here should also update `disent/dataset/data/__init__.py`
-class DATASET(metaclass=_LazyImportPathsMeta()):
+class DATASET(metaclass=_R.LazyImportMeta()):
     # [groundtruth -- impl]
     Cars3d            = _disent.dataset.data._groundtruth__cars3d.Cars3dData
     DSprites          = _disent.dataset.data._groundtruth__dsprites.DSpritesData
@@ -171,7 +85,7 @@ class DATASET(metaclass=_LazyImportPathsMeta()):
 
 
 # changes here should also update `disent/dataset/sampling/__init__.py`
-class SAMPLER(metaclass=_LazyImportPathsMeta()):
+class SAMPLER(metaclass=_R.LazyImportMeta()):
     # [ground truth samplers]
     GT_Dist        = _disent.dataset.sampling._groundtruth__dist.GroundTruthDistSampler
     GT_Pair        = _disent.dataset.sampling._groundtruth__pair.GroundTruthPairSampler
@@ -186,7 +100,7 @@ class SAMPLER(metaclass=_LazyImportPathsMeta()):
 
 
 # changes here should also update `disent/frameworks/ae/__init__.py` & `disent/frameworks/vae/__init__.py`
-class FRAMEWORK(metaclass=_LazyImportPathsMeta()):
+class FRAMEWORK(metaclass=_R.LazyImportMeta()):
     # [AE]
     TripletAe              = _disent.frameworks.ae._supervised__tae.TripletAe
     Ae                     = _disent.frameworks.ae._unsupervised__ae.Ae
@@ -219,7 +133,7 @@ class FRAMEWORK(metaclass=_LazyImportPathsMeta()):
 
 
 # changes here should also update `disent/frameworks/helper/reconstructions.py`
-class RECON_LOSS(metaclass=_LazyImportPathsMeta(to_lowercase=True)):
+class RECON_LOSS(metaclass=_R.LazyImportMeta(to_lowercase=True)):
     # [STANDARD LOSSES]
     Mse                 = _disent.frameworks.helper.reconstructions.ReconLossHandlerMse  # from the normal distribution - real values in the range [0, 1]
     Mae                 = _disent.frameworks.helper.reconstructions.ReconLossHandlerMae  # mean absolute error
@@ -234,13 +148,13 @@ class RECON_LOSS(metaclass=_LazyImportPathsMeta(to_lowercase=True)):
 
 
 # changes here should also update `disent/frameworks/helper/latent_distributions.py`
-class LATENT_DIST(metaclass=_LazyImportPathsMeta()):
+class LATENT_DIST(metaclass=_R.LazyImportMeta()):
     Normal = _disent.frameworks.helper.latent_distributions.LatentDistsHandlerNormal
     Laplace = _disent.frameworks.helper.latent_distributions.LatentDistsHandlerLaplace
 
 
 # non-disent classes
-class OPTIMIZER(metaclass=_LazyImportPathsMeta()):
+class OPTIMIZER(metaclass=_R.LazyImportMeta()):
     # [torch]
     Adadelta  = _torch.optim.adadelta.Adadelta
     Adagrad   = _torch.optim.adagrad.Adagrad
@@ -284,7 +198,7 @@ class OPTIMIZER(metaclass=_LazyImportPathsMeta()):
 
 
 # changes here should also update `disent/metrics/__init__.py`
-class METRIC(metaclass=_LazyImportPathsMeta()):
+class METRIC(metaclass=_R.LazyImportMeta()):
     dci                 = _disent.metrics._dci.metric_dci
     factor_vae          = _disent.metrics._factor_vae.metric_factor_vae
     flatness            = _disent.metrics._flatness.metric_flatness
@@ -295,7 +209,7 @@ class METRIC(metaclass=_LazyImportPathsMeta()):
 
 
 # changes here should also update `disent/schedule/__init__.py`
-class SCHEDULE(metaclass=_LazyImportPathsMeta()):
+class SCHEDULE(metaclass=_R.LazyImportMeta()):
     Clip       = _disent.schedule._schedule.ClipSchedule
     CosineWave = _disent.schedule._schedule.CosineWaveSchedule
     Cyclic     = _disent.schedule._schedule.CyclicSchedule
@@ -304,7 +218,7 @@ class SCHEDULE(metaclass=_LazyImportPathsMeta()):
 
 
 # changes here should also update `disent/model/ae/__init__.py`
-class MODEL(metaclass=_LazyImportPathsMeta()):
+class MODEL(metaclass=_R.LazyImportMeta()):
     # [DECODER]
     EncoderConv64     = _disent.model.ae._vae_conv64.EncoderConv64
     EncoderConv64Norm = _disent.model.ae._norm_conv64.EncoderConv64Norm
@@ -323,7 +237,7 @@ class MODEL(metaclass=_LazyImportPathsMeta()):
 
 
 # self-reference -- for testing purposes
-class REGISTRY(metaclass=_LazyImportPathsMeta()):
+class REGISTRY(metaclass=_R.LazyImportMeta()):
     DATASET       = _disent.registry.DATASET
     SAMPLER       = _disent.registry.SAMPLER
     FRAMEWORK     = _disent.registry.FRAMEWORK
@@ -343,6 +257,3 @@ class REGISTRY(metaclass=_LazyImportPathsMeta()):
 del _disent
 del _torch
 del _torch_optimizer
-
-del _PathBuilder
-del _LazyImportPathsMeta
