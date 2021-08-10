@@ -1,7 +1,6 @@
-# @package _group_
-name: rmsprop
-cls:
-  _target_: torch.optim.RMSprop
+# @package framework.module
+optimizer: torch.optim.RMSprop
+optimizer_kwargs:
   lr: ${optimizer.lr}  # default was 1e-2
   alpha: 0.99
   eps: 1e-8

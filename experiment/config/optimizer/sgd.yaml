@@ -1,7 +1,6 @@
-# @package _group_
-name: sgd
-cls:
-  _target_: torch.optim.SGD
+# @package framework.module
+optimizer: torch.optim.SGD
+optimizer_kwargs:
   lr: ${optimizer.lr}
   momentum: 0
   dampening: 0

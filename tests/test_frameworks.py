@@ -120,7 +120,7 @@ def test_framework_config_defaults():
     import torch.optim
     # we test that defaults are working recursively
     assert asdict(BetaVae.cfg()) == dict(
-        optimizer=torch.optim.Adam,
+        optimizer='adam',
         optimizer_kwargs=None,
         recon_loss='mse',
         disable_aug_loss=False,
@@ -134,7 +134,7 @@ def test_framework_config_defaults():
         beta=0.003,
     )
     assert asdict(BetaVae.cfg(recon_loss='bce', kl_loss_mode='approx')) == dict(
-        optimizer=torch.optim.Adam,
+        optimizer='adam',
         optimizer_kwargs=None,
         recon_loss='bce',
         disable_aug_loss=False,

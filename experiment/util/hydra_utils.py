@@ -23,6 +23,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
+from typing import Optional
 
 import hydra
 from deprecated import deprecated
@@ -82,32 +83,29 @@ def make_non_strict(cfg: DictConfig):
 
 
 @deprecated('replace with hydra 1.1')
-def merge_specializations(cfg: DictConfig, config_path: str, main_fn: callable, strict=True):
+def merge_specializations(cfg: DictConfig, config_path: str, strict=True):
+    import os
+
     # TODO: this should eventually be replaced with hydra recursive defaults
     # TODO: this makes config non-strict, allows setdefault to work even if key does not exist in config
 
+    assert os.path.isabs(config_path), f'config_path cannot be relative for merge_specializations: {repr(config_path)}, current working directory: {repr(os.getcwd())}'
+
     # skip if we do not have any specializations
     if 'specializations' not in cfg:
+        log.warning('`specializations` key not found in `cfg`, skipping merging specializations')
         return
 
+    # we allow overwrites & missing values to be inserted
     if not strict:
-        # we allow overwrites & missing values to be inserted
         cfg = make_non_strict(cfg)
-
-    # imports
-    import os
-    from hydra._internal.utils import detect_calling_file_or_module_from_task_function
-
-    # get hydra config root
-    calling_file, _, _ = detect_calling_file_or_module_from_task_function(main_fn)
-    config_root = os.path.join(os.path.dirname(calling_file), config_path)
 
     # set and update specializations
     for group, specialization in cfg.specializations.items():
         assert group not in cfg, f'group={repr(group)} already exists on cfg, specialization merging is not supported!'
         log.info(f'merging specialization: {repr(specialization)}')
         # load specialization config
-        specialization_cfg = OmegaConf.load(os.path.join(config_root, group, f'{specialization}.yaml'))
+        specialization_cfg = OmegaConf.load(os.path.join(config_path, group, f'{specialization}.yaml'))
         # create new config
         cfg = OmegaConf.merge(cfg, {group: specialization_cfg})
 

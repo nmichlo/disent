@@ -102,7 +102,7 @@ class DisentFramework(DisentConfigurable, DisentLightningModule):
     @dataclass
     class cfg(DisentConfigurable.cfg):
         # optimizer config
-        optimizer: Union[str, Type[torch.optim.Optimizer]] = torch.optim.Adam
+        optimizer: Union[str, Type[torch.optim.Optimizer]] = 'adam'
         optimizer_kwargs: Optional[Dict[str, Union[str, float, int]]] = None
 
     def __init__(
@@ -120,7 +120,7 @@ class DisentFramework(DisentConfigurable, DisentLightningModule):
             self.cfg.optimizer = _OPTIMIZERS[self.cfg.optimizer]
         # check the optimizer values
         assert isinstance(self.cfg.optimizer, type) and issubclass(self.cfg.optimizer, torch.optim.Optimizer) and (self.cfg.optimizer != torch.optim.Optimizer)
-        assert isinstance(self.cfg.optimizer_kwargs, dict) or (self.cfg.optimizer_kwargs is None)
+        assert isinstance(self.cfg.optimizer_kwargs, dict) or (self.cfg.optimizer_kwargs is None), f'invalid optimizer_kwargs type, got: {type(self.cfg.optimizer_kwargs)}'
         # set default values for optimizer
         if self.cfg.optimizer_kwargs is None:
             self.cfg.optimizer_kwargs = dict()
