@@ -26,18 +26,23 @@
 Utilities for converting and testing different chunk sizes of hdf5 files
 """
 
+import contextlib
 import logging
 import os
-import warnings
+from typing import Any
 from typing import Callable
+from typing import Dict
 from typing import Literal
+from typing import NoReturn
 from typing import Optional
+from typing import Sequence
 from typing import Tuple
 from typing import Union
 
 import h5py
 import numpy as np
 import torch
+from torch.utils.data import Dataset
 from tqdm import tqdm
 
 from disent.util.strings import colors as c
@@ -48,6 +53,217 @@ from disent.util.strings.fmt import bytes_to_human
 
 
 log = logging.getLogger(__name__)
+
+
+# ========================================================================= #
+# hdf5 - arguments                                                          #
+# ========================================================================= #
+
+
+AnyDType = Union[torch.dtype, np.dtype, str]
+
+
+def _normalize_dtype(dtype: AnyDType) -> np.dtype:
+    if isinstance(dtype, torch.dtype):
+        dtype: str = torch.finfo(torch.float32).dtype
+    return np.dtype(dtype)
+
+
+ChunksType = Union[Tuple[int, ...], Literal['auto'], Literal['batch']]
+
+
+def _normalize_chunks(chunks: ChunksType, shape: Tuple[int, ...]):
+    if chunks == 'auto':
+        return True
+    elif chunks == 'batch':
+        return (1, *shape[1:])
+    elif isinstance(chunks, tuple):
+        return chunks
+    else:
+        raise ValueError(f'invalid chunks value: {repr(chunks)}')
+
+
+def _normalize_compression(compression: bool, compression_lvl: int):
+    # check compression level
+    if compression_lvl not in (0, 1, 2, 3, 4, 5, 6, 7, 8, 9):
+        raise ValueError('compression_lvl must be an interger in the range [0, 9]')
+    # get values
+    if compression:
+        compression, compression_lvl = 'gzip', compression_lvl
+    else:
+        compression, compression_lvl = None, None
+    # return values
+    return compression, compression_lvl
+
+
+# ========================================================================= #
+# hdf5 - helper                                                             #
+# ========================================================================= #
+
+
+class H5IncompatibleError(Exception):
+    pass
+
+
+def h5_assert_deterministic(h5_file: h5py.File) -> h5py.File:
+    # check the version
+    if (isinstance(h5_file.libver, str) and h5_file.libver != 'earliest') or (h5_file.libver[0] != 'earliest'):
+        raise H5IncompatibleError(f'hdf5 out file has an incompatible libver: {repr(h5_file.libver)} libver should be set to: "earliest"')
+    return h5_file
+
+
+# ========================================================================= #
+# hdf5 - resave                                                             #
+# ========================================================================= #
+
+
+@contextlib.contextmanager
+def h5_open(path: str, mode: str = 'atomic_w') -> h5py.File:
+    assert str.endswith(path, '.h5'), f'hdf5 file path does not end with extension: `.h5`'
+    # get atomic context manager
+    if mode == 'atomic_w':
+        save_context, mode = AtomicSaveFile(path, open_mode=None, overwrite=True), 'w'
+    else:
+        save_context = contextlib.nullcontext(path)
+    # handle saving to file
+    with save_context as tmp_h5_path:
+        with h5py.File(tmp_h5_path, mode, libver='earliest') as h5_file:
+            yield h5_file
+
+
+class H5Builder(object):
+
+    def __init__(self, h5_file: h5py.File):
+        super().__init__()
+        # make sure that the file is deterministic
+        # - we might be missing some of the properties that control this
+        # - should we add a recursive option?
+        h5_assert_deterministic(h5_file)
+        self._h5_file = h5_file
+
+    def add_dataset(
+        self,
+        name: str,
+        shape: Tuple[int, ...],
+        dtype: AnyDType,
+        chunk_shape: ChunksType = 'batch',
+        compression: bool = True,
+        compression_lvl: int = 9,
+        attrs: Optional[Dict[str, Any]] = None
+    ) -> 'H5Builder':
+        # normalize chunk_shape
+        compression, compression_lvl = _normalize_compression(compression=compression, compression_lvl=compression_lvl)
+        # create new dataset
+        dataset = self._h5_file.create_dataset(
+            name=name,
+            shape=shape,
+            dtype=_normalize_dtype(dtype),
+            chunks=_normalize_chunks(chunk_shape, shape=shape),
+            compression=compression,
+            compression_opts=compression_lvl,
+            # non-deterministic time stamps are added to the file if this is not
+            # disabled, resulting in different hash sums when the file is re-generated!
+            # - https://github.com/h5py/h5py/issues/225
+            # - https://stackoverflow.com/questions/16019656
+            # other properties:
+            # - https://docs.h5py.org/en/stable/high/group.html#h5py.Group.create_dataset
+            track_times=False,
+            # how do these affect determinism:
+            # track_order=False,
+            # fletcher32=True,  # checksum for each chunk
+            # shuffle=True,     # reorder chunk values to possibly help compression
+            # scaleoffset=<int> # enable lossy compression, ints: number of bits to keep (0 is automatic lossless), floats: number of digits after decimal
+        )
+        # add atttributes & convert
+        if attrs is not None:
+            for key, value in attrs.items():
+                assert isinstance(value, (float, int, str)), f'attr value types other than: `str`, `float` and `int` are not yet supported, got: {type(value)}'
+                if isinstance(value, str):
+                    value = np.string_(value)
+                dataset.attrs[key] = value
+        # done!
+        return self
+
+    def fill_dataset(
+        self,
+        name: str,
+        get_batch_fn: Callable[[int, int], np.ndarray],  # i_start, i_end
+        batch_size: Union[int, Literal['auto']] = 'auto',
+        show_progress: bool = False,
+    ) -> 'H5Builder':
+        dataset = self._h5_file[name]
+        # determine batch size for copying data
+        # get smallest multiple less than 32, otherwise original number
+        if batch_size == 'auto':
+            if dataset.chunks:
+                batch_size = dataset.chunks[0]
+                batch_size = max((32 // batch_size) * batch_size, batch_size)
+            else:
+                batch_size = 32
+        else:
+            if dataset.chunks:
+                if batch_size % dataset.chunks[0] != 0:
+                    log.warning(f'batch_size={batch_size} is not divisible by the first dimension of the dataset chunk size: {dataset.chunks[0]} {tuple(dataset.chunks)}')
+        # check batch size!
+        assert isinstance(batch_size, int) and (batch_size >= 1), f'invalid batch_size: {repr(batch_size)}, expected: "auto" or an integer `>= 1`'
+        # loop variables
+        n = len(dataset)
+        # save data
+        with tqdm(total=n, disable=not show_progress) as progress:
+            for i in range(0, n, batch_size):
+                j = min(i + batch_size, n)
+                assert j > i, f'this is a bug! {repr(j)} > {repr(i)}, len(dataset)={repr(n)}, batch_size={repr(batch_size)}'
+                # load and modify the batch
+                batch = get_batch_fn(i, j)  # i_start, i_end
+                assert isinstance(batch, np.ndarray), f'returned batch is not an `np.ndarray`, got: {repr(type(batch))}'
+                assert batch.shape == (j-i, *dataset.shape[1:]), f'returned batch has incorrect shape: {tuple(batch.shape)}, expected: {(j-i, *dataset.shape[1:])}'
+                # save the batch & update progress
+                dataset[i:j] = batch
+                progress.update(j-i)
+        return self
+
+    def fill_dataset_from_array(
+        self,
+        name: str,
+        array,
+        batch_size: Union[int, Literal['auto']] = 'auto',
+        show_progress: bool = False,
+        mutator: Optional[Callable[[np.ndarray], np.ndarray]] = None
+    ) -> 'H5Builder':
+        # get the array extractor
+        if isinstance(array, torch.Tensor):
+            @torch.no_grad()
+            def _extract_fn(i, j): return array[i:j].cpu().numpy()
+        elif isinstance(array, (np.ndarray, h5py.Dataset)):  # chunk sizes will be missmatched
+            def _extract_fn(i, j): return array[i:j]
+        elif isinstance(array, (tuple, list)):
+            def _extract_fn(i, j): return array[i:j]
+        elif isinstance(array, Sequence):
+            def _extract_fn(i, j): return [array[k] for k in range(i, j)]
+        else:
+            # last ditch effort, try as an iterator
+            try:
+                array = iter(array)
+            except:
+                raise TypeError(f'`fill_dataset_from_array` only supports arrays of type: `np.ndarray` or `torch.Tensor`')
+            # get iterator function
+            def _extract_fn(i, j): return [next(array) for k in range(i, j)]
+
+        # get the batch fn
+        def get_batch_fn(i, j):
+            batch = _extract_fn(i, j)
+            if mutator:
+                batch = mutator(batch)
+            return np.array(batch)
+
+        # copy into the dataset
+        self.fill_dataset(
+            name=name,
+            get_batch_fn=get_batch_fn,
+            batch_size=batch_size,
+            show_progress=show_progress,
+        )
+        return self
 
 
 # ========================================================================= #
@@ -68,13 +284,6 @@ log = logging.getLogger(__name__)
 #     elif not ((factor_names is None) and (factor_sizes is None)):
 #         raise ValueError('factor_names and factor_sizes must both be given together.')
 #     return None
-
-
-def _normalize_dtype(dtype: Union[torch.dtype, np.dtype, str]) -> np.dtype:
-    if isinstance(dtype, torch.dtype):
-        dtype: str = torch.finfo(torch.float32).dtype
-    return np.dtype(dtype)
-
 
 def _normalize_out_array(array: Union[torch.Tensor, np.ndarray]) -> np.ndarray:
     if isinstance(array, torch.Tensor):
