@@ -13,7 +13,7 @@ trainer:
 
 framework:
   # optimizer options
-  optimizer_name: 'adam'
+  optimizer_name: 'Adam'
   optimizer_lr: 1e-2
   optimizer_kwargs: NULL
   # dataset config options
@@ -23,10 +23,10 @@ framework:
   data_root: ${dataset.data_root}
   # loss config options
   loss_fn: 'mse'
-  loss_mode: 'self'  # self, const, invert
+  loss_mode: 'invert'  # self, const, invert
   loss_const_targ: 0.02
   # sampling config
-  sampler_name: 'same_k'   # same_k, close_far, close_factor_far_random, close_far_same_factor, same_factor, random_bb, random_swap_manhat, random_swap_manhat_norm
+  sampler_name: 'same_k'   # same_k (might be wrong!), close_far, close_factor_far_random, close_far_same_factor, same_factor, random_bb, random_swap_manhat, random_swap_manhat_norm
   # train options
   train_batch_optimizer: TRUE
   train_dataset_fp16: TRUE

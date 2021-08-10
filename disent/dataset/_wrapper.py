@@ -68,13 +68,21 @@ def groundtruth_only(func):
 
 class DisentDataset(Dataset, LengthIter):
 
-    def __init__(self, dataset: Union[Dataset, GroundTruthData], sampler: Optional[BaseDisentSampler] = None, transform=None, augment=None):
+    def __init__(
+        self,
+        dataset: Union[Dataset, GroundTruthData],
+        sampler: Optional[BaseDisentSampler] = None,
+        transform=None,
+        augment=None,
+        return_indices: bool = False,
+    ):
         super().__init__()
         # save attributes
         self._dataset = dataset
         self._sampler = SingleSampler() if (sampler is None) else sampler
         self._transform = transform
         self._augment = augment
+        self._return_indices = return_indices
         # initialize sampler
         if not self._sampler.is_init:
             self._sampler.init(dataset)
@@ -119,7 +127,7 @@ class DisentDataset(Dataset, LengthIter):
         else:
             idxs = (idx,)
         # get the observations
-        return self.dataset_get_observation(*idxs)
+        return self._dataset_get_observation(*idxs)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Single Datapoints                                                     #
@@ -184,19 +192,18 @@ class DisentDataset(Dataset, LengthIter):
     # Multiple Datapoints                                                   #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def dataset_get_observation(self, *idxs):
+    def _dataset_get_observation(self, *idxs):
         xs, xs_targ = zip(*(self.dataset_get(idx, mode='pair') for idx in idxs))
         # handle cases
-        if self._augment is None:
-            # makes 5-10% faster
-            return {
-                'x_targ': xs_targ,
-            }
-        else:
-            return {
-                'x': xs,
-                'x_targ': xs_targ,
-            }
+        obs = {'x_targ': xs_targ}
+        # 5-10% faster
+        if self._augment is not None:
+            obs['x'] = xs
+        # add indices
+        if self._return_indices:
+            obs['idx'] = idxs
+        # done!
+        return obs
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Batches                                                               #
@@ -206,12 +213,17 @@ class DisentDataset(Dataset, LengthIter):
         """Get a batch of observations X from a batch of factors Y."""
         return default_collate([self.dataset_get(idx, mode=mode) for idx in indices])
 
-    def dataset_sample_batch(self, num_samples: int, mode: str, replace: bool = False):
+    def dataset_sample_batch(self, num_samples: int, mode: str, replace: bool = False, return_indices: bool = False):
         """Sample a batch of observations X."""
         # built in np.random.choice cannot handle large values: https://github.com/numpy/numpy/issues/5299#issuecomment-497915672
         indices = random_choice_prng(len(self), size=num_samples, replace=replace)
         # return batch
-        return self.dataset_batch_from_indices(indices, mode=mode)
+        batch = self.dataset_batch_from_indices(indices, mode=mode)
+        # return values
+        if return_indices:
+            return batch, default_collate(indices)
+        else:
+            return batch
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Batches -- Ground Truth Only                                          #

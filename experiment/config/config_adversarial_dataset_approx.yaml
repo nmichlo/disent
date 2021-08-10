@@ -1,0 +1,50 @@
+defaults:
+  # runtime
+  - run_logging: wandb
+  - run_location: heartofgold
+  # plugins
+  - hydra/job_logging: colorlog
+  - hydra/hydra_logging: colorlog
+#  - hydra/launcher: submitit_slurm
+
+trainer:
+  cuda: TRUE
+  steps: 16000
+
+framework:
+  # optimizer options
+  optimizer_name: 'Adam'
+  optimizer_lr: 1e-3
+  optimizer_kwargs: NULL
+  # dataset config options
+  dataset_name: 'smallnorb'  # cars3d, smallnorb, xysquares_8x8_mini
+  dataset_num_workers: 12
+  dataset_batch_size: 256  # x3
+  data_root: ${dataset.data_root}
+  # loss config options
+  loss_fn: 'mse'
+  loss_mode: 'self'  # self, const, invert
+  loss_const_targ: 0.02
+  # loss extras
+  loss_adversarial_weight: 1000.0
+  loss_out_of_bounds_weight: 1.0   # not really needed
+  loss_same_stats_weight: 1.0      # not really needed
+  loss_similarity_weight: 1.0      # important
+  # sampling config
+  sampler_name: 'same_k'   # same_k (might be wrong!), close_far, close_factor_far_random, close_far_same_factor, same_factor, random_bb, random_swap_manhat, random_swap_manhat_norm
+  # model settings
+  model_type: 'ae_conv64'
+  model_mask_mode: 'none'  # std, diff, none
+  # logging settings
+  logging_img_scale: FALSE
+
+exp:
+  seed: 777
+  show_every_n_steps: 250
+  rel_save_dir: 'out/adversarial_data_approx/'
+
+job:
+  user: 'n_michlo'
+  project: 'exp-disentangle-dataset-approx'
+  name: ${framework.model_type}_${framework.model_mask_mode}_${framework.sampler_name}_${framework.loss_mode}_${framework.loss_fn}_C${framework.loss_const_targ}_${framework.dataset_name}_s${trainer.steps}_${framework.optimizer_name}_lr${framework.optimizer_lr}
+  partition: stampede

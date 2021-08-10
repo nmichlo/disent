@@ -21,10 +21,12 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+import inspect
 
 import torch
 from torch.nn import functional as F
 
+from disent import registry
 from disent.nn.loss.reduction import batch_loss_reduction
 
 
@@ -33,7 +35,10 @@ from disent.nn.loss.reduction import batch_loss_reduction
 # ========================================================================= #
 
 
-def make_optimizer(model: torch.nn.Module, name: str = 'sgd', lr=1e-3, weight_decay: float = 0):
+_SPECIALIZATIONS = {'sgd_m': ('sgd', dict(momentum=0.1))}
+
+
+def make_optimizer(model: torch.nn.Module, name: str = 'sgd', lr=1e-3, weight_decay: float = 0.):
     if isinstance(model, torch.nn.Module):
         params = model.parameters()
     elif isinstance(model, torch.Tensor):
@@ -41,17 +46,18 @@ def make_optimizer(model: torch.nn.Module, name: str = 'sgd', lr=1e-3, weight_de
         params = [model]
     else:
         raise TypeError(f'cannot optimize type: {type(model)}')
-    # make optimizer
-    if   name == 'sgd':   return torch.optim.SGD(params,       lr=lr, weight_decay=weight_decay)
-    elif name == 'sgd_m': return torch.optim.SGD(params,       lr=lr, weight_decay=weight_decay, momentum=0.1)
-    elif name == 'adam':  return torch.optim.Adam(params,      lr=lr, weight_decay=weight_decay)
-    elif name == 'radam':
-        import torch_optimizer
-        return torch_optimizer.RAdam(params, lr=lr, weight_decay=weight_decay)
-    elif name == 'adabelief':
-        import torch_optimizer
-        return torch_optimizer.AdaBelief(params, lr=lr, weight_decay=weight_decay)
-    else: raise KeyError(f'invalid optimizer name: {repr(name)}')
+    # get specializations
+    kwargs = {}
+    if name in _SPECIALIZATIONS:
+        name, kwargs = _SPECIALIZATIONS[name]
+    # get optimizer class
+    optimizer_cls = registry.OPTIMIZER[name]
+    optimizer_params = set(inspect.signature(optimizer_cls).parameters.keys())
+    # add optional arguments
+    if 'weight_decay' in optimizer_params:
+        kwargs['weight_decay'] = weight_decay
+    # instantiate
+    return optimizer_cls(params, lr=lr, **kwargs)
 
 
 def step_optimizer(optimizer, loss):
