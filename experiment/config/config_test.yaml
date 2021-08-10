@@ -1,0 +1,48 @@
+defaults:
+  # experiment
+  - framework: betavae
+  - model: vae_conv64
+  - optimizer: adam
+  - dataset: xyobject
+  - dataset_sampling: full_bb
+  - augment: none
+  - schedule: none
+  - metrics: test
+  # runtime
+  - run_length: test
+  - run_location: local_cpu
+  - run_callbacks: vis_slow
+  - run_logging: none
+  # plugins
+  - hydra/job_logging: colorlog
+  - hydra/hydra_logging: colorlog
+  - hydra/launcher: submitit_slurm
+
+job:
+  user: invalid
+  project: invalid
+  name: '${framework.name}:${framework.module.recon_loss}|${dataset.name}:${dataset_sampling.name}|${trainer.steps}'
+  partition: invalid
+  seed: NULL
+
+framework:
+    beta: 0.001
+    module:
+      recon_loss: mse
+      loss_reduction: mean
+    optional:
+      latent_distribution: normal  # only used by VAEs
+      overlap_loss: NULL
+
+model:
+  z_size: 25
+
+optimizer:
+  lr: 1e-3
+
+# CUSTOM DEFAULTS SPECIALIZATION
+# - This key is deleted on load and the correct key on the root config is set similar to defaults.
+# - Unfortunately this hack needs to exists as hydra does not yet support this kinda of variable interpolation in defaults.
+specializations:
+  dataset_sampler: ${dataset.data_type}_${framework.data_sample_mode}
+#  dataset_sampler: gt_dist_${framework.data_sample_mode}

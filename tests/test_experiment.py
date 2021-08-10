@@ -21,47 +21,28 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-import contextlib
+
 import os
-import sys
-from contextlib import contextmanager
+import os.path
 
+import hydra
+import experiment.run as experiment_run
+from tests.util import temp_sys_args
 
 # ========================================================================= #
-# TEST UTILS                                                                #
+# TESTS                                                                     #
 # ========================================================================= #
 
 
-@contextmanager
-def no_stdout():
-    old_stdout = sys.stdout
-    sys.stdout = open(os.devnull, 'w')
-    yield
-    sys.stdout = old_stdout
+def test_experiment_run():
+    # used by run() internally
+    experiment_run.CONFIG_PATH = os.path.join(os.path.dirname(experiment_run.__file__), 'config')
 
-
-@contextmanager
-def no_stderr():
-    old_stderr = sys.stderr
-    sys.stderr = open(os.devnull, 'w')
-    yield
-    sys.stderr = old_stderr
-
-
-@contextlib.contextmanager
-def temp_wd(new_wd):
-    old_wd = os.getcwd()
-    os.chdir(new_wd)
-    yield
-    os.chdir(old_wd)
-
-
-@contextlib.contextmanager
-def temp_sys_args(new_argv):
-    old_argv = sys.argv
-    sys.argv = new_argv
-    yield
-    sys.argv = old_argv
+    os.environ['HYDRA_FULL_ERROR'] = '1'
+    with temp_sys_args([experiment_run.__file__]):
+        # why does this not work when config is absolute?
+        hydra_main = hydra.main(config_path='config', config_name='config_test')(experiment_run.run)
+        hydra_main()
 
 
 # ========================================================================= #
