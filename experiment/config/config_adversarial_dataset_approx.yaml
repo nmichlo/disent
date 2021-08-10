@@ -26,8 +26,8 @@ framework:
   loss_mode: 'self'  # self, const, invert
   loss_const_targ: 0.02
   # loss extras
-  loss_similarity_weight: NULL
-  loss_out_of_bounds_weight: NULL
+  loss_similarity_weight: 0.1
+  loss_out_of_bounds_weight: 0.1
   # sampling config
   sampler_name: 'same_k'   # same_k, close_far, close_factor_far_random, close_far_same_factor, same_factor, random_bb, random_swap_manhat, random_swap_manhat_norm
   # train options

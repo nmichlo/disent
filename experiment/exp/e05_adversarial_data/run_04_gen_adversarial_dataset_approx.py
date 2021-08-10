@@ -25,20 +25,16 @@
 import logging
 import os
 import warnings
-from typing import Iterator
 from typing import Optional
 from typing import Sequence
 
 import torch.nn.functional as F
 import hydra
-import numpy as np
 import pytorch_lightning as pl
 import torch
 import wandb
 from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
-from torch.utils.data import IterableDataset
-from torch.utils.data.dataset import T_co
 
 import experiment.exp.util as H
 from disent.dataset import DisentDataset
@@ -82,6 +78,7 @@ class AdversarialAugmentModel(DisentModule):
         self.layers = torch.nn.Sequential(*layers)
 
     def forward(self, x):
+        assert x.ndim == 4
         # skip connection
         delta = self.layers(x)
         return x + delta
@@ -210,9 +207,9 @@ class AdversarialModel(pl.LightningModule):
         if (self.hparams.loss_out_of_bounds_weight is not None) and (self.hparams.loss_out_of_bounds_weight > 0):
             zeros = torch.zeros_like(a_y)
             loss_sim = (self.hparams.loss_out_of_bounds_weight / 6) * (
-                torch.where(a_y < 0, torch.abs(a_y), zeros).mean() + torch.where(a_y < 0, torch.abs(1-a_y), zeros) +
-                torch.where(p_y < 0, torch.abs(p_y), zeros).mean() + torch.where(p_y < 0, torch.abs(1-p_y), zeros) +
-                torch.where(n_y < 0, torch.abs(n_y), zeros).mean() + torch.where(n_y < 0, torch.abs(1-n_y), zeros)
+                torch.where(a_y < 0, -a_y, zeros).mean() + torch.where(a_y > 1, a_y-1, zeros).mean() +
+                torch.where(p_y < 0, -p_y, zeros).mean() + torch.where(p_y > 1, p_y-1, zeros).mean() +
+                torch.where(n_y < 0, -n_y, zeros).mean() + torch.where(n_y > 1, n_y-1, zeros).mean()
             )
         # final loss
         loss = loss_adv + loss_sim + loss_out
@@ -221,7 +218,7 @@ class AdversarialModel(pl.LightningModule):
             'loss_adv': loss_adv,
             'loss_out': loss_out,
             'loss_sim': loss_sim,
-        })
+        }, prog_bar=True)
         # done!
         return loss
 
@@ -242,7 +239,7 @@ class AdversarialModel(pl.LightningModule):
                     samples = self.model(samples.to(self.device)).cpu()
                     m, M = float(torch.min(samples)), float(torch.max(samples))
                     # add transform to dataset
-                    self.dataset._transform = lambda x: H.to_img((self.model(x.to(torch.float32).to(self.device)).cpu() - m) / (M - m))  # this is hacky, scale values to [0, 1] then to [0, 255]
+                    self.dataset._transform = lambda x: H.to_img((self.model(x[None, ...].to(torch.float32).to(self.device))[0].cpu() - m) / (M - m))  # this is hacky, scale values to [0, 1] then to [0, 255]
                 # get images & traversal
                 with TempNumpySeed(777):
                     image = make_image_grid(self.dataset.dataset_sample_batch(num_samples=16, mode='input'))
