@@ -146,7 +146,7 @@ class AutoEncoder(DisentLatentsModule):
         self._decoder = decoder
 
     def forward(self, x):
-        raise RuntimeError('This has been disabled')
+        raise RuntimeError(f'{self.__class__.__name__}.forward(...) has been disabled')
 
     def encode(self, x, chunk=False):
         z_raw = self._encoder(x, chunk=chunk)
