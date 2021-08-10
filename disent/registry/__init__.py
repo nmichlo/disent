@@ -29,6 +29,12 @@ classes and functions, no interfaces are included.
     the base classes from the various locations.
 
 *NB* All modules and classes are lazily imported!
+
+# TODO: this needs to be more flexible
+        - support custom registration
+        - support aliases
+        - support validation of objects
+        - add factory methods
 """
 
 # ========================================================================= #

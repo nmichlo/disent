@@ -13,7 +13,7 @@ trainer:
 
 framework:
   # optimizer options
-  optimizer_name: 'adam'
+  optimizer_name: 'Adam'
   optimizer_lr: 1e-2
   optimizer_kwargs: NULL
   # dataset config options
