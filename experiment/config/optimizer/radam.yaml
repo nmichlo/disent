@@ -1,7 +1,6 @@
-# @package _group_
-name: radam
-cls:
-  _target_: torch_optimizer.RAdam
+# @package framework.module
+optimizer: torch_optimizer.RAdam
+optimizer_kwargs:
   lr: ${optimizer.lr}
   betas: [0.9, 0.999]
   eps: 1e-8
