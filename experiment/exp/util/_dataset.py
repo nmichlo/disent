@@ -99,7 +99,7 @@ def make_dataset(name: str = 'xysquares', factors: bool = False, data_root='data
     # make dataset
     if factors:
         raise NotImplementedError('factor returning is not yet implemented in the rewrite! this needs to be fixed!')  # TODO!
-    return DisentDataset(data, sampler=GroundTruthSingleSampler() if (sampler is None) else sampler)
+    return DisentDataset(data, sampler=GroundTruthSingleSampler() if (sampler is None) else sampler, return_indices=True)
 
 
 def get_single_batch(dataloader, cuda=True):

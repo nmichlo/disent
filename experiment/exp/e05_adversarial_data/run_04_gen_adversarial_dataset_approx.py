@@ -21,13 +21,14 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-
+import contextlib
 import logging
 import os
-import warnings
 from typing import Optional
 from typing import Sequence
+from typing import Tuple
 
+import numpy as np
 import torch.nn.functional as F
 import hydra
 import pytorch_lightning as pl
@@ -37,11 +38,17 @@ from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
 
 import experiment.exp.util as H
+from disent import registry
 from disent.dataset import DisentDataset
 from disent.dataset.sampling import BaseDisentSampler
+from disent.model import AutoEncoder
+from disent.nn.activations import Swish
 from disent.nn.modules import DisentModule
+from disent.util import to_numpy
 from disent.util.lightning.callbacks import BaseCallbackPeriodic
+from disent.util.lightning.logger_util import wb_has_logger
 from disent.util.lightning.logger_util import wb_log_metrics
+from disent.util.lightning.logger_util import wb_yield_loggers
 from disent.util.seeds import seed
 from disent.util.seeds import TempNumpySeed
 from disent.util.strings.fmt import make_box_str
@@ -59,29 +66,80 @@ log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
+# Dataset Mask                                                              #
+# ========================================================================= #
+
+@torch.no_grad()
+def _sample_stacked_batch(dataset: DisentDataset) -> torch.Tensor:
+    batch = next(iter(DataLoader(dataset, batch_size=1024, num_workers=0, shuffle=True)))
+    batch = torch.cat(batch['x_targ'], dim=0)
+    return batch
+
+@torch.no_grad()
+def gen_approx_dataset_mask(dataset: DisentDataset, model_mask_mode: Optional[str]) -> Optional[torch.Tensor]:
+    if model_mask_mode in ('none', None):
+        mask = None
+    elif model_mask_mode == 'diff':
+        batch = _sample_stacked_batch(dataset)
+        mask = ~torch.all(batch[1:] == batch[0:1], dim=0)
+    elif model_mask_mode == 'std':
+        batch = _sample_stacked_batch(dataset)
+        mask = torch.std(batch, dim=0)
+        m, M = torch.min(mask), torch.max(mask)
+        mask = (mask - m) / (M - m)
+    else:
+        raise KeyError(f'invalid `model_mask_mode`: {repr(model_mask_mode)}')
+    # done
+    return mask
+
+
+# ========================================================================= #
 # adversarial dataset generator                                             #
 # ========================================================================= #
 
 
+def make_delta_model(model_type: str, x_shape: Tuple[int, ...]):
+    C, H, W = x_shape
+    # get model
+    if model_type.startswith('ae_'):
+        class AE(AutoEncoder):
+            def forward(self, x):
+                return self.decode(self.encode(x))
+        return AE(
+            encoder=registry.MODEL[f'encoder{model_type[len("ae_"):]}'](x_shape=x_shape, z_size=32, z_multiplier=1),
+            decoder=registry.MODEL[f'decoder{model_type[len("ae_"):]}'](x_shape=x_shape, z_size=32, z_multiplier=1),
+        )
+    elif model_type == 'fcn_small':
+        return torch.nn.Sequential(
+            torch.nn.ReflectionPad2d(1), torch.nn.Conv2d(in_channels=C, out_channels=5, kernel_size=3), Swish(),
+            torch.nn.ReflectionPad2d(1), torch.nn.Conv2d(in_channels=5, out_channels=7, kernel_size=3), Swish(),
+            torch.nn.ReflectionPad2d(1), torch.nn.Conv2d(in_channels=7, out_channels=9, kernel_size=3), Swish(),
+            torch.nn.ReflectionPad2d(1), torch.nn.Conv2d(in_channels=9, out_channels=7, kernel_size=3), Swish(),
+            torch.nn.ReflectionPad2d(1), torch.nn.Conv2d(in_channels=7, out_channels=5, kernel_size=3), Swish(),
+            torch.nn.ReflectionPad2d(1), torch.nn.Conv2d(in_channels=5, out_channels=C, kernel_size=3),
+        )
+    else:
+        raise KeyError(f'invalid model type: {repr(model_type)}')
+
+
 class AdversarialAugmentModel(DisentModule):
 
-    def __init__(self, channel_sizes = (3, 5, 7, 5, 3)):
+    def __init__(self, model_type: str, x_shape=(3, 64, 64), mask=None):
         super().__init__()
-        channel_sizes = list(channel_sizes)
-        assert len(channel_sizes) >= 2
         # make layers
-        layers = []
-        for inp, out in zip(channel_sizes[:-1], channel_sizes[1:]):
-            layers.append(torch.nn.Conv2d(in_channels=inp, out_channels=out, kernel_size=3, stride=1, padding=1))
-            layers.append(torch.nn.Tanh())
-        # save layers
-        self.layers = torch.nn.Sequential(*layers)
+        self.delta_model = make_delta_model(model_type=model_type, x_shape=x_shape)
+        # mask
+        if mask is not None:
+            self.register_buffer('mask', mask[None, ...])
+            assert self.mask.ndim == 4  # (1, C, H, W)
 
     def forward(self, x):
         assert x.ndim == 4
-        # skip connection
-        delta = self.layers(x)
-        return x + delta
+        # compute
+        if hasattr(self, 'mask'):
+            return x + self.delta_model(x) * self.mask
+        else:
+            return x + self.delta_model(x)
 
 
 # ========================================================================= #
@@ -107,23 +165,19 @@ class AdversarialModel(pl.LightningModule):
             loss_mode: str = 'self',
             loss_const_targ: Optional[float] = 0.1,  # replace stochastic pairwise constant loss with deterministic loss target
         # loss extras
+            loss_adversarial_weight: Optional[float] = 1.0,
+            loss_same_stats_weight: Optional[float] = 0.0,
             loss_similarity_weight: Optional[float] = 0.0,
             loss_out_of_bounds_weight: Optional[float] = 0.0,
         # sampling config
             sampler_name: str = 'close_far',
-        # train options
-            train_dataset_fp16: bool = True,
-            train_is_gpu: bool = False,
         # model settings
-            model_channel_sizes: Sequence[int] = (5, 7, 5)
+            model_type: str = 'ae_test',
+            model_mask_mode: Optional[str] = 'none',
+        # logging settings
+            logging_img_scale: bool = False,
     ):
         super().__init__()
-        # check values
-        if train_dataset_fp16 and (not train_is_gpu):
-            warnings.warn('`train_dataset_fp16=True` is not supported on CPU, overriding setting to `False`')
-            train_dataset_fp16 = False
-        self._dtype_dst = torch.float32
-        self._dtype_src = torch.float16 if train_dataset_fp16 else torch.float32
         # modify hparams
         if optimizer_kwargs is None:
             optimizer_kwargs = {}  # value used by save_hyperparameters
@@ -143,16 +197,16 @@ class AdversarialModel(pl.LightningModule):
         self.dataset = H.make_dataset(
             self.hparams.dataset_name,
             load_into_memory=False,
-            load_memory_dtype=self._dtype_src,
+            load_memory_dtype=torch.float32,
             data_root=self.hparams.data_root,
             sampler=make_adversarial_sampler(self.hparams.sampler_name),
         )
         # make the model
-        self.model = AdversarialAugmentModel(channel_sizes=[
-            self.dataset.gt_data.img_channels,
-            *self.hparams.model_channel_sizes,
-            self.dataset.gt_data.img_channels,
-        ])
+        self.model = AdversarialAugmentModel(
+            model_type=self.hparams.model_type,
+            x_shape=(self.dataset.gt_data.img_channels, 64, 64),
+            mask=gen_approx_dataset_mask(dataset=self.dataset, model_mask_mode=self.hparams.model_mask_mode),
+        )
 
     def train_dataloader(self):
         return DataLoader(
@@ -160,7 +214,6 @@ class AdversarialModel(pl.LightningModule):
             batch_size=self.hparams.dataset_batch_size,
             num_workers=self.hparams.dataset_num_workers,
             shuffle=True,
-            pin_memory=self.hparams.train_is_gpu,
         )
 
     def configure_optimizers(self):
@@ -185,15 +238,30 @@ class AdversarialModel(pl.LightningModule):
         p_y = self.model(p_x)
         n_y = self.model(n_x)
         # compute loss
-        loss_adv = adversarial_loss(
-            a_x=a_y,
-            p_x=p_y,
-            n_x=n_y,
-            loss=self.hparams.loss_fn,
-            target=self.hparams.loss_const_targ,
-            adversarial_mode=self.hparams.loss_mode,
-        )
+        loss_adv = 0
+        if (self.hparams.loss_adversarial_weight is not None) and (self.hparams.loss_adversarial_weight > 0):
+            loss_adv = self.hparams.loss_adversarial_weight * adversarial_loss(
+                a_x=a_y,
+                p_x=p_y,
+                n_x=n_y,
+                loss=self.hparams.loss_fn,
+                target=self.hparams.loss_const_targ,
+                adversarial_mode=self.hparams.loss_mode,
+            )
         # additional loss components
+        # - keep stats the same
+        loss_stats = 0
+        if (self.hparams.loss_same_stats_weight is not None) and (self.hparams.loss_same_stats_weight > 0):
+            loss_stats += (self.hparams.loss_same_stats_weight/3) * ((
+                F.mse_loss(a_y.mean(dim=[-3, -2, -1]), a_x.mean(dim=[-3, -2, -1]), reduction='mean') +
+                F.mse_loss(p_y.mean(dim=[-3, -2, -1]), p_x.mean(dim=[-3, -2, -1]), reduction='mean') +
+                F.mse_loss(n_y.mean(dim=[-3, -2, -1]), n_x.mean(dim=[-3, -2, -1]), reduction='mean')
+            ) + (
+                F.mse_loss(a_y.std(dim=[-3, -2, -1]), a_x.std(dim=[-3, -2, -1]), reduction='mean') +
+                F.mse_loss(p_y.std(dim=[-3, -2, -1]), p_x.std(dim=[-3, -2, -1]), reduction='mean') +
+                F.mse_loss(n_y.std(dim=[-3, -2, -1]), n_x.std(dim=[-3, -2, -1]), reduction='mean')
+            ))
+
         # - try keep similar to inputs
         loss_sim = 0
         if (self.hparams.loss_similarity_weight is not None) and (self.hparams.loss_similarity_weight > 0):
@@ -206,7 +274,7 @@ class AdversarialModel(pl.LightningModule):
         loss_out = 0
         if (self.hparams.loss_out_of_bounds_weight is not None) and (self.hparams.loss_out_of_bounds_weight > 0):
             zeros = torch.zeros_like(a_y)
-            loss_sim = (self.hparams.loss_out_of_bounds_weight / 6) * (
+            loss_out = (self.hparams.loss_out_of_bounds_weight / 6) * (
                 torch.where(a_y < 0, -a_y, zeros).mean() + torch.where(a_y > 1, a_y-1, zeros).mean() +
                 torch.where(p_y < 0, -p_y, zeros).mean() + torch.where(p_y > 1, p_y-1, zeros).mean() +
                 torch.where(n_y < 0, -n_y, zeros).mean() + torch.where(n_y > 1, n_y-1, zeros).mean()
@@ -215,6 +283,8 @@ class AdversarialModel(pl.LightningModule):
         loss = loss_adv + loss_sim + loss_out
         # log everything
         self.log_dict({
+            'loss': loss,
+            'loss_stats': loss_stats,
             'loss_adv': loss_adv,
             'loss_out': loss_out,
             'loss_sim': loss_sim,
@@ -226,32 +296,79 @@ class AdversarialModel(pl.LightningModule):
     # dataset                            #
     # ================================== #
 
-    def make_train_periodic_callback(self, cfg) -> BaseCallbackPeriodic:
-        class ImShowCallback(BaseCallbackPeriodic):
-            @torch.no_grad()
-            def do_step(this, trainer: pl.Trainer, pl_module: pl.LightningModule):
-                if self.dataset is None:
-                    log.warning('dataset not initialized, skipping visualisation')
-                # get dataset images
-                with TempNumpySeed(42):
-                    # get scaling values
+    def make_train_periodic_callbacks(self, cfg) -> Sequence[BaseCallbackPeriodic]:
+        # dataset transform helper
+        def make_dataset_transform():
+            # get dataset images
+            with TempNumpySeed(42):
+                # get scaling values
+                if self.hparams.logging_img_scale:
                     samples = self.dataset.dataset_sample_batch(num_samples=128, mode='raw').to(torch.float32)
                     samples = self.model(samples.to(self.device)).cpu()
                     m, M = float(torch.min(samples)), float(torch.max(samples))
-                    # add transform to dataset
-                    self.dataset._transform = lambda x: H.to_img((self.model(x[None, ...].to(torch.float32).to(self.device))[0].cpu() - m) / (M - m))  # this is hacky, scale values to [0, 1] then to [0, 255]
-                # get images & traversal
-                with TempNumpySeed(777):
-                    image = make_image_grid(self.dataset.dataset_sample_batch(num_samples=16, mode='input'))
-                    wandb_image, wandb_animation = H.visualize_dataset_traversal(self.dataset, data_mode='input', output_wandb=True)
-                # reset dataset transform
+                else:
+                    m, M = 0, 1
+                # add transform to dataset
+                def transform(x):
+                    x = x.to(device=self.device, dtype=torch.float32)
+                    x = self.model(x[None, ...])[0].cpu()
+                    x = (x - m) / (M - m)
+                    x = H.to_img(x)
+                    return x
+            return transform
+        # show image callback
+        class _BaseDatasetCallback(BaseCallbackPeriodic):
+            @TempNumpySeed(777)
+            @torch.no_grad()
+            def do_step(this, trainer: pl.Trainer, pl_module: pl.LightningModule):
+                if not wb_has_logger(trainer.logger):
+                    return
+                if self.dataset is None:
+                    log.warning('dataset not initialized, skipping visualisation')
+                    return
+                log.info(f'visualising: {this.__class__.__name__}')
+                # hack to get transformed data
+                self.dataset._transform = make_dataset_transform()
+                this._do_step(trainer, pl_module)
                 self.dataset._transform = None
+        # show image callback
+        class ImShowCallback(_BaseDatasetCallback):
+            def _do_step(this, trainer: pl.Trainer, pl_module: pl.LightningModule):
+                # get images & traversal
+                image = make_image_grid(self.dataset.dataset_sample_batch(num_samples=16, mode='input'))
+                wandb_image, wandb_animation = H.visualize_dataset_traversal(self.dataset, data_mode='input', output_wandb=True)
                 # log images to WANDB
                 wb_log_metrics(trainer.logger, {
                     'random_images': wandb.Image(image),
-                    'traversal_image': wandb_image, 'traversal_animation': wandb_animation,
+                    'traversal_image': wandb_image,
+                    'traversal_animation': wandb_animation,
                 })
-        return ImShowCallback(every_n_steps=cfg.exp.show_every_n_steps, begin_first_step=True)
+        # show stats callback
+        class StatsShowCallback(_BaseDatasetCallback):
+            def _do_step(this, trainer: pl.Trainer, pl_module: pl.LightningModule):
+                # get batches
+                batch, factors = self.dataset.dataset_sample_batch_with_factors(num_samples=512, mode='input')
+                batch = batch.to(torch.float32)
+                a_idx = torch.randint(0, len(batch), size=[4*len(batch)])
+                b_idx = torch.randint(0, len(batch), size=[4*len(batch)])
+                mask = (a_idx != b_idx)
+                # compute distances
+                deltas = to_numpy(H.pairwise_overlap(batch[a_idx[mask]], batch[b_idx[mask]], mode='mse'))
+                fdists = to_numpy(torch.abs(factors[a_idx[mask]] - factors[b_idx[mask]]).sum(dim=-1))
+                sdists = to_numpy((torch.abs(factors[a_idx[mask]] - factors[b_idx[mask]]) / to_numpy(self.dataset.gt_data.factor_sizes)[None, :]).sum(dim=-1))
+                # log to wandb
+                from matplotlib import pyplot as plt
+                plt.scatter(fdists, deltas)
+                table = wandb.Table(columns=['fdists', 'deltas'], data=np.transpose([fdists, deltas]))
+                wandb.log({
+                    'fdist_vs_overlap': wandb.plot.scatter(table=table, x='fdists', y='deltas', title='Factor Dists vs. Overlap',),
+                    'fdist_vs_overlap2': plt,
+                }, step=self.trainer.global_step)
+        # done!
+        return [
+            ImShowCallback(every_n_steps=cfg.exp.show_every_n_steps, begin_first_step=True),
+            StatsShowCallback(every_n_steps=cfg.exp.show_every_n_steps, begin_first_step=True),
+        ]
 
 
 # ========================================================================= #
@@ -297,11 +414,8 @@ def run_gen_adversarial_dataset(cfg):
     # | | | | | | | | | | | | | | | #
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # make framework
-    framework = AdversarialModel(
-        train_is_gpu=cfg.trainer.cuda,
-        **cfg.framework
-    )
-    callbacks.append(framework.make_train_periodic_callback(cfg))
+    framework = AdversarialModel(**cfg.framework)
+    callbacks.extend(framework.make_train_periodic_callbacks(cfg))
     # train
     trainer = pl.Trainer(
         log_every_n_steps=cfg.logging.setdefault('log_every_n_steps', 50),

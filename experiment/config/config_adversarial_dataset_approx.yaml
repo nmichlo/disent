@@ -1,6 +1,6 @@
 defaults:
   # runtime
-  - run_logging: wandb
+  - run_logging: wandb_fast
   - run_location: heartofgold
   # plugins
   - hydra/job_logging: colorlog
@@ -9,40 +9,42 @@ defaults:
 
 trainer:
   cuda: TRUE
-  steps: 1601
+  steps: 16001
 
 framework:
   # optimizer options
   optimizer_name: 'Adam'
-  optimizer_lr: 1e-2
+  optimizer_lr: 1e-3
   optimizer_kwargs: NULL
   # dataset config options
-  dataset_name: 'cars3d'  # cars3d, smallnorb, xysquares_8x8_mini
+  dataset_name: 'smallnorb'  # cars3d, smallnorb, xysquares_8x8_mini
   dataset_num_workers: 12
-  dataset_batch_size: 1024  # x3
+  dataset_batch_size: 256  # x3
   data_root: ${dataset.data_root}
   # loss config options
   loss_fn: 'mse'
   loss_mode: 'self'  # self, const, invert
   loss_const_targ: 0.02
   # loss extras
-  loss_similarity_weight: 0.1
-  loss_out_of_bounds_weight: 0.1
+  loss_adversarial_weight: 1000.0
+  loss_out_of_bounds_weight: 1.0   # not really needed
+  loss_same_stats_weight: 1.0      # not really needed
+  loss_similarity_weight: 1.0      # important
   # sampling config
-  sampler_name: 'same_k'   # same_k, close_far, close_factor_far_random, close_far_same_factor, same_factor, random_bb, random_swap_manhat, random_swap_manhat_norm
-  # train options
-  train_dataset_fp16: TRUE
-  # train_is_gpu: TRUE  # HANDLED BY PROGRAM
+  sampler_name: 'same_k'   # same_k (might be wrong!), close_far, close_factor_far_random, close_far_same_factor, same_factor, random_bb, random_swap_manhat, random_swap_manhat_norm
   # model settings
-  model_channel_sizes: [5, 7, 5]
+  model_type: 'ae_conv64'
+  model_mask_mode: 'none'  # std, diff, none
+  # logging settings
+  logging_img_scale: FALSE
 
 exp:
   seed: 777
-  show_every_n_steps: 200
+  show_every_n_steps: 250
   rel_save_dir: 'out/adversarial_data'
 
 job:
   user: 'n_michlo'
   project: 'exp-disentangle-dataset-approx'
-  name: ${framework.sampler_name}_${framework.loss_mode}_${framework.loss_fn}_C${framework.loss_const_targ}_${framework.dataset_name}_s${trainer.steps}_${framework.optimizer_name}_lr${framework.optimizer_lr}
+  name: ${framework.model_type}_${framework.model_mask_mode}_${framework.sampler_name}_${framework.loss_mode}_${framework.loss_fn}_C${framework.loss_const_targ}_${framework.dataset_name}_s${trainer.steps}_${framework.optimizer_name}_lr${framework.optimizer_lr}
   partition: stampede

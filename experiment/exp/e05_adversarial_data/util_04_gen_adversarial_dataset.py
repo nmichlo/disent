@@ -94,6 +94,8 @@ class AdversarialSampler_SameK(BaseDisentSampler):
         p_factors = self._sample_shared(a_factors, shared_mask)
         n_factors = self._sample_shared(a_factors, shared_mask)
         # swap values if wrong
+        # TODO: this might give errors!
+        #       - one factor might be less than another
         if np.sum(np.abs(a_factors - p_factors)) > np.sum(np.abs(a_factors - n_factors)):
             p_factors, n_factors = n_factors, p_factors
         # check values
