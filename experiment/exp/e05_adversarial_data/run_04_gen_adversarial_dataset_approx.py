@@ -27,7 +27,9 @@ import os
 import warnings
 from typing import Iterator
 from typing import Optional
+from typing import Sequence
 
+import torch.nn.functional as F
 import hydra
 import numpy as np
 import pytorch_lightning as pl
@@ -41,10 +43,9 @@ from torch.utils.data.dataset import T_co
 import experiment.exp.util as H
 from disent.dataset import DisentDataset
 from disent.dataset.sampling import BaseDisentSampler
-from disent.dataset.util.hdf5 import hdf5_resave_file
+from disent.nn.modules import DisentModule
 from disent.util.lightning.callbacks import BaseCallbackPeriodic
 from disent.util.lightning.logger_util import wb_log_metrics
-from disent.util.math.random import random_choice_prng
 from disent.util.seeds import seed
 from disent.util.seeds import TempNumpySeed
 from disent.util.strings.fmt import make_box_str
@@ -59,6 +60,31 @@ from experiment.util.run_utils import log_error_and_exit
 
 
 log = logging.getLogger(__name__)
+
+
+# ========================================================================= #
+# adversarial dataset generator                                             #
+# ========================================================================= #
+
+
+class AdversarialAugmentModel(DisentModule):
+
+    def __init__(self, channel_sizes = (3, 5, 7, 5, 3)):
+        super().__init__()
+        channel_sizes = list(channel_sizes)
+        assert len(channel_sizes) >= 2
+        # make layers
+        layers = []
+        for inp, out in zip(channel_sizes[:-1], channel_sizes[1:]):
+            layers.append(torch.nn.Conv2d(in_channels=inp, out_channels=out, kernel_size=3, stride=1, padding=1))
+            layers.append(torch.nn.Tanh())
+        # save layers
+        self.layers = torch.nn.Sequential(*layers)
+
+    def forward(self, x):
+        # skip connection
+        delta = self.layers(x)
+        return x + delta
 
 
 # ========================================================================= #
@@ -83,12 +109,16 @@ class AdversarialModel(pl.LightningModule):
             loss_fn: str = 'mse',
             loss_mode: str = 'self',
             loss_const_targ: Optional[float] = 0.1,  # replace stochastic pairwise constant loss with deterministic loss target
+        # loss extras
+            loss_similarity_weight: Optional[float] = 0.0,
+            loss_out_of_bounds_weight: Optional[float] = 0.0,
         # sampling config
             sampler_name: str = 'close_far',
         # train options
-            train_batch_optimizer: bool = True,
             train_dataset_fp16: bool = True,
             train_is_gpu: bool = False,
+        # model settings
+            model_channel_sizes: Sequence[int] = (5, 7, 5)
     ):
         super().__init__()
         # check values
@@ -99,13 +129,13 @@ class AdversarialModel(pl.LightningModule):
         self._dtype_src = torch.float16 if train_dataset_fp16 else torch.float32
         # modify hparams
         if optimizer_kwargs is None:
-            optimizer_kwargs = {}
+            optimizer_kwargs = {}  # value used by save_hyperparameters
         # save hparams
         self.save_hyperparameters()
         # variables
         self.dataset: DisentDataset = None
-        self.array: torch.Tensor = None
         self.sampler: BaseDisentSampler = None
+        self.model: DisentModule = None
 
     # ================================== #
     # setup                              #
@@ -113,149 +143,112 @@ class AdversarialModel(pl.LightningModule):
 
     def prepare_data(self) -> None:
         # create dataset
-        self.dataset = H.make_dataset(self.hparams.dataset_name, load_into_memory=True, load_memory_dtype=self._dtype_src, data_root=self.hparams.data_root)
-        # load dataset into memory as fp16
-        if self.hparams.train_batch_optimizer:
-            self.array = self.dataset.gt_data.array
-        else:
-            self.array = torch.nn.Parameter(self.dataset.gt_data.array, requires_grad=True)  # move with model to correct device
-        # create sampler
-        self.sampler = make_adversarial_sampler(self.hparams.sampler_name)
-        self.sampler.init(self.dataset.gt_data)
+        self.dataset = H.make_dataset(
+            self.hparams.dataset_name,
+            load_into_memory=False,
+            load_memory_dtype=self._dtype_src,
+            data_root=self.hparams.data_root,
+            sampler=make_adversarial_sampler(self.hparams.sampler_name),
+        )
+        # make the model
+        self.model = AdversarialAugmentModel(channel_sizes=[
+            self.dataset.gt_data.img_channels,
+            *self.hparams.model_channel_sizes,
+            self.dataset.gt_data.img_channels,
+        ])
 
-    def _make_optimizer(self, params):
+    def train_dataloader(self):
+        return DataLoader(
+            self.dataset,
+            batch_size=self.hparams.dataset_batch_size,
+            num_workers=self.hparams.dataset_num_workers,
+            shuffle=True,
+            pin_memory=self.hparams.train_is_gpu,
+        )
+
+    def configure_optimizers(self):
         return H.make_optimizer(
-            params,
+            self.model,
             name=self.hparams.optimizer_name,
             lr=self.hparams.optimizer_lr,
             **self.hparams.optimizer_kwargs,
         )
 
-    def configure_optimizers(self):
-        if self.hparams.train_batch_optimizer:
-            return None
-        else:
-            return self._make_optimizer(self.array)
-
     # ================================== #
     # train step                         #
     # ================================== #
 
+    def forward(self, x):
+        return self.model(x)
+
     def training_step(self, batch, batch_idx):
-        # get indices
-        (a_idx, p_idx, n_idx) = batch['idx']
-        # generate batches & transfer to correct device
-        if self.hparams.train_batch_optimizer:
-            (a_x, p_x, n_x), (params, param_idxs, optimizer) = self._load_batch(a_idx, p_idx, n_idx)
-        else:
-            a_x = self.array[a_idx]
-            p_x = self.array[p_idx]
-            n_x = self.array[n_idx]
+        (a_x, p_x, n_x) = batch['x_targ']
+        # feed forward
+        a_y = self.model(a_x)
+        p_y = self.model(p_x)
+        n_y = self.model(n_x)
         # compute loss
-        loss = adversarial_loss(
-            a_x=a_x,
-            p_x=p_x,
-            n_x=n_x,
+        loss_adv = adversarial_loss(
+            a_x=a_y,
+            p_x=p_y,
+            n_x=n_y,
             loss=self.hparams.loss_fn,
             target=self.hparams.loss_const_targ,
             adversarial_mode=self.hparams.loss_mode,
         )
-        # log results
+        # additional loss components
+        # - try keep similar to inputs
+        loss_sim = 0
+        if (self.hparams.loss_similarity_weight is not None) and (self.hparams.loss_similarity_weight > 0):
+            loss_sim = (self.hparams.loss_similarity_weight / 3) * (
+                F.mse_loss(a_y, a_x, reduction='mean') +
+                F.mse_loss(p_y, p_x, reduction='mean') +
+                F.mse_loss(n_y, n_x, reduction='mean')
+            )
+        # - regularize if out of bounds
+        loss_out = 0
+        if (self.hparams.loss_out_of_bounds_weight is not None) and (self.hparams.loss_out_of_bounds_weight > 0):
+            zeros = torch.zeros_like(a_y)
+            loss_sim = (self.hparams.loss_out_of_bounds_weight / 6) * (
+                torch.where(a_y < 0, torch.abs(a_y), zeros).mean() + torch.where(a_y < 0, torch.abs(1-a_y), zeros) +
+                torch.where(p_y < 0, torch.abs(p_y), zeros).mean() + torch.where(p_y < 0, torch.abs(1-p_y), zeros) +
+                torch.where(n_y < 0, torch.abs(n_y), zeros).mean() + torch.where(n_y < 0, torch.abs(1-n_y), zeros)
+            )
+        # final loss
+        loss = loss_adv + loss_sim + loss_out
+        # log everything
         self.log_dict({
-            'loss': loss,
-            'adv_loss': loss,
-        }, prog_bar=True)
+            'loss_adv': loss_adv,
+            'loss_out': loss_out,
+            'loss_sim': loss_sim,
+        })
         # done!
-        if self.hparams.train_batch_optimizer:
-            self._update_with_batch(loss, params, param_idxs, optimizer)
-            return None
-        else:
-            return loss
-
-    # ================================== #
-    # optimizer for each batch mode      #
-    # ================================== #
-
-    def _load_batch(self, a_idx, p_idx, n_idx):
-        with torch.no_grad():
-            # get all indices
-            all_indices = np.stack([
-                a_idx.detach().cpu().numpy(),
-                p_idx.detach().cpu().numpy(),
-                n_idx.detach().cpu().numpy(),
-            ], axis=0)
-            # find unique values
-            param_idxs, inverse_indices = np.unique(all_indices.flatten(), return_inverse=True)
-            inverse_indices = inverse_indices.reshape(all_indices.shape)
-            # load data with values & move to gpu
-            # - for batch size (256*3, 3, 64, 64) with num_workers=0, this is 5% faster
-            #   than .to(device=self.device, dtype=DST_DTYPE) in one call, as we reduce
-            #   the memory overhead in the transfer. This does slightly increase the
-            #   memory usage on the target device.
-            # - for batch size (1024*3, 3, 64, 64) with num_workers=12, this is 15% faster
-            #   but consumes slightly more memory: 2492MiB vs. 2510MiB
-            params = self.array[param_idxs].to(device=self.device).to(dtype=self._dtype_dst)
-        # make params and optimizer
-        params = torch.nn.Parameter(params, requires_grad=True)
-        optimizer = self._make_optimizer(params)
-        # get batches -- it is ok to index by a numpy array without conversion
-        a_x = params[inverse_indices[0, :]]
-        p_x = params[inverse_indices[1, :]]
-        n_x = params[inverse_indices[2, :]]
-        # return values
-        return (a_x, p_x, n_x), (params, param_idxs, optimizer)
-
-    def _update_with_batch(self, loss, params, param_idxs, optimizer):
-        with TempNumpySeed(777):
-            std, mean = torch.std_mean(self.array[np.random.randint(0, len(self.array), size=128)])
-            std, mean = std.cpu().numpy().tolist(), mean.cpu().numpy().tolist()
-            self.log_dict({'approx_mean': mean, 'approx_std': std}, prog_bar=True)
-        # backprop
-        H.step_optimizer(optimizer, loss)
-        # save values to dataset
-        with torch.no_grad():
-            self.array[param_idxs] = params.detach().cpu().to(self._dtype_src)
+        return loss
 
     # ================================== #
     # dataset                            #
     # ================================== #
 
-    def train_dataloader(self):
-        # sampling in dataloader
-        sampler = self.sampler
-        data_len = len(self.dataset.gt_data)
-        # generate the indices in a multi-threaded environment -- this is not deterministic if num_workers > 0
-        class SamplerIndicesDataset(IterableDataset):
-            def __getitem__(self, index) -> T_co:
-                raise RuntimeError('this should never be called on an iterable dataset')
-            def __iter__(self) -> Iterator[T_co]:
-                while True:
-                    yield {'idx': sampler(np.random.randint(0, data_len))}
-        # create data loader!
-        return DataLoader(
-            SamplerIndicesDataset(),
-            batch_size=self.hparams.dataset_batch_size,
-            num_workers=self.hparams.dataset_num_workers,
-            shuffle=False,
-        )
-
     def make_train_periodic_callback(self, cfg) -> BaseCallbackPeriodic:
         class ImShowCallback(BaseCallbackPeriodic):
+            @torch.no_grad()
             def do_step(this, trainer: pl.Trainer, pl_module: pl.LightningModule):
                 if self.dataset is None:
                     log.warning('dataset not initialized, skipping visualisation')
                 # get dataset images
-                with TempNumpySeed(777):
+                with TempNumpySeed(42):
                     # get scaling values
                     samples = self.dataset.dataset_sample_batch(num_samples=128, mode='raw').to(torch.float32)
+                    samples = self.model(samples.to(self.device)).cpu()
                     m, M = float(torch.min(samples)), float(torch.max(samples))
                     # add transform to dataset
-                    self.dataset._transform = lambda x: H.to_img((x.to(torch.float32) - m) / (M - m))  # this is hacky, scale values to [0, 1] then to [0, 255]
-                    # get images
+                    self.dataset._transform = lambda x: H.to_img((self.model(x.to(torch.float32).to(self.device)).cpu() - m) / (M - m))  # this is hacky, scale values to [0, 1] then to [0, 255]
+                # get images & traversal
+                with TempNumpySeed(777):
                     image = make_image_grid(self.dataset.dataset_sample_batch(num_samples=16, mode='input'))
-                # get augmented traversals
-                with torch.no_grad():
                     wandb_image, wandb_animation = H.visualize_dataset_traversal(self.dataset, data_mode='input', output_wandb=True)
+                # reset dataset transform
+                self.dataset._transform = None
                 # log images to WANDB
                 wb_log_metrics(trainer.logger, {
                     'random_images': wandb.Image(image),
@@ -326,30 +319,31 @@ def run_gen_adversarial_dataset(cfg):
         checkpoint_callback=False,
     )
     trainer.fit(framework)
+
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     save_path = os.path.join(save_dir, f'{cfg.job.name}.h5')
     log.info(f'saving dataset to path: {repr(save_path)}')
     # compute standard deviation when saving and scale so
     # that we have mean=0 and std=1 of the saved data!
-    with TempNumpySeed(777):
-        std, mean = torch.std_mean(framework.array[random_choice_prng(len(framework.array), size=2048, replace=False)])
-        std, mean = float(std), float(mean)
-        log.info(f'normalizing saved dataset of shape: {tuple(framework.array.shape)} and dtype: {framework.array.dtype} with mean: {repr(mean)} and std: {repr(std)}')
-    # save dataset
-    hdf5_resave_file(
-        framework.array,
-        out_path=save_path,
-        dataset_name='data',
-        chunk_size=(1, *framework.dataset.gt_data.img_shape),
-        compression='gzip',
-        compression_lvl=9,
-        out_dtype='float16',
-        out_mutator=lambda x: np.moveaxis((x.astype('float32') - mean) / std, -3, -1).astype('float16'),
-        obs_shape=framework.dataset.gt_data.img_shape,
-        write_mode='atomic_w'
-    )
-    log.info('done generating and saving adversarial dataset!')
-    # finish
+    # with TempNumpySeed(777):
+    #     std, mean = torch.std_mean(framework.array[random_choice_prng(len(framework.array), size=2048, replace=False)])
+    #     std, mean = float(std), float(mean)
+    #     log.info(f'normalizing saved dataset of shape: {tuple(framework.array.shape)} and dtype: {framework.array.dtype} with mean: {repr(mean)} and std: {repr(std)}')
+    # # save dataset
+    # hdf5_resave_file(
+    #     framework.array,
+    #     out_path=save_path,
+    #     dataset_name='data',
+    #     chunk_size=(1, *framework.dataset.gt_data.img_shape),
+    #     compression='gzip',
+    #     compression_lvl=9,
+    #     out_dtype='float16',
+    #     out_mutator=lambda x: np.moveaxis((x.astype('float32') - mean) / std, -3, -1).astype('float16'),
+    #     obs_shape=framework.dataset.gt_data.img_shape,
+    #     write_mode='atomic_w'
+    # )
+    # log.info('done generating and saving adversarial dataset!')
+    # # finish
 
 
 # ========================================================================= #
@@ -374,7 +368,7 @@ if __name__ == '__main__':
     # - batch_optimizer=True,  gpu=True,  fp16=True   : [2510MiB/5932MiB, 4.10/11.7G, 4.75it/s, 20% gpu util] (to(device).to(dtype))
     # - batch_optimizer=True,  gpu=True,  fp16=True   : [2492MiB/5932MiB, 4.10/11.7G, 4.12it/s, 19% gpu util] (to(device, dtype))
 
-    @hydra.main(config_path=os.path.join(ROOT_DIR, 'experiment/config'), config_name="config_adversarial_dataset")
+    @hydra.main(config_path=os.path.join(ROOT_DIR, 'experiment/config'), config_name="config_adversarial_dataset_approx")
     def main(cfg):
         try:
             run_gen_adversarial_dataset(cfg)

@@ -81,7 +81,7 @@ def load_dataset_into_memory(gt_data: GroundTruthData, obs_shape: Optional[Tuple
 # ========================================================================= #
 
 
-def make_dataset(name: str = 'xysquares', factors: bool = False, data_root='data/dataset', load_into_memory: bool = False, load_memory_dtype=torch.float16) -> DisentDataset:
+def make_dataset(name: str = 'xysquares', factors: bool = False, data_root='data/dataset', load_into_memory: bool = False, load_memory_dtype=torch.float16, sampler=None) -> DisentDataset:
     # make data
     if   name == 'xysquares':      data = XYSquaresData(transform=ToStandardisedTensor())
     elif name == 'xysquares_1x1':  data = XYSquaresData(square_size=1, transform=ToStandardisedTensor())
@@ -99,7 +99,7 @@ def make_dataset(name: str = 'xysquares', factors: bool = False, data_root='data
     # make dataset
     if factors:
         raise NotImplementedError('factor returning is not yet implemented in the rewrite! this needs to be fixed!')  # TODO!
-    return DisentDataset(data, sampler=GroundTruthSingleSampler())
+    return DisentDataset(data, sampler=GroundTruthSingleSampler() if (sampler is None) else sampler)
 
 
 def get_single_batch(dataloader, cuda=True):
