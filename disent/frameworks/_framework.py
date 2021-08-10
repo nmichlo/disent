@@ -38,6 +38,7 @@ from typing import Union
 import logging
 import torch
 
+from disent import registry
 from disent.schedule import Schedule
 from disent.nn.modules import DisentLightningModule
 
@@ -73,26 +74,6 @@ class DisentConfigurable(object):
 
 
 # ========================================================================= #
-# optimizers                                                                #
-# ========================================================================= #
-
-
-def _get_optimizer_list() -> Dict[str, Type[torch.optim.Optimizer]]:
-    # generate list of optimizers from torch
-    # - optimizer names are lowercase, eg. adam & rmsprop
-    optimizers = {}
-    for k in dir(torch.optim):
-        optim = getattr(torch.optim, k)
-        if isinstance(optim, type) and issubclass(optim, torch.optim.Optimizer) and (optim != torch.optim.Optimizer):
-            optimizers[k.lower()] = optim
-    return optimizers
-
-
-# list of optimizers
-_OPTIMIZERS = _get_optimizer_list()
-
-
-# ========================================================================= #
 # framework                                                                 #
 # ========================================================================= #
 
@@ -115,9 +96,9 @@ class DisentFramework(DisentConfigurable, DisentLightningModule):
         super().__init__(cfg=cfg)
         # get the optimizer
         if isinstance(self.cfg.optimizer, str):
-            if self.cfg.optimizer not in _OPTIMIZERS:
-                raise KeyError(f'invalid optimizer: {repr(self.cfg.optimizer)}, valid optimizers are: {sorted(_OPTIMIZERS.keys())}, otherwise pass a torch.optim.Optimizer class instead.')
-            self.cfg.optimizer = _OPTIMIZERS[self.cfg.optimizer]
+            if self.cfg.optimizer not in registry.OPTIMIZER:
+                raise KeyError(f'invalid optimizer: {repr(self.cfg.optimizer)}, valid optimizers are: {sorted(registry.OPTIMIZER)}, otherwise pass a torch.optim.Optimizer class instead.')
+            self.cfg.optimizer = registry.OPTIMIZER[self.cfg.optimizer]
         # check the optimizer values
         assert isinstance(self.cfg.optimizer, type) and issubclass(self.cfg.optimizer, torch.optim.Optimizer) and (self.cfg.optimizer != torch.optim.Optimizer)
         assert isinstance(self.cfg.optimizer_kwargs, dict) or (self.cfg.optimizer_kwargs is None), f'invalid optimizer_kwargs type, got: {type(self.cfg.optimizer_kwargs)}'
