@@ -43,13 +43,13 @@ from experiment.exp.util._dataset import NonNormalisedFactors
 
 
 # TODO: similar functions exist: output_image, to_img, to_imgs, reconstructions_to_images
-def to_img(x: torch.Tensor, scale=False, to_cpu=True, move_channels=True):
+def to_img(x: torch.Tensor, scale=False, to_cpu=True, move_channels=True) -> torch.Tensor:
     assert x.ndim == 3, 'image must have 3 dimensions: (C, H, W)'
     return to_imgs(x, scale=scale, to_cpu=to_cpu, move_channels=move_channels)
 
 
 # TODO: similar functions exist: output_image, to_img, to_imgs, reconstructions_to_images
-def to_imgs(x: torch.Tensor, scale=False, to_cpu=True, move_channels=True):
+def to_imgs(x: torch.Tensor, scale=False, to_cpu=True, move_channels=True) -> torch.Tensor:
     # (..., C, H, W)
     assert x.ndim >= 3, 'image must have 3 or more dimensions: (..., C, H, W)'
     assert x.dtype in {torch.float16, torch.float32, torch.float64, torch.complex32, torch.complex64}, f'unsupported dtype: {x.dtype}'

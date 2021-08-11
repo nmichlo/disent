@@ -33,7 +33,6 @@ from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import Literal
-from typing import NoReturn
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
@@ -42,7 +41,7 @@ from typing import Union
 import h5py
 import numpy as np
 import torch
-from torch.utils.data import Dataset
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from disent.util.strings import colors as c
@@ -53,6 +52,20 @@ from disent.util.strings.fmt import bytes_to_human
 
 
 log = logging.getLogger(__name__)
+
+
+# TODO: this file needs to be cleaned up!!!
+# TODO: this file needs to be cleaned up!!!
+# TODO: this file needs to be cleaned up!!!
+# TODO: this file needs to be cleaned up!!!
+# TODO: this file needs to be cleaned up!!!
+# TODO: this file needs to be cleaned up!!!
+# TODO: this file needs to be cleaned up!!!
+# TODO: this file needs to be cleaned up!!!
+# TODO: this file needs to be cleaned up!!!
+# TODO: this file needs to be cleaned up!!!
+# TODO: this file needs to be cleaned up!!!
+# TODO: this file needs to be cleaned up!!!
 
 
 # ========================================================================= #
@@ -83,17 +96,14 @@ def _normalize_chunks(chunks: ChunksType, shape: Tuple[int, ...]):
         raise ValueError(f'invalid chunks value: {repr(chunks)}')
 
 
-def _normalize_compression(compression: bool, compression_lvl: int):
+def _normalize_compression(compression_lvl: Optional[int]):
+    if compression_lvl is None:
+        return None, None  # compression, compression_lvl
     # check compression level
     if compression_lvl not in (0, 1, 2, 3, 4, 5, 6, 7, 8, 9):
         raise ValueError('compression_lvl must be an interger in the range [0, 9]')
     # get values
-    if compression:
-        compression, compression_lvl = 'gzip', compression_lvl
-    else:
-        compression, compression_lvl = None, None
-    # return values
-    return compression, compression_lvl
+    return 'gzip', compression_lvl  # compression, compression_lvl
 
 
 # ========================================================================= #
@@ -118,7 +128,7 @@ def h5_assert_deterministic(h5_file: h5py.File) -> h5py.File:
 
 
 @contextlib.contextmanager
-def h5_open(path: str, mode: str = 'atomic_w') -> h5py.File:
+def h5_open(path: str, mode: str = 'r') -> h5py.File:
     assert str.endswith(path, '.h5'), f'hdf5 file path does not end with extension: `.h5`'
     # get atomic context manager
     if mode == 'atomic_w':
@@ -147,12 +157,11 @@ class H5Builder(object):
         shape: Tuple[int, ...],
         dtype: AnyDType,
         chunk_shape: ChunksType = 'batch',
-        compression: bool = True,
-        compression_lvl: int = 9,
+        compression_lvl: Optional[int] = 9,
         attrs: Optional[Dict[str, Any]] = None
     ) -> 'H5Builder':
         # normalize chunk_shape
-        compression, compression_lvl = _normalize_compression(compression=compression, compression_lvl=compression_lvl)
+        compression, compression_lvl = _normalize_compression(compression_lvl=compression_lvl)
         # create new dataset
         dataset = self._h5_file.create_dataset(
             name=name,
@@ -177,9 +186,8 @@ class H5Builder(object):
         # add atttributes & convert
         if attrs is not None:
             for key, value in attrs.items():
-                assert isinstance(value, (float, int, str)), f'attr value types other than: `str`, `float` and `int` are not yet supported, got: {type(value)}'
                 if isinstance(value, str):
-                    value = np.string_(value)
+                    value = np.array(value, dtype='S')
                 dataset.attrs[key] = value
         # done!
         return self
@@ -191,7 +199,7 @@ class H5Builder(object):
         batch_size: Union[int, Literal['auto']] = 'auto',
         show_progress: bool = False,
     ) -> 'H5Builder':
-        dataset = self._h5_file[name]
+        dataset: h5py.Dataset = self._h5_file[name]
         # determine batch size for copying data
         # get smallest multiple less than 32, otherwise original number
         if batch_size == 'auto':
@@ -220,6 +228,7 @@ class H5Builder(object):
                 # save the batch & update progress
                 dataset[i:j] = batch
                 progress.update(j-i)
+        # done!
         return self
 
     def fill_dataset_from_array(
@@ -228,7 +237,7 @@ class H5Builder(object):
         array,
         batch_size: Union[int, Literal['auto']] = 'auto',
         show_progress: bool = False,
-        mutator: Optional[Callable[[np.ndarray], np.ndarray]] = None
+        mutator: Optional[Callable[[np.ndarray], np.ndarray]] = None,
     ) -> 'H5Builder':
         # get the array extractor
         if isinstance(array, torch.Tensor):
@@ -264,6 +273,80 @@ class H5Builder(object):
             show_progress=show_progress,
         )
         return self
+
+    def fill_dataset_from_batches(
+        self,
+        name: str,
+        batch_iter,
+        batch_size: Union[int, Literal['auto']] = 'auto',
+        show_progress: bool = False,
+        mutator: Optional[Callable[[Any], np.ndarray]] = None,
+    ) -> 'H5Builder':
+        try:
+            batches = iter(batch_iter)
+        except:
+            raise TypeError(f'`fill_dataset_from_batches` must have iterable `batch_iter`, got: {type(batch_iter)}')
+        # produce items
+        def get_batch_fn(i, j):
+            batch = next(batches)
+            assert len(batch) == (j-i)
+            if mutator:
+                batch = mutator(batch)
+            return np.array(batch)
+        # copy into the dataset
+        self.fill_dataset(
+            name=name,
+            get_batch_fn=get_batch_fn,
+            batch_size=batch_size,
+            show_progress=show_progress,
+        )
+        return self
+
+    def add_dataset_from_gt_data(
+        self,
+        data: Union['DisentDataset', 'GroundTruthData'],
+        mutator: Optional[Callable[[Any], np.ndarray]] = None,
+        img_shape: Tuple[Optional[int], ...] = (None, None, None),  # None items are automatically found
+        batch_size: int = 32,
+        compression_lvl: Optional[int] = 9,
+        num_workers=os.cpu_count(),
+        show_progress: bool = True,
+    ):
+        from disent.dataset import DisentDataset
+        from disent.dataset.data import GroundTruthData
+        # get dataset
+        if isinstance(data, DisentDataset): gt_data = data.gt_data
+        elif isinstance(data, GroundTruthData): gt_data = data
+        else: raise TypeError(f'invalid data type: {type(data)}, must be {DisentDataset} or {GroundTruthData}')
+        # magic vars
+        name, dtype = 'data', 'uint8'
+        # process image shape
+        H, W, C = img_shape
+        if H is None: H = gt_data.img_shape[0]
+        if W is None: W = gt_data.img_shape[1]
+        if C is None: C = gt_data.img_shape[2]
+        # make the empty dataset
+        self.add_dataset(
+            name=name,
+            shape=(len(gt_data), H, W, C),
+            dtype=dtype,
+            chunk_shape='batch',
+            compression_lvl=compression_lvl,
+            attrs=dict(
+                dataset_name=gt_data.name,
+                dataset_cls_name=gt_data.__class__.__name__,
+                factor_sizes=np.array(gt_data.factor_sizes, dtype='uint'),
+                factor_names=np.array(gt_data.factor_names, dtype='S'),
+            )
+        )
+        # fill the dataset!
+        self.fill_dataset_from_batches(
+            name=name,
+            batch_iter=DataLoader(gt_data, batch_size=batch_size, shuffle=False, num_workers=num_workers, drop_last=False),
+            batch_size=batch_size,
+            show_progress=show_progress,
+            mutator=mutator,
+        )
 
 
 # ========================================================================= #
