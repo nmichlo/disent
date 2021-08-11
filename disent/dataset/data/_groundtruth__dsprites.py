@@ -65,7 +65,7 @@ class DSpritesData(Hdf5GroundTruthData):
         hdf5_dataset_name='imgs',
         hdf5_chunk_size=(1, 64, 64, 1),
         hdf5_dtype='uint8',
-        hdf5_mutator=lambda x: x * 255,
+        hdf5_mutator=lambda x: (x * 255)[..., None],  # data is of shape (-1, 64, 64), so we add the channel dimension
         hdf5_obs_shape=(64, 64, 1),
     )
 
