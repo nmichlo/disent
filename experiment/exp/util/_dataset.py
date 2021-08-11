@@ -37,6 +37,7 @@ from torch.utils.data import Sampler
 
 from disent.dataset import DisentDataset
 from disent.dataset.data import Cars3dData
+from disent.dataset.data import DSpritesData
 from disent.dataset.data import GroundTruthData
 from disent.dataset.data import Shapes3dData
 from disent.dataset.data import SmallNorbData
@@ -82,6 +83,7 @@ def load_dataset_into_memory(gt_data: GroundTruthData, obs_shape: Optional[Tuple
 
 
 def make_dataset(name: str = 'xysquares', factors: bool = False, data_root='data/dataset', load_into_memory: bool = False, load_memory_dtype=torch.float16, sampler=None) -> DisentDataset:
+    # TODO: replace with registry!
     # make data
     if   name == 'xysquares':      data = XYSquaresData(transform=ToStandardisedTensor())
     elif name == 'xysquares_1x1':  data = XYSquaresData(square_size=1, transform=ToStandardisedTensor())
@@ -92,6 +94,7 @@ def make_dataset(name: str = 'xysquares', factors: bool = False, data_root='data
     elif name == 'cars3d':         data = Cars3dData(data_root=data_root,    prepare=True, transform=ToStandardisedTensor(size=64))
     elif name == 'smallnorb':      data = SmallNorbData(data_root=data_root, prepare=True, transform=ToStandardisedTensor(size=64))
     elif name == 'shapes3d':       data = Shapes3dData(data_root=data_root,  prepare=True, transform=ToStandardisedTensor())
+    elif name == 'dsprites':       data = DSpritesData(data_root=data_root,  prepare=True, transform=ToStandardisedTensor())
     else: raise KeyError(f'invalid data name: {repr(name)}')
     # load into memory
     if load_into_memory:

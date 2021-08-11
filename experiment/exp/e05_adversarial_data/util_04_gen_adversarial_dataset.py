@@ -164,6 +164,7 @@ def make_adversarial_sampler(mode: str = 'close_far'):
             p_radius_range=(1, -1), n_radius_range=(0, -1), n_radius_sample_mode='bounded_below',
         )
     elif mode == 'close_far_same_factor':
+        # TODO: problematic for dsprites
         return GroundTruthTripleSampler(
             p_k_range=(1, 1), n_k_range=(1, 1), n_k_sample_mode='bounded_below', n_k_is_shared=True,
             p_radius_range=(1, 1), n_radius_range=(2, -1), n_radius_sample_mode='bounded_below',
