@@ -369,6 +369,7 @@ class AdversarialModel(pl.LightningModule):
                 a_idx = torch.randint(0, len(batch), size=[4*len(batch)])
                 b_idx = torch.randint(0, len(batch), size=[4*len(batch)])
                 mask = (a_idx != b_idx)
+                # TODO: check that this is deterministic
                 # compute distances
                 deltas = to_numpy(H.pairwise_overlap(batch[a_idx[mask]], batch[b_idx[mask]], mode='mse'))
                 fdists = to_numpy(torch.abs(factors[a_idx[mask]] - factors[b_idx[mask]]).sum(dim=-1))
@@ -452,7 +453,6 @@ def run_gen_adversarial_dataset(cfg):
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # get save paths
     save_path_data = ensure_parent_dir_exists(save_dir, f'{time_string}_{cfg.job.name}', f'data.h5')
-    save_path_data_alt = ensure_parent_dir_exists(save_dir, f'{time_string}_{cfg.job.name}', f'data_ALT.h5')
     save_path_model = ensure_parent_dir_exists(save_dir, f'{time_string}_{cfg.job.name}', f'model.pt')
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # save adversarial model
@@ -466,7 +466,8 @@ def run_gen_adversarial_dataset(cfg):
     if torch.cuda.is_available():
         framework = framework.cuda()
     # create new h5py file -- TODO: use this in other places!
-    with h5_open(path=save_path_data_alt, mode='atomic_w') as h5_file:
+    with h5_open(path=save_path_data, mode='atomic_w') as h5_file:
+        # this dataset is self-contained and can be loaded by
         H5Builder(h5_file).add_dataset_from_gt_data(
             data=framework.dataset,  # produces tensors
             mutator=framework.batch_to_adversarial_imgs,  # consumes tensors -> np.ndarrays
