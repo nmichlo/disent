@@ -29,12 +29,14 @@ from typing import Optional
 from typing import Sequence
 from typing import Tuple
 
+import h5py
 import numpy as np
 import torch.nn.functional as F
 import hydra
 import pytorch_lightning as pl
 import torch
 import wandb
+from matplotlib import pyplot as plt
 from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
 from torch.utils.data.dataloader import default_collate
@@ -219,6 +221,8 @@ class AdversarialModel(pl.LightningModule):
             # if we save the model we can restore things!
             meta=dict(
                 dataset_name=self.hparams.dataset_name,
+                dataset_factor_sizes=self.dataset.gt_data.factor_sizes,
+                dataset_factor_names=self.dataset.gt_data.factor_names,
                 sampler_name=self.hparams.sampler_name,
                 hparams=dict(self.hparams)
             ),
@@ -312,11 +316,11 @@ class AdversarialModel(pl.LightningModule):
     # dataset                            #
     # ================================== #
 
-    def batch_to_adversarial_imgs(self, batch, m=0, M=0):
+    def batch_to_adversarial_imgs(self, batch: torch.Tensor, m=0, M=1) -> np.ndarray:
         batch = batch.to(device=self.device, dtype=torch.float32)
         batch = self.model(batch)
         batch = (batch - m) / (M - m)
-        return H.to_imgs(batch)
+        return H.to_imgs(batch).numpy()
 
     def make_train_periodic_callbacks(self, cfg) -> Sequence[BaseCallbackPeriodic]:
         # dataset transform helper
@@ -450,6 +454,7 @@ def run_gen_adversarial_dataset(cfg):
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # get save paths
     save_path_data = ensure_parent_dir_exists(save_dir, f'{time_string}_{cfg.job.name}', f'data.h5')
+    save_path_data_alt = ensure_parent_dir_exists(save_dir, f'{time_string}_{cfg.job.name}', f'data_ALT.h5')
     save_path_model = ensure_parent_dir_exists(save_dir, f'{time_string}_{cfg.job.name}', f'model.pt')
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # save adversarial model
@@ -463,17 +468,28 @@ def run_gen_adversarial_dataset(cfg):
     if torch.cuda.is_available():
         framework = framework.cuda()
     # create new h5py file
+    with h5_open(path=save_path_data_alt, mode='atomic_w') as h5_file:
+        H5Builder(h5_file).add_dataset_from_gt_data(
+            data=framework.dataset,  # produces tensors
+            mutator=framework.batch_to_adversarial_imgs,  # consumes tensors -> np.ndarrays
+            img_shape=(64, 64, None),
+            compression_lvl=9,
+            batch_size=32,
+        )
+    log.info(f'saved data size: {bytes_to_human(os.path.getsize(save_path_data_alt))}')
+
     with h5_open(path=save_path_data, mode='atomic_w') as h5_file:
         H5Builder(h5_file).add_dataset(
             name='data',
             shape=(len(framework.dataset.gt_data), 64, 64, framework.dataset.gt_data.img_channels),
             dtype='uint8',
             chunk_shape='batch',
-            compression=True,
             compression_lvl=9,
             attrs=dict(
-                dataset_name=framework.hparams.dataset_name,
-                sampler_name=framework.hparams.sampler_name,
+                dataset_name=framework.dataset.gt_data.name,
+                dataset_cls_name=framework.dataset.gt_data.__class__.__name__,
+                factor_sizes=np.array(framework.dataset.gt_data.factor_sizes, dtype='uint'),
+                factor_names=np.array(framework.dataset.gt_data.factor_names, dtype='S'),
             )
         ).fill_dataset_from_array(
             name='data',
@@ -482,8 +498,12 @@ def run_gen_adversarial_dataset(cfg):
             show_progress=True,
             mutator=lambda batch: framework.batch_to_adversarial_imgs(default_collate(batch)),
         )
+
     log.info(f'saved data size: {bytes_to_human(os.path.getsize(save_path_data))}')
+
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # TEST
+
 
 
 # ========================================================================= #
