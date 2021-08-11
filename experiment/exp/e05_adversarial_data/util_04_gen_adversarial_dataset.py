@@ -25,6 +25,7 @@
 
 import logging
 import warnings
+from typing import Literal
 from typing import Tuple
 from typing import Union
 
@@ -75,9 +76,12 @@ class AdversarialSampler_CloseFar(BaseDisentSampler):
 
 class AdversarialSampler_SameK(BaseDisentSampler):
 
-    def __init__(self):
+    def __init__(self, k: Union[Literal['random'], int] = 'random', sample_p_close: bool = False):
         super().__init__(3)
         self._gt_data: GroundTruthData = None
+        self._sample_p_close = sample_p_close
+        self._k = k
+        assert (isinstance(k, int) and k > 0) or (k == 'random')
 
     def _init(self, gt_data: GroundTruthData):
         self._gt_data = gt_data
@@ -85,14 +89,16 @@ class AdversarialSampler_SameK(BaseDisentSampler):
     def _sample_idx(self, idx: int) -> Tuple[int, ...]:
         a_factors = self._gt_data.idx_to_pos(idx)
         # SAMPLE FACTOR INDICES
-        k = np.random.randint(1, self._gt_data.num_factors+1)  # end exclusive, ie. [1, num_factors+1)
+        k = self._k
+        if k == 'random':
+            k = np.random.randint(1, self._gt_data.num_factors+1)  # end exclusive, ie. [1, num_factors+1)
         # get shared mask
         shared_indices = np.random.choice(self._gt_data.num_factors, size=self._gt_data.num_factors-k, replace=False)
         shared_mask = np.zeros(a_factors.shape, dtype='bool')
         shared_mask[shared_indices] = True
         # generate values
-        p_factors = self._sample_shared(a_factors, shared_mask)
-        n_factors = self._sample_shared(a_factors, shared_mask)
+        p_factors = self._sample_shared(a_factors, shared_mask, sample_close=self._sample_p_close)
+        n_factors = self._sample_shared(a_factors, shared_mask, sample_close=False)
         # swap values if wrong
         # TODO: this might give errors!
         #       - one factor might be less than another
@@ -108,12 +114,18 @@ class AdversarialSampler_SameK(BaseDisentSampler):
             n_factors,
         ]))
 
-    def _sample_shared(self, base_factors, shared_mask, tries=100):
+    def _sample_shared(self, base_factors, shared_mask, tries=100, sample_close: bool = False):
         sampled_factors = base_factors.copy()
         generate_mask = ~shared_mask
         # generate values
         for i in range(tries):
-            sampled_factors[generate_mask] = np.random.randint(0, np.array(self._gt_data.factor_sizes)[generate_mask])
+            if sample_close:
+                sampled_values = (base_factors + np.random.randint(-1, 1+1, size=self._gt_data.num_factors))
+                sampled_values = np.clip(sampled_values, 0, np.array(self._gt_data.factor_sizes) - 1)[generate_mask]
+            else:
+                sampled_values = np.random.randint(0, np.array(self._gt_data.factor_sizes)[generate_mask])
+            # overwrite values that are not different
+            sampled_factors[generate_mask] = sampled_values
             # update mask
             sampled_shared_mask = (sampled_factors == base_factors)
             generate_mask &= sampled_shared_mask
@@ -157,7 +169,11 @@ def make_adversarial_sampler(mode: str = 'close_far'):
             far_p_k_range=(0, -1), far_p_radius_range=(0, -1),
         )
     elif mode == 'same_k':
-        return AdversarialSampler_SameK()
+        return AdversarialSampler_SameK(k='random', sample_p_close=False)
+    elif mode == 'same_k_close':
+        return AdversarialSampler_SameK(k='random', sample_p_close=True)
+    elif mode == 'same_k1_close':
+        return AdversarialSampler_SameK(k=1, sample_p_close=True)
     elif mode == 'close_factor_far_random':
         return GroundTruthTripleSampler(
             p_k_range=(1, 1), n_k_range=(1, -1), n_k_sample_mode='bounded_below', n_k_is_shared=True,
@@ -224,31 +240,67 @@ def _adversarial_deltas(a_x: torch.Tensor, p_x: torch.Tensor, n_x: torch.Tensor,
 
 
 def _adversarial_self_loss(a_x: torch.Tensor, p_x: torch.Tensor, n_x: torch.Tensor, loss: str = 'mse', target: None = None):
-    deltas = _adversarial_deltas(a_x=a_x, p_x=p_x, n_x=n_x, loss=loss, target=target)
+    deltas = _adversarial_deltas(a_x=a_x, p_x=p_x, n_x=n_x, loss=loss, target=target)  # (n_deltas - p_deltas)
     # compute loss
     loss = torch.abs(deltas).mean()  # should this be l2 dist instead?
     return loss
 
 
+# INVERT
+
 def _adversarial_invert_unbounded_loss(a_x: torch.Tensor, p_x: torch.Tensor, n_x: torch.Tensor, loss: str = 'mse', target: None = None):
-    deltas = _adversarial_deltas(a_x=a_x, p_x=p_x, n_x=n_x, loss=loss, target=target)
+    deltas = _adversarial_deltas(a_x=a_x, p_x=p_x, n_x=n_x, loss=loss, target=target)  # (n_deltas - p_deltas)
     # compute loss (unbounded)
     loss = deltas.mean()
     return loss
 
-
 def _adversarial_invert_loss(a_x: torch.Tensor, p_x: torch.Tensor, n_x: torch.Tensor, loss: str = 'mse', target: None = None):
-    deltas = _adversarial_deltas(a_x=a_x, p_x=p_x, n_x=n_x, loss=loss, target=target)
+    deltas = _adversarial_deltas(a_x=a_x, p_x=p_x, n_x=n_x, loss=loss, target=target)  # (n_deltas - p_deltas)
     # compute loss (bounded)
     loss = torch.maximum(deltas, torch.zeros_like(deltas)).mean()
     return loss
 
+def _adversarial_invert_loss_shift(a_x: torch.Tensor, p_x: torch.Tensor, n_x: torch.Tensor, loss: str = 'mse', target: None = None):
+    deltas = _adversarial_deltas(a_x=a_x, p_x=p_x, n_x=n_x, loss=loss, target=target)  # (n_deltas - p_deltas)
+    # compute loss (bounded)
+    loss = torch.maximum(0.01 + deltas, torch.zeros_like(deltas)).mean()  # triplet_loss = torch.clamp_min(p_dist - n_dist + margin_max, 0)
+    return loss
+
+
+# DISENTANGLE
+
+def _adversarial_disentangle_unbounded_loss(a_x: torch.Tensor, p_x: torch.Tensor, n_x: torch.Tensor, loss: str = 'mse', target: None = None):
+    deltas = _adversarial_deltas(a_x=a_x, p_x=n_x, n_x=p_x, loss=loss, target=target)  # (p_deltas - n_deltas) swap p and n
+    # compute loss (unbounded)
+    loss = deltas.mean()
+    return loss
+
+def _adversarial_disentangle_loss(a_x: torch.Tensor, p_x: torch.Tensor, n_x: torch.Tensor, loss: str = 'mse', target: None = None):
+    deltas = _adversarial_deltas(a_x=a_x, p_x=n_x, n_x=p_x, loss=loss, target=target)  # (p_deltas - n_deltas) swap p and n
+    # compute loss (bounded)
+    loss = torch.maximum(deltas, torch.zeros_like(deltas)).mean()
+    return loss
+
+def _adversarial_disentangle_loss_shift(a_x: torch.Tensor, p_x: torch.Tensor, n_x: torch.Tensor, loss: str = 'mse', target: None = None):
+    deltas = _adversarial_deltas(a_x=a_x, p_x=n_x, n_x=p_x, loss=loss, target=target)  # (p_deltas - n_deltas) swap p and n
+    # compute loss (bounded)
+    loss = torch.maximum(0.01 + deltas, torch.zeros_like(deltas)).mean()  # triplet_loss = torch.clamp_min(p_dist - n_dist + margin_max, 0)
+    return loss
+
+
+# REGISTRY
 
 _ADVERSARIAL_LOSS_FNS = {
     'const': _adversarial_const_loss,
     'self': _adversarial_self_loss,
+
     'invert_unbounded': _adversarial_invert_unbounded_loss,
     'invert': _adversarial_invert_loss,
+    'invert_shift': _adversarial_invert_loss_shift,
+
+    'disentangle_unbounded': _adversarial_disentangle_unbounded_loss,
+    'disentangle': _adversarial_disentangle_loss,
+    'disentangle_shift': _adversarial_disentangle_loss_shift,
 }
 
 
@@ -263,3 +315,10 @@ def adversarial_loss(a_x: torch.Tensor, p_x: torch.Tensor, n_x: torch.Tensor, lo
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
+
+
+# if __name__ == '__main__':
+#     sampler_print_test(
+#         sampler='same_k',
+#         gt_data=XYObjectData()
+#     )

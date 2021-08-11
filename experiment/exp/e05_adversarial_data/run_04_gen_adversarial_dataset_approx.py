@@ -475,7 +475,7 @@ def run_gen_adversarial_dataset(cfg):
             compression_lvl=9,
             batch_size=32,
         )
-    log.info(f'saved data size: {bytes_to_human(os.path.getsize(save_path_data_alt))}')
+    log.info(f'saved data size: {bytes_to_human(os.path.getsize(save_path_data))}')
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
 
