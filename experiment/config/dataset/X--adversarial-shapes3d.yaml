@@ -1,0 +1,16 @@
+# @package _group_
+name: adversarial_shapes3d
+data:
+  _target_: disent.dataset.data.SelfContainedHdf5GroundTruthData
+  h5_path: '${env:HOME}/workspace/research/disent/out/adversarial_data_approx/2021-08-11--07-20-34_ae_conv64_none_same_k_invert_mse_C0.02_shapes3d_s25000_Adam_lr0.0005_aw10/data_ALT.h5'
+  # h5_path: '${env:HOME}/workspace/research/disent/out/adversarial_data_approx/2021-08-11--04-26-15_ae_conv64_none_same_k_invert_mse_C0.02_shapes3d_s25000_Adam_lr0.0005_aw100/data_ALT.h5'
+transform:
+  _target_: disent.nn.transform.ToStandardisedTensor
+  cast_f32: True
+  check_range: False
+x_shape: [3, 64, 64]
+
+data_type: ground_truth
+
+vis_min: auto
+vis_max: auto
