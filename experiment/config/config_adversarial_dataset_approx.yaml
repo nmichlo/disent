@@ -1,3 +1,6 @@
+# EXPERIMENT:
+# -m framework.loss_adversarial_weight=100.0,10.0 framework.sampler_name=same_k framework.dataset_name=cars3d,smallnorb,shapes3d,dsprites
+
 defaults:
   # runtime
   - run_logging: wandb
