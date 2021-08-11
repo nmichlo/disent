@@ -467,7 +467,7 @@ def run_gen_adversarial_dataset(cfg):
     # transfer to GPU
     if torch.cuda.is_available():
         framework = framework.cuda()
-    # create new h5py file
+    # create new h5py file -- TODO: use this in other places!
     with h5_open(path=save_path_data_alt, mode='atomic_w') as h5_file:
         H5Builder(h5_file).add_dataset_from_gt_data(
             data=framework.dataset,  # produces tensors
@@ -477,32 +477,7 @@ def run_gen_adversarial_dataset(cfg):
             batch_size=32,
         )
     log.info(f'saved data size: {bytes_to_human(os.path.getsize(save_path_data_alt))}')
-
-    with h5_open(path=save_path_data, mode='atomic_w') as h5_file:
-        H5Builder(h5_file).add_dataset(
-            name='data',
-            shape=(len(framework.dataset.gt_data), 64, 64, framework.dataset.gt_data.img_channels),
-            dtype='uint8',
-            chunk_shape='batch',
-            compression_lvl=9,
-            attrs=dict(
-                dataset_name=framework.dataset.gt_data.name,
-                dataset_cls_name=framework.dataset.gt_data.__class__.__name__,
-                factor_sizes=np.array(framework.dataset.gt_data.factor_sizes, dtype='uint'),
-                factor_names=np.array(framework.dataset.gt_data.factor_names, dtype='S'),
-            )
-        ).fill_dataset_from_array(
-            name='data',
-            array=framework.dataset.gt_data,  # transform is applied to gt_data not with dataset so this is ok
-            batch_size='auto',
-            show_progress=True,
-            mutator=lambda batch: framework.batch_to_adversarial_imgs(default_collate(batch)),
-        )
-
-    log.info(f'saved data size: {bytes_to_human(os.path.getsize(save_path_data))}')
-
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-    # TEST
 
 
 
