@@ -28,6 +28,7 @@ from abc import ABCMeta
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
+from typing import Union
 
 import numpy as np
 from torch.utils.data import Dataset
@@ -178,6 +179,7 @@ class ArrayGroundTruthData(GroundTruthData):
             transform=None,
         )
 
+
 # ========================================================================= #
 # disk ground truth data                                                    #
 # TODO: data & datafile preparation should be split out from                #
@@ -258,22 +260,23 @@ class NumpyFileGroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
         return None
 
 
-class Hdf5GroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
-    """
-    Dataset that loads an Hdf5 file from a DataObject
-    - requires that the data object has the `out_dataset_name` attribute
-      that points to the hdf5 dataset in the file to load.
-    """
+class _Hdf5DataMixin(object):
 
-    def __init__(self, data_root: Optional[str] = None, prepare: bool = False, in_memory=False, transform=None):
-        super().__init__(data_root=data_root, prepare=prepare, transform=transform)
+    # set attributes if _mixin_hdf5_init is called
+    _in_memory: bool
+    _attrs: dict
+    _data: Union[Hdf5Dataset, np.ndarray]
+
+    def _mixin_hdf5_init(self, h5_path: str, h5_dataset_name: str = 'data', in_memory: bool = False):
         # variables
         self._in_memory = in_memory
         # load the h5py dataset
         data = Hdf5Dataset(
-            h5_path=os.path.join(self.data_dir, self.datafile.out_name),
-            h5_dataset_name=self.datafile.dataset_name,
+            h5_path=h5_path,
+            h5_dataset_name=h5_dataset_name,
         )
+        # load attributes
+        self._attrs = data.get_attrs()
         # handle different memory modes
         if self._in_memory:
             # Load the entire dataset into memory if required
@@ -285,8 +288,26 @@ class Hdf5GroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
             # Load the dataset from the disk
             self._data = data
 
+    # override from GroundTruthData
     def _get_observation(self, idx):
         return self._data[idx]
+
+
+class Hdf5GroundTruthData(_Hdf5DataMixin, DiskGroundTruthData, metaclass=ABCMeta):
+    """
+    Dataset that loads an Hdf5 file from a DataObject
+    - requires that the data object has the `out_dataset_name` attribute
+      that points to the hdf5 dataset in the file to load.
+    """
+
+    def __init__(self, data_root: Optional[str] = None, prepare: bool = False, in_memory=False, transform=None):
+        super().__init__(data_root=data_root, prepare=prepare, transform=transform)
+        # initialize mixin
+        self._mixin_hdf5_init(
+            h5_path=os.path.join(self.data_dir, self.datafile.out_name),
+            h5_dataset_name=self.datafile.dataset_name,
+            in_memory=in_memory,
+        )
 
     @property
     def datafiles(self) -> Sequence[DataFileHashedDlH5]:
@@ -295,6 +316,42 @@ class Hdf5GroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
     @property
     def datafile(self) -> DataFileHashedDlH5:
         raise NotImplementedError
+
+
+class SelfContainedHdf5GroundTruthData(_Hdf5DataMixin, GroundTruthData):
+
+    def __init__(self, h5_path: str, in_memory=False, transform=None):
+        # initialize mixin
+        self._mixin_hdf5_init(
+            h5_path=h5_path,
+            h5_dataset_name='data',
+            in_memory=in_memory,
+        )
+        # load attrs
+        self._attr_name = self._attrs['dataset_name'].decode("utf-8")
+        self._attr_factor_names = tuple(name.decode("utf-8") for name in self._attrs['factor_names'])
+        self._attr_factor_sizes = tuple(int(size) for size in self._attrs['factor_sizes'])
+        # set size
+        (B, H, W, C) = self._data.shape
+        self._observation_shape = (H, W, C)
+        # initialize!
+        super().__init__(transform=transform)
+
+    @property
+    def name(self) -> str:
+        return self._attr_name
+
+    @property
+    def factor_names(self) -> Tuple[str, ...]:
+        return self._attr_factor_names
+
+    @property
+    def factor_sizes(self) -> Tuple[int, ...]:
+        return self._attr_factor_sizes
+
+    @property
+    def observation_shape(self) -> Tuple[int, ...]:
+        return self._observation_shape
 
 
 # ========================================================================= #
