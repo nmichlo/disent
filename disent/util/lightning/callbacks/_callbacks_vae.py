@@ -129,7 +129,7 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
 
         # log video
         wb_log_metrics(trainer.logger, {
-            self.mode: wandb.Video(np.transpose(frames, [0, 3, 1, 2]), fps=5, format='mp4'),
+            self.mode: wandb.Video(np.transpose(frames, [0, 3, 1, 2]), fps=4, format='mp4'),
         })
 
         if self.plt_show:

@@ -294,7 +294,7 @@ def visualize_dataset_traversal(
     if output_wandb:
         import wandb
         wandb_image = wandb.Image(image)
-        wandb_animation = wandb.Video(np.transpose(animation, [0, 3, 1, 2]), fps=5, format='mp4')
+        wandb_animation = wandb.Video(np.transpose(animation, [0, 3, 1, 2]), fps=4, format='mp4')
         return (
             wandb_image,
             wandb_animation,

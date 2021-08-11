@@ -332,6 +332,7 @@ class H5Builder(object):
             dtype=dtype,
             chunk_shape='batch',
             compression_lvl=compression_lvl,
+            # THESE ATTRIBUTES SHOULD MATCH: SelfContainedHdf5GroundTruthData
             attrs=dict(
                 dataset_name=gt_data.name,
                 dataset_cls_name=gt_data.__class__.__name__,
