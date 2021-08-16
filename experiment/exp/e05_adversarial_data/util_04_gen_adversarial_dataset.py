@@ -22,9 +22,7 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-
 import logging
-import warnings
 from typing import Literal
 from typing import Optional
 from typing import Tuple
@@ -38,9 +36,7 @@ from disent.dataset.data import GroundTruthData
 from disent.dataset.sampling import BaseDisentSampler
 from disent.dataset.sampling import GroundTruthPairSampler
 from disent.dataset.sampling import GroundTruthTripleSampler
-from disent.nn.loss.reduction import batch_loss_reduction
 from disent.util.strings import colors as c
-from experiment.exp.util import unreduced_loss
 
 
 log = logging.getLogger(__name__)
@@ -230,6 +226,15 @@ def _get_triple(x: TensorTriple, adversarial_swapped: bool):
     return a, p, n
 
 
+def _parse_margin_mode(adversarial_mode):
+    if adversarial_mode == 'invert_margin':
+        raise KeyError('`invert_margin` is not valid, specify the margin in the name, eg. `invert_margin_0.01`')
+    elif adversarial_mode.startswith('invert_margin_'):
+        margin = float(adversarial_mode[len('invert_margin_'):])
+        return 'invert_margin', margin
+    return adversarial_mode, None
+
+
 def adversarial_loss(
     ys: TensorTriple,
     xs: Optional[TensorTriple] = None,     # only used if mask_deltas==True
@@ -255,11 +260,15 @@ def adversarial_loss(
     n_deltas = H.pairwise_loss(a_y, n_y, mode=pixel_loss_mode, mean_dtype=torch.float32, mask=an_mask)
     deltas = (n_deltas - p_deltas)
 
+    # parse mode
+    adversarial_mode, margin = _parse_margin_mode(adversarial_mode)
+
     # compute loss deltas
     if   adversarial_mode == 'self':             loss_deltas = torch.abs(deltas)  # should this be l2 dist instead?
     elif adversarial_mode == 'invert_unbounded': loss_deltas = deltas
     elif adversarial_mode == 'invert':           loss_deltas = torch.maximum(deltas, torch.zeros_like(deltas))
-    elif adversarial_mode == 'invert_shift':     loss_deltas = torch.maximum(0.01 + deltas, torch.zeros_like(deltas))  # triplet_loss = torch.clamp_min(p_dist - n_dist + margin_max, 0)
+    elif adversarial_mode == 'invert_shift':     loss_deltas = torch.maximum(0.01 + deltas, torch.zeros_like(deltas))    # triplet_loss = torch.clamp_min(p_dist - n_dist + margin_max, 0)
+    elif adversarial_mode == 'invert_margin':    loss_deltas = torch.maximum(margin + deltas, torch.zeros_like(deltas))  # triplet_loss = torch.clamp_min(p_dist - n_dist + margin_max, 0)
     else:
         raise KeyError(f'invalid `adversarial_mode`: {repr(adversarial_mode)}')
     assert deltas.shape == loss_deltas.shape, 'this is a bug'
