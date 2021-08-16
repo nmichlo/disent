@@ -237,6 +237,7 @@ def adversarial_loss(
     adversarial_mode: str = 'invert_shift',
     adversarial_swapped: bool = False,
     adversarial_masking: bool = False,             # requires `xs` to be set
+    adversarial_top_k: Optional[int] = None,
     # pixel loss to get deltas settings
     pixel_loss_mode: str = 'mse',
 ):
@@ -252,17 +253,23 @@ def adversarial_loss(
     # compute deltas
     p_deltas = H.pairwise_loss(a_y, p_y, mode=pixel_loss_mode, mean_dtype=torch.float32, mask=ap_mask)
     n_deltas = H.pairwise_loss(a_y, n_y, mode=pixel_loss_mode, mean_dtype=torch.float32, mask=an_mask)
-
-    # deltas
     deltas = (n_deltas - p_deltas)
 
-    # compute loss
-    if   adversarial_mode == 'self':             return torch.abs(deltas).mean()  # should this be l2 dist instead?
-    elif adversarial_mode == 'invert_unbounded': return deltas.mean()
-    elif adversarial_mode == 'invert':           return torch.maximum(deltas, torch.zeros_like(deltas)).mean()
-    elif adversarial_mode == 'invert_shift':     return torch.maximum(0.01 + deltas, torch.zeros_like(deltas)).mean()  # triplet_loss = torch.clamp_min(p_dist - n_dist + margin_max, 0)
+    # compute loss deltas
+    if   adversarial_mode == 'self':             loss_deltas = torch.abs(deltas)  # should this be l2 dist instead?
+    elif adversarial_mode == 'invert_unbounded': loss_deltas = deltas
+    elif adversarial_mode == 'invert':           loss_deltas = torch.maximum(deltas, torch.zeros_like(deltas))
+    elif adversarial_mode == 'invert_shift':     loss_deltas = torch.maximum(0.01 + deltas, torch.zeros_like(deltas))  # triplet_loss = torch.clamp_min(p_dist - n_dist + margin_max, 0)
     else:
         raise KeyError(f'invalid `adversarial_mode`: {repr(adversarial_mode)}')
+    assert deltas.shape == loss_deltas.shape, 'this is a bug'
+
+    # top k deltas
+    if adversarial_top_k is not None:
+        loss_deltas = torch.topk(loss_deltas, k=adversarial_top_k, largest=True).values
+
+    # get average loss
+    return loss_deltas.mean()
 
 
 # ========================================================================= #

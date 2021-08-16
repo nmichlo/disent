@@ -171,6 +171,7 @@ class AdversarialModel(pl.LightningModule):
             adversarial_mode: str = 'self',
             adversarial_swapped: bool = False,
             adversarial_masking: bool = False,
+            adversarial_top_k: Optional[int] = None,
             pixel_loss_mode: str = 'mse',
         # loss extras
             loss_adversarial_weight: Optional[float] = 1.0,
@@ -262,6 +263,7 @@ class AdversarialModel(pl.LightningModule):
                 adversarial_mode=self.hparams.adversarial_mode,
                 adversarial_swapped=self.hparams.adversarial_swapped,
                 adversarial_masking=self.hparams.adversarial_masking,
+                adversarial_top_k=self.hparams.adversarial_top_k,
                 pixel_loss_mode=self.hparams.pixel_loss_mode,
             )
         # additional loss components
@@ -453,31 +455,36 @@ def run_gen_adversarial_dataset(cfg):
     trainer.fit(framework)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # get save paths
-    prefix = f'{cfg.job.prefix}_' if cfg.job.prefix else ''
-    save_path_data = ensure_parent_dir_exists(save_dir, f'{prefix}{time_string}_{cfg.job.name}', f'data.h5')
-    save_path_model = ensure_parent_dir_exists(save_dir, f'{prefix}{time_string}_{cfg.job.name}', f'model.pt')
+    save_prefix = f'{cfg.job.save_prefix}_' if cfg.job.save_prefix else ''
+    save_path_model = os.path.join(save_dir, f'{save_prefix}{time_string}_{cfg.job.name}', f'model.pt')
+    save_path_data = os.path.join(save_dir, f'{save_prefix}{time_string}_{cfg.job.name}', f'data.h5')
+    # create directories
+    if cfg.job.save_model: ensure_parent_dir_exists(save_path_model)
+    if cfg.job.save_data: ensure_parent_dir_exists(save_path_data)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # save adversarial model
-    log.info(f'saving model to path: {repr(save_path_model)}')
-    torch.save(framework.model, save_path_model)
-    log.info(f'saved model size: {bytes_to_human(os.path.getsize(save_path_model))}')
+    if cfg.job.save_model:
+        log.info(f'saving model to path: {repr(save_path_model)}')
+        torch.save(framework.model, save_path_model)
+        log.info(f'saved model size: {bytes_to_human(os.path.getsize(save_path_model))}')
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-    # save dataset
-    log.info(f'saving data to path: {repr(save_path_data)}')
-    # transfer to GPU
-    if torch.cuda.is_available():
-        framework = framework.cuda()
-    # create new h5py file -- TODO: use this in other places!
-    with h5_open(path=save_path_data, mode='atomic_w') as h5_file:
-        # this dataset is self-contained and can be loaded by
-        H5Builder(h5_file).add_dataset_from_gt_data(
-            data=framework.dataset,  # produces tensors
-            mutator=framework.batch_to_adversarial_imgs,  # consumes tensors -> np.ndarrays
-            img_shape=(64, 64, None),
-            compression_lvl=9,
-            batch_size=32,
-        )
-    log.info(f'saved data size: {bytes_to_human(os.path.getsize(save_path_data))}')
+    # save adversarial dataset
+    if cfg.job.save_data:
+        log.info(f'saving data to path: {repr(save_path_data)}')
+        # transfer to GPU
+        if torch.cuda.is_available():
+            framework = framework.cuda()
+        # create new h5py file -- TODO: use this in other places!
+        with h5_open(path=save_path_data, mode='atomic_w') as h5_file:
+            # this dataset is self-contained and can be loaded by SelfContainedHdf5GroundTruthData
+            H5Builder(h5_file).add_dataset_from_gt_data(
+                data=framework.dataset,  # produces tensors
+                mutator=framework.batch_to_adversarial_imgs,  # consumes tensors -> np.ndarrays
+                img_shape=(64, 64, None),
+                compression_lvl=9,
+                batch_size=32,
+            )
+        log.info(f'saved data size: {bytes_to_human(os.path.getsize(save_path_data))}')
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
 
