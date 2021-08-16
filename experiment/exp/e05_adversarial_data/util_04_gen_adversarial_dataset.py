@@ -232,32 +232,26 @@ def _get_triple(x: TensorTriple, adversarial_swapped: bool):
 
 def adversarial_loss(
     ys: TensorTriple,
+    xs: Optional[TensorTriple] = None,     # only used if mask_deltas==True
     # adversarial loss settings
     adversarial_mode: str = 'invert_shift',
     adversarial_swapped: bool = False,
-    adversarial_const_target: Optional[float] = None,  # only used if loss_mode=="const"
+    adversarial_masking: bool = False,             # requires `xs` to be set
     # pixel loss to get deltas settings
     pixel_loss_mode: str = 'mse',
 ):
     a_y, p_y, n_y = _get_triple(ys, adversarial_swapped=adversarial_swapped)
 
+    # get mask
+    if adversarial_masking:
+        a_x, p_x, n_x = _get_triple(xs, adversarial_swapped=adversarial_swapped)
+        ap_mask, an_mask = (a_x != p_x), (a_x != n_x)
+    else:
+        ap_mask, an_mask = None, None
+
     # compute deltas
-    p_deltas = H.pairwise_loss(a_y, p_y, mode=pixel_loss_mode, mean_dtype=torch.float32)
-    n_deltas = H.pairwise_loss(a_y, n_y, mode=pixel_loss_mode, mean_dtype=torch.float32)
-
-    # compute loss
-    if adversarial_mode == 'const':
-        # check values
-        if not isinstance(adversarial_const_target, (int, float)):
-            raise ValueError(f'loss_mode=="const" requires a numerical value for `adversarial_const_target`, got: {repr(adversarial_const_target)}')
-        # compute loss
-        p_loss = torch.abs(adversarial_const_target - p_deltas).mean()  # should this be l2 dist instead?
-        n_loss = torch.abs(adversarial_const_target - n_deltas).mean()  # should this be l2 dist instead?
-        return p_loss + n_loss
-
-    # check values
-    if adversarial_const_target is not None:
-        warnings.warn(f'`adversarial_loss` only supports a value for `adversarial_const_target` when `loss_mode=="const"`')
+    p_deltas = H.pairwise_loss(a_y, p_y, mode=pixel_loss_mode, mean_dtype=torch.float32, mask=ap_mask)
+    n_deltas = H.pairwise_loss(a_y, n_y, mode=pixel_loss_mode, mean_dtype=torch.float32, mask=an_mask)
 
     # deltas
     deltas = (n_deltas - p_deltas)

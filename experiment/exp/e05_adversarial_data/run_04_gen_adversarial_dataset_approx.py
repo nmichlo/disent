@@ -170,7 +170,7 @@ class AdversarialModel(pl.LightningModule):
         # adversarial loss options
             adversarial_mode: str = 'self',
             adversarial_swapped: bool = False,
-            adversarial_const_target: Optional[float] = 0.1,
+            adversarial_masking: bool = False,
             pixel_loss_mode: str = 'mse',
         # loss extras
             loss_adversarial_weight: Optional[float] = 1.0,
@@ -258,9 +258,10 @@ class AdversarialModel(pl.LightningModule):
         if (self.hparams.loss_adversarial_weight is not None) and (self.hparams.loss_adversarial_weight > 0):
             loss_adv = self.hparams.loss_adversarial_weight * adversarial_loss(
                 ys=(a_y, p_y, n_y),
+                xs=(a_x, p_x, n_x),
                 adversarial_mode=self.hparams.adversarial_mode,
                 adversarial_swapped=self.hparams.adversarial_swapped,
-                adversarial_const_target=self.hparams.adversarial_const_target,
+                adversarial_masking=self.hparams.adversarial_masking,
                 pixel_loss_mode=self.hparams.pixel_loss_mode,
             )
         # additional loss components

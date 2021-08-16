@@ -28,7 +28,7 @@ framework:
   # adversarial loss options
   adversarial_mode: 'invert_shift'  # self, const, invert
   adversarial_swapped: False
-  adversarial_const_target: 0.02
+  adversarial_masking: False
   pixel_loss_mode: 'mse'
   # loss extras
   loss_adversarial_weight: 10.0
