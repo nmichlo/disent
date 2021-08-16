@@ -26,6 +26,7 @@
 import logging
 import warnings
 from typing import Literal
+from typing import Optional
 from typing import Tuple
 from typing import Union
 
@@ -37,7 +38,9 @@ from disent.dataset.data import GroundTruthData
 from disent.dataset.sampling import BaseDisentSampler
 from disent.dataset.sampling import GroundTruthPairSampler
 from disent.dataset.sampling import GroundTruthTripleSampler
+from disent.nn.loss.reduction import batch_loss_reduction
 from disent.util.strings import colors as c
+from experiment.exp.util import unreduced_loss
 
 
 log = logging.getLogger(__name__)
@@ -215,101 +218,57 @@ def make_adversarial_sampler(mode: str = 'close_far'):
 # Adversarial Loss                                                          #
 # ========================================================================= #
 
+# anchor, positive, negative
+TensorTriple = Tuple[torch.Tensor, torch.Tensor, torch.Tensor]
 
-def _adversarial_const_loss(a_x: torch.Tensor, p_x: torch.Tensor, n_x: torch.Tensor, loss: str = 'mse', target: float = 0.1):
+
+def _get_triple(x: TensorTriple, adversarial_swapped: bool):
+    if not adversarial_swapped:
+        a, p, n = x
+    else:
+        a, n, p = x
+    return a, p, n
+
+
+def adversarial_loss(
+    ys: TensorTriple,
+    # adversarial loss settings
+    adversarial_mode: str = 'invert_shift',
+    adversarial_swapped: bool = False,
+    adversarial_const_target: Optional[float] = None,  # only used if loss_mode=="const"
+    # pixel loss to get deltas settings
+    pixel_loss_mode: str = 'mse',
+):
+    a_y, p_y, n_y = _get_triple(ys, adversarial_swapped=adversarial_swapped)
+
     # compute deltas
-    p_deltas = H.pairwise_loss(a_x, p_x, mode=loss, mean_dtype=torch.float32)
-    n_deltas = H.pairwise_loss(a_x, n_x, mode=loss, mean_dtype=torch.float32)
+    p_deltas = H.pairwise_loss(a_y, p_y, mode=pixel_loss_mode, mean_dtype=torch.float32)
+    n_deltas = H.pairwise_loss(a_y, n_y, mode=pixel_loss_mode, mean_dtype=torch.float32)
+
     # compute loss
-    p_loss = torch.abs(target - p_deltas).mean()  # should this be l2 dist instead?
-    n_loss = torch.abs(target - n_deltas).mean()  # should this be l2 dist instead?
-    loss = p_loss + n_loss
-    # done!
-    return loss
+    if adversarial_mode == 'const':
+        # check values
+        if not isinstance(adversarial_const_target, (int, float)):
+            raise ValueError(f'loss_mode=="const" requires a numerical value for `adversarial_const_target`, got: {repr(adversarial_const_target)}')
+        # compute loss
+        p_loss = torch.abs(adversarial_const_target - p_deltas).mean()  # should this be l2 dist instead?
+        n_loss = torch.abs(adversarial_const_target - n_deltas).mean()  # should this be l2 dist instead?
+        return p_loss + n_loss
 
+    # check values
+    if adversarial_const_target is not None:
+        warnings.warn(f'`adversarial_loss` only supports a value for `adversarial_const_target` when `loss_mode=="const"`')
 
-def _adversarial_deltas(a_x: torch.Tensor, p_x: torch.Tensor, n_x: torch.Tensor, loss: str = 'mse', target: None = None):
-    if target is not None:
-        warnings.warn(f'adversarial_inverse_loss does not support a value for target, this is kept for compatibility reasons!')
-    # compute deltas
-    p_deltas = H.pairwise_loss(a_x, p_x, mode=loss, mean_dtype=torch.float32)
-    n_deltas = H.pairwise_loss(a_x, n_x, mode=loss, mean_dtype=torch.float32)
+    # deltas
     deltas = (n_deltas - p_deltas)
-    # done!
-    return deltas
 
-
-def _adversarial_self_loss(a_x: torch.Tensor, p_x: torch.Tensor, n_x: torch.Tensor, loss: str = 'mse', target: None = None):
-    deltas = _adversarial_deltas(a_x=a_x, p_x=p_x, n_x=n_x, loss=loss, target=target)  # (n_deltas - p_deltas)
     # compute loss
-    loss = torch.abs(deltas).mean()  # should this be l2 dist instead?
-    return loss
-
-
-# INVERT
-
-def _adversarial_invert_unbounded_loss(a_x: torch.Tensor, p_x: torch.Tensor, n_x: torch.Tensor, loss: str = 'mse', target: None = None):
-    deltas = _adversarial_deltas(a_x=a_x, p_x=p_x, n_x=n_x, loss=loss, target=target)  # (n_deltas - p_deltas)
-    # compute loss (unbounded)
-    loss = deltas.mean()
-    return loss
-
-def _adversarial_invert_loss(a_x: torch.Tensor, p_x: torch.Tensor, n_x: torch.Tensor, loss: str = 'mse', target: None = None):
-    deltas = _adversarial_deltas(a_x=a_x, p_x=p_x, n_x=n_x, loss=loss, target=target)  # (n_deltas - p_deltas)
-    # compute loss (bounded)
-    loss = torch.maximum(deltas, torch.zeros_like(deltas)).mean()
-    return loss
-
-def _adversarial_invert_loss_shift(a_x: torch.Tensor, p_x: torch.Tensor, n_x: torch.Tensor, loss: str = 'mse', target: None = None):
-    deltas = _adversarial_deltas(a_x=a_x, p_x=p_x, n_x=n_x, loss=loss, target=target)  # (n_deltas - p_deltas)
-    # compute loss (bounded)
-    loss = torch.maximum(0.01 + deltas, torch.zeros_like(deltas)).mean()  # triplet_loss = torch.clamp_min(p_dist - n_dist + margin_max, 0)
-    return loss
-
-
-# DISENTANGLE
-
-def _adversarial_disentangle_unbounded_loss(a_x: torch.Tensor, p_x: torch.Tensor, n_x: torch.Tensor, loss: str = 'mse', target: None = None):
-    deltas = _adversarial_deltas(a_x=a_x, p_x=n_x, n_x=p_x, loss=loss, target=target)  # (p_deltas - n_deltas) swap p and n
-    # compute loss (unbounded)
-    loss = deltas.mean()
-    return loss
-
-def _adversarial_disentangle_loss(a_x: torch.Tensor, p_x: torch.Tensor, n_x: torch.Tensor, loss: str = 'mse', target: None = None):
-    deltas = _adversarial_deltas(a_x=a_x, p_x=n_x, n_x=p_x, loss=loss, target=target)  # (p_deltas - n_deltas) swap p and n
-    # compute loss (bounded)
-    loss = torch.maximum(deltas, torch.zeros_like(deltas)).mean()
-    return loss
-
-def _adversarial_disentangle_loss_shift(a_x: torch.Tensor, p_x: torch.Tensor, n_x: torch.Tensor, loss: str = 'mse', target: None = None):
-    deltas = _adversarial_deltas(a_x=a_x, p_x=n_x, n_x=p_x, loss=loss, target=target)  # (p_deltas - n_deltas) swap p and n
-    # compute loss (bounded)
-    loss = torch.maximum(0.01 + deltas, torch.zeros_like(deltas)).mean()  # triplet_loss = torch.clamp_min(p_dist - n_dist + margin_max, 0)
-    return loss
-
-
-# REGISTRY
-
-_ADVERSARIAL_LOSS_FNS = {
-    'const': _adversarial_const_loss,
-    'self': _adversarial_self_loss,
-
-    'invert_unbounded': _adversarial_invert_unbounded_loss,
-    'invert': _adversarial_invert_loss,
-    'invert_shift': _adversarial_invert_loss_shift,
-
-    'disentangle_unbounded': _adversarial_disentangle_unbounded_loss,
-    'disentangle': _adversarial_disentangle_loss,
-    'disentangle_shift': _adversarial_disentangle_loss_shift,
-}
-
-
-def adversarial_loss(a_x: torch.Tensor, p_x: torch.Tensor, n_x: torch.Tensor, loss: str = 'mse', target: float = 0.1, adversarial_mode: str = 'self'):
-    try:
-        loss_fn = _ADVERSARIAL_LOSS_FNS[adversarial_mode]
-    except KeyError:
-        raise KeyError(f'invalid adversarial_mode={repr(adversarial_mode)}')
-    return loss_fn(a_x=a_x, p_x=p_x, n_x=n_x, loss=loss, target=target)
+    if   adversarial_mode == 'self':             return torch.abs(deltas).mean()  # should this be l2 dist instead?
+    elif adversarial_mode == 'invert_unbounded': return deltas.mean()
+    elif adversarial_mode == 'invert':           return torch.maximum(deltas, torch.zeros_like(deltas)).mean()
+    elif adversarial_mode == 'invert_shift':     return torch.maximum(0.01 + deltas, torch.zeros_like(deltas)).mean()  # triplet_loss = torch.clamp_min(p_dist - n_dist + margin_max, 0)
+    else:
+        raise KeyError(f'invalid `adversarial_mode`: {repr(adversarial_mode)}')
 
 
 # ========================================================================= #

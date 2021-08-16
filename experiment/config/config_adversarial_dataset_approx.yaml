@@ -17,18 +17,19 @@ trainer:
 framework:
   # optimizer options
   optimizer_name: 'Adam'
-  optimizer_lr: 5e-4
+  optimizer_lr: 1e-4
   optimizer_kwargs:
-     weight_decay: 1e-5
+     weight_decay: 1e-6
   # dataset config options
   dataset_name: 'dsprites'  # cars3d, smallnorb, dsprites, shapes3d, xysquares_8x8_mini
   dataset_num_workers: 12
   dataset_batch_size: 256  # x3
   data_root: ${dataset.data_root}
-  # loss config options
-  loss_fn: 'mse'
-  loss_mode: 'invert_shift'  # self, const, invert, disentangle
-  loss_const_targ: 0.02
+  # adversarial loss options
+  adversarial_mode: 'invert_shift'  # self, const, invert
+  adversarial_swapped: False
+  adversarial_const_target: 0.02
+  pixel_loss_mode: 'mse'
   # loss extras
   loss_adversarial_weight: 10.0
   loss_out_of_bounds_weight: 1.0   # not really needed
@@ -50,5 +51,6 @@ exp:
 job:
   user: 'n_michlo'
   project: 'exp-disentangle-dataset-approx'
-  name: ${framework.model_type}_${framework.model_mask_mode}_${framework.sampler_name}_${framework.loss_mode}_${framework.loss_fn}_C${framework.loss_const_targ}_${framework.dataset_name}_s${trainer.steps}_${framework.optimizer_name}_lr${framework.optimizer_lr}
+  prefix: 'TEST'
+  name: ${framework.dataset_name}_${framework.adversarial_mode}_aw${framework.loss_adversarial_weight}_${framework.sampler_name}_s${trainer.steps}_${framework.optimizer_name}_lr${framework.optimizer_lr}_wd${framework.optimizer_kwargs.weight_decay}
   partition: stampede

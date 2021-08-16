@@ -112,8 +112,8 @@ def make_delta_model(model_type: str, x_shape: Tuple[int, ...]):
     # get model
     if model_type.startswith('ae_'):
         return AeModel(
-            encoder=registry.MODEL[f'encoder{model_type[len("ae_"):]}'](x_shape=x_shape, z_size=32, z_multiplier=1),
-            decoder=registry.MODEL[f'decoder{model_type[len("ae_"):]}'](x_shape=x_shape, z_size=32, z_multiplier=1),
+            encoder=registry.MODEL[f'encoder{model_type[len("ae_"):]}'](x_shape=x_shape, z_size=64, z_multiplier=1),
+            decoder=registry.MODEL[f'decoder{model_type[len("ae_"):]}'](x_shape=x_shape, z_size=64, z_multiplier=1),
         )
     elif model_type == 'fcn_small':
         return torch.nn.Sequential(
@@ -167,10 +167,11 @@ class AdversarialModel(pl.LightningModule):
             dataset_num_workers: int = os.cpu_count() // 2,
             dataset_batch_size: int = 1024,  # approx
             data_root: str = 'data/dataset',
-        # loss config options
-            loss_fn: str = 'mse',
-            loss_mode: str = 'self',
-            loss_const_targ: Optional[float] = 0.1,  # replace stochastic pairwise constant loss with deterministic loss target
+        # adversarial loss options
+            adversarial_mode: str = 'self',
+            adversarial_swapped: bool = False,
+            adversarial_const_target: Optional[float] = 0.1,
+            pixel_loss_mode: str = 'mse',
         # loss extras
             loss_adversarial_weight: Optional[float] = 1.0,
             loss_same_stats_weight: Optional[float] = 0.0,
@@ -256,12 +257,11 @@ class AdversarialModel(pl.LightningModule):
         loss_adv = 0
         if (self.hparams.loss_adversarial_weight is not None) and (self.hparams.loss_adversarial_weight > 0):
             loss_adv = self.hparams.loss_adversarial_weight * adversarial_loss(
-                a_x=a_y,
-                p_x=p_y,
-                n_x=n_y,
-                loss=self.hparams.loss_fn,
-                target=self.hparams.loss_const_targ,
-                adversarial_mode=self.hparams.loss_mode,
+                ys=(a_y, p_y, n_y),
+                adversarial_mode=self.hparams.adversarial_mode,
+                adversarial_swapped=self.hparams.adversarial_swapped,
+                adversarial_const_target=self.hparams.adversarial_const_target,
+                pixel_loss_mode=self.hparams.pixel_loss_mode,
             )
         # additional loss components
         # - keep stats the same
@@ -452,8 +452,9 @@ def run_gen_adversarial_dataset(cfg):
     trainer.fit(framework)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # get save paths
-    save_path_data = ensure_parent_dir_exists(save_dir, f'{time_string}_{cfg.job.name}', f'data.h5')
-    save_path_model = ensure_parent_dir_exists(save_dir, f'{time_string}_{cfg.job.name}', f'model.pt')
+    prefix = f'{cfg.job.prefix}_' if cfg.job.prefix else ''
+    save_path_data = ensure_parent_dir_exists(save_dir, f'{prefix}{time_string}_{cfg.job.name}', f'data.h5')
+    save_path_model = ensure_parent_dir_exists(save_dir, f'{prefix}{time_string}_{cfg.job.name}', f'model.pt')
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # save adversarial model
     log.info(f'saving model to path: {repr(save_path_model)}')
