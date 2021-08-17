@@ -23,6 +23,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import os
+import warnings
 from typing import List
 from typing import Optional
 from typing import Sequence
@@ -82,7 +83,11 @@ def load_dataset_into_memory(gt_data: GroundTruthData, obs_shape: Optional[Tuple
 # ========================================================================= #
 
 
-def make_dataset(name: str = 'xysquares', factors: bool = False, data_root='data/dataset', load_into_memory: bool = False, load_memory_dtype=torch.float16, sampler=None) -> DisentDataset:
+def make_dataset(name: str = 'xysquares', factors: bool = False, data_root='data/dataset', try_in_memory: bool = False, load_into_memory: bool = False, load_memory_dtype=torch.float16, sampler=None) -> DisentDataset:
+    if load_into_memory:
+        if try_in_memory:
+            warnings.warn('`load_into_memory==True` is incompatible with `try_in_memory==True`, setting `try_in_memory=False`!')
+            try_in_memory = False
     # TODO: replace with registry!
     # make data
     if   name == 'xysquares':      data = XYSquaresData(transform=ToStandardisedTensor())
@@ -93,8 +98,8 @@ def make_dataset(name: str = 'xysquares', factors: bool = False, data_root='data
     elif name == 'xysquares_8x8_mini':  data = XYSquaresData(square_size=8, grid_spacing=14, transform=ToStandardisedTensor())  # 5x5x5x5x5x5 = 15625
     elif name == 'cars3d':         data = Cars3dData(data_root=data_root,    prepare=True, transform=ToStandardisedTensor(size=64))
     elif name == 'smallnorb':      data = SmallNorbData(data_root=data_root, prepare=True, transform=ToStandardisedTensor(size=64))
-    elif name == 'shapes3d':       data = Shapes3dData(data_root=data_root,  prepare=True, transform=ToStandardisedTensor())
-    elif name == 'dsprites':       data = DSpritesData(data_root=data_root,  prepare=True, transform=ToStandardisedTensor())
+    elif name == 'shapes3d':       data = Shapes3dData(data_root=data_root,  prepare=True, transform=ToStandardisedTensor(), in_memory=try_in_memory)
+    elif name == 'dsprites':       data = DSpritesData(data_root=data_root,  prepare=True, transform=ToStandardisedTensor(), in_memory=try_in_memory)
     else: raise KeyError(f'invalid data name: {repr(name)}')
     # load into memory
     if load_into_memory:

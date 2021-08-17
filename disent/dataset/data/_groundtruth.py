@@ -166,6 +166,8 @@ class ArrayGroundTruthData(GroundTruthData):
         return self.__observation_shape
 
     def _get_observation(self, idx):
+        # TODO: INVESTIGATE! I think this implements a lock,
+        #       hindering multi-threaded environments?
         return self._array[idx]
 
     @classmethod

@@ -167,6 +167,7 @@ class AdversarialModel(pl.LightningModule):
             dataset_num_workers: int = os.cpu_count() // 2,
             dataset_batch_size: int = 1024,  # approx
             data_root: str = 'data/dataset',
+            data_load_into_memory: bool = False,
         # adversarial loss options
             adversarial_mode: str = 'self',
             adversarial_swapped: bool = False,
@@ -205,7 +206,7 @@ class AdversarialModel(pl.LightningModule):
         # create dataset
         self.dataset = H.make_dataset(
             self.hparams.dataset_name,
-            load_into_memory=False,
+            load_into_memory=self.hparams.data_load_into_memory,
             load_memory_dtype=torch.float32,
             data_root=self.hparams.data_root,
             sampler=make_adversarial_sampler(self.hparams.sampler_name),

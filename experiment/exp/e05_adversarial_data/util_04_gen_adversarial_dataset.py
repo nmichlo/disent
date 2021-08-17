@@ -47,18 +47,41 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
+class AdversarialSampler_SwappedRandom(BaseDisentSampler):
+
+    def __init__(self, swap_metric='manhattan'):
+        super().__init__(3)
+        assert swap_metric in {'k', 'manhattan', 'manhattan_norm', 'euclidean', 'euclidean_norm'}
+        self._sampler = GroundTruthTripleSampler(swap_metric=swap_metric)
+        self._gt_data: GroundTruthData = None
+
+    def _init(self, gt_data: GroundTruthData):
+        self._sampler.init(gt_data)
+        self._gt_data = gt_data
+
+    def _sample_idx(self, idx: int) -> Tuple[int, ...]:
+        anchor, pos, neg = self._gt_data.idx_to_pos([
+            idx,
+            *np.random.randint(0, len(self._gt_data), size=2)
+        ])
+        # swap values
+        pos, neg = self._sampler._swap_factors(anchor_factors=anchor, positive_factors=pos, negative_factors=neg)
+        # return triple
+        return tuple(self._gt_data.pos_to_idx([anchor, pos, neg]))
+
+
 class AdversarialSampler_CloseFar(BaseDisentSampler):
 
     def __init__(
         self,
-        close_p_k_range=(1, 1),
-        close_p_radius_range=(1, 1),
-        far_p_k_range=(1, -1),
-        far_p_radius_range=(1, -1),
+        p_k_range=(1, 1),
+        p_radius_range=(1, 1),
+        n_k_range=(1, -1),
+        n_radius_range=(1, -1),
     ):
         super().__init__(3)
-        self.sampler_close = GroundTruthPairSampler(p_k_range=close_p_k_range, p_radius_range=close_p_radius_range)
-        self.sampler_far = GroundTruthPairSampler(p_k_range=far_p_k_range, p_radius_range=far_p_radius_range)
+        self.sampler_close = GroundTruthPairSampler(p_k_range=p_k_range, p_radius_range=p_radius_range)
+        self.sampler_far = GroundTruthPairSampler(p_k_range=n_k_range, p_radius_range=n_radius_range)
 
     def _init(self, gt_data: GroundTruthData):
         self.sampler_close.init(gt_data)
@@ -162,16 +185,30 @@ def sampler_print_test(sampler: Union[str, BaseDisentSampler], gt_data: GroundTr
 
 
 def make_adversarial_sampler(mode: str = 'close_far'):
-    if mode == 'close_far':
+    if mode in ['random_swap_k', 'random_swap_manhattan', 'random_swap_manhattan_norm', 'random_swap_euclidean', 'random_swap_euclidean_norm']:
+        # NOTE # -- random_swap_manhattan -- probability is too low of encountering nearby obs, don't use this!
+        metric = mode[len('random_swap_'):]
+        return AdversarialSampler_SwappedRandom(swap_metric=metric)
+    elif mode in ['close_far', 'close_p_random_n']:
+        # *NB* #
         return AdversarialSampler_CloseFar(
-            close_p_k_range=(1, 1), close_p_radius_range=(1, 1),
-            far_p_k_range=(0, -1), far_p_radius_range=(0, -1),
+            p_k_range=(1, 1), n_k_range=(1, -1),
+            p_radius_range=(1, 1), n_radius_range=(1, -1),
         )
-    elif mode == 'same_k':
+    elif mode in ['close_far_random', 'close_p_random_n_bb']:
+        # *NB* #
+        return GroundTruthTripleSampler(
+            p_k_range=(1, 1), n_k_range=(1, -1), n_k_sample_mode='bounded_below', n_k_is_shared=True,
+            p_radius_range=(1, 1), n_radius_range=(1, -1), n_radius_sample_mode='bounded_below',
+        )
+    elif mode in ['same_k']:
+        # *NB* #
         return AdversarialSampler_SameK(k='random', sample_p_close=False)
-    elif mode == 'same_k_close':
+    elif mode in ['same_k_close']:
+        # *NB* #
         return AdversarialSampler_SameK(k='random', sample_p_close=True)
-    elif mode == 'same_k1_close':
+    elif mode in ['same_k1_close']:
+        # *NB* #
         return AdversarialSampler_SameK(k=1, sample_p_close=True)
     elif mode == 'close_factor_far_random':
         return GroundTruthTripleSampler(
@@ -287,7 +324,20 @@ def adversarial_loss(
 
 
 # if __name__ == '__main__':
-#     sampler_print_test(
-#         sampler='same_k',
-#         gt_data=XYObjectData()
-#     )
+#
+#     def _main():
+#         from disent.dataset.data import XYObjectData
+#
+#         # NB:
+#         # close_p_random_n
+#         # close_p_random_n_bb
+#         # same_k
+#         # same_k_close
+#         # same_k1_close
+#
+#         sampler_print_test(
+#             sampler='close_p_random_n',
+#             gt_data=XYObjectData()
+#         )
+#
+#     _main()
