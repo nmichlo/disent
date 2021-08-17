@@ -1,5 +1,18 @@
-# EXPERIMENT:
-# -m framework.loss_adversarial_weight=100.0,10.0 framework.sampler_name=same_k framework.dataset_name=cars3d,smallnorb,shapes3d,dsprites
+# EXPERIMENT SWEEP:
+# -m framework.sampler_name=close_p_random_n,same_k1_close adversarial_mode=self,invert_margin_0.005 framework.dataset_name=shapes3d,dsprites,cars3d,smallnorb
+
+# EXPERIMENT INDIVIDUALS:
+# framework.sampler_name=close_p_random_n  adversarial_mode=invert_margin_0.005  framework.dataset_name=shapes3d
+# framework.sampler_name=close_p_random_n  adversarial_mode=self                 framework.dataset_name=shapes3d
+
+# framework.sampler_name=close_p_random_n  adversarial_mode=invert_margin_0.005  framework.dataset_name=dsprites
+# framework.sampler_name=close_p_random_n  adversarial_mode=self                 framework.dataset_name=dsprites
+
+# framework.sampler_name=close_p_random_n  adversarial_mode=invert_margin_0.005  framework.dataset_name=cars3d
+# framework.sampler_name=close_p_random_n  adversarial_mode=self                 framework.dataset_name=cars3d
+
+# framework.sampler_name=close_p_random_n  adversarial_mode=invert_margin_0.005  framework.dataset_name=smallnorb
+# framework.sampler_name=close_p_random_n  adversarial_mode=self                 framework.dataset_name=smallnorb
 
 defaults:
   # runtime
@@ -9,38 +22,53 @@ defaults:
   - hydra/job_logging: colorlog
   - hydra/hydra_logging: colorlog
 #  - hydra/launcher: submitit_slurm
+#  - hydra/launcher: joblib
 
 trainer:
   cuda: TRUE
   # try increasing the number of steps
-  # 15000 takes 40 mins with batch size 512
-  steps: 15000
+  # - 15000 takes 40 mins with batch size 512 (heartofgold, 12 workers)
+  # - 50000 takes 42 mins with batch size 256 (griffin, 8 workers, can be lowered?)
+  steps: 5000
 
 framework:
+  # IMPORTANT SETTINGS:
+  dataset_name:     'dsprites'             # [cars3d, smallnorb, dsprites, shapes3d, xysquares_8x8_mini]
+  adversarial_mode: 'self'  # [self, invert_margin_0.005] invert, invert_unbounded
+  # note: sampler_name
+  # - random_swap_manhattan: worst [no inversion before 5k]     (probability of encountering close is too low, don't use! ++easiest to implement)
+  # - close_p_random_n:      good  [inversion before 5k]        (easier to implement)
+  # - close_p_random_n_bb:   good  [inversion before 5k]        (hard to implement, but pretty much the same as close_p_random_n)
+  # - same_k:                bad   [no inversion before 5k]     (probability of encountering close is too low, don't use! --harder to implement, better guarantees than random_swap_manhattan)
+  # - same_k_close:          ok    [almost inversion before 5k] (harder to implement)
+  # - same_k1_close:         best  [inversion well before 5 k]  (easier to implement)
+  sampler_name: 'close_p_random_n'     # [close_p_random_n, same_k1_close]
+
+  # OTHER SETTINGS:
   # optimizer options
   optimizer_name: 'Adam'
   optimizer_lr: 5e-4
   optimizer_kwargs:
      weight_decay: 1e-6
   # dataset config options
-  dataset_name: 'dsprites'  # cars3d, smallnorb, dsprites, shapes3d, xysquares_8x8_mini
+  # | dataset_name: 'dsprites'  # cars3d, smallnorb, dsprites, shapes3d, xysquares_8x8_mini
   dataset_batch_size: 256  # x3
   dataset_num_workers: ${dataset.num_workers}
   data_root: ${dataset.data_root}
   data_load_into_memory: FALSE  # I don't think this is truly multi-threaded, possible lock on array access?
   # adversarial loss options
-  adversarial_mode: 'invert_margin_0.01'  # self, invert, invert_unbounded, invert_margin_0.01
-  adversarial_swapped: False
-  adversarial_masking: False
-  adversarial_top_k: NULL  # NULL or range: [1, batch_size]
+  # | adversarial_mode: 'invert_margin_0.005'  # [self, invert_margin_0.005] invert, invert_unbounded
+  adversarial_swapped: FALSE
+  adversarial_masking: FALSE  # can produce weird artefacts that look like they might go against the training process, eg. improve disentanglement on dsprites, not actually checked by trianing model on this.
+  adversarial_top_k: NULL  # NULL or range(1, batch_size)
   pixel_loss_mode: 'mse'
   # loss extras
   loss_adversarial_weight: 10.0
-  loss_out_of_bounds_weight: 100.0   # not really needed
+  loss_out_of_bounds_weight: 1.0   # not really needed -- if this is too high it struggles to "invert"
   loss_same_stats_weight: 0.0      # not really needed
   loss_similarity_weight: 1.0      # important
   # sampling config
-  sampler_name: 'same_k1_close'   # same_k (might be wrong!), same_k_close, same_k1_close, close_far, close_factor_far_random, close_far_same_factor, same_factor, random_bb, random_swap_manhat, random_swap_manhat_norm
+  # | sampler_name: 'same_k1_close'   # [close_p_random_n, close_p_random_n_bb, same_k, same_k_close, same_k1_close] ... same_k (might be wrong!), same_k_close, same_k1_close, close_far, close_factor_far_random, close_far_same_factor, same_factor, random_bb, random_swap_manhat, random_swap_manhat_norm
   # model settings
   model_type: 'ae_conv64'
   model_mask_mode: 'none'  # std, diff, none
@@ -49,15 +77,15 @@ framework:
 
 exp:
   seed: 777
-  show_every_n_steps: 300
+  show_every_n_steps: 1000
   rel_save_dir: 'out/adversarial_data_approx/'
 
 job:
   # saving
   save_prefix: ''
-  save_model: TRUE
-  save_data: TRUE
-  name: TEST-${framework.dataset_name}_${framework.adversarial_mode}_aw${framework.loss_adversarial_weight}_${framework.sampler_name}_s${trainer.steps}_${framework.optimizer_name}_lr${framework.optimizer_lr}_wd${framework.optimizer_kwargs.weight_decay}
+  save_model: FALSE
+  save_data: FALSE
+  name: DELETE-${framework.dataset_name}_${framework.adversarial_mode}_aw${framework.loss_adversarial_weight}_${framework.sampler_name}_s${trainer.steps}_${framework.optimizer_name}_lr${framework.optimizer_lr}_wd${framework.optimizer_kwargs.weight_decay}
   # wandb
   user: 'n_michlo'
   project: 'exp-disentangle-dataset-approx'
