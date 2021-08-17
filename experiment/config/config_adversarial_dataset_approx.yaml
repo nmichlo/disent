@@ -1,18 +1,16 @@
 # EXPERIMENT SWEEP:
-# -m framework.sampler_name=close_p_random_n,same_k1_close adversarial_mode=self,invert_margin_0.005 framework.dataset_name=shapes3d,dsprites,cars3d,smallnorb
+# -m framework.sampler_name=close_p_random_n framework.adversarial_mode=self,invert_margin_0.005 framework.dataset_name=dsprites,shapes3d,cars3d,smallnorb
 
 # EXPERIMENT INDIVIDUALS:
-# framework.sampler_name=close_p_random_n  adversarial_mode=invert_margin_0.005  framework.dataset_name=shapes3d
-# framework.sampler_name=close_p_random_n  adversarial_mode=self                 framework.dataset_name=shapes3d
+# framework.sampler_name=close_p_random_n  framework.adversarial_mode=self                 framework.dataset_name=dsprites
+# framework.sampler_name=close_p_random_n  framework.adversarial_mode=self                 framework.dataset_name=shapes3d
+# framework.sampler_name=close_p_random_n  framework.adversarial_mode=self                 framework.dataset_name=cars3d
+# framework.sampler_name=close_p_random_n  framework.adversarial_mode=self                 framework.dataset_name=smallnorb
 
-# framework.sampler_name=close_p_random_n  adversarial_mode=invert_margin_0.005  framework.dataset_name=dsprites
-# framework.sampler_name=close_p_random_n  adversarial_mode=self                 framework.dataset_name=dsprites
-
-# framework.sampler_name=close_p_random_n  adversarial_mode=invert_margin_0.005  framework.dataset_name=cars3d
-# framework.sampler_name=close_p_random_n  adversarial_mode=self                 framework.dataset_name=cars3d
-
-# framework.sampler_name=close_p_random_n  adversarial_mode=invert_margin_0.005  framework.dataset_name=smallnorb
-# framework.sampler_name=close_p_random_n  adversarial_mode=self                 framework.dataset_name=smallnorb
+# framework.sampler_name=close_p_random_n  framework.adversarial_mode=invert_margin_0.005  framework.dataset_name=dsprites
+# framework.sampler_name=close_p_random_n  framework.adversarial_mode=invert_margin_0.005  framework.dataset_name=shapes3d
+# framework.sampler_name=close_p_random_n  framework.adversarial_mode=invert_margin_0.005  framework.dataset_name=cars3d
+# framework.sampler_name=close_p_random_n  framework.adversarial_mode=invert_margin_0.005  framework.dataset_name=smallnorb
 
 defaults:
   # runtime
@@ -28,20 +26,24 @@ trainer:
   cuda: TRUE
   # try increasing the number of steps
   # - 15000 takes 40 mins with batch size 512 (heartofgold, 12 workers)
-  # - 50000 takes 42 mins with batch size 256 (griffin, 8 workers, can be lowered?)
-  steps: 5000
+  # - 50000 takes 33 mins with batch size 256 (griffin, 16 workers)
+  steps: 50001
 
 framework:
   # IMPORTANT SETTINGS:
   dataset_name:     'dsprites'             # [cars3d, smallnorb, dsprites, shapes3d, xysquares_8x8_mini]
   adversarial_mode: 'self'  # [self, invert_margin_0.005] invert, invert_unbounded
-  # note: sampler_name
+  # note: sampler_name (adversarial_mode=invert_margin_0.005)
   # - random_swap_manhattan: worst [no inversion before 5k]     (probability of encountering close is too low, don't use! ++easiest to implement)
   # - close_p_random_n:      good  [inversion before 5k]        (easier to implement)
   # - close_p_random_n_bb:   good  [inversion before 5k]        (hard to implement, but pretty much the same as close_p_random_n)
   # - same_k:                bad   [no inversion before 5k]     (probability of encountering close is too low, don't use! --harder to implement, better guarantees than random_swap_manhattan)
   # - same_k_close:          ok    [almost inversion before 5k] (harder to implement)
   # - same_k1_close:         best  [inversion well before 5 k]  (easier to implement)
+  # note: sampler_name (adversarial_mode=self)
+  # - close_p_random_n:      seems better based on plot of fdists vs overlap (converges better, but loss is higher which makes sense)
+  # - same_k1_close:         seems worse based on plot of fdists vs overlap (seems to maintain original shape more, might hinder disentanglement? not actually tested)
+  # <<< DECISION: close_p_random_n >>>
   sampler_name: 'close_p_random_n'     # [close_p_random_n, same_k1_close]
 
   # OTHER SETTINGS:
@@ -68,7 +70,7 @@ framework:
   loss_same_stats_weight: 0.0      # not really needed
   loss_similarity_weight: 1.0      # important
   # sampling config
-  # | sampler_name: 'same_k1_close'   # [close_p_random_n, close_p_random_n_bb, same_k, same_k_close, same_k1_close] ... same_k (might be wrong!), same_k_close, same_k1_close, close_far, close_factor_far_random, close_far_same_factor, same_factor, random_bb, random_swap_manhat, random_swap_manhat_norm
+  # | sampler_name: 'close_p_random_n'   # [close_p_random_n] (see notes above) -- close_p_random_n, close_p_random_n_bb, same_k, same_k_close, same_k1_close, same_k (might be wrong!), same_k_close, same_k1_close, close_far, close_factor_far_random, close_far_same_factor, same_factor, random_bb, random_swap_manhat, random_swap_manhat_norm
   # model settings
   model_type: 'ae_conv64'
   model_mask_mode: 'none'  # std, diff, none
@@ -83,9 +85,9 @@ exp:
 job:
   # saving
   save_prefix: ''
-  save_model: FALSE
-  save_data: FALSE
-  name: DELETE-${framework.dataset_name}_${framework.adversarial_mode}_aw${framework.loss_adversarial_weight}_${framework.sampler_name}_s${trainer.steps}_${framework.optimizer_name}_lr${framework.optimizer_lr}_wd${framework.optimizer_kwargs.weight_decay}
+  save_model: TRUE
+  save_data: TRUE
+  name: FINAL-${framework.dataset_name}_${framework.adversarial_mode}_aw${framework.loss_adversarial_weight}_${framework.sampler_name}_s${trainer.steps}_${framework.optimizer_name}_lr${framework.optimizer_lr}_wd${framework.optimizer_kwargs.weight_decay}
   # wandb
   user: 'n_michlo'
   project: 'exp-disentangle-dataset-approx'
