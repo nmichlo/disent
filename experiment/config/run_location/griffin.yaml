@@ -7,11 +7,11 @@ trainer:
   prepare_data_per_node: TRUE
 
 dataset:
-  num_workers: 12
+  num_workers: 16  # max 128, more than 16 doesn't really seem to help (tested on batch size 256*3)?
   batch_size: 256
-  data_root: '${env:HOME}/workspace/research/disent/data/dataset'
+  data_root: '${env:HOME}/research/disent/data/dataset'
   pin_memory: ${trainer.cuda}
-  try_in_memory: FALSE
+  try_in_memory: TRUE
   gpu_augment: FALSE
 
 hydra:

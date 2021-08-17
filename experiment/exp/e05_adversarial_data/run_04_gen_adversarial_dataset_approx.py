@@ -29,17 +29,14 @@ from typing import Optional
 from typing import Sequence
 from typing import Tuple
 
-import h5py
 import numpy as np
 import torch.nn.functional as F
 import hydra
 import pytorch_lightning as pl
 import torch
 import wandb
-from matplotlib import pyplot as plt
 from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
-from torch.utils.data.dataloader import default_collate
 
 import experiment.exp.util as H
 from disent import registry
@@ -47,7 +44,6 @@ from disent.dataset import DisentDataset
 from disent.dataset.sampling import BaseDisentSampler
 from disent.dataset.util.hdf5 import h5_open
 from disent.dataset.util.hdf5 import H5Builder
-from disent.dataset.util.hdf5 import hdf5_resave_file
 from disent.model import AutoEncoder
 from disent.nn.activations import Swish
 from disent.nn.modules import DisentModule
@@ -56,7 +52,6 @@ from disent.util.inout.paths import ensure_parent_dir_exists
 from disent.util.lightning.callbacks import BaseCallbackPeriodic
 from disent.util.lightning.logger_util import wb_has_logger
 from disent.util.lightning.logger_util import wb_log_metrics
-from disent.util.math.random import random_choice_prng
 from disent.util.seeds import seed
 from disent.util.seeds import TempNumpySeed
 from disent.util.strings.fmt import bytes_to_human
@@ -117,8 +112,8 @@ def make_delta_model(model_type: str, x_shape: Tuple[int, ...]):
     # get model
     if model_type.startswith('ae_'):
         return AeModel(
-            encoder=registry.MODEL[f'encoder{model_type[len("ae_"):]}'](x_shape=x_shape, z_size=32, z_multiplier=1),
-            decoder=registry.MODEL[f'decoder{model_type[len("ae_"):]}'](x_shape=x_shape, z_size=32, z_multiplier=1),
+            encoder=registry.MODEL[f'encoder{model_type[len("ae_"):]}'](x_shape=x_shape, z_size=64, z_multiplier=1),
+            decoder=registry.MODEL[f'decoder{model_type[len("ae_"):]}'](x_shape=x_shape, z_size=64, z_multiplier=1),
         )
     elif model_type == 'fcn_small':
         return torch.nn.Sequential(
@@ -169,13 +164,16 @@ class AdversarialModel(pl.LightningModule):
             optimizer_kwargs: Optional[dict] = None,
         # dataset config options
             dataset_name: str = 'cars3d',
-            dataset_num_workers: int = os.cpu_count() // 2,
+            dataset_num_workers: int = min(os.cpu_count(), 16),
             dataset_batch_size: int = 1024,  # approx
             data_root: str = 'data/dataset',
-        # loss config options
-            loss_fn: str = 'mse',
-            loss_mode: str = 'self',
-            loss_const_targ: Optional[float] = 0.1,  # replace stochastic pairwise constant loss with deterministic loss target
+            data_load_into_memory: bool = False,
+        # adversarial loss options
+            adversarial_mode: str = 'self',
+            adversarial_swapped: bool = False,
+            adversarial_masking: bool = False,
+            adversarial_top_k: Optional[int] = None,
+            pixel_loss_mode: str = 'mse',
         # loss extras
             loss_adversarial_weight: Optional[float] = 1.0,
             loss_same_stats_weight: Optional[float] = 0.0,
@@ -208,7 +206,7 @@ class AdversarialModel(pl.LightningModule):
         # create dataset
         self.dataset = H.make_dataset(
             self.hparams.dataset_name,
-            load_into_memory=False,
+            load_into_memory=self.hparams.data_load_into_memory,
             load_memory_dtype=torch.float32,
             data_root=self.hparams.data_root,
             sampler=make_adversarial_sampler(self.hparams.sampler_name),
@@ -261,12 +259,13 @@ class AdversarialModel(pl.LightningModule):
         loss_adv = 0
         if (self.hparams.loss_adversarial_weight is not None) and (self.hparams.loss_adversarial_weight > 0):
             loss_adv = self.hparams.loss_adversarial_weight * adversarial_loss(
-                a_x=a_y,
-                p_x=p_y,
-                n_x=n_y,
-                loss=self.hparams.loss_fn,
-                target=self.hparams.loss_const_targ,
-                adversarial_mode=self.hparams.loss_mode,
+                ys=(a_y, p_y, n_y),
+                xs=(a_x, p_x, n_x),
+                adversarial_mode=self.hparams.adversarial_mode,
+                adversarial_swapped=self.hparams.adversarial_swapped,
+                adversarial_masking=self.hparams.adversarial_masking,
+                adversarial_top_k=self.hparams.adversarial_top_k,
+                pixel_loss_mode=self.hparams.pixel_loss_mode,
             )
         # additional loss components
         # - keep stats the same
@@ -346,10 +345,13 @@ class AdversarialModel(pl.LightningModule):
                     return
                 log.info(f'visualising: {this.__class__.__name__}')
                 # hack to get transformed data
-                assert self.dataset._transform is None
+                assert self.dataset._transform is None  # TODO: this is hacky!
                 self.dataset._transform = make_dataset_transform()
-                this._do_step(trainer, pl_module)
-                self.dataset._transform = None
+                try:
+                    this._do_step(trainer, pl_module)
+                except:
+                    log.error('Failed to do visualise callback step!', exc_info=True)
+                self.dataset._transform = None  # TODO: this is hacky!
         # show image callback
         class ImShowCallback(_BaseDatasetCallback):
             def _do_step(this, trainer: pl.Trainer, pl_module: pl.LightningModule):
@@ -371,18 +373,19 @@ class AdversarialModel(pl.LightningModule):
                 a_idx = torch.randint(0, len(batch), size=[4*len(batch)])
                 b_idx = torch.randint(0, len(batch), size=[4*len(batch)])
                 mask = (a_idx != b_idx)
+                # TODO: check that this is deterministic
                 # compute distances
                 deltas = to_numpy(H.pairwise_overlap(batch[a_idx[mask]], batch[b_idx[mask]], mode='mse'))
                 fdists = to_numpy(torch.abs(factors[a_idx[mask]] - factors[b_idx[mask]]).sum(dim=-1))
                 sdists = to_numpy((torch.abs(factors[a_idx[mask]] - factors[b_idx[mask]]) / to_numpy(self.dataset.gt_data.factor_sizes)[None, :]).sum(dim=-1))
                 # log to wandb
                 from matplotlib import pyplot as plt
-                plt.scatter(fdists, deltas)
-                table = wandb.Table(columns=['fdists', 'deltas'], data=np.transpose([fdists, deltas]))
-                wandb.log({
-                    'fdist_vs_overlap': wandb.plot.scatter(table=table, x='fdists', y='deltas', title='Factor Dists vs. Overlap',),
-                    'fdist_vs_overlap2': plt,
-                }, step=self.trainer.global_step)
+                plt.scatter(fdists, deltas); img_fdists = wandb.Image(plt); plt.close()
+                plt.scatter(sdists, deltas); img_sdists = wandb.Image(plt); plt.close()
+                wb_log_metrics(trainer.logger, {
+                    'fdists_vs_overlap': img_fdists,
+                    'sdists_vs_overlap': img_sdists,
+                })
         # done!
         return [
             ImShowCallback(every_n_steps=cfg.exp.show_every_n_steps, begin_first_step=True),
@@ -453,32 +456,37 @@ def run_gen_adversarial_dataset(cfg):
     trainer.fit(framework)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # get save paths
-    save_path_data = ensure_parent_dir_exists(save_dir, f'{time_string}_{cfg.job.name}', f'data.h5')
-    save_path_data_alt = ensure_parent_dir_exists(save_dir, f'{time_string}_{cfg.job.name}', f'data_ALT.h5')
-    save_path_model = ensure_parent_dir_exists(save_dir, f'{time_string}_{cfg.job.name}', f'model.pt')
+    save_prefix = f'{cfg.job.save_prefix}_' if cfg.job.save_prefix else ''
+    save_path_model = os.path.join(save_dir, f'{save_prefix}{time_string}_{cfg.job.name}', f'model.pt')
+    save_path_data = os.path.join(save_dir, f'{save_prefix}{time_string}_{cfg.job.name}', f'data.h5')
+    # create directories
+    if cfg.job.save_model: ensure_parent_dir_exists(save_path_model)
+    if cfg.job.save_data: ensure_parent_dir_exists(save_path_data)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # save adversarial model
-    log.info(f'saving model to path: {repr(save_path_model)}')
-    torch.save(framework.model, save_path_model)
-    log.info(f'saved model size: {bytes_to_human(os.path.getsize(save_path_model))}')
+    if cfg.job.save_model:
+        log.info(f'saving model to path: {repr(save_path_model)}')
+        torch.save(framework.model, save_path_model)
+        log.info(f'saved model size: {bytes_to_human(os.path.getsize(save_path_model))}')
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-    # save dataset
-    log.info(f'saving data to path: {repr(save_path_data)}')
-    # transfer to GPU
-    if torch.cuda.is_available():
-        framework = framework.cuda()
-    # create new h5py file -- TODO: use this in other places!
-    with h5_open(path=save_path_data_alt, mode='atomic_w') as h5_file:
-        H5Builder(h5_file).add_dataset_from_gt_data(
-            data=framework.dataset,  # produces tensors
-            mutator=framework.batch_to_adversarial_imgs,  # consumes tensors -> np.ndarrays
-            img_shape=(64, 64, None),
-            compression_lvl=9,
-            batch_size=32,
-        )
-    log.info(f'saved data size: {bytes_to_human(os.path.getsize(save_path_data_alt))}')
+    # save adversarial dataset
+    if cfg.job.save_data:
+        log.info(f'saving data to path: {repr(save_path_data)}')
+        # transfer to GPU
+        if torch.cuda.is_available():
+            framework = framework.cuda()
+        # create new h5py file -- TODO: use this in other places!
+        with h5_open(path=save_path_data, mode='atomic_w') as h5_file:
+            # this dataset is self-contained and can be loaded by SelfContainedHdf5GroundTruthData
+            H5Builder(h5_file).add_dataset_from_gt_data(
+                data=framework.dataset,  # produces tensors
+                mutator=framework.batch_to_adversarial_imgs,  # consumes tensors -> np.ndarrays
+                img_shape=(64, 64, None),
+                compression_lvl=9,
+                batch_size=32,
+            )
+        log.info(f'saved data size: {bytes_to_human(os.path.getsize(save_path_data))}')
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-
 
 
 # ========================================================================= #

@@ -76,7 +76,7 @@ class AdversarialModel(pl.LightningModule):
             optimizer_kwargs: Optional[dict] = None,
         # dataset config options
             dataset_name: str = 'cars3d',
-            dataset_num_workers: int = os.cpu_count() // 2,
+            dataset_num_workers: int = min(os.cpu_count(), 16),
             dataset_batch_size: int = 1024,  # approx
             data_root: str = 'data/dataset',
         # loss config options

@@ -21,7 +21,10 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
 import inspect
+import warnings
+from typing import Optional
 
 import torch
 from torch.nn import functional as F
@@ -38,7 +41,7 @@ from disent.nn.loss.reduction import batch_loss_reduction
 _SPECIALIZATIONS = {'sgd_m': ('sgd', dict(momentum=0.1))}
 
 
-def make_optimizer(model: torch.nn.Module, name: str = 'sgd', lr=1e-3, weight_decay: float = 0.):
+def make_optimizer(model: torch.nn.Module, name: str = 'sgd', lr=1e-3, weight_decay: Optional[float] = None):
     if isinstance(model, torch.nn.Module):
         params = model.parameters()
     elif isinstance(model, torch.Tensor):
@@ -54,8 +57,11 @@ def make_optimizer(model: torch.nn.Module, name: str = 'sgd', lr=1e-3, weight_de
     optimizer_cls = registry.OPTIMIZER[name]
     optimizer_params = set(inspect.signature(optimizer_cls).parameters.keys())
     # add optional arguments
-    if 'weight_decay' in optimizer_params:
-        kwargs['weight_decay'] = weight_decay
+    if weight_decay is not None:
+        if 'weight_decay' in optimizer_params:
+            kwargs['weight_decay'] = weight_decay
+        else:
+            warnings.warn(f'{name}: weight decay cannot be set, optimizer does not have `weight_decay` parameter')
     # instantiate
     return optimizer_cls(params, lr=lr, **kwargs)
 
@@ -94,11 +100,15 @@ _LOSS_FNS = {
 # ========================================================================= #
 
 
-def pairwise_loss(pred: torch.Tensor, targ: torch.Tensor, mode='mse', mean_dtype=None) -> torch.Tensor:
+def pairwise_loss(pred: torch.Tensor, targ: torch.Tensor, mode='mse', mean_dtype=None, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
     # check input
     assert pred.shape == targ.shape
     # mean over final dims
     loss = unreduced_loss(pred=pred, targ=targ, mode=mode)
+    # mask values
+    if mask is not None:
+        loss *= mask
+    # reduce
     loss = batch_loss_reduction(loss, reduction_dtype=mean_dtype, reduction='mean')
     # check result
     assert loss.shape == pred.shape[:1]

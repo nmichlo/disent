@@ -1,6 +1,8 @@
 #!/bin/bash
 
-python3 run_04_gen_adversarial_alt.py -m \
+# TODO: fix this!
+python3 run_04_gen_adversarial_dataset.py \
+    -m \
     framework.sampler_name=same_k,close_far,same_factor,random_bb \
     framework.loss_mode=self,const,invert \
     framework.dataset_name=cars3d,smallnorb

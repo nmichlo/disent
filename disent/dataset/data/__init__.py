@@ -28,8 +28,8 @@ from disent.dataset.data._episodes__custom import EpisodesPickledData
 from disent.dataset.data._episodes__custom import EpisodesDownloadZippedPickledData
 
 # raw -- groundtruth
-# TODO: hdf5 version
 from disent.dataset.data._groundtruth import ArrayGroundTruthData
+from disent.dataset.data._groundtruth import SelfContainedHdf5GroundTruthData
 
 # raw
 from disent.dataset.data._raw import ArrayDataset

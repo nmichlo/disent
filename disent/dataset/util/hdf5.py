@@ -309,7 +309,7 @@ class H5Builder(object):
         img_shape: Tuple[Optional[int], ...] = (None, None, None),  # None items are automatically found
         batch_size: int = 32,
         compression_lvl: Optional[int] = 9,
-        num_workers=os.cpu_count(),
+        num_workers=min(os.cpu_count(), 16),
         show_progress: bool = True,
     ):
         from disent.dataset import DisentDataset
@@ -332,6 +332,7 @@ class H5Builder(object):
             dtype=dtype,
             chunk_shape='batch',
             compression_lvl=compression_lvl,
+            # THESE ATTRIBUTES SHOULD MATCH: SelfContainedHdf5GroundTruthData
             attrs=dict(
                 dataset_name=gt_data.name,
                 dataset_cls_name=gt_data.__class__.__name__,
