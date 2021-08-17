@@ -52,7 +52,7 @@ from disent.nn.transform import ToStandardisedTensor
 # ========================================================================= #
 
 
-def load_dataset_into_memory(gt_data: GroundTruthData, obs_shape: Optional[Tuple[int, ...]] = None, batch_size=64, num_workers=os.cpu_count() // 2, dtype=torch.float32, raw_array=False):
+def load_dataset_into_memory(gt_data: GroundTruthData, obs_shape: Optional[Tuple[int, ...]] = None, batch_size=64, num_workers=min(os.cpu_count(), 16), dtype=torch.float32, raw_array=False):
     assert dtype in {torch.float16, torch.float32}
     # TODO: this should be part of disent?
     from torch.utils.data import DataLoader
