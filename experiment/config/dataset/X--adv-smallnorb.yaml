@@ -1,5 +1,5 @@
 # @package _group_
-name: adversarial_smallnorb
+name: adv_smallnorb
 data:
   _target_: disent.dataset.data.SelfContainedHdf5GroundTruthData
   h5_path: '${env:HOME}/workspace/research/disent/out/adversarial_data_approx/2021-08-11--06-40-31_ae_conv64_none_same_k_invert_mse_C0.02_smallnorb_s25000_Adam_lr0.0005_aw10/data_ALT.h5'

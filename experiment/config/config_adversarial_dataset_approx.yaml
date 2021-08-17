@@ -12,28 +12,30 @@ defaults:
 
 trainer:
   cuda: TRUE
-  steps: 25000
+  # try increasing the number of steps
+  # 15000 takes 40 mins with batch size 512
+  steps: 15000
 
 framework:
   # optimizer options
   optimizer_name: 'Adam'
   optimizer_lr: 5e-4
   optimizer_kwargs:
-     weight_decay: 1e-5
+     weight_decay: 1e-6
   # dataset config options
   dataset_name: 'dsprites'  # cars3d, smallnorb, dsprites, shapes3d, xysquares_8x8_mini
   dataset_num_workers: 12
-  dataset_batch_size: 256  # x3
+  dataset_batch_size: 512  # x3
   data_root: ${dataset.data_root}
   # adversarial loss options
-  adversarial_mode: 'invert_shift'  # self, const, invert
+  adversarial_mode: 'invert_margin_0.01'  # self, invert, invert_unbounded, invert_margin_0.01
   adversarial_swapped: False
   adversarial_masking: False
   adversarial_top_k: NULL  # NULL or range: [1, batch_size]
   pixel_loss_mode: 'mse'
   # loss extras
   loss_adversarial_weight: 10.0
-  loss_out_of_bounds_weight: 1.0   # not really needed
+  loss_out_of_bounds_weight: 100.0   # not really needed
   loss_same_stats_weight: 0.0      # not really needed
   loss_similarity_weight: 1.0      # important
   # sampling config
@@ -46,15 +48,15 @@ framework:
 
 exp:
   seed: 777
-  show_every_n_steps: 500
+  show_every_n_steps: 300
   rel_save_dir: 'out/adversarial_data_approx/'
 
 job:
   # saving
-  save_prefix: 'TEST2'
+  save_prefix: ''
   save_model: TRUE
   save_data: TRUE
-  name: ${framework.dataset_name}_${framework.adversarial_mode}_aw${framework.loss_adversarial_weight}_${framework.sampler_name}_s${trainer.steps}_${framework.optimizer_name}_lr${framework.optimizer_lr}_wd${framework.optimizer_kwargs.weight_decay}
+  name: TEST-${framework.dataset_name}_${framework.adversarial_mode}_aw${framework.loss_adversarial_weight}_${framework.sampler_name}_s${trainer.steps}_${framework.optimizer_name}_lr${framework.optimizer_lr}_wd${framework.optimizer_kwargs.weight_decay}
   # wandb
   user: 'n_michlo'
   project: 'exp-disentangle-dataset-approx'
