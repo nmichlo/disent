@@ -23,6 +23,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import os
+from typing import Optional
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -45,10 +46,17 @@ from disent.util.seeds import TempNumpySeed
 # ========================================================================= #
 
 
+def ensure_rgb(img: np.ndarray) -> np.ndarray:
+    if img.shape[-1] == 1:
+        img = np.concatenate([img, img, img], axis=-1)
+    assert img.shape[-1] == 3, f'last channel of array is not of size 3 for RGB, got shape: {tuple(img.shape)}'
+    return img
+
+
 def plot_dataset_traversals(
     gt_data: GroundTruthData,
     f_idxs=None,
-    num_cols=8,
+    num_cols: Optional[int] = 8,
     base_factors=None,
     add_random_traversal=True,
     pad=8,
@@ -60,8 +68,10 @@ def plot_dataset_traversals(
     plt_scale=4.5,
     offset=0.75
 ):
+    # convert
     dataset = DisentDataset(gt_data)
     f_idxs = H.get_factor_idxs(gt_data, f_idxs)
+    num_cols = num_cols if (num_cols is not None) else max(gt_data.factor_sizes)
     # get traversal grid
     row_labels = [gt_data.factor_names[i] for i in f_idxs]
     grid, _, _ = H.visualize_dataset_traversal(
@@ -80,18 +90,12 @@ def plot_dataset_traversals(
     if add_random_traversal:
         with TempNumpySeed(seed):
             row_labels = ['random'] + row_labels
-            grid = np.concatenate([
-                dataset.dataset_sample_batch(num_samples=num_cols, mode='raw')[None, ...],
-                grid
-            ])
-    # add missing channel
-    if grid.ndim == 4:
-        grid = grid[..., None].repeat(3, axis=-1)
-    assert grid.ndim == 5
+            row = dataset.dataset_sample_batch(num_samples=num_cols, mode='raw')[None, ...]  # torch.Tensor
+            grid = np.concatenate([ensure_rgb(row), grid])
     # make figure
-    h, w, _, _, c = grid.shape
+    factors, frames, _, _, c = grid.shape
     assert c == 3
-    fig, axs = H.plt_subplots_imshow(grid, row_labels=row_labels, subplot_padding=0.5, figsize=(offset + (1/2.54)*w*plt_scale, (1/2.54)*h*plt_scale))
+    fig, axs = H.plt_subplots_imshow(grid, row_labels=row_labels, subplot_padding=0.5, figsize=(offset + (1/2.54)*frames*plt_scale, (1/2.54)*factors*plt_scale))
     # save figure
     if save and (rel_path is not None):
         plt.savefig(H.make_rel_path_add_ext(rel_path, ext='.png'))
@@ -113,51 +117,19 @@ if __name__ == '__main__':
     # options
     all_squares = True
     add_random_traversal = True
-    num_cols = 7
+    num_cols = None
 
-    # save image
+    # save images
     for i in ([1, 2, 3, 4, 5, 6, 7, 8] if all_squares else [1, 8]):
-        plot_dataset_traversals(
-            XYSquaresData(grid_spacing=i, grid_size=8, no_warnings=True),
-            rel_path=f'plots/xy-squares-traversal-spacing{i}',
-            seed=7, add_random_traversal=add_random_traversal, num_cols=num_cols
-        )
+        data = XYSquaresData(grid_spacing=i, grid_size=8, no_warnings=True)
+        plot_dataset_traversals(data, rel_path=f'plots/xy-squares-traversal-spacing{i}', seed=7, add_random_traversal=add_random_traversal, num_cols=num_cols)
 
-    plot_dataset_traversals(
-        XYObjectData(),
-        rel_path=f'plots/xy-object-traversal',
-        seed=47, add_random_traversal=add_random_traversal, num_cols=num_cols
-    )
-
-    plot_dataset_traversals(
-        XYBlocksData(),
-        rel_path=f'plots/xy-blocks-traversal',
-        seed=47, add_random_traversal=add_random_traversal, num_cols=num_cols
-    )
-
-    plot_dataset_traversals(
-        Shapes3dData(),
-        rel_path=f'plots/shapes3d-traversal',
-        seed=47, add_random_traversal=add_random_traversal, num_cols=num_cols
-    )
-
-    plot_dataset_traversals(
-        DSpritesData(),
-        rel_path=f'plots/dsprites-traversal',
-        seed=47, add_random_traversal=add_random_traversal, num_cols=num_cols
-    )
-
-    plot_dataset_traversals(
-        SmallNorbData(),
-        rel_path=f'plots/smallnorb-traversal',
-        seed=47, add_random_traversal=add_random_traversal, num_cols=num_cols
-    )
-
-    plot_dataset_traversals(
-        Cars3dData(),
-        rel_path=f'plots/cars3d-traversal',
-        seed=47, add_random_traversal=add_random_traversal, num_cols=num_cols
-    )
+    plot_dataset_traversals(XYObjectData(),  rel_path=f'plots/xy-object-traversal', seed=47, add_random_traversal=add_random_traversal, num_cols=num_cols)
+    plot_dataset_traversals(XYBlocksData(),  rel_path=f'plots/xy-blocks-traversal', seed=47, add_random_traversal=add_random_traversal, num_cols=num_cols)
+    plot_dataset_traversals(Shapes3dData(),  rel_path=f'plots/shapes3d-traversal',  seed=47, add_random_traversal=add_random_traversal, num_cols=num_cols)
+    plot_dataset_traversals(DSpritesData(),  rel_path=f'plots/dsprites-traversal',  seed=47, add_random_traversal=add_random_traversal, num_cols=num_cols)
+    plot_dataset_traversals(SmallNorbData(), rel_path=f'plots/smallnorb-traversal', seed=47, add_random_traversal=add_random_traversal, num_cols=num_cols)
+    plot_dataset_traversals(Cars3dData(),    rel_path=f'plots/cars3d-traversal',    seed=47, add_random_traversal=add_random_traversal, num_cols=num_cols)
 
 
 # ========================================================================= #
