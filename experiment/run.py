@@ -25,11 +25,13 @@
 import logging
 import os
 import sys
+from datetime import datetime
 
 import hydra
 import pytorch_lightning as pl
 import torch
 import torch.utils.data
+import wandb
 from omegaconf import DictConfig
 from omegaconf import OmegaConf
 from pytorch_lightning.loggers import CometLogger
@@ -255,6 +257,21 @@ def hydra_create_framework(framework_cfg: DisentConfigurable.cfg, datamodule, cf
 
 
 def run(cfg: DictConfig, config_path: str = None):
+
+    # get the time the run started
+    time_string = datetime.today().strftime('%Y-%m-%d--%H-%M-%S')
+    log.info(f'Starting run at time: {time_string}')
+
+    # -~-~-~-~-~-~-~-~-~-~-~-~- #
+
+    # cleanup from old runs:
+    try:
+        wandb.finish()
+    except:
+        pass
+
+    # -~-~-~-~-~-~-~-~-~-~-~-~- #
+
     # allow the cfg to be edited
     cfg = make_non_strict(cfg)
 
@@ -273,10 +290,6 @@ def run(cfg: DictConfig, config_path: str = None):
     log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
 
     # hydra config does not support variables in defaults lists, we handle this manually
-    print(os.getcwd())
-    print(os.getcwd())
-    print(os.getcwd())
-    print(os.getcwd())
     cfg = merge_specializations(cfg, config_path=CONFIG_PATH if (config_path is None) else config_path)
 
     # check CUDA setting
