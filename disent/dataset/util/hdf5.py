@@ -312,6 +312,7 @@ class H5Builder(object):
         num_workers=min(os.cpu_count(), 16),
         show_progress: bool = True,
         dtype: str = 'uint8',
+        attrs: Optional[dict] = None
     ):
         from disent.dataset import DisentDataset
         from disent.dataset.data import GroundTruthData
@@ -339,6 +340,8 @@ class H5Builder(object):
                 dataset_cls_name=gt_data.__class__.__name__,
                 factor_sizes=np.array(gt_data.factor_sizes, dtype='uint'),
                 factor_names=np.array(gt_data.factor_names, dtype='S'),
+                # extra attrs -- we can't overwrite the above
+                **(attrs if (attrs is not None) else {}),
             )
         )
         # fill the dataset!

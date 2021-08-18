@@ -1,7 +1,7 @@
 defaults:
   # runtime
   - run_logging: wandb_fast
-  - run_location: heartofgold
+  - run_location: griffin
   # plugins
   - hydra/job_logging: colorlog
   - hydra/hydra_logging: colorlog
@@ -9,7 +9,7 @@ defaults:
 
 trainer:
   cuda: TRUE
-  steps: 1601
+  steps: 15001
 
 framework:
   # IMPORTANT SETTINGS:
@@ -24,7 +24,7 @@ framework:
   optimizer_kwargs: NULL
   # dataset config options
   # | dataset_name: 'cars3d'  # cars3d, smallnorb, xysquares_8x8_mini
-  dataset_batch_size: 256  # x3
+  dataset_batch_size: 1024  # x3
   dataset_num_workers: ${dataset.num_workers}
   data_root: ${dataset.data_root}
   # adversarial loss options
@@ -41,14 +41,14 @@ framework:
 
 exp:
   seed: 777
-  show_every_n_steps: 200
+  show_every_n_steps: 500
   rel_save_dir: 'out/adversarial_data'
 
 job:
   # saving
   save_prefix: ''
   save_data: TRUE
-  name: DELETE-${framework.dataset_name}_${framework.adversarial_mode}_${framework.sampler_name}_s${trainer.steps}_${framework.optimizer_name}_lr${framework.optimizer_lr} # _wd${framework.optimizer_kwargs.weight_decay}
+  name: TEST-${framework.dataset_name}_${framework.adversarial_mode}_${framework.sampler_name}_s${trainer.steps}_${framework.optimizer_name}_lr${framework.optimizer_lr} # _wd${framework.optimizer_kwargs.weight_decay}
   # wandb
   user: 'n_michlo'
   project: 'exp-disentangle-dataset'

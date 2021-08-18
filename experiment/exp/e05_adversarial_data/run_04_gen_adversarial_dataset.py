@@ -44,7 +44,6 @@ from disent.dataset import DisentDataset
 from disent.dataset.sampling import BaseDisentSampler
 from disent.dataset.util.hdf5 import h5_open
 from disent.dataset.util.hdf5 import H5Builder
-from disent.dataset.util.hdf5 import hdf5_resave_file
 from disent.util import to_numpy
 from disent.util.inout.paths import ensure_parent_dir_exists
 from disent.util.lightning.callbacks import BaseCallbackPeriodic
@@ -368,6 +367,7 @@ def run_gen_adversarial_dataset(cfg):
         # create new h5py file -- TODO: use this in other places!
         with h5_open(path=save_path_data, mode='atomic_w') as h5_file:
             # this dataset is self-contained and can be loaded by SelfContainedHdf5GroundTruthData
+            # we normalize the values to have approx mean of 0 and std of 1
             H5Builder(h5_file).add_dataset_from_gt_data(
                 data=framework.dataset,  # produces tensors
                 mutator=lambda x: np.moveaxis((to_numpy(x).astype('float32') - mean) / std, -3, -1).astype('float16'),  # consumes tensors -> np.ndarrays
@@ -375,6 +375,10 @@ def run_gen_adversarial_dataset(cfg):
                 compression_lvl=9,
                 batch_size=32,
                 dtype='float16',
+                attrs=dict(
+                    norm_mean=mean,
+                    norm_std=std,
+                )
             )
         log.info(f'saved data size: {bytes_to_human(os.path.getsize(save_path_data))}')
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
