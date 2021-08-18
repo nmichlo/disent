@@ -41,8 +41,22 @@ log = logging.getLogger(__name__)
 # HYDRA CONFIG HELPERS                                                      #
 # ========================================================================= #
 
+_PL_SIGNALS_OLD_HANDLERS = {}
+_PL_SIGNALS = (      # we can't capture SIGKILL
+    signal.SIGINT,   # interrupted from the dialogue station
+    signal.SIGTERM,  # terminate the process in a soft way
+    signal.SIGABRT,  # abnormal termination
+    signal.SIGSEGV,  # segmentation fault
+)
+
 _PL_LOGGER: Optional[LoggerCollection] = None
 _PL_TRAINER: Optional[Trainer] = None
+
+
+def safe_unset_debug_trainer():
+    global _PL_TRAINER
+    if _PL_TRAINER is not None:
+        _PL_TRAINER = None
 
 
 def set_debug_trainer(trainer: Optional[Trainer]):
@@ -76,6 +90,18 @@ def _signal_handler_log_and_exit(signal_number, frame):
     )
 
 
+def safe_unset_debug_logger():
+    global _PL_LOGGER
+    # unset logger
+    if _PL_LOGGER is not None:
+        _PL_LOGGER = None
+        # return control to original handlers
+        for signal_type in _PL_SIGNALS:
+            if signal_type in _PL_SIGNALS_OLD_HANDLERS:
+                handler = _PL_SIGNALS_OLD_HANDLERS.pop(signal_type)
+                signal.signal(signal_type, handler)
+
+
 def set_debug_logger(logger: Optional[LoggerCollection]):
     global _PL_LOGGER
     assert _PL_LOGGER is None, 'debug logger has already been set'
@@ -87,11 +113,13 @@ def set_debug_logger(logger: Optional[LoggerCollection]):
             'error_msg': 'N/A',
             'error_occurred': False,
         })
-    # register signal listeners -- we can't capture SIGKILL!
-    signal.signal(signal.SIGINT, _signal_handler_log_and_exit)    # interrupted from the dialogue station
-    signal.signal(signal.SIGTERM, _signal_handler_log_and_exit)   # terminate the process in a soft way
-    signal.signal(signal.SIGABRT, _signal_handler_log_and_exit)   # abnormal termination
-    signal.signal(signal.SIGSEGV, _signal_handler_log_and_exit)   # segmentation fault
+    # register signal listeners
+    for signal_type in _PL_SIGNALS:
+        # save the old handler
+        _PL_SIGNALS_OLD_HANDLERS[signal_type] = signal.getsignal(signal_type)
+        # update the handler
+        signal.signal(signal_type, _signal_handler_log_and_exit)
+    # return the logger
     return logger
 
 

@@ -53,6 +53,8 @@ from experiment.util.hydra_utils import make_non_strict
 from experiment.util.hydra_utils import merge_specializations
 from experiment.util.hydra_utils import instantiate_recursive
 from experiment.util.run_utils import log_error_and_exit
+from experiment.util.run_utils import safe_unset_debug_logger
+from experiment.util.run_utils import safe_unset_debug_trainer
 from experiment.util.run_utils import set_debug_logger
 from experiment.util.run_utils import set_debug_trainer
 
@@ -266,6 +268,8 @@ def run(cfg: DictConfig, config_path: str = None):
 
     # cleanup from old runs:
     try:
+        safe_unset_debug_trainer()
+        safe_unset_debug_logger()
         wandb.finish()
     except:
         pass
