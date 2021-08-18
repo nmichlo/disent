@@ -25,6 +25,7 @@
 import logging
 import os
 import warnings
+from datetime import datetime
 from typing import Iterator
 from typing import Optional
 
@@ -41,12 +42,16 @@ from torch.utils.data.dataset import T_co
 import experiment.exp.util as H
 from disent.dataset import DisentDataset
 from disent.dataset.sampling import BaseDisentSampler
-from disent.dataset.util.hdf5 import hdf5_resave_file
+from disent.dataset.util.hdf5 import h5_open
+from disent.dataset.util.hdf5 import H5Builder
+from disent.util import to_numpy
+from disent.util.inout.paths import ensure_parent_dir_exists
 from disent.util.lightning.callbacks import BaseCallbackPeriodic
 from disent.util.lightning.logger_util import wb_log_metrics
 from disent.util.math.random import random_choice_prng
 from disent.util.seeds import seed
 from disent.util.seeds import TempNumpySeed
+from disent.util.strings.fmt import bytes_to_human
 from disent.util.strings.fmt import make_box_str
 from disent.util.visualize.vis_util import make_image_grid
 from experiment.exp.e05_adversarial_data.util_04_gen_adversarial_dataset import adversarial_loss
@@ -79,16 +84,26 @@ class AdversarialModel(pl.LightningModule):
             dataset_num_workers: int = min(os.cpu_count(), 16),
             dataset_batch_size: int = 1024,  # approx
             data_root: str = 'data/dataset',
-        # loss config options
-            loss_fn: str = 'mse',
-            loss_mode: str = 'self',
-            loss_const_targ: Optional[float] = 0.1,  # replace stochastic pairwise constant loss with deterministic loss target
+            # data_load_into_memory: bool = False,
+        # adversarial loss options
+            adversarial_mode: str = 'self',
+            adversarial_swapped: bool = False,
+            adversarial_masking: bool = False,
+            adversarial_top_k: Optional[int] = None,
+            pixel_loss_mode: str = 'mse',
+        # loss extras
+            # loss_adversarial_weight: Optional[float] = 1.0,
+            # loss_same_stats_weight: Optional[float] = 0.0,
+            # loss_similarity_weight: Optional[float] = 0.0,
+            # loss_out_of_bounds_weight: Optional[float] = 0.0,
         # sampling config
             sampler_name: str = 'close_far',
         # train options
             train_batch_optimizer: bool = True,
             train_dataset_fp16: bool = True,
             train_is_gpu: bool = False,
+        # logging settings
+            # logging_scale_imgs: bool = False,
     ):
         super().__init__()
         # check values
@@ -153,12 +168,13 @@ class AdversarialModel(pl.LightningModule):
             n_x = self.array[n_idx]
         # compute loss
         loss = adversarial_loss(
-            a_x=a_x,
-            p_x=p_x,
-            n_x=n_x,
-            loss=self.hparams.loss_fn,
-            target=self.hparams.loss_const_targ,
-            adversarial_mode=self.hparams.loss_mode,
+            ys=(a_x, p_x, n_x),
+            xs=None,
+            adversarial_mode=self.hparams.adversarial_mode,
+            adversarial_swapped=self.hparams.adversarial_swapped,
+            adversarial_masking=self.hparams.adversarial_masking,
+            adversarial_top_k=self.hparams.adversarial_top_k,
+            pixel_loss_mode=self.hparams.pixel_loss_mode,
         )
         # log results
         self.log_dict({
@@ -273,6 +289,8 @@ ROOT_DIR = os.path.abspath(__file__ + '/../../../..')
 
 
 def run_gen_adversarial_dataset(cfg):
+    time_string = datetime.today().strftime('%Y-%m-%d--%H-%M-%S')
+    log.info(f'Starting run at time: {time_string}')
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # cleanup from old runs:
     try:
@@ -327,29 +345,43 @@ def run_gen_adversarial_dataset(cfg):
     )
     trainer.fit(framework)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-    save_path = os.path.join(save_dir, f'{cfg.job.name}.h5')
-    log.info(f'saving dataset to path: {repr(save_path)}')
+    # get save paths
+    save_prefix = f'{cfg.job.save_prefix}_' if cfg.job.save_prefix else ''
+    save_path_data = os.path.join(save_dir, f'{save_prefix}{time_string}_{cfg.job.name}', f'data.h5')
+    # create directories
+    if cfg.job.save_data: ensure_parent_dir_exists(save_path_data)
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # compute standard deviation when saving and scale so
     # that we have mean=0 and std=1 of the saved data!
     with TempNumpySeed(777):
         std, mean = torch.std_mean(framework.array[random_choice_prng(len(framework.array), size=2048, replace=False)])
         std, mean = float(std), float(mean)
         log.info(f'normalizing saved dataset of shape: {tuple(framework.array.shape)} and dtype: {framework.array.dtype} with mean: {repr(mean)} and std: {repr(std)}')
-    # save dataset
-    hdf5_resave_file(
-        framework.array,
-        out_path=save_path,
-        dataset_name='data',
-        chunk_size=(1, *framework.dataset.gt_data.img_shape),
-        compression='gzip',
-        compression_lvl=9,
-        out_dtype='float16',
-        out_mutator=lambda x: np.moveaxis((x.astype('float32') - mean) / std, -3, -1).astype('float16'),
-        obs_shape=framework.dataset.gt_data.img_shape,
-        write_mode='atomic_w'
-    )
-    log.info('done generating and saving adversarial dataset!')
-    # finish
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # save adversarial dataset
+    if cfg.job.save_data:
+        log.info(f'saving data to path: {repr(save_path_data)}')
+        # transfer to GPU
+        if torch.cuda.is_available():
+            framework = framework.cuda()
+        # create new h5py file -- TODO: use this in other places!
+        with h5_open(path=save_path_data, mode='atomic_w') as h5_file:
+            # this dataset is self-contained and can be loaded by SelfContainedHdf5GroundTruthData
+            # we normalize the values to have approx mean of 0 and std of 1
+            H5Builder(h5_file).add_dataset_from_gt_data(
+                data=framework.dataset,  # produces tensors
+                mutator=lambda x: np.moveaxis((to_numpy(x).astype('float32') - mean) / std, -3, -1).astype('float16'),  # consumes tensors -> np.ndarrays
+                img_shape=(64, 64, None),
+                compression_lvl=9,
+                batch_size=32,
+                dtype='float16',
+                attrs=dict(
+                    norm_mean=mean,
+                    norm_std=std,
+                )
+            )
+        log.info(f'saved data size: {bytes_to_human(os.path.getsize(save_path_data))}')
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
 
 # ========================================================================= #

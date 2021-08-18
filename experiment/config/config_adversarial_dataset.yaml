@@ -1,7 +1,7 @@
 defaults:
   # runtime
-  - run_logging: wandb
-  - run_location: heartofgold
+  - run_logging: wandb_fast
+  - run_location: griffin
   # plugins
   - hydra/job_logging: colorlog
   - hydra/hydra_logging: colorlog
@@ -9,35 +9,47 @@ defaults:
 
 trainer:
   cuda: TRUE
-  steps: 1601
+  steps: 30001
 
 framework:
+  # IMPORTANT SETTINGS:
+  dataset_name: 'dsprites'          # [cars3d, smallnorb, dsprites, shapes3d, xysquares_8x8_mini]
+  adversarial_mode: 'self'          # [self, invert_margin_0.005] invert, invert_unbounded
+  sampler_name: 'close_p_random_n'  # [close_p_random_n, same_k1_close]
+
+  # OTHER SETTINGS:
   # optimizer options
   optimizer_name: 'Adam'
-  optimizer_lr: 1e-2
+  optimizer_lr: 1e-1
   optimizer_kwargs: NULL
   # dataset config options
-  dataset_name: 'cars3d'  # cars3d, smallnorb, xysquares_8x8_mini
-  dataset_num_workers: 12
-  dataset_batch_size: 1024  # x3
+  # | dataset_name: 'cars3d'  # cars3d, smallnorb, xysquares_8x8_mini
+  dataset_batch_size: 2048  # x3
+  dataset_num_workers: ${dataset.num_workers}
   data_root: ${dataset.data_root}
-  # loss config options
-  loss_fn: 'mse'
-  loss_mode: 'invert'  # self, const, invert
-  loss_const_targ: 0.02
+  # adversarial loss options
+  # | adversarial_mode: 'invert_margin_0.005'  # [self, invert_margin_0.005] invert, invert_unbounded
+  adversarial_swapped: FALSE
+  adversarial_masking: FALSE  # can produce weird artefacts that look like they might go against the training process, eg. improve disentanglement on dsprites, not actually checked by trianing model on this.
+  adversarial_top_k: NULL  # NULL or range(1, batch_size)
+  pixel_loss_mode: 'mse'
   # sampling config
-  sampler_name: 'same_k'   # same_k (might be wrong!), close_far, close_factor_far_random, close_far_same_factor, same_factor, random_bb, random_swap_manhat, random_swap_manhat_norm
+  # | sampler_name: 'close_p_random_n'   # [close_p_random_n] (see notes above) -- close_p_random_n, close_p_random_n_bb, same_k, same_k_close, same_k1_close, same_k (might be wrong!), same_k_close, same_k1_close, close_far, close_factor_far_random, close_far_same_factor, same_factor, random_bb, random_swap_manhat, random_swap_manhat_norm
   # train options
   train_batch_optimizer: TRUE
   train_dataset_fp16: TRUE
 
 exp:
   seed: 777
-  show_every_n_steps: 200
+  show_every_n_steps: 500
   rel_save_dir: 'out/adversarial_data'
 
 job:
+  # saving
+  save_prefix: ''
+  save_data: TRUE
+  name: TEST-${framework.dataset_name}_${framework.adversarial_mode}_${framework.sampler_name}_s${trainer.steps}_${framework.optimizer_name}_lr${framework.optimizer_lr} # _wd${framework.optimizer_kwargs.weight_decay}
+  # wandb
   user: 'n_michlo'
   project: 'exp-disentangle-dataset'
-  name: ${framework.sampler_name}_${framework.loss_mode}_${framework.loss_fn}_C${framework.loss_const_targ}_${framework.dataset_name}_s${trainer.steps}_${framework.optimizer_name}_lr${framework.optimizer_lr}
   partition: stampede

@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# maybe lower lr or increase batch size?
 python3 run_04_gen_adversarial_dataset_approx.py \
     -m \
     framework.sampler_name=close_p_random_n,same_k1_close \

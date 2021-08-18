@@ -164,7 +164,7 @@ class SmallNorbData(DiskGroundTruthData):
         self._data, _ = read_norb_dataset(dat_path=dat_path, cat_path=cat_path, info_path=info_path)
 
     def _get_observation(self, idx):
-        return self._data[idx]
+        return self._data[idx][:, :, None]  # data is missing channel dim
 
     @property
     def datafiles(self) -> Sequence[DataFileHashedDl]:

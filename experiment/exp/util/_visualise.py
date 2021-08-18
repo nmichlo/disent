@@ -253,6 +253,7 @@ def visualize_dataset_traversal(
     """
     Generic function that can return multiple parts of the dataset & factor traversal pipeline.
     - This only evaluates what is needed to compute the next components.
+    - The returned grid, image and animation will always have 3 channels, RGB
 
     Tasks include:
         - factor_idxs
@@ -282,9 +283,13 @@ def visualize_dataset_traversal(
     grid = np.stack(grid, axis=0)
 
     # TODO: this is kinda hacky, maybe rather add a check?
+    # TODO: can this be moved into the `output_wandb` if statement?
     # - animations glitch out if they do not have 3 channels
     if grid.shape[-1] == 1:
         grid = grid.repeat(3, axis=-1)
+
+    assert grid.ndim == 5
+    assert grid.shape[-1] in (1, 3)
 
     # generate visuals
     image = make_image_grid(np.concatenate(grid, axis=0), pad=pad, border=border, bg_color=bg_color, num_cols=num_frames)

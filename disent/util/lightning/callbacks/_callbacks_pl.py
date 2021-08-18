@@ -46,7 +46,7 @@ class LoggerProgressCallback(BaseCallbackTimed):
         trainer_max_steps = trainer.max_steps if (trainer.max_steps is not None) else float('inf')
 
         # compute vars
-        max_batches = trainer.num_training_batches
+        max_batches = trainer.num_training_batches  # can be inf
         max_epochs = min(trainer_max_epochs, (trainer_max_steps + max_batches - 1) // max_batches)
         max_steps = min(trainer_max_epochs * max_batches, trainer_max_steps)
         elapsed_sec = current_time - start_time
@@ -57,7 +57,7 @@ class LoggerProgressCallback(BaseCallbackTimed):
             batch = (trainer.batch_idx + 1)
         else:
             warnings.warn('batch_idx missing on pl.Trainer')
-            batch = global_step % max_batches
+            batch = global_step % max_batches  # might not be int?
         # completion
         train_pct = global_step / max_steps
         train_remain_time = elapsed_sec * (1 - train_pct) / train_pct  # seconds
@@ -76,10 +76,10 @@ class LoggerProgressCallback(BaseCallbackTimed):
         # log
         log.info(
             f'[{int(elapsed_sec)}s, {step_speed_str}] '
-            f'EPOCH: {epoch}/{max_epochs} - {global_step:0{len(str(max_steps))}d}/{max_steps} '
-            f'({int(train_pct * 100):02d}%) [rem. {int(train_remain_time)}s] '
-            f'STEP: {batch:{len(str(max_batches))}d}/{max_batches} ({int(batch / max_batches * 100):02d}%) '
-            f'| {" ".join(f"{k}={info_dict[k]}" for k in sorted_k)}'
+            + f'EPOCH: {epoch}/{max_epochs} - {int(global_step):0{len(str(max_steps))}d}/{max_steps} '
+            + f'({int(train_pct * 100):02d}%) [rem. {int(train_remain_time)}s] '
+            + f'STEP: {int(batch):{len(str(max_batches))}d}/{max_batches} ({int(batch / max_batches * 100):02d}%) '
+            + f'| {" ".join(f"{k}={info_dict[k]}" for k in sorted_k)}'
         )
 
 

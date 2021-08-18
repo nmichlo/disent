@@ -209,6 +209,9 @@ class DisentDataset(Dataset, LengthIter):
     # Batches                                                               #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
+    # TODO: default_collate should be replaced with a function
+    #      that can handle tensors and nd.arrays, and return accordingly
+
     def dataset_batch_from_indices(self, indices: Sequence[int], mode: str):
         """Get a batch of observations X from a batch of factors Y."""
         return default_collate([self.dataset_get(idx, mode=mode) for idx in indices])
