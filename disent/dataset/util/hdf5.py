@@ -311,6 +311,7 @@ class H5Builder(object):
         compression_lvl: Optional[int] = 9,
         num_workers=min(os.cpu_count(), 16),
         show_progress: bool = True,
+        dtype: str = 'uint8',
     ):
         from disent.dataset import DisentDataset
         from disent.dataset.data import GroundTruthData
@@ -319,7 +320,7 @@ class H5Builder(object):
         elif isinstance(data, GroundTruthData): gt_data = data
         else: raise TypeError(f'invalid data type: {type(data)}, must be {DisentDataset} or {GroundTruthData}')
         # magic vars
-        name, dtype = 'data', 'uint8'
+        name = 'data'
         # process image shape
         H, W, C = img_shape
         if H is None: H = gt_data.img_shape[0]

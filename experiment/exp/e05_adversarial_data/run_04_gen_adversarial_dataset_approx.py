@@ -185,7 +185,8 @@ class AdversarialModel(pl.LightningModule):
             model_type: str = 'ae_test',
             model_mask_mode: Optional[str] = 'none',
         # logging settings
-            logging_img_scale: bool = False,
+            logging_scale_imgs: bool = False,
+            # log_wb_stats_table: bool = True,
     ):
         super().__init__()
         # modify hparams
@@ -326,7 +327,7 @@ class AdversarialModel(pl.LightningModule):
         @TempNumpySeed(42)
         def make_dataset_transform():
             # get scaling values
-            if self.hparams.logging_img_scale:
+            if self.hparams.logging_scale_imgs:
                 samples = self.dataset.dataset_sample_batch(num_samples=128, mode='raw').to(torch.float32)
                 samples = self.model(samples.to(self.device)).cpu()
                 m, M = float(torch.min(samples)), float(torch.max(samples))

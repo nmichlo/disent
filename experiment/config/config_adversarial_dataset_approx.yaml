@@ -11,6 +11,10 @@
 # framework.sampler_name=close_p_random_n  framework.adversarial_mode=invert_margin_0.005  framework.dataset_name=shapes3d
 # framework.sampler_name=close_p_random_n  framework.adversarial_mode=invert_margin_0.005  framework.dataset_name=cars3d
 # framework.sampler_name=close_p_random_n  framework.adversarial_mode=invert_margin_0.005  framework.dataset_name=smallnorb
+#
+# # 3dshapes does not seem to want to invert...
+# framework.sampler_name=close_p_random_n  framework.adversarial_mode=invert_margin_0.01  framework.dataset_name=shapes3d
+# framework.sampler_name=close_p_random_n  framework.adversarial_mode=invert_margin_0.10  framework.dataset_name=shapes3d
 
 defaults:
   # runtime
@@ -75,7 +79,7 @@ framework:
   model_type: 'ae_conv64'
   model_mask_mode: 'none'  # std, diff, none
   # logging settings
-  logging_img_scale: FALSE
+  logging_scale_imgs: FALSE
 
 exp:
   seed: 777
