@@ -25,6 +25,8 @@
 import logging
 import os
 from abc import ABCMeta
+from typing import Any
+from typing import List
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
@@ -122,6 +124,22 @@ class GroundTruthData(Dataset, StateSpace):
 
     def _get_observation(self, idx):
         raise NotImplementedError
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # EXTRAS                                                                #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    def sample_random_obs_traversal(self, f_idx: int = None, base_factors=None, num: int = None, mode='interval', obs_collect_fn=None) -> Tuple[np.ndarray, np.ndarray, Union[List[Any], Any]]:
+        """
+        Same API as sample_random_factor_traversal, but also
+        returns the corresponding indices and uncollated list of observations
+        """
+        factors = self.sample_random_factor_traversal(f_idx=f_idx, base_factors=base_factors, num=num, mode=mode)
+        indices = self.pos_to_idx(factors)
+        obs = [self[i] for i in indices]
+        if obs_collect_fn is not None:
+            obs = obs_collect_fn(obs)
+        return factors, indices, obs
 
 
 # ========================================================================= #
