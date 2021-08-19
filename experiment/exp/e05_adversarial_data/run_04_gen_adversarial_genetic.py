@@ -21,7 +21,7 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-import os
+
 from typing import NoReturn
 
 import torch
@@ -31,7 +31,6 @@ from tqdm import tqdm
 
 import experiment.exp.util as H
 from disent.dataset.data import ArrayGroundTruthData
-from disent.dataset.data import GroundTruthData
 from disent.util.math.random import random_choice_prng
 
 

@@ -69,6 +69,7 @@ SizeType = Union[int, Tuple[int, int]]
 def to_uint_tensor(
     obs: Obs,
     size: Optional[SizeType] = None,
+    channel_to_front: bool = True
 ) -> torch.Tensor:
     # resize image
     if size is not None:
@@ -80,8 +81,12 @@ def to_uint_tensor(
         obs = np.array(obs)
     # to tensor
     obs = torch.from_numpy(obs)
+    # move axis
+    if channel_to_front:
+        obs = torch.moveaxis(obs, -1, -3)
     # checks
     assert obs.dtype == torch.uint8
+    # done!
     return obs
 
 

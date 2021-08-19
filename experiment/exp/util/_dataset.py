@@ -49,12 +49,43 @@ from disent.dataset.data import XYSquaresData
 from disent.dataset.sampling import BaseDisentSampler
 from disent.dataset.sampling import GroundTruthSingleSampler
 from disent.nn.transform import ToStandardisedTensor
+from disent.nn.transform._transforms import ToUint8Tensor
 
 
 # ========================================================================= #
 # dataset io                                                                #
 # ========================================================================= #
-from disent.nn.transform._transforms import ToUint8Tensor
+
+
+# TODO: this is much faster!
+#
+# import psutil
+# import multiprocessing as mp
+#
+# def copy_batch_into(src: GroundTruthData, dst: torch.Tensor, i: int, j: int):
+#     for k in range(i, min(j, len(dst))):
+#         dst[k, ...] = src[k]
+#     return (i, j)
+#
+# def load_dataset_into_memory(
+#     gt_data: GroundTruthData,
+#     workers: int = min(psutil.cpu_count(logical=False), 16),
+# ) -> ArrayGroundTruthData:
+#     # make data and tensors
+#     tensor = torch.zeros(len(gt_data), *gt_data.obs_shape, dtype=gt_data[0].dtype).share_memory_()
+#     # compute batch size
+#     n = len(gt_data)
+#     batch_size = (n + workers - 1) // workers
+#     # load in batches
+#     with mp.Pool(processes=workers) as POOL:
+#         POOL.starmap(
+#             copy_batch_into, [
+#                 (gt_data, tensor, i, i + batch_size)
+#                 for i in range(0, n, batch_size)
+#             ]
+#         )
+#     # return array
+#     return ArrayGroundTruthData.new_like(tensor, gt_data, array_chn_is_last=False)
 
 
 def load_dataset_into_memory(gt_data: GroundTruthData, obs_shape: Optional[Tuple[int, ...]] = None, batch_size=64, num_workers=min(os.cpu_count(), 16), dtype=torch.float32, raw_array=False):

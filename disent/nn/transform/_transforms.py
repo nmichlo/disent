@@ -84,11 +84,12 @@ class ToStandardisedTensor(object):
 
 class ToUint8Tensor(object):
 
-    def __init__(self, size: F_d.SizeType = None):
+    def __init__(self, size: F_d.SizeType = None, channel_to_front: bool = True):
         self._size = size
+        self._channel_to_front = channel_to_front
 
     def __call__(self, obs) -> torch.Tensor:
-        return F_d.to_uint_tensor(obs, size=self._size)
+        return F_d.to_uint_tensor(obs, size=self._size, channel_to_front=self._channel_to_front)
 
     def __repr__(self):
         return f'{self.__class__.__name__}(size={repr(self._size)})'
