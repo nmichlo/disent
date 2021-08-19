@@ -23,7 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import os
-from argparse import Namespace
 from collections import defaultdict
 from typing import Any
 from typing import Callable
@@ -42,11 +41,15 @@ from tqdm import tqdm
 
 import experiment.exp.util as H
 from disent.dataset.data import GroundTruthData
+from disent.dataset.data import SelfContainedHdf5GroundTruthData
+from disent.nn.transform import ToStandardisedTensor
+from disent.util.seeds import TempNumpySeed
 
 
 # ========================================================================= #
 # Factor Traversal Stats                                                    #
 # ========================================================================= #
+
 
 
 SampleModeHint = Union[Literal['random'], Literal['near'], Literal['combinations']]
@@ -142,12 +145,24 @@ def _collect_stats_for_factors(
 # ========================================================================= #
 
 
+_COLORS = {
+    'blue':   (None, 'Blues',   'Blues_r'),
+    'red':    (None, 'Reds',    'Reds_r'),
+    'purple': (None, 'Purples', 'Purples_r'),
+    'green':  (None, 'Greens',  'Greens_r'),
+}
+
+
 def plot_traversal_stats(
-    dataset_name: str,
-    num_traversal_sample: int = 256,
+    dataset_or_name: Union[str, GroundTruthData],
+    num_repeats: int = 256,
     f_idxs: Optional[H.NonNormalisedFactors] = None,
     circular_distance: bool = False,
+    color='blue',
+    suffix: Optional[str] = None,
 ):
+    # - - - - - - - - - - - - - - - - - #
+
     def stats_fn(gt_data, f_idx):
         return sample_factor_traversal_info_and_distmat(gt_data=gt_data, f_idx=f_idx, circular_distance=circular_distance)
 
@@ -156,39 +171,53 @@ def plot_traversal_stats(
         fdists = np.concatenate(stats['fdists'])
         fdists_matrix = np.mean(stats['fdists_matrix'], axis=0)
         deltas_matrix = np.mean(stats['deltas_matrix'], axis=0)
+
+        # ensure that if we limit the number of points, that we get good values
+        with TempNumpySeed(777): np.random.shuffle(deltas)
+        with TempNumpySeed(777): np.random.shuffle(fdists)
+
         # subplot!
         ax0, ax1, ax2, ax3 = axs[:, f_idx]
-        ax0.set_title(f'{gt_data.factor_names[f_idx]} ({gt_data.factor_sizes[f_idx]})')
 
-        ax0.set_title('fdists proportions')
+        ax0.set_title(f'{gt_data.factor_names[f_idx]} ({gt_data.factor_sizes[f_idx]})')
         ax0.violinplot([deltas], vert=False)
         ax0.set_xlabel('deltas')
         ax0.set_ylabel('proportion')
 
         ax1.set_title('deltas vs. fdists')
-        ax1.scatter(x=deltas, y=fdists, s=3)
+        ax1.scatter(x=deltas[:15_000], y=fdists[:15_000], s=20, alpha=0.1, c=c_points)
+        H.plt_2d_density(
+            x=deltas[:10_000], xmin=deltas.min(), xmax=deltas.max(),
+            y=fdists[:10_000], ymin=fdists.min() - 0.5, ymax=fdists.max() + 0.5,
+            n_bins=100,
+            ax=ax1, pcolormesh_kwargs=dict(cmap=cmap_density, alpha=0.5),
+        )
         ax1.set_xlabel('deltas')
         ax1.set_ylabel('fdists')
 
         ax2.set_title('fdists')
-        ax2.imshow(fdists_matrix)
+        ax2.imshow(fdists_matrix, cmap=cmap_img)
         ax2.set_xlabel('f_idx')
         ax2.set_ylabel('f_idx')
 
         ax3.set_title('divergence')
-        ax3.imshow(deltas_matrix)
+        ax3.imshow(deltas_matrix, cmap=cmap_img)
         ax3.set_xlabel('f_idx')
         ax3.set_ylabel('f_idx')
 
-    # prepare
-    gt_data = H.make_data(dataset_name)
+    # - - - - - - - - - - - - - - - - - #
+
+    # initialize
+    gt_data: GroundTruthData = H.make_data(dataset_or_name) if isinstance(dataset_or_name, str) else dataset_or_name
     f_idxs = H.normalise_factor_idxs(gt_data, factors=f_idxs)
-    # settingss
+    c_points, cmap_density, cmap_img = _COLORS[color]
+    # settings
     r, c = [4,  len(f_idxs)]
     h, w = [16, len(f_idxs)*4]
     # initialize plot
     fig, axs = plt.subplots(r, c, figsize=(w, h), squeeze=False)
-    fig.suptitle(f'{dataset_name} [circular={circular_distance}]')
+    fig.suptitle(f'{gt_data.name} [circular={circular_distance}]{f" {suffix}" if suffix else ""}\n', fontsize=25)
+
     # generate plot
     _collect_stats_for_factors(
         gt_data=gt_data,
@@ -196,11 +225,19 @@ def plot_traversal_stats(
         stats_fn=stats_fn,
         keep_keys=['deltas', 'fdists', 'deltas_matrix', 'fdists_matrix'],
         stats_callback=plot_ax,
-        num_traversal_sample=num_traversal_sample,
+        num_traversal_sample=num_repeats,
     )
+
     # finalize plot
     fig.tight_layout()
     plt.show()
+
+    # TODO: add saving!
+    # TODO: add saving!
+    # TODO: add saving!
+
+    # - - - - - - - - - - - - - - - - - #
+    return fig
 
 
 # ========================================================================= #
@@ -208,29 +245,40 @@ def plot_traversal_stats(
 # ========================================================================= #
 
 
+def _make_self_contained_dataset(h5_path):
+    return SelfContainedHdf5GroundTruthData(h5_path=h5_path, transform=ToStandardisedTensor())
+
+
 if __name__ == '__main__':
     # matplotlib style
     plt.style.use(os.path.join(os.path.dirname(__file__), '../gadfly.mplstyle'))
 
     # plot xysquares with increasing overlap
-    # plot_traversal_stats('xysquares_8x8_s1', f_idxs=[1])
-    # plot_traversal_stats('xysquares_8x8_s2', f_idxs=[1])
-    # plot_traversal_stats('xysquares_8x8_s3', f_idxs=[1])
-    # plot_traversal_stats('xysquares_8x8_s4', f_idxs=[1])
-    # plot_traversal_stats('xysquares_8x8_s5', f_idxs=[1])
-    # plot_traversal_stats('xysquares_8x8_s6', f_idxs=[1])
-    # plot_traversal_stats('xysquares_8x8_s7', f_idxs=[1])
-    # plot_traversal_stats('xysquares_8x8_s8', f_idxs=[1])
+    # for s in [1, 2, 3, 4, 5, 6, 7, 8]:
+    #     plot_traversal_stats(color='blue', dataset_or_name=f'xysquares_8x8_s{s}', f_idxs=[1])
 
-    # plot other datasets
-    plot_traversal_stats('dsprites')
-    plot_traversal_stats('cars3d')
-    plot_traversal_stats('shapes3d')
-    plot_traversal_stats('smallnorb')
+    # plot standard datasets
+    for name in ['dsprites', 'shapes3d', 'cars3d', 'smallnorb']:
+        plot_traversal_stats(color='blue', dataset_or_name=name)
 
-    # plot_traversal_stats('xyblocks')
-    # plot_traversal_stats('xyobject')
+    # plot adversarial "self" datasets
+    for name in [
+        '2021-08-18--00-58-22_FINAL-dsprites_self_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06',
+        '2021-08-18--01-33-47_FINAL-shapes3d_self_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06',
+        '2021-08-18--02-20-13_FINAL-cars3d_self_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06',
+        '2021-08-18--03-10-53_FINAL-smallnorb_self_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06',
+    ]:
+        plot_traversal_stats(color='purple', dataset_or_name=_make_self_contained_dataset(f'/home/nmichlo/workspace/research/disent/out/adversarial_data_approx_NEW/{name}/data.h5'))
 
+    # plot adversarial "const" datasets
+    for name in [
+        '2021-08-18--03-52-31_FINAL-dsprites_invert_margin_0.005_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06',
+        '2021-08-18--04-29-25_FINAL-shapes3d_invert_margin_0.005_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06',
+        '2021-08-18--05-13-15_FINAL-cars3d_invert_margin_0.005_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06',
+        '2021-08-18--06-03-32_FINAL-smallnorb_invert_margin_0.005_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06',
+        '2021-08-18--11-18-41_FINAL-shapes3d_invert_margin_0.01_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06',
+    ]:
+        plot_traversal_stats(color='red', dataset_or_name=_make_self_contained_dataset(f'/home/nmichlo/workspace/research/disent/out/adversarial_data_approx_NEW/{name}/data.h5'))
 
 # ========================================================================= #
 # END                                                                       #
