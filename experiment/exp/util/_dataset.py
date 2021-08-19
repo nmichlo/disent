@@ -25,6 +25,7 @@
 import os
 import warnings
 from typing import List
+from typing import Literal
 from typing import Optional
 from typing import Sequence
 from typing import Sized
@@ -45,6 +46,7 @@ from disent.dataset.data import SmallNorbData
 from disent.dataset.data import XYBlocksData
 from disent.dataset.data import XYObjectData
 from disent.dataset.data import XYSquaresData
+from disent.dataset.sampling import BaseDisentSampler
 from disent.dataset.sampling import GroundTruthSingleSampler
 from disent.nn.transform import ToStandardisedTensor
 
@@ -52,6 +54,7 @@ from disent.nn.transform import ToStandardisedTensor
 # ========================================================================= #
 # dataset io                                                                #
 # ========================================================================= #
+from disent.nn.transform._transforms import ToUint8Tensor
 
 
 def load_dataset_into_memory(gt_data: GroundTruthData, obs_shape: Optional[Tuple[int, ...]] = None, batch_size=64, num_workers=min(os.cpu_count(), 16), dtype=torch.float32, raw_array=False):
@@ -85,36 +88,52 @@ def load_dataset_into_memory(gt_data: GroundTruthData, obs_shape: Optional[Tuple
 # ========================================================================= #
 
 
-def make_dataset(name: str = 'xysquares', factors: bool = False, data_root='data/dataset', try_in_memory: bool = False, load_into_memory: bool = False, load_memory_dtype=torch.float16, sampler=None) -> DisentDataset:
-    if load_into_memory:
-        if try_in_memory:
-            warnings.warn('`load_into_memory==True` is incompatible with `try_in_memory==True`, setting `try_in_memory=False`!')
-            try_in_memory = False
-    # TODO: replace with registry!
+TransformTypeHint = Union[Literal['uint8'], Literal['float'], Literal['none']]
+
+
+def make_data(
+    name: str = 'xysquares',
+    factors: bool = False,
+    data_root: str = 'data/dataset',
+    try_in_memory: bool = False,
+    load_into_memory: bool = False,
+    load_memory_dtype: torch.dtype = torch.float16,
+    transform_mode: TransformTypeHint = 'float'
+) -> GroundTruthData:
+    # override values
+    if load_into_memory and try_in_memory:
+        warnings.warn('`load_into_memory==True` is incompatible with `try_in_memory==True`, setting `try_in_memory=False`!')
+        try_in_memory = False
+    # transform object
+    TransformCls = {
+        'uint8': ToUint8Tensor,
+        'float': ToStandardisedTensor,
+        'none': (lambda *args, **kwargs: (lambda x: x)),
+    }[transform_mode]
     # make data
-    if   name == 'xysquares':      data = XYSquaresData(transform=ToStandardisedTensor())  # equivalent: [xysquares, xysquares_8x8, xysquares_8x8_s8]
-    elif name == 'xysquares_1x1':  data = XYSquaresData(square_size=1, transform=ToStandardisedTensor())
-    elif name == 'xysquares_2x2':  data = XYSquaresData(square_size=2, transform=ToStandardisedTensor())
-    elif name == 'xysquares_4x4':  data = XYSquaresData(square_size=4, transform=ToStandardisedTensor())
-    elif name == 'xysquares_8x8':  data = XYSquaresData(square_size=8, transform=ToStandardisedTensor())  # 8x8x8x8x8x8 = 262144  # equivalent: [xysquares, xysquares_8x8, xysquares_8x8_s8]
-    elif name == 'xysquares_8x8_mini':  data = XYSquaresData(square_size=8, grid_spacing=14, transform=ToStandardisedTensor())  # 5x5x5x5x5x5 = 15625
+    if   name == 'xysquares':      data = XYSquaresData(transform=TransformCls())  # equivalent: [xysquares, xysquares_8x8, xysquares_8x8_s8]
+    elif name == 'xysquares_1x1':  data = XYSquaresData(square_size=1, transform=TransformCls())
+    elif name == 'xysquares_2x2':  data = XYSquaresData(square_size=2, transform=TransformCls())
+    elif name == 'xysquares_4x4':  data = XYSquaresData(square_size=4, transform=TransformCls())
+    elif name == 'xysquares_8x8':  data = XYSquaresData(square_size=8, transform=TransformCls())  # 8x8x8x8x8x8 = 262144  # equivalent: [xysquares, xysquares_8x8, xysquares_8x8_s8]
+    elif name == 'xysquares_8x8_mini':  data = XYSquaresData(square_size=8, grid_spacing=14, transform=TransformCls())  # 5x5x5x5x5x5 = 15625
     # OVERLAPPING DATASETS
-    elif name == 'xysquares_8x8_s1':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=1, transform=ToStandardisedTensor())  # 8x8x8x8x8x8 = 262144
-    elif name == 'xysquares_8x8_s2':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=2, transform=ToStandardisedTensor())  # 8x8x8x8x8x8 = 262144
-    elif name == 'xysquares_8x8_s3':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=3, transform=ToStandardisedTensor())  # 8x8x8x8x8x8 = 262144
-    elif name == 'xysquares_8x8_s4':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=4, transform=ToStandardisedTensor())  # 8x8x8x8x8x8 = 262144
-    elif name == 'xysquares_8x8_s5':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=5, transform=ToStandardisedTensor())  # 8x8x8x8x8x8 = 262144
-    elif name == 'xysquares_8x8_s6':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=6, transform=ToStandardisedTensor())  # 8x8x8x8x8x8 = 262144
-    elif name == 'xysquares_8x8_s7':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=7, transform=ToStandardisedTensor())  # 8x8x8x8x8x8 = 262144
-    elif name == 'xysquares_8x8_s8':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=8, transform=ToStandardisedTensor())  # 8x8x8x8x8x8 = 262144  # equivalent: [xysquares, xysquares_8x8, xysquares_8x8_s8]
+    elif name == 'xysquares_8x8_s1':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=1, transform=TransformCls())  # 8x8x8x8x8x8 = 262144
+    elif name == 'xysquares_8x8_s2':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=2, transform=TransformCls())  # 8x8x8x8x8x8 = 262144
+    elif name == 'xysquares_8x8_s3':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=3, transform=TransformCls())  # 8x8x8x8x8x8 = 262144
+    elif name == 'xysquares_8x8_s4':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=4, transform=TransformCls())  # 8x8x8x8x8x8 = 262144
+    elif name == 'xysquares_8x8_s5':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=5, transform=TransformCls())  # 8x8x8x8x8x8 = 262144
+    elif name == 'xysquares_8x8_s6':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=6, transform=TransformCls())  # 8x8x8x8x8x8 = 262144
+    elif name == 'xysquares_8x8_s7':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=7, transform=TransformCls())  # 8x8x8x8x8x8 = 262144
+    elif name == 'xysquares_8x8_s8':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=8, transform=TransformCls())  # 8x8x8x8x8x8 = 262144  # equivalent: [xysquares, xysquares_8x8, xysquares_8x8_s8]
     # OTHER SYNTHETIC DATASETS
-    elif name == 'xyobject':  data = XYObjectData(transform=ToStandardisedTensor())
-    elif name == 'xyblocks':  data = XYBlocksData(transform=ToStandardisedTensor())
+    elif name == 'xyobject':  data = XYObjectData(transform=TransformCls())
+    elif name == 'xyblocks':  data = XYBlocksData(transform=TransformCls())
     # NORMAL DATASETS
-    elif name == 'cars3d':         data = Cars3dData(data_root=data_root,    prepare=True, transform=ToStandardisedTensor(size=64))
-    elif name == 'smallnorb':      data = SmallNorbData(data_root=data_root, prepare=True, transform=ToStandardisedTensor(size=64))
-    elif name == 'shapes3d':       data = Shapes3dData(data_root=data_root,  prepare=True, transform=ToStandardisedTensor(), in_memory=try_in_memory)
-    elif name == 'dsprites':       data = DSpritesData(data_root=data_root,  prepare=True, transform=ToStandardisedTensor(), in_memory=try_in_memory)
+    elif name == 'cars3d':         data = Cars3dData(data_root=data_root,    prepare=True, transform=TransformCls(size=64))
+    elif name == 'smallnorb':      data = SmallNorbData(data_root=data_root, prepare=True, transform=TransformCls(size=64))
+    elif name == 'shapes3d':       data = Shapes3dData(data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'dsprites':       data = DSpritesData(data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
     else: raise KeyError(f'invalid data name: {repr(name)}')
     # load into memory
     if load_into_memory:
@@ -122,7 +141,33 @@ def make_dataset(name: str = 'xysquares', factors: bool = False, data_root='data
     # make dataset
     if factors:
         raise NotImplementedError('factor returning is not yet implemented in the rewrite! this needs to be fixed!')  # TODO!
-    return DisentDataset(data, sampler=GroundTruthSingleSampler() if (sampler is None) else sampler, return_indices=True)
+    return data
+
+
+def make_dataset(
+    name: str = 'xysquares',
+    factors: bool = False,
+    data_root: str = 'data/dataset',
+    try_in_memory: bool = False,
+    load_into_memory: bool = False,
+    load_memory_dtype: torch.dtype = torch.float16,
+    transform_mode: TransformTypeHint = 'float',
+    sampler: BaseDisentSampler = None,
+) -> DisentDataset:
+    data = make_data(
+        name=name,
+        factors=factors,
+        data_root=data_root,
+        try_in_memory=try_in_memory,
+        load_into_memory=load_into_memory,
+        load_memory_dtype=load_memory_dtype,
+        transform_mode=transform_mode,
+    )
+    return DisentDataset(
+        data,
+        sampler=GroundTruthSingleSampler() if (sampler is None) else sampler,
+        return_indices=True
+    )
 
 
 def get_single_batch(dataloader, cuda=True):
