@@ -23,6 +23,8 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from numbers import Number
+from typing import Any
+from typing import Dict
 from typing import Optional
 
 import numpy as np
@@ -311,6 +313,43 @@ def visualize_dataset_traversal(
         image,      # ([[H+PAD]*[FACTORS+1]], [[W+PAD]*[NUM_FRAMES+1]], C)
         animation,  # (NUM_FRAMES, [H & FACTORS], [W & FACTORS], C) -- size is auto-chosen
     )
+
+
+# ========================================================================= #
+# 2d density plot                                                           #
+# ========================================================================= #
+
+
+def plt_2d_density(
+    x,
+    y,
+    n_bins: int = 300,
+    xmin: Optional[float] = None,
+    xmax: Optional[float] = None,
+    ymin: Optional[float] = None,
+    ymax: Optional[float] = None,
+    ax: plt.Subplot = None,
+    pcolormesh_kwargs: Optional[Dict[str, Any]] = None
+):
+    from scipy.stats import kde
+    # https://www.python-graph-gallery.com/85-density-plot-with-matplotlib
+    # convert inputs
+    x = np.array(x)
+    y = np.array(y)
+    # get bounds
+    if xmin is None: xmin = x.min()
+    if xmax is None: xmax = x.max()
+    if ymin is None: ymin = y.min()
+    if ymax is None: ymax = y.max()
+    # Evaluate a gaussian kde on a regular grid of nbins x nbins over data extents
+    k = kde.gaussian_kde([x, y])
+    xi, yi = np.mgrid[xmin:xmax:n_bins*1j, ymin:ymax:n_bins*1j]
+    zi = k(np.stack([xi.flatten(), yi.flatten()], axis=0))
+    # update args
+    if ax is None: ax = plt
+    if pcolormesh_kwargs is None: pcolormesh_kwargs = {}
+    # Make the plot
+    ax.pcolormesh(xi, yi, zi.reshape(xi.shape), shading='auto', **pcolormesh_kwargs)
 
 
 # ========================================================================= #

@@ -25,6 +25,7 @@
 import os
 import warnings
 from typing import List
+from typing import Literal
 from typing import Optional
 from typing import Sequence
 from typing import Sized
@@ -45,13 +46,46 @@ from disent.dataset.data import SmallNorbData
 from disent.dataset.data import XYBlocksData
 from disent.dataset.data import XYObjectData
 from disent.dataset.data import XYSquaresData
+from disent.dataset.sampling import BaseDisentSampler
 from disent.dataset.sampling import GroundTruthSingleSampler
 from disent.nn.transform import ToStandardisedTensor
+from disent.nn.transform._transforms import ToUint8Tensor
 
 
 # ========================================================================= #
 # dataset io                                                                #
 # ========================================================================= #
+
+
+# TODO: this is much faster!
+#
+# import psutil
+# import multiprocessing as mp
+#
+# def copy_batch_into(src: GroundTruthData, dst: torch.Tensor, i: int, j: int):
+#     for k in range(i, min(j, len(dst))):
+#         dst[k, ...] = src[k]
+#     return (i, j)
+#
+# def load_dataset_into_memory(
+#     gt_data: GroundTruthData,
+#     workers: int = min(psutil.cpu_count(logical=False), 16),
+# ) -> ArrayGroundTruthData:
+#     # make data and tensors
+#     tensor = torch.zeros(len(gt_data), *gt_data.obs_shape, dtype=gt_data[0].dtype).share_memory_()
+#     # compute batch size
+#     n = len(gt_data)
+#     batch_size = (n + workers - 1) // workers
+#     # load in batches
+#     with mp.Pool(processes=workers) as POOL:
+#         POOL.starmap(
+#             copy_batch_into, [
+#                 (gt_data, tensor, i, i + batch_size)
+#                 for i in range(0, n, batch_size)
+#             ]
+#         )
+#     # return array
+#     return ArrayGroundTruthData.new_like(tensor, gt_data, array_chn_is_last=False)
 
 
 def load_dataset_into_memory(gt_data: GroundTruthData, obs_shape: Optional[Tuple[int, ...]] = None, batch_size=64, num_workers=min(os.cpu_count(), 16), dtype=torch.float32, raw_array=False):
@@ -85,36 +119,52 @@ def load_dataset_into_memory(gt_data: GroundTruthData, obs_shape: Optional[Tuple
 # ========================================================================= #
 
 
-def make_dataset(name: str = 'xysquares', factors: bool = False, data_root='data/dataset', try_in_memory: bool = False, load_into_memory: bool = False, load_memory_dtype=torch.float16, sampler=None) -> DisentDataset:
-    if load_into_memory:
-        if try_in_memory:
-            warnings.warn('`load_into_memory==True` is incompatible with `try_in_memory==True`, setting `try_in_memory=False`!')
-            try_in_memory = False
-    # TODO: replace with registry!
+TransformTypeHint = Union[Literal['uint8'], Literal['float'], Literal['none']]
+
+
+def make_data(
+    name: str = 'xysquares',
+    factors: bool = False,
+    data_root: str = 'data/dataset',
+    try_in_memory: bool = False,
+    load_into_memory: bool = False,
+    load_memory_dtype: torch.dtype = torch.float16,
+    transform_mode: TransformTypeHint = 'float'
+) -> GroundTruthData:
+    # override values
+    if load_into_memory and try_in_memory:
+        warnings.warn('`load_into_memory==True` is incompatible with `try_in_memory==True`, setting `try_in_memory=False`!')
+        try_in_memory = False
+    # transform object
+    TransformCls = {
+        'uint8': ToUint8Tensor,
+        'float': ToStandardisedTensor,
+        'none': (lambda *args, **kwargs: (lambda x: x)),
+    }[transform_mode]
     # make data
-    if   name == 'xysquares':      data = XYSquaresData(transform=ToStandardisedTensor())  # equivalent: [xysquares, xysquares_8x8, xysquares_8x8_s8]
-    elif name == 'xysquares_1x1':  data = XYSquaresData(square_size=1, transform=ToStandardisedTensor())
-    elif name == 'xysquares_2x2':  data = XYSquaresData(square_size=2, transform=ToStandardisedTensor())
-    elif name == 'xysquares_4x4':  data = XYSquaresData(square_size=4, transform=ToStandardisedTensor())
-    elif name == 'xysquares_8x8':  data = XYSquaresData(square_size=8, transform=ToStandardisedTensor())  # 8x8x8x8x8x8 = 262144  # equivalent: [xysquares, xysquares_8x8, xysquares_8x8_s8]
-    elif name == 'xysquares_8x8_mini':  data = XYSquaresData(square_size=8, grid_spacing=14, transform=ToStandardisedTensor())  # 5x5x5x5x5x5 = 15625
+    if   name == 'xysquares':      data = XYSquaresData(transform=TransformCls())  # equivalent: [xysquares, xysquares_8x8, xysquares_8x8_s8]
+    elif name == 'xysquares_1x1':  data = XYSquaresData(square_size=1, transform=TransformCls())
+    elif name == 'xysquares_2x2':  data = XYSquaresData(square_size=2, transform=TransformCls())
+    elif name == 'xysquares_4x4':  data = XYSquaresData(square_size=4, transform=TransformCls())
+    elif name == 'xysquares_8x8':  data = XYSquaresData(square_size=8, transform=TransformCls())  # 8x8x8x8x8x8 = 262144  # equivalent: [xysquares, xysquares_8x8, xysquares_8x8_s8]
+    elif name == 'xysquares_8x8_mini':  data = XYSquaresData(square_size=8, grid_spacing=14, transform=TransformCls())  # 5x5x5x5x5x5 = 15625
     # OVERLAPPING DATASETS
-    elif name == 'xysquares_8x8_s1':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=1, transform=ToStandardisedTensor())  # 8x8x8x8x8x8 = 262144
-    elif name == 'xysquares_8x8_s2':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=2, transform=ToStandardisedTensor())  # 8x8x8x8x8x8 = 262144
-    elif name == 'xysquares_8x8_s3':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=3, transform=ToStandardisedTensor())  # 8x8x8x8x8x8 = 262144
-    elif name == 'xysquares_8x8_s4':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=4, transform=ToStandardisedTensor())  # 8x8x8x8x8x8 = 262144
-    elif name == 'xysquares_8x8_s5':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=5, transform=ToStandardisedTensor())  # 8x8x8x8x8x8 = 262144
-    elif name == 'xysquares_8x8_s6':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=6, transform=ToStandardisedTensor())  # 8x8x8x8x8x8 = 262144
-    elif name == 'xysquares_8x8_s7':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=7, transform=ToStandardisedTensor())  # 8x8x8x8x8x8 = 262144
-    elif name == 'xysquares_8x8_s8':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=8, transform=ToStandardisedTensor())  # 8x8x8x8x8x8 = 262144  # equivalent: [xysquares, xysquares_8x8, xysquares_8x8_s8]
+    elif name == 'xysquares_8x8_s1':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=1, transform=TransformCls())  # 8x8x8x8x8x8 = 262144
+    elif name == 'xysquares_8x8_s2':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=2, transform=TransformCls())  # 8x8x8x8x8x8 = 262144
+    elif name == 'xysquares_8x8_s3':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=3, transform=TransformCls())  # 8x8x8x8x8x8 = 262144
+    elif name == 'xysquares_8x8_s4':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=4, transform=TransformCls())  # 8x8x8x8x8x8 = 262144
+    elif name == 'xysquares_8x8_s5':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=5, transform=TransformCls())  # 8x8x8x8x8x8 = 262144
+    elif name == 'xysquares_8x8_s6':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=6, transform=TransformCls())  # 8x8x8x8x8x8 = 262144
+    elif name == 'xysquares_8x8_s7':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=7, transform=TransformCls())  # 8x8x8x8x8x8 = 262144
+    elif name == 'xysquares_8x8_s8':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=8, transform=TransformCls())  # 8x8x8x8x8x8 = 262144  # equivalent: [xysquares, xysquares_8x8, xysquares_8x8_s8]
     # OTHER SYNTHETIC DATASETS
-    elif name == 'xyobject':  data = XYObjectData(transform=ToStandardisedTensor())
-    elif name == 'xyblocks':  data = XYBlocksData(transform=ToStandardisedTensor())
+    elif name == 'xyobject':  data = XYObjectData(transform=TransformCls())
+    elif name == 'xyblocks':  data = XYBlocksData(transform=TransformCls())
     # NORMAL DATASETS
-    elif name == 'cars3d':         data = Cars3dData(data_root=data_root,    prepare=True, transform=ToStandardisedTensor(size=64))
-    elif name == 'smallnorb':      data = SmallNorbData(data_root=data_root, prepare=True, transform=ToStandardisedTensor(size=64))
-    elif name == 'shapes3d':       data = Shapes3dData(data_root=data_root,  prepare=True, transform=ToStandardisedTensor(), in_memory=try_in_memory)
-    elif name == 'dsprites':       data = DSpritesData(data_root=data_root,  prepare=True, transform=ToStandardisedTensor(), in_memory=try_in_memory)
+    elif name == 'cars3d':         data = Cars3dData(data_root=data_root,    prepare=True, transform=TransformCls(size=64))
+    elif name == 'smallnorb':      data = SmallNorbData(data_root=data_root, prepare=True, transform=TransformCls(size=64))
+    elif name == 'shapes3d':       data = Shapes3dData(data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'dsprites':       data = DSpritesData(data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
     else: raise KeyError(f'invalid data name: {repr(name)}')
     # load into memory
     if load_into_memory:
@@ -122,7 +172,33 @@ def make_dataset(name: str = 'xysquares', factors: bool = False, data_root='data
     # make dataset
     if factors:
         raise NotImplementedError('factor returning is not yet implemented in the rewrite! this needs to be fixed!')  # TODO!
-    return DisentDataset(data, sampler=GroundTruthSingleSampler() if (sampler is None) else sampler, return_indices=True)
+    return data
+
+
+def make_dataset(
+    name: str = 'xysquares',
+    factors: bool = False,
+    data_root: str = 'data/dataset',
+    try_in_memory: bool = False,
+    load_into_memory: bool = False,
+    load_memory_dtype: torch.dtype = torch.float16,
+    transform_mode: TransformTypeHint = 'float',
+    sampler: BaseDisentSampler = None,
+) -> DisentDataset:
+    data = make_data(
+        name=name,
+        factors=factors,
+        data_root=data_root,
+        try_in_memory=try_in_memory,
+        load_into_memory=load_into_memory,
+        load_memory_dtype=load_memory_dtype,
+        transform_mode=transform_mode,
+    )
+    return DisentDataset(
+        data,
+        sampler=GroundTruthSingleSampler() if (sampler is None) else sampler,
+        return_indices=True
+    )
 
 
 def get_single_batch(dataloader, cuda=True):
@@ -153,10 +229,12 @@ def normalise_factor_idx(dataset: GroundTruthData, factor: Union[int, str]) -> i
 
 
 # general type
-NonNormalisedFactors = Union[Sequence[Union[int, str]], Union[int, str]]
+NonNormalisedFactors = Optional[Union[Sequence[Union[int, str]], Union[int, str]]]
 
 
 def normalise_factor_idxs(gt_data: GroundTruthData, factors: NonNormalisedFactors) -> np.ndarray:
+    if factors is None:
+        factors = np.arange(gt_data.num_factors)
     if isinstance(factors, (int, str)):
         factors = [factors]
     factors = np.array([normalise_factor_idx(gt_data, factor) for factor in factors])
@@ -195,6 +273,74 @@ def sample_batch_and_factors(dataset: DisentDataset, num_samples: int, factor_mo
     batch = dataset.dataset_batch_from_factors(factors, mode='target').to(device=device)
     factors = torch.from_numpy(factors).to(dtype=torch.float32, device=device)
     return batch, factors
+
+
+# ========================================================================= #
+# pair samplers                                                             #
+# ========================================================================= #
+
+
+def pair_indices_random(max_idx: int, approx_batch_size: Optional[int] = None) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Generates pairs of indices in corresponding arrays,
+    returning random permutations
+    - considers [0, 1] and [1, 0] to be different  # TODO: consider them to be the same
+    - never returns pairs with the same values, eg. [1, 1]
+    - (default) number of returned values is: `max_idx * sqrt(max_idx) / 2`  -- arbitrarily chosen to scale slower than number of combinations
+    """
+    # defaults
+    if approx_batch_size is None:
+        approx_batch_size = int(max_idx * (max_idx ** 0.5) / 2)
+    # sample values
+    idx_a, idx_b = np.random.randint(0, max_idx, size=(2, approx_batch_size))
+    # remove similar
+    different = (idx_a != idx_b)
+    idx_a = idx_a[different]
+    idx_b = idx_b[different]
+    # return values
+    return idx_a, idx_b
+
+
+def pair_indices_combinations(max_idx: int) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Generates pairs of indices in corresponding arrays,
+    returning all combinations
+    - considers [0, 1] and [1, 0] to be the same, only returns one of them
+    - never returns pairs with the same values, eg. [1, 1]
+    - number of returned values is: `max_idx * (max_idx-1) / 2`
+    """
+    # upper triangle excluding diagonal
+    # - similar to: `list(itertools.combinations(np.arange(len(t_idxs)), 2))`
+    idxs_a, idxs_b = np.triu_indices(max_idx, k=1)
+    return idxs_a, idxs_b
+
+
+def pair_indices_nearby(max_idx: int) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Generates pairs of indices in corresponding arrays,
+    returning nearby combinations
+    - considers [0, 1] and [1, 0] to be the same, only returns one of them
+    - never returns pairs with the same values, eg. [1, 1]
+    - number of returned values is: `max_idx`
+    """
+    idxs_a = np.arange(max_idx)                # eg. [0 1 2 3 4 5]
+    idxs_b = np.roll(idxs_a, shift=1, axis=0)  # eg. [1 2 3 4 5 0]
+    return idxs_a, idxs_b
+
+
+_PAIR_INDICES_FNS = {
+    'random': pair_indices_random,
+    'combinations': pair_indices_combinations,
+    'nearby': pair_indices_nearby,
+}
+
+
+def pair_indices(max_idx: int, mode: str) -> Tuple[np.ndarray, np.ndarray]:
+    try:
+        fn = _PAIR_INDICES_FNS[mode]
+    except:
+        raise KeyError(f'invalid mode: {repr(mode)}')
+    return fn(max_idx=max_idx)
 
 
 # ========================================================================= #

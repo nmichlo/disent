@@ -25,7 +25,9 @@
 import inspect
 import warnings
 from typing import Optional
+from typing import Sequence
 
+import numpy as np
 import torch
 from torch.nn import functional as F
 
@@ -124,6 +126,33 @@ def unreduced_overlap(pred: torch.Tensor, targ: torch.Tensor, mode='mse') -> tor
 def pairwise_overlap(pred: torch.Tensor, targ: torch.Tensor, mode='mse', mean_dtype=None) -> torch.Tensor:
     # -ve loss
     return - pairwise_loss(pred=pred, targ=targ, mode=mode, mean_dtype=mean_dtype)
+
+
+# ========================================================================= #
+# Factor Distances                                                          #
+# ========================================================================= #
+
+
+def np_factor_dists(
+    factors_a: np.ndarray,
+    factors_b: np.ndarray,
+    factor_sizes: Optional[Sequence[int]] = None,
+    circular_if_factor_sizes: bool = True,
+    p: int = 1,
+) -> np.ndarray:
+    assert factors_a.ndim == 2
+    assert factors_a.shape == factors_b.shape
+    # compute factor distances
+    fdists = np.abs(factors_a - factors_b)  # (NUM, FACTOR_SIZE)
+    # circular distance
+    if (factor_sizes is not None) and circular_if_factor_sizes:
+        M = np.array(factor_sizes)[None, :]                       # (FACTOR_SIZE,) -> (1, FACTOR_SIZE)
+        assert M.shape == (1, factors_a.shape[-1])
+        fdists = np.where(fdists > (M // 2), M - fdists, fdists)  # (NUM, FACTOR_SIZE)
+    # compute final dists
+    fdists = (fdists ** p).sum(axis=-1) ** (1 / p)
+    # return values
+    return fdists  # (NUM,)
 
 
 # ========================================================================= #

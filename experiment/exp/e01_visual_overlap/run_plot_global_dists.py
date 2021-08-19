@@ -36,8 +36,10 @@ from matplotlib.ticker import MultipleLocator
 from tqdm import tqdm
 
 import experiment.exp.util as H
-from disent.dataset.data.groundtruth import *
-from disent.dataset.sampling.groundtruth import GroundTruthDataset
+from disent.dataset.data import Cars3dData
+from disent.dataset.data import DSpritesData
+from disent.dataset.data import Shapes3dData
+from disent.dataset.data import XYSquaresData
 from disent.nn.transform import ToStandardisedTensor
 from disent.util import to_numpy
 
@@ -327,6 +329,9 @@ def plot_unique_count(dfs, save_name: str = None, show_plt: bool = True, fig_l_p
 
 
 if __name__ == '__main__':
+
+    # TODO: update to new classes
+    # TODO: update to use registry
 
     # matplotlib style
     plt.style.use(os.path.join(os.path.dirname(__file__), '../gadfly.mplstyle'))
