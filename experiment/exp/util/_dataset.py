@@ -229,10 +229,12 @@ def normalise_factor_idx(dataset: GroundTruthData, factor: Union[int, str]) -> i
 
 
 # general type
-NonNormalisedFactors = Union[Sequence[Union[int, str]], Union[int, str]]
+NonNormalisedFactors = Optional[Union[Sequence[Union[int, str]], Union[int, str]]]
 
 
 def normalise_factor_idxs(gt_data: GroundTruthData, factors: NonNormalisedFactors) -> np.ndarray:
+    if factors is None:
+        factors = np.arange(gt_data.num_factors)
     if isinstance(factors, (int, str)):
         factors = [factors]
     factors = np.array([normalise_factor_idx(gt_data, factor) for factor in factors])
@@ -271,6 +273,74 @@ def sample_batch_and_factors(dataset: DisentDataset, num_samples: int, factor_mo
     batch = dataset.dataset_batch_from_factors(factors, mode='target').to(device=device)
     factors = torch.from_numpy(factors).to(dtype=torch.float32, device=device)
     return batch, factors
+
+
+# ========================================================================= #
+# pair samplers                                                             #
+# ========================================================================= #
+
+
+def pair_indices_random(max_idx: int, approx_batch_size: Optional[int] = None) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Generates pairs of indices in corresponding arrays,
+    returning random permutations
+    - considers [0, 1] and [1, 0] to be different  # TODO: consider them to be the same
+    - never returns pairs with the same values, eg. [1, 1]
+    - (default) number of returned values is: `max_idx * sqrt(max_idx) / 2`  -- arbitrarily chosen to scale slower than number of combinations
+    """
+    # defaults
+    if approx_batch_size is None:
+        approx_batch_size = int(max_idx * (max_idx ** 0.5) / 2)
+    # sample values
+    idx_a, idx_b = np.random.randint(0, max_idx, size=(2, approx_batch_size))
+    # remove similar
+    different = (idx_a != idx_b)
+    idx_a = idx_a[different]
+    idx_b = idx_b[different]
+    # return values
+    return idx_a, idx_b
+
+
+def pair_indices_combinations(max_idx: int) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Generates pairs of indices in corresponding arrays,
+    returning all combinations
+    - considers [0, 1] and [1, 0] to be the same, only returns one of them
+    - never returns pairs with the same values, eg. [1, 1]
+    - number of returned values is: `max_idx * (max_idx-1) / 2`
+    """
+    # upper triangle excluding diagonal
+    # - similar to: `list(itertools.combinations(np.arange(len(t_idxs)), 2))`
+    idxs_a, idxs_b = np.triu_indices(max_idx, k=1)
+    return idxs_a, idxs_b
+
+
+def pair_indices_nearby(max_idx: int) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Generates pairs of indices in corresponding arrays,
+    returning nearby combinations
+    - considers [0, 1] and [1, 0] to be the same, only returns one of them
+    - never returns pairs with the same values, eg. [1, 1]
+    - number of returned values is: `max_idx`
+    """
+    idxs_a = np.arange(max_idx)                # eg. [0 1 2 3 4 5]
+    idxs_b = np.roll(idxs_a, shift=1, axis=0)  # eg. [1 2 3 4 5 0]
+    return idxs_a, idxs_b
+
+
+_PAIR_INDICES_FNS = {
+    'random': pair_indices_random,
+    'combinations': pair_indices_combinations,
+    'nearby': pair_indices_nearby,
+}
+
+
+def pair_indices(max_idx: int, mode: str) -> Tuple[np.ndarray, np.ndarray]:
+    try:
+        fn = _PAIR_INDICES_FNS[mode]
+    except:
+        raise KeyError(f'invalid mode: {repr(mode)}')
+    return fn(max_idx=max_idx)
 
 
 # ========================================================================= #

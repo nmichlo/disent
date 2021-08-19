@@ -92,27 +92,16 @@ def inplace_evolve(mask: torch.Tensor, p_flip=0.01, r_add_remove=0.01) -> NoRetu
         mask[enable_idxs] = True
 
 
-def _unique_pair_indices(max_idx: int, batch_size: int):
-    # sample pairs
-    idx_a, idx_b = torch.randint(0, max_idx, size=(2, batch_size))
-    # remove similar
-    different = (idx_a != idx_b)
-    idx_a = idx_a[different]
-    idx_b = idx_b[different]
-    # return values
-    return idx_a, idx_b
-
-
 # TODO: this is very memory in-efficient!
 #      -- change to tensors and index by hand
 def evaluate(gt_data, mask: torch.Tensor, batch_size=2048):
     # get subset
     data = SubDataset(data=gt_data.array, mask_or_indices=mask)
     # compute overlap
-    idx_a, idx_b = _unique_pair_indices(len(data), batch_size=batch_size)
+    idx_a, idx_b = H.pair_indices_random(len(data), approx_batch_size=batch_size)
     deltas = torch.abs(data[idx_a] - data[idx_b]).mean(dim=(-3, -2, -1))
     # compute secondary deltas
-    idx_a, idx_b = _unique_pair_indices(len(deltas), batch_size=batch_size * 4)
+    idx_a, idx_b = H.pair_indices_random(len(deltas), approx_batch_size=batch_size * 4)
     loss = torch.abs(deltas[idx_a] - deltas[idx_b]).mean()
     # compute factor differences
     # -- highest score is best!
