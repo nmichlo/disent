@@ -38,6 +38,10 @@
 
 ----------------------
 
+⚠️ _Development of official pypi versions has been paused temporarily until I finish my degree. Large changes can be expected afterwards for release 0.2.0, fixing most issues with the library._
+
+----------------------
+
 ## Table Of Contents
 
 - [Overview](#overview)
