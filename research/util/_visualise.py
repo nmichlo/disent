@@ -35,8 +35,8 @@ from disent.dataset import DisentDataset
 from disent.util.seeds import TempNumpySeed
 from disent.util.visualize.vis_util import make_animated_image_grid
 from disent.util.visualize.vis_util import make_image_grid
-from experiment.exp.util._dataset import get_factor_idxs
-from experiment.exp.util._dataset import NonNormalisedFactors
+from research.util._dataset import get_factor_idxs
+from research.util._dataset import NonNormalisedFactors
 
 
 # ========================================================================= #

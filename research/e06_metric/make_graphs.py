@@ -34,7 +34,7 @@ from matplotlib import cm
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
-import experiment.exp.util as H
+import research.util as H
 from disent.metrics._flatness_components import compute_axis_score
 from disent.metrics._flatness_components import compute_linear_score
 from disent.util.seeds import seed
@@ -434,7 +434,3 @@ if __name__ == '__main__':
     plt.show()
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-
-
-
-

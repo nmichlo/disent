@@ -29,10 +29,11 @@ import torch.nn.functional as F
 import torchvision
 import matplotlib.pyplot as plt
 
-from disent.dataset.data.groundtruth import Shapes3dData
-from experiment.exp.util._data import AdversarialOptimizedData
-from experiment.exp.util._data import TransformDataset
+from disent.dataset.data import Shapes3dData
+from research.util._data import AdversarialOptimizedData
 
+# TODO: what is going on here?? fix this!
+# TODO: these classes are old...
 
 # class TransformDataset(GroundTruthData):
 #
@@ -64,36 +65,36 @@ from experiment.exp.util._data import TransformDataset
 #         return item
 
 
-class AdversarialOptimizedData(GroundTruthData):
-
-    @property
-    def factor_names(self) -> Tuple[str, ...]:
-        return self.base_data.factor_names
-
-    @property
-    def factor_sizes(self) -> Tuple[int, ...]:
-        return self.base_data.factor_sizes
-
-    @property
-    def observation_shape(self) -> Tuple[int, ...]:
-        return self.base_data.observation_shape
-
-    def __init__(self, h5_path: str, base_data: GroundTruthData, transform=None):
-        # normalize hd5f data
-        def _normalize_hdf5(x):
-            c, h, w = x.shape
-            if c in (1, 3):
-                return np.moveaxis(x, 0, -1)
-            return x
-        # get the data
-        self.base_data = base_data
-        self.hdf5_data = Hdf5Dataset(h5_path, transform=_normalize_hdf5)
-        assert len(self.base_data) == len(self.hdf5_data)
-        # initialize
-        super().__init__(transform=transform)
-
-    def _get_observation(self, idx):
-        return self.hdf5_data[idx]
+# class AdversarialOptimizedData(GroundTruthData):
+#
+#     @property
+#     def factor_names(self) -> Tuple[str, ...]:
+#         return self.base_data.factor_names
+#
+#     @property
+#     def factor_sizes(self) -> Tuple[int, ...]:
+#         return self.base_data.factor_sizes
+#
+#     @property
+#     def observation_shape(self) -> Tuple[int, ...]:
+#         return self.base_data.observation_shape
+#
+#     def __init__(self, h5_path: str, base_data: GroundTruthData, transform=None):
+#         # normalize hd5f data
+#         def _normalize_hdf5(x):
+#             c, h, w = x.shape
+#             if c in (1, 3):
+#                 return np.moveaxis(x, 0, -1)
+#             return x
+#         # get the data
+#         self.base_data = base_data
+#         self.hdf5_data = Hdf5Dataset(h5_path, transform=_normalize_hdf5)
+#         assert len(self.base_data) == len(self.hdf5_data)
+#         # initialize
+#         super().__init__(transform=transform)
+#
+#     def _get_observation(self, idx):
+#         return self.hdf5_data[idx]
 
 
 if __name__ == '__main__':

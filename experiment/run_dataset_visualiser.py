@@ -36,7 +36,7 @@ from omegaconf import OmegaConf
 
 from disent.util.strings.fmt import make_box_str
 from disent.util.visualize.vis_util import make_image_grid
-from experiment.exp.util import to_imgs
+from disent.util.visualize.vis_util import reconstructions_to_images
 from experiment.run import hydra_check_datadir
 from experiment.run import HydraDataModule
 from experiment.util.hydra_utils import make_non_strict
@@ -98,8 +98,8 @@ def visualise(cfg: DictConfig):
         obs = dataset[idx]
 
         # convert augmented images to observations
-        x      = [to_imgs(torch.clamp(obs, 0, 1)).numpy() for obs in obs['x']]
-        x_targ = [to_imgs(torch.clamp(obs, 0, 1)).numpy() for obs in obs['x_targ']]
+        x      = [reconstructions_to_images(torch.clamp(obs, 0, 1)).numpy() for obs in obs['x']]
+        x_targ = [reconstructions_to_images(torch.clamp(obs, 0, 1)).numpy() for obs in obs['x_targ']]
         img = make_image_grid(x + x_targ, pad=PADDING, border=False, bg_color=255, num_cols=len(x))
 
         # send images to server

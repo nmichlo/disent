@@ -30,6 +30,11 @@ from disent.dataset.data import GroundTruthData
 from disent.dataset.data._raw import Hdf5Dataset
 
 
+# TODO: these classes are old...
+# TODO: these classes are old...
+# TODO: these classes are old...
+
+
 class TransformDataset(GroundTruthData):
 
     # TODO: all data should be datasets

@@ -29,16 +29,16 @@ from typing import Optional
 from typing import Sequence
 from typing import Tuple
 
-import numpy as np
-import torch.nn.functional as F
 import hydra
+import numpy as np
 import pytorch_lightning as pl
 import torch
+import torch.nn.functional as F
 import wandb
 from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
 
-import experiment.exp.util as H
+import research.util as H
 from disent import registry
 from disent.dataset import DisentDataset
 from disent.dataset.sampling import BaseDisentSampler
@@ -57,13 +57,13 @@ from disent.util.seeds import TempNumpySeed
 from disent.util.strings.fmt import bytes_to_human
 from disent.util.strings.fmt import make_box_str
 from disent.util.visualize.vis_util import make_image_grid
-from experiment.exp.e05_adversarial_data.util_04_gen_adversarial_dataset import adversarial_loss
-from experiment.exp.e05_adversarial_data.util_04_gen_adversarial_dataset import make_adversarial_sampler
 from experiment.run import hydra_append_progress_callback
 from experiment.run import hydra_check_cuda
 from experiment.run import hydra_make_logger
 from experiment.util.hydra_utils import make_non_strict
 from experiment.util.run_utils import log_error_and_exit
+from research.e05_adversarial_data.util_04_gen_adversarial_dataset import adversarial_loss
+from research.e05_adversarial_data.util_04_gen_adversarial_dataset import make_adversarial_sampler
 
 
 log = logging.getLogger(__name__)

@@ -39,7 +39,7 @@ import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 
-import experiment.exp.util as H
+import research.util as H
 from disent.dataset.data import GroundTruthData
 from disent.dataset.data import SelfContainedHdf5GroundTruthData
 from disent.nn.transform import ToStandardisedTensor

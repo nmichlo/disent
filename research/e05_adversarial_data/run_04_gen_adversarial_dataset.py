@@ -39,7 +39,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data import IterableDataset
 from torch.utils.data.dataset import T_co
 
-import experiment.exp.util as H
+import research.util as H
 from disent.dataset import DisentDataset
 from disent.dataset.sampling import BaseDisentSampler
 from disent.dataset.util.hdf5 import h5_open
@@ -54,13 +54,13 @@ from disent.util.seeds import TempNumpySeed
 from disent.util.strings.fmt import bytes_to_human
 from disent.util.strings.fmt import make_box_str
 from disent.util.visualize.vis_util import make_image_grid
-from experiment.exp.e05_adversarial_data.util_04_gen_adversarial_dataset import adversarial_loss
-from experiment.exp.e05_adversarial_data.util_04_gen_adversarial_dataset import make_adversarial_sampler
 from experiment.run import hydra_append_progress_callback
 from experiment.run import hydra_check_cuda
 from experiment.run import hydra_make_logger
 from experiment.util.hydra_utils import make_non_strict
 from experiment.util.run_utils import log_error_and_exit
+from research.e05_adversarial_data.util_04_gen_adversarial_dataset import adversarial_loss
+from research.e05_adversarial_data.util_04_gen_adversarial_dataset import make_adversarial_sampler
 
 
 log = logging.getLogger(__name__)

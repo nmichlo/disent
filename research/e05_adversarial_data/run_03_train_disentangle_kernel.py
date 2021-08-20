@@ -38,19 +38,19 @@ from torch.nn import Parameter
 from torch.utils.data import DataLoader
 
 import disent.util.seeds
-import experiment.exp.util as H
-from disent.nn.modules import DisentLightningModule
-from disent.nn.modules import DisentModule
-from disent.util.strings.fmt import make_box_str
-from disent.util.seeds import seed
+import research.util as H
 from disent.nn.functional import torch_conv2d_channel_wise_fft
 from disent.nn.loss.softsort import spearman_rank_loss
+from disent.nn.modules import DisentLightningModule
+from disent.nn.modules import DisentModule
+from disent.util.lightning.callbacks import BaseCallbackPeriodic
+from disent.util.lightning.logger_util import wb_log_metrics
+from disent.util.seeds import seed
+from disent.util.strings.fmt import make_box_str
 from experiment.run import hydra_append_progress_callback
 from experiment.run import hydra_check_cuda
 from experiment.run import hydra_make_logger
-from disent.util.lightning.callbacks import BaseCallbackPeriodic
 from experiment.util.hydra_utils import make_non_strict
-from disent.util.lightning.logger_util import wb_log_metrics
 
 
 log = logging.getLogger(__name__)

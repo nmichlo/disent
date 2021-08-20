@@ -26,7 +26,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
-import experiment.exp.util as H
+import research.util as H
 from disent.nn.loss.softsort import multi_spearman_rank_loss
 from disent.nn.loss.softsort import torch_soft_rank
 
@@ -36,7 +36,7 @@ from disent.nn.loss.softsort import torch_soft_rank
 # ========================================================================= #
 
 
-def run_differentiable_sorting_loss(dataset='xysquares', loss_mode='spearman', optimizer='adam', lr=1e-2):
+def run_differentiable_sorting_loss(dataset='dsprites', loss_mode='spearman', optimizer='adam', lr=1e-2):
     """
     test that the differentiable sorting works over a batch of images.
     """
@@ -78,4 +78,3 @@ def run_differentiable_sorting_loss(dataset='xysquares', loss_mode='spearman', o
 
 if __name__ == '__main__':
     run_differentiable_sorting_loss()
-

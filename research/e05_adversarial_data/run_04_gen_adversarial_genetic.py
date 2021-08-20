@@ -24,12 +24,12 @@
 
 from typing import NoReturn
 
-import torch
 import numpy as np
+import torch
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
-import experiment.exp.util as H
+import research.util as H
 from disent.dataset.data import ArrayGroundTruthData
 from disent.util.math.random import random_choice_prng
 

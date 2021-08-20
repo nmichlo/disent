@@ -25,13 +25,13 @@
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
-import torch.nn.functional as F
-import experiment.exp.util as H
-from disent.nn.functional import torch_conv2d_channel_wise_fft
+import research.util as H
 from disent.nn.functional import torch_box_kernel_2d
+from disent.nn.functional import torch_conv2d_channel_wise_fft
 from disent.nn.functional import torch_gaussian_kernel_2d
 
 

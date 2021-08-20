@@ -28,7 +28,7 @@ from typing import Optional
 import numpy as np
 from matplotlib import pyplot as plt
 
-import experiment.exp.util as H
+import research.util as H
 from disent.dataset import DisentDataset
 from disent.dataset.data import Cars3dData
 from disent.dataset.data import DSpritesData
