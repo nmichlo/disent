@@ -126,22 +126,33 @@ def nd_dither(arr: np.ndarray, n: int = 2, axis: Optional[Sequence[int]] = None)
 
     The output is a boolean array with the same shape as the input arr.
     """
-    # convert axis to ordered axis
-    src_axis = _normalize_axis(arr.ndim, tuple(axis))
-    d = len(axis)
-    dst_axis = np.arange(arr.ndim - d, arr.ndim)
-    # move the d axes in use to front
-    arr = np.moveaxis(arr, src_axis, dst_axis)
-    # generate indices
-    ii = tuple(ii % n for ii in np.ogrid[tuple(_IDX[0:l] for l in arr.shape[-d:])])  # meshgrid is buggy, doesn't preserve dims correctly
-    d_mat = nd_dither_matrix(n=n, d=d, norm=True)
-    dd = d_mat[ii]
-    # compute
-    out = arr > dd
-    # return in use axis to original positions
-    out = np.moveaxis(out, dst_axis, src_axis)
-    # dither
-    return out
+    dd = nd_dither_matrix_like(arr, n=n, axis=axis, norm=True, expand=True)
+    # compute dither
+    return arr > dd
+
+
+def nd_dither_matrix_like(arr: np.ndarray, n: int = 2, axis: Optional[Sequence[int]] = None, norm: bool = True, expand: bool = True) -> np.ndarray:
+    """
+    Tile the dither matrix across an array.
+    - `norm` specifies that the values should be in the range [0, 1)
+       and not the original indices in the range [0, 2**d)
+    - Use `axis` to specify which dimensions are tiled
+      unspecified dimensions are set to size 1 for broadcasting
+      with the original matrix, unless `expand=False`
+    - `n` is the size of the underlying dither matrix which is tiled
+    """
+    axis = _normalize_axis(arr.ndim, tuple(axis))
+    sizes = np.array(arr.shape)[axis]
+    # get dither values
+    d_mat = nd_dither_matrix(n=n, d=len(axis), norm=norm)
+    # repeat values across array, rounding up and then trimming dims
+    dd = np.tile(d_mat, (sizes + n - 1) // n)
+    dd = dd[tuple(slice(0, l) for l in sizes)]
+    # create missing dims
+    if expand:
+        dd = np.expand_dims(dd, axis=tuple(set(range(arr.ndim)) - set(axis)))
+    # done
+    return dd
 
 
 # ========================================================================= #
@@ -184,15 +195,6 @@ def _normalize_axis(ndim: int, axis: Optional[Sequence[int]]) -> np.ndarray:
     assert np.all(axis < ndim)
     # done!
     return _np_immutable_copy(axis)  # shape: [d]
-
-
-# hack to enable quick indexing
-class __IDX(object):
-    def __getitem__(self, item):
-        return item
-
-
-_IDX = __IDX()
 
 
 # ========================================================================= #

@@ -27,11 +27,10 @@ import warnings
 from typing import Literal
 from typing import Union
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pytorch_lightning as pl
 import torch
-import wandb
+
 from pytorch_lightning.trainer.supporters import CombinedLoader
 
 import disent.metrics
@@ -48,6 +47,10 @@ from disent.util.profiling import Timer
 from disent.util.seeds import TempNumpySeed
 from disent.util.visualize.vis_model import latent_cycle_grid_animation
 from disent.util.visualize.vis_util import make_image_grid
+
+# TODO: wandb and matplotlib are not in requirements
+import matplotlib.pyplot as plt
+import wandb
 
 
 log = logging.getLogger(__name__)
