@@ -158,6 +158,7 @@ class VaeDisentanglementLoggingCallback(BaseCallbackPeriodic):
         # get dataset and vae framework from trainer and module
         dataset, vae = _get_dataset_and_vae(trainer, pl_module)
         # check if we need to skip
+        # TODO: dataset needs to be able to handle wrapped datasets!
         if not dataset.is_ground_truth:
             warnings.warn(f'{dataset.__class__.__name__} is not an instance of {GroundTruthData.__name__}. Skipping callback: {self.__class__.__name__}!')
             return
