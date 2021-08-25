@@ -43,6 +43,7 @@ import research.util as H
 from disent.dataset.data import GroundTruthData
 from disent.dataset.data import SelfContainedHdf5GroundTruthData
 from disent.nn.transform import ToStandardisedTensor
+from disent.util.inout.paths import ensure_parent_dir_exists
 from disent.util.seeds import TempNumpySeed
 
 
@@ -111,9 +112,9 @@ def sample_factor_traversal_info_and_distmat(
 def _collect_stats_for_factors(
     gt_data: GroundTruthData,
     f_idxs: Sequence[int],
-    stats_fn: Callable[[GroundTruthData, int], Dict[str, Any]],
+    stats_fn: Callable[[GroundTruthData, int, int], Dict[str, Any]],
     keep_keys: Sequence[str],
-    stats_callback: Optional[Callable[[Dict[str, List[Any]], int], None]] = None,
+    stats_callback: Optional[Callable[[Dict[str, List[Any]], int, int], None]] = None,
     return_stats: bool = True,
     num_traversal_sample: int = 100,
 ) -> List[Dict[str, List[Any]]]:
@@ -127,14 +128,14 @@ def _collect_stats_for_factors(
         # repeatedly generate stats per factor
         stats = defaultdict(list)
         for _ in tqdm(range(num_traversal_sample), desc=f'{gt_data.name}: {factor_name}'):
-            data = stats_fn(gt_data, f_idx)
+            data = stats_fn(gt_data, i, f_idx)
             for key in keep_keys:
                 stats[key].append(data[key])
         # save factor stats
         if return_stats:
             f_stats.append(stats)
         if stats_callback:
-            stats_callback(stats, f_idx)
+            stats_callback(stats, i, f_idx)
     # done!
     if return_stats:
         return f_stats
@@ -146,10 +147,10 @@ def _collect_stats_for_factors(
 
 
 _COLORS = {
-    'blue':   (None, 'Blues',   'Blues_r'),
-    'red':    (None, 'Reds',    'Reds_r'),
-    'purple': (None, 'Purples', 'Purples_r'),
-    'green':  (None, 'Greens',  'Greens_r'),
+    'blue':   (None, 'Blues',   'Blues'),
+    'red':    (None, 'Reds',    'Reds'),
+    'purple': (None, 'Purples', 'Purples'),
+    'green':  (None, 'Greens',  'Greens'),
 }
 
 
@@ -160,13 +161,14 @@ def plot_traversal_stats(
     circular_distance: bool = False,
     color='blue',
     suffix: Optional[str] = None,
+    save_path: Optional[str] = None,
 ):
     # - - - - - - - - - - - - - - - - - #
 
-    def stats_fn(gt_data, f_idx):
+    def stats_fn(gt_data, i, f_idx):
         return sample_factor_traversal_info_and_distmat(gt_data=gt_data, f_idx=f_idx, circular_distance=circular_distance)
 
-    def plot_ax(stats: dict, f_idx: int):
+    def plot_ax(stats: dict, i: int, f_idx: int):
         deltas = np.concatenate(stats['deltas'])
         fdists = np.concatenate(stats['fdists'])
         fdists_matrix = np.mean(stats['fdists_matrix'], axis=0)
@@ -177,7 +179,7 @@ def plot_traversal_stats(
         with TempNumpySeed(777): np.random.shuffle(fdists)
 
         # subplot!
-        ax0, ax1, ax2, ax3 = axs[:, f_idx]
+        ax0, ax1, ax2, ax3 = axs[:, i]
 
         ax0.set_title(f'{gt_data.factor_names[f_idx]} ({gt_data.factor_sizes[f_idx]})')
         ax0.violinplot([deltas], vert=False)
@@ -211,9 +213,11 @@ def plot_traversal_stats(
     gt_data: GroundTruthData = H.make_data(dataset_or_name) if isinstance(dataset_or_name, str) else dataset_or_name
     f_idxs = H.normalise_factor_idxs(gt_data, factors=f_idxs)
     c_points, cmap_density, cmap_img = _COLORS[color]
+
     # settings
     r, c = [4,  len(f_idxs)]
     h, w = [16, len(f_idxs)*4]
+
     # initialize plot
     fig, axs = plt.subplots(r, c, figsize=(w, h), squeeze=False)
     fig.suptitle(f'{gt_data.name} [circular={circular_distance}]{f" {suffix}" if suffix else ""}\n', fontsize=25)
@@ -230,11 +234,15 @@ def plot_traversal_stats(
 
     # finalize plot
     fig.tight_layout()
-    plt.show()
 
-    # TODO: add saving!
-    # TODO: add saving!
-    # TODO: add saving!
+    # save the path
+    if save_path is not None:
+        assert save_path.endswith('.png')
+        ensure_parent_dir_exists(save_path)
+        plt.savefig(save_path)
+
+    # show it!
+    plt.show()
 
     # - - - - - - - - - - - - - - - - - #
     return fig
@@ -253,32 +261,38 @@ if __name__ == '__main__':
     # matplotlib style
     plt.style.use(os.path.join(os.path.dirname(__file__), '../gadfly.mplstyle'))
 
+    CIRCULAR = False
+
+    def sp(name):
+        prefix = 'CIRCULAR_' if CIRCULAR else ''
+        return os.path.join(os.path.dirname(__file__), 'plots', f'{prefix}{name}.png')
+
     # plot xysquares with increasing overlap
-    # for s in [1, 2, 3, 4, 5, 6, 7, 8]:
-    #     plot_traversal_stats(color='blue', dataset_or_name=f'xysquares_8x8_s{s}', f_idxs=[1])
+    for s in [1, 2, 3, 4, 5, 6, 7, 8]:
+        plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(f'xysquares_8x8_s{s}'), color='blue', dataset_or_name=f'xysquares_8x8_s{s}', f_idxs=[1])
 
     # plot standard datasets
     for name in ['dsprites', 'shapes3d', 'cars3d', 'smallnorb']:
-        plot_traversal_stats(color='blue', dataset_or_name=name)
+        plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(name), color='blue', dataset_or_name=name)
 
     # plot adversarial "self" datasets
-    for name in [
+    for folder in [
         '2021-08-18--00-58-22_FINAL-dsprites_self_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06',
         '2021-08-18--01-33-47_FINAL-shapes3d_self_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06',
         '2021-08-18--02-20-13_FINAL-cars3d_self_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06',
         '2021-08-18--03-10-53_FINAL-smallnorb_self_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06',
     ]:
-        plot_traversal_stats(color='purple', dataset_or_name=_make_self_contained_dataset(f'/home/nmichlo/workspace/research/disent/out/adversarial_data_approx_NEW/{name}/data.h5'))
+        plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(folder), color='purple', dataset_or_name=_make_self_contained_dataset(f'/home/nmichlo/workspace/research/disent/out/adversarial_data_approx_NEW/{folder}/data.h5'))
 
     # plot adversarial "const" datasets
-    for name in [
+    for folder in [
         '2021-08-18--03-52-31_FINAL-dsprites_invert_margin_0.005_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06',
         '2021-08-18--04-29-25_FINAL-shapes3d_invert_margin_0.005_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06',
         '2021-08-18--05-13-15_FINAL-cars3d_invert_margin_0.005_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06',
         '2021-08-18--06-03-32_FINAL-smallnorb_invert_margin_0.005_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06',
         '2021-08-18--11-18-41_FINAL-shapes3d_invert_margin_0.01_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06',
     ]:
-        plot_traversal_stats(color='red', dataset_or_name=_make_self_contained_dataset(f'/home/nmichlo/workspace/research/disent/out/adversarial_data_approx_NEW/{name}/data.h5'))
+        plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(folder), color='red', dataset_or_name=_make_self_contained_dataset(f'/home/nmichlo/workspace/research/disent/out/adversarial_data_approx_NEW/{folder}/data.h5'))
 
 # ========================================================================= #
 # END                                                                       #
