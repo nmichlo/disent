@@ -21,6 +21,8 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
+
 import functools
 from typing import Optional
 from typing import Sequence
@@ -57,16 +59,14 @@ def nd_dither_offsets(d: int) -> np.ndarray:
         return np.array([0, 1])
     # recurse
     prev = nd_dither_offsets(d=d - 1)
-    offs = np.array(
-        [
-            2 * prev,
-            2 * np.flip(prev) + 1  # flip(prev) is the same as prev[::-1, >>>] with ::-1 in all dimensions
-        ]
-    )
+    offs = np.array([
+        2 * prev,
+        2 * np.flip(prev) + 1  # flip(prev) is the same as prev[::-1, >>>] with ::-1 in all dimensions
+    ])
     return _np_immutable_copy(offs)
 
 
-def nd_dither_matrix(n: int = 2, d: int = 2, norm: bool = False) -> np.ndarray:
+def nd_dither_matrix(n: int = 2, d: int = 2, norm: bool = True) -> np.ndarray:
     """
     Compute the d-dimension dither matrix, with dimensions of size n.
     - n must be a power of 2!
