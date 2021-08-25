@@ -264,7 +264,7 @@ if __name__ == '__main__':
     CIRCULAR = False
 
     def sp(name):
-        prefix = 'CIRCULAR_' if CIRCULAR else ''
+        prefix = 'CIRCULAR_' if CIRCULAR else 'DIST_'
         return os.path.join(os.path.dirname(__file__), 'plots', f'{prefix}{name}.png')
 
     # plot xysquares with increasing overlap
