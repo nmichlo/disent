@@ -23,4 +23,4 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 # wrapper
-from disent.dataset._wrapper import DisentDataset
+from disent.dataset._base import DisentDataset
