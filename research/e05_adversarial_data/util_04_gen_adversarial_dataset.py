@@ -282,6 +282,8 @@ def adversarial_loss(
     adversarial_top_k: Optional[int] = None,
     # pixel loss to get deltas settings
     pixel_loss_mode: str = 'mse',
+    # statistics
+    return_stats: bool = False,
 ):
     a_y, p_y, n_y = _get_triple(ys, adversarial_swapped=adversarial_swapped)
 
@@ -301,7 +303,14 @@ def adversarial_loss(
     adversarial_mode, margin = _parse_margin_mode(adversarial_mode)
 
     # compute loss deltas
-    if   adversarial_mode == 'self':             loss_deltas = torch.abs(deltas)  # should this be l2 dist instead?
+    if   adversarial_mode == 'self':             loss_deltas = torch.abs(deltas)
+    elif adversarial_mode == 'self2':            loss_deltas = torch.abs(deltas) ** 2
+    elif adversarial_mode == 'self_random':
+        all_deltas = torch.cat([p_deltas, n_deltas], dim=0)
+        indices = np.arange(len(deltas))
+        np.random.shuffle(indices)
+        deltas = all_deltas[len(deltas):] - all_deltas[:len(deltas)]
+        loss_deltas = torch.abs(deltas)
     elif adversarial_mode == 'invert_unbounded': loss_deltas = deltas
     elif adversarial_mode == 'invert':           loss_deltas = torch.maximum(deltas, torch.zeros_like(deltas))
     elif adversarial_mode == 'invert_shift':     loss_deltas = torch.maximum(0.01 + deltas, torch.zeros_like(deltas))    # triplet_loss = torch.clamp_min(p_dist - n_dist + margin_max, 0)
@@ -315,7 +324,21 @@ def adversarial_loss(
         loss_deltas = torch.topk(loss_deltas, k=adversarial_top_k, largest=True).values
 
     # get average loss
-    return loss_deltas.mean()
+    loss = loss_deltas.mean()
+
+    # return early
+    if not return_stats:
+        return loss
+
+    # compute stats!
+    with torch.no_grad():
+        loss_stats = {
+            'stat/p_delta:mean': float(p_deltas.mean().cpu()),    'stat/p_delta:std':  float(p_deltas.std().cpu()),
+            'stat/n_delta:mean': float(n_deltas.mean().cpu()),    'stat/n_delta:std':  float(n_deltas.std().cpu()),
+            'stat/deltas:mean':  float(loss_deltas.mean().cpu()), 'stat/deltas:std':  float(loss_deltas.std().cpu()),
+        }
+
+    return loss, loss_stats
 
 
 # ========================================================================= #

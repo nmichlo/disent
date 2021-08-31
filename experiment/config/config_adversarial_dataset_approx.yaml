@@ -1,5 +1,6 @@
 # EXPERIMENT SWEEP:
 # -m framework.sampler_name=close_p_random_n framework.adversarial_mode=self,invert_margin_0.005 framework.dataset_name=dsprites,shapes3d,cars3d,smallnorb
+# -m framework.loss_adversarial_weight=100.0 framework.sampler_name=same_k1_close framework.adversarial_mode=self2,self framework.dataset_name=dsprites,shapes3d,cars3d,smallnorb
 
 # EXPERIMENT INDIVIDUALS:
 # framework.sampler_name=close_p_random_n  framework.adversarial_mode=self                 framework.dataset_name=dsprites
@@ -15,6 +16,10 @@
 # # 3dshapes does not seem to want to invert...
 # framework.sampler_name=close_p_random_n  framework.adversarial_mode=invert_margin_0.01  framework.dataset_name=shapes3d
 # framework.sampler_name=close_p_random_n  framework.adversarial_mode=invert_margin_0.10  framework.dataset_name=shapes3d
+
+# NEW EXPERIMENT:
+# -m framework.sampler_name=same_k1_close,close_p_random_n framework.adversarial_mode=invert_margin_0.05 framework.dataset_name=dsprites,shapes3d,smallnorb,cars3d
+#
 
 defaults:
   # runtime
@@ -36,7 +41,7 @@ trainer:
 framework:
   # IMPORTANT SETTINGS:
   dataset_name:     'dsprites'             # [cars3d, smallnorb, dsprites, shapes3d, xysquares_8x8_mini]
-  adversarial_mode: 'self'  # [self, invert_margin_0.005] invert, invert_unbounded
+  adversarial_mode: 'invert_margin_0.05'   # [self, invert_margin_0.05, invert_margin_0.005] invert, invert_unbounded
   # note: sampler_name (adversarial_mode=invert_margin_0.005)
   # - random_swap_manhattan: worst [no inversion before 5k]     (probability of encountering close is too low, don't use! ++easiest to implement)
   # - close_p_random_n:      good  [inversion before 5k]        (easier to implement)
@@ -91,7 +96,7 @@ job:
   save_prefix: ''
   save_model: TRUE
   save_data: TRUE
-  name: FINAL-${framework.dataset_name}_${framework.adversarial_mode}_aw${framework.loss_adversarial_weight}_${framework.sampler_name}_s${trainer.steps}_${framework.optimizer_name}_lr${framework.optimizer_lr}_wd${framework.optimizer_kwargs.weight_decay}
+  name: INVERT-${framework.dataset_name}_${framework.adversarial_mode}_aw${framework.loss_adversarial_weight}_${framework.sampler_name}_s${trainer.steps}_${framework.optimizer_name}_lr${framework.optimizer_lr}_wd${framework.optimizer_kwargs.weight_decay}
   # wandb
   user: 'n_michlo'
   project: 'exp-disentangle-dataset-approx'
