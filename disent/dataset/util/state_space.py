@@ -21,7 +21,7 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-
+from functools import lru_cache
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
@@ -107,6 +107,17 @@ class StateSpace(LengthIter):
         """
         positions = np.array(np.unravel_index(indices, self.__factor_sizes))
         return np.moveaxis(positions, source=0, destination=-1)
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Iterators                                                             #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    def iter_traversal_indices(self, f_idx: int, base_factors):
+        base_factors = list(base_factors)
+        base_factors[f_idx] = 0
+        base_idx = self.pos_to_idx(base_factors)
+        step_size = _get_step_size(tuple(self.__factor_sizes), f_idx)
+        yield from range(base_idx, base_idx + step_size * self.__factor_sizes[f_idx], step_size)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Sampling Functions - any dim array, only last axis counts!            #
@@ -206,6 +217,24 @@ class StateSpace(LengthIter):
         base_factors[:, f_idx] = get_idx_traversal(self.factor_sizes[f_idx], num_frames=num, mode=mode)
         # return factors (num_frames, num_factors)
         return base_factors
+
+
+# ========================================================================= #
+# Hidden State Space                                                        #
+# ========================================================================= #
+
+
+@lru_cache()
+def _get_step_size(factor_sizes, f_idx):
+    # check values
+    assert f_idx >= 0
+    assert f_idx < len(factor_sizes)
+    # return values
+    assert all(f > 0 for f in factor_sizes)
+    # return factor size
+    pos = np.zeros(len(factor_sizes), dtype='uint8')
+    pos[f_idx] = 1
+    return int(np.ravel_multi_index(pos, factor_sizes))
 
 
 # ========================================================================= #

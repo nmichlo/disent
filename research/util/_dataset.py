@@ -119,7 +119,7 @@ def load_dataset_into_memory(gt_data: GroundTruthData, obs_shape: Optional[Tuple
 # ========================================================================= #
 
 
-TransformTypeHint = Union[Literal['uint8'], Literal['float'], Literal['none']]
+TransformTypeHint = Union[Literal['uint8'], Literal['float'], Literal['float32'], Literal['none']]
 
 
 def make_data(
@@ -129,7 +129,7 @@ def make_data(
     try_in_memory: bool = False,
     load_into_memory: bool = False,
     load_memory_dtype: torch.dtype = torch.float16,
-    transform_mode: TransformTypeHint = 'float'
+    transform_mode: TransformTypeHint = 'float32'
 ) -> GroundTruthData:
     # override values
     if load_into_memory and try_in_memory:
@@ -139,6 +139,7 @@ def make_data(
     TransformCls = {
         'uint8': ToUint8Tensor,
         'float': ToStandardisedTensor,
+        'float32': ToStandardisedTensor,
         'none': (lambda *args, **kwargs: (lambda x: x)),
     }[transform_mode]
     # make data
