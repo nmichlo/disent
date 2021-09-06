@@ -33,7 +33,6 @@ import research.util as H
 from disent.dataset.data import ArrayGroundTruthData
 from disent.util.math.random import random_choice_prng
 
-import research.e01_visual_overlap.util_compute_traversal_dists as E1
 
 # ========================================================================= #
 # Sub Dataset                                                               #
@@ -93,32 +92,46 @@ def inplace_evolve(mask: torch.Tensor, p_flip=0.01, r_add_remove=0.01) -> NoRetu
         mask[enable_idxs] = True
 
 
-def evaluate(all_dist_matrices, mask: torch.Tensor, batch_size=2048):
-    scores = []
-    for f_idx, f_dist_matrices in enumerate(all_dist_matrices):
-        f_mask = np.moveaxis(mask, f_idx, -1)
-        f_mask = f_mask[..., :, None] & f_mask[..., None, :]
-        assert f_mask.shape == f_dist_matrices.shape
-        f_dists = f_dist_matrices[f_mask]
-        f_score = f_dists.std()
-        scores.append(f_score)
-    return np.prod(scores)
+# TODO: this is very memory in-efficient!
+#      -- change to tensors and index by hand
+def evaluate(gt_data, mask: torch.Tensor, batch_size=2048):
+    # get subset
+    data = SubDataset(data=gt_data.array, mask_or_indices=mask)
+    # compute overlap
+    idx_a, idx_b = H.pair_indices_random(len(data), approx_batch_size=batch_size)
+    deltas = torch.abs(data[idx_a] - data[idx_b]).mean(dim=(-3, -2, -1))
+    # compute secondary deltas
+    idx_a, idx_b = H.pair_indices_random(len(deltas), approx_batch_size=batch_size * 4)
+    loss = torch.abs(deltas[idx_a] - deltas[idx_b]).mean()
+    # compute factor differences
+    # -- highest score is best!
+    return -loss
 
 
-def evaluate_all(population: torch.Tensor, all_dist_matrices, batch_size=2048, threaded=False) -> torch.Tensor:
-    scores = [
-        evaluate(all_dist_matrices, mask=mask, batch_size=batch_size)
-        for mask in tqdm(population, desc='evaluation')
-    ]
+# from multiprocessing import Pool
+#
+# POOL = Pool(processes=os.cpu_count())
+
+
+def evaluate_all(population: torch.Tensor, gt_data: ArrayGroundTruthData, batch_size=2048, threaded=False) -> torch.Tensor:
+    if not threaded:
+        scores = [
+            evaluate(gt_data, mask=mask, batch_size=batch_size)
+            for mask in tqdm(population, desc='evaluation')
+        ]
+    else:
+        scores = POOL.starmap(evaluate, iterable=(
+            [gt_data, mask, batch_size]
+            for mask in population
+        ))
     return torch.stack(scores)
 
 
 @torch.no_grad()
-def main(dataset_name: str = 'cars3d', population_size=64, generations=100, p_flip=0.05, r_add_remove=0.05, keep_best=0.25, batch_size=1024*8):
-    # make dataset & precompute distances
-    gt_data = H.make_data(dataset_name, transform_mode='float32')
-    E1.print_dist_matrix_stats(gt_data)
-    all_dist_matrices = E1.compute_all_factor_dist_matrices(gt_data, masked=True, dataloader_kwargs=dict(batch_size=1, num_workers=12))
+def main(population_size=64, generations=100, p_flip=0.05, r_add_remove=0.05, keep_best=0.25, batch_size=1024*8):
+    # get the dataset and delete the transform
+    gt_data: ArrayGroundTruthData = H.make_dataset('cars3d', load_into_memory=True).gt_data
+    gt_data._transform = None
 
     # constants
     keep_n = max(int(keep_best * population_size), 1)
@@ -133,7 +146,7 @@ def main(dataset_name: str = 'cars3d', population_size=64, generations=100, p_fl
         print(f'{"="*100}\nGENERATION: {g}')
         # evaluate population
         # -- highest score is best
-        scores = evaluate_all(population, all_dist_matrices=all_dist_matrices, batch_size=batch_size)
+        scores = evaluate_all(population, gt_data=gt_data, batch_size=batch_size)
         best_indices = torch.argsort(scores, descending=True)[:keep_n]
         best_scores = scores[best_indices]
         best_population = population[best_indices]
@@ -150,7 +163,7 @@ def main(dataset_name: str = 'cars3d', population_size=64, generations=100, p_fl
         population = torch.cat([best_population, child_population], dim=0)
 
     # evaluate
-    scores = evaluate_all(population, all_dist_matrices=all_dist_matrices, batch_size=batch_size*2)
+    scores = evaluate_all(population, gt_data=gt_data, batch_size=batch_size*2)
 
     # return best
     return population, scores
