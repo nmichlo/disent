@@ -210,7 +210,8 @@ def main():
         f_dist_matrices = compute_all_factor_dist_matrices(
             gt_data,
             masked=True,
-            dataloader_kwargs=dict(batch_size=1, num_workers=12))
+            dataloader_kwargs=dict(batch_size=1, num_workers=12)
+        )
         # plot distance matrices
         H.plt_subplots_imshow(
             grid=[[d.reshape([-1, *d.shape[-2:]]).mean(axis=0) for d in f_dist_matrices]],
