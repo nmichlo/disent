@@ -52,7 +52,6 @@ from disent.util.seeds import TempNumpySeed
 # ========================================================================= #
 
 
-
 SampleModeHint = Union[Literal['random'], Literal['near'], Literal['combinations']]
 
 
@@ -284,6 +283,8 @@ if __name__ == '__main__':
     ]:
         plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(folder), color='purple', dataset_or_name=_make_self_contained_dataset(f'/home/nmichlo/workspace/research/disent/out/adversarial_data_approx_NEW/{folder}/data.h5'))
 
+    BASE = '/home/nmichlo/workspace/research/disent/out/adversarial_data_approx_NEW'
+
     # plot adversarial "const" datasets
     for folder in [
         '2021-08-18--03-52-31_FINAL-dsprites_invert_margin_0.005_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06',
@@ -292,7 +293,18 @@ if __name__ == '__main__':
         '2021-08-18--06-03-32_FINAL-smallnorb_invert_margin_0.005_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06',
         '2021-08-18--11-18-41_FINAL-shapes3d_invert_margin_0.01_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06',
     ]:
-        plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(folder), color='red', dataset_or_name=_make_self_contained_dataset(f'/home/nmichlo/workspace/research/disent/out/adversarial_data_approx_NEW/{folder}/data.h5'))
+        plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(folder), color='red', dataset_or_name=_make_self_contained_dataset(f'{BASE}/{folder}/data.h5'))
+
+    BASE = '/home/nathan/workspace/research/disent/out/adversarial_data_approx'
+
+    # plot adversarial "const" datasets
+    for folder in [
+        '2021-09-06--00-29-23_INVERT-VSTRONG-shapes3d_invert_margin_0.05_aw10.0_same_k1_close_s200001_Adam_lr0.0005_wd1e-06',
+        '2021-09-06--03-17-28_INVERT-VSTRONG-dsprites_invert_margin_0.05_aw10.0_same_k1_close_s200001_Adam_lr0.0005_wd1e-06',
+        '2021-09-06--05-42-06_INVERT-VSTRONG-cars3d_invert_margin_0.05_aw10.0_same_k1_close_s200001_Adam_lr0.0005_wd1e-06',
+        '2021-09-06--09-10-59_INVERT-VSTRONG-smallnorb_invert_margin_0.05_aw10.0_same_k1_close_s200001_Adam_lr0.0005_wd1e-06',
+    ]:
+        plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(folder), color='red', dataset_or_name=_make_self_contained_dataset(f'{BASE}/{folder}/data.h5'))
 
 # ========================================================================= #
 # END                                                                       #

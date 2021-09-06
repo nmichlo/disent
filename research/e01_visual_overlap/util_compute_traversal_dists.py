@@ -152,6 +152,7 @@ def compute_factor_dist_matrices(
                 mask |= (traversal[0] != item)
             traversal = traversal[:, mask]
         # compute distances
+        # TODO: MEAN IS WRONG WITH MASK
         dists = np.mean((traversal[a_idxs] - traversal[b_idxs]) ** 2, axis=1, dtype='float32')
         # return data
         return base_pos, dists

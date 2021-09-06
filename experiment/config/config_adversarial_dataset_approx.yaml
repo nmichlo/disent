@@ -19,11 +19,21 @@
 
 # NEW EXPERIMENT:
 # -m framework.sampler_name=same_k1_close,close_p_random_n framework.adversarial_mode=invert_margin_0.05 framework.dataset_name=dsprites,shapes3d,smallnorb,cars3d
-#
+# - continue
+#   DONE: -m framework.sampler_name=same_k1_close,close_p_random_n framework.adversarial_mode=invert_margin_0.05 framework.dataset_name=smallnorb,cars3d
+#   DOING: -m framework.sampler_name=close_p_random_n framework.adversarial_mode=invert_margin_0.05 framework.dataset_name=smallnorb,cars3d
+#   TODO: -m framework.sampler_name=close_p_random_n framework.adversarial_mode=invert_margin_0.05 framework.dataset_name=cars3d,smallnorb
+
+
+# NEW EXPERIMENT 2:
+# -m framework.sampler_name=same_k1_close,close_p_random_n framework.adversarial_mode=invert_margin_0.05 framework.loss_out_of_bounds_weight=1000.0 framework.dataset_name=dsprites,shapes3d,smallnorb,cars3d
+
+# NEW EXPERIMENT 3:
+# -m framework.sampler_name=same_k1_close framework.adversarial_mode=invert_margin_0.05 framework.loss_out_of_bounds_weight=10000.0 framework.dataset_name=shapes3d,dsprites,cars3d,smallnorb
 
 defaults:
   # runtime
-  - run_logging: wandb_fast
+  - run_logging: wandb
   - run_location: griffin
   # plugins
   - hydra/job_logging: colorlog
@@ -36,7 +46,7 @@ trainer:
   # try increasing the number of steps
   # - 15000 takes 40 mins with batch size 512 (heartofgold, 12 workers)
   # - 50000 takes 33 mins with batch size 256 (griffin, 16 workers)
-  steps: 50001
+  steps: 200001
 
 framework:
   # IMPORTANT SETTINGS:
@@ -88,7 +98,7 @@ framework:
 
 exp:
   seed: 777
-  show_every_n_steps: 1000
+  show_every_n_steps: 2000
   rel_save_dir: 'out/adversarial_data_approx/'
 
 job:
@@ -96,7 +106,7 @@ job:
   save_prefix: ''
   save_model: TRUE
   save_data: TRUE
-  name: INVERT-${framework.dataset_name}_${framework.adversarial_mode}_aw${framework.loss_adversarial_weight}_${framework.sampler_name}_s${trainer.steps}_${framework.optimizer_name}_lr${framework.optimizer_lr}_wd${framework.optimizer_kwargs.weight_decay}
+  name: INVERT-VSTRONG-${framework.dataset_name}_${framework.adversarial_mode}_aw${framework.loss_adversarial_weight}_${framework.sampler_name}_s${trainer.steps}_${framework.optimizer_name}_lr${framework.optimizer_lr}_wd${framework.optimizer_kwargs.weight_decay}
   # wandb
   user: 'n_michlo'
   project: 'exp-disentangle-dataset-approx'
