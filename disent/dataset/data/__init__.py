@@ -51,3 +51,4 @@ from disent.dataset.data._groundtruth__xyblocks import XYBlocksData
 from disent.dataset.data._groundtruth__xyobject import XYObjectData
 from disent.dataset.data._groundtruth__xysquares import XYSquaresData
 from disent.dataset.data._groundtruth__xysquares import XYSquaresMinimalData
+from disent.dataset.data._groundtruth__xcolumns import XColumnsData
