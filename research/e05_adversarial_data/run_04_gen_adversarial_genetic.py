@@ -102,31 +102,33 @@ def inplace_crossover(mask0: np.ndarray, mask1: np.ndarray):
     mask0[slices], mask1[slices] = mask1[slices].copy(), mask0[slices].copy()
 
 
-def selection_tournament(population, scores, n: int = None, tournament_size: int = 3):
-    assert len(population) == len(scores)
-    # defaults
-    if n is None:
-        n = len(population)
-    # select values
-    chosen_idxs = []
-    while len(chosen_idxs) < n:
-        idxs = random_choice_prng(len(population), size=tournament_size, replace=False)
-        idx = max(idxs, key=lambda i: scores[i])
-        chosen_idxs.append(idx)
-    # return new population
-    return population[chosen_idxs].copy()
+# def selection_tournament(population, scores, n: int = None, tournament_size: int = 3):
+#     assert len(population) == len(scores)
+#     # defaults
+#     if n is None:
+#         n = len(population)
+#     # select values
+#     chosen_idxs = []
+#     while len(chosen_idxs) < n:
+#         idxs = random_choice_prng(len(population), size=tournament_size, replace=False)
+#         idx = max(idxs, key=lambda i: scores[i])
+#         chosen_idxs.append(idx)
+#     # return new population
+#     return population[chosen_idxs].copy()
 
 
 def evolved_population_inplace(
     population: Sequence[np.ndarray],
     scores: Sequence[float] = None,
-    p_mutate: float = 0.5,
+    #
+    p_mutate: float = 0.2,
     p_mutate_flip: float = 0.05,
+    #
     p_crossover: float = 0.5,
 ) -> NoReturn:
     # SELECTION TOURNAMENT
-    if scores is not None:
-        population = selection_tournament(population, scores)
+    # if scores is not None:
+    #     population = selection_tournament(population, scores)
     # FLIP BITS
     for mask in population:
         if random.random() < p_mutate:
@@ -138,12 +140,13 @@ def evolved_population_inplace(
         if random.random() < p_crossover:
             inplace_crossover(population[indices[i - 1]], population[indices[i]])
     # done!
-    return population
+    return population.copy()
 
 
 # ========================================================================= #
 # Evaluation                                                                #
 # ========================================================================= #
+
 
 def evaluate_all(population: np.ndarray, all_dist_matrices, mode: str = 'maximize') -> (np.ndarray, np.ndarray):
     scores = np.array([
@@ -163,27 +166,29 @@ def evaluate(all_dist_matrices, mask: np.ndarray) -> float:
     scores = []
     for f_idx, f_dist_matrices in enumerate(all_dist_matrices):
         f_mask = np.moveaxis(mask, f_idx, -1)
-        f_mask = f_mask[..., :, None] ^ f_mask[..., None, :]
+        f_mask = f_mask[..., :, None] & f_mask[..., None, :]
 
-        # extract triangular matrix
-        # a_idxs, b_idxs = pair_indices_combinations(f_mask.shape[-1])
-        # f_dists = f_dist_matrices[..., a_idxs, b_idxs][f_mask[..., a_idxs, b_idxs]]
-        # compute score
-        # score = f_dists.std(axis=-1).mean()
-        # score = f_dists.mean(axis=-1).mean()
+        # (X, Y, Y)
+        # (Y, X, X)
 
         # mask array & diagonal
         diag = np.arange(f_mask.shape[-1])
         f_mask[..., diag, diag] = False
         f_dists = np.ma.masked_where(~f_mask, f_dist_matrices)  # TRUE is masked, so we need to negate
-        # compute score
-        # score = np.ma.std(f_dists, axis=-1).mean()
-        score = np.ma.min(f_dists, axis=-1).mean()
-        # score = np.ma.max(f_dists, axis=-1).mean()
 
-        scores.append(score)
+        # compute score
+        # fitness = np.ma.std(f_dists, axis=-1).mean()
+        fitness = (np.ma.max(f_dists, axis=-1) - np.ma.min(f_dists, axis=-1)).mean()
+
+        # TODO: add in extra score to maximize number of elements
+        # TODO: fitness function as range of values, and then minimize that range.
+
+        # final
+        scores.append(fitness)
 
     # final score
+    # TODO: could be weird
+    # TODO: maybe take max instead of gmean
     return float(gmean(scores, dtype='float64'))
 
 
@@ -196,7 +201,7 @@ def overlap_genetic_algorithm(
     dataset_name: str,
     population_size=256,
     generations=200,
-    mode: str = 'maximize',
+    mode: str = 'minimize',
     keep_best_ratio: float = 0.2,
 ):
     # make dataset & precompute distances
@@ -208,7 +213,18 @@ def overlap_genetic_algorithm(
     keep_n_best = max(1, int(population_size * keep_best_ratio))
 
     # generate the starting population
-    population = np.random.randint(0, 2, size=[population_size, *gt_data.factor_sizes], dtype='bool')
+    population = np.ones([population_size, *gt_data.factor_sizes], dtype='bool')
+    # population = np.random.randint(0, 2, size=[population_size, *gt_data.factor_sizes], dtype='bool')
+    # population[0, :] = False
+    # population[0, 0] = True
+    # population[0, 4] = True
+
+
+    # TODO: 1. pairwise distances over all pairs
+    #
+
+    # TODO: investigate why trivial solution with only 1 or 2
+    #       elements is not happening.
 
     p = tqdm(total=generations, desc='generation', ncols=150)
     # repeat for generations
@@ -221,9 +237,13 @@ def overlap_genetic_algorithm(
             evolved_population_inplace(population[:-keep_n_best], scores[:-keep_n_best])
         ])
         assert len(population) == population_size
+        # inject
+        # population[0, :] = False
+        # population[0, 0] = True
+        # population[0, 4] = True
         # update progress bar
         p.update()
-        p.set_postfix({
+        scores = {
             'min': scores.min(),
             'max': scores.max(),
             'mean': scores.mean(),
@@ -231,7 +251,10 @@ def overlap_genetic_algorithm(
             'best_score':  scores[0],
             'best_active': population[0].sum(),
             'best_total':  population[0].size,
-        })
+        }
+        p.set_postfix(scores)
+        print(scores)
+        print(population[0].astype('int').tolist())
 
     # evaluate
     population, scores = evaluate_all(population, all_dist_matrices=all_dist_matrices, mode=mode)
@@ -247,9 +270,11 @@ def overlap_genetic_algorithm(
 if __name__ == '__main__':
     # optimize!
     # dataset_name = 'xcolumns_8x_toy_s2'
-    # dataset_name = 'xysquares_8x8_toy_s4'
-    dataset_name = 'cars3d'
-    population, scores = overlap_genetic_algorithm(dataset_name=dataset_name, population_size=128, generations=200)
+    dataset_name = 'xysquares_8x8_toy_s4'
+    # dataset_name = 'cars3d'
+    population, scores = overlap_genetic_algorithm(dataset_name=dataset_name, population_size=128, generations=500)
+
+    # population = np.array([[]])
 
     # extract data
     sub_data = SubDataset(
