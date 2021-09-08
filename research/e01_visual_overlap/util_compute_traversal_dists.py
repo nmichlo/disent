@@ -21,8 +21,7 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-
-
+import os
 from typing import Tuple
 
 import numpy as np
@@ -194,6 +193,38 @@ def compute_all_factor_dist_matrices(
         )
         all_dist_matrices.append(f_dist_matrices)
     return all_dist_matrices
+
+
+# TODO: replace this with cachier maybe?
+def cached_compute_all_factor_dist_matrices(
+    dataset_name: str = 'smallnorb',
+    # comupute settings
+    compute_workers: int = min(os.cpu_count(), 16),
+    compute_batch_size: int = 32,
+    # cache settings
+    cache_dir: str = 'cache',
+    force: bool = False,
+):
+    import os
+    from disent.util.inout.files import AtomicSaveFile
+    # load data
+    gt_data = H.make_data(dataset_name, transform_mode='float32')
+    # check cache
+    cache_path = os.path.abspath(os.path.join(cache_dir, f'{dataset_name}_dist-matrices.npz'))
+    # generate if it does not exist
+    if force or not os.path.exists(cache_path):
+        print(f'generating cached distances for: {dataset_name} to: {cache_path}')
+        # generate & save
+        with AtomicSaveFile(file=cache_path, overwrite=force) as path:
+            all_dist_matrices = compute_all_factor_dist_matrices(gt_data, masked=True, dataloader_kwargs=dict(batch_size=compute_batch_size, num_workers=compute_workers))
+            np.savez(path, **{f_name: f_dists for f_name, f_dists in zip(gt_data.factor_names, all_dist_matrices)})
+    # load data
+    print(f'loading cached distances for: {dataset_name} from: {cache_path}')
+    data = np.load(cache_path)
+    return [data[f_name] for f_name in gt_data.factor_names]
+
+
+
 
 
 # ========================================================================= #
