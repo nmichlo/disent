@@ -21,14 +21,15 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+import logging
 import os
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from typing import Tuple
 
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
-from torch.utils.data import DataLoader
-from torch.utils.data import Dataset
 from tqdm import tqdm
 
 import research.util as H
@@ -37,44 +38,7 @@ from disent.dataset.util.state_space import StateSpace
 from disent.util.strings.fmt import bytes_to_human
 
 
-# ========================================================================= #
-# Sub Dataset                                                               #
-# ========================================================================= #
-
-
-def _default_kwargs(kwargs):
-    if kwargs is None:
-        return {}
-    return kwargs
-
-
-# this is a hack to enable multi-threading
-# its just easier than managing my processes manually!
-# the wrapped function must take in indices of the values to be processed
-# the new function when called creates a dataloader
-def to_dataloader_maker(total: int, desc: str = None):
-    def wrapper(func):
-        def make_data_loader(batch_size: int = 1, num_workers: int = 0, prefetch_factor: int = 2, **dataloader_kwargs):
-            class WrapperLoader(Dataset):
-                def __getitem__(self, idx):
-                    return func(idx)
-                def __len__(self):
-                    return total
-            return tqdm(
-                iterable=DataLoader(
-                    WrapperLoader(),
-                    shuffle=False,
-                    batch_size=batch_size,
-                    num_workers=num_workers,
-                    drop_last=False,
-                    prefetch_factor=prefetch_factor,
-                    **_default_kwargs(dataloader_kwargs),
-                ),
-                desc=desc,
-                total=None if (total is None) else ((total + batch_size - 1) // batch_size),
-            )
-        return make_data_loader
-    return wrapper
+log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
@@ -123,44 +87,73 @@ def _check_gt_data(gt_data: GroundTruthData):
     assert isinstance(obs, torch.Tensor)
     assert obs.dtype == torch.float32
 
+def _compute_dist(
+    idx: int,
+    # thread data
+    f_states,
+    f_idx,
+    gt_data,
+    masked,
+    a_idxs,
+    b_idxs,
+):
+    # translate traversal position to dataset position
+    base_pos = f_states.idx_to_pos(int(idx))
+    base_factors = np.insert(base_pos, f_idx, 0)
+    # load traversal: (f_size, H*W*C)
+    traversal = [gt_data[i].flatten().numpy() for i in gt_data.iter_traversal_indices(f_idx=f_idx, base_factors=base_factors)]
+    traversal = np.stack(traversal, axis=0)
+    # compute distances
+    if masked:
+        B, NUM = traversal.shape
+        # compute mask
+        mask = (traversal[0] != traversal[1])
+        for item in traversal[2:]:
+            mask |= (traversal[0] != item)
+        traversal = traversal[:, mask]
+        # compute distances
+        dists = np.sum((traversal[a_idxs] - traversal[b_idxs]) ** 2, axis=1, dtype='float32') / NUM  # might need to be float64
+    else:
+        dists = np.mean((traversal[a_idxs] - traversal[b_idxs]) ** 2, axis=1, dtype='float32')
+    # return data
+    return base_pos, dists
+
 
 def compute_factor_dist_matrices(
     gt_data: GroundTruthData,
     f_idx: int,
     masked: bool = True,
-    dataloader_kwargs: dict = None,
+    workers_num: int = min(os.cpu_count(), 16),
+    workers_chunksize: int = 1,
 ):
     _check_gt_data(gt_data)
     # load data
     f_states = StateSpace(factor_sizes=np.delete(gt_data.factor_sizes, f_idx))
     a_idxs, b_idxs = H.pair_indices_combinations(gt_data.factor_sizes[f_idx])
-    # make dataloader
-    @to_dataloader_maker(total=len(f_states), desc=f'{gt_data.name}: {f_idx}')
-    @torch.no_grad()
-    def compute_dist(idx: int):
-        # get position
-        base_pos = f_states.idx_to_pos(idx)
-        base_factors = np.insert(base_pos, f_idx, 0)
-        # get traversal: (f_size, H*W*C)
-        traversal = [gt_data[i].flatten().numpy() for i in gt_data.iter_traversal_indices(f_idx=f_idx, base_factors=base_factors)]
-        traversal = np.stack(traversal, axis=0)
-        # compute mask & extract items
-        if masked:
-            mask = (traversal[0] != traversal[1])
-            for item in traversal[2:]:
-                mask |= (traversal[0] != item)
-            traversal = traversal[:, mask]
-        # compute distances
-        # TODO: MEAN IS WRONG WITH MASK
-        dists = np.mean((traversal[a_idxs] - traversal[b_idxs]) ** 2, axis=1, dtype='float32')
-        # return data
-        return base_pos, dists
-    # compute distance matrices
+    total = len(f_states)
+    # compute distances function, takes in an index of the traversal to compute the distance for!
+    # TODO: can this be improved with: ThreadPoolExecutor(..., initializer=???, initargs=???)
+    _compute_dist_fn = partial(
+        _compute_dist,
+        f_states=f_states,
+        f_idx=f_idx,
+        gt_data=gt_data,
+        masked=masked,
+        a_idxs=a_idxs,
+        b_idxs=b_idxs,
+    )
+    # store distances
     f_dist_matrices = np.zeros(factor_dist_matrix_shape(gt_data=gt_data, f_idx=f_idx), dtype='float32')
-    for batch_base_pos, batch_dists in compute_dist(**_default_kwargs(dataloader_kwargs)):
-        for base_pos, dists in zip(batch_base_pos, batch_dists):
-            f_dist_matrices[(*base_pos, a_idxs, b_idxs)] = dists
-            f_dist_matrices[(*base_pos, b_idxs, a_idxs)] = dists
+    # apply multithreading to compute traversal distances
+    # -- TODO: this is slow because there is no pre-fetching of data
+    log.debug(f'Creating thread pool with max_workers={repr(workers_num)} and chunksize={repr(workers_chunksize)}')
+    with ThreadPoolExecutor(max_workers=workers_num, thread_name_prefix=f'f{f_idx}') as executor:
+        with tqdm(total=total, desc=f'{gt_data.name}: {f_idx}') as p:
+            # compute distance matrices
+            for base_pos, dists in executor.map(_compute_dist_fn, range(total), chunksize=workers_chunksize):
+                f_dist_matrices[(*base_pos, a_idxs, b_idxs)] = dists
+                f_dist_matrices[(*base_pos, b_idxs, a_idxs)] = dists
+                p.update()
     # return distances
     return f_dist_matrices
 
@@ -168,7 +161,8 @@ def compute_factor_dist_matrices(
 def compute_all_factor_dist_matrices(
     gt_data: GroundTruthData,
     masked: bool = True,
-    dataloader_kwargs: dict = None,
+    workers_num: int = min(os.cpu_count(), 16),
+    workers_chunksize: int = 1,
 ):
     """
     ALGORITHM:
@@ -189,7 +183,8 @@ def compute_all_factor_dist_matrices(
             gt_data=gt_data,
             f_idx=f_idx,
             masked=masked,
-            dataloader_kwargs=dataloader_kwargs,
+            workers_num=workers_num,
+            workers_chunksize=workers_chunksize,
         )
         all_dist_matrices.append(f_dist_matrices)
     return all_dist_matrices
@@ -199,10 +194,10 @@ def compute_all_factor_dist_matrices(
 def cached_compute_all_factor_dist_matrices(
     dataset_name: str = 'smallnorb',
     # comupute settings
-    compute_workers: int = min(os.cpu_count(), 16),
-    compute_batch_size: int = 32,
+    workers_num: int = min(os.cpu_count(), 16),
+    workers_chunksize: int = 1,
     # cache settings
-    cache_dir: str = 'cache',
+    cache_dir: str = 'data/cache',
     force: bool = False,
 ):
     import os
@@ -216,15 +211,12 @@ def cached_compute_all_factor_dist_matrices(
         print(f'generating cached distances for: {dataset_name} to: {cache_path}')
         # generate & save
         with AtomicSaveFile(file=cache_path, overwrite=force) as path:
-            all_dist_matrices = compute_all_factor_dist_matrices(gt_data, masked=True, dataloader_kwargs=dict(batch_size=compute_batch_size, num_workers=compute_workers))
+            all_dist_matrices = compute_all_factor_dist_matrices(gt_data, masked=True, workers_num=workers_num, workers_chunksize=workers_chunksize)
             np.savez(path, **{f_name: f_dists for f_name, f_dists in zip(gt_data.factor_names, all_dist_matrices)})
     # load data
     print(f'loading cached distances for: {dataset_name} from: {cache_path}')
     data = np.load(cache_path)
     return [data[f_name] for f_name in gt_data.factor_names]
-
-
-
 
 
 # ========================================================================= #
@@ -234,14 +226,13 @@ def cached_compute_all_factor_dist_matrices(
 
 @torch.no_grad()
 def main():
-    for name in ['shapes3d', 'smallnorb', 'cars3d']:  # , 'shapes3d', 'dsprites', 'xysquares']:
+    for name in ['smallnorb', 'cars3d', 'shapes3d', 'dsprites', 'xysquares']:
         # get the dataset and delete the transform
         gt_data = H.make_data(name, transform_mode='float32')
         print_dist_matrix_stats(gt_data)
-        f_dist_matrices = compute_all_factor_dist_matrices(
-            gt_data,
-            masked=True,
-            dataloader_kwargs=dict(batch_size=1, num_workers=12)
+        f_dist_matrices = cached_compute_all_factor_dist_matrices(
+            dataset_name=name,
+            force=True,
         )
         # plot distance matrices
         H.plt_subplots_imshow(
