@@ -22,273 +22,213 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import multiprocessing
 import random
-from typing import NoReturn
-from typing import Sequence
-from typing import Tuple
-from typing import Union
+from typing import List
 
 import numpy as np
-import torch
-from matplotlib import pyplot as plt
+from deap import algorithms
+from deap import base
+from deap import creator
+from deap import tools
 from scipy.stats import gmean
-from torch.utils.data import Dataset
-from tqdm import tqdm
 
-import research.e01_visual_overlap.util_compute_traversal_dists as E1
 import research.util as H
-from disent.util.math.random import random_choice_prng
+from disent.util.seeds import seed
+from research.e01_visual_overlap.util_compute_traversal_dists import cached_compute_all_factor_dist_matrices
+
 
 # ========================================================================= #
-# Sub Dataset                                                               #
+# MUTATE                                                                    #
 # ========================================================================= #
-from research.util import pair_indices_combinations
 
 
-class SubDataset(Dataset):
+def cxTwoPointNumpy(ind1, ind2):
+    """
+    Executes a two-point crossover on the input individuals. The two individuals
+    are modified in place and both keep their original length.
+    - Similar to tools.cxTwoPoint but modified for numpy arrays.
+    """
+    size = len(ind1)
+    cxpoint1 = random.randint(1, size)
+    cxpoint2 = random.randint(1, size - 1)
+    if cxpoint2 >= cxpoint1:
+        cxpoint2 += 1
+    else:  # Swap the two cx points
+        cxpoint1, cxpoint2 = cxpoint2, cxpoint1
+    ind1[cxpoint1:cxpoint2], ind2[cxpoint1:cxpoint2] = ind2[cxpoint1:cxpoint2].copy(), ind1[cxpoint1:cxpoint2].copy()
+    return ind1, ind2
 
-    def __init__(self, data: Sequence, mask_or_indices: Union[torch.Tensor, np.ndarray]):
-        assert len(data) == len(mask_or_indices)
-        assert mask_or_indices.ndim == 1
-        # save data
-        self._data = data
-        # check inputs
-        if mask_or_indices.dtype in ('bool', torch.bool):
-            # boolean values
-            assert len(data) == len(mask_or_indices)
-            self._indices = np.arange(len(data))[mask_or_indices]
-        else:
-            # integer values
-            assert len(np.unique(mask_or_indices)) == len(mask_or_indices)
-            self._indices = mask_or_indices
+
+creator.create("Fitness", base.Fitness, weights=[-1.0])
+creator.create("Individual", np.ndarray, fitness=creator.Fitness)
+
+
+# ========================================================================= #
+# BASE BOOLEAN GA                                                           #
+# ========================================================================= #
+
+
+class BooleanMaskGA(object):
+
+    def __init__(
+        self,
+        population_size: int = 256,
+        num_generations: int = 100,
+        mate_probability: float = 0.5,    # probability of mating two individuals
+        mutate_probability: float = 0.2,  # probability of mutating an individual
+        mutate_bit_flip_prob: float = 0.05,
+        select_tournament_size: int = 3,
+        n_jobs: int = 1,
+    ):
+        super().__init__()
+        self.population_size = population_size
+        self.num_generations = num_generations
+        self.mate_probability = mate_probability
+        self.mutate_probability = mutate_probability
+        self.mutate_bit_flip_prob = mutate_bit_flip_prob
+        self.select_tournament_size = select_tournament_size
+        self.n_jobs = n_jobs
+
+    def _toolbox_new_individual(self):
+        raise NotImplementedError
+
+    def _toolbox_eval_individual(self, individual: np.ndarray):
+        raise NotImplementedError
+
+    def _create_toolbox(self):
+        toolbox = base.Toolbox() # toolbox.__getitem__ = types.MethodType(lambda toolbox, name: getattr(toolbox, name), toolbox)
+        # objects
+        toolbox.register("individual", self._toolbox_new_individual)
+        toolbox.register("population", tools.initRepeat, list, toolbox.individual)
+        # evaluation
+        toolbox.register("evaluate", self._toolbox_eval_individual)
+        # mutation
+        toolbox.register("mate",   cxTwoPointNumpy)
+        toolbox.register("mutate", tools.mutFlipBit, indpb=self.mutate_bit_flip_prob)
+        toolbox.register("select", tools.selTournament, tournsize=self.select_tournament_size)
+        # workers
+        if self._num_workers > 1:
+            toolbox.register('map', multiprocessing.Pool(processes=self._num_workers).map)
+        # done!
+        return toolbox
 
     @property
-    def data(self):
-        return self._data
+    def _num_workers(self):
+        if self.n_jobs > 0:   return self.n_jobs
+        elif self.n_jobs < 0: return max(multiprocessing.cpu_count() + 1 + self.n_jobs, 1)
+        else:                 raise ValueError('`n_jobs == 0` is invalid!')
 
-    def __len__(self):
-        return len(self._indices)
-
-    def __getitem__(self, idx):
-        return self._data[self._indices[idx]]
-
-
-# ========================================================================= #
-# Evolve Helper                                                             #
-# ========================================================================= #
-
-
-def inplace_bit_flip_percent(mask: np.ndarray, p_flip=0.05):
-    # FLIP PERCENTAGE OF ACTIVE
-    active, total = mask.sum(), np.prod(mask.shape)
-    p_flip_active = (p_flip * active) / total
-    mask ^= np.random.rand(*mask.shape) < p_flip_active
-
-
-def inplace_bit_flip(mask: np.ndarray, p_flip=0.05):
-    # FLIP PERCENTAGE OF ACTIVE
-    mask ^= np.random.rand(*mask.shape) < p_flip
-
-
-def inplace_crossover(mask0: np.ndarray, mask1: np.ndarray):
-    assert mask0.shape == mask1.shape
-    # generate indices
-    idxs = np.random.randint(0, mask0.shape, size=(2, mask0.ndim))
-    idx_m = np.min(idxs, axis=0)
-    idx_M = np.max(idxs, axis=0)
-    # make slices
-    slices = tuple(slice(m, M) for m, M in zip(idx_m, idx_M))
-    # perform crossover
-    mask0[slices], mask1[slices] = mask1[slices].copy(), mask0[slices].copy()
-
-
-# def selection_tournament(population, scores, n: int = None, tournament_size: int = 3):
-#     assert len(population) == len(scores)
-#     # defaults
-#     if n is None:
-#         n = len(population)
-#     # select values
-#     chosen_idxs = []
-#     while len(chosen_idxs) < n:
-#         idxs = random_choice_prng(len(population), size=tournament_size, replace=False)
-#         idx = max(idxs, key=lambda i: scores[i])
-#         chosen_idxs.append(idx)
-#     # return new population
-#     return population[chosen_idxs].copy()
-
-
-def evolved_population_inplace(
-    population: Sequence[np.ndarray],
-    scores: Sequence[float] = None,
-    #
-    p_mutate: float = 0.2,
-    p_mutate_flip: float = 0.05,
-    #
-    p_crossover: float = 0.5,
-) -> NoReturn:
-    # SELECTION TOURNAMENT
-    # if scores is not None:
-    #     population = selection_tournament(population, scores)
-    # FLIP BITS
-    for mask in population:
-        if random.random() < p_mutate:
-            inplace_bit_flip(mask, p_flip=p_mutate_flip)
-    # CROSSOVER
-    indices = np.arange(len(population))
-    np.random.shuffle(indices)
-    for i in range(1, len(population), 2):
-        if random.random() < p_crossover:
-            inplace_crossover(population[indices[i - 1]], population[indices[i]])
-    # done!
-    return population.copy()
+    def fit(self) -> (List[np.ndarray], tools.Statistics, tools.HallOfFame):
+        toolbox = self._create_toolbox()
+        # create new population
+        population: List[np.ndarray] = toolbox.population(n=self.population_size)
+        # allow individuals to be compared
+        hall_of_fame = tools.HallOfFame(1, similar=np.array_equal)
+        # create statistics tracker
+        stats = tools.Statistics(lambda ind: ind.fitness.values)
+        stats.register('avg', np.mean)
+        stats.register('std', np.std)
+        stats.register('min', np.min)
+        stats.register('max', np.max)
+        # run genetic algorithm
+        algorithms.eaSimple(
+            population=population,
+            toolbox=toolbox,
+            cxpb=self.mate_probability,
+            mutpb=self.mutate_probability,
+            ngen=self.num_generations,
+            stats=stats,
+            halloffame=hall_of_fame,
+        )
+        # done!
+        return population, stats, hall_of_fame
 
 
 # ========================================================================= #
-# Evaluation                                                                #
+# MASKING GA                                                                #
 # ========================================================================= #
 
 
-def evaluate_all(population: np.ndarray, all_dist_matrices, mode: str = 'maximize') -> (np.ndarray, np.ndarray):
-    scores = np.array([
-        evaluate(all_dist_matrices, mask=mask)
-        for mask in population
-    ])
-    # handle mode
-    if   mode == 'maximize': indices = np.argsort(scores)[::-1]
-    elif mode == 'minimize': indices = np.argsort(scores)
-    else: raise KeyError(f'invalid mode: {repr(mode)}')
-    # return sorted population
-    return population[indices], scores[indices]
+class GlobalMaskDataGA(BooleanMaskGA):
 
+    def __init__(
+        self,
+        dataset_name: str,
+        fitness_mode: str = 'range',
+        population_size: int = 256,
+        num_generations: int = 100,
+        mate_probability: float = 0.5,    # probability of mating two individuals
+        mutate_probability: float = 0.2,  # probability of mutating an individual
+        mutate_bit_flip_prob: float = 0.05,
+        select_tournament_size: int = 3,
+        n_jobs: int = 1,
+    ):
+        super().__init__(
+            population_size=population_size,
+            num_generations=num_generations,
+            mate_probability=mate_probability,
+            mutate_probability=mutate_probability,
+            mutate_bit_flip_prob=mutate_bit_flip_prob,
+            select_tournament_size=select_tournament_size,
+            n_jobs=n_jobs,
+        )
+        # load and compute dataset
+        self._gt_data = H.make_data(dataset_name)
+        self._all_dist_matrices = cached_compute_all_factor_dist_matrices(dataset_name)
+        self._fitness_mode = fitness_mode
 
-def evaluate(all_dist_matrices, mask: np.ndarray) -> float:
-    # evaluate all factors
-    scores = []
-    for f_idx, f_dist_matrices in enumerate(all_dist_matrices):
-        f_mask = np.moveaxis(mask, f_idx, -1)
+    def _toolbox_new_individual(self) -> creator.Individual:
+        mask = np.random.randint(0, 2, size=len(self._gt_data), dtype='bool')
+        return creator.Individual(mask)
+
+    def _toolbox_eval_individual(self, individual: np.ndarray):
+        # TODO: add in extra score to maximize number of elements
+        # TODO: fitness function as range of values, and then minimize that range.
+        # evaluate all factors
+        scores = [
+            self._eval_factor(individual, f_idx, f_dist_matrices)
+            for f_idx, f_dist_matrices in enumerate(self._all_dist_matrices)
+        ]
+        # aggregate
+        # TODO: could be weird
+        # TODO: maybe take max instead of gmean
+        return float(gmean(scores, dtype='float64'))
+
+    def _eval_factor(self, individual: np.ndarray, f_idx: int, f_dist_matrices: np.ndarray):
+        # generate missing mask axis
+        f_mask = individual.reshape(self._gt_data.factor_sizes)
+        f_mask = np.moveaxis(f_mask, f_idx, -1)
         f_mask = f_mask[..., :, None] & f_mask[..., None, :]
-
-        # (X, Y, Y)
-        # (Y, X, X)
-
         # mask array & diagonal
         diag = np.arange(f_mask.shape[-1])
         f_mask[..., diag, diag] = False
         f_dists = np.ma.masked_where(~f_mask, f_dist_matrices)  # TRUE is masked, so we need to negate
-
-        # compute score
-        # fitness = np.ma.std(f_dists, axis=-1).mean()
-        fitness = (np.ma.max(f_dists, axis=-1) - np.ma.min(f_dists, axis=-1)).mean()
-
-        # TODO: add in extra score to maximize number of elements
-        # TODO: fitness function as range of values, and then minimize that range.
-
-        # final
-        scores.append(fitness)
-
-    # final score
-    # TODO: could be weird
-    # TODO: maybe take max instead of gmean
-    return float(gmean(scores, dtype='float64'))
+        # get distances
+        if self._fitness_mode == 'range':
+            fitness = (np.ma.max(f_dists, axis=-1) - np.ma.min(f_dists, axis=-1)).mean()
+        elif self._fitness_mode == 'std':
+            fitness = np.ma.std(f_dists, axis=-1).mean()
+        else:
+            raise KeyError(f'invalid fitness_mode: {repr(self._fitness_mode)}')
+        # done!
+        return fitness
 
 
 # ========================================================================= #
-# Evolutionary Algorithm                                                    #
+# ENTRY POINT                                                               #
 # ========================================================================= #
 
 
-def overlap_genetic_algorithm(
-    dataset_name: str,
-    population_size=256,
-    generations=200,
-    mode: str = 'minimize',
-    keep_best_ratio: float = 0.2,
-):
-    # make dataset & precompute distances
-    gt_data = H.make_data(dataset_name, transform_mode='float32')
-    E1.print_dist_matrix_stats(gt_data)
-    all_dist_matrices = E1.cached_compute_all_factor_dist_matrices(dataset_name, compute_workers=64, compute_batch_size=32, force=False)
-
-    # get ratio
-    keep_n_best = max(1, int(population_size * keep_best_ratio))
-
-    # generate the starting population
-    population = np.ones([population_size, *gt_data.factor_sizes], dtype='bool')
-    # population = np.random.randint(0, 2, size=[population_size, *gt_data.factor_sizes], dtype='bool')
-    # population[0, :] = False
-    # population[0, 0] = True
-    # population[0, 4] = True
+def main():
+    seed(42)
+    # run algorithm!
+    genetic_algorithm = GlobalMaskDataGA('cars3d')
+    genetic_algorithm.fit()
 
 
-    # TODO: 1. pairwise distances over all pairs
-    #
-
-    # TODO: investigate why trivial solution with only 1 or 2
-    #       elements is not happening.
-
-    p = tqdm(total=generations, desc='generation', ncols=150)
-    # repeat for generations
-    for g in range(1, generations + 1):
-        # evaluate population
-        population, scores = evaluate_all(population, all_dist_matrices=all_dist_matrices, mode=mode)
-        # evolve population
-        population = np.concatenate([
-            population[:keep_n_best],
-            evolved_population_inplace(population[:-keep_n_best], scores[:-keep_n_best])
-        ])
-        assert len(population) == population_size
-        # inject
-        # population[0, :] = False
-        # population[0, 0] = True
-        # population[0, 4] = True
-        # update progress bar
-        p.update()
-        scores = {
-            'min': scores.min(),
-            'max': scores.max(),
-            'mean': scores.mean(),
-            'std': scores.std(),
-            'best_score':  scores[0],
-            'best_active': population[0].sum(),
-            'best_total':  population[0].size,
-        }
-        p.set_postfix(scores)
-        print(scores)
-        print(population[0].astype('int').tolist())
-
-    # evaluate
-    population, scores = evaluate_all(population, all_dist_matrices=all_dist_matrices, mode=mode)
-    # return best
-    return population, scores
-
-
-# ========================================================================= #
-# Entry Point                                                               #
-# ========================================================================= #
-
-
-if __name__ == '__main__':
-    # optimize!
-    # dataset_name = 'xcolumns_8x_toy_s2'
-    dataset_name = 'xysquares_8x8_toy_s4'
-    # dataset_name = 'cars3d'
-    population, scores = overlap_genetic_algorithm(dataset_name=dataset_name, population_size=128, generations=500)
-
-    # population = np.array([[]])
-
-    # extract data
-    sub_data = SubDataset(
-        data=H.make_data(dataset_name, transform_mode='none'),
-        mask_or_indices=population[0].flatten(),
-    )
-
-    # make obs
-    ave_obs = np.zeros_like(sub_data[0], dtype='float64')
-    for obs in sub_data:
-        ave_obs += obs
-    plt.imshow(ave_obs / ave_obs.max())
-    plt.show()
-
+if __name__ == "__main__":
+    main()
 
 
 # ========================================================================= #
