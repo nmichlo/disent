@@ -26,25 +26,20 @@ import heapq
 from random import random
 
 
-class HallOfFame():
+# ========================================================================= #
+# Base Alg                                                                  #
+# ========================================================================= #
+from copy import deepcopy
 
-    def __init__(self, n: int = 1):
-        self._n = n
-        self._heap = []
-
-    def update(self, population: 'Population'):
-        best = sorted(population, reverse=True, key=lambda member: member.fitness)
-        for member in best:
-            heapq.heappush(self._heap, member)
-            if len(self._heap) > self._n:
-                heapq.heappop(self._heap)
 
 def ea_simple(
     population,
-    toolbox,
-    cxpb,
-    mutpb,
-    ngen,
+    evaluate: callable,
+    select: callable,
+    vary: callable,
+    cxpb: float,
+    mutpb: float,
+    ngen: int,
     stats=None,
     halloffame=None,
 ):
@@ -52,7 +47,7 @@ def ea_simple(
     def update(individuals):
         # Evaluate the individuals with an invalid fitness
         invalid_ind = [ind for ind in individuals if not ind.fitness.valid]
-        fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
+        fitnesses = map(evaluate, invalid_ind)
         for ind, fit in zip(invalid_ind, fitnesses):
             ind.fitness.values = fit
         # Update the hall of fame with the generated individuals
@@ -64,15 +59,38 @@ def ea_simple(
     # Begin the generational process
     for gen in range(1, ngen + 1):
         # Select the next generation individuals
-        offspring = toolbox.select(population, len(population))
+        offspring = select(population, len(population))
         # Vary the pool of individuals
-        offspring = varAnd(offspring, toolbox, cxpb, mutpb)
+        offspring = vary(offspring, cxpb, mutpb)
         # recompute fitness & add to hall of fame
         update(offspring)
         # Replace the current population by the offspring
         population[:] = offspring
 
     return population #, logbook
+
+
+# ========================================================================= #
+# Hall Of Fame                                                              #
+# ========================================================================= #
+
+
+class HallOfFame():
+
+    def __init__(self, n: int = 1):
+        self._n = n
+        self._heap = []
+
+    def update(self, population: 'Population'):
+        for member in population:
+            heapq.heappush(self._heap, member)
+            if len(self._heap) > self._n:
+                heapq.heappop(self._heap)
+
+
+# ========================================================================= #
+# Members                                                                   #
+# ========================================================================= #
 
 
 class MemberIsDirtyError(Exception):
@@ -89,7 +107,10 @@ class Member(object):
         self._fitness = fitness
 
     def copy(self):
-        return Member(deepcopy(self.value))
+        return Member(
+            value=deepcopy(self.value),
+            fitness=deepcopy(self._fitness),
+        )
 
     @property
     def fitness(self):
@@ -112,8 +133,8 @@ class Member(object):
             raise MemberIsDirtyError('The member is already marked as dirty!')
         self._fitness = None
 
+    # make this work with heapq
     def __lt__(self, other: 'Member'):
-        # make this work with heapq
         return self.fitness < other.fitness
 
 
