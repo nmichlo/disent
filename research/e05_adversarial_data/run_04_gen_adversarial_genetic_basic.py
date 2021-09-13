@@ -42,14 +42,14 @@ from disent.util.math.random import random_choice_prng
 class SubDataset(Dataset):
 
     def __init__(self, data: torch.Tensor, mask_or_indices: torch.Tensor):
-        assert isinstance(data, torch.Tensor)
-        assert isinstance(mask_or_indices, torch.Tensor)
+        # assert isinstance(data, torch.Tensor)
+        # assert isinstance(mask_or_indices, torch.Tensor)
         # check data
-        assert not mask_or_indices.dtype.is_floating_point
+        # assert not mask_or_indices.dtype.is_floating_point
         # save data
         self._data = data
         # check inputs
-        if mask_or_indices.dtype == torch.bool:
+        if mask_or_indices.dtype in ('bool', torch.bool):
             # boolean values
             assert len(data) == len(mask_or_indices)
             self._indices = np.arange(len(data))[mask_or_indices]

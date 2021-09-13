@@ -148,7 +148,7 @@ def compute_factor_dist_matrices(
     # -- TODO: this is slow because there is no pre-fetching of data
     log.debug(f'Creating thread pool with max_workers={repr(workers_num)} and chunksize={repr(workers_chunksize)}')
     with ThreadPoolExecutor(max_workers=workers_num, thread_name_prefix=f'f{f_idx}') as executor:
-        with tqdm(total=total, desc=f'{gt_data.name}: {f_idx}') as p:
+        with tqdm(total=total, desc=f'{gt_data.name}: {f_idx+1} of {gt_data.num_factors}') as p:
             # compute distance matrices
             for base_pos, dists in executor.map(_compute_dist_fn, range(total), chunksize=workers_chunksize):
                 f_dist_matrices[(*base_pos, a_idxs, b_idxs)] = dists

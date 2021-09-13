@@ -25,12 +25,14 @@
 import multiprocessing
 import random
 from typing import List
+from typing import Sequence
 
 import numpy as np
 from deap import algorithms
 from deap import base
 from deap import creator
 from deap import tools
+from matplotlib import pyplot as plt
 from scipy.stats import gmean
 
 import research.util as H
@@ -41,6 +43,7 @@ from research.e01_visual_overlap.util_compute_traversal_dists import cached_comp
 # ========================================================================= #
 # MUTATE                                                                    #
 # ========================================================================= #
+from research.e05_adversarial_data.run_04_gen_adversarial_genetic_basic import SubDataset
 
 
 def cxTwoPointNumpy(ind1, ind2):
@@ -60,7 +63,10 @@ def cxTwoPointNumpy(ind1, ind2):
     return ind1, ind2
 
 
-creator.create("Fitness", base.Fitness, weights=[-1.0])
+creator.create("Fitness", base.Fitness, weights=[
+    -1.0,  # minimize range
+    # 1.0,   # maximize size
+])
 creator.create("Individual", np.ndarray, fitness=creator.Fitness)
 
 
@@ -90,10 +96,10 @@ class BooleanMaskGA(object):
         self.select_tournament_size = select_tournament_size
         self.n_jobs = n_jobs
 
-    def _toolbox_new_individual(self):
+    def _toolbox_new_individual(self) -> 'creator.Individual':
         raise NotImplementedError
 
-    def _toolbox_eval_individual(self, individual: np.ndarray):
+    def _toolbox_eval_individual(self, individual: np.ndarray) -> Sequence[float]:
         raise NotImplementedError
 
     def _create_toolbox(self):
@@ -108,8 +114,8 @@ class BooleanMaskGA(object):
         toolbox.register("mutate", tools.mutFlipBit, indpb=self.mutate_bit_flip_prob)
         toolbox.register("select", tools.selTournament, tournsize=self.select_tournament_size)
         # workers
-        if self._num_workers > 1:
-            toolbox.register('map', multiprocessing.Pool(processes=self._num_workers).map)
+        # if self._num_workers > 1:
+        #     toolbox.register('map', multiprocessing.Pool(processes=self._num_workers).map)
         # done!
         return toolbox
 
@@ -124,7 +130,7 @@ class BooleanMaskGA(object):
         # create new population
         population: List[np.ndarray] = toolbox.population(n=self.population_size)
         # allow individuals to be compared
-        hall_of_fame = tools.HallOfFame(1, similar=np.array_equal)
+        hall_of_fame = tools.HallOfFame(5, similar=np.array_equal)
         # create statistics tracker
         stats = tools.Statistics(lambda ind: ind.fitness.values)
         stats.register('avg', np.mean)
@@ -175,42 +181,47 @@ class GlobalMaskDataGA(BooleanMaskGA):
         )
         # load and compute dataset
         self._gt_data = H.make_data(dataset_name)
-        self._all_dist_matrices = cached_compute_all_factor_dist_matrices(dataset_name)
+        self._gt_dist_matrices = cached_compute_all_factor_dist_matrices(dataset_name)
         self._fitness_mode = fitness_mode
 
-    def _toolbox_new_individual(self) -> creator.Individual:
+    def _toolbox_new_individual(self) -> 'creator.Individual':
         mask = np.random.randint(0, 2, size=len(self._gt_data), dtype='bool')
         return creator.Individual(mask)
 
-    def _toolbox_eval_individual(self, individual: np.ndarray):
+    def _toolbox_eval_individual(self, individual: np.ndarray) -> Sequence[float]:
         # TODO: add in extra score to maximize number of elements
         # TODO: fitness function as range of values, and then minimize that range.
         # evaluate all factors
-        scores = [
-            self._eval_factor(individual, f_idx, f_dist_matrices)
-            for f_idx, f_dist_matrices in enumerate(self._all_dist_matrices)
-        ]
+        scores = []
+        for f_idx, f_dist_matrices in enumerate(self._gt_dist_matrices):
+            scores.append([
+                self._eval_factor(individual, f_idx, f_dist_matrices),
+                # f_dist_matrices.mean(),
+            ])
         # aggregate
         # TODO: could be weird
         # TODO: maybe take max instead of gmean
-        return float(gmean(scores, dtype='float64'))
+        scores = gmean(scores, axis=0, dtype='float64')
+        return [float(score) for score in scores]
 
     def _eval_factor(self, individual: np.ndarray, f_idx: int, f_dist_matrices: np.ndarray):
         # generate missing mask axis
         f_mask = individual.reshape(self._gt_data.factor_sizes)
         f_mask = np.moveaxis(f_mask, f_idx, -1)
         f_mask = f_mask[..., :, None] & f_mask[..., None, :]
+        # check distance
+        # tools.DeltaPenalty(feasible, 7.0, distance)
+        fitness = 0.1 - 0.001 * np.sum(f_mask, axis=-1).mean()  # maximize elements ... weight dependant
+        # if np.sum(f_mask, axis=-1).mean():
+        #     fitness += 10000
         # mask array & diagonal
         diag = np.arange(f_mask.shape[-1])
         f_mask[..., diag, diag] = False
-        f_dists = np.ma.masked_where(~f_mask, f_dist_matrices)  # TRUE is masked, so we need to negate
+        f_dists = np.ma.masked_where(~f_mask, f_dist_matrices)  # TRUE is ignored, so we need to negate
         # get distances
-        if self._fitness_mode == 'range':
-            fitness = (np.ma.max(f_dists, axis=-1) - np.ma.min(f_dists, axis=-1)).mean()
-        elif self._fitness_mode == 'std':
-            fitness = np.ma.std(f_dists, axis=-1).mean()
-        else:
-            raise KeyError(f'invalid fitness_mode: {repr(self._fitness_mode)}')
+        if self._fitness_mode == 'range': fitness += (np.ma.max(f_dists, axis=-1) - np.ma.min(f_dists, axis=-1)).mean()
+        elif self._fitness_mode == 'std': fitness += np.ma.std(f_dists, axis=-1).mean()
+        else: raise KeyError(f'invalid fitness_mode: {repr(self._fitness_mode)}')
         # done!
         return fitness
 
@@ -221,14 +232,48 @@ class GlobalMaskDataGA(BooleanMaskGA):
 
 
 def main():
-    seed(42)
+    # dataset_name = 'xcolumns_8x_toy_s4'
+    dataset_name = 'xysquares_8x8_toy_s4'
+
+    # seed the algorithm
+    # seed(42)
+
     # run algorithm!
-    genetic_algorithm = GlobalMaskDataGA('cars3d')
-    genetic_algorithm.fit()
+    genetic_algorithm = GlobalMaskDataGA(
+        dataset_name=dataset_name,
+        fitness_mode='range',
+        population_size=256,
+        num_generations=1000,
+        mate_probability=0.5,
+        mutate_probability=0.5,
+        mutate_bit_flip_prob=0.05,
+        select_tournament_size=3,
+        n_jobs=1,
+    )
+    population, stats, hall_of_fame = genetic_algorithm.fit()
+
+    def plot_individual_ave(individual):
+        # extract data
+        sub_data = SubDataset(
+            data=H.make_data(dataset_name, transform_mode='none'),
+            mask_or_indices=individual.flatten(),
+        )
+
+        # make obs
+        ave_obs = np.zeros_like(sub_data[0], dtype='float64')
+        for obs in sub_data:
+            ave_obs += obs
+        plt.imshow(ave_obs / ave_obs.max(), vmin=0, vmax=1)
+        plt.show()
+
+    plot_individual_ave(hall_of_fame[0])
+    plot_individual_ave(hall_of_fame[4])
 
 
 if __name__ == "__main__":
     main()
+
+
 
 
 # ========================================================================= #
