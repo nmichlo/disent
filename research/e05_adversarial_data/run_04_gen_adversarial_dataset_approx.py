@@ -259,7 +259,7 @@ class AdversarialModel(pl.LightningModule):
         # compute loss
         loss_adv = 0
         if (self.hparams.loss_adversarial_weight is not None) and (self.hparams.loss_adversarial_weight > 0):
-            loss_adv = self.hparams.loss_adversarial_weight * adversarial_loss(
+            loss_adv, loss_adv_stats = adversarial_loss(
                 ys=(a_y, p_y, n_y),
                 xs=(a_x, p_x, n_x),
                 adversarial_mode=self.hparams.adversarial_mode,
@@ -267,7 +267,10 @@ class AdversarialModel(pl.LightningModule):
                 adversarial_masking=self.hparams.adversarial_masking,
                 adversarial_top_k=self.hparams.adversarial_top_k,
                 pixel_loss_mode=self.hparams.pixel_loss_mode,
+                return_stats=True,
             )
+            loss_adv *= self.hparams.loss_adversarial_weight
+            self.log_dict(loss_adv_stats)
         # additional loss components
         # - keep stats the same
         loss_stats = 0
@@ -399,7 +402,7 @@ class AdversarialModel(pl.LightningModule):
 # ========================================================================= #
 
 
-ROOT_DIR = os.path.abspath(__file__ + '/../../../..')
+ROOT_DIR = os.path.abspath(__file__ + '/../../..')
 
 
 def run_gen_adversarial_dataset(cfg):

@@ -43,6 +43,7 @@ from disent.dataset.data import DSpritesData
 from disent.dataset.data import GroundTruthData
 from disent.dataset.data import Shapes3dData
 from disent.dataset.data import SmallNorbData
+from disent.dataset.data import XColumnsData
 from disent.dataset.data import XYBlocksData
 from disent.dataset.data import XYObjectData
 from disent.dataset.data import XYSquaresData
@@ -119,7 +120,7 @@ def load_dataset_into_memory(gt_data: GroundTruthData, obs_shape: Optional[Tuple
 # ========================================================================= #
 
 
-TransformTypeHint = Union[Literal['uint8'], Literal['float'], Literal['none']]
+TransformTypeHint = Union[Literal['uint8'], Literal['float'], Literal['float32'], Literal['none']]
 
 
 def make_data(
@@ -129,7 +130,7 @@ def make_data(
     try_in_memory: bool = False,
     load_into_memory: bool = False,
     load_memory_dtype: torch.dtype = torch.float16,
-    transform_mode: TransformTypeHint = 'float'
+    transform_mode: TransformTypeHint = 'float32'
 ) -> GroundTruthData:
     # override values
     if load_into_memory and try_in_memory:
@@ -139,6 +140,7 @@ def make_data(
     TransformCls = {
         'uint8': ToUint8Tensor,
         'float': ToStandardisedTensor,
+        'float32': ToStandardisedTensor,
         'none': (lambda *args, **kwargs: (lambda x: x)),
     }[transform_mode]
     # make data
@@ -148,14 +150,26 @@ def make_data(
     elif name == 'xysquares_4x4':  data = XYSquaresData(square_size=4, transform=TransformCls())
     elif name == 'xysquares_8x8':  data = XYSquaresData(square_size=8, transform=TransformCls())  # 8x8x8x8x8x8 = 262144  # equivalent: [xysquares, xysquares_8x8, xysquares_8x8_s8]
     elif name == 'xysquares_8x8_mini':  data = XYSquaresData(square_size=8, grid_spacing=14, transform=TransformCls())  # 5x5x5x5x5x5 = 15625
+    # TOY DATASETS
+    elif name == 'xysquares_8x8_toy':     data = XYSquaresData(square_size=8, grid_spacing=8, rgb=False, num_squares=1, transform=TransformCls())  # 8x8 = ?
+    elif name == 'xysquares_8x8_toy_s1':  data = XYSquaresData(square_size=8, grid_spacing=1, rgb=False, num_squares=1, transform=TransformCls())  # ?x? = ?
+    elif name == 'xysquares_8x8_toy_s2':  data = XYSquaresData(square_size=8, grid_spacing=2, rgb=False, num_squares=1, transform=TransformCls())  # ?x? = ?
+    elif name == 'xysquares_8x8_toy_s4':  data = XYSquaresData(square_size=8, grid_spacing=4, rgb=False, num_squares=1, transform=TransformCls())  # ?x? = ?
+    elif name == 'xysquares_8x8_toy_s8':  data = XYSquaresData(square_size=8, grid_spacing=8, rgb=False, num_squares=1, transform=TransformCls())  # 8x8 = ?
+    # TOY DATASETS ALT
+    elif name == 'xcolumns_8x_toy':     data = XColumnsData(square_size=8, grid_spacing=8, rgb=False, num_squares=1, transform=TransformCls())  # 8 = ?
+    elif name == 'xcolumns_8x_toy_s1':  data = XColumnsData(square_size=8, grid_spacing=1, rgb=False, num_squares=1, transform=TransformCls())  # ? = ?
+    elif name == 'xcolumns_8x_toy_s2':  data = XColumnsData(square_size=8, grid_spacing=2, rgb=False, num_squares=1, transform=TransformCls())  # ? = ?
+    elif name == 'xcolumns_8x_toy_s4':  data = XColumnsData(square_size=8, grid_spacing=4, rgb=False, num_squares=1, transform=TransformCls())  # ? = ?
+    elif name == 'xcolumns_8x_toy_s8':  data = XColumnsData(square_size=8, grid_spacing=8, rgb=False, num_squares=1, transform=TransformCls())  # 8 = ?
     # OVERLAPPING DATASETS
-    elif name == 'xysquares_8x8_s1':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=1, transform=TransformCls())  # 8x8x8x8x8x8 = 262144
-    elif name == 'xysquares_8x8_s2':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=2, transform=TransformCls())  # 8x8x8x8x8x8 = 262144
-    elif name == 'xysquares_8x8_s3':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=3, transform=TransformCls())  # 8x8x8x8x8x8 = 262144
-    elif name == 'xysquares_8x8_s4':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=4, transform=TransformCls())  # 8x8x8x8x8x8 = 262144
-    elif name == 'xysquares_8x8_s5':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=5, transform=TransformCls())  # 8x8x8x8x8x8 = 262144
-    elif name == 'xysquares_8x8_s6':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=6, transform=TransformCls())  # 8x8x8x8x8x8 = 262144
-    elif name == 'xysquares_8x8_s7':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=7, transform=TransformCls())  # 8x8x8x8x8x8 = 262144
+    elif name == 'xysquares_8x8_s1':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=1, transform=TransformCls())  # ?x?x?x?x?x? = ?
+    elif name == 'xysquares_8x8_s2':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=2, transform=TransformCls())  # ?x?x?x?x?x? = ?
+    elif name == 'xysquares_8x8_s3':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=3, transform=TransformCls())  # ?x?x?x?x?x? = ?
+    elif name == 'xysquares_8x8_s4':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=4, transform=TransformCls())  # ?x?x?x?x?x? = ?
+    elif name == 'xysquares_8x8_s5':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=5, transform=TransformCls())  # ?x?x?x?x?x? = ?
+    elif name == 'xysquares_8x8_s6':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=6, transform=TransformCls())  # ?x?x?x?x?x? = ?
+    elif name == 'xysquares_8x8_s7':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=7, transform=TransformCls())  # ?x?x?x?x?x? = ?
     elif name == 'xysquares_8x8_s8':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=8, transform=TransformCls())  # 8x8x8x8x8x8 = 262144  # equivalent: [xysquares, xysquares_8x8, xysquares_8x8_s8]
     # OTHER SYNTHETIC DATASETS
     elif name == 'xyobject':  data = XYObjectData(transform=TransformCls())

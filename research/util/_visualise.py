@@ -29,6 +29,7 @@ from typing import Optional
 
 import numpy as np
 import torch
+import logging
 from matplotlib import pyplot as plt
 
 from disent.dataset import DisentDataset
@@ -37,6 +38,9 @@ from disent.util.visualize.vis_util import make_animated_image_grid
 from disent.util.visualize.vis_util import make_image_grid
 from research.util._dataset import get_factor_idxs
 from research.util._dataset import NonNormalisedFactors
+
+
+log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
@@ -336,13 +340,21 @@ def plt_2d_density(
     # convert inputs
     x = np.array(x)
     y = np.array(y)
+    # prevent singular
+    # x = np.random.randn(*x.shape) * (0.01 * max(x.max() - x.min(), 1))
+    # y = np.random.randn(*y.shape) * (0.01 * max(y.max() - y.min(), 1))
     # get bounds
     if xmin is None: xmin = x.min()
     if xmax is None: xmax = x.max()
     if ymin is None: ymin = y.min()
     if ymax is None: ymax = y.max()
     # Evaluate a gaussian kde on a regular grid of nbins x nbins over data extents
-    k = kde.gaussian_kde([x, y])
+    try:
+        k = kde.gaussian_kde([x, y])
+    except np.linalg.LinAlgError:
+        log.warn('Could not create 2d_density plot')
+        return
+    # continue
     xi, yi = np.mgrid[xmin:xmax:n_bins*1j, ymin:ymax:n_bins*1j]
     zi = k(np.stack([xi.flatten(), yi.flatten()], axis=0))
     # update args

@@ -27,11 +27,10 @@ import warnings
 from typing import Literal
 from typing import Union
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pytorch_lightning as pl
 import torch
-import wandb
+
 from pytorch_lightning.trainer.supporters import CombinedLoader
 
 import disent.metrics
@@ -48,6 +47,10 @@ from disent.util.profiling import Timer
 from disent.util.seeds import TempNumpySeed
 from disent.util.visualize.vis_model import latent_cycle_grid_animation
 from disent.util.visualize.vis_util import make_image_grid
+
+# TODO: wandb and matplotlib are not in requirements
+import matplotlib.pyplot as plt
+import wandb
 
 
 log = logging.getLogger(__name__)
@@ -155,6 +158,7 @@ class VaeDisentanglementLoggingCallback(BaseCallbackPeriodic):
         # get dataset and vae framework from trainer and module
         dataset, vae = _get_dataset_and_vae(trainer, pl_module)
         # check if we need to skip
+        # TODO: dataset needs to be able to handle wrapped datasets!
         if not dataset.is_ground_truth:
             warnings.warn(f'{dataset.__class__.__name__} is not an instance of {GroundTruthData.__name__}. Skipping callback: {self.__class__.__name__}!')
             return

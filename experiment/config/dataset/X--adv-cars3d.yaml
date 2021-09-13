@@ -1,8 +1,8 @@
 # @package _group_
-name: adv_shapes3d_self
+name: adv_cars3d
 data:
   _target_: disent.dataset.data.SelfContainedHdf5GroundTruthData
-  h5_path: '${env:HOME}/workspace/research/disent/out/adversarial_data_approx/2021-08-18--01-33-47_FINAL-shapes3d_self_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06/data.h5'
+  h5_path: '${env:HOME}/workspace/research/disent/out/adversarial_data_approx/2021-09-06--05-42-06_INVERT-VSTRONG-cars3d_invert_margin_0.05_aw10.0_same_k1_close_s200001_Adam_lr0.0005_wd1e-06/data.h5'
 transform:
   _target_: disent.nn.transform.ToStandardisedTensor
 x_shape: [3, 64, 64]
