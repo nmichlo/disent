@@ -57,6 +57,8 @@ class SubDataset(Dataset):
             # integer values
             assert len(np.unique(mask_or_indices)) == len(mask_or_indices)
             self._indices = mask_or_indices
+        # check that we have at least 1 value
+        assert len(self._indices) > 0
 
     @property
     def data(self):
