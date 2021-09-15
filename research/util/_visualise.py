@@ -174,16 +174,20 @@ def plt_subplots_imshow(
     hide_labels='edges',  # none, edges, all
     hide_axis='all',    # none, edges, all
     # tight_layout:
-    subplot_padding=None,
+    subplot_padding=1.08,
     # plt.subplots:
     sharex: str = False,
     sharey: str = False,
     subplot_kw=None,
     gridspec_kw=None,
+    # imshow
+    vmin: float = None,
+    vmax: float = None,
     # extra
     show=False,
     **fig_kw,
 ):
+    # TODO: add automatic height & width
     fig, axs = plt_subplots(
         nrows=len(grid), ncols=len(grid[0]),
         # custom
@@ -202,7 +206,7 @@ def plt_subplots_imshow(
     )
     # show images
     for y, x in np.ndindex(axs.shape):
-        axs[y, x].imshow(grid[y][x])
+        axs[y, x].imshow(grid[y][x], vmin=vmin, vmax=vmax)
     fig.tight_layout(pad=subplot_padding)
     # done!
     if show:

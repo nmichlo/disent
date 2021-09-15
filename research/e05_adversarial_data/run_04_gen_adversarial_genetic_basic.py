@@ -26,47 +26,12 @@ from typing import NoReturn
 
 import numpy as np
 import torch
-from torch.utils.data import Dataset
 from tqdm import tqdm
 
 import research.util as H
 from disent.dataset.data import ArrayGroundTruthData
 from disent.util.math.random import random_choice_prng
 
-
-# ========================================================================= #
-# Sub Dataset                                                               #
-# ========================================================================= #
-
-
-class SubDataset(Dataset):
-
-    def __init__(self, data: torch.Tensor, mask_or_indices: torch.Tensor):
-        # assert isinstance(data, torch.Tensor)
-        # assert isinstance(mask_or_indices, torch.Tensor)
-        # check data
-        # assert not mask_or_indices.dtype.is_floating_point
-        # save data
-        self._data = data
-        # check inputs
-        if mask_or_indices.dtype in ('bool', torch.bool):
-            # boolean values
-            assert len(data) == len(mask_or_indices)
-            self._indices = np.arange(len(data))[mask_or_indices]
-        else:
-            # integer values
-            assert len(np.unique(mask_or_indices)) == len(mask_or_indices)
-            self._indices = mask_or_indices
-
-    @property
-    def data(self):
-        return self._data
-
-    def __len__(self):
-        return len(self._indices)
-
-    def __getitem__(self, idx):
-        return self._data[self._indices[idx]]
 
 # ========================================================================= #
 # Entry Point                                                               #
@@ -96,7 +61,7 @@ def inplace_evolve(mask: torch.Tensor, p_flip=0.01, r_add_remove=0.01) -> NoRetu
 #      -- change to tensors and index by hand
 def evaluate(gt_data, mask: torch.Tensor, batch_size=2048):
     # get subset
-    data = SubDataset(data=gt_data.array, mask_or_indices=mask)
+    data = MaskedDataset(data=gt_data.array, mask_or_indices=mask)
     # compute overlap
     idx_a, idx_b = H.pair_indices_random(len(data), approx_batch_size=batch_size)
     deltas = torch.abs(data[idx_a] - data[idx_b]).mean(dim=(-3, -2, -1))

@@ -22,5 +22,9 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-# non-ground-truth data
+# base wrapper
+from disent.dataset.wrapper._base import WrappedDataset
+
+# wrapper datasets
 from disent.dataset.wrapper._dither import DitheredDataset
+from disent.dataset.wrapper._masked import MaskedDataset
