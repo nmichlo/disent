@@ -226,7 +226,8 @@ class BooleanMaskGA(object):
 
 def _toolbox_new_individual(size: int) -> 'creator.Individual':
     # TODO: create arrays of shape, not size
-    mask = np.random.randint(0, 2, size=size, dtype='bool')
+    mask = np.random.random(size) < (0.8 * np.random.random() + 0.1)
+    # mask = np.random.randint(0, 2, size=size, dtype='bool')
     return creator.Individual(mask)
 
 
@@ -236,10 +237,11 @@ def _toolbox_eval_individual(
     factor_sizes: Tuple[int, ...],
     fitness_mode: str,
     obj_mode_aggregate: str,
+    exclude_diag: bool
 ) -> Sequence[float]:
     # evaluate all factors
     factor_scores = np.array([
-        _eval_factor_fitness(individual, f_idx, f_dist_matrices, factor_sizes=factor_sizes, fitness_mode=fitness_mode)
+        _eval_factor_fitness(individual, f_idx, f_dist_matrices, factor_sizes=factor_sizes, fitness_mode=fitness_mode, exclude_diag=exclude_diag)
         for f_idx, f_dist_matrices in enumerate(gt_dist_matrices)
     ])
     # aggregate
@@ -255,20 +257,26 @@ def _eval_factor_fitness(
     f_dist_matrices: np.ndarray,
     factor_sizes: Tuple[int, ...],
     fitness_mode: str,
+    exclude_diag: bool,
 ) -> List[float]:
+    # TODO: population should already be shaped
+    # TODO: this is inefficient and slow!
+    #       ... too many CPU & memory copies
+    #       ... convert to numba? or GPU?
+
     # generate missing mask axis
-    f_mask = individual.reshape(factor_sizes)  # TODO: remove need for this, members of the population should already be shaped
+    f_mask = individual.reshape(factor_sizes)
     f_mask = np.moveaxis(f_mask, f_idx, -1)
     f_mask = f_mask[..., :, None] & f_mask[..., None, :]
-
-    # mask array & diagonal
-    diag = np.arange(f_mask.shape[-1])
-    f_mask[..., diag, diag] = False
-    f_dists = np.ma.masked_where(~f_mask, f_dist_matrices)  # TRUE is ignored, so we need to negate
+    # the diagonal can change statistics
+    if exclude_diag:
+        diag = np.arange(f_mask.shape[-1])
+        f_mask[..., diag, diag] = False
+    # mask the distance array | we negate the mask so that TRUE means the item is disabled
+    f_dists = np.ma.masked_where(~f_mask, f_dist_matrices)
 
     # get distances
     if   fitness_mode == 'range':     fitness_sparse = (np.ma.max(f_dists, axis=-1) - np.ma.min(f_dists, axis=-1)).mean()
-    elif fitness_mode == 'range_alt': fitness_sparse = (np.ma.max(f_dists, axis=-1) - np.ma.min(f_dists, axis=-1)).max(axis=-1).mean()
     elif fitness_mode == 'max':       fitness_sparse = (np.ma.max(f_dists, axis=-1)).mean()
     elif fitness_mode == 'std':       fitness_sparse = (np.ma.std(f_dists, axis=-1)).mean()
     else: raise KeyError(f'invalid fitness_mode: {repr(fitness_mode)}')
@@ -290,6 +298,7 @@ class GlobalMaskDataGA(BooleanMaskGA):
         dataset_name: str,
         # objective
         fitness_mode: str = 'range',
+        fitness_exclude_diag: bool = True,
         objective_mode_aggregate: str = 'mean',
         objective_mode_weight: float = -1.0,   # minimize range
         objective_size_weight: float = 0.5,  # maximize size
@@ -305,6 +314,7 @@ class GlobalMaskDataGA(BooleanMaskGA):
     ):
         # parameters
         self.fitness_mode             = fitness_mode
+        self.fitness_exclude_diag     = fitness_exclude_diag
         self.objective_mode_aggregate = objective_mode_aggregate
         self.objective_mode_weight    = objective_mode_weight
         self.objective_size_weight    = objective_size_weight
@@ -315,7 +325,7 @@ class GlobalMaskDataGA(BooleanMaskGA):
         # initialize
         super().__init__(
             toolbox_new_individual=partial(_toolbox_new_individual, size=len(gt_data)),
-            toolbox_eval_individual=partial(_toolbox_eval_individual, gt_dist_matrices=gt_dist_matrices, factor_sizes=gt_data.factor_sizes, fitness_mode=self.fitness_mode, obj_mode_aggregate=self.objective_mode_aggregate),
+            toolbox_eval_individual=partial(_toolbox_eval_individual, gt_dist_matrices=gt_dist_matrices, factor_sizes=gt_data.factor_sizes, fitness_mode=self.fitness_mode, obj_mode_aggregate=self.objective_mode_aggregate, exclude_diag=self.fitness_exclude_diag),
             objective_weights=(self.objective_mode_weight, self.objective_size_weight),
             population_size=population_size,
             num_generations=num_generations,
@@ -352,13 +362,13 @@ class GlobalMaskDataGA(BooleanMaskGA):
 
 
 def run(
-    dataset_name='xysquares_8x8_toy_s4',  # xysquares_8x8_toy_s4, xcolumns_8x_toy_s2
-    num_generations: int = 1000,
-    fitness_mode: str = 'range',
+    dataset_name='xysquares_8x8_toy_s4',  # xysquares_8x8_toy_s4, xcolumns_8x_toy_s1
+    num_generations: int = 100,
+    fitness_mode: str = 'std',
     objective_mode_aggregate: str = 'mean',
     seed_: int = None,
     save: bool = True,
-    save_prefix: str = '',
+    save_prefix: str = 'TEST',
     n_jobs=min(os.cpu_count(), 16)
 ):
     # save the starting time for the save path
@@ -374,6 +384,7 @@ def run(
         dataset_name=dataset_name,
         # objective
         fitness_mode=fitness_mode,
+        fitness_exclude_diag=True,
         objective_mode_aggregate=objective_mode_aggregate,  # min/max seems to be better
         objective_mode_weight=-1.0,  # minimize range
         objective_size_weight=1.0,   # maximize size
@@ -397,17 +408,14 @@ def run(
             data=H.make_data(dataset_name, transform_mode='none'),
             mask_or_indices=individual.flatten(),
         )
-        print(', '.join(
-            f'{individual.reshape(sub_data._data.factor_sizes).sum(axis=f_idx).mean():2f}'
-            for f_idx in range(sub_data._data.num_factors)
-        ))
+        print(', '.join(f'{individual.reshape(sub_data._data.factor_sizes).sum(axis=f_idx).mean():2f}' for f_idx in range(sub_data._data.num_factors)))
         # make obs
         ave_obs = np.zeros_like(sub_data[0], dtype='float64')
         for obs in sub_data:
             ave_obs += obs
         return ave_obs / ave_obs.max()
 
-    # plot
+    # plot average images
     H.plt_subplots_imshow(
         [[individual_ave(m) for m in hall_of_fame]],
         col_labels=[f'{np.sum(m)} / {np.prod(m.shape)} |' for m in hall_of_fame],
@@ -429,23 +437,25 @@ ROOT_DIR = os.path.abspath(__file__ + '/../../..')
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     for objective_mode_aggregate in ['mean', 'gmean']:
-        for fitness_mode in ['range', 'std']:
+        for fitness_mode in ['std', 'range']:
             for dataset_name in ['xysquares_8x8_toy_s4', 'smallnorb', 'cars3d', 'shapes3d', 'dsprites']:
                 print('='*100)
                 print(f'[STARTING]: objective_mode_aggregate={repr(objective_mode_aggregate)} fitness_mode={repr(fitness_mode)} dataset_name={repr(dataset_name)}')
                 try:
                     run(
                         dataset_name=dataset_name,
-                        num_generations=1000,
+                        num_generations=250,
                         seed_=42,
                         save=True,
                         n_jobs=min(os.cpu_count(), 64),
                         fitness_mode=fitness_mode,
                         objective_mode_aggregate=objective_mode_aggregate,
+                        save_prefix='RANDOM',
                     )
                 except:
                     warnings.warn(f'[FAILED]: objective_mode_aggregate={repr(objective_mode_aggregate)} fitness_mode={repr(fitness_mode)} dataset_name={repr(dataset_name)}')
                 print('='*100)
+
 
 # ========================================================================= #
 # END                                                                       #

@@ -193,6 +193,7 @@ def compute_all_factor_dist_matrices(
 # TODO: replace this with cachier maybe?
 def cached_compute_all_factor_dist_matrices(
     dataset_name: str = 'smallnorb',
+    masked: bool = False,
     # comupute settings
     workers_num: int = min(os.cpu_count(), 16),
     workers_chunksize: int = 1,
@@ -205,13 +206,14 @@ def cached_compute_all_factor_dist_matrices(
     # load data
     gt_data = H.make_data(dataset_name, transform_mode='float32')
     # check cache
-    cache_path = os.path.abspath(os.path.join(cache_dir, f'{dataset_name}_dist-matrices.npz'))
+    name = f'{dataset_name}_dist-matrices_masked.npz' if masked else f'{dataset_name}_dist-matrices_full.npz'
+    cache_path = os.path.abspath(os.path.join(cache_dir, name))
     # generate if it does not exist
     if force or not os.path.exists(cache_path):
         print(f'generating cached distances for: {dataset_name} to: {cache_path}')
         # generate & save
         with AtomicSaveFile(file=cache_path, overwrite=force) as path:
-            all_dist_matrices = compute_all_factor_dist_matrices(gt_data, masked=True, workers_num=workers_num, workers_chunksize=workers_chunksize)
+            all_dist_matrices = compute_all_factor_dist_matrices(gt_data, masked=masked, workers_num=workers_num, workers_chunksize=workers_chunksize)
             np.savez(path, **{f_name: f_dists for f_name, f_dists in zip(gt_data.factor_names, all_dist_matrices)})
     # load data
     print(f'loading cached distances for: {dataset_name} from: {cache_path}')
