@@ -22,9 +22,14 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import json
+import logging
 import multiprocessing
 import os
 import random
+from datetime import datetime
+from typing import Any
+from typing import Dict
 from typing import List
 from typing import Sequence
 
@@ -36,9 +41,14 @@ from deap import tools
 from scipy.stats import gmean
 
 import research.util as H
+from disent.dataset.wrapper import MaskedDataset
+from disent.util.inout.files import AtomicSaveFile
+from disent.util.inout.paths import ensure_parent_dir_exists
 from disent.util.seeds import seed
+from disent.util.strings.fmt import make_box_str
 from research.e01_visual_overlap.util_compute_traversal_dists import cached_compute_all_factor_dist_matrices
-from research.e05_adversarial_data.run_04_gen_adversarial_genetic_basic import SubDataset
+
+log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
@@ -46,7 +56,7 @@ from research.e05_adversarial_data.run_04_gen_adversarial_genetic_basic import S
 # ========================================================================= #
 
 
-def cxTwoPointNumpy(ind1, ind2):
+def cxTwoPointNumpy(ind1: np.ndarray, ind2: np.ndarray):
     """
     Executes a two-point crossover on the input individuals. The two individuals
     are modified in place and both keep their original length.
@@ -63,7 +73,29 @@ def cxTwoPointNumpy(ind1, ind2):
     return ind1, ind2
 
 
+# def cxTwoPointNdNumpy(ind1: np.ndarray, ind2: np.ndarray, shape):
+#     """
+#     Executes a two-point crossover on the input individuals within a hypercube. The two individuals
+#     are modified in place and both keep their original length.
+#     - Similar to tools.cxTwoPoint but modified for numpy arrays.
+#     """
+#     shape_orig = ind1.shape
+#     assert ind1.shape == ind2.shape
+#     # get working shape
+#     ind1, ind2 = ind1.reshape(shape), ind2.reshape(shape)
+#     # random region
+#     ranpoints1 = np.random.randint(0, shape)
+#     ranpoints2 = np.random.randint(0, shape)
+#     cxpoints1 = np.minimum(ranpoints1, ranpoints2)
+#     cxpoints2 = np.maximum(ranpoints1, ranpoints2)
+#     sel_tuple = tuple(slice(a, b) for a, b in zip(cxpoints1, cxpoints2))
+#     ind1[sel_tuple], ind2[sel_tuple] = ind2[sel_tuple].copy(), ind1[sel_tuple].copy()
+#     # restore shape
+#     return ind1.__class__(ind1.reshape(shape_orig)), ind2.__class__(ind2.reshape(shape_orig))
+
+
 _NP_AGGREGATE_FNS = {
+    'sum': np.sum,
     'mean': np.mean,
     'gmean': gmean,  # no negatives
     'max': lambda a, axis, dtype: np.amax(a, axis=axis),  # propagate NaNs
@@ -90,6 +122,11 @@ def np_aggregate(array, mode: str, axis=0, dtype=None):
 
 class BooleanMaskGA(object):
 
+    """
+    Based on:
+    - https://github.com/lmarti/evolutionary-computation-course/blob/master/AEC.06%20-%20Evolutionary%20Multi-Objective%20Optimization.ipynb
+    """
+
     def __init__(
         self,
         # population
@@ -99,7 +136,6 @@ class BooleanMaskGA(object):
         mate_probability: float = 0.5,    # probability of mating two individuals
         mutate_probability: float = 0.2,  # probability of mutating an individual
         mutate_bit_flip_prob: float = 0.05,
-        select_tournament_size: int = 3,
         # job
         n_jobs: int = min(os.cpu_count(), 16),
     ):
@@ -109,8 +145,18 @@ class BooleanMaskGA(object):
         self.mate_probability = mate_probability
         self.mutate_probability = mutate_probability
         self.mutate_bit_flip_prob = mutate_bit_flip_prob
-        self.select_tournament_size = select_tournament_size
         self.n_jobs = n_jobs
+
+    @property
+    def parameters(self) -> Dict[str, Any]:
+        return dict(
+            population_size=self.population_size,
+            num_generations=self.num_generations,
+            mate_probability=self.mate_probability,
+            mutate_probability=self.mutate_probability,
+            mutate_bit_flip_prob=self.mutate_bit_flip_prob,
+            n_jobs=self.n_jobs,
+        )
 
     def _toolbox_new_individual(self) -> 'creator.Individual':
         raise NotImplementedError
@@ -132,7 +178,8 @@ class BooleanMaskGA(object):
         # mutation
         toolbox.register("mate",   cxTwoPointNumpy)
         toolbox.register("mutate", tools.mutFlipBit, indpb=self.mutate_bit_flip_prob)
-        toolbox.register("select", tools.selTournament, tournsize=self.select_tournament_size)
+        # toolbox.register("select", tools.selTournament, tournsize=self.select_tournament_size)  # does not support multi-objectives
+        toolbox.register("select", tools.selNSGA2)
         # workers
         pool = None
         if self._num_workers > 1:
@@ -155,14 +202,16 @@ class BooleanMaskGA(object):
         hall_of_fame = tools.HallOfFame(5, similar=np.array_equal)
         # create statistics tracker
         stats = tools.Statistics(lambda ind: ind.fitness.values)
-        stats.register('avg', np.mean)
-        stats.register('std', np.std)
-        stats.register('min', np.min)
-        stats.register('max', np.max)
+        stats.register('min',  np.min)
+        stats.register('max',  np.max)
+        stats.register('mean', np.mean)
+        stats.register('std',  np.std)
         # run genetic algorithm
-        algorithms.eaSimple(
+        algorithms.eaMuPlusLambda(
             population=population,
             toolbox=toolbox,
+            mu=self.population_size,
+            lambda_=self.population_size,
             cxpb=self.mate_probability,
             mutpb=self.mutate_probability,
             ngen=self.num_generations,
@@ -196,17 +245,16 @@ class GlobalMaskDataGA(BooleanMaskGA):
         # objective
         fitness_mode: str = 'range',
         objective_mode_aggregate: str = 'mean',
-        objective_size_aggregate: str = 'mean',
+        # objective_size_aggregate: str = 'mean',
         objective_mode_weight: float = -1.0,   # minimize range
-        objective_size_weight: float = 0.001,  # maximize size
+        objective_size_weight: float = 0.5,  # maximize size
         # population
         population_size: int = 256,
-        num_generations: int = 100,
+        num_generations: int = 200,
         # mutation
         mate_probability: float = 0.5,    # probability of mating two individuals
         mutate_probability: float = 0.2,  # probability of mutating an individual
         mutate_bit_flip_prob: float = 0.05,
-        select_tournament_size: int = 3,
         # job
         n_jobs: int = min(os.cpu_count(), 16),
     ):
@@ -216,35 +264,45 @@ class GlobalMaskDataGA(BooleanMaskGA):
             mate_probability=mate_probability,
             mutate_probability=mutate_probability,
             mutate_bit_flip_prob=mutate_bit_flip_prob,
-            select_tournament_size=select_tournament_size,
             n_jobs=n_jobs,
         )
         # objective weights
+        self.fitness_mode = fitness_mode
         self.objective_mode_aggregate = objective_mode_aggregate
-        self.objective_size_aggregate = objective_size_aggregate
+        # self.objective_size_aggregate = objective_size_aggregate
         self.objective_mode_weight = objective_mode_weight
         self.objective_size_weight = objective_size_weight
         # load and compute dataset
+        self.dataset_name = dataset_name
         self._gt_data = H.make_data(dataset_name)
         self._gt_dist_matrices = cached_compute_all_factor_dist_matrices(dataset_name)
-        self._fitness_mode = fitness_mode
+
+    @property
+    def parameters(self) -> Dict[str, Any]:
+        return dict(
+            **super().parameters,
+            dataset_name=self.dataset_name,
+            fitness_mode=self.fitness_mode,
+            objective_mode_aggregate=self.objective_mode_aggregate,
+            objective_mode_weight=self.objective_mode_weight,
+            objective_size_weight=self.objective_size_weight,
+        )
 
     def _toolbox_new_individual(self) -> 'creator.Individual':
         mask = np.random.randint(0, 2, size=len(self._gt_data), dtype='bool')
         return creator.Individual(mask)
 
     def _toolbox_eval_individual(self, individual: np.ndarray) -> Sequence[float]:
-        # TODO: add in extra score to maximize number of elements
-        # TODO: fitness function as range of values, and then minimize that range.
         # evaluate all factors
-        scores = np.array([
-            self._eval_factor(individual, f_idx, f_dist_matrices)
+        factor_scores = np.array([
+            self._eval_factor_fitness(individual, f_idx, f_dist_matrices)
             for f_idx, f_dist_matrices in enumerate(self._gt_dist_matrices)
         ])
         # aggregate
         return (
-            float(np_aggregate(scores[:, 0], mode=self.objective_mode_aggregate, dtype='float64')),
-            float(np_aggregate(scores[:, 1], mode=self.objective_size_aggregate, dtype='float64')),
+            float(np_aggregate(factor_scores[:, 0], mode=self.objective_mode_aggregate, dtype='float64')),
+            # float(np_aggregate(factor_scores[:, 1], mode=self.objective_size_aggregate, dtype='float64')),
+            float(individual.mean()),
         )
 
     def _toolbox_pre_create(self):
@@ -254,7 +312,7 @@ class GlobalMaskDataGA(BooleanMaskGA):
         ])
         creator.create("Individual", np.ndarray, fitness=creator.Fitness)
 
-    def _eval_factor(self, individual: np.ndarray, f_idx: int, f_dist_matrices: np.ndarray):
+    def _eval_factor_fitness(self, individual: np.ndarray, f_idx: int, f_dist_matrices: np.ndarray):
         # generate missing mask axis
         f_mask = individual.reshape(self._gt_data.factor_sizes)
         f_mask = np.moveaxis(f_mask, f_idx, -1)
@@ -265,7 +323,7 @@ class GlobalMaskDataGA(BooleanMaskGA):
         # tools.DeltaPenalty(feasible, 7.0, distance)
         # fitness_size = np.sum(f_mask, axis=-1, dtype='float32').min(axis=-1).mean()  # maximize elements ... weight dependant
         # fitness_size = np.sum(f_mask, axis=-1, dtype='float64').mean()  # maximize elements ... weight dependant
-        fitness_size = np.mean(f_mask, dtype='float64')  # maximize elements ... weight dependant
+        # fitness_size = np.mean(f_mask, dtype='float64')  # maximize elements ... weight dependant
 
         # mask array & diagonal
         diag = np.arange(f_mask.shape[-1])
@@ -273,24 +331,14 @@ class GlobalMaskDataGA(BooleanMaskGA):
         f_dists = np.ma.masked_where(~f_mask, f_dist_matrices)  # TRUE is ignored, so we need to negate
 
         # get distances
-        if self._fitness_mode == 'range': fitness_sparse = (np.ma.max(f_dists, axis=-1) - np.ma.min(f_dists, axis=-1)).mean()
-        elif self._fitness_mode == 'std': fitness_sparse = np.ma.std(f_dists, axis=-1).mean()
+        if   self.fitness_mode == 'range':     fitness_sparse = (np.ma.max(f_dists, axis=-1) - np.ma.min(f_dists, axis=-1)).mean()
+        elif self.fitness_mode == 'range_alt': fitness_sparse = (np.ma.max(f_dists, axis=-1) - np.ma.min(f_dists, axis=-1)).max(axis=-1).mean()
+        elif self.fitness_mode == 'max':       fitness_sparse = (np.ma.max(f_dists, axis=-1)).mean()
+        elif self.fitness_mode == 'std':       fitness_sparse = (np.ma.std(f_dists, axis=-1)).mean()
         else: raise KeyError(f'invalid fitness_mode: {repr(self._fitness_mode)}')
 
-        # TODO: distances should maybe be computed in a radius
-        #       instead of along a factor traversal, but this quickly becomes expensive
-        #       5x5x5x... region around an element is way more expensive.
-        #       XY Squares Variations:
-        #           traversal. (8*8)*(8+8) = 1_024 | (8*8*8*8*8*8)*(8+8+8+8+8+8) =     12_582_912
-        #           radius.    (8*8)*(5*5) = 1_600 | (8*8*8*8*8*8)*(5*5*5*5*5*5) =  4_096_000_000
-        #           original.  (8*8)*(8*8) = 4_096 | (8*8*8*8*8*8)*(8*8*8*8*8*8) = 68_719_476_736
-        #      DSPRITES:
-        #          traversal. (3*6*40*32*32)*(3+6+40+32+32) =      83_312_640
-        #          radius.    (3*6*40*32*32)*(5*5* 5* 5* 5) =   2_304_000_000
-        #          original.  (3*6*40*32*32)*(3*6*40*32*32) = 543_581_798_400
-
         # combined scores
-        return [fitness_sparse, fitness_size]
+        return [fitness_sparse] #, fitness_size]
 
 
 # ========================================================================= #
@@ -298,41 +346,50 @@ class GlobalMaskDataGA(BooleanMaskGA):
 # ========================================================================= #
 
 
-def main(
-    dataset_name='xysquares_8x8_toy_s2',  # xysquares_8x8_toy_s4, xcolumns_8x_toy_s4
+def run(
+    dataset_name='xysquares_8x8_toy_s4',  # xysquares_8x8_toy_s4, xcolumns_8x_toy_s2
+    num_generations: int = 1000,
     seed_: int = None,
+    save: bool = True,
+    save_prefix: str = '',
+    n_jobs=min(os.cpu_count(), 16)
 ):
+    # save the starting time for the save path
+    time_string = datetime.today().strftime('%Y-%m-%d--%H-%M-%S')
+    log.info(f'Starting run at time: {time_string}')
+
+    # determinism
+    seed_ = seed_ if (seed_ is not None) else int(np.random.randint(1, 2**31-1))
     seed(seed_)
 
-    # run algorithm!
+    # make algorithm
     ga = GlobalMaskDataGA(
         dataset_name=dataset_name,
         # objective
         fitness_mode='range',
         objective_mode_aggregate='mean',  # min/max seems to be better
-        objective_size_aggregate='mean',  # min/max seems to be better
         objective_mode_weight=-1.0,  # minimize range
         objective_size_weight=1.0,   # maximize size
         # population
-        population_size=256,
-        num_generations=1000,
+        population_size=128,
+        num_generations=num_generations,
         # mutation
         mate_probability=0.5,    # probability of mating two individuals
         mutate_probability=0.5,  # probability of mutating an individual
         mutate_bit_flip_prob=0.05,
-        select_tournament_size=3,
         # job
-        n_jobs=min(os.cpu_count(), 8),
+        n_jobs=n_jobs,
     )
+    log.info('Final Config' + make_box_str('\n'.join(f'{k}={repr(v)}' for k, v in ga.parameters.items())))
+
+    # run algorithm!
     population, stats, hall_of_fame = ga.fit()
 
     def individual_ave(individual):
-        # extract data
-        sub_data = SubDataset(
+        sub_data = MaskedDataset(
             data=H.make_data(dataset_name, transform_mode='none'),
             mask_or_indices=individual.flatten(),
         )
-        # info
         print(', '.join(
             f'{individual.reshape(sub_data._data.factor_sizes).sum(axis=f_idx).mean():2f}'
             for f_idx in range(sub_data._data.num_factors)
@@ -347,15 +404,53 @@ def main(
     H.plt_subplots_imshow(
         [[individual_ave(m) for m in hall_of_fame]],
         col_labels=[f'{np.sum(m)} / {np.prod(m.shape)} |' for m in hall_of_fame],
-        title=f'{dataset_name}: g{ga.num_generations} p{ga.population_size}',
-        show=True, vmin=0.0, vmax=1.0,
+        title=f'{dataset_name}: g{ga.num_generations} p{ga.population_size} [{ga.fitness_mode}, {ga.objective_mode_aggregate}]',
+        show=True, vmin=0.0, vmax=1.0
     )
+
+    # def individual_random(individual, n=1000):
+    #     data = H.make_data(dataset_name, transform_mode='none')
+    #     # extract data
+    #     sub_data = MaskedDataset(
+    #         data=data,
+    #         mask_or_indices=individual.flatten(),
+    #     )
+    #     # get random values orig
+    #     idxs_a, idxs_b = H.pair_indices_random(len(data), approx_batch_size=n)
+    #     deltas_orig = [((data[i] - data[j]) ** 2).mean() for i, j in zip(idxs_a, idxs_b)]
+    #     # get random values
+    #     idxs_a, idxs_b = H.pair_indices_random(len(sub_data), approx_batch_size=n)
+    #     deltas_masked = [((sub_data[i] - sub_data[j]) ** 2).mean() for i, j in zip(idxs_a, idxs_b)]
+    #     # done!
+    #     return np.array(deltas_masked), np.array(deltas_orig)
+    #
+    # # plot overlap
+    # fig, axs = H.plt_subplots(nrows=1, ncols=len(hall_of_fame) + 1)
+    # for i, (m, ax) in enumerate(zip(hall_of_fame, axs.flatten())):
+    #     deltas_masked, deltas_orig = individual_random(m, n=5000)
+    #     ax.hist(deltas_orig, histtype='step', density=True, cumulative=True)
+    #     ax.hist(deltas_masked, histtype='step', density=True, cumulative=True)
+    # # random plot
+    # deltas_rand, deltas_orig = individual_random(np.random.random(hall_of_fame[0].shape) < np.mean(hall_of_fame[0]), n=5000)
+    # axs.flatten()[-1].hist(deltas_orig, histtype='step', density=True, cumulative=True)
+    # axs.flatten()[-1].hist(deltas_rand, histtype='step', density=True, cumulative=True)
+    # plt.show()
+
+    # get save path, make parent dir & save!
+    if save:
+        job_name = f'{(save_prefix + "_" if save_prefix else "")}{ga.dataset_name}_{ga.num_generations}x{ga.population_size}_{ga.fitness_mode}_{ga.objective_mode_aggregate}_{ga.objective_mode_weight}_{ga.objective_size_weight}'
+        save_path = ensure_parent_dir_exists(ROOT_DIR, 'out/adversarial_mask', f'{time_string}_{job_name}_mask.npz')
+        log.info(f'saving mask data to: {save_path}')
+        np.savez(save_path, mask=hall_of_fame[0].copy(), params=ga.parameters, seed=seed_)
+
+
+ROOT_DIR = os.path.abspath(__file__ + '/../../..')
 
 
 if __name__ == "__main__":
-    main()
-
-
+    logging.basicConfig(level=logging.INFO)
+    for dataset_name in ['smallnorb', 'cars3d', 'shapes3d', 'dsprites']:
+        run(dataset_name=dataset_name, num_generations=1000, seed_=42, save=True, n_jobs=1)
 
 
 # ========================================================================= #

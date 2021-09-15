@@ -23,60 +23,60 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
+from typing import Union
+
 import numpy as np
+import torch
 from torch.utils.data import Dataset
 
 from disent.dataset.data import GroundTruthData
-from disent.dataset.util.state_space import StateSpace
 from disent.dataset.wrapper._base import WrappedDataset
-from disent.util.math.dither import nd_dither_matrix
 
 
 log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
-# Dithered Dataset                                                          #
+# Masked Dataset                                                            #
 # ========================================================================= #
 
 
-class DitheredDataset(WrappedDataset):
+DataTypeHint = Union[GroundTruthData, np.ndarray, torch.Tensor]
+MaskTypeHint = Union[str, np.ndarray, torch.Tensor]
 
-    def __init__(self, gt_data: GroundTruthData, dither_n: int = 2, keep_ratio: float = 1):
-        assert 0 < keep_ratio <= 1.0
-        assert isinstance(gt_data, GroundTruthData)
-        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-        self._gt_data = gt_data
-        # data space
-        data_idx = np.arange(len(gt_data))
-        data_pos = gt_data.idx_to_pos(data_idx)
-        # dmat space
-        d_mat = nd_dither_matrix(n=dither_n, d=self._gt_data.num_factors, norm=True) < keep_ratio
-        d_states = StateSpace(d_mat.shape)
-        # data space to dmat space
-        dmat_pos = data_pos % dither_n
-        dmat_idx = d_states.pos_to_idx(dmat_pos)
-        mask = d_mat.flatten()[dmat_idx]
-        # convert mask to indices
-        self._indices = np.arange(len(gt_data))[mask]
-        # -~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
+
+class MaskedDataset(WrappedDataset):
+
+    def __init__(self, data: DataTypeHint, mask_or_indices: MaskTypeHint):
+        # load as numpy mask if it is a string!
+        if isinstance(mask_or_indices, str):
+            mask_or_indices = np.load(mask_or_indices)['mask']
+        # load data
+        assert isinstance(data, (GroundTruthData, torch.Tensor, np.ndarray))
+        assert isinstance(mask_or_indices, (torch.Tensor, np.ndarray))
+        # save data
+        self._data = data
+        # check inputs
+        if mask_or_indices.dtype in ('bool', torch.bool):
+            # boolean values
+            assert len(data) == len(mask_or_indices)
+            self._indices = np.arange(len(data))[mask_or_indices]
+        else:
+            # integer values
+            assert len(np.unique(mask_or_indices)) == len(mask_or_indices)
+            self._indices = mask_or_indices
+        # check that we have at least 1 value
         assert len(self._indices) > 0
-        # check values & count compared to ratio
-        unique_count_map = {False: 0, True: 0, **{u: c for u, c in zip(*np.unique(mask, return_counts=True))}}
-        assert len(unique_count_map) == 2
-        assert unique_count_map[True] > 0
-        assert sum(unique_count_map.values()) == len(gt_data)
-        log.info(f'[n={dither_n}] keep ratio: {keep_ratio:.2f} actual ratio: {unique_count_map[True] / sum(unique_count_map.values()):.2f}')
 
     def __len__(self):
         return len(self._indices)
 
-    def __getitem__(self, item):
-        return self._gt_data[self._indices[item]]
+    def __getitem__(self, idx):
+        return self._data[self._indices[idx]]
 
     @property
     def data(self) -> Dataset:
-        return self._gt_data
+        return self._data
 
 
 # ========================================================================= #
