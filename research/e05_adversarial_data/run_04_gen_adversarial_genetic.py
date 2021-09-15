@@ -22,11 +22,11 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-import json
 import logging
 import multiprocessing
 import os
 import random
+import warnings
 from datetime import datetime
 from functools import partial
 from typing import Any
@@ -48,6 +48,7 @@ from disent.util.inout.paths import ensure_parent_dir_exists
 from disent.util.seeds import seed
 from disent.util.strings.fmt import make_box_str
 from research.e01_visual_overlap.util_compute_traversal_dists import cached_compute_all_factor_dist_matrices
+
 
 log = logging.getLogger(__name__)
 
@@ -72,6 +73,7 @@ def cxTwoPointNumpy(ind1: np.ndarray, ind2: np.ndarray):
         cxpoint1, cxpoint2 = cxpoint2, cxpoint1
     ind1[cxpoint1:cxpoint2], ind2[cxpoint1:cxpoint2] = ind2[cxpoint1:cxpoint2].copy(), ind1[cxpoint1:cxpoint2].copy()
     return ind1, ind2
+
 
 _NP_AGGREGATE_FNS = {
     'sum': np.sum,
@@ -184,11 +186,19 @@ class BooleanMaskGA(object):
         # allow individuals to be compared
         hall_of_fame = tools.HallOfFame(5, similar=np.array_equal)
         # create statistics tracker
-        stats = tools.Statistics(lambda ind: ind.fitness.values)
-        stats.register('min',  np.min)
-        stats.register('max',  np.max)
-        stats.register('mean', np.mean)
-        stats.register('std',  np.std)
+        stats_fitness = tools.Statistics(lambda ind: ind.fitness.values)
+        stats_fitness.register('min',  np.min,  axis=0)
+        stats_fitness.register('max',  np.max,  axis=0)
+        stats_fitness.register('mean', np.mean, axis=0)
+        stats_fitness.register('std',  np.std,  axis=0)
+        stats_mask    = tools.Statistics(lambda ind: ind.sum())
+        stats_mask.register('min',  np.min,  axis=0)
+        stats_mask.register('max',  np.max,  axis=0)
+        stats_mask.register('mean', np.mean, axis=0)
+        stats_mask.register('std',  np.std,  axis=0)
+        stats_size    = tools.Statistics(lambda ind: ind.size)
+        stats_size.register('max',  np.max,  axis=0)
+        stats = tools.MultiStatistics(A_size=stats_size, B_mask=stats_mask, C_fitness=stats_fitness)
         # run genetic algorithm
         algorithms.eaMuPlusLambda(
             population=population,
@@ -215,6 +225,7 @@ class BooleanMaskGA(object):
 
 
 def _toolbox_new_individual(size: int) -> 'creator.Individual':
+    # TODO: create arrays of shape, not size
     mask = np.random.randint(0, 2, size=size, dtype='bool')
     return creator.Individual(mask)
 
@@ -246,7 +257,7 @@ def _eval_factor_fitness(
     fitness_mode: str,
 ) -> List[float]:
     # generate missing mask axis
-    f_mask = individual.reshape(factor_sizes)
+    f_mask = individual.reshape(factor_sizes)  # TODO: remove need for this, members of the population should already be shaped
     f_mask = np.moveaxis(f_mask, f_idx, -1)
     f_mask = f_mask[..., :, None] & f_mask[..., None, :]
 
@@ -343,6 +354,8 @@ class GlobalMaskDataGA(BooleanMaskGA):
 def run(
     dataset_name='xysquares_8x8_toy_s4',  # xysquares_8x8_toy_s4, xcolumns_8x_toy_s2
     num_generations: int = 1000,
+    fitness_mode: str = 'range',
+    objective_mode_aggregate: str = 'mean',
     seed_: int = None,
     save: bool = True,
     save_prefix: str = '',
@@ -360,8 +373,8 @@ def run(
     ga = GlobalMaskDataGA(
         dataset_name=dataset_name,
         # objective
-        fitness_mode='range',
-        objective_mode_aggregate='mean',  # min/max seems to be better
+        fitness_mode=fitness_mode,
+        objective_mode_aggregate=objective_mode_aggregate,  # min/max seems to be better
         objective_mode_weight=-1.0,  # minimize range
         objective_size_weight=1.0,   # maximize size
         # population
@@ -415,9 +428,24 @@ ROOT_DIR = os.path.abspath(__file__ + '/../../..')
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    for dataset_name in ['smallnorb', 'cars3d', 'shapes3d', 'dsprites']:
-        run(dataset_name=dataset_name, num_generations=1000, seed_=42, save=True, n_jobs=min(os.cpu_count(), 32))
-
+    for objective_mode_aggregate in ['mean', 'gmean']:
+        for fitness_mode in ['range', 'std']:
+            for dataset_name in ['xysquares_8x8_toy_s4', 'smallnorb', 'cars3d', 'shapes3d', 'dsprites']:
+                print('='*100)
+                print(f'[STARTING]: objective_mode_aggregate={repr(objective_mode_aggregate)} fitness_mode={repr(fitness_mode)} dataset_name={repr(dataset_name)}')
+                try:
+                    run(
+                        dataset_name=dataset_name,
+                        num_generations=1000,
+                        seed_=42,
+                        save=True,
+                        n_jobs=min(os.cpu_count(), 64),
+                        fitness_mode=fitness_mode,
+                        objective_mode_aggregate=objective_mode_aggregate,
+                    )
+                except:
+                    warnings.warn(f'[FAILED]: objective_mode_aggregate={repr(objective_mode_aggregate)} fitness_mode={repr(fitness_mode)} dataset_name={repr(dataset_name)}')
+                print('='*100)
 
 # ========================================================================= #
 # END                                                                       #
