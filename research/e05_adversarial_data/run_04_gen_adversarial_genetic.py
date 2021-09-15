@@ -110,6 +110,8 @@ class BooleanMaskGA(object):
         self,
         toolbox_new_individual,
         toolbox_eval_individual,
+        # objective
+        objective_weights: Tuple[float, ...] = (1.0,),
         # population
         population_size: int = 256,
         num_generations: int = 100,
@@ -121,29 +123,37 @@ class BooleanMaskGA(object):
         n_jobs: int = min(os.cpu_count(), 16),
     ):
         super().__init__()
-        self.population_size = population_size
-        self.num_generations = num_generations
-        self.mate_probability = mate_probability
-        self.mutate_probability = mutate_probability
+        self.objective_weights    = tuple(objective_weights)
+        self.population_size      = population_size
+        self.num_generations      = num_generations
+        self.mate_probability     = mate_probability
+        self.mutate_probability   = mutate_probability
         self.mutate_bit_flip_prob = mutate_bit_flip_prob
-        self.n_jobs = n_jobs
+        self.n_jobs               = n_jobs
         # toolbox functions
-        self._toolbox_new_individual = toolbox_new_individual
+        self._toolbox_new_individual  = toolbox_new_individual
         self._toolbox_eval_individual = toolbox_eval_individual
 
     @property
     def parameters(self) -> Dict[str, Any]:
         return dict(
+            objective_weights=self.objective_weights,
+            # population
             population_size=self.population_size,
             num_generations=self.num_generations,
+            # mutation
             mate_probability=self.mate_probability,
             mutate_probability=self.mutate_probability,
             mutate_bit_flip_prob=self.mutate_bit_flip_prob,
+            # job
             n_jobs=self.n_jobs,
         )
 
     def _create_toolbox(self):
-        toolbox = base.Toolbox() # toolbox.__getitem__ = types.MethodType(lambda toolbox, name: getattr(toolbox, name), toolbox)
+        creator.create("Fitness", base.Fitness, weights=self.objective_weights)
+        creator.create("Individual", np.ndarray, fitness=creator.Fitness)
+        # create toolbox!
+        toolbox = base.Toolbox()
         # objects
         toolbox.register("individual", self._toolbox_new_individual)
         toolbox.register("population", tools.initRepeat, list, toolbox.individual)
@@ -203,6 +213,7 @@ class BooleanMaskGA(object):
 # MASKING GA                                                                #
 # ========================================================================= #
 
+
 def _toolbox_new_individual(size: int) -> 'creator.Individual':
     mask = np.random.randint(0, 2, size=size, dtype='bool')
     return creator.Individual(mask)
@@ -255,7 +266,6 @@ def _eval_factor_fitness(
     return [fitness_sparse]
 
 
-
 class GlobalMaskDataGA(BooleanMaskGA):
     """
     Optimize a dataset mask for specific properties using a genetic algorithm.
@@ -282,23 +292,20 @@ class GlobalMaskDataGA(BooleanMaskGA):
         # job
         n_jobs: int = min(os.cpu_count(), 16),
     ):
-        # objective weights
-        self.fitness_mode = fitness_mode
+        # parameters
+        self.fitness_mode             = fitness_mode
         self.objective_mode_aggregate = objective_mode_aggregate
-        # self.objective_size_aggregate = objective_size_aggregate
-        self.objective_mode_weight = objective_mode_weight
-        self.objective_size_weight = objective_size_weight
+        self.objective_mode_weight    = objective_mode_weight
+        self.objective_size_weight    = objective_size_weight
+        self.dataset_name             = dataset_name
         # load and compute dataset
-        self.dataset_name = dataset_name
-        self._gt_data = H.make_data(dataset_name)
-        self._gt_dist_matrices = cached_compute_all_factor_dist_matrices(dataset_name)
-        # helper functions
-        toolbox_new_individual = partial(_toolbox_new_individual, size=len(self._gt_data))
-        toolbox_eval_individual = partial(_toolbox_eval_individual, gt_dist_matrices=self._gt_dist_matrices, factor_sizes=self._gt_data.factor_sizes, fitness_mode=self.fitness_mode, obj_mode_aggregate=self.objective_mode_aggregate)
+        gt_data          = H.make_data(dataset_name)
+        gt_dist_matrices = cached_compute_all_factor_dist_matrices(dataset_name)
         # initialize
         super().__init__(
-            toolbox_new_individual=toolbox_new_individual,
-            toolbox_eval_individual=toolbox_eval_individual,
+            toolbox_new_individual=partial(_toolbox_new_individual, size=len(gt_data)),
+            toolbox_eval_individual=partial(_toolbox_eval_individual, gt_dist_matrices=gt_dist_matrices, factor_sizes=gt_data.factor_sizes, fitness_mode=self.fitness_mode, obj_mode_aggregate=self.objective_mode_aggregate),
+            objective_weights=(self.objective_mode_weight, self.objective_size_weight),
             population_size=population_size,
             num_generations=num_generations,
             mate_probability=mate_probability,
@@ -310,19 +317,22 @@ class GlobalMaskDataGA(BooleanMaskGA):
     @property
     def parameters(self) -> Dict[str, Any]:
         return dict(
-            **super().parameters,
             dataset_name=self.dataset_name,
+            # objective
             fitness_mode=self.fitness_mode,
             objective_mode_aggregate=self.objective_mode_aggregate,
             objective_mode_weight=self.objective_mode_weight,
             objective_size_weight=self.objective_size_weight,
+            # population
+            population_size=self.population_size,
+            num_generations=self.num_generations,
+            # mutation
+            mate_probability=self.mate_probability,
+            mutate_probability=self.mutate_probability,
+            mutate_bit_flip_prob=self.mutate_bit_flip_prob,
+            # job
+            n_jobs=self.n_jobs,
         )
-
-    def _create_toolbox(self):
-        creator.create("Fitness", base.Fitness, weights=[self.objective_mode_weight, self.objective_size_weight])
-        creator.create("Individual", np.ndarray, fitness=creator.Fitness)
-        return super()._create_toolbox()
-
 
 
 # ========================================================================= #
