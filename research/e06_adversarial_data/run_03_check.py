@@ -23,6 +23,13 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 
+"""
+Check the adversarial data generated in previous exerpiments
+- This is old and outdated...
+- Should use `e01_visual_overlap/run_plot_traversal_dists.py` instead!
+"""
+
+
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -32,74 +39,13 @@ import matplotlib.pyplot as plt
 from disent.dataset.data import Shapes3dData
 from research.util._data import AdversarialOptimizedData
 
-# TODO: what is going on here?? fix this!
-# TODO: these classes are old...
-
-# class TransformDataset(GroundTruthData):
-#
-#     # TODO: all data should be datasets
-#     # TODO: file preparation should be separate from datasets
-#     # TODO: disent/data should be datasets, and disent/datasets should be samplers that wrap disent/data
-#
-#     def __init__(self, base_data: GroundTruthData, transform=None):
-#         self.base_data = base_data
-#         self._transform = transform
-#         super().__init__()
-#
-#     @property
-#     def factor_names(self) -> Tuple[str, ...]:
-#         return self.base_data.factor_names
-#
-#     @property
-#     def factor_sizes(self) -> Tuple[int, ...]:
-#         return self.base_data.factor_sizes
-#
-#     @property
-#     def observation_shape(self) -> Tuple[int, ...]:
-#         return self.base_data.observation_shape
-#
-#     def __getitem__(self, idx):
-#         item = self.base_data[idx]
-#         if self._transform is not None:
-#             item = self._transform(item)
-#         return item
-
-
-# class AdversarialOptimizedData(GroundTruthData):
-#
-#     @property
-#     def factor_names(self) -> Tuple[str, ...]:
-#         return self.base_data.factor_names
-#
-#     @property
-#     def factor_sizes(self) -> Tuple[int, ...]:
-#         return self.base_data.factor_sizes
-#
-#     @property
-#     def observation_shape(self) -> Tuple[int, ...]:
-#         return self.base_data.observation_shape
-#
-#     def __init__(self, h5_path: str, base_data: GroundTruthData, transform=None):
-#         # normalize hd5f data
-#         def _normalize_hdf5(x):
-#             c, h, w = x.shape
-#             if c in (1, 3):
-#                 return np.moveaxis(x, 0, -1)
-#             return x
-#         # get the data
-#         self.base_data = base_data
-#         self.hdf5_data = Hdf5Dataset(h5_path, transform=_normalize_hdf5)
-#         assert len(self.base_data) == len(self.hdf5_data)
-#         # initialize
-#         super().__init__(transform=transform)
-#
-#     def _get_observation(self, idx):
-#         return self.hdf5_data[idx]
-
 
 if __name__ == '__main__':
 
     def ave_pairwise_dist(data, n_samples=1000):
+        """
+        Get the average distance between observations in the dataset
+        """
         # get stats
         diff = []
         for i in range(n_samples):
@@ -109,6 +55,9 @@ if __name__ == '__main__':
         return np.mean(diff)
 
     def plot_samples(data, name=None):
+        """
+        Display random observations from the dataset
+        """
         # get image
         img = torchvision.utils.make_grid([data[i*1000] for i in range(9)], nrow=3)
         img = torch.moveaxis(img, 0, -1).numpy()

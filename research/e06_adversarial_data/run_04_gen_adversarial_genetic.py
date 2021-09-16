@@ -22,6 +22,12 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+"""
+Remove elements from a dataset using a genetic algorithm to try
+and optimize for constant overlap between factors.
+- Produces a boolean mask that can be applied to a dataset
+"""
+
 import logging
 import multiprocessing
 import os
@@ -436,15 +442,15 @@ ROOT_DIR = os.path.abspath(__file__ + '/../../..')
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    for objective_mode_aggregate in ['mean', 'gmean']:
-        for fitness_mode in ['std', 'range']:
-            for dataset_name in ['xysquares_8x8_toy_s4', 'smallnorb', 'cars3d', 'shapes3d', 'dsprites']:
+    for objective_mode_aggregate in ['mean']:
+        for fitness_mode in ['range']:
+            for dataset_name in ['cars3d']:
                 print('='*100)
                 print(f'[STARTING]: objective_mode_aggregate={repr(objective_mode_aggregate)} fitness_mode={repr(fitness_mode)} dataset_name={repr(dataset_name)}')
                 try:
                     run(
                         dataset_name=dataset_name,
-                        num_generations=250,
+                        num_generations=25,
                         seed_=42,
                         save=True,
                         n_jobs=min(os.cpu_count(), 64),

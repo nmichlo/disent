@@ -22,6 +22,18 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+
+"""
+Generate an adversarial dataset
+- Stores the mutating dataset on disk
+- Loads minibatches from disk that are optimized and the saved back to the disk
+- No model is used, images are directly optimized against eachother, could decay in some cases?
+
+This is quite memory efficient, but it is quite old!
+- Should probably be re-written using ray
+"""
+
+
 import logging
 import multiprocessing.synchronize
 import os

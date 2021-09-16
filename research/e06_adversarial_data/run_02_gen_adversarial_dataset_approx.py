@@ -22,6 +22,12 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+"""
+Generate an adversarial dataset by approximating the difference between
+the dataset and the target adversarial images using a model.
+    adv = obs + diff(obs)
+"""
+
 import logging
 import os
 from datetime import datetime
@@ -62,8 +68,8 @@ from experiment.run import hydra_check_cuda
 from experiment.run import hydra_make_logger
 from experiment.util.hydra_utils import make_non_strict
 from experiment.util.run_utils import log_error_and_exit
-from research.e05_adversarial_data.util_04_gen_adversarial_dataset import adversarial_loss
-from research.e05_adversarial_data.util_04_gen_adversarial_dataset import make_adversarial_sampler
+from research.e06_adversarial_data.util_02_gen_adversarial_dataset import adversarial_loss
+from research.e06_adversarial_data.util_02_gen_adversarial_dataset import make_adversarial_sampler
 
 
 log = logging.getLogger(__name__)
