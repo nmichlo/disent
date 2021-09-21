@@ -32,6 +32,7 @@ from typing import List
 from typing import NoReturn
 from typing import Optional
 from typing import Sequence
+from typing import Tuple
 from typing import Union
 
 import numpy as np
@@ -104,14 +105,14 @@ class EaProblem(object):
     def __init__(self):
         self.__hparams = None
 
-    def save_hyperparameters(self, ignore: Optional[Union[str, Sequence[str]]] = None):
+    def save_hyperparameters(self, ignore: Optional[Sequence[str]] = None, include: Optional[Sequence[str]] = None):
         import inspect
         import warnings
         # get ignored values
-        if ignore is None:            ignored = set()
-        elif isinstance(ignore, str): ignored = {ignore}
-        else:                         ignored = set(ignore)
+        ignored = set() if (ignore is None) else set(ignore)
+        included = set() if (include is None) else set(include)
         assert all(str.isidentifier(k) for k in ignored)
+        assert all(str.isidentifier(k) for k in included)
         # get function params & signature
         locals = inspect.currentframe().f_back.f_locals
         params = inspect.signature(self.__class__.__init__)
@@ -126,6 +127,11 @@ class EaProblem(object):
             if k in ignored: continue
             if v.kind == v.VAR_KEYWORD: warnings.warn('variable keywords argument saved, consider converting to explicit arguments.')
             if v.kind == v.VAR_POSITIONAL: warnings.warn('variable positional argument saved, consider converting to explicit named arguments.')
+            values[k] = locals[k]
+        # get extra values
+        for k in included:
+            assert k != 'self'
+            assert k not in values, 'k has already been included'
             values[k] = locals[k]
         # done!
         self.__hparams = Namespace(**values)
@@ -194,7 +200,7 @@ def run_ea(
     generations: int = 100,
     num_workers: int = min(os.cpu_count(), 16),
     progress: bool = True,
-):
+) -> Tuple[PopulationHint, Logbook, HallOfFame]:
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # INIT                              #
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #

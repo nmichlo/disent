@@ -143,16 +143,40 @@ class HallOfFame(object):
 
     def __init__(self, n_best: int = 5, maximize: bool = True):
         self._maximize = maximize
+        assert maximize
         self._n_best = n_best
-        self._heap = []
+        self._heap = []  # element 0 is always the smallest
+        self._scores = {}
 
-    def update(self, population: 'PopulationHint'):
-        for member in population:
+    def update(self, population: List['Member']):
+        best = sorted(population, key=lambda m: m.fitness, reverse=True)[:self._n_best]
+        # add the best
+        for member in best:
+            # try add to hall of fame
             item = HallOfFameItem(fitness=member.fitness, member=member)
+            # skip if we already have the same score ...
+            # TODO: this should not ignore members with the same scores, this is hacky
+            if item.fitness in self._scores:
+                continue
+            # checks
+            self._scores[item.fitness] = item
             if len(self._heap) < self._n_best:
                 heapq.heappush(self._heap, item)
             else:
-                heapq.heappushpop(self._heap, item)
+                removed = heapq.heappushpop(self._heap, item)
+                del self._scores[removed.fitness]
+
+    @property
+    def members(self) -> List['Member']:
+        return [m.member for m in sorted(self._heap, reverse=True)]
+
+    @property
+    def values(self) -> List[Any]:
+        return [m.value for m in self.members]
+
+    @property
+    def scores(self) -> List[Any]:
+        return [m.fitness for m in self.members]
 
 
 # ========================================================================= #

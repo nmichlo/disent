@@ -367,6 +367,20 @@ class GlobalMaskDataGA(BooleanMaskGA):
 # ========================================================================= #
 
 
+def individual_ave(dataset_name: str, individual, print_=False):
+    sub_data = MaskedDataset(
+        data=H.make_data(dataset_name, transform_mode='none'),
+        mask_or_indices=individual.flatten(),
+    )
+    if print_:
+        print(', '.join(f'{individual.reshape(sub_data._data.factor_sizes).sum(axis=f_idx).mean():2f}' for f_idx in range(sub_data._data.num_factors)))
+    # make obs
+    ave_obs = np.zeros_like(sub_data[0], dtype='float64')
+    for obs in sub_data:
+        ave_obs += obs
+    return ave_obs / ave_obs.max()
+
+
 def run(
     dataset_name='xysquares_8x8_toy_s4',  # xysquares_8x8_toy_s4, xcolumns_8x_toy_s1
     num_generations: int = 100,
@@ -409,21 +423,9 @@ def run(
     # run algorithm!
     population, stats, hall_of_fame = ga.fit()
 
-    def individual_ave(individual):
-        sub_data = MaskedDataset(
-            data=H.make_data(dataset_name, transform_mode='none'),
-            mask_or_indices=individual.flatten(),
-        )
-        print(', '.join(f'{individual.reshape(sub_data._data.factor_sizes).sum(axis=f_idx).mean():2f}' for f_idx in range(sub_data._data.num_factors)))
-        # make obs
-        ave_obs = np.zeros_like(sub_data[0], dtype='float64')
-        for obs in sub_data:
-            ave_obs += obs
-        return ave_obs / ave_obs.max()
-
     # plot average images
     H.plt_subplots_imshow(
-        [[individual_ave(m) for m in hall_of_fame]],
+        [[individual_ave(dataset_name, m) for m in hall_of_fame]],
         col_labels=[f'{np.sum(m)} / {np.prod(m.shape)} |' for m in hall_of_fame],
         title=f'{dataset_name}: g{ga.num_generations} p{ga.population_size} [{ga.fitness_mode}, {ga.objective_mode_aggregate}]',
         show=True, vmin=0.0, vmax=1.0
@@ -437,11 +439,7 @@ def run(
         np.savez(save_path, mask=hall_of_fame[0].copy(), params=ga.parameters, seed=seed_)
 
 
-ROOT_DIR = os.path.abspath(__file__ + '/../../..')
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+def main():
     for objective_mode_aggregate in ['mean']:
         for fitness_mode in ['range']:
             for dataset_name in ['cars3d']:
@@ -461,6 +459,14 @@ if __name__ == "__main__":
                 except:
                     warnings.warn(f'[FAILED]: objective_mode_aggregate={repr(objective_mode_aggregate)} fitness_mode={repr(fitness_mode)} dataset_name={repr(dataset_name)}')
                 print('='*100)
+
+
+ROOT_DIR = os.path.abspath(__file__ + '/../../..')
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    main()
 
 
 # ========================================================================= #

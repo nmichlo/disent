@@ -44,7 +44,7 @@ class OneMaxProblem(EaProblem):
 
     def get_starting_population_values(self) -> PopulationHint:
         return [
-            np.random.random(10_000) < 0.5
+            np.random.random(self.hparams.member_size) < 0.5
             for _ in range(self.hparams.population_size)
         ]
 
