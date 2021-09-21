@@ -216,24 +216,30 @@ def run_ea(
     # RUN                               #
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
-    # evaluate population
+    # 0. evaluate population
     evaluations = _evaluate_invalid(population, eval_fn=problem.evaluate_member)
-    halloffame.update(population)
+
     # update statistics with new population
+    halloffame.update(population)
     logbook.record(population, gen=0, evals=evaluations)
 
     # run
-    with tqdm(range(1, generations+1), desc='generation', disable=not progress) as p:
+    with tqdm(range(1, generations+1), desc='generation', disable=not progress, ncols=120) as p:
         for i in p:
+            # - - - - - - - - - - - - - - - - - #
+            # 1. generate offspring
             offspring = problem.generate_offspring(population)
-            # evaluate population
+            # 2. evaluate
             evaluations = _evaluate_invalid(offspring, eval_fn=problem.evaluate_member)
-            halloffame.update(offspring)
-            # get population
+            # 3. select
             population = problem.select_population(population, offspring)
             _check_population(population, required_size=population_size)
+            # - - - - - - - - - - - - - - - - - #
             # update statistics with new population
-            logbook.record(population, gen=i, evals=evaluations)
+            halloffame.update(offspring)
+            stats = logbook.record(population, gen=i, evals=evaluations)
+            # update progress bar
+            p.set_postfix(dict(evals=stats['evals'], fit_max=stats['fit:max']))
 
     # done!
     return population, logbook, halloffame

@@ -22,9 +22,11 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-
-import time
+import logging
 import numpy as np
+import ray
+
+from disent.util.profiling import Timer
 from research.ruck import *
 
 
@@ -64,11 +66,13 @@ class OneMaxProblem(EaProblem):
 
 
 if __name__ == '__main__':
-    # about 10x faster than the onemax
+    # about 10x faster than the onemax (0.25s vs 2.6s)
     # numpy version given for deap
     # -- https://github.com/DEAP/deap/blob/master/examples/ga/onemax_numpy.py
 
-    t = time.time()
-    problem = OneMaxProblem(population_size=128, member_size=10_000)
-    run_ea(problem, generations=40)
-    print(time.time() - t)
+    logging.basicConfig(level=logging.INFO)
+    ray.init(num_cpus=16)
+
+    with Timer('ruck:onemax'):
+        problem = OneMaxProblem(population_size=128, member_size=10_000)
+        run_ea(problem, generations=4000)
