@@ -98,6 +98,18 @@ def kl_loss_approx_symmetric(posterior: Distribution, prior: Distribution, z_sam
     return 0.5 * kl_loss_approx_reverse(posterior, prior, z_sampled) + 0.5 * kl_loss_approx_forward(posterior, prior, z_sampled)
 
 
+def kl_loss_direct_fdiv(beta: float, gamma: float, posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None):
+    # compute the (scaled) symmetric kl
+    # - gamma * kl(prior|post) + beta * kl(prior|post)
+    return gamma * kl_loss_direct_reverse(posterior, prior, z_sampled) + beta * kl_loss_direct_forward(posterior, prior, z_sampled)
+
+
+def kl_loss_approx_fdiv(beta: float, gamma: float, posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None):
+    # compute the approximate (scaled) symmetric kl
+    # - gamma * kl(prior|post) + beta * kl(prior|post)
+    return gamma * kl_loss_approx_reverse(posterior, prior, z_sampled) + beta * kl_loss_approx_forward(posterior, prior, z_sampled)
+
+
 _KL_LOSS_MODES = {
     # reverse kl -- how it should be done for VAEs
     'direct':         kl_loss_direct_reverse,  # alias for reverse modes
@@ -110,11 +122,14 @@ _KL_LOSS_MODES = {
     # symmetric kl
     'direct_symmetric': kl_loss_direct_symmetric,
     'approx_symmetric': kl_loss_approx_symmetric,
+    # fdiv kl
+    'direct_fdiv': kl_loss_direct_fdiv,
+    'approx_fdiv': kl_loss_approx_fdiv
 }
 
 
-def kl_loss(posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None, mode='direct'):
-    return _KL_LOSS_MODES[mode](posterior, prior, z_sampled)
+def kl_loss(beta, gamma, posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None, mode='direct'):
+    return _KL_LOSS_MODES[mode](beta, gamma, posterior, prior, z_sampled)
 
 
 # ========================================================================= #
@@ -124,7 +139,9 @@ def kl_loss(posterior: Distribution, prior: Distribution, z_sampled: torch.Tenso
 
 class LatentDistsHandler(object):
 
-    def __init__(self,  kl_mode: str = 'direct', reduction='mean'):
+    def __init__(self, beta: float, gamma: float,  kl_mode: str = 'direct', reduction='mean'):
+        self._beta = beta
+        self._gamma = gamma
         self._kl_mode = kl_mode
         self._reduction = reduction
 
@@ -152,7 +169,7 @@ class LatentDistsHandler(object):
         """
         Compute the kl divergence
         """
-        kl = kl_loss(posterior, prior, z_sampled, mode=self._kl_mode)
+        kl = kl_loss(self._beta, self._gamma, posterior, prior, z_sampled, mode=self._kl_mode)
         kl = loss_reduction(kl, reduction=self._reduction)
         return kl
 
@@ -245,13 +262,13 @@ _LATENT_HANDLERS = {
 }
 
 
-def make_latent_distribution(name: str, kl_mode: str, reduction: str) -> LatentDistsHandler:
+def make_latent_distribution(beta: float, gamma: float, name: str, kl_mode: str, reduction: str) -> LatentDistsHandler:
     try:
         cls = _LATENT_HANDLERS[name]
     except KeyError:
         raise KeyError(f'unknown vae distribution name: {repr(name)}, must be one of: {sorted(_LATENT_HANDLERS.keys())}')
     # make instance
-    return cls(kl_mode=kl_mode, reduction=reduction)
+    return cls(beta=beta, gamma=gamma, kl_mode=kl_mode, reduction=reduction)
 
 
 # ========================================================================= #

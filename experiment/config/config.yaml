@@ -1,6 +1,6 @@
 defaults:
   # experiment
-  - framework: betavae
+  - framework: betagammavae
   - model: conv64
   - optimizer: radam
   - dataset: xysquares  # allow framework to override settings here, but placing dataset before framework in defaults
@@ -9,10 +9,10 @@ defaults:
   - metrics: all
   - schedule: none
   # runtime
-  - run_length: long
-  - run_location: cluster_many
+  - run_length: tiny
+  - run_location: cluster
   - run_callbacks: vis_slow
-  - run_logging: wandb
+  - run_logging: none
   # plugins
   - hydra/job_logging: colorlog
   - hydra/hydra_logging: colorlog
@@ -25,11 +25,13 @@ job:
   partition: stampede
 
 framework:
-    beta: 0.003
+    beta: 0.002
+    gamma: 0.002
     module:
       recon_loss: mse4
       loss_reduction: mean
       latent_distribution: cauchy
+      kl_loss_mode: direct_fdiv
     optional:
       latent_distribution: normal  # only used by VAEs
       overlap_loss: NULL

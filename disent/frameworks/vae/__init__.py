@@ -28,6 +28,7 @@ from disent.frameworks.vae._supervised__tvae import TripletVae
 # unsupervised frameworks
 from disent.frameworks.vae._unsupervised__betatcvae import BetaTcVae
 from disent.frameworks.vae._unsupervised__betavae import BetaVae
+from disent.frameworks.vae._unsupervised__betagammavae import BetaGammaVae
 from disent.frameworks.vae._unsupervised__dfcvae import DfcVae
 from disent.frameworks.vae._unsupervised__dipvae import DipVae
 from disent.frameworks.vae._unsupervised__infovae import InfoVae

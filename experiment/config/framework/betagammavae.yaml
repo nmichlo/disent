@@ -1,0 +1,19 @@
+# @package _group_
+name: betagammavae
+module:
+  _target_: disent.frameworks.vae.BetaGammaVae
+  # base vae
+  latent_distribution: ${framework.optional.latent_distribution}
+  # disable various components
+  disable_decoder: FALSE
+  disable_reg_loss: FALSE
+  disable_rec_loss: FALSE
+  disable_aug_loss: FALSE
+  disable_posterior_scale: NULL
+  # Beta-VAE
+  beta: ${framework.beta}
+  gamma: ${framework.gamma}
+
+# settings used elsewhere
+data_wrap_mode: single
+model_z_multiplier: 2
