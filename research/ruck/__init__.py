@@ -21,3 +21,11 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
+
+from research.ruck._ea import EaProblem
+from research.ruck._ea import PopulationHint
+from research.ruck._ea import run_ea
+
+# module
+from research.ruck import functional as R

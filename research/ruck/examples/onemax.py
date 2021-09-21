@@ -21,24 +21,11 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
+
 import time
-import warnings
-from argparse import Namespace
-from copy import deepcopy
-from typing import Optional
-from typing import Sequence
-from typing import Union
-
 import numpy as np
-from pytorch_lightning import LightningModule
-
-from research.ruck._ea import EaProblem
-from research.ruck._ea import PopulationHint
-from research.ruck._ea import run_ea
-from research.ruck.functional import mate_crossover_1d
-from research.ruck.functional import mutate_flip_bit_types
-from research.ruck.functional import select_tournament
-from research.ruck.functional._helper import crossover_and_mutate
+from research.ruck import *
 
 
 class OneMaxProblem(EaProblem):
@@ -60,10 +47,11 @@ class OneMaxProblem(EaProblem):
         ]
 
     def generate_offspring(self, population: PopulationHint) -> PopulationHint:
-        return crossover_and_mutate(
-            population=select_tournament(population, len(population)),  # tools.selNSGA2
-            mate=mate_crossover_1d,
-            mutate=mutate_flip_bit_types,
+        # SEE: R.factory_ea_alg -- TODO: make it easier to swap!
+        return R.apply_mate_and_mutate(
+            population=R.select_tournament(population, len(population)),  # tools.selNSGA2
+            mate=R.mate_crossover_1d,
+            mutate=R.mutate_flip_bit_types,
             p_mate=self.hparams.p_mate,
             p_mutate=self.hparams.p_mutate,
         )

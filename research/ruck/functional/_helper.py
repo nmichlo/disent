@@ -35,7 +35,7 @@ from research.ruck.functional import MutateFnHint
 # ========================================================================= #
 
 
-def crossover_and_mutate(
+def apply_mate_and_mutate(
     population: PopulationHint,
     mate: MateFnHint,
     mutate: MutateFnHint,
@@ -71,7 +71,7 @@ def crossover_and_mutate(
     return offspring
 
 
-def crossover_or_mutate_or_reproduce(
+def apply_mate_or_mutate_or_reproduce(
     population: PopulationHint,
     mate: MateFnHint,
     mutate: MutateFnHint,
@@ -115,7 +115,7 @@ def crossover_or_mutate_or_reproduce(
 # ========================================================================= #
 
 
-def get_gen_and_select_fns(
+def factory_ea_alg(
     mate_fn,
     mutate_fn,
     select_fn,
@@ -126,13 +126,13 @@ def get_gen_and_select_fns(
     population_num: int = 128,
 ):
     if mode == 'simple':
-        def _generate(population):          return crossover_and_mutate(population=select_fn(population, len(population)), p_mate=p_mate, mate=mate_fn, p_mutate=p_mutate, mutate=mutate_fn)
+        def _generate(population):          return apply_mate_and_mutate(population=select_fn(population, len(population)), p_mate=p_mate, mate=mate_fn, p_mutate=p_mutate, mutate=mutate_fn)
         def _select(population, offspring): return offspring
     elif mode == 'mu_plus_lambda':
-        def _generate(population):          return crossover_or_mutate_or_reproduce(population, num_offspring=offspring_num, p_mate=p_mate, mate=mate_fn, p_mutate=p_mutate, mutate=mutate_fn)
+        def _generate(population):          return apply_mate_or_mutate_or_reproduce(population, num_offspring=offspring_num, p_mate=p_mate, mate=mate_fn, p_mutate=p_mutate, mutate=mutate_fn)
         def _select(population, offspring): return select_fn(population + offspring, population_num)
     elif mode == 'mu_comma_lambda':
-        def _generate(population):          return crossover_or_mutate_or_reproduce(population, num_offspring=offspring_num, p_mate=p_mate, mate=mate_fn, p_mutate=p_mutate, mutate=mutate_fn)
+        def _generate(population):          return apply_mate_or_mutate_or_reproduce(population, num_offspring=offspring_num, p_mate=p_mate, mate=mate_fn, p_mutate=p_mutate, mutate=mutate_fn)
         def _select(population, offspring): return select_fn(offspring, population_num)
     else:
         raise KeyError(f'invalid mode: {repr(mode)}')
