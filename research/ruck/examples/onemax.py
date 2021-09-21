@@ -30,7 +30,7 @@ from disent.util.profiling import Timer
 from research.ruck import *
 
 
-class OneMaxProblem(EaProblem):
+class OneMaxProblem(EaModule):
 
     def __init__(
         self,
@@ -43,7 +43,8 @@ class OneMaxProblem(EaProblem):
         super().__init__()
         self.save_hyperparameters()
 
-    def get_num_generations(self) -> int:
+    @property
+    def num_generations(self) -> int:
         return self.hparams.generations
 
     def get_starting_population_values(self) -> PopulationHint:

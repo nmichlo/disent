@@ -23,9 +23,11 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 
-from research.ruck._ea import EaProblem
+from research.ruck._ea import EaModule
 from research.ruck._ea import PopulationHint
-from research.ruck._ea import run_ea
+from research.ruck._ea import Member
+from research.ruck._ea import Trainer
+from research.ruck._ea import yield_population_steps
 
 # module
 from research.ruck import functional as R

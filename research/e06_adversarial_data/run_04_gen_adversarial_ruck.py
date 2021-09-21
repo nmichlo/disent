@@ -28,6 +28,7 @@ from datetime import datetime
 from typing import Optional
 
 import numpy as np
+import ray
 
 from disent.util.inout.paths import ensure_parent_dir_exists
 from disent.util.profiling import Timer
@@ -42,6 +43,11 @@ import research.util as H
 
 
 log = logging.getLogger(__name__)
+
+
+# ========================================================================= #
+# EXPERIMENT                                                                #
+# ========================================================================= #
 
 
 class DatasetMaskProblem(OneMaxProblem):
@@ -63,7 +69,7 @@ class DatasetMaskProblem(OneMaxProblem):
         p_mate: float = 0.5,
         p_mutate: float = 0.5,
     ):
-        super(EaProblem, self).__init__()  # skip calling OneMaxProblem __init__
+        super(EaModule, self).__init__()  # skip calling OneMaxProblem __init__
         self.save_hyperparameters()
         # load and compute dataset
         self.gt_data          = H.make_data(dataset_name)
@@ -90,8 +96,13 @@ class DatasetMaskProblem(OneMaxProblem):
         )
 
 
+# ========================================================================= #
+# RUNNER                                                                    #
+# ========================================================================= #
+
+
 def run(
-    dataset_name: str = 'xysquares_8x8_toy_s2',  # xysquares_8x8_toy_s4, xcolumns_8x_toy_s1
+    dataset_name: str = 'cars3d',  # xysquares_8x8_toy_s4, xcolumns_8x_toy_s1
     generations: int = 250,
     population_size: int = 128,
     factor_score_mode: str = 'std',
@@ -112,7 +123,7 @@ def run(
     # RUN
     with Timer('ruck:onemax'):
         problem = DatasetMaskProblem(dataset_name=dataset_name, population_size=population_size, factor_score_mode=factor_score_mode, factor_score_agg=factor_score_agg, generations=generations)
-        population, logbook, halloffame = run_ea(problem)
+        population, logbook, halloffame = Trainer().fit(problem)
 
     # plot average images
     H.plt_subplots_imshow(
@@ -130,12 +141,23 @@ def run(
         np.savez(save_path, mask=halloffame.values[0], params=problem.hparams, seed=seed_)
 
 
+# ========================================================================= #
+# ENTRYPOINT                                                                #
+# ========================================================================= #
+
+
 ROOT_DIR = os.path.abspath(__file__ + '/../../..')
 
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-
-    # ray.init(num_cpus=16)
-
+    # TODO: evaluation function is copying too much data!
+    # TODO: evaluation function is copying too much data!
+    # TODO: evaluation function is copying too much data!
+    ray.init(num_cpus=16)
     run()
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #

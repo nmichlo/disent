@@ -25,23 +25,19 @@
 
 import logging
 import os
-from argparse import Namespace
 from typing import Any
 from typing import Dict
 from typing import List
-from typing import NoReturn
-from typing import Optional
-from typing import Sequence
-from typing import Tuple
-from typing import Union
 
 import numpy as np
+import ray
 from tqdm import tqdm
 
 from disent.util.iters import chunked
 from research.ruck._history import HallOfFame
 from research.ruck._history import Logbook
 from research.ruck._history import StatsGroup
+from research.ruck.util._args import HParamsMixin
 
 
 log = logging.getLogger(__name__)
@@ -100,55 +96,25 @@ PopulationHint  = List[Member]
 # ========================================================================= #
 
 
-class EaProblem(object):
+class EaModule(HParamsMixin):
 
-    def __init__(self):
-        self.__hparams = None
+    # HELPER
 
-    def save_hyperparameters(self, ignore: Optional[Sequence[str]] = None, include: Optional[Sequence[str]] = None):
-        import inspect
-        import warnings
-        # get ignored values
-        ignored = set() if (ignore is None) else set(ignore)
-        included = set() if (include is None) else set(include)
-        assert all(str.isidentifier(k) for k in ignored)
-        assert all(str.isidentifier(k) for k in included)
-        # get function params & signature
-        locals = inspect.currentframe().f_back.f_locals
-        params = inspect.signature(self.__class__.__init__)
-        # get values
-        (self_param, *params) = params.parameters.items()
-        # check that self is correct & skip it
-        assert self_param[0] == 'self'
-        assert locals[self_param[0]] is self
-        # get other values
-        values = {}
-        for k, v in params:
-            if k in ignored: continue
-            if v.kind == v.VAR_KEYWORD: warnings.warn('variable keywords argument saved, consider converting to explicit arguments.')
-            if v.kind == v.VAR_POSITIONAL: warnings.warn('variable positional argument saved, consider converting to explicit named arguments.')
-            values[k] = locals[k]
-        # get extra values
-        for k in included:
-            assert k != 'self'
-            assert k not in values, 'k has already been included'
-            values[k] = locals[k]
-        # done!
-        self.__hparams = Namespace(**values)
-
-    @property
-    def hparams(self):
-        return self.__hparams
+    def get_stating_population(self) -> PopulationHint:
+        start_values = self.get_starting_population_values()
+        assert len(start_values) > 0
+        return [Member(m) for m in start_values]
 
     # OVERRIDE
 
-    def get_stats_groups(self) -> Optional[Dict[str, StatsGroup]]:
-        return None
+    def get_stats_groups(self) -> Dict[str, StatsGroup]:
+        return {}
 
-    def get_num_generations(self) -> int:
+    @property
+    def num_generations(self) -> int:
         raise NotImplementedError
 
-    def get_starting_population_values(self) -> PopulationHint:
+    def get_starting_population_values(self) -> List[Any]:
         raise NotImplementedError
 
     def generate_offspring(self, population: PopulationHint) -> PopulationHint:
@@ -162,30 +128,37 @@ class EaProblem(object):
 
 
 # ========================================================================= #
-# Run                                                                       #
+# Utils Trainer                                                             #
 # ========================================================================= #
 
 
-def _check_population(population: PopulationHint, required_size: int) -> NoReturn:
+def _check_population(population: PopulationHint, required_size: int) -> PopulationHint:
     assert len(population) > 0, 'population must not be empty'
     assert len(population) == required_size, 'population size is invalid'
     assert all(isinstance(member, Member) for member in population), 'items in population are not members'
+    return population
 
 
-def _create_default_logbook(problem: EaProblem) -> Logbook:
-    logbook = Logbook('gen', 'evals')
-    logbook.register_stats_group('fit', StatsGroup(lambda pop: [m.fitness for m in pop], min=np.min, max=np.max, mean=np.mean))
-    # register problem stats
-    stat_groups = problem.get_stats_groups()
-    for k, v in (stat_groups if (stat_groups is not None) else {}).items():
-        logbook.register_stats_group(k, v)
-    # done!
-    return logbook
+def _get_batch_size(total: int) -> int:
+    resources = ray.available_resources()
+    if 'CPU' not in resources:
+        return total
+    else:
+        cpus = int(resources['CPU'])
+        batch_size = (total + cpus - 1) // cpus
+        return batch_size
+
+
+# ========================================================================= #
+# Functional Trainer                                                        #
+# ========================================================================= #
 
 
 def _evaluate_invalid(population: PopulationHint, eval_fn) -> int:
-    unevaluated = chunked([member for member in population if not member.is_evaluated], chunk_size=16)
-    fitnesses = [_evaluate_batch(batch, eval_fn) for batch in unevaluated]
+    unevaluated = [member for member in population if not member.is_evaluated]
+    unevaluated = chunked(unevaluated, chunk_size=_get_batch_size(len(unevaluated)))
+    # fetch values!
+    fitnesses = ray.get([_evaluate_batch.remote(batch, eval_fn) for batch in unevaluated])
     # update fitness values
     evaluations = 0
     for fitness_batch, member_batch in zip(fitnesses, unevaluated):
@@ -195,66 +168,82 @@ def _evaluate_invalid(population: PopulationHint, eval_fn) -> int:
     # update hall of fame
     return evaluations
 
-
+@ray.remote
 def _evaluate_batch(batch: PopulationHint, eval_fn) -> List[float]:
     return [eval_fn(member.value) for member in batch]
 
 
-def run_ea(
-    problem: EaProblem,
-    num_workers: int = min(os.cpu_count(), 16),
-    progress: bool = True,
-) -> Tuple[PopulationHint, Logbook, HallOfFame]:
-    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-    # INIT                              #
-    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-
-    assert isinstance(problem, EaProblem)
-    generations = problem.get_num_generations()
-
-    assert generations > 0
-    assert num_workers > 0
-
-    # instantiate helpers
-    halloffame = HallOfFame(n_best=5, maximize=True)
-    logbook = _create_default_logbook(problem=problem)
-
-    # get & check population
-    population = [Member(v) for v in problem.get_starting_population_values()]
+def yield_population_steps(module: EaModule):
+    # 1. create population
+    population = module.get_stating_population()
     population_size = len(population)
-    _check_population(population, required_size=population_size)
+    population = _check_population(population, required_size=population_size)
+    # 2. evaluate population
+    evaluations = _evaluate_invalid(population, eval_fn=module.evaluate_member)
 
-    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-    # RUN                               #
-    # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # yield initial population
+    yield 0, population, evaluations, population
 
-    # 0. evaluate population
-    evaluations = _evaluate_invalid(population, eval_fn=problem.evaluate_member)
+    # training loop
+    for i in range(1, module.num_generations+1):
+        # 1. generate offspring
+        offspring = module.generate_offspring(population)
+        # 2. evaluate
+        evaluations = _evaluate_invalid(offspring, eval_fn=module.evaluate_member)
+        # 3. select
+        population = module.select_population(population, offspring)
+        population = _check_population(population, required_size=population_size)
 
-    # update statistics with new population
-    halloffame.update(population)
-    logbook.record(population, gen=0, evals=evaluations)
+        # yield steps
+        yield i, offspring, evaluations, population
 
-    # run
-    with tqdm(range(1, generations+1), desc='generation', disable=not progress, ncols=120) as p:
-        for i in p:
-            # - - - - - - - - - - - - - - - - - #
-            # 1. generate offspring
-            offspring = problem.generate_offspring(population)
-            # 2. evaluate
-            evaluations = _evaluate_invalid(offspring, eval_fn=problem.evaluate_member)
-            # 3. select
-            population = problem.select_population(population, offspring)
-            _check_population(population, required_size=population_size)
-            # - - - - - - - - - - - - - - - - - #
-            # update statistics with new population
-            halloffame.update(offspring)
-            stats = logbook.record(population, gen=i, evals=evaluations)
-            # update progress bar
-            p.set_postfix(dict(evals=stats['evals'], fit_max=stats['fit:max']))
 
-    # done!
-    return population, logbook, halloffame
+# ========================================================================= #
+# Class Trainer                                                             #
+# ========================================================================= #
+
+
+class Trainer(object):
+
+    def __init__(
+        self,
+        num_workers: int = min(os.cpu_count(), 16),
+        progress: bool = True,
+        history_n_best: int = 5,
+    ):
+        self._num_workers = num_workers
+        self._progress = progress
+        self._history_n_best = history_n_best
+        assert self._num_workers > 0
+        assert self._history_n_best > 0
+
+    def fit(self, module: EaModule):
+        assert isinstance(module, EaModule)
+        # history trackers
+        logbook, halloffame = self._create_default_trackers(module)
+        # progress bar and training loop
+        with tqdm(total=module.num_generations+1, desc='generation', disable=not self._progress, ncols=120) as p:
+            for gen, offspring, evals, population in yield_population_steps(module):
+                # update statistics with new population
+                halloffame.update(offspring)
+                stats = logbook.record(population, gen=gen, evals=evals)
+                # update progress bar
+                p.update()
+                p.set_postfix(dict(evals=evals, fit_max=stats['fit:max']))
+        # done
+        return population, logbook, halloffame
+
+    def _create_default_trackers(self, module: EaModule):
+        halloffame = HallOfFame(
+            n_best=self._history_n_best,
+            maximize=True,
+        )
+        logbook = Logbook(
+            'gen', 'evals',
+            fit=StatsGroup(lambda pop: [m.fitness for m in pop], min=np.min, max=np.max, mean=np.mean),
+            **module.get_stats_groups()
+        )
+        return logbook, halloffame
 
 
 # ========================================================================= #
