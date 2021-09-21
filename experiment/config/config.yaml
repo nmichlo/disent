@@ -12,20 +12,20 @@ defaults:
   - run_length: tiny
   - run_location: cluster
   - run_callbacks: vis_slow
-  - run_logging: none
+  - run_logging: wandb
   # plugins
   - hydra/job_logging: colorlog
   - hydra/hydra_logging: colorlog
   - hydra/launcher: submitit_slurm
 
 job:
-  user: 'n_michlo'
-  project: 'DELETE'
+  user: 'npather'
+  project: 'disent_sweeps'
   name: '${framework.name}:${framework.module.recon_loss}|${dataset.name}:${sampling.name}|${trainer.steps}'
   partition: stampede
 
 framework:
-    beta: 0.002
+    beta: 0.001*range(1,3)
     gamma: 0.002
     module:
       recon_loss: mse4
