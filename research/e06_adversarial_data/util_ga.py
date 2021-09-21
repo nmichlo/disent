@@ -32,9 +32,12 @@ from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import List
+from typing import Optional
 from typing import Tuple
 
 import numpy as np
+import scipy
+from scipy.stats import mode
 from tqdm import tqdm
 
 from disent.util.iters import chunked
@@ -53,7 +56,9 @@ PopulationHint  = List['Member']
 EvalFnHint      = Callable[[Any], float]
 OffspringFnHint = Callable[[PopulationHint], PopulationHint]
 NextPopFnHint   = Callable[[PopulationHint, PopulationHint], PopulationHint]
-StatFnHint      = Callable[[PopulationHint], Any]
+
+ValueFnHint     = Callable[[Any], Any]
+StatFnHint      = Callable[[Any], Any]
 
 
 # ========================================================================= #
@@ -61,58 +66,88 @@ StatFnHint      = Callable[[PopulationHint], Any]
 # ========================================================================= #
 
 
+class StatsGroup(object):
+
+    def __init__(self, value_fn: ValueFnHint = None, **stats_fns: StatFnHint):
+        assert all(str.isidentifier(key) for key in stats_fns.keys())
+        assert stats_fns
+        self._value_fn = value_fn
+        self._stats_fns = stats_fns
+
+    @property
+    def keys(self) -> List[str]:
+        return list(self._stats_fns.keys())
+
+    def compute(self, value: Any) -> Dict[str, Any]:
+        if self._value_fn is not None:
+            value = self._value_fn(value)
+        return {
+            key: stat_fn(value)
+            for key, stat_fn in self._stats_fns.items()
+        }
+
+
 class Logbook(object):
 
-    def __init__(self, *external_keys: str, **population_stats: StatFnHint):
-        # combine
-        all_keys = tuple(population_stats.keys()) + tuple(external_keys)
-        # checks
-        assert all(str.isidentifier(key) for key in all_keys)
-        assert len(all_keys) == len(set(all_keys))
-        # save values
-        self._external_keys = tuple(external_keys)
-        self._population_stats = dict(population_stats)
-        self._stats = []
+    def __init__(self, *external_keys: str, **stats_groups: StatsGroup):
+        self._all_ordered_keys = []
+        self._external_keys = []
+        self._stats_groups = {}
+        self._history = []
+        # register values
+        for k in external_keys:
+            self.register_external_stat(k)
+        for k, v in stats_groups.items():
+            self.register_stats_group(k, v)
+
+    def _assert_key_valid(self, name: str):
+        if not str.isidentifier(name):
+            raise ValueError(f'stat name is not a valid identifier: {repr(name)}')
+        return name
+
+    def _assert_key_available(self, name: str):
+        if name in self._external_keys:
+            raise ValueError(f'external stat already named: {repr(name)}')
+        if name in self._stats_groups:
+            raise ValueError(f'stat group already named: {repr(name)}')
+        return name
 
     def register_external_stat(self, name: str):
-        if (name in self._population_stats) or (name in self._external_keys):
-            raise KeyError(f'stat with name: {repr(name)} already exists!')
-        self._external_keys = self._external_keys + (name,)
+        self._assert_key_available(self._assert_key_available(name))
+        # add stat
+        self._external_keys.append(name)
+        self._all_ordered_keys.append(name)
         return self
 
-    def register_population_stat(self, name: str, fn: StatFnHint):
-        if (name in self._population_stats) or (name in self._external_keys):
-            raise KeyError(f'stat with name: {repr(name)} already exists!')
-        self._population_stats[name] = fn
+    def register_stats_group(self, name: str, stats_group: StatsGroup):
+        self._assert_key_available(self._assert_key_available(name))
+        assert isinstance(stats_group, StatsGroup)
+        assert stats_group not in self._stats_groups.values()
+        # add stat group
+        self._stats_groups[name] = stats_group
+        self._all_ordered_keys.extend(f'{name}:{key}' for key in stats_group.keys)
         return self
 
-    def update(self, population: PopulationHint, **external_values):
+    def record(self, population: PopulationHint, **external_values):
         # extra stats
         if set(external_values.keys()) != set(self._external_keys):
             raise KeyError(f'required external_values: {sorted(self._external_keys)}, got: {sorted(external_values.keys())}')
+        # external values
+        stats = dict(external_values)
         # generate stats
-        stats = {
-            key: fn(population)
-            for key, fn in self._population_stats.items()
-        }
-        # add external values
-        for k in self._external_keys:
-            stats[k] = external_values[k]
-        # add keys
-        self._stats.append(stats)
+        for name, stat_group in self._stats_groups.items():
+            for key, value in stat_group.compute(population).items():
+                stats[f'{name}:{key}'] = value
+        # order stats
+        assert set(stats.keys()) == set(self._all_ordered_keys)
+        record = {k: stats[k] for k in self._all_ordered_keys}
+        # record and return stats
+        self._history.append(record)
+        return dict(record)
 
     @property
-    def stats(self) -> List[Dict[str, Any]]:
-        return list(self._stats)
-
-    def __len__(self) -> int:
-        return len(self._stats)
-
-    def __getitem__(self, idx: int) -> Dict[str, Any]:
-        return self._stats[idx]
-
-    def __iter__(self):
-        return self._stats.__iter__()
+    def history(self) -> List[Dict[str, Any]]:
+        return list(self._history)
 
 
 # ========================================================================= #
@@ -153,17 +188,24 @@ class BaseEA(object):
         evaluate_member: EvalFnHint,
         generate_offspring: OffspringFnHint,
         select_population: NextPopFnHint,
-        population_stats=None
+        stats_groups: Optional[Dict[str, StatsGroup]] = None
     ):
         super().__init__()
         self._evaluate_member = evaluate_member
         self._generate_offspring = generate_offspring
         self._select_population = select_population
-        self._population_stats = dict(population_stats) if (population_stats is not None) else {}
+        self._stats_groups = dict(stats_groups) if (stats_groups is not None) else {}
 
     def _check_population(self, population: PopulationHint, required_size: int):
         assert len(population) == required_size, 'population size is invalid'
         assert all(isinstance(member, Member) for member in population), 'items in population are not members'
+
+    def _create_default_logbook(self) -> Logbook:
+        return Logbook(
+            'gen', 'evals',
+            fit=StatsGroup(value_fn=lambda pop: [m.fitness for m in pop], min=np.min, max=np.max, mean=np.mean),
+            **self._stats_groups,
+        )
 
     def fit(
         self,
@@ -172,7 +214,7 @@ class BaseEA(object):
         progress: bool = True,
     ) -> (PopulationHint, Logbook, HallOfFame):
         # initialize
-        logbook = Logbook('generation', 'evaluations', **self._population_stats)
+        logbook = self._create_default_logbook()
         halloffame = HallOfFame(n_best=5, maximize=True)
         # get population
         population_size = len(population_values)
@@ -182,9 +224,9 @@ class BaseEA(object):
         evaluations = self.evaluate_invalid(population)
         halloffame.update(population)
         # update statistics
-        logbook.update(population, generation=0, evaluations=evaluations)
+        logbook.record(population, gen=0, evals=evaluations)
         # run
-        with tqdm(range(1, generations+1), 'generation') as progress:
+        with tqdm(range(1, generations+1), desc='generation', disable=not progress) as progress:
             for i in progress:
                 offspring = self._generate_offspring(population)
                 # evaluate population
@@ -194,7 +236,7 @@ class BaseEA(object):
                 population = self._select_population(population, offspring)
                 self._check_population(population, population_size)
                 # update statistics with new population
-                logbook.update(population, generation=i, evaluations=evaluations)
+                logbook.record(population, gen=i, evals=evaluations)
         # done!
         return population, logbook, halloffame
 
@@ -451,18 +493,13 @@ def onemax():
         evaluate_member=lambda value: value.mean(),
         generate_offspring=_gen,
         select_population=_sel,
-        population_stats={
-            'fitness_min':  lambda population: np.min([m.fitness for m in population]),
-            'fitness_max':  lambda population: np.max([m.fitness for m in population]),
-            'fitness_mean': lambda population: np.mean([m.fitness for m in population]),
-        }
     )
 
     population = [(np.random.random(10_000) < 0.5) for i in range(POPULATION_SIZE)]
 
     population, logbook, halloffame = ea.fit(population, generations=40, progress=True)
 
-    for entry in logbook:
+    for entry in logbook.history:
         print(entry)
 
 
