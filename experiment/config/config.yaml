@@ -18,14 +18,14 @@ defaults:
   - hydra/hydra_logging: colorlog
   - hydra/launcher: submitit_slurm
 
-job:
+job:ere
   user: 'npather'
-  project: 'disent_sweeps'
+  project: 'disent_sweep'
   name: '${framework.name}:${framework.module.recon_loss}|${dataset.name}:${sampling.name}|${trainer.steps}'
   partition: stampede
 
 framework:
-    beta: 0.001*range(1,3)
+    beta: 0.001, 0.1, 1
     gamma: 0.002
     module:
       recon_loss: mse4
