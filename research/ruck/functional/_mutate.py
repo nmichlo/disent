@@ -21,3 +21,34 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
+from typing import Any
+from typing import Callable
+
+import numpy as np
+
+
+# ========================================================================= #
+# Mutate                                                                    #
+# ========================================================================= #
+
+
+MutateFnHint = Callable[[Any], Any]
+
+
+def mutate_flip_bits(a: np.ndarray, p: float = 0.05):
+    return a ^ (np.random.random(a.shape) < p)
+
+
+def mutate_flip_bit_types(a: np.ndarray, p: float = 0.05):
+    if np.random.random() < 0.5:
+        # flip set bits
+        return a ^ ((np.random.random(a.shape) < p) & a)
+    else:
+        # flip unset bits
+        return a ^ ((np.random.random(a.shape) < p) & ~a)
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #
