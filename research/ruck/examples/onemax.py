@@ -28,9 +28,11 @@ import ray
 
 from disent.util.profiling import Timer
 from research.ruck import *
+from research.ruck import EaModule
+from research.ruck import PopulationHint
 
 
-class OneMaxProblem(EaModule):
+class OneMaxModule(EaModule):
 
     def __init__(
         self,
@@ -76,8 +78,9 @@ if __name__ == '__main__':
     # -- https://github.com/DEAP/deap/blob/master/examples/ga/onemax_numpy.py
 
     logging.basicConfig(level=logging.INFO)
-    ray.init(num_cpus=16)
+    # ray.init(num_cpus=16)
 
     with Timer('ruck:onemax'):
-        problem = OneMaxProblem(generations=4000, population_size=128, member_size=10_000)
-        run_ea(problem)
+        module = OneMaxModule(generations=40, population_size=1024, member_size=1_000_000)
+        trainer = Trainer(multiproc=False)
+        trainer.fit(module)

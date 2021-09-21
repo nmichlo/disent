@@ -26,7 +26,7 @@ import random
 from typing import Callable
 
 from disent.util.math.random import random_choice_prng
-from research.ruck._ea import PopulationHint
+from research.ruck import PopulationHint
 
 
 # ========================================================================= #

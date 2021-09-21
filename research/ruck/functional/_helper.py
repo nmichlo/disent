@@ -24,8 +24,8 @@
 
 import random
 
-from research.ruck._ea import Member
-from research.ruck._ea import PopulationHint
+from research.ruck import Member
+from research.ruck import PopulationHint
 from research.ruck.functional import MateFnHint
 from research.ruck.functional import MutateFnHint
 
