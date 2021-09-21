@@ -34,6 +34,7 @@ class OneMaxProblem(EaProblem):
 
     def __init__(
         self,
+        generations: int = 40,
         population_size: int = 128,
         member_size: int = 10_000,
         p_mate: float = 0.5,
@@ -41,6 +42,9 @@ class OneMaxProblem(EaProblem):
     ):
         super().__init__()
         self.save_hyperparameters()
+
+    def get_num_generations(self) -> int:
+        return self.hparams.generations
 
     def get_starting_population_values(self) -> PopulationHint:
         return [
@@ -74,5 +78,5 @@ if __name__ == '__main__':
     ray.init(num_cpus=16)
 
     with Timer('ruck:onemax'):
-        problem = OneMaxProblem(population_size=128, member_size=10_000)
-        run_ea(problem, generations=4000)
+        problem = OneMaxProblem(generations=4000, population_size=128, member_size=10_000)
+        run_ea(problem)

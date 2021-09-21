@@ -140,8 +140,13 @@ class EaProblem(object):
     def hparams(self):
         return self.__hparams
 
+    # OVERRIDE
+
     def get_stats_groups(self) -> Optional[Dict[str, StatsGroup]]:
         return None
+
+    def get_num_generations(self) -> int:
+        raise NotImplementedError
 
     def get_starting_population_values(self) -> PopulationHint:
         raise NotImplementedError
@@ -197,7 +202,6 @@ def _evaluate_batch(batch: PopulationHint, eval_fn) -> List[float]:
 
 def run_ea(
     problem: EaProblem,
-    generations: int = 100,
     num_workers: int = min(os.cpu_count(), 16),
     progress: bool = True,
 ) -> Tuple[PopulationHint, Logbook, HallOfFame]:
@@ -206,6 +210,8 @@ def run_ea(
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
     assert isinstance(problem, EaProblem)
+    generations = problem.get_num_generations()
+
     assert generations > 0
     assert num_workers > 0
 

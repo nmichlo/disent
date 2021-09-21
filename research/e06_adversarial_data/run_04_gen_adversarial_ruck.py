@@ -23,9 +23,15 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
+import os
+from datetime import datetime
+from typing import Optional
+
 import numpy as np
 
+from disent.util.inout.paths import ensure_parent_dir_exists
 from disent.util.profiling import Timer
+from disent.util.seeds import seed
 from research.e01_visual_overlap.util_compute_traversal_dists import cached_compute_all_factor_dist_matrices
 from research.e06_adversarial_data.run_04_gen_adversarial_genetic import _toolbox_eval_individual
 from research.e06_adversarial_data.run_04_gen_adversarial_genetic import individual_ave
@@ -35,17 +41,24 @@ from research.ruck.examples.onemax import OneMaxProblem
 import research.util as H
 
 
+log = logging.getLogger(__name__)
+
+
 class DatasetMaskProblem(OneMaxProblem):
 
     def __init__(
         self,
         dataset_name: str = 'cars3d',
         population_size: int = 128,
+        generations: int = 200,
         # optim settings
         factor_score_weight: float = -1000.0,
         factor_score_offset: float = 1.0,
         kept_ratio_weight: float = 1.0,
         kept_ratio_offset: float = 0.0,
+        # other settings
+        factor_score_mode: str = 'std',
+        factor_score_agg: str = 'mean',
         # ea settings
         p_mate: float = 0.5,
         p_mutate: float = 0.5,
@@ -67,8 +80,8 @@ class DatasetMaskProblem(OneMaxProblem):
             individual=value,
             gt_dist_matrices=self.gt_dist_matrices,
             factor_sizes=self.gt_data.factor_sizes,
-            fitness_mode='range',
-            obj_mode_aggregate='mean',
+            fitness_mode=self.hparams.factor_score_mode,
+            obj_mode_aggregate=self.hparams.factor_score_agg,
             exclude_diag=True,
         )
         return min(
@@ -79,18 +92,45 @@ class DatasetMaskProblem(OneMaxProblem):
 
 def run(
     dataset_name: str = 'xysquares_8x8_toy_s2',  # xysquares_8x8_toy_s4, xcolumns_8x_toy_s1
+    generations: int = 250,
+    population_size: int = 128,
+    factor_score_mode: str = 'std',
+    factor_score_agg: str = 'mean',
+    # save settings
+    save: bool = False,
+    save_prefix: str = '',
+    seed_: Optional[int] = None,
 ):
+    # save the starting time for the save path
+    time_string = datetime.today().strftime('%Y-%m-%d--%H-%M-%S')
+    log.info(f'Starting run at time: {time_string}')
+
+    # determinism
+    seed_ = seed_ if (seed_ is not None) else int(np.random.randint(1, 2**31-1))
+    seed(seed_)
+
+    # RUN
     with Timer('ruck:onemax'):
-        problem = DatasetMaskProblem(dataset_name=dataset_name)
-        population, logbook, halloffame = run_ea(problem, generations=250)
+        problem = DatasetMaskProblem(dataset_name=dataset_name, population_size=population_size, factor_score_mode=factor_score_mode, factor_score_agg=factor_score_agg, generations=generations)
+        population, logbook, halloffame = run_ea(problem)
 
     # plot average images
     H.plt_subplots_imshow(
         [[individual_ave(dataset_name, v) for v in halloffame.values]],
         col_labels=[f'{np.sum(v)} / {np.prod(v.shape)} |' for v in halloffame.values],
-        show=True, vmin=0.0, vmax=1.0
-        # title=f'{dataset_name}: g{num_generations} p{population_size} [{fitness_mode}, {objective_mode_aggregate}]',
+        show=True, vmin=0.0, vmax=1.0,
+        title=f'{dataset_name}: g{generations} p{population_size} [{factor_score_mode}, {factor_score_agg}]',
     )
+
+    # get save path, make parent dir & save!
+    if save:
+        job_name = f'{(save_prefix + "_" if save_prefix else "")}{dataset_name}_{generations}x{population_size}_{factor_score_mode}_{factor_score_agg}'
+        save_path = ensure_parent_dir_exists(ROOT_DIR, 'out/adversarial_mask', f'{time_string}_{job_name}_mask.npz')
+        log.info(f'saving mask data to: {save_path}')
+        np.savez(save_path, mask=halloffame.values[0], params=problem.hparams, seed=seed_)
+
+
+ROOT_DIR = os.path.abspath(__file__ + '/../../..')
 
 
 if __name__ == '__main__':
