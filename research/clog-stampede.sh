@@ -41,5 +41,4 @@ source "$(dirname "$(realpath -s "$0")")/helper.sh"
 # Experiment                                                                #
 # ========================================================================= #
 
-clog_cudaless_nodes batch 43200 "C-disent" # 12 hours
-
+clog_cudaless_nodes stampede 43200 "C-disent" # 12 hours
