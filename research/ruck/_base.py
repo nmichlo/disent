@@ -30,6 +30,8 @@ from typing import Dict
 from typing import List
 from typing import List
 
+import numpy as np
+
 from research.ruck._history import StatsGroup
 from research.ruck.util._args import HParamsMixin
 
@@ -98,13 +100,6 @@ PopulationHint  = List[Member]
 
 class EaModule(HParamsMixin):
 
-    # HELPER
-
-    def get_stating_population(self) -> PopulationHint:
-        start_values = self.get_starting_population_values()
-        assert len(start_values) > 0
-        return [Member(m) for m in start_values]
-
     # OVERRIDE
 
     def get_stats_groups(self) -> Dict[str, StatsGroup]:
@@ -114,7 +109,7 @@ class EaModule(HParamsMixin):
     def num_generations(self) -> int:
         raise NotImplementedError
 
-    def get_starting_population_values(self) -> List[Any]:
+    def gen_starting_population(self) -> PopulationHint:
         raise NotImplementedError
 
     def generate_offspring(self, population: PopulationHint) -> PopulationHint:

@@ -24,7 +24,6 @@
 
 import logging
 import numpy as np
-import ray
 
 from disent.util.profiling import Timer
 from research.ruck import *
@@ -49,9 +48,9 @@ class OneMaxModule(EaModule):
     def num_generations(self) -> int:
         return self.hparams.generations
 
-    def get_starting_population_values(self) -> PopulationHint:
+    def gen_starting_population(self) -> PopulationHint:
         return [
-            np.random.random(self.hparams.member_size) < 0.5
+            Member(np.random.random(self.hparams.member_size) < 0.5)
             for _ in range(self.hparams.population_size)
         ]
 

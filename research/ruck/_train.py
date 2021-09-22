@@ -109,10 +109,15 @@ def _evaluate_invalid(population: PopulationHint, eval_fn, multiproc: bool = Fal
 # ========================================================================= #
 
 def yield_population_steps(module: EaModule, multiproc: bool = True):
+    # TODO: this should be using ray.put and ray.get instead of transferring data around! About 3x slower because of this
+    # TODO: this should be using ray.put and ray.get instead of transferring data around! About 3x slower because of this
+    # TODO: this should be using ray.put and ray.get instead of transferring data around! About 3x slower because of this
+
     # 1. create population
-    population = module.get_stating_population()
+    population = module.gen_starting_population()
     population_size = len(population)
     population = _check_population(population, required_size=population_size)
+
     # 2. evaluate population
     evaluations = _evaluate_invalid(population, eval_fn=module.evaluate_member, multiproc=multiproc)
 
