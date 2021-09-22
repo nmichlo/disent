@@ -81,7 +81,7 @@ def _get_dataset_and_vae(trainer: pl.Trainer, pl_module: pl.LightningModule, unw
     if unwrap_groundtruth:
         if dataset.is_wrapped_gt_data:
             old_dataset, dataset = dataset, dataset.unwrapped_disent_dataset()
-            log.warning(f'Unwrapped ground truth dataset returned! {type(old_dataset).__name__} -> {type(dataset).__name__}')
+            warnings.warn(f'Unwrapped ground truth dataset returned! {type(old_dataset.data).__name__} -> {type(dataset.data).__name__}')
     # done checks
     return dataset, pl_module
 

@@ -237,11 +237,21 @@ ROOT_DIR = os.path.abspath(__file__ + '/../../..')
 def main():
     from itertools import product
 
+    # values for ~50%
+    # cars3d -15
+    # smallnorb -35
+
+    # for (factor_score_agg, factor_score_mode, (dataset_name, factor_score_weight)) in product(
+    #     ['mean'],
+    #     ['range'],
+    #     [('cars3d', -15), ('smallnorb', -34)]
+    # ):
+
     for (factor_score_agg, factor_score_mode, dataset_name, factor_score_weight) in product(
         ['mean'], #, 'max', 'gmean'],
         ['range'], #, 'std'],
-        ['cars3d', 'smallnorb'], #, 'shapes3d', 'dsprites'],
-        [-3.0, -10],
+        ['cars3d', 'smallnorb', 'shapes3d', 'dsprites'],
+        [-1, -5, -15, -34],
     ):
         print('='*100)
         print(f'[STARTING]: dataset_name={repr(dataset_name)} factor_score_mode={repr(factor_score_mode)} factor_score_agg={repr(factor_score_agg)} factor_score_weight={repr(factor_score_weight)}')

@@ -24,9 +24,9 @@ wandb>=0.10.32
 
 # UTILITY
 # =======
-hydra-core==1.0.6  # includes omegaconf
+hydra-core==1.0.7  # includes omegaconf
 hydra-colorlog==1.0.1
-hydra-submitit-launcher==1.1.1
+hydra-submitit-launcher==1.1.5
 
 
 # MISSING DEPS - these are imported or referened (_target_) in /experiments, but not included here OR in requirements.txt
