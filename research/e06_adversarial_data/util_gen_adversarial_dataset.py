@@ -22,6 +22,11 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+"""
+General helper utilities for generating
+adversarial datasets using triplet sampling.
+"""
+
 import logging
 from typing import Literal
 from typing import Optional

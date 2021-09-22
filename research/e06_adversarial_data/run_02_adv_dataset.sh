@@ -2,7 +2,7 @@
 
 # TODO: fix this!
 # TODO: this is out of date
-python3 run_04_gen_adversarial_dataset.py \
+python3 run_02_gen_adversarial_dataset.py \
     -m \
     framework.sampler_name=same_k,close_far,same_factor,random_bb \
     framework.loss_mode=self,const,invert \
