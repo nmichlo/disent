@@ -1,0 +1,17 @@
+# @package _group_
+name: mask_ran_smallnorb
+data:
+  _target_: disent.dataset.wrapper.MaskedDataset
+  mask: '${env:HOME}/workspace/research/disent/out/adversarial_mask/2021-09-22--13-00-29_EXPERIMENT2_smallnorb_0.49x24300_1000x128_range_mean_-34_1.0_mask.npz'
+  randomize: TRUE
+  data:
+    _target_: disent.dataset.data.SmallNorbData
+    data_root: ${dataset.data_root}
+    prepare: True
+    is_test: False
+transform:
+  _target_: disent.nn.transform.ToStandardisedTensor
+  size: 64
+x_shape: [1, 64, 64]
+
+data_type: random
