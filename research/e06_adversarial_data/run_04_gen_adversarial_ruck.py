@@ -26,6 +26,7 @@ import logging
 import os
 import warnings
 from datetime import datetime
+from typing import Dict
 from typing import Optional
 from typing import Tuple
 
@@ -44,6 +45,7 @@ from research.ruck import EaModule
 from research.ruck import PopulationHint
 
 import research.util as H
+from research.ruck._history import StatsGroup
 
 
 log = logging.getLogger(__name__)
@@ -149,6 +151,14 @@ class DatasetMaskModule(EaModule):
             for _ in range(self.hparams.population_size)
         ]
 
+    def get_stats_groups(self) -> Dict[str, StatsGroup]:
+        return {
+            'mask': StatsGroup(lambda pop: [np.mean(m.value) for m in pop], min=np.min, max=np.max, mean=np.mean),
+        }
+
+    def get_progress_stats(self):
+        return ('evals', 'fit:mean', 'mask:mean')
+
     @property
     def num_generations(self) -> int:
         return self.hparams.generations
@@ -203,9 +213,14 @@ def run(
         title=f'{dataset_name}: g{generations} p{population_size} [{factor_score_mode}, {factor_score_agg}]',
     )
 
+    # get totals
+    use_elems = np.sum(halloffame.values[0])
+    num_elems = np.prod(halloffame.values[0].shape)
+    use_ratio = (use_elems / num_elems)
+
     # get save path, make parent dir & save!
     if save:
-        job_name = f'{(save_prefix + "_" if save_prefix else "")}{dataset_name}_{generations}x{population_size}_{factor_score_mode}_{factor_score_agg}_{factor_score_weight}_{kept_ratio_weight}'
+        job_name = f'{(save_prefix + "_" if save_prefix else "")}{dataset_name}_{use_ratio:.2f}x{num_elems}_{generations}x{population_size}_{factor_score_mode}_{factor_score_agg}_{factor_score_weight}_{kept_ratio_weight}'
         save_path = ensure_parent_dir_exists(ROOT_DIR, 'out/adversarial_mask', f'{time_string}_{job_name}_mask.npz')
         log.info(f'saving mask data to: {save_path}')
         np.savez(save_path, mask=halloffame.values[0], params=problem.hparams, seed=seed_)
@@ -225,8 +240,8 @@ def main():
     for (factor_score_agg, factor_score_mode, dataset_name, factor_score_weight) in product(
         ['mean'], #, 'max', 'gmean'],
         ['range'], #, 'std'],
-        ['cars3d', 'smallnorb', 'shapes3d', 'dsprites'],
-        [-1.0, -30.0, -1000.0],
+        ['cars3d', 'smallnorb'], #, 'shapes3d', 'dsprites'],
+        [-3.0, -10],
     ):
         print('='*100)
         print(f'[STARTING]: dataset_name={repr(dataset_name)} factor_score_mode={repr(factor_score_mode)} factor_score_agg={repr(factor_score_agg)} factor_score_weight={repr(factor_score_weight)}')
@@ -239,7 +254,7 @@ def main():
                 generations=1000,
                 seed_=42,
                 save=True,
-                save_prefix='EXPERIMENT',
+                save_prefix='EXPERIMENT2',
             )
         except KeyboardInterrupt:
             warnings.warn('Exiting early')
