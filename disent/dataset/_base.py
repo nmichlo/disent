@@ -34,6 +34,7 @@ from torch.utils.data.dataloader import default_collate
 from disent.dataset.sampling import BaseDisentSampler
 from disent.dataset.data import GroundTruthData
 from disent.dataset.sampling import SingleSampler
+from disent.dataset.wrapper import WrappedDataset
 from disent.util.iters import LengthIter
 from disent.util.math.random import random_choice_prng
 
@@ -57,6 +58,15 @@ def groundtruth_only(func):
     def wrapper(self: 'DisentDataset', *args, **kwargs):
         if not self.is_ground_truth:
             raise NotGroundTruthDataError(f'Check `is_ground_truth` first before calling `{func.__name__}`, the dataset wrapped by {repr(self.__class__.__name__)} is not a {repr(GroundTruthData.__name__)}, instead got: {repr(self._dataset)}.')
+        return func(self, *args, **kwargs)
+    return wrapper
+
+
+def wrapped_only(func):
+    @wraps(func)
+    def wrapper(self: 'DisentDataset', *args, **kwargs):
+        if not self.is_wrapped_data:
+            raise NotGroundTruthDataError(f'Check `is_data_wrapped` first before calling `{func.__name__}`, the dataset wrapped by {repr(self.__class__.__name__)} is not a {repr(WrappedDataset.__name__)}, instead got: {repr(self._dataset)}.')
         return func(self, *args, **kwargs)
     return wrapper
 
@@ -113,6 +123,45 @@ class DisentDataset(Dataset, LengthIter):
     def gt_data(self) -> GroundTruthData:
         # TODO: deprecate this or the long version
         return self._dataset
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Wrapped Dataset                                                       #
+    # -- TODO: this is a bit hacky                                          #
+    # -- Allows us to compute disentanglement metrics over datasets         #
+    #    derived from ground truth data                                     #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    @property
+    def is_wrapped_data(self):
+        return isinstance(self._dataset, WrappedDataset)
+
+    @property
+    def is_wrapped_gt_data(self):
+        return isinstance(self._dataset, WrappedDataset) and isinstance(self._dataset.data, GroundTruthData)
+
+    @property
+    @wrapped_only
+    def wrapped_data(self):
+        self._dataset: WrappedDataset
+        return self._dataset.data
+
+    @property
+    @wrapped_only
+    def wrapped_gt_data(self):
+        self._dataset: WrappedDataset
+        return self._dataset.gt_data
+
+    @wrapped_only
+    def unwrapped_disent_dataset(self) -> 'DisentDataset':
+        sampler = self._sampler.uninit_copy()
+        assert type(sampler) is type(self._sampler)
+        return DisentDataset(
+            dataset=self.wrapped_data,
+            sampler=sampler,
+            transform=self._transform,
+            augment=self._augment,
+            return_indices=self._return_indices,
+        )
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Dataset                                                               #

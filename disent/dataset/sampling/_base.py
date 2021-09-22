@@ -33,6 +33,9 @@ from typing import Tuple
 
 class BaseDisentSampler(object):
 
+    def uninit_copy(self) -> 'BaseDisentSampler':
+        raise NotImplementedError
+
     def __init__(self, num_samples: int):
         self._num_samples = num_samples
 

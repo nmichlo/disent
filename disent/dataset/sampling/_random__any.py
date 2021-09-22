@@ -35,6 +35,9 @@ from disent.dataset.sampling._base import BaseDisentSampler
 
 class RandomSampler(BaseDisentSampler):
 
+    def uninit_copy(self) -> 'RandomSampler':
+        return RandomSampler(num_samples=self.num_samples)
+
     def __init__(self, num_samples=1):
         super().__init__(num_samples=num_samples)
 

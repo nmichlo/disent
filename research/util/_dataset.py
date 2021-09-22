@@ -34,8 +34,7 @@ from typing import Union
 
 import numpy as np
 import torch
-from torch.utils.data import BatchSampler
-from torch.utils.data import Sampler
+import torch.utils.data
 
 from disent.dataset import DisentDataset
 from disent.dataset.data import Cars3dData
@@ -432,7 +431,7 @@ def generate_epochs_batch_idxs(num_obs: int, num_epochs: int, num_epoch_batches:
 # ========================================================================= #
 
 
-class StochasticSampler(Sampler):
+class StochasticSampler(torch.utils.data.Sampler):
     """
     Sample random batches, not guaranteed to be unique or cover the entire dataset in one epoch!
     """
@@ -465,7 +464,7 @@ def yield_dataloader(dataloader: torch.utils.data.DataLoader, steps: int):
 
 
 def StochasticBatchSampler(data_source: Union[Sized, int], batch_size: int):
-    return BatchSampler(
+    return torch.utils.data.BatchSampler(
         sampler=StochasticSampler(data_source=data_source, batch_size=batch_size),
         batch_size=batch_size,
         drop_last=True

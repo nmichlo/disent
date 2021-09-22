@@ -34,6 +34,12 @@ from disent.util.math.random import sample_radius as sample_radius_fn
 
 class RandomEpisodeSampler(BaseDisentSampler):
 
+    def uninit_copy(self) -> 'RandomEpisodeSampler':
+        return RandomEpisodeSampler(
+            num_samples=self.num_samples,
+            sample_radius=self._sample_radius,
+        )
+
     def __init__(self, num_samples=1, sample_radius=None):
         super().__init__(num_samples=num_samples)
         self._sample_radius = sample_radius

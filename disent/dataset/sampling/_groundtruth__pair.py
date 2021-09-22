@@ -36,6 +36,12 @@ from disent.util.math.random import sample_radius
 
 class GroundTruthPairSampler(BaseDisentSampler):
 
+    def uninit_copy(self) -> 'GroundTruthPairSampler':
+        return GroundTruthPairSampler(
+            p_k_range=self.p_k_range,
+            p_radius_range=self.p_radius_range,
+        )
+
     def __init__(
             self,
             # factor sampling

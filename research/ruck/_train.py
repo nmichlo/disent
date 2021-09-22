@@ -168,7 +168,7 @@ class Trainer(object):
                 stats = logbook.record(population, gen=gen, evals=evals)
                 # update progress bar
                 p.update()
-                p.set_postfix(dict(evals=evals, fit_max=stats['fit:max']))
+                p.set_postfix({k: stats[k] for k in module.get_progress_stats()})
         # done
         return population, logbook, halloffame
 

@@ -69,6 +69,8 @@ class Member(object):
     def fitness(self, value):
         if self.is_evaluated:
             raise MemberAlreadyEvaluatedError('The member has already been evaluated, the fitness can only ever be set once. Create a new member instead!')
+        if np.isnan(value):
+            raise ValueError('fitness values cannot be NaN, this is an error!')
         self._fitness = value
 
     @property
@@ -104,6 +106,9 @@ class EaModule(HParamsMixin):
 
     def get_stats_groups(self) -> Dict[str, StatsGroup]:
         return {}
+
+    def get_progress_stats(self):
+        return ('evals', 'fit:max',)
 
     @property
     def num_generations(self) -> int:

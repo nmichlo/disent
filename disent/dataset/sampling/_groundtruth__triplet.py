@@ -42,6 +42,19 @@ log = logging.getLogger(__name__)
 
 class GroundTruthTripleSampler(BaseDisentSampler):
 
+    def uninit_copy(self) -> 'GroundTruthTripleSampler':
+        return GroundTruthTripleSampler(
+            p_k_range=self.p_k_range,
+            n_k_range=self.n_k_range,
+            n_k_sample_mode=self.n_k_sample_mode,
+            n_k_is_shared=self.n_k_is_shared,
+            p_radius_range=self.p_radius_range,
+            n_radius_range=self.n_radius_range,
+            n_radius_sample_mode=self.n_radius_sample_mode,
+            swap_metric=self._swap_metric,
+            swap_chance=self._swap_chance,
+        )
+
     def __init__(
             self,
             # factor sampling
