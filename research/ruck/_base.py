@@ -73,6 +73,15 @@ class Member(object):
     def is_evaluated(self) -> bool:
         return (self._fitness is not None)
 
+    def __str__(self):
+        return repr(self)
+
+    def __repr__(self):
+        if self.is_evaluated:
+            return f'{self.__class__.__name__}<{self.fitness}>'
+        else:
+            return f'{self.__class__.__name__}<>'
+
 
 # ========================================================================= #
 # Population                                                                #
