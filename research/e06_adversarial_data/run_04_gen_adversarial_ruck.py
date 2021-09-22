@@ -222,11 +222,11 @@ ROOT_DIR = os.path.abspath(__file__ + '/../../..')
 def main():
     from itertools import product
 
-    for (factor_score_agg, factor_score_mode, factor_score_weight, dataset_name) in product(
-        ['mean', 'max', 'gmean'],
-        ['range', 'std'],
-        [-1000.0, -10.0],
+    for (factor_score_agg, factor_score_mode, dataset_name, factor_score_weight) in product(
+        ['mean'], #, 'max', 'gmean'],
+        ['range'], #, 'std'],
         ['cars3d', 'smallnorb', 'shapes3d', 'dsprites'],
+        [-1.0, -30.0, -1000.0],
     ):
         print('='*100)
         print(f'[STARTING]: dataset_name={repr(dataset_name)} factor_score_mode={repr(factor_score_mode)} factor_score_agg={repr(factor_score_agg)} factor_score_weight={repr(factor_score_weight)}')
