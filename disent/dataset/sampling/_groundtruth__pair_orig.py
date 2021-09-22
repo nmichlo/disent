@@ -29,6 +29,11 @@ from disent.dataset.sampling._base import BaseDisentSampler
 
 class GroundTruthPairOrigSampler(BaseDisentSampler):
 
+    def uninit_copy(self) -> 'GroundTruthPairOrigSampler':
+        return GroundTruthPairOrigSampler(
+            p_k=self.p_k
+        )
+
     def __init__(
             self,
             # num_differing_factors

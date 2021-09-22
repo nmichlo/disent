@@ -37,6 +37,9 @@ log = logging.getLogger(__name__)
 
 class GroundTruthSingleSampler(BaseDisentSampler):
 
+    def uninit_copy(self) -> 'GroundTruthSingleSampler':
+        return GroundTruthSingleSampler()
+
     def __init__(self):
         super().__init__(num_samples=1)
 

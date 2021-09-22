@@ -54,9 +54,13 @@ log = logging.getLogger(__name__)
 
 class AdversarialSampler_SwappedRandom(BaseDisentSampler):
 
+    def uninit_copy(self) -> 'AdversarialSampler_SwappedRandom':
+        return AdversarialSampler_SwappedRandom(swap_metric=self._swap_metric)
+
     def __init__(self, swap_metric='manhattan'):
         super().__init__(3)
         assert swap_metric in {'k', 'manhattan', 'manhattan_norm', 'euclidean', 'euclidean_norm'}
+        self._swap_metric = swap_metric
         self._sampler = GroundTruthTripleSampler(swap_metric=swap_metric)
         self._gt_data: GroundTruthData = None
 
@@ -77,6 +81,14 @@ class AdversarialSampler_SwappedRandom(BaseDisentSampler):
 
 class AdversarialSampler_CloseFar(BaseDisentSampler):
 
+    def uninit_copy(self) -> 'AdversarialSampler_CloseFar':
+        return AdversarialSampler_CloseFar(
+            p_k_range=self._p_k_range,
+            p_radius_range=self._p_radius_range,
+            n_k_range=self._n_k_range,
+            n_radius_range=self._n_radius_range,
+        )
+
     def __init__(
         self,
         p_k_range=(1, 1),
@@ -85,6 +97,10 @@ class AdversarialSampler_CloseFar(BaseDisentSampler):
         n_radius_range=(1, -1),
     ):
         super().__init__(3)
+        self._p_k_range = p_k_range
+        self._p_radius_range = p_radius_range
+        self._n_k_range = n_k_range
+        self._n_radius_range = n_radius_range
         self.sampler_close = GroundTruthPairSampler(p_k_range=p_k_range, p_radius_range=p_radius_range)
         self.sampler_far = GroundTruthPairSampler(p_k_range=n_k_range, p_radius_range=n_radius_range)
 
@@ -102,6 +118,12 @@ class AdversarialSampler_CloseFar(BaseDisentSampler):
 
 
 class AdversarialSampler_SameK(BaseDisentSampler):
+
+    def uninit_copy(self) -> 'AdversarialSampler_SameK':
+        return AdversarialSampler_SameK(
+            k=self._k,
+            sample_p_close=self._sample_p_close,
+        )
 
     def __init__(self, k: Union[Literal['random'], int] = 'random', sample_p_close: bool = False):
         super().__init__(3)
