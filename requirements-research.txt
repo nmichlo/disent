@@ -11,3 +11,4 @@
 # seaborn
 
 ray==1.6.0
+matplotlib==3.4.3
