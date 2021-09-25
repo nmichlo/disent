@@ -95,6 +95,56 @@ def eval_factor_fitness_numpy(
 
 
 @njit
+def eval_factor_fitness_numba__std_nodiag(
+    mask: np.ndarray,
+    f_dists: np.ndarray,
+):
+    """
+    This is about 10x faster than the built in numpy version
+    """
+    assert f_dists.shape == (*mask.shape, mask.shape[-1])
+    # totals
+    total = 0.0
+    count = 0
+    # iterate over values -- np.ndindex is usually quite fast
+    for I in np.ndindex(mask.shape[:-1]):
+        # mask is broadcast to the distance matrix
+        m_row = mask[I]
+        d_mat = f_dists[I]
+        # handle each distance matrix -- enumerate is usually faster than range
+        for i, m in enumerate(m_row):
+            if not m:
+                continue
+            # init vars
+            dists = d_mat[i]
+            n = 0
+            s = 0.0
+            s2 = 0.0
+            # handle each row -- enumerate is usually faster than range
+            for j, d in enumerate(dists):
+                if i == j:
+                    continue
+                if not m_row[j]:
+                    continue
+                n += 1
+                s += d
+                s2 += d*d
+            # ^^^ END j
+            # update total
+            if n > 0:
+                mean2 = (s / n) * (s / n)
+                m2 = s2 / n
+                if m2 > mean2:
+                    total += np.sqrt(m2 - mean2)
+                count += 1
+        # ^^^ END i
+    if count == 0:
+        return -1
+    else:
+        return total / count
+
+
+@njit
 def eval_factor_fitness_numba__range_nodiag(
     mask: np.ndarray,
     f_dists: np.ndarray,
@@ -139,7 +189,10 @@ def eval_factor_fitness_numba__range_nodiag(
                 total += (M - m)
                 count += 1
         # ^^^ END i
-    return total / count
+    if count == 0:
+        return -1
+    else:
+        return total / count
 
 
 def eval_factor_fitness_numba(
@@ -155,13 +208,16 @@ def eval_factor_fitness_numba(
         - eval_factor_fitness_numpy
         - eval_factor_fitness_numba__range_nodiag
     """
-    assert fitness_mode == 'range', 'fast version of eval only supports `fitness_mode="range"`'
     assert exclude_diag, 'fast version of eval only supports `exclude_diag=True`'
+    # usually a view
+    mask = np.moveaxis(individual.reshape(factor_sizes), f_idx, -1)
     # call
-    return eval_factor_fitness_numba__range_nodiag(
-        mask=np.moveaxis(individual.reshape(factor_sizes), f_idx, -1),  # usually a view
-        f_dists=f_dist_matrices,
-    )
+    if fitness_mode == 'range':
+        return eval_factor_fitness_numba__range_nodiag(mask=mask, f_dists=f_dist_matrices)
+    elif fitness_mode == 'std':
+        return eval_factor_fitness_numba__std_nodiag(mask=mask, f_dists=f_dist_matrices)
+    else:
+        raise KeyError(f'fast version of eval only supports `fitness_mode in ("range", "std")`, got: {repr(fitness_mode)}')
 
 
 # ========================================================================= #
@@ -198,14 +254,18 @@ def eval_individual(
 # ========================================================================= #
 
 
-def _check_equal(dataset_name: str = 'dsprites', n: int = 5):
+def _check_equal(
+    dataset_name: str = 'dsprites',
+    fitness_mode: str = 'std',  # range, std
+    n: int = 5,
+):
     from research.e01_visual_overlap.util_compute_traversal_dists import cached_compute_all_factor_dist_matrices
     from timeit import timeit
     import research.util as H
 
     # load data
     gt_data = H.make_data(dataset_name)
-    print(dataset_name, gt_data.factor_sizes)
+    print(f'{dataset_name} {gt_data.factor_sizes} : {fitness_mode}')
 
     # get distances & individual
     all_dist_matrices = cached_compute_all_factor_dist_matrices(dataset_name)  # SHAPE FOR: s=factor_sizes, i=f_idx | (*s[:i], *s[i+1:], s[i], s[i])
@@ -217,7 +277,7 @@ def _check_equal(dataset_name: str = 'dsprites', n: int = 5):
             f_idx=f_idx,
             f_dist_matrices=all_dist_matrices[f_idx],
             factor_sizes=gt_data.factor_sizes,
-            fitness_mode='range',
+            fitness_mode=fitness_mode,
             exclude_diag=True,
         )
 
@@ -232,14 +292,17 @@ def _check_equal(dataset_name: str = 'dsprites', n: int = 5):
     old_time = timeit(lambda: eval_all(eval_factor_fitness_numpy), number=n) / n
     print(f'- OLD {old_time:.5f}s {old_vals}')
     print(f'* speedup: {np.around(old_time/new_time, decimals=2)}x')
-    print()
 
 
 if __name__ == '__main__':
-    _check_equal('cars3d')
-    _check_equal('smallnorb')
-    _check_equal('shapes3d')
-    _check_equal('dsprites')
+
+    for dataset_name in ['cars3d', 'smallnorb', 'shapes3d', 'dsprites']:
+        print('='*100)
+        _check_equal(dataset_name, fitness_mode='std')
+        print()
+        _check_equal(dataset_name, fitness_mode='range')
+        print('='*100)
+
 
 
 # ========================================================================= #

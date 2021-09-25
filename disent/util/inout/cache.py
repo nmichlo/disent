@@ -79,9 +79,9 @@ class stalefile(object):
             log.info(f'file is stale because it does not exist: {repr(self.file)}')
             return True
         if fhash != self.hash:
-            log.info(f'file is stale because the computed {self.hash_mode} {self.hash_type} hash: {fhash} does not match the target hash: {self.hash} for file: {repr(self.file)}')
+            log.warning(f'file is stale because the computed {self.hash_mode} {self.hash_type} hash: {fhash} does not match the target hash: {self.hash} for file: {repr(self.file)}')
             return True
-        log.info(f'file is fresh: {repr(self.file)}')
+        log.debug(f'file is fresh: {repr(self.file)}')
         return False
 
     def __bool__(self):
