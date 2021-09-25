@@ -293,7 +293,7 @@ class GlobalMaskDataGA(BooleanMaskGA):
 def individual_ave(dataset_name: str, individual, print_=False):
     sub_data = MaskedDataset(
         data=H.make_data(dataset_name, transform_mode='none'),
-        mask_or_indices=individual.flatten(),
+        mask=individual.flatten(),
     )
     if print_:
         print(', '.join(f'{individual.reshape(sub_data._data.factor_sizes).sum(axis=f_idx).mean():2f}' for f_idx in range(sub_data._data.num_factors)))
@@ -374,7 +374,7 @@ def main():
                         num_generations=25,
                         seed_=42,
                         save=True,
-                        n_jobs=min(os.cpu_count(), 64),
+                        n_jobs=min(os.cpu_count(), 16),
                         fitness_mode=fitness_mode,
                         objective_mode_aggregate=objective_mode_aggregate,
                         save_prefix='RANDOM',

@@ -180,7 +180,7 @@ def eval_individual(
 ) -> Tuple[float, float]:
     # evaluate all factors
     factor_scores = np.array([
-        [eval_factor_fitness_numpy(individual, f_idx, f_dist_matrices, factor_sizes=factor_sizes, fitness_mode=fitness_mode, exclude_diag=exclude_diag)]
+        [eval_factor_fitness_fn(individual, f_idx, f_dist_matrices, factor_sizes=factor_sizes, fitness_mode=fitness_mode, exclude_diag=exclude_diag)]
         for f_idx, f_dist_matrices in enumerate(gt_dist_matrices)
     ])
     # aggregate

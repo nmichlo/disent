@@ -44,8 +44,8 @@ from disent.util.inout.paths import ensure_parent_dir_exists
 from disent.util.profiling import Timer
 from disent.util.seeds import seed
 from research.e01_visual_overlap.util_compute_traversal_dists import cached_compute_all_factor_dist_matrices
-from research.e06_adversarial_data.run_04_gen_adversarial_genetic import _toolbox_eval_individual
 from research.e06_adversarial_data.run_04_gen_adversarial_genetic import individual_ave
+from research.e06_adversarial_data.util_eval_adversarial import eval_individual, eval_factor_fitness_numba
 
 
 log = logging.getLogger(__name__)
@@ -67,7 +67,8 @@ def evaluate_member(
     factor_score_mode: str,
     factor_score_agg: str,
 ) -> float:
-    factor_score, kept_ratio = _toolbox_eval_individual(
+    factor_score, kept_ratio = eval_individual(
+        eval_factor_fitness_fn=eval_factor_fitness_numba,
         individual=value,
         gt_dist_matrices=gt_dist_matrices,
         factor_sizes=factor_sizes,
@@ -114,7 +115,7 @@ class DatasetMaskModule(ruck.EaModule):
         }
 
     def get_progress_stats(self):
-        return ('evals', 'fit:max', 'mask:max')
+        return ('evals', 'fit:max', 'fit:mean', 'mask:mean')
 
     # POPULATION
 
@@ -198,16 +199,18 @@ def run(
     save: bool = False,
     save_prefix: str = '',
     seed_: Optional[int] = None,
+    # plot settings
+    plot: bool = False,
 ):
     # save the starting time for the save path
     time_string = datetime.today().strftime('%Y-%m-%d--%H-%M-%S')
     log.info(f'Starting run at time: {time_string}')
 
-    # determinism
+    # deterministic? This might not actually work with ray
     seed_ = seed_ if (seed_ is not None) else int(np.random.randint(1, 2**31-1))
     seed(seed_)
 
-    # RUN
+    # run!
     with Timer('ruck:onemax'):
         problem = DatasetMaskModule(
             dataset_name=dataset_name,
@@ -217,30 +220,37 @@ def run(
             factor_score_weight=factor_score_weight,
             kept_ratio_weight=kept_ratio_weight,
         )
+        # train
         population, logbook, halloffame = ruck.Trainer(generations=generations, progress=True).fit(problem)
+        # retrieve stats
+        log.info(f'start population: {logbook[0]}')
+        log.info(f'end population: {logbook[-1]}')
+        values = [ray.get(m.value) for m in halloffame]
 
     # plot average images
-    H.plt_subplots_imshow(
-        [[individual_ave(dataset_name, m.value) for m in halloffame]],
-        col_labels=[f'{np.sum(m.value)} / {np.prod(m.value.shape)} |' for m in halloffame],
-        show=True, vmin=0.0, vmax=1.0,
-        title=f'{dataset_name}: g{generations} p{population_size} [{factor_score_mode}, {factor_score_agg}]',
-    )
+    if plot:
+        H.plt_subplots_imshow(
+            [[individual_ave(dataset_name, v) for v in values]],
+            col_labels=[f'{np.sum(v)} / {np.prod(v.shape)} |' for v in values],
+            show=True, vmin=0.0, vmax=1.0,
+            title=f'{dataset_name}: g{generations} p{population_size} [{factor_score_mode}, {factor_score_agg}]',
+        )
 
-    # get totals
-    use_elems = np.sum(halloffame[0].value)
-    num_elems = np.prod(halloffame[0].value.shape)
-    use_ratio = (use_elems / num_elems)
-
-    # get save path, make parent dir & save!
     if save:
+        # get totals
+        use_elems = np.sum(values[0])
+        num_elems = np.prod(values[0].shape)
+        use_ratio = (use_elems / num_elems)
+        # get save path, make parent dir & save!
         job_name = f'{(save_prefix + "_" if save_prefix else "")}{dataset_name}_{use_ratio:.2f}x{num_elems}_{generations}x{population_size}_{factor_score_mode}_{factor_score_agg}_{factor_score_weight}_{kept_ratio_weight}'
         save_path = ensure_parent_dir_exists(ROOT_DIR, 'out/adversarial_mask', f'{time_string}_{job_name}_mask.npz')
         log.info(f'saving mask data to: {save_path}')
-        np.savez(save_path, mask=halloffame[0].value, params=problem.hparams, seed=seed_)
-
-ruck.R.apply_mate
-
+        np.savez(save_path, mask=values[0], params=problem.hparams, seed=seed_)
+        # return the path
+        return save_path
+    else:
+        # return the value
+        return values[0]
 
 # ========================================================================= #
 # ENTRYPOINT                                                                #
@@ -266,8 +276,8 @@ def main():
     for (factor_score_agg, factor_score_mode, dataset_name, factor_score_weight) in product(
         ['mean'], #, 'max', 'gmean'],
         ['range'], #, 'std'],
-        ['shapes3d'], # , 'cars3d', 'smallnorb', 'shapes3d', 'dsprites'],
-        [-15], # , -5, -15, -34],
+        ['xysquares_8x8_toy_s2'], # , 'cars3d', 'smallnorb', 'shapes3d', 'dsprites'],
+        [-1], # , -5, -15, -34],
     ):
         # print('='*100)
         # print(f'[STARTING]: dataset_name={repr(dataset_name)} factor_score_mode={repr(factor_score_mode)} factor_score_agg={repr(factor_score_agg)} factor_score_weight={repr(factor_score_weight)}')
@@ -277,10 +287,11 @@ def main():
             factor_score_mode=factor_score_mode,
             factor_score_agg=factor_score_agg,
             factor_score_weight=factor_score_weight,
-            generations=1000,
+            generations=100,
             seed_=42,
-            save=True,
+            save=False,
             save_prefix='DELETE',
+            plot=True,
         )
         # except KeyboardInterrupt:
         #     warnings.warn('Exiting early')
@@ -291,7 +302,7 @@ def main():
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    ray.init(num_cpus=24)
+    ray.init(num_cpus=64)
     main()
 
 
