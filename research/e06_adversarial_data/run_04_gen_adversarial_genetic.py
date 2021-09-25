@@ -38,7 +38,6 @@ from functools import partial
 from typing import Any
 from typing import Dict
 from typing import List
-from typing import Sequence
 from typing import Tuple
 
 import numpy as np
@@ -46,7 +45,6 @@ from deap import algorithms
 from deap import base
 from deap import creator
 from deap import tools
-from scipy.stats import gmean
 
 import research.util as H
 from disent.dataset.wrapper import MaskedDataset
@@ -54,6 +52,7 @@ from disent.util.inout.paths import ensure_parent_dir_exists
 from disent.util.seeds import seed
 from disent.util.strings.fmt import make_box_str
 from research.e01_visual_overlap.util_compute_traversal_dists import cached_compute_all_factor_dist_matrices
+from research.e06_adversarial_data.util_eval_adversarial import eval_individual, eval_factor_fitness_numba
 
 
 log = logging.getLogger(__name__)
@@ -79,27 +78,6 @@ def cxTwoPointNumpy(ind1: np.ndarray, ind2: np.ndarray):
         cxpoint1, cxpoint2 = cxpoint2, cxpoint1
     ind1[cxpoint1:cxpoint2], ind2[cxpoint1:cxpoint2] = ind2[cxpoint1:cxpoint2].copy(), ind1[cxpoint1:cxpoint2].copy()
     return ind1, ind2
-
-
-_NP_AGGREGATE_FNS = {
-    'sum': np.sum,
-    'mean': np.mean,
-    'gmean': gmean,  # no negatives
-    'max': lambda a, axis, dtype: np.amax(a, axis=axis),  # propagate NaNs
-    'min': lambda a, axis, dtype: np.amin(a, axis=axis),  # propagate NaNs
-    'std': np.std,
-}
-
-
-def np_aggregate(array, mode: str, axis=0, dtype=None):
-    try:
-        fn = _NP_AGGREGATE_FNS[mode]
-    except KeyError:
-        raise KeyError(f'invalid aggregate mode: {repr(mode)}, must be one of: {sorted(_NP_AGGREGATE_FNS.keys())}')
-    result = fn(array, axis=axis, dtype=dtype)
-    if dtype is not None:
-        result = result.astype(dtype)
-    return result
 
 
 # ========================================================================= #
@@ -230,68 +208,10 @@ class BooleanMaskGA(object):
 # ========================================================================= #
 
 
+# TODO: create arrays of shape, not size
 def _toolbox_new_individual(size: int) -> 'creator.Individual':
-    # TODO: create arrays of shape, not size
     mask = np.random.random(size) < (0.8 * np.random.random() + 0.1)
-    # mask = np.random.randint(0, 2, size=size, dtype='bool')
     return creator.Individual(mask)
-
-
-def _toolbox_eval_individual(
-    individual: np.ndarray,
-    gt_dist_matrices: np.ndarray,
-    factor_sizes: Tuple[int, ...],
-    fitness_mode: str,
-    obj_mode_aggregate: str,
-    exclude_diag: bool
-) -> Tuple[float, float]:
-    # evaluate all factors
-    factor_scores = np.array([
-        _eval_factor_fitness(individual, f_idx, f_dist_matrices, factor_sizes=factor_sizes, fitness_mode=fitness_mode, exclude_diag=exclude_diag)
-        for f_idx, f_dist_matrices in enumerate(gt_dist_matrices)
-    ])
-    # aggregate
-    factor_score = np_aggregate(factor_scores[:, 0], mode=obj_mode_aggregate, dtype='float64')
-    kept_ratio   = individual.mean()
-    # check values just in case something goes wrong!
-    factor_score = np.nan_to_num(factor_score, nan=float('-inf'))
-    kept_ratio   = np.nan_to_num(kept_ratio, nan=float('-inf'))
-    # return values!
-    return float(factor_score), float(kept_ratio)
-
-
-def _eval_factor_fitness(
-    individual: np.ndarray,
-    f_idx: int,
-    f_dist_matrices: np.ndarray,
-    factor_sizes: Tuple[int, ...],
-    fitness_mode: str,
-    exclude_diag: bool,
-) -> List[float]:
-    # TODO: population should already be shaped
-    # TODO: this is inefficient and slow!
-    #       ... too many CPU & memory copies
-    #       ... convert to numba? or GPU?
-
-    # generate missing mask axis
-    f_mask = individual.reshape(factor_sizes)
-    f_mask = np.moveaxis(f_mask, f_idx, -1)
-    f_mask = f_mask[..., :, None] & f_mask[..., None, :]
-    # the diagonal can change statistics
-    if exclude_diag:
-        diag = np.arange(f_mask.shape[-1])
-        f_mask[..., diag, diag] = False
-    # mask the distance array | we negate the mask so that TRUE means the item is disabled
-    f_dists = np.ma.masked_where(~f_mask, f_dist_matrices)
-
-    # get distances
-    if   fitness_mode == 'range':     fitness_sparse = (np.ma.max(f_dists, axis=-1) - np.ma.min(f_dists, axis=-1)).mean()
-    elif fitness_mode == 'max':       fitness_sparse = (np.ma.max(f_dists, axis=-1)).mean()
-    elif fitness_mode == 'std':       fitness_sparse = (np.ma.std(f_dists, axis=-1)).mean()
-    else: raise KeyError(f'invalid fitness_mode: {repr(fitness_mode)}')
-
-    # combined scores
-    return [fitness_sparse]
 
 
 class GlobalMaskDataGA(BooleanMaskGA):
@@ -334,7 +254,7 @@ class GlobalMaskDataGA(BooleanMaskGA):
         # initialize
         super().__init__(
             toolbox_new_individual=partial(_toolbox_new_individual, size=len(gt_data)),
-            toolbox_eval_individual=partial(_toolbox_eval_individual, gt_dist_matrices=gt_dist_matrices, factor_sizes=gt_data.factor_sizes, fitness_mode=self.fitness_mode, obj_mode_aggregate=self.objective_mode_aggregate, exclude_diag=self.fitness_exclude_diag),
+            toolbox_eval_individual=partial(eval_individual, gt_dist_matrices=gt_dist_matrices, factor_sizes=gt_data.factor_sizes, fitness_mode=self.fitness_mode, obj_mode_aggregate=self.objective_mode_aggregate, exclude_diag=self.fitness_exclude_diag, eval_factor_fitness_fn=eval_factor_fitness_numba),
             objective_weights=(self.objective_mode_weight, self.objective_size_weight),
             population_size=population_size,
             num_generations=num_generations,
