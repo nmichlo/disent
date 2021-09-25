@@ -34,6 +34,7 @@ from typing import Tuple
 import numpy as np
 import ray
 import ruck
+from matplotlib import pyplot as plt
 from ruck import R
 from ruck.util import ray_map
 from ruck.util import ray_remote_put
@@ -51,38 +52,143 @@ from research.e06_adversarial_data.util_eval_adversarial import eval_individual,
 
 log = logging.getLogger(__name__)
 
+"""
+NOTES ON MULTI-OBJECTIVE OPTIMIZATION:
+    https://en.wikipedia.org/wiki/Pareto_efficiency
+    https://en.wikipedia.org/wiki/Multi-objective_optimization
+    https://www.youtube.com/watch?v=SL-u_7hIqjA
+
+    IDEAL MULTI-OBJECTIVE OPTIMIZATION
+        1. generate set of pareto-optimal solutions (solutions lying along optimal boundary) -- (A posteriori methods)
+           - converge to pareto optimal front
+           - maintain as diverse a population as possible along the front (nsga-ii?)
+        2. choose one from set using higher level information
+        
+    NOTE:
+        most multi-objective problems are just
+        converted into single objective functions.
+        
+    WEIGHTED SUMS
+        -- need to know weights
+        -- non-uniform in pareto-optimal solutions
+        -- cannot find some pareto-optimal solutions in non-convex regions
+        `return w0 * score0 + w1 * score1 + ...`
+
+    ε-CONSTRAINT: constrain all but one objective
+        -- need to know ε vectors
+        -- non-uniform in pareto-optimal solutions
+        -- any pareto-optimal solution can be found
+        * EMO is a generalisation?
+"""
+
+
+# ========================================================================= #
+# Ruck Helper                                                               #
+# ========================================================================= #
+
+
+def select_nsga2(population, num_offspring: int, weights: Tuple[float, ...]):
+    # TODO: move this into ruck
+    """
+    This is hacky... ruck doesn't yet have NSGA2
+    support, but we want to use it for this!
+    """
+    from deap import creator, tools, base
+    # initialize creator
+    creator.create('IdxFitness', base.Fitness, weights=weights)
+    creator.create('IdxIndividual', int, fitness=creator.IdxFitness)
+    # convert to deap population
+    idx_individuals = []
+    for i, m in enumerate(population):
+        ind = creator.IdxIndividual(i)
+        ind.fitness.values = m.fitness
+        idx_individuals.append(ind)
+    # run nsga2
+    chosen_idx = tools.selNSGA2(individuals=idx_individuals, k=num_offspring)
+    # return values
+    return [population[i] for i in chosen_idx]
+
+
+def mutate_oneof(*mutate_fns):
+    # TODO: move this into ruck
+    def mutate_fn(value):
+        fn = random.choice(mutate_fns)
+        return fn(value)
+    return mutate_fn
+
+
+def plt_pareto_solutions(
+    population,
+    label_fitness_0: str,
+    label_fitness_1: str,
+    plot: bool = True,
+    **fig_kw,
+):
+    # fitness values must be of type Tuple[float, float] for this function to work!
+    fig, axs = H.plt_subplots(1, 1, title='Pareto-Optimal Solutions', **fig_kw)
+    # plot fitness values
+    xs, ys = zip(*(m.fitness for m in population))
+    axs[0, 0].scatter(xs, ys)
+    axs[0, 0].set_xlabel(label_fitness_0)
+    axs[0, 0].set_ylabel(label_fitness_1)
+    fig.tight_layout()
+    # plot
+    if plot:
+        plt.show()
+    # done!
+    return fig, axs
+
 
 # ========================================================================= #
 # Evaluation                                                                #
 # ========================================================================= #
+
 
 @ray.remote
 def evaluate_member(
     value: np.ndarray,
     gt_dist_matrices: np.ndarray,
     factor_sizes: Tuple[int, ...],
-    factor_score_weight: float,
-    kept_ratio_weight: float,
-    factor_score_mode: str,
-    factor_score_agg: str,
-) -> float:
-    factor_score, kept_ratio = eval_individual(
+    fitness_overlap_weight: float,
+    fitness_usage_weight: float,
+    fitness_overlap_mode: str,
+    fitness_overlap_aggregate: str,
+) -> Tuple[float, float]:
+    overlap_score, usage_ratio = eval_individual(
         eval_factor_fitness_fn=eval_factor_fitness_numba,
         individual=value,
         gt_dist_matrices=gt_dist_matrices,
         factor_sizes=factor_sizes,
-        fitness_mode=factor_score_mode,
-        obj_mode_aggregate=factor_score_agg,
+        fitness_overlap_mode=fitness_overlap_mode,
+        fitness_overlap_aggregate=fitness_overlap_aggregate,
         exclude_diag=True,
     )
-    # checks
-    assert factor_score_weight >= 0
-    assert kept_ratio_weight >= 0
-    # weight scores
-    w_factor_score = 1.0 - factor_score_weight * factor_score  # we want to negate this, ie. minimize this
-    w_kept_ratio   = 0.0 +   kept_ratio_weight * kept_ratio    # we want to leave this,  ie. maximize thus
-    # now we can maximize both components of this score instead
-    return min(w_factor_score, w_kept_ratio)
+
+    # weight components
+    # assert fitness_overlap_weight >= 0
+    # assert fitness_usage_weight >= 0
+    # w_ovrlp = fitness_overlap_weight * overlap_score
+    # w_usage = fitness_usage_weight * usage_ratio
+
+    # GOALS: minimize overlap, maximize usage
+    # [min, max] objective    -> target
+    # [  0,   1] factor_score -> 0
+    # [  0,   1] kept_ratio   -> 1
+
+    # linear scalarization
+    # loss = w_ovrlp - w_usage
+
+    # No-preference method
+    # -- norm(f(x) - z_ideal)
+    # -- preferably scale variables
+    # z_ovrlp = fitness_overlap_weight * (overlap_score - 0.0)
+    # z_usage = fitness_usage_weight * (usage_ratio - 1.0)
+    # loss = np.linalg.norm([z_ovrlp, z_usage], ord=2)
+
+    # convert minimization problem into maximization
+    # return - loss
+
+    return (-overlap_score, usage_ratio)
 
 
 # ========================================================================= #
@@ -94,16 +200,11 @@ Values = List[ray.ObjectRef]
 Population = List[ruck.Member[ray.ObjectRef]]
 
 
-def mutate_oneof(*mutate_fns):
-    def mutate_fn(value):
-        fn = random.choice(mutate_fns)
-        return fn(value)
-    return mutate_fn
-
 
 # ========================================================================= #
 # Evolutionary System                                                       #
 # ========================================================================= #
+
 
 class DatasetMaskModule(ruck.EaModule):
 
@@ -112,12 +213,12 @@ class DatasetMaskModule(ruck.EaModule):
     def get_stats_groups(self):
         remote_sum = ray.remote(np.mean).remote
         return {
-            'fit': ruck.StatsGroup(lambda pop: [m.fitness for m in pop], min=np.min, max=np.max, mean=np.mean),
+            **super().get_stats_groups(),
             'mask': ruck.StatsGroup(lambda pop: ray.get([remote_sum(m.value) for m in pop]), min=np.min, max=np.max, mean=np.mean),
         }
 
     def get_progress_stats(self):
-        return ('evals', 'fit:max', 'fit:mean', 'mask:mean')
+        return ('evals', 'fit:mean', 'mask:mean')
 
     # POPULATION
 
@@ -128,7 +229,7 @@ class DatasetMaskModule(ruck.EaModule):
         ]
 
     def select_population(self, population: Population, offspring: Population) -> Population:
-        return R.select_tournament(population + offspring, num=len(population), k=3)
+        return select_nsga2(population + offspring, len(population), weights=(1.0, 1.0))
 
     def evaluate_values(self, values: Values) -> List[float]:
         return ray.get([self._evaluate_value_fn(v) for v in values])
@@ -138,13 +239,13 @@ class DatasetMaskModule(ruck.EaModule):
     def __init__(
         self,
         dataset_name: str = 'cars3d',
+        dist_normalize_mode: str = 'all',
         population_size: int = 128,
-        # optim settings
-        factor_score_weight: float = 1.0,
-        kept_ratio_weight: float = 1.0,
-        # other settings
-        factor_score_mode: str = 'std',
-        factor_score_agg: str = 'mean',
+        # fitness settings
+        fitness_overlap_aggregate: str = 'mean',
+        fitness_overlap_mode: str = 'std',
+        fitness_overlap_weight: float = 1.0,
+        fitness_usage_weight: float = 1.0,
         # ea settings
         p_mate: float = 0.5,
         p_mutate: float = 0.5,
@@ -170,13 +271,14 @@ class DatasetMaskModule(ruck.EaModule):
         # get evaluation function
         self._evaluate_value_fn = wrapped_partial(
             evaluate_member.remote,
-            gt_dist_matrices=ray.put(cached_compute_all_factor_dist_matrices(dataset_name, normalize_mode='all')),
+            gt_dist_matrices=ray.put(cached_compute_all_factor_dist_matrices(dataset_name, normalize_mode=dist_normalize_mode)),
             factor_sizes=factor_sizes,
-            factor_score_weight=factor_score_weight,
-            kept_ratio_weight=kept_ratio_weight,
-            factor_score_mode=factor_score_mode,
-            factor_score_agg=factor_score_agg,
+            fitness_overlap_weight=fitness_overlap_weight,
+            fitness_usage_weight=fitness_usage_weight,
+            fitness_overlap_mode=fitness_overlap_mode,
+            fitness_overlap_aggregate=fitness_overlap_aggregate,
         )
+
 
 # ========================================================================= #
 # RUNNER                                                                    #
@@ -185,13 +287,14 @@ class DatasetMaskModule(ruck.EaModule):
 
 def run(
     dataset_name: str = 'shapes3d',  # xysquares_8x8_toy_s4, xcolumns_8x_toy_s1
+    dist_normalize_mode: str = 'all',  # all, each, none
     generations: int = 250,
     population_size: int = 128,
-    factor_score_mode: str = 'std',
-    factor_score_agg: str = 'mean',
-    # optim settings
-    factor_score_weight: float = 1.0,
-    kept_ratio_weight: float = 1.0,
+    # fitness settings
+    fitness_overlap_mode: str = 'std',
+    fitness_overlap_aggregate: str = 'mean',
+    fitness_overlap_weight: float = 1.0,
+    fitness_usage_weight: float = 1.0,
     # save settings
     save: bool = False,
     save_prefix: str = '',
@@ -223,14 +326,14 @@ def run(
             wandb.init(
                 entity=wandb_user,
                 project=wandb_project,
-                name=wandb_job_name if (wandb_job_name is not None) else f'{(save_prefix + "_" if save_prefix else "")}{dataset_name}_{generations}x{population_size}_{factor_score_mode}_{factor_score_agg}_{factor_score_weight}_{kept_ratio_weight}',
+                name=wandb_job_name if (wandb_job_name is not None) else f'{(save_prefix + "_" if save_prefix else "")}{dataset_name}_{generations}x{population_size}_{fitness_overlap_mode}_{fitness_overlap_aggregate}_{fitness_overlap_weight}_{fitness_usage_weight}',
                 group=None,
                 tags=None,
             )
         # track hparams
         wandb.config.update({
             f'gen_adv_mask/{k}': v
-            for k, v in dict(dataset_name=dataset_name, generations=generations, population_size=population_size, factor_score_mode=factor_score_mode, factor_score_agg=factor_score_agg, factor_score_weight=factor_score_weight, kept_ratio_weight=kept_ratio_weight, save=save, save_prefix=save_prefix, seed_=seed_, plot=plot, wandb_enabled=wandb_enabled, wandb_project=wandb_project, wandb_user=wandb_user, wandb_job_name=wandb_job_name).items()
+            for k, v in dict(dataset_name=dataset_name, dist_normalize_mode=dist_normalize_mode, generations=generations, population_size=population_size, fitness_overlap_mode=fitness_overlap_mode, fitness_overlap_aggregate=fitness_overlap_aggregate, fitness_overlap_weight=fitness_overlap_weight, fitness_usage_weight=fitness_usage_weight, save=save, save_prefix=save_prefix, seed_=seed_, plot=plot, wandb_enabled=wandb_enabled, wandb_init=wandb_init, wandb_project=wandb_project, wandb_user=wandb_user, wandb_job_name=wandb_job_name).items()
         })
 
     # This is not completely deterministic with ray
@@ -242,11 +345,12 @@ def run(
     with Timer('ruck:onemax'):
         problem = DatasetMaskModule(
             dataset_name=dataset_name,
+            dist_normalize_mode=dist_normalize_mode,
             population_size=population_size,
-            factor_score_mode=factor_score_mode,
-            factor_score_agg=factor_score_agg,
-            factor_score_weight=factor_score_weight,
-            kept_ratio_weight=kept_ratio_weight,
+            fitness_overlap_mode=fitness_overlap_mode,
+            fitness_overlap_aggregate=fitness_overlap_aggregate,
+            fitness_overlap_weight=fitness_overlap_weight,
+            fitness_usage_weight=fitness_usage_weight,
         )
         # train
         population, logbook, halloffame = ruck.Trainer(generations=generations, progress=True).fit(problem)
@@ -264,15 +368,28 @@ def run(
     if plot or wandb_enabled:
         ave_images = [individual_ave(dataset_name, v) for v in values]
         # plot average
-        fig, axs = H.plt_subplots_imshow(
+        fig_ave_imgs, _ = H.plt_subplots_imshow(
             [ave_images],
-            col_labels=[f'{np.sum(v)} / {np.prod(v.shape)} |' for v in values],
-            show=plot, vmin=0.0, vmax=1.0,
-            title=f'{dataset_name}: g{generations} p{population_size} [{factor_score_mode}, {factor_score_agg}]',
+            col_labels=[f'{np.sum(v)} / {np.prod(v.shape)}' for v in values],
+            show=plot, vmin=0.0, vmax=1.0, figsize=(10, 3),
+            title=f'{dataset_name}: g{generations} p{population_size} [{dist_normalize_mode}, {fitness_overlap_mode}, {fitness_overlap_aggregate}]',
         )
+
+        # plot population
+        fig_pareto_sol, axs = plt_pareto_solutions(
+            population,
+            label_fitness_0='Overlap Score',
+            label_fitness_1='Usage Score',
+            plot=plot,
+            figsize=(7, 7)
+        )
+
         # log average
         if wandb_enabled:
-            wandb.log({'ave_images': fig})
+            wandb.log({
+                'hof_average_images': fig_ave_imgs,
+                'pareto_solutions': fig_pareto_sol,
+            })
 
     # get summary
     use_elems = np.sum(values[0])
@@ -289,15 +406,15 @@ def run(
 
     if save:
         # get save path, make parent dir & save!
-        job_name = f'{(save_prefix + "_" if save_prefix else "")}{dataset_name}_{use_ratio:.2f}x{num_elems}_{generations}x{population_size}_{factor_score_mode}_{factor_score_agg}_{factor_score_weight}_{kept_ratio_weight}'
+        job_name = f'{(save_prefix + "_" if save_prefix else "")}{dataset_name}_{use_ratio:.2f}x{num_elems}_{generations}x{population_size}_{fitness_overlap_mode}_{fitness_overlap_aggregate}_{fitness_overlap_weight}_{fitness_usage_weight}'
         save_path = ensure_parent_dir_exists(ROOT_DIR, 'out/adversarial_mask', f'{time_string}_{job_name}_mask.npz')
         log.info(f'saving mask data to: {save_path}')
         np.savez(save_path, mask=values[0], params=problem.hparams, seed=seed_)
         # return the path
-        return save_path
+        return values[0], population
     else:
         # return the value
-        return values[0]
+        return values[0], population
 
 # ========================================================================= #
 # ENTRYPOINT                                                                #
@@ -310,38 +427,49 @@ ROOT_DIR = os.path.abspath(__file__ + '/../../..')
 def main():
     from itertools import product
 
-    for (factor_score_agg, factor_score_mode, dataset_name, factor_score_weight) in product(
-        ['mean', 'gmean'],
-        ['std', 'range'],
-        ['cars3d', 'smallnorb', 'shapes3d', 'dsprites'],
-        [0.1, 1.0, 10.0, 100.0],
+    # for (fitness_overlap_aggregate, fitness_overlap_mode, dataset_name, fitness_overlap_weight) in product(
+    #     ['mean', 'gmean'],
+    #     ['std', 'range'],
+    #     ['cars3d', 'smallnorb', 'shapes3d', 'dsprites'],
+    #     [0.1, 1.0, 10.0, 100.0],
+    # ):
+
+    for (fitness_overlap_aggregate, fitness_overlap_mode, dataset_name, (fitness_overlap_weight, fitness_usage_weight)) in product(
+        ['mean'],
+        ['range'],
+        ['xysquares_8x8_toy_s1'],
+        [(25.0, 1.0)],
     ):
-        print('='*100)
-        print(f'[STARTING]: dataset_name={repr(dataset_name)} factor_score_mode={repr(factor_score_mode)} factor_score_agg={repr(factor_score_agg)} factor_score_weight={repr(factor_score_weight)}')
-        try:
-            run(
-                dataset_name=dataset_name,
-                factor_score_mode=factor_score_mode,
-                factor_score_agg=factor_score_agg,
-                factor_score_weight=factor_score_weight,
-                kept_ratio_weight=1.0,
-                generations=250,
-                seed_=42,
-                save=False,
-                save_prefix='EXP',
-                plot=True,
-            )
-        except KeyboardInterrupt:
-            warnings.warn('Exiting early')
-            exit(1)
-        except:
-            warnings.warn(f'[FAILED]: dataset_name={repr(dataset_name)} factor_score_mode={repr(factor_score_mode)} factor_score_agg={repr(factor_score_agg)} factor_score_weight={repr(factor_score_weight)}')
-        print('='*100)
+        # print('='*100)
+        # print(f'[STARTING]: dataset_name={repr(dataset_name)} fitness_overlap_mode={repr(fitness_overlap_mode)} fitness_overlap_aggregate={repr(fitness_overlap_aggregate)} fitness_overlap_weight={repr(fitness_overlap_weight)}  fitness_usage_weight={repr(fitness_usage_weight)}')
+        # try:
+        run(
+            dataset_name=dataset_name,
+            # fitness
+            fitness_overlap_aggregate=fitness_overlap_aggregate,
+            fitness_overlap_mode=fitness_overlap_mode,
+            fitness_overlap_weight=fitness_overlap_weight,
+            fitness_usage_weight=fitness_usage_weight,
+            # population
+            generations=200,
+            population_size=128,
+            seed_=42,
+            save=False,
+            save_prefix='EXP2',
+            plot=True,
+            wandb_enabled=False,
+        )
+        # except KeyboardInterrupt:
+        #     warnings.warn('Exiting early')
+        #     exit(1)
+        # except:
+        #     warnings.warn(f'[FAILED]: dataset_name={repr(dataset_name)} fitness_overlap_mode={repr(fitness_overlap_mode)} fitness_overlap_aggregate={repr(fitness_overlap_aggregate)} fitness_overlap_weight={repr(fitness_overlap_weight)}  fitness_usage_weight={repr(fitness_usage_weight)}')
+        # print('='*100)
 
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    # ray.init(num_cpus=64)
+    ray.init(num_cpus=32)
     main()
 
 

@@ -45,6 +45,8 @@ from deap import algorithms
 from deap import base
 from deap import creator
 from deap import tools
+from deprecated import deprecated
+from ruck import R
 
 import research.util as H
 from disent.dataset.wrapper import MaskedDataset
@@ -85,6 +87,7 @@ def cxTwoPointNumpy(ind1: np.ndarray, ind2: np.ndarray):
 # ========================================================================= #
 
 
+@deprecated('deap is deprecated in favour of Ruck')
 class BooleanMaskGA(object):
 
     """
@@ -147,7 +150,7 @@ class BooleanMaskGA(object):
         toolbox.register("evaluate", self._toolbox_eval_individual)
         # mutation
         toolbox.register("mate",   cxTwoPointNumpy)
-        toolbox.register("mutate", tools.mutFlipBit, indpb=self.mutate_bit_flip_prob)
+        toolbox.register("mutate", lambda x: (x.__class__(R.mutate_flip_bit_groups(x, p=self.mutate_bit_flip_prob)),))
         toolbox.register("select", tools.selNSGA2)
         # workers
         pool = None
@@ -214,6 +217,7 @@ def _toolbox_new_individual(size: int) -> 'creator.Individual':
     return creator.Individual(mask)
 
 
+@deprecated('deap is deprecated in favour of Ruck')
 class GlobalMaskDataGA(BooleanMaskGA):
     """
     Optimize a dataset mask for specific properties using a genetic algorithm.
@@ -304,6 +308,7 @@ def individual_ave(dataset_name: str, individual, print_=False):
     return ave_obs / ave_obs.max()
 
 
+@deprecated('deap is deprecated in favour of Ruck')
 def run(
     dataset_name='xysquares_8x8_toy_s4',  # xysquares_8x8_toy_s4, xcolumns_8x_toy_s1
     num_generations: int = 100,
@@ -364,14 +369,14 @@ def run(
 
 def main():
     for objective_mode_aggregate in ['mean']:
-        for fitness_mode in ['range']:
+        for fitness_mode in ['range', 'std']:
             for dataset_name in ['cars3d']:
                 print('='*100)
                 print(f'[STARTING]: objective_mode_aggregate={repr(objective_mode_aggregate)} fitness_mode={repr(fitness_mode)} dataset_name={repr(dataset_name)}')
                 try:
                     run(
                         dataset_name=dataset_name,
-                        num_generations=25,
+                        num_generations=100,
                         seed_=42,
                         save=True,
                         n_jobs=min(os.cpu_count(), 16),
@@ -379,8 +384,9 @@ def main():
                         objective_mode_aggregate=objective_mode_aggregate,
                         save_prefix='RANDOM',
                     )
-                except:
+                except Exception as e:
                     warnings.warn(f'[FAILED]: objective_mode_aggregate={repr(objective_mode_aggregate)} fitness_mode={repr(fitness_mode)} dataset_name={repr(dataset_name)}')
+                    raise e
                 print('='*100)
 
 
