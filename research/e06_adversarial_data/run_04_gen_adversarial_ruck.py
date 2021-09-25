@@ -25,6 +25,7 @@
 import logging
 import os
 import random
+import warnings
 from datetime import datetime
 from typing import List
 from typing import Optional
@@ -60,9 +61,7 @@ def evaluate_member(
     value: np.ndarray,
     gt_dist_matrices: np.ndarray,
     factor_sizes: Tuple[int, ...],
-    factor_score_offset: float,
     factor_score_weight: float,
-    kept_ratio_offset: float,
     kept_ratio_weight: float,
     factor_score_mode: str,
     factor_score_agg: str,
@@ -76,10 +75,13 @@ def evaluate_member(
         obj_mode_aggregate=factor_score_agg,
         exclude_diag=True,
     )
+    # checks
+    assert factor_score_weight >= 0
+    assert kept_ratio_weight >= 0
     # weight scores
-    w_factor_score = factor_score_offset + factor_score_weight * factor_score
-    w_kept_ratio = kept_ratio_offset + kept_ratio_weight * kept_ratio
-    # get minimum, which we want to maximize
+    w_factor_score = 1.0 - factor_score_weight * factor_score  # we want to negate this, ie. minimize this
+    w_kept_ratio   = 0.0 +   kept_ratio_weight * kept_ratio    # we want to leave this,  ie. maximize thus
+    # now we can maximize both components of this score instead
     return min(w_factor_score, w_kept_ratio)
 
 
@@ -103,15 +105,15 @@ def mutate_oneof(*mutate_fns):
 # Evolutionary System                                                       #
 # ========================================================================= #
 
-
 class DatasetMaskModule(ruck.EaModule):
 
     # STATISTICS
 
     def get_stats_groups(self):
+        remote_sum = ray.remote(np.mean).remote
         return {
             'fit': ruck.StatsGroup(lambda pop: [m.fitness for m in pop], min=np.min, max=np.max, mean=np.mean),
-            'mask': ruck.StatsGroup(lambda pop: [np.mean(ray.get(m.value)) for m in pop], min=np.min, max=np.max, mean=np.mean),
+            'mask': ruck.StatsGroup(lambda pop: ray.get([remote_sum(m.value) for m in pop]), min=np.min, max=np.max, mean=np.mean),
         }
 
     def get_progress_stats(self):
@@ -138,10 +140,8 @@ class DatasetMaskModule(ruck.EaModule):
         dataset_name: str = 'cars3d',
         population_size: int = 128,
         # optim settings
-        factor_score_weight: float = -1000.0,
-        factor_score_offset: float = 1.0,
+        factor_score_weight: float = 1.0,
         kept_ratio_weight: float = 1.0,
-        kept_ratio_offset: float = 0.0,
         # other settings
         factor_score_mode: str = 'std',
         factor_score_agg: str = 'mean',
@@ -170,16 +170,13 @@ class DatasetMaskModule(ruck.EaModule):
         # get evaluation function
         self._evaluate_value_fn = wrapped_partial(
             evaluate_member.remote,
-            gt_dist_matrices=ray.put(cached_compute_all_factor_dist_matrices(dataset_name)),
+            gt_dist_matrices=ray.put(cached_compute_all_factor_dist_matrices(dataset_name, normalize_mode='all')),
             factor_sizes=factor_sizes,
-            factor_score_offset=factor_score_offset,
             factor_score_weight=factor_score_weight,
-            kept_ratio_offset=kept_ratio_offset,
             kept_ratio_weight=kept_ratio_weight,
             factor_score_mode=factor_score_mode,
             factor_score_agg=factor_score_agg,
         )
-
 
 # ========================================================================= #
 # RUNNER                                                                    #
@@ -193,7 +190,7 @@ def run(
     factor_score_mode: str = 'std',
     factor_score_agg: str = 'mean',
     # optim settings
-    factor_score_weight: float = -1000.0,
+    factor_score_weight: float = 1.0,
     kept_ratio_weight: float = 1.0,
     # save settings
     save: bool = False,
@@ -201,12 +198,43 @@ def run(
     seed_: Optional[int] = None,
     # plot settings
     plot: bool = False,
+    # wandb_settings
+    wandb_enabled: bool = True,
+    wandb_init: bool = True,
+    wandb_project: str = 'exp-adversarial-mask',
+    wandb_user: str = 'n_michlo',
+    wandb_job_name: str = None,
 ):
     # save the starting time for the save path
     time_string = datetime.today().strftime('%Y-%m-%d--%H-%M-%S')
     log.info(f'Starting run at time: {time_string}')
 
-    # deterministic? This might not actually work with ray
+    # enable wandb
+    wandb = None
+    if wandb_enabled:
+        import wandb
+        # cleanup from old runs:
+        if wandb_init:
+            try:
+                wandb.finish()
+            except:
+                pass
+            # initialize
+            wandb.init(
+                entity=wandb_user,
+                project=wandb_project,
+                name=wandb_job_name if (wandb_job_name is not None) else f'{(save_prefix + "_" if save_prefix else "")}{dataset_name}_{generations}x{population_size}_{factor_score_mode}_{factor_score_agg}_{factor_score_weight}_{kept_ratio_weight}',
+                group=None,
+                tags=None,
+            )
+        # track hparams
+        wandb.config.update({
+            f'gen_adv_mask/{k}': v
+            for k, v in dict(dataset_name=dataset_name, generations=generations, population_size=population_size, factor_score_mode=factor_score_mode, factor_score_agg=factor_score_agg, factor_score_weight=factor_score_weight, kept_ratio_weight=kept_ratio_weight, save=save, save_prefix=save_prefix, seed_=seed_, plot=plot, wandb_enabled=wandb_enabled, wandb_project=wandb_project, wandb_user=wandb_user, wandb_job_name=wandb_job_name).items()
+        })
+
+    # This is not completely deterministic with ray
+    # although the starting population will always be the same!
     seed_ = seed_ if (seed_ is not None) else int(np.random.randint(1, 2**31-1))
     seed(seed_)
 
@@ -227,20 +255,39 @@ def run(
         log.info(f'end population: {logbook[-1]}')
         values = [ray.get(m.value) for m in halloffame]
 
-    # plot average images
-    if plot:
-        H.plt_subplots_imshow(
-            [[individual_ave(dataset_name, v) for v in values]],
+    # log to wandb as steps
+    if wandb_enabled:
+        for i, stats in enumerate(logbook):
+            wandb.log(stats, step=i)
+
+    # generate average images
+    if plot or wandb_enabled:
+        ave_images = [individual_ave(dataset_name, v) for v in values]
+        # plot average
+        fig, axs = H.plt_subplots_imshow(
+            [ave_images],
             col_labels=[f'{np.sum(v)} / {np.prod(v.shape)} |' for v in values],
-            show=True, vmin=0.0, vmax=1.0,
+            show=plot, vmin=0.0, vmax=1.0,
             title=f'{dataset_name}: g{generations} p{population_size} [{factor_score_mode}, {factor_score_agg}]',
         )
+        # log average
+        if wandb_enabled:
+            wandb.log({'ave_images': fig})
+
+    # get summary
+    use_elems = np.sum(values[0])
+    num_elems = np.prod(values[0].shape)
+    use_ratio = (use_elems / num_elems)
+
+    # log summary
+    if wandb_enabled:
+        wandb.summary['num_elements'] = num_elems
+        wandb.summary['used_elements'] = use_elems
+        wandb.summary['used_elements_ratio'] = use_ratio
+        for k, v in logbook[0].items(): wandb.summary[f'log:start:{k}'] = v
+        for k, v in logbook[-1].items(): wandb.summary[f'log:end:{k}'] = v
 
     if save:
-        # get totals
-        use_elems = np.sum(values[0])
-        num_elems = np.prod(values[0].shape)
-        use_ratio = (use_elems / num_elems)
         # get save path, make parent dir & save!
         job_name = f'{(save_prefix + "_" if save_prefix else "")}{dataset_name}_{use_ratio:.2f}x{num_elems}_{generations}x{population_size}_{factor_score_mode}_{factor_score_agg}_{factor_score_weight}_{kept_ratio_weight}'
         save_path = ensure_parent_dir_exists(ROOT_DIR, 'out/adversarial_mask', f'{time_string}_{job_name}_mask.npz')
@@ -263,46 +310,38 @@ ROOT_DIR = os.path.abspath(__file__ + '/../../..')
 def main():
     from itertools import product
 
-    # values for ~50%
-    # cars3d -15
-    # smallnorb -35
-
-    # for (factor_score_agg, factor_score_mode, (dataset_name, factor_score_weight)) in product(
-    #     ['mean'],
-    #     ['range'],
-    #     [('cars3d', -15), ('smallnorb', -34)]
-    # ):
-
     for (factor_score_agg, factor_score_mode, dataset_name, factor_score_weight) in product(
-        ['mean'], #, 'max', 'gmean'],
-        ['range'], #, 'std'],
-        ['xysquares_8x8_toy_s2'], # , 'cars3d', 'smallnorb', 'shapes3d', 'dsprites'],
-        [-1], # , -5, -15, -34],
+        ['mean', 'gmean'],
+        ['std', 'range'],
+        ['cars3d', 'smallnorb', 'shapes3d', 'dsprites'],
+        [0.1, 1.0, 10.0, 100.0],
     ):
-        # print('='*100)
-        # print(f'[STARTING]: dataset_name={repr(dataset_name)} factor_score_mode={repr(factor_score_mode)} factor_score_agg={repr(factor_score_agg)} factor_score_weight={repr(factor_score_weight)}')
-        # try:
-        run(
-            dataset_name=dataset_name,
-            factor_score_mode=factor_score_mode,
-            factor_score_agg=factor_score_agg,
-            factor_score_weight=factor_score_weight,
-            generations=100,
-            seed_=42,
-            save=False,
-            save_prefix='DELETE',
-            plot=True,
-        )
-        # except KeyboardInterrupt:
-        #     warnings.warn('Exiting early')
-        # except:
-        #     warnings.warn(f'[FAILED]: dataset_name={repr(dataset_name)} factor_score_mode={repr(factor_score_mode)} factor_score_agg={repr(factor_score_agg)} factor_score_weight={repr(factor_score_weight)}')
-        # print('='*100)
+        print('='*100)
+        print(f'[STARTING]: dataset_name={repr(dataset_name)} factor_score_mode={repr(factor_score_mode)} factor_score_agg={repr(factor_score_agg)} factor_score_weight={repr(factor_score_weight)}')
+        try:
+            run(
+                dataset_name=dataset_name,
+                factor_score_mode=factor_score_mode,
+                factor_score_agg=factor_score_agg,
+                factor_score_weight=factor_score_weight,
+                kept_ratio_weight=1.0,
+                generations=250,
+                seed_=42,
+                save=False,
+                save_prefix='EXP',
+                plot=True,
+            )
+        except KeyboardInterrupt:
+            warnings.warn('Exiting early')
+            exit(1)
+        except:
+            warnings.warn(f'[FAILED]: dataset_name={repr(dataset_name)} factor_score_mode={repr(factor_score_mode)} factor_score_agg={repr(factor_score_agg)} factor_score_weight={repr(factor_score_weight)}')
+        print('='*100)
 
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    ray.init(num_cpus=64)
+    # ray.init(num_cpus=64)
     main()
 
 

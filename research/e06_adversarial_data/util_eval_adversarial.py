@@ -131,9 +131,12 @@ def eval_factor_fitness_numba__std_nodiag(
                 s2 += d*d
             # ^^^ END j
             # update total
-            if n > 0:
-                mean2 = (s / n) * (s / n)
-                m2 = s2 / n
+            if n == 1:
+                count += 1
+            elif n > 1:
+                mean2 = (s * s) / (n * n)
+                m2 = (s2 / n)
+                # is this just needed because of precision errors?
                 if m2 > mean2:
                     total += np.sqrt(m2 - mean2)
                 count += 1
@@ -296,12 +299,12 @@ def _check_equal(
 
 if __name__ == '__main__':
 
-    for dataset_name in ['cars3d', 'smallnorb', 'shapes3d', 'dsprites']:
+    for dataset_name in ['smallnorb', 'shapes3d', 'dsprites']:
         print('='*100)
         _check_equal(dataset_name, fitness_mode='std')
         print()
-        _check_equal(dataset_name, fitness_mode='range')
-        print('='*100)
+        # _check_equal(dataset_name, fitness_mode='range')
+        # print('='*100)
 
 
 
