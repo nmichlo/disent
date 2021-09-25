@@ -226,6 +226,8 @@ def cached_compute_all_factor_dist_matrices(
     # cache settings
     cache_dir: str = 'data/cache',
     force: bool = False,
+    # normalize
+    normalize_mode: str = 'all',
 ):
     import os
     from disent.util.inout.files import AtomicSaveFile
@@ -236,15 +238,31 @@ def cached_compute_all_factor_dist_matrices(
     cache_path = os.path.abspath(os.path.join(cache_dir, name))
     # generate if it does not exist
     if force or not os.path.exists(cache_path):
-        print(f'generating cached distances for: {dataset_name} to: {cache_path}')
+        log.info(f'generating cached distances for: {dataset_name} to: {cache_path}')
         # generate & save
         with AtomicSaveFile(file=cache_path, overwrite=force) as path:
             all_dist_matrices = compute_all_factor_dist_matrices(gt_data, masked=masked, traversals_per_batch=traversals_per_batch)
             np.savez(path, **{f_name: f_dists for f_name, f_dists in zip(gt_data.factor_names, all_dist_matrices)})
     # load data
-    print(f'loading cached distances for: {dataset_name} from: {cache_path}')
+    log.info(f'loading cached distances for: {dataset_name} from: {cache_path}')
     data = np.load(cache_path)
-    return [data[f_name] for f_name in gt_data.factor_names]
+    dist_mats = [data[f_name] for f_name in gt_data.factor_names]
+    # normalize the max distance to 1.0
+    if (normalize_mode == 'none') or (normalize_mode is None):
+        pass
+    elif normalize_mode == 'all':
+        M = np.max([np.max(v) for v in dist_mats])
+        dist_mats = [v / M for v in dist_mats]
+        log.info(f'normalized max over all distances: {M} to 1.0')
+    elif normalize_mode == 'each':
+        Ms = [v.max() for v in dist_mats]
+        dist_mats = [v / M for v, M in zip(dist_mats, Ms)]
+        log.info(f'normalized max over each factor distance: {Ms} to 1.0')
+    else:
+        raise KeyError(f'invalid normalize mode: {repr(normalize_mode)}')
+
+    # done!
+    return dist_mats
 
 
 # ========================================================================= #

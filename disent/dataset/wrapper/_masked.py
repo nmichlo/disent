@@ -31,6 +31,7 @@ from torch.utils.data import Dataset
 
 from disent.dataset.data import GroundTruthData
 from disent.dataset.wrapper._base import WrappedDataset
+from disent.util.math.random import random_choice_prng
 
 
 log = logging.getLogger(__name__)
@@ -42,31 +43,47 @@ log = logging.getLogger(__name__)
 
 
 DataTypeHint = Union[GroundTruthData, np.ndarray, torch.Tensor]
-MaskTypeHint = Union[str, np.ndarray, torch.Tensor]
+MaskTypeHint = Union[str, np.ndarray]
+
+
+def load_mask_indices(length: int, mask_or_indices: MaskTypeHint):
+    # load as numpy mask if it is a string!
+    if isinstance(mask_or_indices, str):
+        mask_or_indices = np.load(mask_or_indices)['mask']
+    # load data
+    assert isinstance(mask_or_indices, np.ndarray)
+    # check inputs
+    if mask_or_indices.dtype == 'bool':
+        # boolean values
+        assert length == len(mask_or_indices)
+        indices = np.arange(length)[mask_or_indices]
+    else:
+        # integer values
+        assert len(np.unique(mask_or_indices)) == len(mask_or_indices)
+        assert np.min(mask_or_indices) >= 0
+        assert np.max(mask_or_indices) < length
+        indices = mask_or_indices
+    # check that we have at least 1 value
+    assert len(indices) > 0
+    assert len(indices) <= length
+    # return values
+    return indices
 
 
 class MaskedDataset(WrappedDataset):
 
-    def __init__(self, data: DataTypeHint, mask_or_indices: MaskTypeHint):
-        # load as numpy mask if it is a string!
-        if isinstance(mask_or_indices, str):
-            mask_or_indices = np.load(mask_or_indices)['mask']
-        # load data
+    def __init__(self, data: DataTypeHint, mask: MaskTypeHint, randomize: bool = False):
         assert isinstance(data, (GroundTruthData, torch.Tensor, np.ndarray))
-        assert isinstance(mask_or_indices, (torch.Tensor, np.ndarray))
-        # save data
+        n = len(data)
+        # save values
         self._data = data
-        # check inputs
-        if mask_or_indices.dtype in ('bool', torch.bool):
-            # boolean values
-            assert len(data) == len(mask_or_indices)
-            self._indices = np.arange(len(data))[mask_or_indices]
-        else:
-            # integer values
-            assert len(np.unique(mask_or_indices)) == len(mask_or_indices)
-            self._indices = mask_or_indices
-        # check that we have at least 1 value
-        assert len(self._indices) > 0
+        self._indices = load_mask_indices(n, mask)
+        # randomize
+        if randomize:
+            l = len(self._indices)
+            self._indices = load_mask_indices(n, random_choice_prng(n, size=l, replace=False))
+            assert len(self._indices) == l
+            log.info(f'replaced mask: {l}/{n} ({l/n:.3f}) with randomized mask!')
 
     def __len__(self):
         return len(self._indices)

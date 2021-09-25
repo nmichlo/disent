@@ -1,0 +1,16 @@
+# @package _group_
+name: mask_adv_cars3d
+data:
+  _target_: disent.dataset.wrapper.MaskedDataset
+  mask: '${env:HOME}/workspace/research/disent/out/adversarial_mask/2021-09-22--12-41-07_EXPERIMENT2_cars3d_0.50x17568_1000x128_range_mean_-15_1.0_mask.npz'
+  randomize: FALSE
+  data:
+    _target_: disent.dataset.data.Cars3dData
+    data_root: ${dataset.data_root}
+    prepare: True
+transform:
+  _target_: disent.nn.transform.ToStandardisedTensor
+  size: 64
+x_shape: [3, 64, 64]
+
+data_type: random

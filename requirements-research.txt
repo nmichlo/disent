@@ -10,4 +10,6 @@
 # psutil
 # seaborn
 
-ray
+ray==1.6.0
+matplotlib==3.4.3
+ruck==0.2.0

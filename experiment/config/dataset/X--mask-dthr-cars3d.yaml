@@ -1,16 +1,16 @@
 # @package _group_
-name: dithered-dsprites
+name: mask_dthr_cars3d
 data:
   _target_: disent.dataset.wrapper.DitheredDataset
-  gt_data:
-    _target_: disent.dataset.data.DSpritesData
-    data_root: ${dataset.data_root}
-    prepare: True
-    in_memory: ${dataset.try_in_memory}
   dither_n: 2
   keep_ratio: 0.5
+  gt_data:
+    _target_: disent.dataset.data.Cars3dData
+    data_root: ${dataset.data_root}
+    prepare: True
 transform:
   _target_: disent.nn.transform.ToStandardisedTensor
-x_shape: [1, 64, 64]
+  size: 64
+x_shape: [3, 64, 64]
 
 data_type: random

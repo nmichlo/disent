@@ -28,7 +28,7 @@ export PY_RUN_FILE
 
 # get the root directory
 SCRIPT_DIR=$(dirname "$(realpath -s "$0")")
-ROOT_DIR="$(realpath -s "$SCRIPT_DIR/../../..")"
+ROOT_DIR="$(realpath -s "$SCRIPT_DIR/../..")"
 
 # cd into the root, exit on failure
 cd "$ROOT_DIR" || exit 1

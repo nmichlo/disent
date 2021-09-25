@@ -61,7 +61,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def _get_dataset_and_vae(trainer: pl.Trainer, pl_module: pl.LightningModule) -> (DisentDataset, Ae):
+def _get_dataset_and_vae(trainer: pl.Trainer, pl_module: pl.LightningModule, unwrap_groundtruth: bool = False) -> (DisentDataset, Ae):
     # TODO: improve handling!
     assert isinstance(pl_module, Ae), f'{pl_module.__class__} is not an instance of {Ae}'
     # get dataset
@@ -77,6 +77,11 @@ def _get_dataset_and_vae(trainer: pl.Trainer, pl_module: pl.LightningModule) -> 
         raise RuntimeError('could not retrieve dataset! please report this...')
     # check dataset
     assert isinstance(dataset, DisentDataset), f'retrieved dataset is not an {DisentDataset.__name__}'
+    # unwarp dataset
+    if unwrap_groundtruth:
+        if dataset.is_wrapped_gt_data:
+            old_dataset, dataset = dataset, dataset.unwrapped_disent_dataset()
+            warnings.warn(f'Unwrapped ground truth dataset returned! {type(old_dataset.data).__name__} -> {type(dataset.data).__name__}')
     # done checks
     return dataset, pl_module
 
@@ -99,7 +104,7 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
 
     def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         # get dataset and vae framework from trainer and module
-        dataset, vae = _get_dataset_and_vae(trainer, pl_module)
+        dataset, vae = _get_dataset_and_vae(trainer, pl_module, unwrap_groundtruth=True)
 
         with torch.no_grad():
             # get random sample of z_means and z_logvars for computing the range of values for the latent_cycle
@@ -156,7 +161,7 @@ class VaeDisentanglementLoggingCallback(BaseCallbackPeriodic):
 
     def _compute_metrics_and_log(self, trainer: pl.Trainer, pl_module: pl.LightningModule, metrics: list, is_final=False):
         # get dataset and vae framework from trainer and module
-        dataset, vae = _get_dataset_and_vae(trainer, pl_module)
+        dataset, vae = _get_dataset_and_vae(trainer, pl_module, unwrap_groundtruth=True)
         # check if we need to skip
         # TODO: dataset needs to be able to handle wrapped datasets!
         if not dataset.is_ground_truth:
