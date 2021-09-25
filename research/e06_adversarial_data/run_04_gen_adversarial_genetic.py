@@ -244,17 +244,20 @@ def _toolbox_eval_individual(
     fitness_mode: str,
     obj_mode_aggregate: str,
     exclude_diag: bool
-) -> Sequence[float]:
+) -> Tuple[float, float]:
     # evaluate all factors
     factor_scores = np.array([
         _eval_factor_fitness(individual, f_idx, f_dist_matrices, factor_sizes=factor_sizes, fitness_mode=fitness_mode, exclude_diag=exclude_diag)
         for f_idx, f_dist_matrices in enumerate(gt_dist_matrices)
     ])
     # aggregate
-    return (
-        float(np_aggregate(factor_scores[:, 0], mode=obj_mode_aggregate, dtype='float64')),
-        float(individual.mean()),
-    )
+    factor_score = np_aggregate(factor_scores[:, 0], mode=obj_mode_aggregate, dtype='float64')
+    kept_ratio   = individual.mean()
+    # check values just in case something goes wrong!
+    factor_score = np.nan_to_num(factor_score, nan=float('-inf'))
+    kept_ratio   = np.nan_to_num(kept_ratio, nan=float('-inf'))
+    # return values!
+    return float(factor_score), float(kept_ratio)
 
 
 def _eval_factor_fitness(

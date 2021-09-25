@@ -24,15 +24,21 @@
 
 import logging
 import os
-import warnings
+import random
 from datetime import datetime
-from typing import Dict
+from typing import List
 from typing import Optional
 from typing import Tuple
 
 import numpy as np
 import ray
+import ruck
+from ruck import R
+from ruck.util import ray_map
+from ruck.util import ray_remote_put
+from ruck.util import ray_remote_puts
 
+import research.util as H
 from disent.util.function import wrapped_partial
 from disent.util.inout.paths import ensure_parent_dir_exists
 from disent.util.profiling import Timer
@@ -40,25 +46,19 @@ from disent.util.seeds import seed
 from research.e01_visual_overlap.util_compute_traversal_dists import cached_compute_all_factor_dist_matrices
 from research.e06_adversarial_data.run_04_gen_adversarial_genetic import _toolbox_eval_individual
 from research.e06_adversarial_data.run_04_gen_adversarial_genetic import individual_ave
-from research.ruck import *
-from research.ruck import EaModule
-from research.ruck import PopulationHint
-
-import research.util as H
-from research.ruck._history import StatsGroup
 
 
 log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
-# EXPERIMENT                                                                #
+# Evaluation                                                                #
 # ========================================================================= #
 
-
+@ray.remote
 def evaluate_member(
     value: np.ndarray,
-    gt_dist_matrices_id,
+    gt_dist_matrices: np.ndarray,
     factor_sizes: Tuple[int, ...],
     factor_score_offset: float,
     factor_score_weight: float,
@@ -69,15 +69,12 @@ def evaluate_member(
 ) -> float:
     factor_score, kept_ratio = _toolbox_eval_individual(
         individual=value,
-        gt_dist_matrices=ray.get(gt_dist_matrices_id),
+        gt_dist_matrices=gt_dist_matrices,
         factor_sizes=factor_sizes,
         fitness_mode=factor_score_mode,
         obj_mode_aggregate=factor_score_agg,
         exclude_diag=True,
     )
-    # check values just in case something goes wrong!
-    factor_score = np.nan_to_num(factor_score, nan=float('-inf'))
-    kept_ratio = np.nan_to_num(kept_ratio, nan=float('-inf'))
     # weight scores
     w_factor_score = factor_score_offset + factor_score_weight * factor_score
     w_kept_ratio = kept_ratio_offset + kept_ratio_weight * kept_ratio
@@ -85,28 +82,60 @@ def evaluate_member(
     return min(w_factor_score, w_kept_ratio)
 
 
-def generate_offspring(population: PopulationHint, p_mate: float = 0.5, p_mutate: float = 0.5) -> PopulationHint:
-    # SEE: R.factory_ea_alg -- TODO: make it easier to swap!
-    return R.apply_mate_and_mutate(
-        population=R.select_tournament(population, len(population)),  # tools.selNSGA2
-        mate=R.mate_crossover_1d,
-        mutate=R.mutate_flip_bit_types,
-        p_mate=p_mate,
-        p_mutate=p_mutate,
-    )
+# ========================================================================= #
+# Type Hints                                                                #
+# ========================================================================= #
 
 
-def select_population(population: PopulationHint, offspring: PopulationHint) -> PopulationHint:
-    return offspring
+Values = List[ray.ObjectRef]
+Population = List[ruck.Member[ray.ObjectRef]]
 
 
-class DatasetMaskModule(EaModule):
+def mutate_oneof(*mutate_fns):
+    def mutate_fn(value):
+        fn = random.choice(mutate_fns)
+        return fn(value)
+    return mutate_fn
+
+
+# ========================================================================= #
+# Evolutionary System                                                       #
+# ========================================================================= #
+
+
+class DatasetMaskModule(ruck.EaModule):
+
+    # STATISTICS
+
+    def get_stats_groups(self):
+        return {
+            'fit': ruck.StatsGroup(lambda pop: [m.fitness for m in pop], min=np.min, max=np.max, mean=np.mean),
+            'mask': ruck.StatsGroup(lambda pop: [np.mean(ray.get(m.value)) for m in pop], min=np.min, max=np.max, mean=np.mean),
+        }
+
+    def get_progress_stats(self):
+        return ('evals', 'fit:max', 'mask:max')
+
+    # POPULATION
+
+    def gen_starting_values(self) -> Values:
+        return [
+            ray.put(np.random.random(np.prod(self.hparams.factor_sizes)) < (0.1 + np.random.random() * 0.8))
+            for _ in range(self.hparams.population_size)
+        ]
+
+    def select_population(self, population: Population, offspring: Population) -> Population:
+        return R.select_tournament(population + offspring, num=len(population), k=3)
+
+    def evaluate_values(self, values: Values) -> List[float]:
+        return ray.get([self._evaluate_value_fn(v) for v in values])
+
+    # INITIALISE
 
     def __init__(
         self,
         dataset_name: str = 'cars3d',
         population_size: int = 128,
-        generations: int = 200,
         # optim settings
         factor_score_weight: float = -1000.0,
         factor_score_offset: float = 1.0,
@@ -118,51 +147,37 @@ class DatasetMaskModule(EaModule):
         # ea settings
         p_mate: float = 0.5,
         p_mutate: float = 0.5,
+        p_mutate_flip: float = 0.05,
     ):
-        super(EaModule, self).__init__()  # skip calling OneMaxProblem __init__
-        self.save_hyperparameters()
-        # load dataset
+        # load the dataset
         gt_data = H.make_data(dataset_name)
-        self._num_obs = len(gt_data)
-        # OVERRIDES
-        self.select_population = wrapped_partial(
-            select_population,
-        )
+        factor_sizes = gt_data.factor_sizes
+        # save hyper parameters to .hparams
+        self.save_hyperparameters(include=['factor_sizes'])
+        # get offspring function
         self.generate_offspring = wrapped_partial(
-            generate_offspring,
-            p_mate=self.hparams.p_mate,
-            p_mutate=self.hparams.p_mutate,
+            R.apply_mate_and_mutate,
+            mate_fn=ray_remote_puts(R.mate_crossover_nd).remote,
+            mutate_fn=ray_remote_put(mutate_oneof(
+                wrapped_partial(R.mutate_flip_bits, p=p_mutate_flip),
+                wrapped_partial(R.mutate_flip_bit_groups, p=p_mutate_flip),
+            )).remote,
+            p_mate=p_mate,
+            p_mutate=p_mutate,
+            map_fn=ray_map  # parallelize
         )
-        self.evaluate_member = wrapped_partial(
-            evaluate_member,
-            gt_dist_matrices_id=ray.put(cached_compute_all_factor_dist_matrices(dataset_name)),
-            factor_sizes=gt_data.factor_sizes,
-            factor_score_offset=self.hparams.factor_score_offset,
-            factor_score_weight=self.hparams.factor_score_weight,
-            kept_ratio_offset=self.hparams.kept_ratio_offset,
-            kept_ratio_weight=self.hparams.kept_ratio_weight,
-            factor_score_mode=self.hparams.factor_score_mode,
-            factor_score_agg=self.hparams.factor_score_agg,
+        # get evaluation function
+        self._evaluate_value_fn = wrapped_partial(
+            evaluate_member.remote,
+            gt_dist_matrices=ray.put(cached_compute_all_factor_dist_matrices(dataset_name)),
+            factor_sizes=factor_sizes,
+            factor_score_offset=factor_score_offset,
+            factor_score_weight=factor_score_weight,
+            kept_ratio_offset=kept_ratio_offset,
+            kept_ratio_weight=kept_ratio_weight,
+            factor_score_mode=factor_score_mode,
+            factor_score_agg=factor_score_agg,
         )
-
-    def gen_starting_population(self) -> PopulationHint:
-        return [
-            Member(np.random.random(self._num_obs) < (0.1 + np.random.random() * 0.8))
-            for _ in range(self.hparams.population_size)
-        ]
-
-    def get_stats_groups(self) -> Dict[str, StatsGroup]:
-        return {
-            'mask': StatsGroup(lambda pop: [np.mean(m.value) for m in pop], min=np.min, max=np.max, mean=np.mean),
-        }
-
-    def get_progress_stats(self):
-        return ('evals', 'fit:mean', 'mask:mean')
-
-    @property
-    def num_generations(self) -> int:
-        return self.hparams.generations
-
 
 
 # ========================================================================= #
@@ -199,23 +214,22 @@ def run(
             population_size=population_size,
             factor_score_mode=factor_score_mode,
             factor_score_agg=factor_score_agg,
-            generations=generations,
             factor_score_weight=factor_score_weight,
             kept_ratio_weight=kept_ratio_weight,
         )
-        population, logbook, halloffame = Trainer(multiproc=True).fit(problem)
+        population, logbook, halloffame = ruck.Trainer(generations=generations, progress=True).fit(problem)
 
     # plot average images
     H.plt_subplots_imshow(
-        [[individual_ave(dataset_name, v) for v in halloffame.values]],
-        col_labels=[f'{np.sum(v)} / {np.prod(v.shape)} |' for v in halloffame.values],
+        [[individual_ave(dataset_name, m.value) for m in halloffame]],
+        col_labels=[f'{np.sum(m.value)} / {np.prod(m.value.shape)} |' for m in halloffame],
         show=True, vmin=0.0, vmax=1.0,
         title=f'{dataset_name}: g{generations} p{population_size} [{factor_score_mode}, {factor_score_agg}]',
     )
 
     # get totals
-    use_elems = np.sum(halloffame.values[0])
-    num_elems = np.prod(halloffame.values[0].shape)
+    use_elems = np.sum(halloffame[0].value)
+    num_elems = np.prod(halloffame[0].value.shape)
     use_ratio = (use_elems / num_elems)
 
     # get save path, make parent dir & save!
@@ -223,7 +237,9 @@ def run(
         job_name = f'{(save_prefix + "_" if save_prefix else "")}{dataset_name}_{use_ratio:.2f}x{num_elems}_{generations}x{population_size}_{factor_score_mode}_{factor_score_agg}_{factor_score_weight}_{kept_ratio_weight}'
         save_path = ensure_parent_dir_exists(ROOT_DIR, 'out/adversarial_mask', f'{time_string}_{job_name}_mask.npz')
         log.info(f'saving mask data to: {save_path}')
-        np.savez(save_path, mask=halloffame.values[0], params=problem.hparams, seed=seed_)
+        np.savez(save_path, mask=halloffame[0].value, params=problem.hparams, seed=seed_)
+
+ruck.R.apply_mate
 
 
 # ========================================================================= #
@@ -250,27 +266,27 @@ def main():
     for (factor_score_agg, factor_score_mode, dataset_name, factor_score_weight) in product(
         ['mean'], #, 'max', 'gmean'],
         ['range'], #, 'std'],
-        ['cars3d', 'smallnorb', 'shapes3d', 'dsprites'],
-        [-1, -5, -15, -34],
+        ['shapes3d'], # , 'cars3d', 'smallnorb', 'shapes3d', 'dsprites'],
+        [-15], # , -5, -15, -34],
     ):
-        print('='*100)
-        print(f'[STARTING]: dataset_name={repr(dataset_name)} factor_score_mode={repr(factor_score_mode)} factor_score_agg={repr(factor_score_agg)} factor_score_weight={repr(factor_score_weight)}')
-        try:
-            run(
-                dataset_name=dataset_name,
-                factor_score_mode=factor_score_mode,
-                factor_score_agg=factor_score_agg,
-                factor_score_weight=factor_score_weight,
-                generations=1000,
-                seed_=42,
-                save=True,
-                save_prefix='EXPERIMENT2',
-            )
-        except KeyboardInterrupt:
-            warnings.warn('Exiting early')
-        except:
-            warnings.warn(f'[FAILED]: dataset_name={repr(dataset_name)} factor_score_mode={repr(factor_score_mode)} factor_score_agg={repr(factor_score_agg)} factor_score_weight={repr(factor_score_weight)}')
-        print('='*100)
+        # print('='*100)
+        # print(f'[STARTING]: dataset_name={repr(dataset_name)} factor_score_mode={repr(factor_score_mode)} factor_score_agg={repr(factor_score_agg)} factor_score_weight={repr(factor_score_weight)}')
+        # try:
+        run(
+            dataset_name=dataset_name,
+            factor_score_mode=factor_score_mode,
+            factor_score_agg=factor_score_agg,
+            factor_score_weight=factor_score_weight,
+            generations=1000,
+            seed_=42,
+            save=True,
+            save_prefix='DELETE',
+        )
+        # except KeyboardInterrupt:
+        #     warnings.warn('Exiting early')
+        # except:
+        #     warnings.warn(f'[FAILED]: dataset_name={repr(dataset_name)} factor_score_mode={repr(factor_score_mode)} factor_score_agg={repr(factor_score_agg)} factor_score_weight={repr(factor_score_weight)}')
+        # print('='*100)
 
 
 if __name__ == '__main__':
