@@ -380,8 +380,8 @@ def run(
         # log average
         if wandb_enabled:
             wandb.log({
-                'hof_average_images': fig_ave_imgs,
-                'pareto_solutions': fig_pareto_sol,
+                'hof_average_images_img': wandb.Image(fig_ave_imgs),
+                'pareto_solutions_img': wandb.Image(fig_pareto_sol),
             })
 
     # get summary
@@ -437,8 +437,8 @@ def main():
                 fitness_overlap_aggregate=fitness_overlap_aggregate,
                 fitness_overlap_mode=fitness_overlap_mode,
                 # population
-                generations=256,
-                population_size=128+64,
+                generations=1024,
+                population_size=256,
                 seed_=42,
                 save=False,
                 save_prefix='EXPERIMENT',
