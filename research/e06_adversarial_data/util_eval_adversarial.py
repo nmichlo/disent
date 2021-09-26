@@ -232,18 +232,18 @@ def eval_individual(
     individual: np.ndarray,
     gt_dist_matrices: np.ndarray,
     factor_sizes: Tuple[int, ...],
-    fitness_mode: str,
-    obj_mode_aggregate: str,
+    fitness_overlap_mode: str,
+    fitness_overlap_aggregate: str,
     exclude_diag: bool,
     eval_factor_fitness_fn=eval_factor_fitness_numba,
 ) -> Tuple[float, float]:
     # evaluate all factors
     factor_scores = np.array([
-        [eval_factor_fitness_fn(individual, f_idx, f_dist_matrices, factor_sizes=factor_sizes, fitness_mode=fitness_mode, exclude_diag=exclude_diag)]
+        [eval_factor_fitness_fn(individual, f_idx, f_dist_matrices, factor_sizes=factor_sizes, fitness_mode=fitness_overlap_mode, exclude_diag=exclude_diag)]
         for f_idx, f_dist_matrices in enumerate(gt_dist_matrices)
     ])
     # aggregate
-    factor_score = np_aggregate(factor_scores[:, 0], mode=obj_mode_aggregate, dtype='float64')
+    factor_score = np_aggregate(factor_scores[:, 0], mode=fitness_overlap_aggregate, dtype='float64')
     kept_ratio   = individual.mean()
     # check values just in case something goes wrong!
     factor_score = np.nan_to_num(factor_score, nan=float('-inf'))
