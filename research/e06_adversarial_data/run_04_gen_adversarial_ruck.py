@@ -463,8 +463,8 @@ def run(
                 'scores': [m.fitness for m in population],
                 # probably wont work because of object refs
                 'population': population,
-                'logbook': logbook,
-                'halloffame': halloffame,
+                'logbook_history': logbook.history,
+                'halloffame_members': halloffame.members,
             }, fp)
         # return
         results = save_path
@@ -532,7 +532,7 @@ if __name__ == '__main__':
 
     # run
     logging.basicConfig(level=logging.INFO)
-    ray.init(num_cpus=32)
+    ray.init(num_cpus=64)
     main()
 
     # with open(path, 'rb') as fp:
