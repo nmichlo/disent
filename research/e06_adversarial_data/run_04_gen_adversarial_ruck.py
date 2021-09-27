@@ -24,6 +24,7 @@
 
 import logging
 import os
+import pickle
 import random
 import warnings
 from datetime import datetime
@@ -36,18 +37,20 @@ import ray
 import ruck
 from matplotlib import pyplot as plt
 from ruck import R
-from ruck.util import ray_map
-from ruck.util import ray_remote_put
-from ruck.util import ray_remote_puts
+from ruck.external.ray import ray_map
+from ruck.external.ray import ray_remote_put
+from ruck.external.ray import ray_remote_puts
 
 import research.util as H
 from disent.util.function import wrapped_partial
 from disent.util.inout.paths import ensure_parent_dir_exists
 from disent.util.profiling import Timer
 from disent.util.seeds import seed
+from disent.util.visualize.vis_util import get_idx_traversal
 from research.e01_visual_overlap.util_compute_traversal_dists import cached_compute_all_factor_dist_matrices
 from research.e06_adversarial_data.run_04_gen_adversarial_genetic import individual_ave
-from research.e06_adversarial_data.util_eval_adversarial import eval_individual, eval_factor_fitness_numba
+from research.e06_adversarial_data.util_eval_adversarial import eval_factor_fitness_numba
+from research.e06_adversarial_data.util_eval_adversarial import eval_individual
 
 
 log = logging.getLogger(__name__)
@@ -63,11 +66,11 @@ NOTES ON MULTI-OBJECTIVE OPTIMIZATION:
            - converge to pareto optimal front
            - maintain as diverse a population as possible along the front (nsga-ii?)
         2. choose one from set using higher level information
-        
+
     NOTE:
         most multi-objective problems are just
         converted into single objective functions.
-        
+
     WEIGHTED SUMS
         -- need to know weights
         -- non-uniform in pareto-optimal solutions
@@ -123,21 +126,58 @@ def plt_pareto_solutions(
     label_fitness_1: str,
     title: str = None,
     plot: bool = True,
+    chosen_idxs_f0=None,
+    chosen_idxs_f1=None,
+    random_points=None,
     **fig_kw,
 ):
     # fitness values must be of type Tuple[float, float] for this function to work!
     fig, axs = H.plt_subplots(1, 1, title=title if title else 'Pareto-Optimal Solutions', **fig_kw)
     # plot fitness values
     xs, ys = zip(*(m.fitness for m in population))
-    axs[0, 0].scatter(xs, ys)
     axs[0, 0].set_xlabel(label_fitness_0)
     axs[0, 0].set_ylabel(label_fitness_1)
+    # plot random
+    if random_points is not None:
+        axs[0, 0].scatter(*np.array(random_points).T, c='orange')
+    # plot normal
+    axs[0, 0].scatter(xs, ys)
+    # plot chosen
+    if chosen_idxs_f0 is not None:
+        axs[0, 0].scatter(*np.array([population[i].fitness for i in chosen_idxs_f0]).T, c='purple')
+    if chosen_idxs_f1 is not None:
+        axs[0, 0].scatter(*np.array([population[i].fitness for i in chosen_idxs_f1]).T, c='green')
+    # label axes
+    # layout
     fig.tight_layout()
     # plot
     if plot:
         plt.show()
     # done!
     return fig, axs
+
+
+def plot_averages(dataset_name: str, values: list, subtitle: str, title_prefix: str = None, titles=None, show: bool = False):
+    data = H.make_data(dataset_name, transform_mode='none')
+    # average individuals
+    ave_imgs = [individual_ave(data, v) for v in values]
+    col_lbls = [f'{np.sum(v)} / {np.prod(v.shape)}' for v in values]
+    # make plots
+    fig_ave_imgs, _ = H.plt_subplots_imshow(
+        [ave_imgs],
+        col_labels=col_lbls,
+        titles=titles,
+        show=show,
+        vmin=0.0,
+        vmax=1.0,
+        figsize=(10, 3),
+        title=f'{f"{title_prefix} " if title_prefix else ""}Average Datasets\n{subtitle}',
+    )
+    return fig_ave_imgs
+
+
+def get_spaced(array, num: int):
+    return [array[i] for i in get_idx_traversal(len(array), num)]
 
 
 # ========================================================================= #
@@ -301,10 +341,14 @@ def run(
     wandb_user: str = 'n_michlo',
     wandb_job_name: str = None,
     wandb_tags: Optional[List[str]] = None,
+    wandb_finish: bool = True,
 ):
     # save the starting time for the save path
     time_string = datetime.today().strftime('%Y-%m-%d--%H-%M-%S')
     log.info(f'Starting run at time: {time_string}')
+
+    # get hparams
+    hparams = dict(dataset_name=dataset_name, dist_normalize_mode=dist_normalize_mode, generations=generations, population_size=population_size, fitness_overlap_mode=fitness_overlap_mode, fitness_overlap_aggregate=fitness_overlap_aggregate, save=save, save_prefix=save_prefix, seed_=seed_, plot=plot, wandb_enabled=wandb_enabled, wandb_init=wandb_init, wandb_project=wandb_project, wandb_user=wandb_user, wandb_job_name=wandb_job_name)
 
     # enable wandb
     wandb = None
@@ -312,10 +356,11 @@ def run(
         import wandb
         # cleanup from old runs:
         if wandb_init:
-            try:
-                wandb.finish()
-            except:
-                pass
+            if wandb_finish:
+                try:
+                    wandb.finish()
+                except:
+                    pass
             # initialize
             wandb.init(
                 entity=wandb_user,
@@ -325,10 +370,7 @@ def run(
                 tags=wandb_tags,
             )
         # track hparams
-        wandb.config.update({
-            f'adv/{k}': v
-            for k, v in dict(dataset_name=dataset_name, dist_normalize_mode=dist_normalize_mode, generations=generations, population_size=population_size, fitness_overlap_mode=fitness_overlap_mode, fitness_overlap_aggregate=fitness_overlap_aggregate, save=save, save_prefix=save_prefix, seed_=seed_, plot=plot, wandb_enabled=wandb_enabled, wandb_init=wandb_init, wandb_project=wandb_project, wandb_user=wandb_user, wandb_job_name=wandb_job_name).items()
-        })
+        wandb.config.update({f'adv/{k}': v for k, v in hparams.items()})
 
     # This is not completely deterministic with ray
     # although the starting population will always be the same!
@@ -362,12 +404,16 @@ def run(
     if plot or wandb_enabled:
         title = f'{dataset_name}: g{generations} p{population_size} [{dist_normalize_mode}, {fitness_overlap_mode}, {fitness_overlap_aggregate}]'
         # plot average
-        fig_ave_imgs, _ = H.plt_subplots_imshow(
-            [[individual_ave(dataset_name, v) for v in values]],
-            col_labels=[f'{np.sum(v)} / {np.prod(v.shape)}' for v in values],
-            show=plot, vmin=0.0, vmax=1.0, figsize=(10, 3),
-            title=f'HoF Average Datasets\n{title}',
-        )
+        fig_ave_imgs_hof = plot_averages(dataset_name, values, title_prefix='HOF', subtitle=title, show=plot)
+        # get individuals -- this is not ideal because not evenly spaced
+        idxs_chosen_f0 = get_spaced(np.argsort([m.fitness[0] for m in population])[::-1], 5)  # overlap
+        idxs_chosen_f1 = get_spaced(np.argsort([m.fitness[1] for m in population]),       5)  # usage
+        chosen_values_f0    = [ray.get(population[i].value) for i in idxs_chosen_f0]
+        chosen_values_f1    = [ray.get(population[i].value) for i in idxs_chosen_f1]
+        random_fitnesses = problem.evaluate_values([ray.put(np.random.random(values[0].shape) < p) for p in np.linspace(0.025, 1, num=population_size+2)[1:-1]])
+        # plot averages
+        fig_ave_imgs_f0 = plot_averages(dataset_name, chosen_values_f0, subtitle=title, titles=[f'{population[i].fitness[0]:2f}' for i in idxs_chosen_f0], title_prefix='Overlap -', show=plot)
+        fig_ave_imgs_f1 = plot_averages(dataset_name, chosen_values_f1, subtitle=title, titles=[f'{population[i].fitness[1]:2f}' for i in idxs_chosen_f1], title_prefix='Usage -', show=plot)
         # plot parento optimal solutions
         fig_pareto_sol, axs = plt_pareto_solutions(
             population,
@@ -375,13 +421,18 @@ def run(
             label_fitness_1='Usage Score',
             title=f'Pareto-Optimal Solutions\n{title}',
             plot=plot,
-            figsize=(7, 7)
+            chosen_idxs_f0=idxs_chosen_f0,
+            chosen_idxs_f1=idxs_chosen_f1,
+            random_points=random_fitnesses,
+            figsize=(7, 7),
         )
         # log average
         if wandb_enabled:
             wandb.log({
-                'hof_average_images_img': wandb.Image(fig_ave_imgs),
-                'pareto_solutions_img': wandb.Image(fig_pareto_sol),
+                'ave_images_hof':     wandb.Image(fig_ave_imgs_hof),
+                'ave_images_overlap': wandb.Image(fig_ave_imgs_f0),
+                'ave_images_usage':   wandb.Image(fig_ave_imgs_f1),
+                'pareto_solutions':   wandb.Image(fig_pareto_sol),
             })
 
     # get summary
@@ -400,14 +451,35 @@ def run(
     if save:
         # get save path, make parent dir & save!
         job_name = f'{(save_prefix + "_" if save_prefix else "")}{dataset_name}_{use_ratio:.2f}x{num_elems}_{generations}x{population_size}_{fitness_overlap_mode}_{fitness_overlap_aggregate}'
-        save_path = ensure_parent_dir_exists(ROOT_DIR, 'out/adversarial_mask', f'{time_string}_{job_name}_mask.npz')
-        log.info(f'saving mask data to: {save_path}')
-        np.savez(save_path, mask=values[0], params=problem.hparams, seed=seed_)
-        # return the path
-        return values[0], population
+        save_path = ensure_parent_dir_exists(ROOT_DIR, 'out/adversarial_mask', f'{time_string}_{job_name}', 'data.pkl')
+        log.info(f'saving data to: {save_path}')
+        # save everything
+        with open(save_path, 'wb') as fp:
+            pickle.dump({
+                'hparams': hparams,
+                'job_name': job_name,
+                'time_string': time_string,
+                'values': [ray.get(m.value) for m in population],
+                'scores': [m.fitness for m in population],
+                # probably wont work because of object refs
+                'population': population,
+                'logbook': logbook,
+                'halloffame': halloffame,
+            }, fp)
+        # return
+        results = save_path
     else:
-        # return the value
-        return values[0], population
+        # return the population
+        results = (population, logbook, halloffame)
+    # cleanup wandb
+    if wandb_enabled:
+        if wandb_finish:
+            try:
+                wandb.finish()
+            except:
+                pass
+    # done!
+    return results
 
 # ========================================================================= #
 # ENTRYPOINT                                                                #
@@ -437,27 +509,35 @@ def main():
                 fitness_overlap_aggregate=fitness_overlap_aggregate,
                 fitness_overlap_mode=fitness_overlap_mode,
                 # population
-                generations=1024,
+                generations=1000,
                 population_size=256,
                 seed_=42,
-                save=False,
-                save_prefix='EXPERIMENT',
+                save=True,
+                save_prefix='EXP',
                 plot=True,
                 wandb_enabled=True,
-                wandb_tags=['experiment']
+                wandb_tags=['exp']
             )
         except KeyboardInterrupt:
             warnings.warn('Exiting early')
             exit(1)
-        except:
-            warnings.warn(f'[FAILED]: dataset_name={repr(dataset_name)} dist_normalize_mode={repr(dist_normalize_mode)} fitness_overlap_mode={repr(fitness_overlap_mode)} fitness_overlap_aggregate={repr(fitness_overlap_aggregate)} fitness_overlap_weight={repr(fitness_overlap_weight)}  fitness_usage_weight={repr(fitness_usage_weight)}')
+        # except:
+        #     warnings.warn(f'[FAILED]: dataset_name={repr(dataset_name)} dist_normalize_mode={repr(dist_normalize_mode)} fitness_overlap_mode={repr(fitness_overlap_mode)} fitness_overlap_aggregate={repr(fitness_overlap_aggregate)}')
         print('='*100)
 
 
 if __name__ == '__main__':
+    # matplotlib style
+    plt.style.use(os.path.join(os.path.dirname(__file__), '../gadfly.mplstyle'))
+
+    # run
     logging.basicConfig(level=logging.INFO)
     ray.init(num_cpus=32)
     main()
+
+    # with open(path, 'rb') as fp:
+    #     data = pickle.load(fp)
+    # print(data)
 
 
 # ========================================================================= #

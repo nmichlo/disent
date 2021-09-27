@@ -294,11 +294,11 @@ class GlobalMaskDataGA(BooleanMaskGA):
 # ========================================================================= #
 
 
-def individual_ave(dataset_name: str, individual, print_=False):
-    sub_data = MaskedDataset(
-        data=H.make_data(dataset_name, transform_mode='none'),
-        mask=individual.flatten(),
-    )
+def individual_ave(dataset, individual, print_=False):
+    if isinstance(dataset, str):
+        dataset = H.make_data(dataset, transform_mode='none')
+    # masked
+    sub_data = MaskedDataset(data=dataset, mask=individual.flatten())
     if print_:
         print(', '.join(f'{individual.reshape(sub_data._data.factor_sizes).sum(axis=f_idx).mean():2f}' for f_idx in range(sub_data._data.num_factors)))
     # make obs
