@@ -45,6 +45,11 @@ def get_closest_mask(usage_ratio: float, pickle_file: str) -> np.ndarray:
     the matching statistic. The reason this function works is that
     the population should consist only of near-pareto-optimal solutions.
     - These solutions are found using NSGA2
+
+    Usage With Hydra Config:
+        _target_: research.e06_adversarial_data.util_load_adversarial_mask.get_closest_mask
+        usage_ratio: 0.5
+        pickle_file: data.pickle.gz
     """
     # load pickled data
     with gzip.open(pickle_file, mode='rb') as fp:
