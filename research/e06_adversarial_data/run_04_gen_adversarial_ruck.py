@@ -22,12 +22,14 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import gzip
 import logging
 import os
 import pickle
 import random
 import warnings
 from datetime import datetime
+from glob import glob
 from typing import List
 from typing import Optional
 from typing import Tuple
@@ -46,6 +48,7 @@ from disent.util.function import wrapped_partial
 from disent.util.inout.paths import ensure_parent_dir_exists
 from disent.util.profiling import Timer
 from disent.util.seeds import seed
+from disent.util.strings.fmt import bytes_to_human
 from disent.util.visualize.vis_util import get_idx_traversal
 from research.e01_visual_overlap.util_compute_traversal_dists import cached_compute_all_factor_dist_matrices
 from research.e06_adversarial_data.run_04_gen_adversarial_genetic import individual_ave
@@ -450,11 +453,22 @@ def run(
 
     if save:
         # get save path, make parent dir & save!
-        job_name = f'{(save_prefix + "_" if save_prefix else "")}{dataset_name}_{use_ratio:.2f}x{num_elems}_{generations}x{population_size}_{fitness_overlap_mode}_{fitness_overlap_aggregate}'
-        save_path = ensure_parent_dir_exists(ROOT_DIR, 'out/adversarial_mask', f'{time_string}_{job_name}', 'data.pkl')
+        job_name = f'{time_string}_{(save_prefix + "_" if save_prefix else "")}{dataset_name}_{generations}x{population_size}_{dist_normalize_mode}_{fitness_overlap_mode}_{fitness_overlap_aggregate}'
+        save_path = ensure_parent_dir_exists(ROOT_DIR, 'out/adversarial_mask', job_name, 'data.pkl.gz')
         log.info(f'saving data to: {save_path}')
-        # save everything
-        with open(save_path, 'wb') as fp:
+
+        # NONE : 122943493 ~= 118M (100.%) : 103.420ms
+        # lvl=1 : 23566691 ~=  23M (19.1%) : 1.223s
+        # lvl=2 : 21913595 ~=  21M (17.8%) : 1.463s
+        # lvl=3 : 20688319 ~=  20M (16.8%) : 2.504s
+        # lvl=4 : 18325859 ~=  18M (14.9%) : 1.856s  # good
+        # lvl=5 : 17467772 ~=  17M (14.2%) : 3.332s  # good
+        # lvl=6 : 16594660 ~=  16M (13.5%) : 7.163s  # starting to slow
+        # lvl=7 : 16242279 ~=  16M (13.2%) : 12.407s
+        # lvl=8 : 15586416 ~=  15M (12.7%) : 1m:4s   # far too slow
+        # lvl=9 : 15023324 ~=  15M (12.2%) : 3m:11s  # far too slow
+
+        with gzip.open(save_path, 'wb', compresslevel=5) as fp:
             pickle.dump({
                 'hparams': hparams,
                 'job_name': job_name,
@@ -466,6 +480,8 @@ def run(
                 'logbook_history': logbook.history,
                 'halloffame_members': halloffame.members,
             }, fp)
+        # done!
+        log.info(f'saved data to: {save_path}')
         # return
         results = save_path
     else:
@@ -526,6 +542,57 @@ def main():
         print('='*100)
 
 
+def _resave_old():
+    files = list(glob(os.path.join(ROOT_DIR, 'out/adversarial_mask/**/data.pkl')))
+
+    def split_path(path):
+        assert path[0] == '/'
+        (*base, dir_, name) = path.split('/')
+        base, name = os.path.join('/', *base), os.path.join(dir_, name)
+        return base, name
+
+    import re
+
+    for src_file in files:
+
+        print(f'SRC: {src_file}')
+        with open(src_file, 'rb') as fp:
+            data = pickle.load(fp)
+
+        dist_normalize_mode = data['hparams']['dist_normalize_mode']
+
+        src_base, src_name = split_path(src_file)
+
+        (
+            time_string, save_prefix,
+            dataset_name,
+            _, _,
+            generations, population_size,
+            fitness_overlap_mode, fitness_overlap_aggregate,
+            _,
+        ) = re.match(
+            '(\d{4}-\d{2}-\d{2}--\d{2}-\d{2}-\d{2})(?:_(EXP))?'
+            '_(.+?)'
+            '_([\d.]+)x(\d+)'
+            '_(\d+)x(\d+)'
+            '_(.+?)_(.+?)'
+            '/(.+)',
+            src_name,
+        ).groups()
+
+        # copied directly from above
+        job_name = f'{time_string}_{(save_prefix + "_" if save_prefix else "")}{dataset_name}_{generations}x{population_size}_{dist_normalize_mode}_{fitness_overlap_mode}_{fitness_overlap_aggregate}'
+        dst_file = os.path.join(src_base, job_name, 'data.pkl.gz')
+
+        print(f'DST: {dst_file}')
+
+        with gzip.open(dst_file, 'wb', compresslevel=5) as fp:
+            pickle.dump(data, fp)
+
+        print(f'BYT: {bytes_to_human(os.path.getsize(src_file))} to: {bytes_to_human(os.path.getsize(dst_file))}')
+        print()
+
+
 if __name__ == '__main__':
     # matplotlib style
     plt.style.use(os.path.join(os.path.dirname(__file__), '../gadfly.mplstyle'))
@@ -534,10 +601,6 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     ray.init(num_cpus=64)
     main()
-
-    # with open(path, 'rb') as fp:
-    #     data = pickle.load(fp)
-    # print(data)
 
 
 # ========================================================================= #
