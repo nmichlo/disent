@@ -29,7 +29,6 @@ import pickle
 import random
 import warnings
 from datetime import datetime
-from glob import glob
 from typing import List
 from typing import Optional
 from typing import Tuple
@@ -48,7 +47,6 @@ from disent.util.function import wrapped_partial
 from disent.util.inout.paths import ensure_parent_dir_exists
 from disent.util.profiling import Timer
 from disent.util.seeds import seed
-from disent.util.strings.fmt import bytes_to_human
 from disent.util.visualize.vis_util import get_idx_traversal
 from research.e01_visual_overlap.util_compute_traversal_dists import cached_compute_all_factor_dist_matrices
 from research.e06_adversarial_data.run_04_gen_adversarial_genetic import individual_ave
@@ -511,7 +509,7 @@ def main():
     # (3 * 2 * 2 * 5)
     for (dist_normalize_mode, fitness_overlap_aggregate, fitness_overlap_mode, dataset_name) in product(
         ['all', 'each', 'none'],
-        ['mean', 'gmean'],
+        ['gmean', 'mean'],
         ['std', 'range'],
         ['xysquares_8x8_toy_s2', 'cars3d', 'smallnorb', 'shapes3d', 'dsprites'],
     ):
@@ -540,57 +538,6 @@ def main():
         # except:
         #     warnings.warn(f'[FAILED]: dataset_name={repr(dataset_name)} dist_normalize_mode={repr(dist_normalize_mode)} fitness_overlap_mode={repr(fitness_overlap_mode)} fitness_overlap_aggregate={repr(fitness_overlap_aggregate)}')
         print('='*100)
-
-
-def _resave_old():
-    files = list(glob(os.path.join(ROOT_DIR, 'out/adversarial_mask/**/data.pkl')))
-
-    def split_path(path):
-        assert path[0] == '/'
-        (*base, dir_, name) = path.split('/')
-        base, name = os.path.join('/', *base), os.path.join(dir_, name)
-        return base, name
-
-    import re
-
-    for src_file in files:
-
-        print(f'SRC: {src_file}')
-        with open(src_file, 'rb') as fp:
-            data = pickle.load(fp)
-
-        dist_normalize_mode = data['hparams']['dist_normalize_mode']
-
-        src_base, src_name = split_path(src_file)
-
-        (
-            time_string, save_prefix,
-            dataset_name,
-            _, _,
-            generations, population_size,
-            fitness_overlap_mode, fitness_overlap_aggregate,
-            _,
-        ) = re.match(
-            '(\d{4}-\d{2}-\d{2}--\d{2}-\d{2}-\d{2})(?:_(EXP))?'
-            '_(.+?)'
-            '_([\d.]+)x(\d+)'
-            '_(\d+)x(\d+)'
-            '_(.+?)_(.+?)'
-            '/(.+)',
-            src_name,
-        ).groups()
-
-        # copied directly from above
-        job_name = f'{time_string}_{(save_prefix + "_" if save_prefix else "")}{dataset_name}_{generations}x{population_size}_{dist_normalize_mode}_{fitness_overlap_mode}_{fitness_overlap_aggregate}'
-        dst_file = os.path.join(src_base, job_name, 'data.pkl.gz')
-
-        print(f'DST: {dst_file}')
-
-        with gzip.open(dst_file, 'wb', compresslevel=5) as fp:
-            pickle.dump(data, fp)
-
-        print(f'BYT: {bytes_to_human(os.path.getsize(src_file))} to: {bytes_to_human(os.path.getsize(dst_file))}')
-        print()
 
 
 if __name__ == '__main__':
