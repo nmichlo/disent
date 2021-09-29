@@ -2,7 +2,11 @@
 name: mask_adv_smallnorb
 data:
   _target_: disent.dataset.wrapper.MaskedDataset
-  mask: '${env:HOME}/workspace/research/disent/out/adversarial_mask/2021-09-22--13-00-29_EXPERIMENT2_smallnorb_0.49x24300_1000x128_range_mean_-34_1.0_mask.npz'
+  mask:
+    _target_: research.e06_adversarial_data.util_load_adversarial_mask.get_closest_mask
+    usage_ratio: ${framework.optional.usage_ratio}
+    # pickle_file: '${env:HOME}/workspace/research/disent/out/adversarial_mask/2021-09-27--21-28-42_EXP_smallnorb_1000x256_all_std_mean/data.pkl.gz'
+    pickle_file: '${env:HOME}/workspace/research/disent/out/adversarial_mask/2021-09-27--23-03-51_EXP_smallnorb_1000x256_all_std_gmean/data.pkl.gz'
   randomize: FALSE
   data:
     _target_: disent.dataset.data.SmallNorbData
@@ -15,3 +19,5 @@ transform:
 x_shape: [1, 64, 64]
 
 data_type: random
+
+# TODO: this does not yet copy the data to /tmp/ and thus if run on a cluster of a network drive, this will hammer the network disk. Fix this!

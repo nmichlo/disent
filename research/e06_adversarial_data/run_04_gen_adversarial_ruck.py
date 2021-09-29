@@ -22,6 +22,16 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+"""
+This file generates pareto-optimal solutions to the multi-objective
+optimisation problem of masking a dataset as to minimize some metric
+for overlap, while maximizing the amount of data kept.
+
+- We solve this problem using the NSGA2 algorithm and save all the results
+  to disk to be loaded with `get_closest_mask` from `util_load_adversarial_mask.py`
+"""
+
+import gzip
 import logging
 import os
 import pickle
@@ -42,20 +52,21 @@ from ruck.external.ray import ray_remote_put
 from ruck.external.ray import ray_remote_puts
 
 import research.util as H
+from disent.dataset.wrapper import MaskedDataset
 from disent.util.function import wrapped_partial
 from disent.util.inout.paths import ensure_parent_dir_exists
 from disent.util.profiling import Timer
 from disent.util.seeds import seed
 from disent.util.visualize.vis_util import get_idx_traversal
 from research.e01_visual_overlap.util_compute_traversal_dists import cached_compute_all_factor_dist_matrices
-from research.e06_adversarial_data.run_04_gen_adversarial_genetic import individual_ave
 from research.e06_adversarial_data.util_eval_adversarial import eval_factor_fitness_numba
 from research.e06_adversarial_data.util_eval_adversarial import eval_individual
 
 
 log = logging.getLogger(__name__)
 
-"""
+
+'''
 NOTES ON MULTI-OBJECTIVE OPTIMIZATION:
     https://en.wikipedia.org/wiki/Pareto_efficiency
     https://en.wikipedia.org/wiki/Multi-objective_optimization
@@ -82,7 +93,7 @@ NOTES ON MULTI-OBJECTIVE OPTIMIZATION:
         -- non-uniform in pareto-optimal solutions
         -- any pareto-optimal solution can be found
         * EMO is a generalisation?
-"""
+'''
 
 
 # ========================================================================= #
@@ -155,6 +166,20 @@ def plt_pareto_solutions(
         plt.show()
     # done!
     return fig, axs
+
+
+def individual_ave(dataset, individual, print_=False):
+    if isinstance(dataset, str):
+        dataset = H.make_data(dataset, transform_mode='none')
+    # masked
+    sub_data = MaskedDataset(data=dataset, mask=individual.flatten())
+    if print_:
+        print(', '.join(f'{individual.reshape(sub_data._data.factor_sizes).sum(axis=f_idx).mean():2f}' for f_idx in range(sub_data._data.num_factors)))
+    # make obs
+    ave_obs = np.zeros_like(sub_data[0], dtype='float64')
+    for obs in sub_data:
+        ave_obs += obs
+    return ave_obs / ave_obs.max()
 
 
 def plot_averages(dataset_name: str, values: list, subtitle: str, title_prefix: str = None, titles=None, show: bool = False):
@@ -450,22 +475,38 @@ def run(
 
     if save:
         # get save path, make parent dir & save!
-        job_name = f'{(save_prefix + "_" if save_prefix else "")}{dataset_name}_{use_ratio:.2f}x{num_elems}_{generations}x{population_size}_{fitness_overlap_mode}_{fitness_overlap_aggregate}'
-        save_path = ensure_parent_dir_exists(ROOT_DIR, 'out/adversarial_mask', f'{time_string}_{job_name}', 'data.pkl')
+        job_name = f'{time_string}_{(save_prefix + "_" if save_prefix else "")}{dataset_name}_{generations}x{population_size}_{dist_normalize_mode}_{fitness_overlap_mode}_{fitness_overlap_aggregate}'
+        save_path = ensure_parent_dir_exists(ROOT_DIR, 'out/adversarial_mask', job_name, 'data.pkl.gz')
         log.info(f'saving data to: {save_path}')
-        # save everything
-        with open(save_path, 'wb') as fp:
+
+        # NONE : 122943493 ~= 118M (100.%) : 103.420ms
+        # lvl=1 : 23566691 ~=  23M (19.1%) : 1.223s
+        # lvl=2 : 21913595 ~=  21M (17.8%) : 1.463s
+        # lvl=3 : 20688319 ~=  20M (16.8%) : 2.504s
+        # lvl=4 : 18325859 ~=  18M (14.9%) : 1.856s  # good
+        # lvl=5 : 17467772 ~=  17M (14.2%) : 3.332s  # good
+        # lvl=6 : 16594660 ~=  16M (13.5%) : 7.163s  # starting to slow
+        # lvl=7 : 16242279 ~=  16M (13.2%) : 12.407s
+        # lvl=8 : 15586416 ~=  15M (12.7%) : 1m:4s   # far too slow
+        # lvl=9 : 15023324 ~=  15M (12.2%) : 3m:11s  # far too slow
+
+        with gzip.open(save_path, 'wb', compresslevel=5) as fp:
             pickle.dump({
                 'hparams': hparams,
                 'job_name': job_name,
                 'time_string': time_string,
                 'values': [ray.get(m.value) for m in population],
                 'scores': [m.fitness for m in population],
+                # score components
+                'scores_overlap': [m.fitness[0] for m in population],
+                'scores_usage': [m.fitness[1] for m in population],
                 # probably wont work because of object refs
                 'population': population,
                 'logbook_history': logbook.history,
                 'halloffame_members': halloffame.members,
             }, fp)
+        # done!
+        log.info(f'saved data to: {save_path}')
         # return
         results = save_path
     else:
@@ -495,7 +536,7 @@ def main():
     # (3 * 2 * 2 * 5)
     for (dist_normalize_mode, fitness_overlap_aggregate, fitness_overlap_mode, dataset_name) in product(
         ['all', 'each', 'none'],
-        ['mean', 'gmean'],
+        ['gmean', 'mean'],
         ['std', 'range'],
         ['xysquares_8x8_toy_s2', 'cars3d', 'smallnorb', 'shapes3d', 'dsprites'],
     ):
@@ -534,11 +575,6 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     ray.init(num_cpus=64)
     main()
-
-    # with open(path, 'rb') as fp:
-    #     data = pickle.load(fp)
-    # print(data)
-
 
 # ========================================================================= #
 # END                                                                       #
