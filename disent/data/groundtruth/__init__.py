@@ -32,3 +32,4 @@ from ._shapes3d import Shapes3dData
 from ._xyobject import XYObjectData
 from ._xysquares import XYSquaresData
 from ._xyblocks import XYBlocksData
+from ._xyblocks_cluster import XYSquaresClusterData
