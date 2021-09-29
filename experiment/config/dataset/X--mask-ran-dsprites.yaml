@@ -5,8 +5,8 @@ data:
   mask:
     _target_: research.e06_adversarial_data.util_load_adversarial_mask.get_closest_mask
     usage_ratio: ${framework.optional.usage_ratio}
-    # pickle_file: '${env:HOME}/workspace/research/disent/out/adversarial_mask/2021-09-27--21-45-46_EXP_dsprites_1000x256_all_std_mean/data.pickle.gz'
-    pickle_file: '${env:HOME}/workspace/research/disent/out/adversarial_mask/2021-09-27--23-21-51_EXP_dsprites_1000x256_all_std_gmean/data.pickle.gz'
+    # pickle_file: '${env:HOME}/workspace/research/disent/out/adversarial_mask/2021-09-27--21-45-46_EXP_dsprites_1000x256_all_std_mean/data.pkl.gz'
+    pickle_file: '${env:HOME}/workspace/research/disent/out/adversarial_mask/2021-09-27--23-21-51_EXP_dsprites_1000x256_all_std_gmean/data.pkl.gz'
   randomize: TRUE
   data:
     _target_: disent.dataset.data.DSpritesData

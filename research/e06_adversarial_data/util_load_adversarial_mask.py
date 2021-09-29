@@ -49,7 +49,7 @@ def get_closest_mask(usage_ratio: float, pickle_file: str) -> np.ndarray:
     Usage With Hydra Config:
         _target_: research.e06_adversarial_data.util_load_adversarial_mask.get_closest_mask
         usage_ratio: 0.5
-        pickle_file: data.pickle.gz
+        pickle_file: data.pkl.gz
     """
     # load pickled data
     with gzip.open(pickle_file, mode='rb') as fp:
