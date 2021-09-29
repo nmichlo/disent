@@ -500,10 +500,12 @@ def run(
                 # score components
                 'scores_overlap': [m.fitness[0] for m in population],
                 'scores_usage': [m.fitness[1] for m in population],
-                # probably wont work because of object refs
-                'population': population,
+                # history data
                 'logbook_history': logbook.history,
-                'halloffame_members': halloffame.members,
+                # we don't want these because they store object refs, and
+                # it means we need ray to unpickle them.
+                # 'population': population,
+                # 'halloffame_members': halloffame.members,
             }, fp)
         # done!
         log.info(f'saved data to: {save_path}')

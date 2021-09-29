@@ -15,6 +15,7 @@
 # psutil>=5.8.0
 imageio>=2.9.0  # required for wandb video logging
 moviepy>=1.0.3  # required for wandb video logging
+matplotlib>=3
 
 # GRAPHING & DISPLAY
 # ==================
