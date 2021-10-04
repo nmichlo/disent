@@ -99,10 +99,7 @@ class DATASET(metaclass=_R.LazyImportMeta()):
     Mpi3d             = _disent.dataset.data._groundtruth__mpi3d.Mpi3dData
     SmallNorb         = _disent.dataset.data._groundtruth__norb.SmallNorbData
     Shapes3d          = _disent.dataset.data._groundtruth__shapes3d.Shapes3dData
-    XYBlocks          = _disent.dataset.data._groundtruth__xyblocks.XYBlocksData           # pragma: delete-on-release
     XYObject          = _disent.dataset.data._groundtruth__xyobject.XYObjectData
-    XYSquares         = _disent.dataset.data._groundtruth__xysquares.XYSquaresData         # pragma: delete-on-release
-    XYSquares_Minimal = _disent.dataset.data._groundtruth__xysquares.XYSquaresMinimalData  # pragma: delete-on-release
 
 
 # changes here should also update `disent/dataset/sampling/__init__.py`
@@ -134,23 +131,6 @@ class FRAMEWORK(metaclass=_R.LazyImportMeta()):
     InfoVae                = _disent.frameworks.vae._unsupervised__infovae.InfoVae
     Vae                    = _disent.frameworks.vae._unsupervised__vae.Vae
     AdaVae                 = _disent.frameworks.vae._weaklysupervised__adavae.AdaVae
-    # [AE - EXPERIMENTAL]                                                                                            # pragma: delete-on-release
-    E_AdaNegTripletAe      = _disent.frameworks.ae.experimental._supervised__adaneg_tae.AdaNegTripletAe              # pragma: delete-on-release
-    E_DataOverlapTripletAe = _disent.frameworks.ae.experimental._unsupervised__dotae.DataOverlapTripletAe            # pragma: delete-on-release
-    E_AdaAe                = _disent.frameworks.ae.experimental._weaklysupervised__adaae.AdaAe                       # pragma: delete-on-release
-    # [VAE - EXPERIMENTAL]                                                                                           # pragma: delete-on-release
-    E_AdaAveTripletVae     = _disent.frameworks.vae.experimental._supervised__adaave_tvae.AdaAveTripletVae           # pragma: delete-on-release
-    E_AdaNegTripletVae     = _disent.frameworks.vae.experimental._supervised__adaneg_tvae.AdaNegTripletVae           # pragma: delete-on-release
-    E_AdaTripletVae        = _disent.frameworks.vae.experimental._supervised__adatvae.AdaTripletVae                  # pragma: delete-on-release
-    E_BoundedAdaVae        = _disent.frameworks.vae.experimental._supervised__badavae.BoundedAdaVae                  # pragma: delete-on-release
-    E_GuidedAdaVae         = _disent.frameworks.vae.experimental._supervised__gadavae.GuidedAdaVae                   # pragma: delete-on-release
-    E_TripletBoundedAdaVae = _disent.frameworks.vae.experimental._supervised__tbadavae.TripletBoundedAdaVae          # pragma: delete-on-release
-    E_TripletGuidedAdaVae  = _disent.frameworks.vae.experimental._supervised__tgadavae.TripletGuidedAdaVae           # pragma: delete-on-release
-    E_DataOverlapRankVae   = _disent.frameworks.vae.experimental._unsupervised__dorvae.DataOverlapRankVae            # pragma: delete-on-release
-    E_DataOverlapTripletVae= _disent.frameworks.vae.experimental._unsupervised__dotvae.DataOverlapTripletVae         # pragma: delete-on-release
-    E_AugPosTripletVae     = _disent.frameworks.vae.experimental._weaklysupervised__augpostriplet.AugPosTripletVae   # pragma: delete-on-release
-    E_SwappedTargetAdaVae  = _disent.frameworks.vae.experimental._weaklysupervised__st_adavae.SwappedTargetAdaVae    # pragma: delete-on-release
-    E_SwappedTargetBetaVae = _disent.frameworks.vae.experimental._weaklysupervised__st_betavae.SwappedTargetBetaVae  # pragma: delete-on-release
 
 
 # changes here should also update `disent/frameworks/helper/reconstructions.py`
@@ -163,9 +143,6 @@ class RECON_LOSS(metaclass=_R.LazyImportMeta(to_lowercase=True)):
     Bernoulli           = _disent.frameworks.helper.reconstructions.ReconLossHandlerBernoulli            # reduces to bce - binary values in the set {0, 1}
     ContinuousBernoulli = _disent.frameworks.helper.reconstructions.ReconLossHandlerContinuousBernoulli  # bernoulli with a computed offset to handle values in the range [0, 1]
     Normal              = _disent.frameworks.helper.reconstructions.ReconLossHandlerNormal               # handle all real values
-    # [EXPERIMENTAL LOSSES]                                                                                                                                            # pragma: delete-on-release
-    Mse4                = _disent.frameworks.helper.reconstructions.ReconLossHandlerMse4  # scaled as if computed over outputs of the range [-1, 1] instead of [0, 1]  # pragma: delete-on-release
-    Mae2                = _disent.frameworks.helper.reconstructions.ReconLossHandlerMae2  # scaled as if computed over outputs of the range [-1, 1] instead of [0, 1]  # pragma: delete-on-release
 
 
 # changes here should also update `disent/frameworks/helper/latent_distributions.py`
@@ -222,8 +199,6 @@ class OPTIMIZER(metaclass=_R.LazyImportMeta()):
 class METRIC(metaclass=_R.LazyImportMeta()):
     dci                 = _disent.metrics._dci.metric_dci
     factor_vae          = _disent.metrics._factor_vae.metric_factor_vae
-    flatness            = _disent.metrics._flatness.metric_flatness                        # pragma: delete-on-release
-    flatness_components = _disent.metrics._flatness_components.metric_flatness_components  # pragma: delete-on-release
     mig                 = _disent.metrics._mig.metric_mig
     sap                 = _disent.metrics._sap.metric_sap
     unsupervised        = _disent.metrics._unsupervised.metric_unsupervised

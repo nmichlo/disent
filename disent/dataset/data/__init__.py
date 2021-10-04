@@ -49,8 +49,4 @@ from disent.dataset.data._groundtruth__norb import SmallNorbData
 from disent.dataset.data._groundtruth__shapes3d import Shapes3dData
 
 # groundtruth -- impl synthetic
-from disent.dataset.data._groundtruth__xyblocks import XYBlocksData           # pragma: delete-on-release
 from disent.dataset.data._groundtruth__xyobject import XYObjectData
-from disent.dataset.data._groundtruth__xysquares import XYSquaresData         # pragma: delete-on-release
-from disent.dataset.data._groundtruth__xysquares import XYSquaresMinimalData  # pragma: delete-on-release
-from disent.dataset.data._groundtruth__xcolumns import XColumnsData           # pragma: delete-on-release

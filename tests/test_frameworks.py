@@ -36,9 +36,7 @@ from disent.dataset.sampling import GroundTruthSingleSampler
 from disent.dataset.sampling import GroundTruthPairSampler
 from disent.dataset.sampling import GroundTruthTripleSampler
 from disent.frameworks.ae import *
-from disent.frameworks.ae.experimental import *   # pragma: delete-on-release
 from disent.frameworks.vae import *
-from disent.frameworks.vae.experimental import *  # pragma: delete-on-release
 from disent.model import AutoEncoder
 from disent.model.ae import DecoderTest
 from disent.model.ae import EncoderTest
@@ -53,16 +51,10 @@ from disent.nn.transform import ToStandardisedTensor
 @pytest.mark.parametrize(['Framework', 'cfg_kwargs', 'Data'], [
     # AE - unsupervised
     (Ae,                   dict(),                                                                      XYObjectData),
-    # AE - unsupervised - EXP                                                                                           # pragma: delete-on-release
-    (DataOverlapTripletAe, dict(overlap_mine_triplet_mode='hard_neg'),                                  XYObjectData),  # pragma: delete-on-release
     # AE - weakly supervised
     # <n/a>
-    # AE - weakly supervised - EXP                                                                                      # pragma: delete-on-release
-    (AdaAe,                dict(),                                                                      XYObjectData),  # pragma: delete-on-release
     # AE - supervised
     (TripletAe,            dict(),                                                                      XYObjectData),
-    # AE - supervised - EXP                                                                                             # pragma: delete-on-release
-    (AdaNegTripletAe,      dict(),                                                                      XYObjectData),  # pragma: delete-on-release
     # VAE - unsupervised
     (Vae,                  dict(),                                                                      XYObjectData),
     (BetaVae,              dict(),                                                                      XYObjectData),
@@ -72,33 +64,12 @@ from disent.nn.transform import ToStandardisedTensor
     (DfcVae,               dict(),                                                                      XYObjectData),
     (DfcVae,               dict(),                                                                      partial(XYObjectData, rgb=False)),
     (BetaTcVae,            dict(),                                                                      XYObjectData),
-    # VAE - unsupervised - EXP                                                                                          # pragma: delete-on-release
-    (DataOverlapTripletVae,dict(overlap_mine_triplet_mode='none'),                                      XYObjectData),  # pragma: delete-on-release
-    (DataOverlapTripletVae,dict(overlap_mine_triplet_mode='semi_hard_neg'),                             XYObjectData),  # pragma: delete-on-release
-    (DataOverlapTripletVae,dict(overlap_mine_triplet_mode='hard_neg'),                                  XYObjectData),  # pragma: delete-on-release
-    (DataOverlapTripletVae,dict(overlap_mine_triplet_mode='hard_pos'),                                  XYObjectData),  # pragma: delete-on-release
-    (DataOverlapTripletVae,dict(overlap_mine_triplet_mode='easy_pos'),                                  XYObjectData),  # pragma: delete-on-release
-    (DataOverlapRankVae,   dict(),                                                                      XYObjectData),  # pragma: delete-on-release
     # VAE - weakly supervised
     (AdaVae,               dict(),                                                                      XYObjectData),
     (AdaVae,               dict(ada_average_mode='ml-vae'),                                             XYObjectData),
-    # VAE - weakly supervised - EXP                                                                                     # pragma: delete-on-release
-    (SwappedTargetAdaVae,  dict(swap_chance=1.0),                                                       XYObjectData),  # pragma: delete-on-release
-    (SwappedTargetBetaVae, dict(swap_chance=1.0),                                                       XYObjectData),  # pragma: delete-on-release
-    (AugPosTripletVae,     dict(),                                                                      XYObjectData),  # pragma: delete-on-release
     # VAE - supervised
     (TripletVae,           dict(),                                                                      XYObjectData),
     (TripletVae,           dict(disable_decoder=True, disable_reg_loss=True, disable_posterior_scale=0.5), XYObjectData),
-    # VAE - supervised - EXP                                                                                            # pragma: delete-on-release
-    (BoundedAdaVae,        dict(),                                                                      XYObjectData),  # pragma: delete-on-release
-    (GuidedAdaVae,         dict(),                                                                      XYObjectData),  # pragma: delete-on-release
-    (GuidedAdaVae,         dict(gada_anchor_ave_mode='thresh'),                                         XYObjectData),  # pragma: delete-on-release
-    (TripletBoundedAdaVae, dict(),                                                                      XYObjectData),  # pragma: delete-on-release
-    (TripletGuidedAdaVae,  dict(),                                                                      XYObjectData),  # pragma: delete-on-release
-    (AdaTripletVae,        dict(),                                                                      XYObjectData),  # pragma: delete-on-release
-    (AdaAveTripletVae,     dict(adat_share_mask_mode='posterior'),                                      XYObjectData),  # pragma: delete-on-release
-    (AdaAveTripletVae,     dict(adat_share_mask_mode='sample'),                                         XYObjectData),  # pragma: delete-on-release
-    (AdaAveTripletVae,     dict(adat_share_mask_mode='sample_each'),                                    XYObjectData),  # pragma: delete-on-release
 ])
 def test_frameworks(Framework, cfg_kwargs, Data):
     DataSampler = {
