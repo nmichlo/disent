@@ -38,10 +38,6 @@
 
 ----------------------
 
-⚠️ _Development of official pypi versions has been paused temporarily until I finish my degree. Large changes can be expected afterwards for release 0.2.0, fixing most issues with the library._
-
-----------------------
-
 ## Table Of Contents
 
 - [Overview](#overview)
@@ -108,9 +104,8 @@ The disent directory structure:
 
 **Please Note The API Is Still Unstable ⚠️**
 
-Disent is still under active development. Features and APIs are not considered stable,
-and should be expected to change! A limited set of tests currently exist which will be
-expanded upon in time.
+Disent is still under active development. Features and APIs are mostly stable but may change! A limited
+set of tests currently exist which will be expanded upon in time.
 
 **Hydra Experiment Directories**
 
