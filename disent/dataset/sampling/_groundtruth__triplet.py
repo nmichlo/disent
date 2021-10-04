@@ -23,9 +23,13 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
+from typing import Tuple
+from typing import Union
+
 import numpy as np
 from disent.dataset.data import GroundTruthData
 from disent.dataset.sampling._base import BaseDisentSampler
+from disent.util.math.random import sample_radius
 
 
 log = logging.getLogger(__name__)
@@ -37,6 +41,19 @@ log = logging.getLogger(__name__)
 
 
 class GroundTruthTripleSampler(BaseDisentSampler):
+
+    def uninit_copy(self) -> 'GroundTruthTripleSampler':
+        return GroundTruthTripleSampler(
+            p_k_range=self.p_k_range,
+            n_k_range=self.n_k_range,
+            n_k_sample_mode=self.n_k_sample_mode,
+            n_k_is_shared=self.n_k_is_shared,
+            p_radius_range=self.p_radius_range,
+            n_radius_range=self.n_radius_range,
+            n_radius_sample_mode=self.n_radius_sample_mode,
+            swap_metric=self._swap_metric,
+            swap_chance=self._swap_chance,
+        )
 
     def __init__(
             self,
@@ -99,7 +116,7 @@ class GroundTruthTripleSampler(BaseDisentSampler):
     # CORE                                                                  #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def __call__(self, idx):
+    def _sample_idx(self, idx):
         f0, f1, f2 = self.datapoint_sample_factors_triplet(idx)
         return (
             self._data.pos_to_idx(f0),
@@ -256,7 +273,8 @@ class FactorSizeError(Exception):
 def normalise_range(mins, maxs, sizes):
     sizes = np.array(sizes)
     # compute the bounds for each factor
-    mins, maxs = np.broadcast_to(mins, sizes.shape).copy(), np.broadcast_to(maxs, sizes.shape).copy()
+    mins = np.broadcast_to(mins, sizes.shape).copy()
+    maxs = np.broadcast_to(maxs, sizes.shape).copy()
     mins[mins < 0] += sizes[mins < 0] + 1
     maxs[maxs < 0] += sizes[maxs < 0] + 1
     # check that min <= max
@@ -268,7 +286,7 @@ def normalise_range(mins, maxs, sizes):
     return mins, maxs
 
 
-def normalise_range_pair(min_max, sizes):
+def normalise_range_pair(min_max: Union[int, Tuple[int, int]], sizes):
     min_max = np.array(min_max)
     # if not a 2 tuple, repeat. This fixes the min == max.
     if min_max.shape == ():
@@ -277,53 +295,6 @@ def normalise_range_pair(min_max, sizes):
     assert min_max.shape == (2,)
     # get values
     return normalise_range(*min_max, sizes)
-
-
-# TODO: these functions should be moved into the state_space or at least a helper class!
-
-
-def randint2(a_low, a_high, b_low, b_high, size=None):
-    """
-    Like np.random.randint, but supports two ranges of values.
-    Samples with equal probability from both ranges.
-    - a: [a_low, a_high) -> including a_low, excluding a_high!
-    - b: [b_low, b_high) -> including b_low, excluding b_high!
-    """
-    # convert
-    a_low, a_high = np.array(a_low), np.array(a_high)
-    b_low, b_high = np.array(b_low), np.array(b_high)
-    # checks
-    assert np.all(a_low <= a_high), f'a_low <= a_high | {a_low} <= {a_high}'
-    assert np.all(b_low <= b_high), f'b_low <= b_high | {b_low} <= {b_high}'
-    assert np.all(a_high <= b_low), f'a_high <= b_low | {a_high} <= {b_low}'
-    # compute
-    da = a_high - a_low
-    db = b_high - b_low
-    d = da + db
-    # sampled
-    offset = np.random.randint(0, d, size=size)
-    offset += (da <= offset) * (b_low - a_high)
-    return a_low + offset
-
-
-def sample_radius(value, low, high, r_low, r_high):
-    """
-    Sample around the given value (low <= value < high),
-    the resampled value will lie in th same range.
-    - sampling occurs in a radius around the value
-      r_low <= radius < r_high
-    """
-    value = np.array(value)
-    assert np.all(low <= value)
-    assert np.all(value < high)
-    # sample for new value
-    return randint2(
-        a_low=np.maximum(value - r_high + 1, low),
-        a_high=np.maximum(value - r_low + 1, low),
-        # if r_min == 0, then the ranges overlap, so we must shift one of them.
-        b_low=np.minimum(value + r_low + (r_low == 0), high),
-        b_high=np.minimum(value + r_high, high),
-    )
 
 
 # ========================================================================= #

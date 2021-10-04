@@ -25,17 +25,19 @@
 import re
 import warnings
 from typing import final
+from typing import List
 from typing import Sequence
+from typing import Tuple
 from typing import Union
 
 import torch
 import torch.nn.functional as F
-from disent.util.deprecate import deprecated
 
+from disent import registry
 from disent.frameworks.helper.util import compute_ave_loss
-from disent.nn.modules import DisentModule
 from disent.nn.loss.reduction import batch_loss_reduction
 from disent.nn.loss.reduction import loss_reduction
+from disent.nn.modules import DisentModule
 from disent.nn.transform import FftKernel
 
 
@@ -166,16 +168,8 @@ class ReconLossHandlerMae(ReconLossHandlerMse):
         return torch.abs(x_recon - x_targ)
 
 
-@deprecated('Mse4 loss is being used during development to avoid a new hyper-parameter search')
-class ReconLossHandlerMse4(ReconLossHandlerMse):
-    def compute_unreduced_loss(self, x_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
-        return super().compute_unreduced_loss(x_recon, x_targ) * 4
 
 
-@deprecated('Mae2 loss is being used during development to avoid a new hyper-parameter search')
-class ReconLossHandlerMae2(ReconLossHandlerMae):
-    def compute_unreduced_loss(self, x_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
-        return super().compute_unreduced_loss(x_recon, x_targ) * 2
 
 
 class ReconLossHandlerBce(ReconLossHandler):
@@ -283,45 +277,23 @@ class AugmentedReconLossHandler(ReconLossHandler):
 
 
 # ========================================================================= #
-# Factory                                                                   #
+# Registry & Factory                                                        #
 # ========================================================================= #
 
 
-_RECON_LOSSES = {
-    # ================================= #
-    # from the normal distribution - real values in the range [0, 1]
-    'mse': ReconLossHandlerMse,
-    # mean absolute error
-    'mae': ReconLossHandlerMae,
-    # from the bernoulli distribution - binary values in the set {0, 1}
-    'bce': ReconLossHandlerBce,
-    # reduces to bce - binary values in the set {0, 1}
-    'bernoulli': ReconLossHandlerBernoulli,
-    # bernoulli with a computed offset to handle values in the range [0, 1]
-    'continuous_bernoulli': ReconLossHandlerContinuousBernoulli,
-    # handle all real values
-    'normal': ReconLossHandlerNormal,
-    # ================================= #
-    # EXPERIMENTAL -- im just curious what would happen, haven't actually
-    #                 done the maths or thought about this much.
-    'mse4': ReconLossHandlerMse4,  # scaled as if computed over outputs of the range [-1, 1] instead of [0, 1]
-    'mae2': ReconLossHandlerMae2,  # scaled as if computed over outputs of the range [-1, 1] instead of [0, 1]
-}
-
-
-_ARG_RECON_LOSSES = [
+# TODO: add ability to register parameterized reconstruction losses
+_ARG_RECON_LOSSES: List[Tuple[re.Pattern, str, callable]] = [
     # (REGEX, EXAMPLE, FACTORY_FUNC)
     # - factory function takes at min one arg: fn(reduction) with one arg after that per regex capture group
     # - regex expressions are tested in order, expressions should be mutually exclusive or ordered such that more specialized versions occur first.
-    (re.compile(r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_w(\d+\.\d+)$'), 'mse4_xy8_r47_w1.0', lambda reduction, loss, kern, weight: AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, kernel_weight=float(weight))),
 ]
 
 
 # NOTE: this function compliments make_kernel in transform/_augment.py
 def make_reconstruction_loss(name: str, reduction: str) -> ReconLossHandler:
-    if name in _RECON_LOSSES:
+    if name in registry.RECON_LOSS:
         # search normal losses!
-        return _RECON_LOSSES[name](reduction)
+        return registry.RECON_LOSS[name](reduction)
     else:
         # regex search losses, and call with args!
         for r, _, fn in _ARG_RECON_LOSSES:
@@ -329,7 +301,7 @@ def make_reconstruction_loss(name: str, reduction: str) -> ReconLossHandler:
             if result is not None:
                 return fn(reduction, *result.groups())
     # we couldn't find anything
-    raise KeyError(f'Invalid vae reconstruction loss: {repr(name)} Valid losses include: {list(_RECON_LOSSES.keys())}, examples of additional argument based losses include: {[example for _, example, _ in _ARG_RECON_LOSSES]}')
+    raise KeyError(f'Invalid vae reconstruction loss: {repr(name)} Valid losses include: {sorted(registry.RECON_LOSS)}, examples of additional argument based losses include: {[example for _, example, _ in _ARG_RECON_LOSSES]}')
 
 
 # ========================================================================= #

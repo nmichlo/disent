@@ -24,7 +24,7 @@
 
 from disent.dataset.data import BaseEpisodesData
 from disent.dataset.sampling._base import BaseDisentSampler
-from disent.dataset.sampling._groundtruth__triplet import sample_radius as sample_radius_fn
+from disent.util.math.random import sample_radius as sample_radius_fn
 
 
 # ========================================================================= #
@@ -33,6 +33,12 @@ from disent.dataset.sampling._groundtruth__triplet import sample_radius as sampl
 
 
 class RandomEpisodeSampler(BaseDisentSampler):
+
+    def uninit_copy(self) -> 'RandomEpisodeSampler':
+        return RandomEpisodeSampler(
+            num_samples=self.num_samples,
+            sample_radius=self._sample_radius,
+        )
 
     def __init__(self, num_samples=1, sample_radius=None):
         super().__init__(num_samples=num_samples)
@@ -52,7 +58,7 @@ class RandomEpisodeSampler(BaseDisentSampler):
     # Sampling                                                              #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def __call__(self, idx):
+    def _sample_idx(self, idx):
         # TODO: are we actually sampling distances correctly?
         # sample for observations
         episode, idx, offset = self._dataset.get_episode_and_idx(idx)

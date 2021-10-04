@@ -27,11 +27,10 @@ from functools import partial
 
 import pytest
 import pytorch_lightning as pl
-from torch.optim import Adam
 from torch.utils.data import DataLoader
 
-from disent.dataset.data import XYObjectData
 from disent.dataset import DisentDataset
+from disent.dataset.data import XYObjectData
 from disent.dataset.sampling import GroundTruthSingleSampler
 from disent.dataset.sampling import GroundTruthPairSampler
 from disent.dataset.sampling import GroundTruthTripleSampler
@@ -52,6 +51,7 @@ from disent.nn.transform import ToStandardisedTensor
     # AE - unsupervised
     (Ae,                   dict(),                                                                      XYObjectData),
     # AE - weakly supervised
+    # <n/a>
     # AE - supervised
     (TripletAe,            dict(),                                                                      XYObjectData),
     # VAE - unsupervised
@@ -94,7 +94,7 @@ def test_frameworks(Framework, cfg_kwargs, Data):
 
 
 def test_framework_config_defaults():
-    import torch
+    # import torch
     # we test that defaults are working recursively
     assert asdict(BetaVae.cfg()) == dict(
         optimizer='adam',

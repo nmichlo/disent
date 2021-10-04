@@ -29,6 +29,11 @@ from disent.dataset.sampling._base import BaseDisentSampler
 
 class GroundTruthPairOrigSampler(BaseDisentSampler):
 
+    def uninit_copy(self) -> 'GroundTruthPairOrigSampler':
+        return GroundTruthPairOrigSampler(
+            p_k=self.p_k
+        )
+
     def __init__(
             self,
             # num_differing_factors
@@ -52,7 +57,7 @@ class GroundTruthPairOrigSampler(BaseDisentSampler):
     # CORE                                                                  #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def __call__(self, idx):
+    def _sample_idx(self, idx):
         f0, f1 = self.datapoint_sample_factors_pair(idx)
         return (
             self._data.pos_to_idx(f0),

@@ -24,10 +24,16 @@
 
 # custom episodes -- base
 from disent.dataset.data._episodes import BaseEpisodesData
-
-# custom episodes -- impl
 from disent.dataset.data._episodes__custom import EpisodesPickledData
 from disent.dataset.data._episodes__custom import EpisodesDownloadZippedPickledData
+
+# raw -- groundtruth
+from disent.dataset.data._groundtruth import ArrayGroundTruthData
+from disent.dataset.data._groundtruth import SelfContainedHdf5GroundTruthData
+
+# raw
+from disent.dataset.data._raw import ArrayDataset
+from disent.dataset.data._raw import Hdf5Dataset
 
 # groundtruth -- base
 from disent.dataset.data._groundtruth import GroundTruthData
@@ -44,11 +50,3 @@ from disent.dataset.data._groundtruth__shapes3d import Shapes3dData
 
 # groundtruth -- impl synthetic
 from disent.dataset.data._groundtruth__xyobject import XYObjectData
-
-# raw -- groundtruth
-# TODO: hdf5 version
-from disent.dataset.data._groundtruth import ArrayGroundTruthData
-
-# raw
-from disent.dataset.data._raw import ArrayDataset
-from disent.dataset.data._raw import Hdf5Dataset

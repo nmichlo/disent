@@ -162,7 +162,7 @@ _FACTOR_TRAVERSALS = {
 }
 
 
-def get_factor_traversal(factor_size, num_frames, mode='interval'):
+def get_idx_traversal(factor_size, num_frames, mode='interval'):
     try:
         traversal_fn = _FACTOR_TRAVERSALS[mode]
     except KeyError:

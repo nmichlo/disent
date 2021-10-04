@@ -63,6 +63,14 @@ def instantiate_recursive(config):
     return call_recursive(config)
 
 
+@deprecated('replace with hydra 1.1')
+def instantiate_object_if_needed(config_or_object):
+    if isinstance(config_or_object, dict):
+        return instantiate_recursive(config_or_object)
+    else:
+        return config_or_object
+
+
 # ========================================================================= #
 # Better Specializations                                                    #
 # TODO: this might be replaced by recursive instantiation                   #
