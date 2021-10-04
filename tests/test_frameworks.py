@@ -52,6 +52,7 @@ from disent.nn.transform import ToStandardisedTensor
     # AE - unsupervised
     (Ae,                   dict(),                                                                      XYObjectData),
     # AE - weakly supervised
+    # <n/a>
     # AE - supervised
     (TripletAe,            dict(),                                                                      XYObjectData),
     # VAE - unsupervised

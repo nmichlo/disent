@@ -36,6 +36,7 @@ framework:
     optional:
       latent_distribution: normal  # only used by VAEs
       overlap_loss: NULL
+      usage_ratio: 0.5  # only used by adversarial masked datasets
 
 model:
   z_size: 25
@@ -47,8 +48,11 @@ optimizer:
 # - This key is deleted on load and the correct key on the root config is set similar to defaults.
 # - Unfortunately this hack needs to exists as hydra does not yet support this kinda of variable interpolation in defaults.
 specializations:
-  # original samplers --
-   dataset_sampler: ${dataset.data_type}_${framework.data_sample_mode}
+  # default samplers -- the framework specified defaults
+  dataset_sampler: ${dataset.data_type}_${framework.data_sample_mode}
 
   # newer samplers -- only active for frameworks that require 3 observations, otherwise random for 2, and exact for 1
   # dataset_sampler: gt_dist_${framework.data_sample_mode}
+
+  # random samplers -- force random sampling of observation pairs or triples
+  # dataset_sampler: random_${framework.data_sample_mode}

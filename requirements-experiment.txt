@@ -1,4 +1,6 @@
 
+# TODO: these requirements need to be cleaned up!
+
 # DATA SCIENCE & ML
 # =================
 # pandas>=1.2.5
@@ -16,12 +18,17 @@ moviepy>=1.0.3  # required for wandb video logging
 
 # GRAPHING & DISPLAY
 # ==================
-matplotlib>=3.4.2
+matplotlib>=3
 # seaborn>=0.11.1
 wandb>=0.10.32
 
 # UTILITY
 # =======
-hydra-core==1.0.7
+hydra-core==1.0.7  # includes omegaconf
 hydra-colorlog==1.0.1
 hydra-submitit-launcher==1.1.1
+
+
+# MISSING DEPS - these are imported or referened (_target_) in /experiments, but not included here OR in requirements.txt
+# =============
+# kornia

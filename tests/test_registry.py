@@ -22,33 +22,39 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from typing import Tuple
 
-import numpy as np
-from disent.dataset.sampling._base import BaseDisentSampler
+from disent.registry import REGISTRY
 
 
 # ========================================================================= #
-# Randomly Paired Dataset                                                   #
+# TESTS                                                                     #
 # ========================================================================= #
 
 
-class RandomSampler(BaseDisentSampler):
-
-    def uninit_copy(self) -> 'RandomSampler':
-        return RandomSampler(num_samples=self.num_samples)
-
-    def __init__(self, num_samples=1):
-        super().__init__(num_samples=num_samples)
-
-    def _init(self, dataset):
-        self._len = len(dataset)
-
-    def _sample_idx(self, idx: int) -> Tuple[int, ...]:
-        # sample indices
-        return (idx, *np.random.randint(0, self._len, size=self._num_samples-1))
+def test_registry_loading():
+    COUNTS = {
+        'dataset': 9,
+        'sampler': 8,
+        'framework': 25,
+        'recon_loss': 8,
+        'latent_dist': 2,
+        'optimizer': 38,
+        'metric': 7,
+        'schedule': 5,
+        'model': 8,
+    }
+    # load everything and check the counts
+    total = 0
+    for registry in REGISTRY:
+        count = 0
+        for name in REGISTRY[registry]:
+            loaded = REGISTRY[registry][name]
+            count += 1
+            total += 1
+        assert COUNTS[registry] == count
+    assert total == sum(COUNTS.values())
 
 
 # ========================================================================= #
-# End                                                                       #
+# END                                                                       #
 # ========================================================================= #

@@ -25,9 +25,6 @@
 # base sampler
 from disent.dataset.sampling._base import BaseDisentSampler
 
-# single sampler
-from disent.dataset.sampling._single import SingleSampler
-
 # ground truth samplers
 from disent.dataset.sampling._groundtruth__dist import GroundTruthDistSampler
 from disent.dataset.sampling._groundtruth__pair import GroundTruthPairSampler
@@ -36,6 +33,7 @@ from disent.dataset.sampling._groundtruth__single import GroundTruthSingleSample
 from disent.dataset.sampling._groundtruth__triplet import GroundTruthTripleSampler
 
 # any dataset samplers
+from disent.dataset.sampling._single import SingleSampler
 from disent.dataset.sampling._random__any import RandomSampler
 
 # episode samplers

@@ -34,7 +34,9 @@ from torch.utils.data.dataloader import default_collate
 from disent.dataset.sampling import BaseDisentSampler
 from disent.dataset.data import GroundTruthData
 from disent.dataset.sampling import SingleSampler
+from disent.dataset.wrapper import WrappedDataset
 from disent.util.iters import LengthIter
+from disent.util.math.random import random_choice_prng
 
 
 # ========================================================================= #
@@ -56,6 +58,15 @@ def groundtruth_only(func):
     def wrapper(self: 'DisentDataset', *args, **kwargs):
         if not self.is_ground_truth:
             raise NotGroundTruthDataError(f'Check `is_ground_truth` first before calling `{func.__name__}`, the dataset wrapped by {repr(self.__class__.__name__)} is not a {repr(GroundTruthData.__name__)}, instead got: {repr(self._dataset)}.')
+        return func(self, *args, **kwargs)
+    return wrapper
+
+
+def wrapped_only(func):
+    @wraps(func)
+    def wrapper(self: 'DisentDataset', *args, **kwargs):
+        if not self.is_wrapped_data:
+            raise NotGroundTruthDataError(f'Check `is_data_wrapped` first before calling `{func.__name__}`, the dataset wrapped by {repr(self.__class__.__name__)} is not a {repr(WrappedDataset.__name__)}, instead got: {repr(self._dataset)}.')
         return func(self, *args, **kwargs)
     return wrapper
 
@@ -106,6 +117,51 @@ class DisentDataset(Dataset, LengthIter):
     @groundtruth_only
     def ground_truth_data(self) -> GroundTruthData:
         return self._dataset
+
+    @property
+    @groundtruth_only
+    def gt_data(self) -> GroundTruthData:
+        # TODO: deprecate this or the long version
+        return self._dataset
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Wrapped Dataset                                                       #
+    # -- TODO: this is a bit hacky                                          #
+    # -- Allows us to compute disentanglement metrics over datasets         #
+    #    derived from ground truth data                                     #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    @property
+    def is_wrapped_data(self):
+        return isinstance(self._dataset, WrappedDataset)
+
+    @property
+    def is_wrapped_gt_data(self):
+        return isinstance(self._dataset, WrappedDataset) and isinstance(self._dataset.data, GroundTruthData)
+
+    @property
+    @wrapped_only
+    def wrapped_data(self):
+        self._dataset: WrappedDataset
+        return self._dataset.data
+
+    @property
+    @wrapped_only
+    def wrapped_gt_data(self):
+        self._dataset: WrappedDataset
+        return self._dataset.gt_data
+
+    @wrapped_only
+    def unwrapped_disent_dataset(self) -> 'DisentDataset':
+        sampler = self._sampler.uninit_copy()
+        assert type(sampler) is type(self._sampler)
+        return DisentDataset(
+            dataset=self.wrapped_data,
+            sampler=sampler,
+            transform=self._transform,
+            augment=self._augment,
+            return_indices=self._return_indices,
+        )
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Dataset                                                               #
@@ -202,19 +258,17 @@ class DisentDataset(Dataset, LengthIter):
     # Batches                                                               #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
+    # TODO: default_collate should be replaced with a function
+    #      that can handle tensors and nd.arrays, and return accordingly
+
     def dataset_batch_from_indices(self, indices: Sequence[int], mode: str):
         """Get a batch of observations X from a batch of factors Y."""
         return default_collate([self.dataset_get(idx, mode=mode) for idx in indices])
 
     def dataset_sample_batch(self, num_samples: int, mode: str, replace: bool = False, return_indices: bool = False):
         """Sample a batch of observations X."""
-        # create seeded pseudo random number generator
-        # - built in np.random.choice cannot handle large values: https://github.com/numpy/numpy/issues/5299#issuecomment-497915672
-        # - PCG64 is the default: https://numpy.org/doc/stable/reference/random/bit_generators/index.html
-        # - PCG64 has good statistical properties and is fast: https://numpy.org/doc/stable/reference/random/performance.html
-        g = np.random.Generator(np.random.PCG64(seed=np.random.randint(0, 2**32)))
-        # sample indices
-        indices = g.choice(len(self), num_samples, replace=replace)
+        # built in np.random.choice cannot handle large values: https://github.com/numpy/numpy/issues/5299#issuecomment-497915672
+        indices = random_choice_prng(len(self), size=num_samples, replace=replace)
         # return batch
         batch = self.dataset_batch_from_indices(indices, mode=mode)
         # return values
@@ -255,18 +309,6 @@ def _batch_to_observation(batch, obs_shape):
         return batch.reshape(obs_shape)
     return batch
 
-
-# ========================================================================= #
-# EXTRA                                                                     #
-# ========================================================================= #
-
-# TODO fix references to this!
-# class GroundTruthDatasetAndFactors(GroundTruthDataset):
-#     def dataset_get_observation(self, *idxs):
-#         return {
-#             **super().dataset_get_observation(*idxs),
-#             'factors': tuple(self.idx_to_pos(idxs))
-#         }
 
 # ========================================================================= #
 # END                                                                       #

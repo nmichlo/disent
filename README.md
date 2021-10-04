@@ -116,7 +116,6 @@ are not available from `pip install`.
 - `experiment/config`: root folder for [hydra](https://github.com/facebookresearch/hydra) config files
 - `experiment/util`: various helper code for experiments
 
-
 ----------------------
 
 ## Features

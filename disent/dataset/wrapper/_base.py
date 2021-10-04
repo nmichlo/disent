@@ -22,33 +22,37 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from typing import Tuple
-
-import numpy as np
-from disent.dataset.sampling._base import BaseDisentSampler
-
-
-# ========================================================================= #
-# Randomly Paired Dataset                                                   #
-# ========================================================================= #
+import logging
+from torch.utils.data import Dataset
+from disent.dataset.data import GroundTruthData
 
 
-class RandomSampler(BaseDisentSampler):
-
-    def uninit_copy(self) -> 'RandomSampler':
-        return RandomSampler(num_samples=self.num_samples)
-
-    def __init__(self, num_samples=1):
-        super().__init__(num_samples=num_samples)
-
-    def _init(self, dataset):
-        self._len = len(dataset)
-
-    def _sample_idx(self, idx: int) -> Tuple[int, ...]:
-        # sample indices
-        return (idx, *np.random.randint(0, self._len, size=self._num_samples-1))
+log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
-# End                                                                       #
+# Dithered Dataset                                                          #
+# ========================================================================= #
+
+
+class WrappedDataset(Dataset):
+
+    def __len__(self):
+        raise NotImplementedError
+
+    def __getitem__(self, item):
+        raise NotImplementedError
+
+    @property
+    def data(self) -> Dataset:
+        raise NotImplementedError
+
+    @property
+    def gt_data(self) -> GroundTruthData:
+        assert isinstance(self.data, GroundTruthData)
+        return self.data
+
+
+# ========================================================================= #
+# END                                                                       #
 # ========================================================================= #

@@ -22,33 +22,9 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from typing import Tuple
+# base wrapper
+from disent.dataset.wrapper._base import WrappedDataset
 
-import numpy as np
-from disent.dataset.sampling._base import BaseDisentSampler
-
-
-# ========================================================================= #
-# Randomly Paired Dataset                                                   #
-# ========================================================================= #
-
-
-class RandomSampler(BaseDisentSampler):
-
-    def uninit_copy(self) -> 'RandomSampler':
-        return RandomSampler(num_samples=self.num_samples)
-
-    def __init__(self, num_samples=1):
-        super().__init__(num_samples=num_samples)
-
-    def _init(self, dataset):
-        self._len = len(dataset)
-
-    def _sample_idx(self, idx: int) -> Tuple[int, ...]:
-        # sample indices
-        return (idx, *np.random.randint(0, self._len, size=self._num_samples-1))
-
-
-# ========================================================================= #
-# End                                                                       #
-# ========================================================================= #
+# wrapper datasets
+from disent.dataset.wrapper._dither import DitheredDataset
+from disent.dataset.wrapper._masked import MaskedDataset
