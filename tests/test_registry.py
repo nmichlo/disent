@@ -31,18 +31,33 @@ from disent.registry import REGISTRY
 # ========================================================================= #
 
 
+COUNTS = {
+    'dataset': 6,
+    'sampler': 8,
+    'framework': 10,
+    'recon_loss': 6,
+    'latent_dist': 2,
+    'optimizer': 38,
+    'metric': 5,
+    'schedule': 5,
+    'model': 8,
+}
+
+
+COUNTS = {             # pragma: delete-on-release
+    'dataset': 9,      # pragma: delete-on-release
+    'sampler': 8,      # pragma: delete-on-release
+    'framework': 25,   # pragma: delete-on-release
+    'recon_loss': 8,   # pragma: delete-on-release
+    'latent_dist': 2,  # pragma: delete-on-release
+    'optimizer': 38,   # pragma: delete-on-release
+    'metric': 7,       # pragma: delete-on-release
+    'schedule': 5,     # pragma: delete-on-release
+    'model': 8,        # pragma: delete-on-release
+}                      # pragma: delete-on-release
+
+
 def test_registry_loading():
-    COUNTS = {
-        'dataset': 9,
-        'sampler': 8,
-        'framework': 25,
-        'recon_loss': 8,
-        'latent_dist': 2,
-        'optimizer': 38,
-        'metric': 7,
-        'schedule': 5,
-        'model': 8,
-    }
     # load everything and check the counts
     total = 0
     for registry in REGISTRY:
