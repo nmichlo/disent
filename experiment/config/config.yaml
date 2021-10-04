@@ -36,7 +36,7 @@ framework:
     optional:
       latent_distribution: normal  # only used by VAEs
       overlap_loss: NULL
-      usage_ratio: 0.5  # only used by adversarial masked datasets
+      usage_ratio: 0.5  # only used by adversarial masked datasets  # pragma: delete-on-release
 
 model:
   z_size: 25
