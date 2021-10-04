@@ -32,14 +32,14 @@ from typing import Union
 
 import torch
 import torch.nn.functional as F
-from disent.util.deprecate import deprecated  # pragma: delete-on-release
 
 from disent import registry
 from disent.frameworks.helper.util import compute_ave_loss
-from disent.nn.modules import DisentModule
 from disent.nn.loss.reduction import batch_loss_reduction
 from disent.nn.loss.reduction import loss_reduction
+from disent.nn.modules import DisentModule
 from disent.nn.transform import FftKernel
+from disent.util.deprecate import deprecated  # pragma: delete-on-release
 
 
 # ========================================================================= #

@@ -124,7 +124,6 @@ def test_frameworks(Framework, cfg_kwargs, Data):
 
 
 def test_framework_config_defaults():
-    import torch.optim
     # we test that defaults are working recursively
     assert asdict(BetaVae.cfg()) == dict(
         optimizer='adam',
