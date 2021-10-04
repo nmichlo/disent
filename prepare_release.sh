@@ -14,6 +14,17 @@ function remove_delete_commands() {
   awk "!/pragma: delete-on-release/" "$1" > "$1.temp" && mv "$1.temp" "$1"
 }
 
+function version_greater_equal() {
+    printf '%s\n%s\n' "$2" "$1" | sort --check=quiet --version-sort
+}
+
+# check that we have the right version so
+# that `shopt -s globstar` does not fail
+if ! version_greater_equal "$BASH_VERSION" "4"; then
+  echo "bash version 4 is required, got: ${BASH_VERSION}"
+  exit 1
+fi
+
 # ============ #
 # DELETE FILES #
 # ============ #
@@ -55,25 +66,16 @@ rm tests/test_data_xy.py
 # DELETE LINES OF FILES #
 # ===================== #
 
-# EXPERIMENT:
-remove_delete_commands experiment/config/metrics/all.yaml
-remove_delete_commands experiment/config/metrics/common.yaml
-remove_delete_commands experiment/config/metrics/fast.yaml
-remove_delete_commands experiment/config/metrics/test.yaml
+# enable recursive glob
+shopt -s globstar
 
-# DISENT:
-# - metrics
-remove_delete_commands disent/metrics/__init__.py
-# - framework helpers
-remove_delete_commands disent/frameworks/helper/reconstructions.py
-# - datasets
-remove_delete_commands disent/dataset/data/__init__.py
-# - registry
-remove_delete_commands disent/registry/__init__.py
-
-# TESTS:
-remove_delete_commands tests/test_frameworks.py
-remove_delete_commands tests/test_metrics.py
+# scan for all files that contain 'pragma: delete-on-release'
+for file in **/*.{py,yaml}; do
+    if [ -n "$( grep -m 1 'pragma: delete-on-release' "$file" )" ]; then
+        echo "preparing: $file"
+        remove_delete_commands "$file"
+    fi
+done
 
 # ===================== #
 # CLEANUP THIS FILE     #
