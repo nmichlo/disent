@@ -22,9 +22,9 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import contextlib
 import logging
 import random
-
 import numpy as np
 
 
@@ -59,7 +59,7 @@ def seed(long=777):
     log.info(f'[SEEDED]: {long}')
 
 
-class TempNumpySeed(object):
+class TempNumpySeed(contextlib.ContextDecorator):
     def __init__(self, seed=None, offset=0):
         if seed is not None:
             try:
@@ -81,6 +81,9 @@ class TempNumpySeed(object):
             np.random.set_state(self._state)
             self._state = None
 
+    def _recreate_cm(self):
+        # TODO: do we need to override this?
+        return self
 
 # ========================================================================= #
 # END                                                                       #
