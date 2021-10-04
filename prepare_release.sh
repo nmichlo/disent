@@ -2,6 +2,9 @@
 
 # prepare the project for a new release
 # removing all the research components
+# - yes this is terrible, but at the rate things are changing I
+#   don't want to rip things out into a separate repo... I will
+#   do that eventually, but not now.
 
 # ====== #
 # HELPER #
