@@ -78,19 +78,10 @@ class DisentConfigurable(object):
 # ========================================================================= #
 
 
-def _get_optimizer_list() -> Dict[str, Type[torch.optim.Optimizer]]:
-    # generate list of optimizers from torch
-    # - optimizer names are lowercase, eg. adam & rmsprop
-    optimizers = {}
-    for k in dir(torch.optim):
-        optim = getattr(torch.optim, k)
-        if isinstance(optim, type) and issubclass(optim, torch.optim.Optimizer) and (optim != torch.optim.Optimizer):
-            optimizers[k.lower()] = optim
-    return optimizers
+# def _get_optimizer_list() -> Dict[str, Type[torch.optim.Optimizer]]:
+#     return None
 
-
-# list of optimizers
-_OPTIMIZERS = _get_optimizer_list()
+# _OPTIMIZERS = _get_optimizer_list()
 
 
 # ========================================================================= #

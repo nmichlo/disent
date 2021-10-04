@@ -31,18 +31,22 @@ from disent.registry import REGISTRY
 # ========================================================================= #
 
 
+COUNTS = {
+    'dataset': 6,
+    'sampler': 8,
+    'framework': 10,
+    'recon_loss': 6,
+    'latent_dist': 2,
+    'optimizer': 38,
+    'metric': 5,
+    'schedule': 5,
+    'model': 8,
+}
+
+
+
+
 def test_registry_loading():
-    COUNTS = {
-        'dataset': 9,
-        'sampler': 8,
-        'framework': 25,
-        'recon_loss': 8,
-        'latent_dist': 2,
-        'optimizer': 38,
-        'metric': 7,
-        'schedule': 5,
-        'model': 8,
-    }
     # load everything and check the counts
     total = 0
     for registry in REGISTRY:
