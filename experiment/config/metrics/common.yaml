@@ -1,7 +1,5 @@
 # @package _group_
 metric_list:
-  - flatness:             # pragma: delete-on-release
-  - flatness_components:  # pragma: delete-on-release
   - mig:
   - dci:
       every_n_steps: 3600
