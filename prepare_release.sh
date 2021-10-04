@@ -80,3 +80,4 @@ remove_delete_commands tests/test_metrics.py
 # ===================== #
 
 rm prepare_release.sh
+rm prepare_release_and_commit.sh
