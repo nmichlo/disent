@@ -124,8 +124,9 @@ class AtomicSaveFile(object):
             raise FileNotFoundError(f'the temporary file was not created: {self.tmp_file}')
         # delete the target file if it exists and overwrite is enabled:
         if self._overwrite:
-            log.warning(f'overwriting file: {self.trg_file}')
-            self.trg_file.unlink(missing_ok=True)
+            if self.trg_file.exists():
+                log.warning(f'overwriting file: {self.trg_file}')
+                self.trg_file.unlink(missing_ok=True)
         # create the missing directories if needed
         if self._makedirs:
             self.trg_file.parent.mkdir(parents=True, exist_ok=True)

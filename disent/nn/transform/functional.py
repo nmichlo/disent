@@ -22,7 +22,10 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 from typing import Optional
+from typing import Tuple
+from typing import Union
 
+import numpy as np
 from PIL.Image import Image
 import torch
 import torchvision.transforms.functional as F_tv
@@ -59,7 +62,41 @@ def check_tensor(obs, low: Optional[float] = 0., high: Optional[float] = 1., dty
     return obs
 
 
-def to_standardised_tensor(obs, size=None, cast_f32=False, check=True, check_range=True):
+Obs = Union[np.ndarray, Image]
+SizeType = Union[int, Tuple[int, int]]
+
+
+def to_uint_tensor(
+    obs: Obs,
+    size: Optional[SizeType] = None,
+    channel_to_front: bool = True
+) -> torch.Tensor:
+    # resize image
+    if size is not None:
+        if not isinstance(obs, Image):
+            obs = F_tv.to_pil_image(obs)
+        obs = F_tv.resize(obs, size=size)
+    # to numpy
+    if not isinstance(obs, np.ndarray):
+        obs = np.array(obs)
+    # to tensor
+    obs = torch.from_numpy(obs)
+    # move axis
+    if channel_to_front:
+        obs = torch.moveaxis(obs, -1, -3)
+    # checks
+    assert obs.dtype == torch.uint8
+    # done!
+    return obs
+
+
+def to_standardised_tensor(
+    obs: Obs,
+    size: Optional[SizeType] = None,
+    cast_f32: bool = False,
+    check: bool = True,
+    check_range: bool = True,
+) -> torch.Tensor:
     """
     Basic transform that should be applied to
     any dataset before augmentation.

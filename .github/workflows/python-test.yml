@@ -31,7 +31,7 @@ jobs:
         python3 -m pip install --upgrade pip
         python3 -m pip install -r requirements.txt
         python3 -m pip install -r requirements-test.txt
-        python3 -m pip install -r requirements-exp.txt
+        python3 -m pip install -r requirements-experiment.txt
 
     - name: Test with pytest
       run: |

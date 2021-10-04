@@ -33,6 +33,9 @@ from typing import Tuple
 
 class BaseDisentSampler(object):
 
+    def uninit_copy(self) -> 'BaseDisentSampler':
+        raise NotImplementedError
+
     def __init__(self, num_samples: int):
         self._num_samples = num_samples
 
@@ -52,14 +55,29 @@ class BaseDisentSampler(object):
         return self
 
     def _init(self, dataset):
+        """
+        you can override this method to initialize the class!
+        """
         pass
 
     @property
     def is_init(self) -> bool:
         return self.__initialized
 
-    def __call__(self, idx: int) -> Tuple[int, ...]:
+    def _sample_idx(self, idx: int) -> Tuple[int, ...]:
         raise NotImplementedError
+
+    def __call__(self, idx: int) -> Tuple[int, ...]:
+        # check that we have been initialized!
+        if not self.is_init:
+            raise RuntimeError(f'{self.__class__.__name__} has not been initialized! call `sampler.init(gt_data)`')
+        # sample values
+        idxs = self._sample_idx(idx)
+        # check values
+        if len(idxs) != self.num_samples:
+            raise RuntimeError(f'{self.__class__.__name__} returned incorrect number of samples, required: {self.num_samples}, got: {len(idxs)}')
+        # return values
+        return idxs
 
 
 # ========================================================================= #

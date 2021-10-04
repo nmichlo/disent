@@ -30,6 +30,13 @@ from disent.dataset.sampling._base import BaseDisentSampler
 
 class GroundTruthDistSampler(BaseDisentSampler):
 
+    def uninit_copy(self) -> 'GroundTruthDistSampler':
+        return GroundTruthDistSampler(
+            num_samples=self._num_samples,
+            triplet_sample_mode=self._triplet_sample_mode,
+            triplet_swap_chance=self._triplet_swap_chance,
+        )
+
     def __init__(
             self,
             num_samples=1,
@@ -40,6 +47,10 @@ class GroundTruthDistSampler(BaseDisentSampler):
         # checks
         assert num_samples in {1, 2, 3}, f'num_samples ({repr(num_samples)}) must be 1, 2 or 3'
         assert triplet_sample_mode in {'random', 'factors', 'manhattan', 'manhattan_scaled', 'combined', 'combined_scaled'}, f'sample_mode ({repr(triplet_sample_mode)}) must be one of {["random", "factors", "manhattan", "combined"]}'
+        # save hparams
+        self._num_samples = num_samples
+        self._triplet_sample_mode = triplet_sample_mode
+        self._triplet_swap_chance = triplet_swap_chance
         # scaled
         self._scaled = False
         if triplet_sample_mode.endswith('_scaled'):
@@ -49,7 +60,6 @@ class GroundTruthDistSampler(BaseDisentSampler):
         assert triplet_sample_mode in {'random', 'factors', 'manhattan', 'combined'}, 'It is a bug if this fails!'
         assert 0 <= triplet_swap_chance <= 1, 'triplet_swap_chance must be in range [0, 1]'
         # set vars
-        self._num_samples = num_samples
         self._sample_mode = triplet_sample_mode
         self._swap_chance = triplet_swap_chance
         # dataset variable
@@ -63,7 +73,7 @@ class GroundTruthDistSampler(BaseDisentSampler):
     # Sampling                                                              #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def __call__(self, idx):
+    def _sample_idx(self, idx):
         # sample indices
         indices = (idx, *np.random.randint(0, len(self._data), size=self._num_samples-1))
         # sort based on mode

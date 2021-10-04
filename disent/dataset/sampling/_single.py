@@ -35,13 +35,16 @@ from disent.dataset.sampling._base import BaseDisentSampler
 
 class SingleSampler(BaseDisentSampler):
 
+    def uninit_copy(self) -> 'SingleSampler':
+        return SingleSampler()
+
     def __init__(self):
         super().__init__(num_samples=1)
 
     def _init(self, dataset):
         pass
 
-    def __call__(self, idx: int) -> Tuple[int, ...]:
+    def _sample_idx(self, idx: int) -> Tuple[int, ...]:
         return (idx,)
 
 

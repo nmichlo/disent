@@ -69,7 +69,7 @@ class ToStandardisedTensor(object):
     See: disent.transform.functional.to_standardised_tensor
     """
 
-    def __init__(self, size=None, cast_f32=False, check=True, check_range=True):
+    def __init__(self, size: F_d.SizeType = None, cast_f32: bool = False, check: bool = True, check_range: bool = True):
         self._size = size
         self._cast_f32 = cast_f32  # cast after resizing before checks -- disabled by default to so dtype errors can be seen
         self._check = check
@@ -77,6 +77,19 @@ class ToStandardisedTensor(object):
 
     def __call__(self, obs) -> torch.Tensor:
         return F_d.to_standardised_tensor(obs, size=self._size, cast_f32=self._cast_f32, check=self._check, check_range=self._check_range)
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(size={repr(self._size)})'
+
+
+class ToUint8Tensor(object):
+
+    def __init__(self, size: F_d.SizeType = None, channel_to_front: bool = True):
+        self._size = size
+        self._channel_to_front = channel_to_front
+
+    def __call__(self, obs) -> torch.Tensor:
+        return F_d.to_uint_tensor(obs, size=self._size, channel_to_front=self._channel_to_front)
 
     def __repr__(self):
         return f'{self.__class__.__name__}(size={repr(self._size)})'

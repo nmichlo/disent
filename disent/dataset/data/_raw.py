@@ -123,6 +123,9 @@ class Hdf5Dataset(Dataset, LengthIter):
         del self._hdf5_file
         del self._hdf5_data
 
+    def get_attrs(self) -> dict:
+        return dict(self._hdf5_data.attrs)
+
 
 # ========================================================================= #
 # END                                                                       #
