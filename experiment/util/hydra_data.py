@@ -78,7 +78,11 @@ class HydraDataModule(pl.LightningDataModule):
 
     def __init__(self, hparams: DictConfig):
         super().__init__()
-        self.hparams = hparams
+        # support pytorch lightning < 1.4
+        if not hasattr(self, 'hparams'):
+            self.hparams = {}
+        # set values
+        self.hparams.update(hparams)
         # transform: prepares data from datasets
         self.data_transform = instantiate_recursive(self.hparams.dataset.transform)
         assert (self.data_transform is None) or callable(self.data_transform)
