@@ -17,4 +17,3 @@ h5py>=2.10.0  # as of tensorflow 2.4 it does not support h5py 3+
 # UTILITY
 # =======
 tqdm>=4.60.0
-Deprecated>=1.2.12

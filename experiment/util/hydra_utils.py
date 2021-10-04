@@ -23,13 +23,14 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
-from typing import Optional
+from copy import deepcopy
 
 import hydra
-from deprecated import deprecated
 from omegaconf import DictConfig
 from omegaconf import ListConfig
 from omegaconf import OmegaConf
+
+from disent.util.deprecate import deprecated
 
 
 log = logging.getLogger(__name__)
@@ -71,6 +72,7 @@ def instantiate_recursive(config):
 
 @deprecated('replace with hydra 1.1')
 def make_non_strict(cfg: DictConfig):
+    cfg = deepcopy(cfg)
     return OmegaConf.create({**cfg})
 
 
