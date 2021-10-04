@@ -48,7 +48,7 @@ optimizer:
 # - Unfortunately this hack needs to exists as hydra does not yet support this kinda of variable interpolation in defaults.
 specializations:
   # original samplers --
-  # dataset_sampler: ${dataset.data_type}_${framework.data_sample_mode}
+   dataset_sampler: ${dataset.data_type}_${framework.data_sample_mode}
 
   # newer samplers -- only active for frameworks that require 3 observations, otherwise random for 2, and exact for 1
-  dataset_sampler: gt_dist_${framework.data_sample_mode}
+  # dataset_sampler: gt_dist_${framework.data_sample_mode}
