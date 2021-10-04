@@ -22,50 +22,27 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-import setuptools
+import os
+import os.path
 
-
-# ========================================================================= #
-# HELPER                                                                    #
-# ========================================================================= #
-
-
-with open("README.md", "r", encoding="utf-8") as file:
-    long_description = file.read()
-
-with open('requirements.txt', 'r') as f:
-    install_requires = (req[0] for req in map(lambda x: x.split('#'), f.readlines()))
-    install_requires = [req for req in map(str.strip, install_requires) if req]
-
+import hydra
+import experiment.run as experiment_run
+from tests.util import temp_sys_args
 
 # ========================================================================= #
-# SETUP                                                                     #
+# TESTS                                                                     #
 # ========================================================================= #
 
 
-setuptools.setup(
-    name="disent",
-    author="Nathan Juraj Michlo",
-    author_email="NathanJMichlo@gmail.com",
+def test_experiment_run():
+    # used by run() internally
+    experiment_run.CONFIG_PATH = os.path.join(os.path.dirname(experiment_run.__file__), 'config')
 
-    version="0.2.0",
-    python_requires=">=3.8",  # we make use of standard library features only in 3.8
-    packages=setuptools.find_packages(),
-
-    install_requires=install_requires,
-
-    url="https://github.com/nmichlo/disent",
-    description="Vae disentanglement framework built with pytorch lightning.",
-    long_description=long_description,
-    long_description_content_type="text/markdown",
-
-    classifiers=[
-        "License :: OSI Approved :: MIT License",
-        "Operating System :: OS Independent",
-        "Programming Language :: Python :: 3.8",
-        "Intended Audience :: Science/Research",
-    ],
-)
+    os.environ['HYDRA_FULL_ERROR'] = '1'
+    with temp_sys_args([experiment_run.__file__]):
+        # why does this not work when config is absolute?
+        hydra_main = hydra.main(config_path='config', config_name='config_test')(experiment_run.run)
+        hydra_main()
 
 
 # ========================================================================= #

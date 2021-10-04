@@ -69,8 +69,8 @@ class DfcVae(BetaVae):
         feature_layers: Optional[List[Union[str, int]]] = None
         feature_inputs_mode: str = 'none'
 
-    def __init__(self, make_optimizer_fn, make_model_fn, batch_augment=None, cfg: cfg = None):
-        super().__init__(make_optimizer_fn, make_model_fn, batch_augment=batch_augment, cfg=cfg)
+    def __init__(self, model: 'AutoEncoder', cfg: cfg = None, batch_augment=None):
+        super().__init__(model=model, cfg=cfg, batch_augment=batch_augment)
         # make dfc loss
         # TODO: this should be converted to a reconstruction loss handler that wraps another handler
         self._dfc_loss = DfcLossModule(feature_layers=self.cfg.feature_layers, input_mode=self.cfg.feature_inputs_mode)

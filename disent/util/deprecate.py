@@ -22,50 +22,45 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-import setuptools
+import logging
+from functools import wraps
 
 
 # ========================================================================= #
-# HELPER                                                                    #
+# Deprecate                                                                 #
 # ========================================================================= #
 
 
-with open("README.md", "r", encoding="utf-8") as file:
-    long_description = file.read()
-
-with open('requirements.txt', 'r') as f:
-    install_requires = (req[0] for req in map(lambda x: x.split('#'), f.readlines()))
-    install_requires = [req for req in map(str.strip, install_requires) if req]
-
-
-# ========================================================================= #
-# SETUP                                                                     #
-# ========================================================================= #
-
-
-setuptools.setup(
-    name="disent",
-    author="Nathan Juraj Michlo",
-    author_email="NathanJMichlo@gmail.com",
-
-    version="0.2.0",
-    python_requires=">=3.8",  # we make use of standard library features only in 3.8
-    packages=setuptools.find_packages(),
-
-    install_requires=install_requires,
-
-    url="https://github.com/nmichlo/disent",
-    description="Vae disentanglement framework built with pytorch lightning.",
-    long_description=long_description,
-    long_description_content_type="text/markdown",
-
-    classifiers=[
-        "License :: OSI Approved :: MIT License",
-        "Operating System :: OS Independent",
-        "Programming Language :: Python :: 3.8",
-        "Intended Audience :: Science/Research",
-    ],
-)
+def deprecated(msg: str):
+    """
+    Mark a function or class as deprecated, and print a warning the
+    first time it is used.
+    - This decorator wraps functions, but only replaces the __init__
+      method of a class so that we can still inherit from a deprecated class!
+    """
+    def _decorator(fn):
+        # we need to handle classes and function separately
+        is_class = isinstance(fn, type) and hasattr(fn, '__init__')
+        # backup the original function & data
+        call_fn = fn.__init__ if is_class else fn
+        dat = (fn.__module__, f'{fn.__module__}.{fn.__name__}', str(msg))
+        # wrapper function
+        @wraps(call_fn)
+        def _caller(*args, **kwargs):
+            nonlocal dat
+            # print the message!
+            if dat is not None:
+                name, path, dsc = dat
+                logging.getLogger(name).warning(f'[DEPRECATED] {path} - {repr(dsc)}')
+                dat = None
+            return call_fn(*args, **kwargs)
+        # handle function or class
+        if is_class:
+            fn.__init__ = _caller
+        else:
+            fn = _caller
+        return fn
+    return _decorator
 
 
 # ========================================================================= #

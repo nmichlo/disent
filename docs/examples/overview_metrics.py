@@ -17,12 +17,11 @@ dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True)
 
 def make_vae(beta):
     return BetaVae(
-        make_optimizer_fn=lambda params: Adam(params, lr=1e-3),
-        make_model_fn=lambda: AutoEncoder(
+        model=AutoEncoder(
             encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2),
             decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
         ),
-        cfg=BetaVae.cfg(beta=beta)
+        cfg=BetaVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=1e-3), beta=beta)
     )
 
 def train(module):

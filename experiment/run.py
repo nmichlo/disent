@@ -24,11 +24,14 @@
 
 import logging
 import os
+import sys
+from datetime import datetime
 
 import hydra
 import pytorch_lightning as pl
 import torch
 import torch.utils.data
+import wandb
 from omegaconf import DictConfig
 from omegaconf import OmegaConf
 from pytorch_lightning.loggers import CometLogger
@@ -209,12 +212,14 @@ def hydra_register_schedules(module: DisentFramework, cfg):
 
 def hydra_create_framework_config(cfg):
     # create framework config - this is also kinda hacky
-    framework_cfg: DisentConfigurable.cfg = hydra.utils.instantiate({
+    # - we need instantiate_recursive because of optimizer_kwargs,
+    #   otherwise the dictionary is left as an OmegaConf dict
+    framework_cfg: DisentConfigurable.cfg = instantiate_recursive({
         **cfg.framework.module,
         **dict(_target_=cfg.framework.module._target_ + '.cfg')
     })
     # warn if some of the cfg variables were not overridden
-    missing_keys = sorted(set(framework_cfg.get_keys()) - set(cfg.framework.module.keys()))
+    missing_keys = sorted(set(framework_cfg.get_keys()) - (set(cfg.framework.module.keys())))
     if missing_keys:
         log.error(f'Framework {repr(cfg.framework.name)} is missing config keys for:')
         for k in missing_keys:
@@ -225,11 +230,15 @@ def hydra_create_framework_config(cfg):
     return framework_cfg
 
 
-def hydra_create_framework(framework_cfg, datamodule, cfg):
+def hydra_create_framework(framework_cfg: DisentConfigurable.cfg, datamodule, cfg):
+    # specific handling for experiment, this is HACKY!
+    # - not supported normally, we need to instantiate to get the class (is there hydra support for this?)
+    framework_cfg.optimizer = hydra.utils.instantiate(dict(_target_=framework_cfg.optimizer), [torch.Tensor()]).__class__
+    framework_cfg.optimizer_kwargs = dict(framework_cfg.optimizer_kwargs)
+    # instantiate
     return hydra.utils.instantiate(
         dict(_target_=cfg.framework.module._target_),
-        make_optimizer_fn=lambda params: hydra.utils.instantiate(cfg.optimizer.cls, params),
-        make_model_fn=lambda: init_model_weights(
+        model=init_model_weights(
             AutoEncoder(
                 encoder=hydra.utils.instantiate(cfg.model.encoder),
                 decoder=hydra.utils.instantiate(cfg.model.decoder)
@@ -246,7 +255,22 @@ def hydra_create_framework(framework_cfg, datamodule, cfg):
 # ========================================================================= #
 
 
-def run(cfg: DictConfig):
+def run(cfg: DictConfig, config_path: str = None):
+
+    # get the time the run started
+    time_string = datetime.today().strftime('%Y-%m-%d--%H-%M-%S')
+    log.info(f'Starting run at time: {time_string}')
+
+    # -~-~-~-~-~-~-~-~-~-~-~-~- #
+
+    # cleanup from old runs:
+    try:
+        wandb.finish()
+    except:
+        pass
+
+    # -~-~-~-~-~-~-~-~-~-~-~-~- #
+
     # allow the cfg to be edited
     cfg = make_non_strict(cfg)
 
@@ -265,7 +289,7 @@ def run(cfg: DictConfig):
     log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
 
     # hydra config does not support variables in defaults lists, we handle this manually
-    cfg = merge_specializations(cfg, CONFIG_PATH, run)
+    cfg = merge_specializations(cfg, config_path=CONFIG_PATH if (config_path is None) else config_path)
 
     # check CUDA setting
     cfg.trainer.setdefault('cuda', 'try_cuda')
@@ -330,19 +354,23 @@ def run(cfg: DictConfig):
 # ========================================================================= #
 
 
+# path to root directory containing configs
+CONFIG_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), 'config'))
+# root config existing inside `CONFIG_ROOT`, with '.yaml' appended.
+CONFIG_NAME = 'config'
+
+
 if __name__ == '__main__':
-    CONFIG_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), 'config'))
-    CONFIG_NAME = 'config'
 
     @hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME)
-    def main(cfg: DictConfig):
+    def hydra_main(cfg: DictConfig):
         try:
             run(cfg)
         except Exception as e:
             log_error_and_exit(err_type='experiment error', err_msg=str(e))
 
     try:
-        main()
+        hydra_main()
     except KeyboardInterrupt as e:
         log_error_and_exit(err_type='interrupted', err_msg=str(e), exc_info=False)
     except Exception as e:

@@ -21,8 +21,7 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-
-
+import contextlib
 import os
 import sys
 from contextlib import contextmanager
@@ -47,6 +46,22 @@ def no_stderr():
     sys.stderr = open(os.devnull, 'w')
     yield
     sys.stderr = old_stderr
+
+
+@contextlib.contextmanager
+def temp_wd(new_wd):
+    old_wd = os.getcwd()
+    os.chdir(new_wd)
+    yield
+    os.chdir(old_wd)
+
+
+@contextlib.contextmanager
+def temp_sys_args(new_argv):
+    old_argv = sys.argv
+    sys.argv = new_argv
+    yield
+    sys.argv = old_argv
 
 
 # ========================================================================= #
