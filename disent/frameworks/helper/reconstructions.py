@@ -32,7 +32,7 @@ from typing import Union
 
 import torch
 import torch.nn.functional as F
-from disent.util.deprecate import deprecated
+from disent.util.deprecate import deprecated  # pragma: delete-on-release
 
 from disent import registry
 from disent.frameworks.helper.util import compute_ave_loss
@@ -169,16 +169,16 @@ class ReconLossHandlerMae(ReconLossHandlerMse):
         return torch.abs(x_recon - x_targ)
 
 
-@deprecated('Mse4 loss is being used during development to avoid a new hyper-parameter search')
-class ReconLossHandlerMse4(ReconLossHandlerMse):
-    def compute_unreduced_loss(self, x_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
-        return super().compute_unreduced_loss(x_recon, x_targ) * 4
+@deprecated('Mse4 loss is being used during development to avoid a new hyper-parameter search')     # pragma: delete-on-release
+class ReconLossHandlerMse4(ReconLossHandlerMse):                                                    # pragma: delete-on-release
+    def compute_unreduced_loss(self, x_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:  # pragma: delete-on-release
+        return super().compute_unreduced_loss(x_recon, x_targ) * 4                                  # pragma: delete-on-release
 
 
-@deprecated('Mae2 loss is being used during development to avoid a new hyper-parameter search')
-class ReconLossHandlerMae2(ReconLossHandlerMae):
-    def compute_unreduced_loss(self, x_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
-        return super().compute_unreduced_loss(x_recon, x_targ) * 2
+@deprecated('Mae2 loss is being used during development to avoid a new hyper-parameter search')     # pragma: delete-on-release
+class ReconLossHandlerMae2(ReconLossHandlerMae):                                                    # pragma: delete-on-release
+    def compute_unreduced_loss(self, x_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:  # pragma: delete-on-release
+        return super().compute_unreduced_loss(x_recon, x_targ) * 2                                  # pragma: delete-on-release
 
 
 class ReconLossHandlerBce(ReconLossHandler):
@@ -295,7 +295,7 @@ _ARG_RECON_LOSSES: List[Tuple[re.Pattern, str, callable]] = [
     # (REGEX, EXAMPLE, FACTORY_FUNC)
     # - factory function takes at min one arg: fn(reduction) with one arg after that per regex capture group
     # - regex expressions are tested in order, expressions should be mutually exclusive or ordered such that more specialized versions occur first.
-    (re.compile(r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_w(\d+\.\d+)$'), 'mse4_xy8_r47_w1.0', lambda reduction, loss, kern, weight: AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, kernel_weight=float(weight))),
+    (re.compile(r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_w(\d+\.\d+)$'), 'mse4_xy8_r47_w1.0', lambda reduction, loss, kern, weight: AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, kernel_weight=float(weight))),  # pragma: delete-on-release
 ]
 
 
