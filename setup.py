@@ -49,7 +49,7 @@ setuptools.setup(
     author_email="NathanJMichlo@gmail.com",
 
     version="0.1.0",
-    python_requires=">=3.8",
+    python_requires=">=3.8",  # we make use of standard library features only in 3.8
     packages=setuptools.find_packages(),
 
     install_requires=install_requires,
