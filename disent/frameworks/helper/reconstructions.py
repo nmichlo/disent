@@ -32,7 +32,7 @@ from typing import Union
 
 import torch
 import torch.nn.functional as F
-from deprecated import deprecated
+from disent.util.deprecate import deprecated
 
 from disent import registry
 from disent.frameworks.helper.util import compute_ave_loss

@@ -28,7 +28,7 @@ from typing import Sequence
 from typing import Tuple
 
 import torch
-from deprecated import deprecated
+from disent.util.deprecate import deprecated
 from torch.distributions import Distribution
 from torch.distributions import Normal
 
@@ -47,7 +47,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-@deprecated(reason='Rather use the AdaNegTripletVae')
+@deprecated('Rather use the AdaNegTripletVae')
 class AdaTripletVae(TripletVae):
 
     REQUIRED_OBS = 3

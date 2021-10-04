@@ -30,7 +30,7 @@ from typing import Dict
 from typing import Sequence
 from typing import Tuple
 
-from deprecated import deprecated
+from disent.util.deprecate import deprecated
 from torch.distributions import Distribution
 from torch.distributions import Normal
 
@@ -46,7 +46,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-@deprecated(reason='Rather use the AdaNegTripletVae')
+@deprecated('Rather use the AdaNegTripletVae')
 class AdaAveTripletVae(AdaTripletVae):
     """
     This was a more general attempt of the ada-tvae,

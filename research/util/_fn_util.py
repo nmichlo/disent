@@ -25,7 +25,7 @@
 import inspect
 from typing import Sequence
 
-from deprecated import deprecated
+from disent.util.deprecate import deprecated
 
 
 # ========================================================================= #

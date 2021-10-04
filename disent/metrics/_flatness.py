@@ -34,7 +34,7 @@ from typing import Iterable
 from typing import Union
 
 import torch
-from deprecated import deprecated
+from disent.util.deprecate import deprecated
 from torch.utils.data.dataloader import default_collate
 
 from disent.dataset import DisentDataset
