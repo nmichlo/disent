@@ -1,6 +1,1 @@
 include requirements.txt
-
-include data/adversarial_kernel/r47-1_s28800_adam_lr0.003_wd0.0_xy1x1.pt
-include data/adversarial_kernel/r47-1_s28800_adam_lr0.003_wd0.0_xy8x8.pt
-include data/adversarial_kernel/r47-1_s28800_adam_lr0.003_wd0.0001_xy1x1.pt
-include data/adversarial_kernel/r47-1_s28800_adam_lr0.003_wd0.0001_xy8x8.pt

@@ -18,51 +18,65 @@ function remove_delete_commands() {
 # DELETE FILES #
 # ============ #
 
-# research
+# RESEARCH:
 rm requirements-research.txt
 rm requirements-research-freeze.txt
 rm -rf research/
-# configs
+
+# EXPERIMENT:
 rm experiment/config/config_adversarial_dataset.yaml
 rm experiment/config/config_adversarial_dataset_approx.yaml
 rm experiment/config/config_adversarial_kernel.yaml
 rm experiment/config/run_location/griffin.yaml
 rm experiment/config/run_location/heartofgold.yaml
 rm experiment/config/dataset/X--*.yaml
-rm experiment/config/dataset_sampler/episodes*.yaml
 rm experiment/config/framework/X--*.yaml
-# metrics
+
+# DISENT:
+# - metrics
 rm disent/metrics/_flatness.py
 rm disent/metrics/_flatness_components.py
-# frameworks
+# - frameworks
 rm -rf disent/frameworks/ae/experimental
 rm -rf disent/frameworks/vae/experimental
-# framework helper
-rm -rf data/adversarial_kernel
-# datasets
+# - datasets
 rm disent/dataset/data/_groundtruth__xcolumns.py
 rm disent/dataset/data/_groundtruth__xysquares.py
 rm disent/dataset/data/_groundtruth__xyblocks.py
-# tests
+
+# DATA:
+# - disent.framework.helper
+rm -rf data/adversarial_kernel
+
+# TESTS:
 rm tests/test_data_xy.py
 
 # ===================== #
 # DELETE LINES OF FILES #
 # ===================== #
 
-# configs
+# EXPERIMENT:
 remove_delete_commands experiment/config/metrics/all.yaml
 remove_delete_commands experiment/config/metrics/common.yaml
 remove_delete_commands experiment/config/metrics/fast.yaml
 remove_delete_commands experiment/config/metrics/test.yaml
-# metrics
+
+# DISENT:
+# - metrics
 remove_delete_commands disent/metrics/__init__.py
-# framework helpers
+# - framework helpers
 remove_delete_commands disent/frameworks/helper/reconstructions.py
-# datasets
+# - datasets
 remove_delete_commands disent/dataset/data/__init__.py
-# registry
+# - registry
 remove_delete_commands disent/registry/__init__.py
-# tests
+
+# TESTS:
 remove_delete_commands tests/test_frameworks.py
 remove_delete_commands tests/test_metrics.py
+
+# ===================== #
+# CLEANUP THIS FILE     #
+# ===================== #
+
+rm prepare_release.sh
