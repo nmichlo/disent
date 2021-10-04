@@ -47,8 +47,10 @@ from disent.dataset.data._groundtruth__dsprites import DSpritesData
 from disent.dataset.data._groundtruth__mpi3d import Mpi3dData
 from disent.dataset.data._groundtruth__norb import SmallNorbData
 from disent.dataset.data._groundtruth__shapes3d import Shapes3dData
-from disent.dataset.data._groundtruth__xyblocks import XYBlocksData
+
+# groundtruth -- impl synthetic
+from disent.dataset.data._groundtruth__xyblocks import XYBlocksData           # pragma: delete-on-release
 from disent.dataset.data._groundtruth__xyobject import XYObjectData
-from disent.dataset.data._groundtruth__xysquares import XYSquaresData
-from disent.dataset.data._groundtruth__xysquares import XYSquaresMinimalData
-from disent.dataset.data._groundtruth__xcolumns import XColumnsData
+from disent.dataset.data._groundtruth__xysquares import XYSquaresData         # pragma: delete-on-release
+from disent.dataset.data._groundtruth__xysquares import XYSquaresMinimalData  # pragma: delete-on-release
+from disent.dataset.data._groundtruth__xcolumns import XColumnsData           # pragma: delete-on-release

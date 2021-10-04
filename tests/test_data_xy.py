@@ -22,14 +22,10 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-import pytest
-import torch
+import numpy as np
 
-from disent.dataset.data import XYObjectData
-from disent.dataset import DisentDataset
-from disent.metrics import *
-from disent.nn.transform import ToStandardisedTensor
-from disent.util.function import wrapped_partial
+from disent.dataset.data import XYSquaresData
+from disent.dataset.data import XYSquaresMinimalData
 
 
 # ========================================================================= #
@@ -37,24 +33,18 @@ from disent.util.function import wrapped_partial
 # ========================================================================= #
 
 
-@pytest.mark.parametrize('metric_fn', [
-    wrapped_partial(metric_mig,          num_train=7),
-    wrapped_partial(metric_unsupervised, num_train=7),
-    wrapped_partial(metric_dci,          num_train=7, num_test=7),
-    wrapped_partial(metric_sap,          num_train=7, num_test=7),
-    wrapped_partial(metric_factor_vae,   num_train=7, num_eval=7, num_variance_estimate=7),
-    wrapped_partial(metric_flatness,            factor_repeats=7),  # pragma: delete-on-release
-    wrapped_partial(metric_flatness_components, factor_repeats=7),  # pragma: delete-on-release
-])
-def test_metrics(metric_fn):
-    z_size = 8
-    # ground truth data
-    # TODO: DisentDataset should not be needed to compute metrics!
-    dataset = DisentDataset(XYObjectData(), transform=ToStandardisedTensor())
-    # randomly sampled representation
-    get_repr = lambda x: torch.randn(len(x), z_size)
-    # evaluate
-    metric_fn(dataset, get_repr)
+def test_xysquares_similarity():
+    data_org = XYSquaresData()
+    data_min = XYSquaresMinimalData()
+    # check lengths
+    assert len(data_org) == len(data_min)
+    n = len(data_min)
+    # check items
+    for i in np.random.randint(0, n, size=100):
+        assert np.allclose(data_org[i], data_min[i])
+    # check bounds
+    assert np.allclose(data_org[0], data_min[0])
+    assert np.allclose(data_org[n-1], data_min[n-1])
 
 
 # ========================================================================= #
