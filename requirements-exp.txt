@@ -22,6 +22,6 @@ wandb>=0.10.32
 
 # UTILITY
 # =======
-hydra-core==1.0.6
+hydra-core==1.0.7
 hydra-colorlog==1.0.1
 hydra-submitit-launcher==1.1.1
