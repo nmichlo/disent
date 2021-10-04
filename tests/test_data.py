@@ -33,8 +33,6 @@ import pytest
 
 from disent.dataset.data import Hdf5Dataset
 from disent.dataset.data import XYObjectData
-from disent.dataset.data import XYSquaresData
-from disent.dataset.data import XYSquaresMinimalData
 from disent.dataset.util.hdf5 import hdf5_resave_file
 from disent.dataset.util.hdf5 import hdf5_test_speed
 from disent.util.inout.hashing import hash_file
@@ -47,19 +45,6 @@ from tests.util import no_stdout
 # ========================================================================= #
 # TESTS                                                                     #
 # ========================================================================= #
-
-def test_xysquares_similarity():
-    data_org = XYSquaresData()
-    data_min = XYSquaresMinimalData()
-    # check lengths
-    assert len(data_org) == len(data_min)
-    n = len(data_min)
-    # check items
-    for i in np.random.randint(0, n, size=100):
-        assert np.allclose(data_org[i], data_min[i])
-    # check bounds
-    assert np.allclose(data_org[0], data_min[0])
-    assert np.allclose(data_org[n-1], data_min[n-1])
 
 
 def _iterate_over_data(data, indices):

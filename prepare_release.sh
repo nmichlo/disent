@@ -40,6 +40,8 @@ rm -rf data/adversarial_kernel
 rm disent/dataset/data/_groundtruth__xcolumns.py
 rm disent/dataset/data/_groundtruth__xysquares.py
 rm disent/dataset/data/_groundtruth__xyblocks.py
+# tests
+rm tests/test_data_xy.py
 
 # ===================== #
 # DELETE LINES OF FILES #
