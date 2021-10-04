@@ -104,9 +104,18 @@ The disent directory structure:
 
 **Please Note The API Is Still Unstable ⚠️**
 
-Disent is still under active development. Features and APIs are not considered stable,
-and should be expected to change! A limited set of tests currently exist which will be
-expanded upon in time.
+Disent is still under active development. Features and APIs are mostly stable but may change! A limited
+set of tests currently exist which will be expanded upon in time.
+
+**Hydra Experiment Directories**
+
+Easily run experiments with hydra config, these files
+are not available from `pip install`.
+
+- `experiment/run.py`: entrypoint for running basic experiments with [hydra](https://github.com/facebookresearch/hydra) config
+- `experiment/config`: root folder for [hydra](https://github.com/facebookresearch/hydra) config files
+- `experiment/util`: various helper code for experiments
+
 
 **Hydra Experiment Directories**
 

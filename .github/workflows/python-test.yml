@@ -5,10 +5,10 @@ name: test
 
 on:
   push:
-    branches: [ main, dev ]
+    branches: [ "main", "dev", "dev*", "feature*"]
     tags: [ '*' ]
   pull_request:
-    branches: [ main, dev ]
+    branches: [ "main", "dev", "dev*", "feature*"]
 
 jobs:
   build:
@@ -16,7 +16,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest] # [ubuntu-latest, windows-latest, macos-latest]
-        python-version: [3.8]
+        python-version: ["3.8", "3.9"]
 
     steps:
     - uses: actions/checkout@v2
@@ -31,6 +31,7 @@ jobs:
         python3 -m pip install --upgrade pip
         python3 -m pip install -r requirements.txt
         python3 -m pip install -r requirements-test.txt
+        python3 -m pip install -r requirements-experiment.txt
 
     - name: Test with pytest
       run: |
@@ -39,6 +40,6 @@ jobs:
     - uses: codecov/codecov-action@v1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        fail_ci_if_error: true
+        fail_ci_if_error: false
       # codecov automatically merges all generated files
       # if: matrix.os == 'ubuntu-latest' && matrix.python-version == 3.9

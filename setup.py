@@ -48,8 +48,8 @@ setuptools.setup(
     author="Nathan Juraj Michlo",
     author_email="NathanJMichlo@gmail.com",
 
-    version="0.0.1.dev14",
-    python_requires=">=3.8",
+    version="0.2.0",
+    python_requires=">=3.8",  # we make use of standard library features only in 3.8
     packages=setuptools.find_packages(),
 
     install_requires=install_requires,
@@ -63,6 +63,7 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
         "Intended Audience :: Science/Research",
     ],
 )
