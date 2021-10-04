@@ -116,17 +116,6 @@ are not available from `pip install`.
 - `experiment/config`: root folder for [hydra](https://github.com/facebookresearch/hydra) config files
 - `experiment/util`: various helper code for experiments
 
-
-**Hydra Experiment Directories**
-
-Easily run experiments with hydra config, these files
-are not available from `pip install`.
-
-- `experiment/run.py`: entrypoint for running basic experiments with [hydra](https://github.com/facebookresearch/hydra) config
-- `experiment/config`: root folder for [hydra](https://github.com/facebookresearch/hydra) config files
-- `experiment/util`: various helper code for experiments
-
-
 ----------------------
 
 ## Features
