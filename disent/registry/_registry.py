@@ -27,6 +27,7 @@ from typing import Callable
 from typing import Dict
 from typing import NoReturn
 from typing import Optional
+from typing import Sequence
 from typing import Set
 from typing import Tuple
 
@@ -36,23 +37,15 @@ from typing import Tuple
 # ========================================================================= #
 
 
-class CachedRegistryItem(object):
+class CachedValue(object):
 
-    def __init__(self, keys: Tuple[str, ...]):
-        # aliases
-        assert isinstance(keys, tuple), f'Sequence of keys must be a tuple, got: {repr(keys)}'
-        assert all(map(str.isidentifier, keys)), f'All keys must be valid python identifiers, got: {sorted(keys)}'
-        self._keys = keys
+    def __init__(self):
         # save the path
         self._is_cached = False
         self._cache_value = None
         # handled by the registry
         self._is_registered = False
         self._assert_valid_value = None
-
-    @property
-    def keys(self) -> Tuple[str, ...]:
-        return self._keys
 
     @property
     def value(self) -> Any:
@@ -68,94 +61,109 @@ class CachedRegistryItem(object):
         # do the import!
         return self._cache_value
 
-    def purge(self) -> 'CachedRegistryItem':
-        self._is_cached = False
-        self._cache_value = None
-        return self
-
-    def link_to_registry(self, registry: 'CachedRegistry') -> 'CachedRegistryItem':
+    def link_to_registry(self, registry: 'Registry') -> 'CachedValue':
         # check we have only ever been linked once!
         if self._is_registered:
             raise RuntimeError('registry item has been registered more than once!')
-        if not isinstance(registry, CachedRegistry):
-            raise TypeError(f'expected registry to be of type: {CachedRegistry.__name__}, got: {type(registry)}')
-        # link!
+        if not isinstance(registry, Registry):
+            raise TypeError(f'expected registry to be of type: {Registry.__name__}, got: {type(registry)}')
+        # initialize link
         self._is_registered = True
         self._assert_valid_value = registry.assert_valid_value
         return self
 
     def __repr__(self):
-        return f'{self.__class__.__name__}({repr(self._keys)})'
+        return f'{self.__class__.__name__}()'
 
     def _generate(self) -> Any:
         raise NotImplementedError
 
 
 # ========================================================================= #
-# Basic Cached Registry                                                     #
+# Registry                                                                  #
 # ========================================================================= #
 
 
-class CachedRegistry(object):
+class Registry(object):
 
     def __init__(
         self,
-        assert_valid_key: Callable[[Any], NoReturn] = None,
-        assert_valid_value: Callable[[Any], NoReturn] = None,
+        assert_valid_key,
+        assert_valid_value,
     ):
-        self._keys_to_items: Dict[str, CachedRegistryItem] = {}
-        self._unique_items: Set[CachedRegistryItem] = set()
+        self._keys_to_values: Dict[str, Any] = {}
+        self._unique_values: Set[Any] = set()
+        self._unique_keys: Set[Any] = set()
         # checks!
-        assert (assert_valid_key is None) or callable(assert_valid_key), f'assert_valid_key must be None or callable!'
-        assert (assert_valid_value is None) or callable(assert_valid_value), f'assert_valid_value must be None or callable!'
+        assert (assert_valid_key is None) or callable(assert_valid_key), f'assert_valid_key must be None or callable'
+        assert (assert_valid_value is None) or callable(assert_valid_value), f'assert_valid_value must be None or callable'
         self._assert_valid_key = assert_valid_key
         self._assert_valid_value = assert_valid_value
 
-    def register(self, registry_item: CachedRegistryItem):
-        # check the item
-        if not isinstance(registry_item, CachedRegistryItem):
-            raise TypeError(f'expected registry_item to be an instance of {CachedRegistryItem.__name__}')
-        if registry_item in self._unique_items:
-            raise RuntimeError(f'registry already contains registry_item: {registry_item}')
-        # add to this registry
-        self._unique_items.add(registry_item)
-        registry_item.link_to_registry(self)
-        # register keys
-        for k in registry_item.keys:
-            # check key
-            if self._assert_valid_key is not None:
-                self._assert_valid_key(k)
-            if k in self._keys_to_items:
+    def __call__(
+        self,
+        aliases: Sequence[str]
+    ):
+        def _decorator(fn):
+            # register the function
+            self.register(value=fn, aliases=aliases)
+            # return the original function
+            return fn
+        return _decorator
+
+    def register(
+        self,
+        value: Any,
+        aliases: Sequence[str],
+    ) -> 'Registry':
+        # check keys
+        if len(aliases) < 1:
+            raise ValueError(f'aliases must be specified, got an empty sequence')
+        for k in aliases:
+            if not str.isidentifier(k):
+                raise ValueError(f'alias is not a valid identifier: {repr(k)}')
+            if k in self._keys_to_values:
                 raise RuntimeError(f'registry already contains key: {repr(k)}')
-            # register key
-            self._keys_to_items[k] = registry_item
+            self.assert_valid_key(k)
+        # check value
+        if value in self._unique_values:
+            raise RuntimeError(f'registry already contains value: {value}')
+        # handle caching
+        if isinstance(value, CachedValue):
+            self.assert_valid_value(value)
+        else:
+            value.link_to_registry(self)
+        # register value & keys
+        self._unique_values.add(value)
+        self._unique_keys.add(aliases[0])
+        for k in aliases:
+            self._keys_to_values[k] = value
+        # done!
+        return self
 
     def __contains__(self, key: str):
-        return key in self._keys_to_items
+        return key in self._keys_to_values
 
     def __getitem__(self, key: str):
-        # get the registry item
-        registry_item: Optional[CachedRegistryItem] = self._keys_to_items.get(key, None)
-        # check that we have the key
-        if registry_item is None:
-            raise KeyError(f'registry does not contain the key: {repr(key)}, valid keys include: {sorted(self._keys_to_items.keys())}')
-        # obtain or generate the cache value
-        return registry_item.value
+        if key not in self._keys_to_values:
+            raise KeyError(f'registry does not contain the key: {repr(key)}, valid keys include: {sorted(self._keys_to_values.keys())}')
+        # handle caching
+        value = self._keys_to_values[key]
+        if isinstance(value, CachedValue):
+            value = value.value
+        return value
 
     def __iter__(self):
-        return self.unique_keys()
+        return self.iter_unique_keys()
 
-    def unique_keys(self):
-        for registry_item in self._unique_items:
-            yield registry_item.keys[0]
+    def __len__(self):
+        return len(self._unique_values)
 
-    def all_keys(self):
-        yield from self._keys_to_items.keys()
+    def iter_unique_keys(self):
+        yield from self._unique_keys
 
-    def purge(self) -> 'CachedRegistry':
-        for registry_item in self._unique_items:
-            registry_item.purge()
-        return self
+    def iter_all_keys(self):
+        yield from self._keys_to_values.keys()
 
     def assert_valid_value(self, value: Any) -> NoReturn:
         if self._assert_valid_value is not None:
