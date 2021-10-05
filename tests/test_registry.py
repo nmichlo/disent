@@ -32,28 +32,28 @@ from disent.registry import REGISTRY
 
 
 COUNTS = {
-    'dataset': 6,
-    'sampler': 8,
-    'framework': 10,
-    'recon_loss': 6,
-    'latent_dist': 2,
-    'optimizer': 38,
-    'metric': 5,
-    'schedule': 5,
-    'model': 8,
+    'DATASET': 6,
+    'SAMPLER': 8,
+    'FRAMEWORK': 10,
+    'RECON_LOSS': 6,
+    'LATENT_DIST': 2,
+    'OPTIMIZER': 30,
+    'METRIC': 5,
+    'SCHEDULE': 5,
+    'MODEL': 8,
 }
 
 
 COUNTS = {             # pragma: delete-on-release
-    'dataset': 9,      # pragma: delete-on-release
-    'sampler': 8,      # pragma: delete-on-release
-    'framework': 25,   # pragma: delete-on-release
-    'recon_loss': 8,   # pragma: delete-on-release
-    'latent_dist': 2,  # pragma: delete-on-release
-    'optimizer': 38,   # pragma: delete-on-release
-    'metric': 7,       # pragma: delete-on-release
-    'schedule': 5,     # pragma: delete-on-release
-    'model': 8,        # pragma: delete-on-release
+    'DATASET': 9,      # pragma: delete-on-release
+    'SAMPLER': 8,      # pragma: delete-on-release
+    'FRAMEWORK': 25,   # pragma: delete-on-release
+    'RECON_LOSS': 8,   # pragma: delete-on-release
+    'LATENT_DIST': 2,  # pragma: delete-on-release
+    'OPTIMIZER': 30,   # pragma: delete-on-release
+    'METRIC': 7,       # pragma: delete-on-release
+    'SCHEDULE': 5,     # pragma: delete-on-release
+    'MODEL': 8,        # pragma: delete-on-release
 }                      # pragma: delete-on-release
 
 
@@ -66,8 +66,8 @@ def test_registry_loading():
             loaded = REGISTRY[registry][name]
             count += 1
             total += 1
-        assert COUNTS[registry] == count
-    assert total == sum(COUNTS.values())
+        assert COUNTS[registry] == count, f'invalid count for: {registry}'
+    assert total == sum(COUNTS.values()), f'invalid total'
 
 
 # ========================================================================= #
