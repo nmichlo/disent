@@ -163,6 +163,9 @@ class ImportRegistryMeta(object):
                 import_path=import_path,
             ))
 
+    def __new__(cls, *args, **kwargs):
+        raise RuntimeError('cannot instantiate registry!')
+
     def __contains__(cls, key): return key in cls.__registry
     def __getitem__(cls, key): return cls.__registry[key]
     def __iter__(cls): return cls.__registry.__iter__()
