@@ -38,6 +38,8 @@ import pickle
 import random
 import warnings
 from datetime import datetime
+from typing import Any
+from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Tuple
@@ -367,7 +369,7 @@ def run(
     wandb_job_name: str = None,
     wandb_tags: Optional[List[str]] = None,
     wandb_finish: bool = True,
-):
+) -> Dict[str, Any]:
     # save the starting time for the save path
     time_string = datetime.today().strftime('%Y-%m-%d--%H-%M-%S')
     log.info(f'Starting run at time: {time_string}')
@@ -473,12 +475,31 @@ def run(
         for k, v in logbook[0].items(): wandb.summary[f'log:start:{k}'] = v
         for k, v in logbook[-1].items(): wandb.summary[f'log:end:{k}'] = v
 
+    # generate paths
+    job_name = f'{time_string}_{(save_prefix + "_" if save_prefix else "")}{dataset_name}_{generations}x{population_size}_{dist_normalize_mode}_{fitness_overlap_mode}_{fitness_overlap_aggregate}'
+
+    # collect results
+    results = {
+        'hparams': hparams,
+        'job_name': job_name,
+        'save_path': None,
+        'time_string': time_string,
+        'values': [ray.get(m.value) for m in population],
+        'scores': [m.fitness for m in population],
+        # score components
+        'scores_overlap': [m.fitness[0] for m in population],
+        'scores_usage': [m.fitness[1] for m in population],
+        # history data
+        'logbook_history': logbook.history,
+        # we don't want these because they store object refs, and
+        # it means we need ray to unpickle them.
+        # 'population': population,
+        # 'halloffame_members': halloffame.members,
+    }
+
     if save:
         # get save path, make parent dir & save!
-        job_name = f'{time_string}_{(save_prefix + "_" if save_prefix else "")}{dataset_name}_{generations}x{population_size}_{dist_normalize_mode}_{fitness_overlap_mode}_{fitness_overlap_aggregate}'
-        save_path = ensure_parent_dir_exists(ROOT_DIR, 'out/adversarial_mask', job_name, 'data.pkl.gz')
-        log.info(f'saving data to: {save_path}')
-
+        results['save_path'] = ensure_parent_dir_exists(ROOT_DIR, 'out/adversarial_mask', job_name, 'data.pkl.gz')
         # NONE : 122943493 ~= 118M (100.%) : 103.420ms
         # lvl=1 : 23566691 ~=  23M (19.1%) : 1.223s
         # lvl=2 : 21913595 ~=  21M (17.8%) : 1.463s
@@ -489,31 +510,11 @@ def run(
         # lvl=7 : 16242279 ~=  16M (13.2%) : 12.407s
         # lvl=8 : 15586416 ~=  15M (12.7%) : 1m:4s   # far too slow
         # lvl=9 : 15023324 ~=  15M (12.2%) : 3m:11s  # far too slow
+        log.info(f'saving data to: {results["save_path"]}')
+        with gzip.open(results["save_path"], 'wb', compresslevel=5) as fp:
+            pickle.dump(results, fp)
+        log.info(f'saved data to: {results["save_path"]}')
 
-        with gzip.open(save_path, 'wb', compresslevel=5) as fp:
-            pickle.dump({
-                'hparams': hparams,
-                'job_name': job_name,
-                'time_string': time_string,
-                'values': [ray.get(m.value) for m in population],
-                'scores': [m.fitness for m in population],
-                # score components
-                'scores_overlap': [m.fitness[0] for m in population],
-                'scores_usage': [m.fitness[1] for m in population],
-                # history data
-                'logbook_history': logbook.history,
-                # we don't want these because they store object refs, and
-                # it means we need ray to unpickle them.
-                # 'population': population,
-                # 'halloffame_members': halloffame.members,
-            }, fp)
-        # done!
-        log.info(f'saved data to: {save_path}')
-        # return
-        results = save_path
-    else:
-        # return the population
-        results = (population, logbook, halloffame)
     # cleanup wandb
     if wandb_enabled:
         if wandb_finish:
@@ -521,7 +522,8 @@ def run(
                 wandb.finish()
             except:
                 pass
-    # done!
+
+    # done
     return results
 
 # ========================================================================= #
