@@ -526,6 +526,28 @@ def run(
     # done
     return results
 
+
+# ========================================================================= #
+# QUICK RUN                                                                 #
+# ========================================================================= #
+
+
+def quick_generate_adversarial_mask(
+    dataset_name: str = 'shapes3d',
+    dist_normalize_mode: str = 'all',
+    generations: int = 250,
+    population_size: int = 128,
+    # fitness settings
+    fitness_overlap_mode: str = 'std',
+    fitness_overlap_aggregate: str = 'mean',
+    # save settings
+    seed_: Optional[int] = None,
+    # wandb_settings
+    wandb_enabled: bool = True,
+) -> Dict[str, Any]:
+    pass
+
+
 # ========================================================================= #
 # ENTRYPOINT                                                                #
 # ========================================================================= #

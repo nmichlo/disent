@@ -36,12 +36,17 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def get_memory_usage():
+def get_memory_usage(pretty: bool = False):
     import os
     import psutil
     process = psutil.Process(os.getpid())
     num_bytes = process.memory_info().rss  # in bytes
-    return num_bytes
+    # format the bytes
+    if pretty:
+        from disent.util.strings.fmt import bytes_to_human
+        return bytes_to_human(num_bytes)
+    else:
+        return num_bytes
 
 
 # ========================================================================= #
@@ -159,4 +164,3 @@ class Timer(ContextDecorator):
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-
