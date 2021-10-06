@@ -105,6 +105,10 @@ class Registry(object):
         # storage
         self._keys_to_values: Dict[str, Any] = {}
 
+    @property
+    def name(self) -> str:
+        return self._name
+
     def _get_aliases(self, name, aliases, auto_alias: bool):
         if auto_alias:
             if name not in self:

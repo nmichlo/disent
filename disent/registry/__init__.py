@@ -43,7 +43,8 @@ from disent.registry._registry import LazyImport as _LazyImport
 # ========================================================================= #
 
 
-DATASETS = _Registry('DATASET')
+# TODO: this is not yet used in disent.data or disent.frameworks
+DATASETS = _Registry('DATASETS')
 # groundtruth -- impl
 DATASETS['cars3d']            = _LazyImport('disent.dataset.data._groundtruth__cars3d')
 DATASETS['dsprites']          = _LazyImport('disent.dataset.data._groundtruth__dsprites')
@@ -64,8 +65,9 @@ DATASETS['xcolumns']          = _LazyImport('disent.dataset.data._groundtruth__x
 # ========================================================================= #
 
 
+# TODO: this is not yet used in disent.data or disent.frameworks
 # changes here should also update
-SAMPLERS = _Registry('SAMPLER')
+SAMPLERS = _Registry('SAMPLERS')
 # [ground truth samplers]
 SAMPLERS['gt_dist']         = _LazyImport('disent.dataset.sampling._groundtruth__dist.GroundTruthDistSampler')
 SAMPLERS['gt_pair']         = _LazyImport('disent.dataset.sampling._groundtruth__pair.GroundTruthPairSampler')
@@ -88,7 +90,8 @@ SAMPLERS['random_episode']  = _LazyImport('disent.dataset.sampling._random__epis
 # ========================================================================= #
 
 
-FRAMEWORKS = _Registry('FRAMEWORK')
+# TODO: this is not yet used in disent.frameworks
+FRAMEWORKS = _Registry('FRAMEWORKS')
 # [AE]
 FRAMEWORKS['tae']           = _LazyImport('disent.frameworks.ae._supervised__tae.TripletAe')
 FRAMEWORKS['ae']            = _LazyImport('disent.frameworks.ae._unsupervised__ae.Ae')
@@ -126,7 +129,7 @@ FRAMEWORKS['x__st_beta_vae'] = _LazyImport('disent.frameworks.vae.experimental._
 # ========================================================================= #
 
 
-RECON_LOSSES = _Registry('RECON_LOSS')
+RECON_LOSSES = _Registry('RECON_LOSSES')
 # [STANDARD LOSSES]
 RECON_LOSSES['mse']         = _LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerMse')                  # from the normal distribution - real values in the range [0, 1]
 RECON_LOSSES['mae']         = _LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerMae')                  # mean absolute error
@@ -146,7 +149,8 @@ RECON_LOSSES['mae2']        = _LazyImport('disent.frameworks.helper.reconstructi
 # ========================================================================= #
 
 
-LATENT_DISTS = _Registry('LATENT_DIST')
+# TODO: this is not yet used in disent.frameworks or disent.frameworks.helper.latent_distributions
+LATENT_DISTS = _Registry('LATENT_DISTS')
 LATENT_DISTS['normal']  = _LazyImport('disent.frameworks.helper.latent_distributions.LatentDistsHandlerNormal')
 LATENT_DISTS['laplace'] = _LazyImport('disent.frameworks.helper.latent_distributions.LatentDistsHandlerLaplace')
 
@@ -160,7 +164,7 @@ LATENT_DISTS['laplace'] = _LazyImport('disent.frameworks.helper.latent_distribut
 _LR = 1e-3
 
 
-OPTIMIZERS = _Registry('OPTIMIZER')
+OPTIMIZERS = _Registry('OPTIMIZERS')
 # [torch]
 OPTIMIZERS['adadelta']    = _LazyImport(lr=_LR, import_path='torch.optim.adadelta.Adadelta')
 OPTIMIZERS['adagrad']     = _LazyImport(lr=_LR, import_path='torch.optim.adagrad.Adagrad')
@@ -201,7 +205,8 @@ OPTIMIZERS['yogi']        = _LazyImport(lr=_LR, import_path='torch_optimizer.Yog
 # ========================================================================= #
 
 
-METRICS = _Registry('METRIC')
+# TODO: this is not yet used in disent.util.lightning.callbacks or disent.metrics
+METRICS = _Registry('METRICS')
 METRICS['dci']                 = _LazyImport('disent.metrics._dci.metric_dci')
 METRICS['factor_vae']          = _LazyImport('disent.metrics._factor_vae.metric_factor_vae')
 METRICS['flatness']            = _LazyImport('disent.metrics._flatness.metric_flatness')                        # pragma: delete-on-release
@@ -216,7 +221,8 @@ METRICS['unsupervised']        = _LazyImport('disent.metrics._unsupervised.metri
 # ========================================================================= #
 
 
-SCHEDULES = _Registry('SCHEDULE')
+# TODO: this is not yet used in disent.framework or disent.schedule
+SCHEDULES = _Registry('SCHEDULES')
 SCHEDULES['clip']        = _LazyImport('disent.schedule._schedule.ClipSchedule')
 SCHEDULES['cosine_wave'] = _LazyImport('disent.schedule._schedule.CosineWaveSchedule')
 SCHEDULES['cyclic']      = _LazyImport('disent.schedule._schedule.CyclicSchedule')
@@ -229,7 +235,8 @@ SCHEDULES['noop']        = _LazyImport('disent.schedule._schedule.NoopSchedule')
 # ========================================================================= #
 
 
-MODELS = _Registry('MODEL')
+# TODO: this is not yet used in disent.framework or disent.model
+MODELS = _Registry('MODELS')
 # [DECODER]
 MODELS['encoder_conv64']     = _LazyImport('disent.model.ae._vae_conv64.EncoderConv64')
 MODELS['encoder_conv64norm'] = _LazyImport('disent.model.ae._norm_conv64.EncoderConv64Norm')
