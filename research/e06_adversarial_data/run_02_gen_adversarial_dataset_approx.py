@@ -118,8 +118,8 @@ def make_delta_model(model_type: str, x_shape: Tuple[int, ...]):
     # get model
     if model_type.startswith('ae_'):
         return AeModel(
-            encoder=registry.MODEL[f'encoder{model_type[len("ae_"):]}'](x_shape=x_shape, z_size=64, z_multiplier=1),
-            decoder=registry.MODEL[f'decoder{model_type[len("ae_"):]}'](x_shape=x_shape, z_size=64, z_multiplier=1),
+            encoder=registry.MODELS[f'encoder{model_type[len("ae_"):]}'](x_shape=x_shape, z_size=64, z_multiplier=1),
+            decoder=registry.MODELS[f'decoder{model_type[len("ae_"):]}'](x_shape=x_shape, z_size=64, z_multiplier=1),
         )
     elif model_type == 'fcn_small':
         return torch.nn.Sequential(

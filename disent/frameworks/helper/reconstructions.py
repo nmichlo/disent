@@ -301,9 +301,9 @@ _ARG_RECON_LOSSES: List[Tuple[re.Pattern, str, callable]] = [
 
 # NOTE: this function compliments make_kernel in transform/_augment.py
 def make_reconstruction_loss(name: str, reduction: str) -> ReconLossHandler:
-    if name in registry.RECON_LOSS:
+    if name in registry.RECON_LOSSES:
         # search normal losses!
-        return registry.RECON_LOSS[name](reduction)
+        return registry.RECON_LOSSES[name](reduction)
     else:
         # regex search losses, and call with args!
         for r, _, fn in _ARG_RECON_LOSSES:

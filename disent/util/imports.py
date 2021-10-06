@@ -23,51 +23,51 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 
-from disent.registry import REGISTRIES
+from typing import Tuple
 
 
 # ========================================================================= #
-# TESTS                                                                     #
+# Import Helper                                                             #
 # ========================================================================= #
 
 
-COUNTS = {
-    'DATASETS': 6,
-    'SAMPLERS': 8,
-    'FRAMEWORKS': 10,
-    'RECON_LOSSES': 6,
-    'LATENT_DISTS': 2,
-    'OPTIMIZERS': 30,
-    'METRICS': 5,
-    'SCHEDULES': 5,
-    'MODELS': 8,
-}
+def _check_and_split_path(import_path: str) -> Tuple[str, ...]:
+    segments = import_path.split('.')
+    # make sure each segment is a valid python identifier
+    if not all(map(str.isidentifier, segments)):
+        raise ValueError(f'import path is invalid: {repr(import_path)}')
+    # return the segments!
+    return tuple(segments)
 
 
-COUNTS = {              # pragma: delete-on-release
-    'DATASETS': 10,     # pragma: delete-on-release
-    'SAMPLERS': 8,      # pragma: delete-on-release
-    'FRAMEWORKS': 25,   # pragma: delete-on-release
-    'RECON_LOSSES': 8,  # pragma: delete-on-release
-    'LATENT_DISTS': 2,  # pragma: delete-on-release
-    'OPTIMIZERS': 30,   # pragma: delete-on-release
-    'METRICS': 7,       # pragma: delete-on-release
-    'SCHEDULES': 5,     # pragma: delete-on-release
-    'MODELS': 8,        # pragma: delete-on-release
-}                       # pragma: delete-on-release
+def import_obj(import_path: str):
+    # checks
+    segments = _check_and_split_path(import_path)
+    # split path
+    module_path, attr_name = '.'.join(segments[:-1]), segments[-1]
+    # import the module
+    import importlib
+    try:
+        module = importlib.import_module(module_path)
+    except Exception as e:
+        raise ImportError(f'failed to import module: {repr(module_path)}') from e
+    # import the attrs
+    try:
+        attr = getattr(module, attr_name)
+    except Exception as e:
+        raise ImportError(f'failed to get attribute: {repr(attr_name)} on module: {repr(module_path)}') from e
+    # done
+    return attr
 
 
-def test_registry_loading():
-    # load everything and check the counts
-    total = 0
-    for registry in REGISTRIES:
-        count = 0
-        for name in REGISTRIES[registry]:
-            loaded = REGISTRIES[registry][name]
-            count += 1
-            total += 1
-        assert COUNTS[registry] == count, f'invalid count for: {registry}'
-    assert total == sum(COUNTS.values()), f'invalid total'
+def import_obj_partial(import_path: str, *partial_args, **partial_kwargs):
+    obj = import_obj(import_path)
+    # wrap the object if needed
+    if partial_args or partial_kwargs:
+        from disent.util.function import wrapped_partial
+        obj = wrapped_partial(obj, *partial_args, **partial_kwargs)
+    # done!
+    return obj
 
 
 # ========================================================================= #
