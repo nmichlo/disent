@@ -27,7 +27,7 @@ job:
   seed: NULL
 
 framework:
-    beta: 4
+    beta: 1
     module:
       recon_loss: mse
       loss_reduction: mean_sum
