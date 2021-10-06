@@ -7,7 +7,7 @@
 export USERNAME="n_michlo"
 export PROJECT="exp-masked-datasets"
 export PARTITION="stampede"
-export PARALLELISM=20
+export PARALLELISM=18
 
 # source the helper file
 source "$(dirname "$(dirname "$(realpath -s "$0")")")/helper.sh"
@@ -30,3 +30,5 @@ submit_sweep \
     \
     dataset=X--mask-adv-dsprites,X--mask-ran-dsprites,dsprites,X--mask-adv-shapes3d,X--mask-ran-shapes3d,shapes3d,X--mask-adv-smallnorb,X--mask-ran-smallnorb,smallnorb,X--mask-adv-cars3d,X--mask-ran-cars3d,cars3d \
     specializations.dataset_sampler='random_${framework.data_sample_mode}'
+
+    # hydra.launcher.exclude='"mscluster93,mscluster94,mscluster97"'  # we don't want to sweep over these
