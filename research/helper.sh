@@ -18,6 +18,7 @@
 if [ -z "$PROJECT" ]; then echo "PROJECT is not set"; exit 1; fi
 if [ -z "$PARTITION" ]; then echo "PARTITION is not set"; exit 1; fi
 if [ -z "$PARALLELISM" ]; then echo "PARALLELISM is not set"; exit 1; fi
+if [ -z "$USERNAME" ]; then echo "USERNAME is not set"; exit 1; fi
 if [ -z "$PY_RUN_FILE" ]; then PY_RUN_FILE='experiment/run.py'; fi
 
 export PY_RUN_FILE
@@ -39,6 +40,7 @@ function submit_sweep() {
     PYTHONPATH="$ROOT_DIR" python3 "$PY_RUN_FILE" -m \
         job.project="$PROJECT" \
         job.partition="$PARTITION" \
+        job.user="$USERNAME" \
         hydra.launcher.array_parallelism="$PARALLELISM" \
         "$@" \
         & # run in background

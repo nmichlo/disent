@@ -1,6 +1,6 @@
 defaults:
   # system
-  - framework: adavae
+  - framework: betavae
   - model: vae_conv64
   - optimizer: adam
   - schedule: none
@@ -9,10 +9,10 @@ defaults:
   - dataset_sampling: full_bb
   - augment: none
   # runtime
-  - metrics: fast
-  - run_length: short
-  - run_location: local
-  - run_callbacks: vis
+  - metrics: all
+  - run_length: long
+  - run_location: cluster_many
+  - run_callbacks: vis_slow
   - run_logging: wandb
   # plugins
   - hydra/job_logging: colorlog
@@ -39,7 +39,7 @@ framework:
       usage_ratio: 0.5  # only used by adversarial masked datasets  # pragma: delete-on-release
 
 model:
-  z_size: 25
+  z_size: 9
 
 optimizer:
   lr: 1e-3
