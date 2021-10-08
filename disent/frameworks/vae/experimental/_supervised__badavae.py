@@ -65,7 +65,7 @@ class BoundedAdaVae(AdaVae):
         # make averaged variables
         # TODO: this will probably be better if it is the negative involed
         # TODO: this can be merged with the gadavae/badavae
-        ave_ap_a_posterior, ave_ap_p_posterior = AdaVae.make_averaged_posteriors(a_posterior, p_posterior, p_shared_mask, average_mode=self.cfg.ada_average_mode)
+        ave_ap_a_posterior, ave_ap_p_posterior = AdaVae.make_shared_posteriors(a_posterior, p_posterior, p_shared_mask, average_mode=self.cfg.ada_average_mode)
 
         # TODO: n_z_params should not be here! this does not match the original version
         #       number of loss elements is not 2 like the original

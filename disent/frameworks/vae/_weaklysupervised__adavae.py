@@ -76,7 +76,7 @@ class AdaVae(BetaVae):
         # shared elements that need to be averaged, computed per pair in the batch.
         share_mask = self.compute_shared_mask_from_posteriors(d0_posterior, d1_posterior, thresh_mode=self.cfg.ada_thresh_mode, ratio=self.cfg.ada_thresh_ratio)
         # compute average posteriors
-        new_ds_posterior = self.make_averaged_posteriors(d0_posterior, d1_posterior, share_mask, average_mode=self.cfg.ada_average_mode)
+        new_ds_posterior = self.make_shared_posteriors(d0_posterior, d1_posterior, share_mask, average_mode=self.cfg.ada_average_mode)
         # return new args & generate logs
         return new_ds_posterior, ds_prior, {
             'shared': share_mask.sum(dim=1).float().mean()
@@ -84,6 +84,8 @@ class AdaVae(BetaVae):
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # HELPER                                                                #
+    # - we store these on the cls so that its easier to see which framework #
+    #   we have obtained the different procedures from.                     #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     # -=-=-=- POSTERIOR -=-=-=- #
@@ -165,21 +167,30 @@ class AdaVae(BetaVae):
     # -=-=-=- AVERAGING -=-=-=- #
 
     @classmethod
-    def make_averaged_posteriors(cls, d0_posterior: Normal, d1_posterior: Normal, share_mask: torch.Tensor, average_mode: str) -> Tuple[Normal, Normal]:
+    def make_shared_posteriors(cls, d0_posterior: Normal, d1_posterior: Normal, share_mask: torch.Tensor, average_mode: str) -> Tuple[Normal, Normal]:
         # compute average posterior
-        ave_posterior = compute_average_distribution(d0_posterior=d0_posterior, d1_posterior=d1_posterior, average_mode=average_mode)
-        # select averages
+        ave_posterior = AdaVae.compute_average_posterior(d0_posterior=d0_posterior, d1_posterior=d1_posterior, average_mode=average_mode)
+        # select shared elements
         ave_d0_posterior = Normal(loc=torch.where(share_mask, ave_posterior.loc, d0_posterior.loc), scale=torch.where(share_mask, ave_posterior.scale, d0_posterior.scale))
         ave_d1_posterior = Normal(loc=torch.where(share_mask, ave_posterior.loc, d1_posterior.loc), scale=torch.where(share_mask, ave_posterior.scale, d1_posterior.scale))
         # return values
         return ave_d0_posterior, ave_d1_posterior
 
     @classmethod
-    def make_averaged_zs(cls, z0: torch.Tensor, z1: torch.Tensor, share_mask: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def make_shared_zs(cls, z0: torch.Tensor, z1: torch.Tensor, share_mask: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        # compute average values
         ave = 0.5 * z0 + 0.5 * z1
+        # select shared elements
         ave_z0 = torch.where(share_mask, ave, z0)
         ave_z1 = torch.where(share_mask, ave, z1)
         return ave_z0, ave_z1
+
+    @classmethod
+    def compute_average_posterior(cls, d0_posterior: Normal, d1_posterior: Normal, average_mode: str) -> Normal:
+        return _COMPUTE_AVE_FNS[average_mode](
+            d0_posterior=d0_posterior,
+            d1_posterior=d1_posterior,
+        )
 
 
 # ========================================================================= #
@@ -229,18 +240,10 @@ def compute_average_ml_vae(d0_posterior: Normal, d1_posterior: Normal) -> Normal
     return Normal(loc=ave_mean, scale=torch.sqrt(ave_var))
 
 
-COMPUTE_AVE_FNS = {
+_COMPUTE_AVE_FNS = {
     'gvae': compute_average_gvae,
     'ml-vae': compute_average_ml_vae,
 }
-
-
-def compute_average_distribution(d0_posterior: Normal, d1_posterior: Normal, average_mode: str) -> Normal:
-    return COMPUTE_AVE_FNS[average_mode](d0_posterior=d0_posterior, d1_posterior=d1_posterior)
-
-
-
-
 
 # ========================================================================= #
 # END                                                                       #

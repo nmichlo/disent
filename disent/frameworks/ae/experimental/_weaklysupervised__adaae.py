@@ -70,7 +70,7 @@ class AdaAe(Ae):
         # shared elements that need to be averaged, computed per pair in the batch.
         share_mask = AdaVae.compute_shared_mask_from_zs(z0, z1, ratio=self.cfg.ada_thresh_ratio)
         # compute average posteriors
-        new_zs = AdaVae.make_averaged_zs(z0, z1, share_mask)
+        new_zs = AdaVae.make_shared_zs(z0, z1, share_mask)
         # return new args & generate logs
         return new_zs, {
             'shared': share_mask.sum(dim=1).float().mean()
