@@ -77,7 +77,7 @@ class GuidedAdaVae(AdaVae):
         # TODO: this can be merged with the gadavae/badavae
         ave_ap_a_posterior, ave_ap_p_posterior = AdaVae.make_shared_posteriors(a_posterior, p_posterior, p_shared_mask, average_mode=self.cfg.ada_average_mode)
         ave_an_a_posterior, ave_an_n_posterior = AdaVae.make_shared_posteriors(a_posterior, n_posterior, n_shared_mask, average_mode=self.cfg.ada_average_mode)
-        ave_a_posterior = AdaVae.compute_average_posterior(ave_ap_a_posterior, ave_an_a_posterior, average_mode=self.cfg.ada_average_mode)
+        ave_a_posterior = AdaVae.compute_average_distribution(ave_ap_a_posterior, ave_an_a_posterior, average_mode=self.cfg.ada_average_mode)
 
         # compute anchor average using the adaptive threshold | TODO: this doesn't really make sense
         anchor_ave_logs = {}

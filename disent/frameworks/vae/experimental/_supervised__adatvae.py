@@ -289,11 +289,11 @@ def compute_ave_shared_distributions(ds_posterior: Sequence[Normal], share_masks
 
     # compute averaged shared embeddings
     if cfg.adat_share_ave_mode == 'all':
-        ave_a_posterior = AdaVae.compute_average_posterior(ave_ap_a_posterior, ave_an_a_posterior, average_mode=cfg.ada_average_mode)
-        ave_p_posterior = AdaVae.compute_average_posterior(ave_ap_p_posterior, ave_pn_p_posterior, average_mode=cfg.ada_average_mode)
-        ave_n_posterior = AdaVae.compute_average_posterior(ave_an_n_posterior, ave_pn_n_posterior, average_mode=cfg.ada_average_mode)
+        ave_a_posterior = AdaVae.compute_average_distribution(ave_ap_a_posterior, ave_an_a_posterior, average_mode=cfg.ada_average_mode)
+        ave_p_posterior = AdaVae.compute_average_distribution(ave_ap_p_posterior, ave_pn_p_posterior, average_mode=cfg.ada_average_mode)
+        ave_n_posterior = AdaVae.compute_average_distribution(ave_an_n_posterior, ave_pn_n_posterior, average_mode=cfg.ada_average_mode)
     elif cfg.adat_share_ave_mode == 'pos_neg':
-        ave_a_posterior = AdaVae.compute_average_posterior(ave_ap_a_posterior, ave_an_a_posterior, average_mode=cfg.ada_average_mode)
+        ave_a_posterior = AdaVae.compute_average_distribution(ave_ap_a_posterior, ave_an_a_posterior, average_mode=cfg.ada_average_mode)
         ave_p_posterior = ave_ap_p_posterior
         ave_n_posterior = ave_an_n_posterior
     elif cfg.adat_share_ave_mode == 'pos':
