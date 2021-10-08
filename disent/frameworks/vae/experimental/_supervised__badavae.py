@@ -51,8 +51,8 @@ class BoundedAdaVae(AdaVae):
         a_posterior, p_posterior, n_posterior = ds_posterior
 
         # get deltas
-        a_p_deltas = AdaVae.compute_posterior_deltas(a_posterior, p_posterior, thresh_mode=self.cfg.ada_thresh_mode)
-        a_n_deltas = AdaVae.compute_posterior_deltas(a_posterior, n_posterior, thresh_mode=self.cfg.ada_thresh_mode)
+        a_p_deltas = AdaVae.compute_deltas_from_posteriors(a_posterior, p_posterior, thresh_mode=self.cfg.ada_thresh_mode)
+        a_n_deltas = AdaVae.compute_deltas_from_posteriors(a_posterior, n_posterior, thresh_mode=self.cfg.ada_thresh_mode)
 
         # shared elements that need to be averaged, computed per pair in the batch.
         old_p_shared_mask = AdaVae.estimate_shared_mask(a_p_deltas, ratio=self.cfg.ada_thresh_ratio)
@@ -65,7 +65,7 @@ class BoundedAdaVae(AdaVae):
         # make averaged variables
         # TODO: this will probably be better if it is the negative involed
         # TODO: this can be merged with the gadavae/badavae
-        ave_ap_a_posterior, ave_ap_p_posterior = AdaVae.make_averaged_distributions(a_posterior, p_posterior, p_shared_mask, average_mode=self.cfg.ada_average_mode)
+        ave_ap_a_posterior, ave_ap_p_posterior = AdaVae.make_averaged_posteriors(a_posterior, p_posterior, p_shared_mask, average_mode=self.cfg.ada_average_mode)
 
         # TODO: n_z_params should not be here! this does not match the original version
         #       number of loss elements is not 2 like the original
@@ -119,4 +119,3 @@ def compute_constrained_masks(p_kl_deltas, p_shared_mask, n_kl_deltas, n_shared_
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-

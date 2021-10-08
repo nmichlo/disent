@@ -116,7 +116,7 @@ class DataOverlapRankVae(TripletVae):
         # compute adaptive mask & weight deltas
         a_posterior = Normal(d_posterior.loc[a_idxs], d_posterior.scale[a_idxs])
         p_posterior = Normal(d_posterior.loc[p_idxs], d_posterior.scale[p_idxs])
-        share_mask = AdaVae.compute_posterior_shared_mask(a_posterior, p_posterior, thresh_mode=self.cfg.ada_thresh_mode, ratio=self.cfg.ada_thresh_ratio)
+        share_mask = AdaVae.compute_shared_mask_from_posteriors(a_posterior, p_posterior, thresh_mode=self.cfg.ada_thresh_mode, ratio=self.cfg.ada_thresh_ratio)
         deltas = torch.where(share_mask, self.cfg.adat_triplet_share_scale * (a_z - p_z), (a_z - p_z))
         # compute representation distances
         ap_repr_dists = torch.abs(deltas).sum(dim=-1)

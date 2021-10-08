@@ -63,8 +63,8 @@ class GuidedAdaVae(AdaVae):
         a_posterior, p_posterior, n_posterior = ds_posterior
 
         # get deltas
-        a_p_deltas = AdaVae.compute_posterior_deltas(a_posterior, p_posterior, thresh_mode=self.cfg.ada_thresh_mode)
-        a_n_deltas = AdaVae.compute_posterior_deltas(a_posterior, n_posterior, thresh_mode=self.cfg.ada_thresh_mode)
+        a_p_deltas = AdaVae.compute_deltas_from_posteriors(a_posterior, p_posterior, thresh_mode=self.cfg.ada_thresh_mode)
+        a_n_deltas = AdaVae.compute_deltas_from_posteriors(a_posterior, n_posterior, thresh_mode=self.cfg.ada_thresh_mode)
 
         # shared elements that need to be averaged, computed per pair in the batch.
         old_p_shared_mask = AdaVae.estimate_shared_mask(a_p_deltas, ratio=self.cfg.ada_thresh_ratio)
@@ -76,15 +76,15 @@ class GuidedAdaVae(AdaVae):
 
         # make averaged variables
         # TODO: this can be merged with the gadavae/badavae
-        ave_ap_a_posterior, ave_ap_p_posterior = AdaVae.make_averaged_distributions(a_posterior, p_posterior, p_shared_mask, average_mode=self.cfg.ada_average_mode)
-        ave_an_a_posterior, ave_an_n_posterior = AdaVae.make_averaged_distributions(a_posterior, n_posterior, n_shared_mask, average_mode=self.cfg.ada_average_mode)
+        ave_ap_a_posterior, ave_ap_p_posterior = AdaVae.make_averaged_posteriors(a_posterior, p_posterior, p_shared_mask, average_mode=self.cfg.ada_average_mode)
+        ave_an_a_posterior, ave_an_n_posterior = AdaVae.make_averaged_posteriors(a_posterior, n_posterior, n_shared_mask, average_mode=self.cfg.ada_average_mode)
         ave_a_posterior = compute_average_distribution(ave_ap_a_posterior, ave_an_a_posterior, average_mode=self.cfg.ada_average_mode)
 
         # compute anchor average using the adaptive threshold | TODO: this doesn't really make sense
         anchor_ave_logs = {}
         if self.cfg.gada_anchor_ave_mode == 'thresh':
             ave_shared_mask = p_shared_mask * n_shared_mask
-            ave_params, _ = AdaVae.make_averaged_distributions(a_posterior, ave_a_posterior, ave_shared_mask, average_mode=self.cfg.ada_average_mode)
+            ave_params, _ = AdaVae.make_averaged_posteriors(a_posterior, ave_a_posterior, ave_shared_mask, average_mode=self.cfg.ada_average_mode)
             anchor_ave_logs['ave_shared'] = ave_shared_mask.sum(dim=1).float().mean()
 
         new_ds_posterior = ave_a_posterior, ave_ap_p_posterior, ave_an_n_posterior
