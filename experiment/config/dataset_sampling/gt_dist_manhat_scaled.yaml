@@ -1,5 +1,6 @@
 # @package _global_
-dataset_sampling:
-  name: dist_manhat_scaled
-  triplet_sample_mode: "manhattan_scaled" # random, factors, manhattan, manhattan_scaled, combined, combined_scaled
-  triplet_swap_chance: 0
+dataset_sampler:
+  cfg:
+    name: dist_manhat_scaled
+    triplet_sample_mode: "manhattan_scaled" # random, factors, manhattan, manhattan_scaled, combined, combined_scaled
+    triplet_swap_chance: 0

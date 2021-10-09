@@ -3,4 +3,4 @@ name: ground_truth_weak_pair
 sampler:
   _target_: disent.dataset.sampling.GroundTruthPairOrigSampler
   # factor sampling
-  p_k: ${dataset_sampling.k.1}
+  p_k: ${dataset_sampler.cfg.k.1}
