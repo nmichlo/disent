@@ -55,10 +55,10 @@ specializations:
   dataset_sampler: ${dataset.data_type}__${framework.data_sample_mode}
 
   # default samplers -- the framework specified defaults, modified by the current dataset_sampler_cfg
-  #dataset_sampler: ${dataset.data_type}${dataset_sampler.cfg.specialize_postfix}__${framework.data_sample_mode}
+  # dataset_sampler: ${dataset.data_type}${dataset_sampler.cfg.specialize_postfix}__${framework.data_sample_mode}
 
   # newer samplers -- only active for frameworks that require 3 observations, otherwise random for 2, and exact for 1
-  # dataset_sampler: gt_dist_${framework.data_sample_mode}
+  # dataset_sampler: gt_dist__${framework.data_sample_mode}
 
   # random samplers -- force random sampling of observation pairs or triples
-  # dataset_sampler: random_${framework.data_sample_mode}
+  # dataset_sampler: random__${framework.data_sample_mode}
