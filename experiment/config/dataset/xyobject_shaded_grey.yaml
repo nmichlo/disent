@@ -1,7 +1,7 @@
 # @package _group_
-name: xyobject_grey
+name: xyobject_shaded_grey
 data:
-  _target_: disent.dataset.data.XYObjectData
+  _target_: disent.dataset.data.XYObjectShadedData
   grid_size: 64
   grid_spacing: 2
   min_square_size: 7
@@ -9,6 +9,7 @@ data:
   square_size_spacing: 2
   rgb: FALSE
   palette: "greys_4"
+  brightness_levels: NULL  # inferred from palette
 transform:
   _target_: disent.nn.transform.ToStandardisedTensor
 x_shape: [1, 64, 64]

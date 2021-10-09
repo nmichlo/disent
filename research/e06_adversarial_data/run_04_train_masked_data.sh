@@ -19,30 +19,30 @@ source "$(dirname "$(dirname "$(realpath -s "$0")")")/helper.sh"
 clog_cudaless_nodes "$PARTITION" 86400 "C-disent" # 24 hours
 
 # 3 * (12 * 2 * 2) = 144
-submit_sweep \
-    +DUMMY.repeat=1,2,3 \
-    +EXTRA.tags='sweep_01' \
-    \
-    run_length=medium \
-    \
-    framework.beta=4,1 \
-    framework=betavae,adavae_os \
-    model.z_size=9 \
-    \
-    dataset=X--mask-adv-dsprites,X--mask-ran-dsprites,dsprites,X--mask-adv-shapes3d,X--mask-ran-shapes3d,shapes3d,X--mask-adv-smallnorb,X--mask-ran-smallnorb,smallnorb,X--mask-adv-cars3d,X--mask-ran-cars3d,cars3d \
-    specializations.dataset_sampler='random_${framework.data_sample_mode}' \
-    \
-    hydra.launcher.exclude='"mscluster93,mscluster94,mscluster97"'  # we don't want to sweep over these
+#submit_sweep \
+#    +DUMMY.repeat=1,2,3 \
+#    +EXTRA.tags='sweep_01' \
+#    \
+#    run_length=medium \
+#    \
+#    framework.beta=0.001 \
+#    framework=betavae,adavae_os \
+#    model.z_size=9 \
+#    \
+#    dataset=X--mask-adv-dsprites,X--mask-ran-dsprites,dsprites,X--mask-adv-shapes3d,X--mask-ran-shapes3d,shapes3d,X--mask-adv-smallnorb,X--mask-ran-smallnorb,smallnorb,X--mask-adv-cars3d,X--mask-ran-cars3d,cars3d \
+#    specializations.dataset_sampler='random_${framework.data_sample_mode}' \
+#    \
+#    hydra.launcher.exclude='"mscluster93,mscluster94,mscluster97"'  # we don't want to sweep over these
 
 # 3 * (12 * 4 * 2) = 288
 submit_sweep \
     +DUMMY.repeat=1,2,3 \
-    +EXTRA.tags='sweep_usage' \
+    +EXTRA.tags='sweep_usage_ratio' \
     \
     run_length=short \
     metrics=all_fast_final \
     \
-    framework.beta=1 \
+    framework.beta=0.001 \
     framework=betavae,adavae_os \
     model.z_size=25 \
     framework.optional.usage_ratio=0.5,0.25,0.1,0.05 \

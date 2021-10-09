@@ -81,6 +81,7 @@ from disent.nn.transform import ToStandardisedTensor
     # VAE - weakly supervised
     (AdaVae,               dict(),                                                                      XYObjectData),
     (AdaVae,               dict(ada_average_mode='ml-vae'),                                             XYObjectData),
+    (AdaGVaeMinimal,       dict(),                                                                      XYObjectData),
     # VAE - weakly supervised - EXP                                                                                     # pragma: delete-on-release
     (SwappedTargetAdaVae,  dict(swap_chance=1.0),                                                       XYObjectData),  # pragma: delete-on-release
     (SwappedTargetBetaVae, dict(swap_chance=1.0),                                                       XYObjectData),  # pragma: delete-on-release

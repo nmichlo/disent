@@ -36,7 +36,6 @@ from disent.nn.loss.triplet import configured_dist_triplet
 from disent.nn.loss.triplet import configured_triplet
 from disent.frameworks.vae._supervised__tvae import TripletVae
 from disent.frameworks.vae._weaklysupervised__adavae import AdaVae
-from disent.frameworks.vae._weaklysupervised__adavae import compute_average_distribution
 
 
 log = logging.getLogger(__name__)
@@ -226,9 +225,9 @@ def compute_triplet_shared_masks_from_zs(zs: Sequence[torch.Tensor], cfg):
     """
     a_z, p_z, n_z = zs
     # shared elements that need to be averaged, computed per pair in the batch.
-    ap_share_mask = AdaVae.compute_z_shared_mask(a_z, p_z, ratio=cfg.ada_thresh_ratio)
-    an_share_mask = AdaVae.compute_z_shared_mask(a_z, n_z, ratio=cfg.ada_thresh_ratio)
-    pn_share_mask = AdaVae.compute_z_shared_mask(p_z, n_z, ratio=cfg.ada_thresh_ratio)
+    ap_share_mask = AdaVae.compute_shared_mask_from_zs(a_z, p_z, ratio=cfg.ada_thresh_ratio)
+    an_share_mask = AdaVae.compute_shared_mask_from_zs(a_z, n_z, ratio=cfg.ada_thresh_ratio)
+    pn_share_mask = AdaVae.compute_shared_mask_from_zs(p_z, n_z, ratio=cfg.ada_thresh_ratio)
     # return values
     share_masks = (ap_share_mask, an_share_mask, pn_share_mask)
     return share_masks, {
@@ -250,18 +249,18 @@ def compute_triplet_shared_masks(ds_posterior: Sequence[Distribution], cfg: AdaT
 
     # shared elements that need to be averaged, computed per pair in the batch.
     if cfg.adat_share_mask_mode == 'posterior':
-        ap_share_mask = AdaVae.compute_posterior_shared_mask(a_posterior, p_posterior, thresh_mode=cfg.ada_thresh_mode, ratio=cfg.ada_thresh_ratio)
-        an_share_mask = AdaVae.compute_posterior_shared_mask(a_posterior, n_posterior, thresh_mode=cfg.ada_thresh_mode, ratio=cfg.ada_thresh_ratio)
-        pn_share_mask = AdaVae.compute_posterior_shared_mask(p_posterior, n_posterior, thresh_mode=cfg.ada_thresh_mode, ratio=cfg.ada_thresh_ratio)
+        ap_share_mask = AdaVae.compute_shared_mask_from_posteriors(a_posterior, p_posterior, thresh_mode=cfg.ada_thresh_mode, ratio=cfg.ada_thresh_ratio)
+        an_share_mask = AdaVae.compute_shared_mask_from_posteriors(a_posterior, n_posterior, thresh_mode=cfg.ada_thresh_mode, ratio=cfg.ada_thresh_ratio)
+        pn_share_mask = AdaVae.compute_shared_mask_from_posteriors(p_posterior, n_posterior, thresh_mode=cfg.ada_thresh_mode, ratio=cfg.ada_thresh_ratio)
     elif cfg.adat_share_mask_mode == 'sample':
         a_z_sample, p_z_sample, n_z_sample = a_posterior.rsample(), p_posterior.rsample(), n_posterior.rsample()
-        ap_share_mask = AdaVae.compute_z_shared_mask(a_z_sample, p_z_sample, ratio=cfg.ada_thresh_ratio)
-        an_share_mask = AdaVae.compute_z_shared_mask(a_z_sample, n_z_sample, ratio=cfg.ada_thresh_ratio)
-        pn_share_mask = AdaVae.compute_z_shared_mask(p_z_sample, n_z_sample, ratio=cfg.ada_thresh_ratio)
+        ap_share_mask = AdaVae.compute_shared_mask_from_zs(a_z_sample, p_z_sample, ratio=cfg.ada_thresh_ratio)
+        an_share_mask = AdaVae.compute_shared_mask_from_zs(a_z_sample, n_z_sample, ratio=cfg.ada_thresh_ratio)
+        pn_share_mask = AdaVae.compute_shared_mask_from_zs(p_z_sample, n_z_sample, ratio=cfg.ada_thresh_ratio)
     elif cfg.adat_share_mask_mode == 'sample_each':
-        ap_share_mask = AdaVae.compute_z_shared_mask(a_posterior.rsample(), p_posterior.rsample(), ratio=cfg.ada_thresh_ratio)
-        an_share_mask = AdaVae.compute_z_shared_mask(a_posterior.rsample(), n_posterior.rsample(), ratio=cfg.ada_thresh_ratio)
-        pn_share_mask = AdaVae.compute_z_shared_mask(p_posterior.rsample(), n_posterior.rsample(), ratio=cfg.ada_thresh_ratio)
+        ap_share_mask = AdaVae.compute_shared_mask_from_zs(a_posterior.rsample(), p_posterior.rsample(), ratio=cfg.ada_thresh_ratio)
+        an_share_mask = AdaVae.compute_shared_mask_from_zs(a_posterior.rsample(), n_posterior.rsample(), ratio=cfg.ada_thresh_ratio)
+        pn_share_mask = AdaVae.compute_shared_mask_from_zs(p_posterior.rsample(), n_posterior.rsample(), ratio=cfg.ada_thresh_ratio)
     else:
         raise KeyError(f'Invalid cfg.adat_share_mask_mode={repr(cfg.adat_share_mask_mode)}')
 
@@ -284,17 +283,17 @@ def compute_ave_shared_distributions(ds_posterior: Sequence[Normal], share_masks
     ap_share_mask, an_share_mask, pn_share_mask = share_masks
 
     # compute shared embeddings
-    ave_ap_a_posterior, ave_ap_p_posterior = AdaVae.make_averaged_distributions(a_posterior, p_posterior, ap_share_mask, average_mode=cfg.ada_average_mode)
-    ave_an_a_posterior, ave_an_n_posterior = AdaVae.make_averaged_distributions(a_posterior, n_posterior, an_share_mask, average_mode=cfg.ada_average_mode)
-    ave_pn_p_posterior, ave_pn_n_posterior = AdaVae.make_averaged_distributions(p_posterior, n_posterior, pn_share_mask, average_mode=cfg.ada_average_mode)
+    ave_ap_a_posterior, ave_ap_p_posterior = AdaVae.make_shared_posteriors(a_posterior, p_posterior, ap_share_mask, average_mode=cfg.ada_average_mode)
+    ave_an_a_posterior, ave_an_n_posterior = AdaVae.make_shared_posteriors(a_posterior, n_posterior, an_share_mask, average_mode=cfg.ada_average_mode)
+    ave_pn_p_posterior, ave_pn_n_posterior = AdaVae.make_shared_posteriors(p_posterior, n_posterior, pn_share_mask, average_mode=cfg.ada_average_mode)
 
     # compute averaged shared embeddings
     if cfg.adat_share_ave_mode == 'all':
-        ave_a_posterior = compute_average_distribution(ave_ap_a_posterior, ave_an_a_posterior, average_mode=cfg.ada_average_mode)
-        ave_p_posterior = compute_average_distribution(ave_ap_p_posterior, ave_pn_p_posterior, average_mode=cfg.ada_average_mode)
-        ave_n_posterior = compute_average_distribution(ave_an_n_posterior, ave_pn_n_posterior, average_mode=cfg.ada_average_mode)
+        ave_a_posterior = AdaVae.compute_average_distribution(ave_ap_a_posterior, ave_an_a_posterior, average_mode=cfg.ada_average_mode)
+        ave_p_posterior = AdaVae.compute_average_distribution(ave_ap_p_posterior, ave_pn_p_posterior, average_mode=cfg.ada_average_mode)
+        ave_n_posterior = AdaVae.compute_average_distribution(ave_an_n_posterior, ave_pn_n_posterior, average_mode=cfg.ada_average_mode)
     elif cfg.adat_share_ave_mode == 'pos_neg':
-        ave_a_posterior = compute_average_distribution(ave_ap_a_posterior, ave_an_a_posterior, average_mode=cfg.ada_average_mode)
+        ave_a_posterior = AdaVae.compute_average_distribution(ave_ap_a_posterior, ave_an_a_posterior, average_mode=cfg.ada_average_mode)
         ave_p_posterior = ave_ap_p_posterior
         ave_n_posterior = ave_an_n_posterior
     elif cfg.adat_share_ave_mode == 'pos':

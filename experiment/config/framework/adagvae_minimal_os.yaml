@@ -1,0 +1,18 @@
+# @package _group_
+name: adagvae_minimal_os
+module:
+  _target_: disent.frameworks.vae.AdaGVaeMinimal
+  # base vae
+  latent_distribution: ${framework.optional.latent_distribution}
+  # disable various components
+  disable_decoder: FALSE
+  disable_reg_loss: FALSE
+  disable_rec_loss: FALSE
+  disable_aug_loss: FALSE
+  disable_posterior_scale: NULL
+  # Beta-VAE
+  beta: ${framework.beta}
+
+# settings used elsewhere
+data_sample_mode: weak_pair
+model_z_multiplier: 2
