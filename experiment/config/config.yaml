@@ -42,7 +42,7 @@ model:
   z_size: 25
 
 dataset:
-  batch_size: 64  # should be 256
+  batch_size: 256
 
 optimizer:
   lr: 1e-3
