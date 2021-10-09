@@ -294,35 +294,46 @@ class AdaGVaeMinimal(BetaVae):
     def hook_intercept_ds(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution]) -> Tuple[Sequence[Distribution], Sequence[Distribution], Dict[str, Any]]:
         """
         Adaptive VAE Method, putting the various components together
-        1. find differences between deltas
-        2. estimate a threshold for differences
-        3. compute a shared mask from this threshold
-        4. average together elements that should be considered shared
+            1. compute differences between representations
+            2. estimate a threshold for differences
+            3. compute a shared mask from this threshold
+            4. average together elements that are marked as shared
 
         (x) Visual inspection against reference implementation:
             https://github.com/google-research/disentanglement_lib (aggregate_argmax)
         """
         d0_posterior, d1_posterior = ds_posterior
+        assert isinstance(d0_posterior, Normal), f'posterior distributions must be {Normal.__name__} distributions, got: {type(d0_posterior)}'
+        assert isinstance(d1_posterior, Normal), f'posterior distributions must be {Normal.__name__} distributions, got: {type(d1_posterior)}'
 
-        # Symmetric KL Divergence FROM: https://openreview.net/pdf?id=8VXvj1QNRl1
+        # [1] symmetric KL Divergence FROM: https://openreview.net/pdf?id=8VXvj1QNRl1
         z_deltas = 0.5 * kl_divergence(d1_posterior, d0_posterior) + 0.5 * kl_divergence(d0_posterior, d1_posterior)
 
-        # shared elements that need to be averaged, computed per pair in the batch (from `AdaVae.estimate_shared_mask`)
-        z_deltas_min = z_deltas.min(axis=1, keepdim=True).values             # (B, 1)
-        z_deltas_max = z_deltas.max(axis=1, keepdim=True).values             # (B, 1)
-        share_mask   = z_deltas < (0.5 * z_deltas_min + 0.5 * z_deltas_max)  # (B, Z) : deltas < threshold
+        # [2] estimate threshold from deltas
+        z_deltas_min = z_deltas.min(axis=1, keepdim=True).values  # (B, 1)
+        z_deltas_max = z_deltas.max(axis=1, keepdim=True).values  # (B, 1)
+        z_thresh     = (0.5 * z_deltas_min + 0.5 * z_deltas_max)  # (B, 1)
 
-        # compute averages per element (from `compute_average_gvae`)
+        # [3] shared elements that need to be averaged, computed per pair in the batch
+        share_mask = z_deltas < z_thresh  # broadcast (B, Z) and (B, 1) to get (B, Z)
+
+        # [4.a] compute average representations
         # - this is the only difference between the Ada-ML-VAE
-        ave_mean   = (0.5 * d0_posterior.mean     + 0.5 * d1_posterior.mean)
-        ave_std    = (0.5 * d0_posterior.variance + 0.5 * d1_posterior.variance) ** 0.5
+        ave_mean = (0.5 * d0_posterior.mean     + 0.5 * d1_posterior.mean)
+        ave_std  = (0.5 * d0_posterior.variance + 0.5 * d1_posterior.variance) ** 0.5
 
-        # ave posteriors (from `AdaVae.make_shared_posteriors`)
-        ave_d0_posterior = Normal(loc=torch.where(share_mask, ave_mean, d0_posterior.loc), scale=torch.where(share_mask, ave_std,  d0_posterior.scale))
-        ave_d1_posterior = Normal(loc=torch.where(share_mask, ave_mean, d1_posterior.loc), scale=torch.where(share_mask, ave_std,  d1_posterior.scale))
+        # [4.b] select shared or original values based on mask
+        z0_mean = torch.where(share_mask,  d0_posterior.loc,   ave_mean)
+        z1_mean = torch.where(share_mask,  d1_posterior.loc,   ave_mean)
+        z0_std  = torch.where(share_mask,  d0_posterior.scale, ave_std)
+        z1_std  = torch.where(share_mask,  d1_posterior.scale, ave_std)
+
+        # construct distributions
+        ave_d0_posterior = Normal(loc=z0_mean, scale=z0_std)
+        ave_d1_posterior = Normal(loc=z1_mean, scale=z1_std)
         new_ds_posterior = (ave_d0_posterior, ave_d1_posterior)
 
-        # return new args & generate logs
+        # [done] return new args & generate logs
         return new_ds_posterior, ds_prior, {
             'shared': share_mask.sum(dim=1).float().mean()
         }
