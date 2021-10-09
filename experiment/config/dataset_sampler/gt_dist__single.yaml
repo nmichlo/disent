@@ -1,5 +1,5 @@
 # @package _group_
-name: gt_dist_single
+name: gt_dist__single
 sampler:
   _target_: disent.dataset.sampling.GroundTruthDistSampler
   num_samples: 1

@@ -9,4 +9,4 @@ transform:
   _target_: disent.nn.transform.ToStandardisedTensor
 x_shape: [1, 64, 64]
 
-data_type: ground_truth
+data_type: gt

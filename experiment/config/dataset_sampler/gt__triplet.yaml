@@ -1,5 +1,5 @@
 # @package _group_
-name: ground_truth_triplet
+name: gt__triplet
 sampler:
   _target_: disent.dataset.sampling.GroundTruthTripleSampler
   # factor sampling

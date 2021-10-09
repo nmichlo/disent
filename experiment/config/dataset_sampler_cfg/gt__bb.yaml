@@ -1,7 +1,8 @@
 # @package _global_
 dataset_sampler:
   cfg:
-    name: full_bb
+    name: gt__bb
+    specialize_postfix: ""
     # varying factors (if applicable for pairs) -- sample in range: [min, max]
     k: [0, -1]
     k_radius: [0, -1]

@@ -1,0 +1,7 @@
+# @package _global_
+dataset_sampler:
+  cfg:
+    name: none
+    specialize_postfix: ""
+    # this config forces an error to be thrown if a framework requires
+    # a `dataset_sampler_cfg`. Thus the user needs to choose a config!

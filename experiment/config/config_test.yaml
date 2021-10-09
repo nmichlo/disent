@@ -4,7 +4,7 @@ defaults:
   - model: vae_conv64
   - optimizer: adam
   - dataset: xyobject
-  - dataset_sampler_cfg: full_bb
+  - dataset_sampler_cfg: none
   - augment: none
   - schedule: none
   - metrics: test
