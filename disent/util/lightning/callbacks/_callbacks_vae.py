@@ -34,12 +34,15 @@ import pytorch_lightning as pl
 import torch
 
 from pytorch_lightning.trainer.supporters import CombinedLoader
+from torch.utils.data.dataloader import default_collate
+from tqdm import tqdm
 
 import disent.metrics
 import disent.util.strings.colors as c
 from disent.dataset import DisentDataset
 from disent.dataset.data import GroundTruthData
 from disent.frameworks.ae import Ae
+from disent.frameworks.helper.reconstructions import make_reconstruction_loss
 from disent.frameworks.vae import Vae
 from disent.util.lightning.callbacks._callbacks_base import BaseCallbackPeriodic
 from disent.util.lightning.logger_util import log_metrics
@@ -53,6 +56,9 @@ from disent.util.visualize.vis_util import make_image_grid
 # TODO: wandb and matplotlib are not in requirements
 import matplotlib.pyplot as plt
 import wandb
+
+from research.util import plt_hide_axis
+from research.util import plt_subplots_imshow
 
 
 log = logging.getLogger(__name__)
@@ -91,6 +97,111 @@ def _get_dataset_and_vae(trainer: pl.Trainer, pl_module: pl.LightningModule, unw
 # ========================================================================= #
 # Vae Framework Callbacks                                                   #
 # ========================================================================= #
+
+# helper
+def _to_dmat(
+    size: int,
+    i_a: np.ndarray,
+    i_b: np.ndarray,
+    dists: Union[torch.Tensor, np.ndarray],
+) -> np.ndarray:
+    if isinstance(dists, torch.Tensor):
+        dists = dists.detach().cpu().numpy()
+    # checks
+    assert i_a.ndim == 1
+    assert i_a.shape == i_b.shape
+    assert i_a.shape == dists.shape
+    # compute
+    dmat = np.zeros([size, size], dtype='float32')
+    dmat[i_a, i_b] = dists
+    dmat[i_b, i_a] = dists
+    return dmat
+
+
+class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
+
+    def __init__(
+        self,
+        seed: Optional[int] = 7777,
+        every_n_steps: Optional[int] = None,
+        traversal_repeats: int = 100,
+        begin_first_step: bool = False,
+        plt_block_size: float = 1.0,
+        plt_show: bool = False,
+        log_wandb: bool = True,
+    ):
+        assert traversal_repeats > 0
+        self._traversal_repeats = traversal_repeats
+        self._seed = seed
+        self._recon_loss = make_reconstruction_loss('mse', 'mean')
+        self._plt_block_size = plt_block_size
+        self._plt_show = plt_show
+        self._log_wandb = log_wandb
+        super().__init__(every_n_steps, begin_first_step)
+
+    @torch.no_grad()
+    def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+        # get dataset and vae framework from trainer and module
+        dataset, vae = _get_dataset_and_vae(trainer, pl_module, unwrap_groundtruth=True)
+        # exit early
+        if not dataset.is_ground_truth:
+            log.warning(f'cannot run {self.__class__.__name__} over non-ground-truth data, skipping!')
+            return
+        # get gt data
+        gt_data = dataset.gt_data
+
+        # log this callback
+        log.info(f'| {gt_data.name} - computing factor distances...')
+
+        # this can be moved into a helper method!
+        with Timer() as timer, TempNumpySeed(self._seed):
+            f_data = []
+            for f_idx, f_size in enumerate(gt_data.factor_sizes):
+                # save for the current factor
+                x_dists, z_dists, r_dists = [], [], []
+                # upper triangle excluding diagonal
+                i_a, i_b = np.triu_indices(f_size, k=1)
+                # repeat over random traversals
+                for i in range(self._traversal_repeats):
+                    # get random factor traversal
+                    factors = gt_data.sample_random_factor_traversal(f_idx=f_idx)
+                    indices = gt_data.pos_to_idx(factors)
+                    # load data
+                    obs = dataset.dataset_batch_from_indices(indices, 'input')
+                    obs = obs.to(vae.device)
+                    # feed forware
+                    x_a, x_b = obs[i_a], obs[i_b]
+                    z_a, z_b = vae.encode(x_a), vae.encode(x_b)
+                    r_a, r_b = vae.decode(z_a), vae.decode(z_b)
+                    # distances
+                    x_dists.append(self._recon_loss.compute_pairwise_loss(x_a, x_b))
+                    z_dists.append(self._recon_loss.compute_pairwise_loss(z_a, z_b))
+                    r_dists.append(self._recon_loss.compute_pairwise_loss(r_a, r_b))
+                # aggregate for current factor
+                i_dists = _to_dmat(size=f_size, i_a=i_a, i_b=i_b, dists=np.abs(factors[i_a] - factors[i_b]).sum(axis=-1))
+                x_dists = _to_dmat(size=f_size, i_a=i_a, i_b=i_b, dists=torch.stack(x_dists, dim=0).mean(dim=0))
+                z_dists = _to_dmat(size=f_size, i_a=i_a, i_b=i_b, dists=torch.stack(z_dists, dim=0).mean(dim=0))
+                r_dists = _to_dmat(size=f_size, i_a=i_a, i_b=i_b, dists=torch.stack(r_dists, dim=0).mean(dim=0))
+                f_data.append([i_dists, x_dists, z_dists, r_dists])
+
+        # log this callback!
+        log.info(f'| {gt_data.name} - computed factor distances! time{c.GRY}={c.lYLW}{timer.pretty:<9}{c.RST}')
+
+        # plot!
+        fig, axs = plt_subplots_imshow(
+            grid=[*zip(*f_data)],
+            col_labels=gt_data.factor_names,
+            row_labels=['factors', 'x', 'z', 'x_recon'],
+            figsize=(self._plt_block_size*gt_data.num_factors, self._plt_block_size*len(f_data[0])),
+        )
+
+        if self._plt_show:
+            plt.show()
+
+        if self._log_wandb:
+            wb_log_metrics(trainer.logger, {
+                'factor_distances': wandb.Image(fig)
+            })
 
 
 class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
@@ -134,10 +245,12 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
                 # variational auto-encoder
                 ds_posterior, ds_prior = vae.encode_dists(obs)
                 zs_mean, zs_logvar = ds_posterior.mean, torch.log(ds_posterior.variance)
-            else:
+            elif isinstance(vae, Ae):
                 # auto-encoder
                 zs_mean = vae.encode(obs)
                 zs_logvar = torch.ones_like(zs_mean)
+            else:
+                log.warning(f'cannot run {self.__class__.__name__}, unsupported type: {type(vae)}, must be {Ae.__name__} or {Vae.__name__}')
 
             # get min and max if auto
             if (self._recon_min == 'auto') or (self._recon_max == 'auto'):
