@@ -206,6 +206,23 @@ class AdaVae(BetaVae):
 # ========================================================================= #
 
 
+def compute_average_gvae_std(d0_posterior: Normal, d1_posterior: Normal) -> Normal:
+    """
+    Compute the arithmetic mean of the encoder distributions.
+    - This is a custom function based on the Ada-GVAE averaging,
+      except over the standard deviation instead of the variance!
+
+    *NB* this is un-official!
+    """
+    assert isinstance(d0_posterior, Normal), f'posterior distributions must be {Normal.__name__} distributions, got: {type(d0_posterior)}'
+    assert isinstance(d1_posterior, Normal), f'posterior distributions must be {Normal.__name__} distributions, got: {type(d1_posterior)}'
+    # averages
+    ave_std = 0.5 * (d0_posterior.stddev + d1_posterior.stddev)
+    ave_mean = 0.5 * (d1_posterior.mean + d1_posterior.mean)
+    # done!
+    return Normal(loc=ave_mean, scale=ave_std)
+
+
 def compute_average_gvae(d0_posterior: Normal, d1_posterior: Normal) -> Normal:
     """
     Compute the arithmetic mean of the encoder distributions.
@@ -214,10 +231,10 @@ def compute_average_gvae(d0_posterior: Normal, d1_posterior: Normal) -> Normal:
     (✓) Visual inspection against reference implementation:
         https://github.com/google-research/disentanglement_lib (GroupVAEBase.model_fn)
     """
-    assert isinstance(d0_posterior, Normal)
-    assert isinstance(d1_posterior, Normal)
+    assert isinstance(d0_posterior, Normal), f'posterior distributions must be {Normal.__name__} distributions, got: {type(d0_posterior)}'
+    assert isinstance(d1_posterior, Normal), f'posterior distributions must be {Normal.__name__} distributions, got: {type(d1_posterior)}'
     # averages
-    ave_var = 0.5 * (d0_posterior.variance + d1_posterior.variance)  # TODO: would the mean of the std be better?
+    ave_var = 0.5 * (d0_posterior.variance + d1_posterior.variance)
     ave_mean = 0.5 * (d1_posterior.mean + d1_posterior.mean)
     # done!
     return Normal(loc=ave_mean, scale=torch.sqrt(ave_var))
@@ -233,8 +250,8 @@ def compute_average_ml_vae(d0_posterior: Normal, d1_posterior: Normal) -> Normal
 
     # TODO: recheck
     """
-    assert isinstance(d0_posterior, Normal)
-    assert isinstance(d1_posterior, Normal)
+    assert isinstance(d0_posterior, Normal), f'posterior distributions must be {Normal.__name__} distributions, got: {type(d0_posterior)}'
+    assert isinstance(d1_posterior, Normal), f'posterior distributions must be {Normal.__name__} distributions, got: {type(d1_posterior)}'
     # Diagonal matrix inverse: E^-1 = 1 / E
     # https://proofwiki.org/wiki/Inverse_of_Diagonal_Matrix
     z0_invvar, z1_invvar = d0_posterior.variance.reciprocal(), d1_posterior.variance.reciprocal()
@@ -251,6 +268,7 @@ def compute_average_ml_vae(d0_posterior: Normal, d1_posterior: Normal) -> Normal
 _COMPUTE_AVE_FNS = {
     'gvae': compute_average_gvae,
     'ml-vae': compute_average_ml_vae,
+    'gvae_std': compute_average_gvae_std,  # this is un-official!
 }
 
 
