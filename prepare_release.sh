@@ -59,9 +59,6 @@ rm disent/dataset/data/_groundtruth__xyblocks.py
 # - disent.framework.helper
 rm -rf data/adversarial_kernel
 
-# TESTS:
-rm tests/test_data_xy.py
-
 # ===================== #
 # DELETE LINES OF FILES #
 # ===================== #

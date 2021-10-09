@@ -22,6 +22,8 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import warnings
+from typing import Optional
 from typing import Tuple
 
 import numpy as np
@@ -30,7 +32,25 @@ from disent.dataset.data._groundtruth import GroundTruthData
 
 
 # ========================================================================= #
-# xy grid data                                                           #
+# helper                                                                    #
+# ========================================================================= #
+
+
+_R, _G, _B, _Y, _C, _M, _W = np.array([
+    [255, 000, 000], [000, 255, 000], [000, 000, 255],  # R, G, B
+    [255, 255, 000], [000, 255, 255], [255, 000, 255],  # Y, C, M
+    [255, 255, 255],                                    # white
+])
+
+
+def _shades(num: int, shades):
+    all_shades = np.array([shade * i // num for i in range(1, num+1) for shade in np.array(shades)])
+    assert all_shades.dtype in ('int64', 'int32')
+    return all_shades
+
+
+# ========================================================================= #
+# xy object data                                                            #
 # ========================================================================= #
 
 
@@ -40,64 +60,35 @@ class XYObjectData(GroundTruthData):
     Dataset that generates all possible permutations of a square placed on a square grid,
     with varying scale and colour
 
-    - Does not seem to learn with a VAE when square size is equal to 1
-      (This property may be explained in the paper "Understanding disentanglement in Beta-VAEs")
+    *NB* for most of these color palettes, there should be
+         an extra ground truth factor that represents shade.
+         We purposely leave this out to hinder disentanglement! It is subjective!
     """
 
     COLOR_PALETTES_1 = {
-        'white': [
-            [255],
-        ],
-        'greys_halves': [
-            [128],
-            [255],
-        ],
-        'greys_quarters': [
-            [64],
-            [128],
-            [192],
-            [255],
-        ],
-        'colors': [
-            [64],
-            [128],
-            [192],
-            [255],
-        ],
+        'greys_1':   _shades(1, [[255]]),
+        'greys_2':   _shades(2, [[255]]),
+        'greys_4':   _shades(4, [[255]]),
+        'rainbow_4': _shades(4, [[255]]),  # alias for `greys_4`
     }
 
     COLOR_PALETTES_3 = {
-        'white': [
-            [255, 255, 255],
-        ],
-        'greys_halves': [
-            [128, 128, 128],
-            [255, 255, 255],
-        ],
-        'greys_quarters': [
-            [64, 64, 64],
-            [128, 128, 128],
-            [192, 192, 192],
-            [255, 255, 255],
-        ],
-        'rgb': [
-            [255, 000, 000],
-            [000, 255, 000],
-            [000, 000, 255],
-        ],
-        'colors': [
-            [255, 000, 000], [000, 255, 000], [000, 000, 255],
-            [255, 255, 000], [000, 255, 255], [255, 000, 255],
-            [255, 255, 255],
-        ],
-        'colors_halves': [
-            [128, 000, 000], [000, 128, 000], [000, 000, 128],
-            [128, 128, 000], [000, 128, 128], [128, 000, 128],
-            [128, 128, 128],
-            [255, 000, 000], [000, 255, 000], [000, 000, 255],
-            [255, 255, 000], [000, 255, 255], [255, 000, 255],
-            [255, 255, 255],
-        ],
+        # grey
+        'greys_1': _shades(1, [_W]),
+        'greys_2': _shades(2, [_W]),
+        'greys_4': _shades(4, [_W]),
+        # colors -- white here and the incorrect ordering may throw off learning ground truth factors
+        'colors_1': _shades(1, [_R, _G, _B, _Y, _C, _M, _W]),
+        'colors_2': _shades(2, [_R, _G, _B, _Y, _C, _M, _W]),
+        'colors_4': _shades(4, [_R, _G, _B, _Y, _C, _M, _W]),
+        # rgb
+        'rgb_1': _shades(1, [_R, _G, _B]),
+        'rgb_2': _shades(2, [_R, _G, _B]),
+        'rgb_4': _shades(4, [_R, _G, _B]),
+        # rainbows -- these colors are mostly ordered correctly to align with gt factors
+        'rainbow_1': _shades(1, [_R, _Y, _G, _C, _B, _M]),
+        'rainbow_2': _shades(2, [_R, _Y, _G, _C, _B, _M]),
+        'rainbow_4': _shades(4, [_R, _Y, _G, _C, _B, _M]),
     }
 
     factor_names = ('x', 'y', 'scale', 'color')
@@ -110,13 +101,40 @@ class XYObjectData(GroundTruthData):
     def observation_shape(self) -> Tuple[int, ...]:
         return self._width, self._width, (3 if self._rgb else 1)
 
-    def __init__(self, grid_size=64, grid_spacing=1, min_square_size=3, max_square_size=9, square_size_spacing=2, rgb=True, palette='colors', transform=None):
+    def __init__(
+        self,
+        grid_size: int = 64,
+        grid_spacing: int = 2,
+        min_square_size: int = 7,
+        max_square_size: int = 15,
+        square_size_spacing: int = 2,
+        rgb: bool = True,
+        palette: str = 'rainbow_4',
+        transform=None,
+        warn_: bool = True
+    ):
+        if warn_:
+            warnings.warn(
+                '`XYObjectData` defaults were changed in disent v0.3.0, if you want `approx` <= v0.2.x behavior then use the following parameters. Pallets also changed slightly too.'
+                '\n\tgrid_size=64'
+                '\n\tgrid_spacing=1'
+                '\n\tmin_square_size=3'
+                '\n\tmax_square_size=9'
+                '\n\tsquare_size_spacing=2'
+                '\n\trgb=True'
+                '\n\tpalette="colors_1"'
+            )
         # generation
         self._rgb = rgb
-        if rgb:
-            self._colors = np.array(XYObjectData.COLOR_PALETTES_3[palette])
-        else:
-            self._colors = np.array(XYObjectData.COLOR_PALETTES_1[palette])
+        # check the pallete name
+        assert len(str.split(palette, '_')) == 2, f'palette name must follow format: `<palette-name>_<brightness-levels>`, got: {repr(palette)}'
+        # get the color palette
+        color_palettes = (XYObjectData.COLOR_PALETTES_3 if rgb else XYObjectData.COLOR_PALETTES_1)
+        if palette not in color_palettes:
+            raise KeyError(f'color palette: {repr(palette)} does not exist for rgb={repr(rgb)}, select one of: {sorted(color_palettes.keys())}')
+        self._colors = color_palettes[palette]
+        assert self._colors.ndim == 2
+        assert self._colors.shape[-1] == (3 if rgb else 1)
         # image sizes
         self._width = grid_size
         # square scales
@@ -136,6 +154,94 @@ class XYObjectData(GroundTruthData):
         # GENERATE
         obs = np.zeros(self.observation_shape, dtype=np.uint8)
         obs[y:y+s, x:x+s] = self._colors[c]
+        return obs
+
+
+class XYOldObjectData(XYObjectData):
+
+    def __init__(self, grid_size=64, grid_spacing=1, min_square_size=3, max_square_size=9, square_size_spacing=2, rgb=True, palette='colors', transform=None):
+        super().__init__(
+            grid_size=grid_size,
+            grid_spacing=grid_spacing,
+            min_square_size=min_square_size,
+            max_square_size=max_square_size,
+            square_size_spacing=square_size_spacing,
+            rgb=rgb,
+            palette=palette,
+            transform=transform,
+        )
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #
+
+
+class XYObjectShadedData(XYObjectData):
+    """
+    Dataset that generates all possible permutations of a square placed on a square grid,
+    with varying scale and colour
+
+    - This is like `XYObjectData` but has an extra factor that represents the shade.
+    """
+
+    factor_names = ('x', 'y', 'scale', 'intensity', 'color')
+
+    @property
+    def factor_sizes(self) -> Tuple[int, ...]:
+        return self._placements, self._placements, len(self._square_scales), self._brightness_levels, len(self._colors)
+
+    @property
+    def observation_shape(self) -> Tuple[int, ...]:
+        return self._width, self._width, (3 if self._rgb else 1)
+
+    def __init__(
+        self,
+        grid_size: int = 64,
+        grid_spacing: int = 2,
+        min_square_size: int = 7,
+        max_square_size: int = 15,
+        square_size_spacing: int = 2,
+        rgb: bool = True,
+        palette: str = 'rainbow_4',
+        brightness_levels: Optional[int] = None,
+        transform=None,
+    ):
+        parts = palette.split('_')
+        if len(parts) > 1:
+            # extract num levels from the string
+            palette, b_levels = parts
+            b_levels = int(b_levels)
+            # handle conflict between brightness_levels and palette
+            if brightness_levels is None:
+                brightness_levels = b_levels
+            else:
+                warnings.warn(f'palette ends with brightness_levels integer: {repr(b_levels)} (ignoring) but actual brightness_levels parameter was already specified: {repr(brightness_levels)} (using)')
+        # check the brightness_levels
+        assert isinstance(brightness_levels, int), f'brightness_levels must be an integer, got: {type(brightness_levels)}'
+        assert 1 <= brightness_levels, f'brightness_levels must be >= 1, got: {repr(brightness_levels)}'
+        self._brightness_levels = brightness_levels
+        # initialize parent
+        super().__init__(
+            grid_size=grid_size,
+            grid_spacing=grid_spacing,
+            min_square_size=min_square_size,
+            max_square_size=max_square_size,
+            square_size_spacing=square_size_spacing,
+            rgb=rgb,
+            palette=f'{palette}_1',
+            transform=transform,
+            warn_=False,
+        )
+
+    def _get_observation(self, idx):
+        x, y, s, b, c = self.idx_to_pos(idx)
+        s = self._square_scales[s]
+        r = (self._max_square_size - s) // 2
+        x, y = self._spacing*x + r, self._spacing*y + r
+        # GENERATE
+        obs = np.zeros(self.observation_shape, dtype=np.uint8)
+        obs[y:y+s, x:x+s] = self._colors[c] * (b + 1) // self._brightness_levels
         return obs
 
 
