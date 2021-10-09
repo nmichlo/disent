@@ -46,7 +46,7 @@ from disent.nn.weights import init_model_weights
 from disent.util.seeds import seed
 from disent.util.strings.fmt import make_box_str
 from disent.util.lightning.callbacks import LoggerProgressCallback
-from disent.util.lightning.callbacks import VaeDisentanglementLoggingCallback
+from disent.util.lightning.callbacks import VaeMetricLoggingCallback
 from disent.util.lightning.callbacks import VaeLatentCycleLoggingCallback
 from experiment.util.hydra_data import HydraDataModule
 from experiment.util.hydra_utils import make_non_strict
@@ -186,7 +186,7 @@ def hydra_append_metric_callback(callbacks, cfg):
         final_metric = [metrics.DEFAULT_METRICS[name]] if settings.get('on_final', default_on_final) else None
         # add the metric callback
         if final_metric or train_metric:
-            callbacks.append(VaeDisentanglementLoggingCallback(
+            callbacks.append(VaeMetricLoggingCallback(
                 every_n_steps=every_n_steps,
                 step_end_metrics=train_metric,
                 train_end_metrics=final_metric,

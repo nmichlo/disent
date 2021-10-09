@@ -27,5 +27,5 @@ from disent.util.lightning.callbacks._callbacks_base import BaseCallbackTimed
 
 from disent.util.lightning.callbacks._callbacks_pl import LoggerProgressCallback
 
-from disent.util.lightning.callbacks._callbacks_vae import VaeDisentanglementLoggingCallback
+from disent.util.lightning.callbacks._callbacks_vae import VaeMetricLoggingCallback
 from disent.util.lightning.callbacks._callbacks_vae import VaeLatentCycleLoggingCallback

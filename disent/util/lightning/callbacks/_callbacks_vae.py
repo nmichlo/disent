@@ -25,6 +25,8 @@
 import logging
 import warnings
 from typing import Literal
+from typing import Optional
+from typing import Sequence
 from typing import Union
 
 import numpy as np
@@ -93,18 +95,34 @@ def _get_dataset_and_vae(trainer: pl.Trainer, pl_module: pl.LightningModule, unw
 
 class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
 
-    def __init__(self, seed=7777, every_n_steps=None, begin_first_step=False, mode='fitted_gaussian_cycle', plt_show=False, plt_block_size=1.0, recon_min: Union[int, Literal['auto']] = 0., recon_max: Union[int, Literal['auto']] = 1.):
+    def __init__(
+        self,
+        seed: Optional[int] = 7777,
+        every_n_steps: Optional[int] = None,
+        begin_first_step: bool = False,
+        mode: str = 'fitted_gaussian_cycle',
+        wandb_mode: str = 'both',
+        plt_show: bool = False,
+        plt_block_size: float = 1.0,
+        recon_min: Union[int, Literal['auto']] = 0.,
+        recon_max: Union[int, Literal['auto']] = 1.,
+    ):
         super().__init__(every_n_steps, begin_first_step)
         self.seed = seed
         self.mode = mode
         self.plt_show = plt_show
         self.plt_block_size = plt_block_size
+        self._wandb_mode = wandb_mode
         self._recon_min = recon_min
         self._recon_max = recon_max
+        # checks
+        assert wandb_mode in {'none', 'img', 'vid', 'both'}, f'invalid wandb_mode={repr(wandb_mode)}, must be one of: ("none", "img", "vid", "both")'
 
     def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         # get dataset and vae framework from trainer and module
         dataset, vae = _get_dataset_and_vae(trainer, pl_module, unwrap_groundtruth=True)
+
+        # TODO: should this not use `visualize_dataset_traversal`?
 
         with torch.no_grad():
             # get random sample of z_means and z_logvars for computing the range of values for the latent_cycle
@@ -129,29 +147,37 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
 
             # produce latent cycle grid animation
             # TODO: this needs to be fixed to not use logvar, but rather the representations or distributions themselves
-            frames, stills = latent_cycle_grid_animation(
+            animation, stills = latent_cycle_grid_animation(
                 vae.decode, zs_mean, zs_logvar,
                 mode=self.mode, num_frames=21, decoder_device=vae.device, tensor_style_channels=False, return_stills=True,
                 to_uint8=True, recon_min=self._recon_min, recon_max=self._recon_max,
             )
+            image = make_image_grid(stills.reshape(-1, *stills.shape[2:]), num_cols=stills.shape[1], pad=4)
 
-        # log video
-        wb_log_metrics(trainer.logger, {
-            self.mode: wandb.Video(np.transpose(frames, [0, 3, 1, 2]), fps=4, format='mp4'),
-        })
+        # log video -- none, img, vid, both
+        wandb_items = {}
+        if self._wandb_mode in ('img', 'both'): wandb_items[f'{self.mode}_img'] = wandb.Image(image)
+        if self._wandb_mode in ('vid', 'both'): wandb_items[f'{self.mode}_vid'] = wandb.Video(np.transpose(animation, [0, 3, 1, 2]), fps=4, format='mp4'),
+        wb_log_metrics(trainer.logger, wandb_items)
 
+        # log locally
         if self.plt_show:
-            grid = make_image_grid(np.reshape(stills, (-1, *stills.shape[2:])), num_cols=stills.shape[1], pad=4)
             fig, ax = plt.subplots(1, 1, figsize=(self.plt_block_size*stills.shape[1], self.plt_block_size*stills.shape[0]))
-            ax.imshow(grid)
+            ax.imshow(image)
             ax.axis('off')
             fig.tight_layout()
             plt.show()
 
 
-class VaeDisentanglementLoggingCallback(BaseCallbackPeriodic):
+class VaeMetricLoggingCallback(BaseCallbackPeriodic):
 
-    def __init__(self, step_end_metrics=None, train_end_metrics=None, every_n_steps=None, begin_first_step=False):
+    def __init__(
+        self,
+        step_end_metrics: Optional[Sequence[str]] = None,
+        train_end_metrics: Optional[Sequence[str]] = None,
+        every_n_steps: Optional[int] = None,
+        begin_first_step: bool = False,
+    ):
         super().__init__(every_n_steps, begin_first_step)
         self.step_end_metrics = step_end_metrics if step_end_metrics else []
         self.train_end_metrics = train_end_metrics if train_end_metrics else []
