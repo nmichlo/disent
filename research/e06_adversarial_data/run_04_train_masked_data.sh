@@ -30,7 +30,7 @@ clog_cudaless_nodes "$PARTITION" 86400 "C-disent" # 24 hours
 #    model.z_size=9 \
 #    \
 #    dataset=X--mask-adv-dsprites,X--mask-ran-dsprites,dsprites,X--mask-adv-shapes3d,X--mask-ran-shapes3d,shapes3d,X--mask-adv-smallnorb,X--mask-ran-smallnorb,smallnorb,X--mask-adv-cars3d,X--mask-ran-cars3d,cars3d \
-#    specializations.dataset_sampler='random_${framework.data_sample_mode}' \
+#    specializations.dataset_sampler='random__${framework.data_sample_mode}' \
 #    \
 #    hydra.launcher.exclude='"mscluster93,mscluster94,mscluster97"'  # we don't want to sweep over these
 
@@ -48,6 +48,6 @@ submit_sweep \
     framework.optional.usage_ratio=0.5,0.25,0.1,0.05 \
     \
     dataset=X--mask-adv-dsprites,X--mask-ran-dsprites,dsprites,X--mask-adv-shapes3d,X--mask-ran-shapes3d,shapes3d,X--mask-adv-smallnorb,X--mask-ran-smallnorb,smallnorb,X--mask-adv-cars3d,X--mask-ran-cars3d,cars3d \
-    specializations.dataset_sampler='random_${framework.data_sample_mode}' \
+    specializations.dataset_sampler='random__${framework.data_sample_mode}' \
     \
     hydra.launcher.exclude='"mscluster93,mscluster94,mscluster97"'  # we don't want to sweep over these
