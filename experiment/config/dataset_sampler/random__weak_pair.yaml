@@ -1,8 +1,10 @@
-# @package _group_
-name: random__weak_pair
-sampler:
-  _target_: disent.dataset.sampling.RandomSampler
-  num_samples: 2
+# @package _global_
+dataset:
+  sampler:
+    name: random__weak_pair
+    cls:
+      _target_: disent.dataset.sampling.RandomSampler
+      num_samples: 2
 
 # ================================================== #
 # NOTE!!! THIS IS A DUMMY WRAPPER ,SO WE DON'T CRASH #

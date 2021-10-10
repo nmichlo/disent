@@ -1,9 +1,8 @@
 # @package _global_
-dataset_sampler:
-  cfg:
-    name: none
-    # this config forces an error to be thrown! This is to make
-    # sure that we don't encounter errors when updating old configs.
+sampler:
+  name: none
+  # this config forces an error to be thrown! This is to make
+  # sure that we don't encounter errors when updating old configs.
 
 # CUSTOM DEFAULTS SPECIALIZATION
 # - This key is deleted on load and the correct key on the root config is set similar to defaults.

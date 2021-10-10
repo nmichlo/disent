@@ -1,4 +1,6 @@
-# @package _group_
-name: gt__single
-sampler:
-  _target_: disent.dataset.sampling.GroundTruthSingleSampler
+# @package _global_
+dataset:
+  sampler:
+    name: gt__single
+    cls:
+      _target_: disent.dataset.sampling.GroundTruthSingleSampler

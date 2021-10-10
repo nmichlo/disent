@@ -1,16 +1,18 @@
-# @package _group_
-name: gt__triplet
-sampler:
-  _target_: disent.dataset.sampling.GroundTruthTripleSampler
-  # factor sampling
-  p_k_range: ${dataset_sampler.cfg.k}
-  n_k_range: ${dataset_sampler.cfg.n_k}
-  n_k_sample_mode: ${dataset_sampler.cfg.n_k_mode}
-  n_k_is_shared: TRUE
-  # radius sampling
-  p_radius_range: ${dataset_sampler.cfg.k_radius}
-  n_radius_range: ${dataset_sampler.cfg.n_k_radius}
-  n_radius_sample_mode: ${dataset_sampler.cfg.n_k_radius_mode}
-  # final checks
-  swap_metric: ${dataset_sampler.cfg.swap_metric}
-  swap_chance: ${dataset_sampler.cfg.swap_chance}
+# @package _global_
+dataset:
+  sampler:
+    name: gt__triplet
+    cls:
+      _target_: disent.dataset.sampling.GroundTruthTripleSampler
+      # factor sampling
+      p_k_range: ${dataset_sampler.cfg.k}
+      n_k_range: ${dataset_sampler.cfg.n_k}
+      n_k_sample_mode: ${dataset_sampler.cfg.n_k_mode}
+      n_k_is_shared: TRUE
+      # radius sampling
+      p_radius_range: ${dataset_sampler.cfg.k_radius}
+      n_radius_range: ${dataset_sampler.cfg.n_k_radius}
+      n_radius_sample_mode: ${dataset_sampler.cfg.n_k_radius_mode}
+      # final checks
+      swap_metric: ${dataset_sampler.cfg.swap_metric}
+      swap_chance: ${dataset_sampler.cfg.swap_chance}

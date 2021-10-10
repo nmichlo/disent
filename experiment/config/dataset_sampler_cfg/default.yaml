@@ -1,9 +1,8 @@
 # @package _global_
-dataset_sampler:
-  cfg:
-    name: default
-    # this config forces an error to be thrown if
-    # sampler config settings are required.
+sampler:
+  name: default
+  # this config forces an error to be thrown if
+  # sampler config settings are required.
 
 # CUSTOM SPECIALIZATION (hydra does not support variable interpolation in defaults)
 # -- choose the default from the framework and dataset

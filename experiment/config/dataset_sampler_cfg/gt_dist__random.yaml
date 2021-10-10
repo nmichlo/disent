@@ -1,9 +1,8 @@
 # @package _global_
-dataset_sampler:
-  cfg:
-    name: gt_dist__random
-    triplet_sample_mode: "random" # random, factors, manhattan, manhattan_scaled, combined, combined_scaled
-    triplet_swap_chance: 0
+sampler:
+  name: gt_dist__random
+  triplet_sample_mode: "random" # random, factors, manhattan, manhattan_scaled, combined, combined_scaled
+  triplet_swap_chance: 0
 
 # CUSTOM SPECIALIZATION (hydra does not support variable interpolation in defaults lists)
 # -- force gt_dist to be used as the dataset sampler, this might not be supported by some datasets.
