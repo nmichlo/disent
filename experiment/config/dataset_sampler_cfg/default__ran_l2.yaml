@@ -1,7 +1,7 @@
 # @package _global_
 dataset_sampler:
   cfg:
-    name: gt__ran_l2
+    name: default__ran_l2
     specialize_postfix: ""
     # varying factors (if applicable for pairs) -- sample in range: [min, max]
     k: [0, -1]
