@@ -32,7 +32,6 @@ submit_sweep \
     framework.module.triplet_scale=0.1,0.02,0.5 \
     framework.module.triplet_p=1 \
     sampling=gt_dist_manhat \
-    specializations.data_wrapper='gt_dist_${framework.data_sample_mode}' \
     \
     framework.module.thresh_ratio=0.5 \
     framework.module.ada_triplet_ratio=1.0 \

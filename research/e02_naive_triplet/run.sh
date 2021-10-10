@@ -19,7 +19,6 @@ source "$(dirname "$(dirname "$(realpath -s "$0")")")/helper.sh"
 submit_sweep \
     framework=tvae \
     dataset=xysquares \
-    specializations.data_wrapper='gt_dist_${framework.data_sample_mode}' \
     \
     +DUMMY.repeat=1,2 \
     \
@@ -32,7 +31,6 @@ submit_sweep \
 submit_sweep \
     framework=tvae \
     dataset=xysquares \
-    specializations.data_wrapper='gt_dist_${framework.data_sample_mode}' \
     framework.name='tri-betavae' \
     \
     +DUMMY.repeat=1,2 \
@@ -44,7 +42,6 @@ submit_sweep \
 submit_sweep \
     framework=betavae,adavae \
     dataset=xysquares \
-    specializations.data_wrapper='gt_dist_${framework.data_sample_mode}' \
     \
     +DUMMY.repeat=1,2 \
     \

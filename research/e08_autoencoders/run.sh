@@ -30,5 +30,4 @@ submit_sweep \
     model=conv64alt \
     model.z_size=25 \
     \
-    specializations.data_wrapper='gt_dist_${framework.data_sample_mode}' \
     sampling=gt_dist_manhat,gt_dist_manhat_scaled

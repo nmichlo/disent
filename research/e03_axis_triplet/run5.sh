@@ -26,7 +26,6 @@ submit_sweep \
     run_length=short,medium,long \
     model.z_size=25 \
     \
-    specializations.data_wrapper='gt_dist_${framework.data_sample_mode}' \
     schedule=adavae_down_all,adavae_up_all,adavae_down_ratio,adavae_up_ratio,adavae_down_thresh,adavae_up_thresh \
     sampling=gt_dist_manhat \
     sampling.triplet_swap_chance=0 \
