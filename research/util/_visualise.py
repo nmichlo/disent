@@ -118,6 +118,7 @@ def plt_subplots(
     titles=None,
     row_labels=None,
     col_labels=None,
+    label_size: int = None,
     hide_labels='edges',  # none, edges, all
     hide_axis='edges',    # none, edges, all
     # plt.subplots:
@@ -152,9 +153,9 @@ def plt_subplots(
             plt_hide_axis(ax, hide_xaxis=_hide(hide_axis, y != nrows-1), hide_yaxis=_hide(hide_axis, x != 0))
             # modify ax
             if not _hide(hide_labels, y != nrows-1):
-                ax.set_xlabel(col_labels[x])
+                ax.set_xlabel(col_labels[x], fontsize=label_size)
             if not _hide(hide_labels, x != 0):
-                ax.set_ylabel(row_labels[y])
+                ax.set_ylabel(row_labels[y], fontsize=label_size)
             # set title
             if titles is not None:
                 ax.set_title(titles[y][x])
@@ -171,6 +172,7 @@ def plt_subplots_imshow(
     titles=None,
     row_labels=None,
     col_labels=None,
+    label_size: int = None,
     hide_labels='edges',  # none, edges, all
     hide_axis='all',    # none, edges, all
     # tight_layout:
@@ -196,6 +198,7 @@ def plt_subplots_imshow(
         titles=titles,
         row_labels=row_labels,
         col_labels=col_labels,
+        label_size=label_size,
         hide_labels=hide_labels,  # none, edges, all
         hide_axis=hide_axis,      # none, edges, all
         # plt.subplots:

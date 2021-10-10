@@ -37,6 +37,7 @@ from disent.dataset.data import Shapes3dData
 from disent.dataset.data import SmallNorbData
 from disent.dataset.data import XYBlocksData
 from disent.dataset.data import XYObjectData
+from disent.dataset.data import XYObjectShadedData
 from disent.dataset.data import XYSquaresData
 from disent.util.seeds import TempNumpySeed
 
@@ -95,7 +96,7 @@ def plot_dataset_traversals(
     # make figure
     factors, frames, _, _, c = grid.shape
     assert c == 3
-    fig, axs = H.plt_subplots_imshow(grid, row_labels=row_labels, subplot_padding=0.5, figsize=(offset + (1/2.54)*frames*plt_scale, (1/2.54)*factors*plt_scale))
+    fig, axs = H.plt_subplots_imshow(grid, label_size=18, row_labels=row_labels, subplot_padding=0.5, figsize=(offset + (1/2.54)*frames*plt_scale, (1/2.54)*factors*plt_scale))
     # save figure
     if save and (rel_path is not None):
         plt.savefig(H.make_rel_path_add_ext(rel_path, ext='.png'))
@@ -125,12 +126,13 @@ if __name__ == '__main__':
         data = XYSquaresData(grid_spacing=i, grid_size=8, no_warnings=True)
         plot_dataset_traversals(data, rel_path=f'plots/xy-squares-traversal-spacing{i}', seed=seed-40, add_random_traversal=add_random_traversal, num_cols=num_cols)
 
-    plot_dataset_traversals(XYObjectData(),  rel_path=f'plots/xy-object-traversal', seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
-    plot_dataset_traversals(XYBlocksData(),  rel_path=f'plots/xy-blocks-traversal', seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
-    plot_dataset_traversals(Shapes3dData(),  rel_path=f'plots/shapes3d-traversal',  seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
-    plot_dataset_traversals(DSpritesData(),  rel_path=f'plots/dsprites-traversal',  seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
-    plot_dataset_traversals(SmallNorbData(), rel_path=f'plots/smallnorb-traversal', seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
-    plot_dataset_traversals(Cars3dData(),    rel_path=f'plots/cars3d-traversal',    seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
+    plot_dataset_traversals(XYObjectData(),       rel_path=f'plots/xy-object-traversal',        seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
+    plot_dataset_traversals(XYObjectShadedData(), rel_path=f'plots/xy-object-shaded-traversal', seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
+    plot_dataset_traversals(XYBlocksData(),       rel_path=f'plots/xy-blocks-traversal',        seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
+    plot_dataset_traversals(Shapes3dData(),       rel_path=f'plots/shapes3d-traversal',         seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
+    plot_dataset_traversals(DSpritesData(),       rel_path=f'plots/dsprites-traversal',         seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
+    plot_dataset_traversals(SmallNorbData(),      rel_path=f'plots/smallnorb-traversal',        seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
+    plot_dataset_traversals(Cars3dData(),         rel_path=f'plots/cars3d-traversal',           seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
 
 
 # ========================================================================= #
