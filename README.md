@@ -304,13 +304,13 @@ files (config options) in the subfolders (config groups) in
 ```yaml
 defaults:
   # system
-  - framework: adavae
+  - framework: adavae_os
   - model: vae_conv64
   - optimizer: adam
   - schedule: none
   # data
   - dataset: xyobject
-  - dataset_sampling: full_bb
+  - dataset_sampler_cfg: gt__bb
   - augment: none
   # runtime
   - metrics: fast

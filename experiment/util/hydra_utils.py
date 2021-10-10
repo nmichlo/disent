@@ -85,7 +85,7 @@ def make_non_strict(cfg: DictConfig):
 
 
 @deprecated('replace with hydra 1.1')
-def merge_specializations(cfg: DictConfig, config_path: str, strict=True):
+def merge_specializations(cfg: DictConfig, config_path: str, strict=True, delete_key: bool = False):
     import os
 
     # TODO: this should eventually be replaced with hydra recursive defaults
@@ -112,7 +112,8 @@ def merge_specializations(cfg: DictConfig, config_path: str, strict=True):
         cfg = OmegaConf.merge(cfg, {group: specialization_cfg})
 
     # remove specializations key
-    del cfg['specializations']
+    if delete_key:
+        del cfg['specializations']
 
     # done
     return cfg

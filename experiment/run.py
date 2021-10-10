@@ -43,10 +43,11 @@ from disent.frameworks import DisentConfigurable
 from disent.frameworks import DisentFramework
 from disent.model import AutoEncoder
 from disent.nn.weights import init_model_weights
+from disent.util.lightning.callbacks._callbacks_vae import VaeGtDistsLoggingCallback
 from disent.util.seeds import seed
 from disent.util.strings.fmt import make_box_str
 from disent.util.lightning.callbacks import LoggerProgressCallback
-from disent.util.lightning.callbacks import VaeDisentanglementLoggingCallback
+from disent.util.lightning.callbacks import VaeMetricLoggingCallback
 from disent.util.lightning.callbacks import VaeLatentCycleLoggingCallback
 from experiment.util.hydra_data import HydraDataModule
 from experiment.util.hydra_utils import make_non_strict
@@ -186,7 +187,7 @@ def hydra_append_metric_callback(callbacks, cfg):
         final_metric = [metrics.DEFAULT_METRICS[name]] if settings.get('on_final', default_on_final) else None
         # add the metric callback
         if final_metric or train_metric:
-            callbacks.append(VaeDisentanglementLoggingCallback(
+            callbacks.append(VaeMetricLoggingCallback(
                 every_n_steps=every_n_steps,
                 step_end_metrics=train_metric,
                 train_end_metrics=final_metric,
@@ -202,6 +203,19 @@ def hydra_append_correlation_callback(callbacks, cfg):
         #     every_n_steps=cfg.callbacks.correlation.every_n_steps,
         #     begin_first_step=False,
         # ))
+
+
+def hydra_append_gt_dists_callback(callbacks, cfg):
+    if 'gt_dists' in cfg.callbacks:
+        callbacks.append(VaeGtDistsLoggingCallback(
+            seed=cfg.callbacks.gt_dists.seed,
+            every_n_steps=cfg.callbacks.gt_dists.every_n_steps,
+            traversal_repeats=cfg.callbacks.gt_dists.traversal_repeats,
+            begin_first_step=False,
+            plt_block_size=1.0,
+            plt_show=False,
+            log_wandb=True,
+        ))
 
 
 def hydra_register_schedules(module: DisentFramework, cfg):
@@ -307,6 +321,7 @@ def run(cfg: DictConfig, config_path: str = None):
     callbacks = []
     hydra_append_progress_callback(callbacks, cfg)
     hydra_append_latent_cycle_logger_callback(callbacks, cfg)
+    hydra_append_gt_dists_callback(callbacks, cfg)
     hydra_append_metric_callback(callbacks, cfg)
     hydra_append_correlation_callback(callbacks, cfg)
 

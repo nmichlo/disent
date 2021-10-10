@@ -1,8 +1,8 @@
 # @package _group_
-name: ground_truth_pair
+name: gt__pair
 sampler:
   _target_: disent.dataset.sampling.GroundTruthPairSampler
   # factor sampling
-  p_k_range: ${dataset_sampling.k}
+  p_k_range: ${dataset_sampler.cfg.k}
   # radius sampling
-  p_radius_range: ${dataset_sampling.k_radius}
+  p_radius_range: ${dataset_sampler.cfg.k_radius}

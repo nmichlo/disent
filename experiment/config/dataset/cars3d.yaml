@@ -9,4 +9,4 @@ transform:
   size: 64
 x_shape: [3, 64, 64]
 
-data_type: ground_truth
+data_type: gt

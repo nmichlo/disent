@@ -1,5 +1,5 @@
 # @package _group_
-name: random_single
+name: random__pair
 sampler:
   _target_: disent.dataset.sampling.RandomSampler
-  num_samples: 1
+  num_samples: 2
