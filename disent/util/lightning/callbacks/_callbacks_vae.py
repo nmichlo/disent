@@ -119,6 +119,13 @@ def _to_dmat(
     return dmat
 
 
+# _AE_DIST_NAMES = ('x', 'z_l1', 'z_l2', 'x_recon', 'z_d1', 'z_d2')
+# _VAE_DIST_NAMES = ('x', 'z_l1', 'z_l2', 'kl', 'x_recon', 'z_d1', 'z_d2', 'kl_center_d1', 'kl_center_d2')
+
+_AE_DIST_NAMES = ('x', 'z_l1', 'x_recon')
+_VAE_DIST_NAMES = ('x', 'z_l1', 'kl', 'x_recon')
+
+
 def _get_dists_ae(ae: Ae, x_a: torch.Tensor, x_b: torch.Tensor, recon_loss: ReconLossHandler):
     # feed forware
     z_a, z_b = ae.encode(x_a), ae.encode(x_b)
@@ -129,16 +136,13 @@ def _get_dists_ae(ae: Ae, x_a: torch.Tensor, x_b: torch.Tensor, recon_loss: Reco
         recon_loss.compute_pairwise_loss(x_a, x_b),
         # z:
         torch.norm(z_a - z_b, p=1, dim=-1),  # l1 dist
-        torch.norm(z_a - z_b, p=2, dim=-1),  # l2 dist
-        recon_loss._pairwise_reduce(torch.abs(z_a)    + torch.abs(z_b)),     # l1 dist
-        recon_loss._pairwise_reduce(torch.square(z_a) + torch.square(z_b)),  # l2 dist
+        # torch.norm(z_a - z_b, p=2, dim=-1),  # l2 dist
         # x_recon:
         recon_loss.compute_pairwise_loss(r_a, r_b),
+        # center_z:
+        # recon_loss._pairwise_reduce(torch.abs(z_a)    + torch.abs(z_b)),     # l1 dist
+        # recon_loss._pairwise_reduce(torch.square(z_a) + torch.square(z_b)),  # l2 dist
     ]
-
-
-_AE_DIST_NAMES = ('x', 'z_l1', 'z_l2', 'z_d1', 'z_d2', 'x_recon')
-_VAE_DIST_NAMES = ('x', 'z_l1', 'z_l2', 'z_d1', 'z_d2', 'x_recon', 'kl', 'kl_center_d1', 'kl_center_d2')
 
 
 def _get_dists_vae(vae: Vae, x_a: torch.Tensor, x_b: torch.Tensor, recon_loss: ReconLossHandler):
@@ -158,15 +162,17 @@ def _get_dists_vae(vae: Vae, x_a: torch.Tensor, x_b: torch.Tensor, recon_loss: R
         recon_loss.compute_pairwise_loss(x_a, x_b),
         # z:
         torch.norm(z_a - z_b, p=1, dim=-1),  # l1 dist
-        torch.norm(z_a - z_b, p=2, dim=-1),  # l2 dist
-        recon_loss._pairwise_reduce(torch.abs(z_a)    + torch.abs(z_b)),     # l1 dist
-        recon_loss._pairwise_reduce(torch.square(z_a) + torch.square(z_b)),  # l2 dist
+        # torch.norm(z_a - z_b, p=2, dim=-1),  # l2 dist
         # x_recon:
         recon_loss.compute_pairwise_loss(r_a, r_b),
         # posterior:
         recon_loss._pairwise_reduce(kl_ab),
-        recon_loss._pairwise_reduce(torch.abs(kl_a0)    + torch.abs(kl_b0)),
-        recon_loss._pairwise_reduce(torch.square(kl_a0) + torch.square(kl_b0)),
+        # center_z:
+        # recon_loss._pairwise_reduce(torch.abs(z_a)    + torch.abs(z_b)),     # l1 dist
+        # recon_loss._pairwise_reduce(torch.square(z_a) + torch.square(z_b)),  # l2 dist
+        # center_posterior:
+        # recon_loss._pairwise_reduce(torch.abs(kl_a0)    + torch.abs(kl_b0)),
+        # recon_loss._pairwise_reduce(torch.square(kl_a0) + torch.square(kl_b0)),
     ]
 
 
@@ -180,6 +186,7 @@ class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
         begin_first_step: bool = False,
         plt_block_size: float = 1.0,
         plt_show: bool = False,
+        plt_transpose: bool = True,
         log_wandb: bool = True,
         include_factor_dists: bool = True,
     ):
@@ -191,6 +198,7 @@ class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
         self._plt_show = plt_show
         self._log_wandb = log_wandb
         self._include_gt_factor_dists = include_factor_dists
+        self._transpose_plot = plt_transpose
         super().__init__(every_n_steps, begin_first_step)
 
     @torch.no_grad()
@@ -250,14 +258,28 @@ class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
         log.info(f'| {gt_data.name} - computed factor distances! time{c.GRY}={c.lYLW}{timer.pretty:<9}{c.RST}')
 
         # plot!
-        fig, axs = plt_subplots_imshow(
-            grid=f_data,
-            col_labels=names,
-            row_labels=gt_data.factor_names,
-            title=f'{vae.__class__.__name__}: {gt_data.name.capitalize()} Distances',
-            figsize=(self._plt_block_size*len(f_data[0]), self._plt_block_size*gt_data.num_factors),
-            imshow_kwargs=dict(cmap='Blues')
-        )
+        title         = f'{vae.__class__.__name__}: {gt_data.name.capitalize()} Distances'
+        imshow_kwargs = dict(cmap='Blues')
+        figsize       = (self._plt_block_size*len(f_data[0]), self._plt_block_size*gt_data.num_factors)
+
+        if not self._transpose_plot:
+            fig, axs = plt_subplots_imshow(
+                grid=f_data,
+                col_labels=names,
+                row_labels=gt_data.factor_names,
+                figsize=figsize,
+                title=title,
+                imshow_kwargs=imshow_kwargs,
+            )
+        else:
+            fig, axs = plt_subplots_imshow(
+                grid=list(zip(*f_data)),
+                col_labels=gt_data.factor_names,
+                row_labels=names,
+                figsize=figsize[::-1],
+                title=title,
+                imshow_kwargs=imshow_kwargs,
+            )
 
         if self._plt_show:
             plt.show()
