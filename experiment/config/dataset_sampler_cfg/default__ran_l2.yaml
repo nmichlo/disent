@@ -15,3 +15,8 @@ dataset_sampler:
     swap_metric: 'euclidean'
     # swap positive and negative if possible
     swap_chance: NULL
+
+# CUSTOM SPECIALIZATION (hydra does not support variable interpolation in defaults lists)
+# -- choose the default from the framework and dataset
+specializations:
+   dataset_sampler: ${dataset.data_type}__${framework.data_sample_mode}
