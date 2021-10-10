@@ -5,4 +5,4 @@ dataset:
     cls:
       _target_: disent.dataset.sampling.GroundTruthPairOrigSampler
       # factor sampling
-      p_k: ${dataset_sampler.cfg.k.1}
+      p_k: ${sampling.k.1}

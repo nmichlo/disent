@@ -1,10 +1,10 @@
 # @package _global_
-sampler:
-  name: default
+sampling:
+  name: random
   # this config forces an error to be thrown if
   # sampler config settings are required.
 
 # CUSTOM SPECIALIZATION (hydra does not support variable interpolation in defaults)
-# -- choose the default from the framework and dataset
+# -- randomly sample pairs and triples if a framework needs them
 specializations:
-   dataset_sampler: ${dataset.data_type}__${framework.data_sample_mode}
+   _dataset_sampler_: random__${framework.data_sample_mode}

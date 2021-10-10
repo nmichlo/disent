@@ -5,8 +5,8 @@ dataset:
     cls:
       _target_: disent.dataset.sampling.GroundTruthDistSampler
       num_samples: 2
-      triplet_sample_mode: ${dataset_sampler.cfg.triplet_sample_mode} # random, factors, manhattan, combined
-      triplet_swap_chance: ${dataset_sampler.cfg.triplet_swap_chance}
+      triplet_sample_mode: ${sampling.triplet_sample_mode} # random, factors, manhattan, combined
+      triplet_swap_chance: ${sampling.triplet_swap_chance}
 
 # ================================================== #
 # NOTE!!! THIS IS A DUMMY WRAPPER ,SO WE DON'T CRASH #
