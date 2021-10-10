@@ -128,6 +128,8 @@ def _get_dists_ae(ae: Ae, x_a: torch.Tensor, x_b: torch.Tensor, recon_loss: Reco
         # x:
         recon_loss.compute_pairwise_loss(x_a, x_b),
         # z:
+        torch.norm(z_a - z_b, p=1, dim=-1),  # l1 dist
+        torch.norm(z_a - z_b, p=2, dim=-1),  # l2 dist
         recon_loss._pairwise_reduce(torch.abs(z_a - z_b)),     # l1 dist
         recon_loss._pairwise_reduce(torch.square(z_a - z_b)),  # l2 dist
         # x_recon:
@@ -135,8 +137,8 @@ def _get_dists_ae(ae: Ae, x_a: torch.Tensor, x_b: torch.Tensor, recon_loss: Reco
     ]
 
 
-_AE_DIST_NAMES = ('x', 'z_l1', 'z_l2', 'x_recon')
-_VAE_DIST_NAMES = ('x', 'z_l1', 'z_l2', 'kl', 'kl_center_l1', 'kl_center_l2', 'x_recon')
+_AE_DIST_NAMES = ('x', 'z_l1', 'z_l2', 'z_d1', 'z_d2', 'x_recon')
+_VAE_DIST_NAMES = ('x', 'z_l1', 'z_l2', 'z_d1', 'z_d2', 'kl', 'kl_center_l1', 'kl_center_l2', 'kl_center_d1', 'kl_center_d2', 'x_recon')
 
 
 def _get_dists_vae(vae: Vae, x_a: torch.Tensor, x_b: torch.Tensor, recon_loss: ReconLossHandler):
@@ -146,17 +148,25 @@ def _get_dists_vae(vae: Vae, x_a: torch.Tensor, x_b: torch.Tensor, recon_loss: R
     (z_post_b, z_prior_b) = vae.encode_dists(x_b)
     z_a, z_b = z_post_a.mean, z_post_b.mean
     r_a, r_b = vae.decode(z_a), vae.decode(z_b)
+    # dists
+    kl_a = kl_divergence(z_post_a, z_prior_a)
+    kl_b = kl_divergence(z_post_b, z_prior_b)
+    kl_ab = 0.5 * (kl_divergence(z_post_a, z_post_b) + kl_divergence(z_post_b, z_post_a))
     # distances
     return _VAE_DIST_NAMES, [
         # x:
         recon_loss.compute_pairwise_loss(x_a, x_b),
         # z:
+        torch.norm(z_a - z_b, p=1, dim=-1),  # l1 dist
+        torch.norm(z_a - z_b, p=2, dim=-1),  # l2 dist
         recon_loss._pairwise_reduce(torch.abs(z_a - z_b)),     # l1 dist
         recon_loss._pairwise_reduce(torch.square(z_a - z_b)),  # l2 dist
         # posterior:
-        recon_loss._pairwise_reduce(kl_divergence(z_post_a, z_post_b)),
-        recon_loss._pairwise_reduce(torch.abs(kl_divergence(z_post_a, z_prior_a) - kl_divergence(z_post_b, z_prior_b))),
-        recon_loss._pairwise_reduce(torch.square(kl_divergence(z_post_a, z_prior_a) - kl_divergence(z_post_b, z_prior_b))),
+        recon_loss._pairwise_reduce(kl_ab),
+        torch.norm(kl_a - kl_b, p=1, dim=-1),  # l1 dist
+        torch.norm(kl_a - kl_b, p=2, dim=-1),  # l2 dist
+        recon_loss._pairwise_reduce(torch.abs(kl_a - kl_b)),
+        recon_loss._pairwise_reduce(torch.square(kl_a - kl_b)),
         # x_recon:
         recon_loss.compute_pairwise_loss(r_a, r_b),
     ]
