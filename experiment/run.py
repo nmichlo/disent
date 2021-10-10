@@ -308,7 +308,7 @@ def run(cfg: DictConfig, config_path: str = None):
     log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
 
     # hydra config does not support variables in defaults lists, we handle this manually
-    cfg = merge_specializations(cfg, config_path=CONFIG_PATH if (config_path is None) else config_path)
+    cfg = merge_specializations(cfg, config_path=CONFIG_PATH if (config_path is None) else config_path, required=['_dataset_sampler_'])
 
     # check CUDA setting
     cfg.trainer.setdefault('cuda', 'try_cuda')
@@ -381,6 +381,17 @@ CONFIG_NAME = 'config'
 
 
 if __name__ == '__main__':
+
+    # register a custom OmegaConf resolver that allows us to put in a ${exit:msg} that exits the program
+    # - if we don't register this, the program will still fail because we have an unknown
+    #   resolver. This just prettifies the output.
+    class ConfigurationError(Exception):
+        pass
+
+    def _error_resolver(msg: str):
+        raise ConfigurationError(msg)
+
+    OmegaConf.register_resolver('exit', _error_resolver)
 
     @hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME)
     def hydra_main(cfg: DictConfig):

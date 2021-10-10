@@ -4,6 +4,9 @@ sampling:
   # this config forces an error to be thrown! This is to make
   # sure that we don't encounter errors when updating old configs.
 
+specializations:
+  _dataset_sampler_: "${exit:EXITING... please specify in the defaults list a sampling method other than none}"
+
 # CUSTOM DEFAULTS SPECIALIZATION
 # - This key is deleted on load and the correct key on the root config is set similar to defaults.
 # - Unfortunately this hack needs to exists as hydra does not yet support this kinda of variable interpolation in defaults.

@@ -24,6 +24,8 @@
 
 import logging
 from copy import deepcopy
+from typing import Optional
+from typing import Sequence
 
 import hydra
 from omegaconf import DictConfig
@@ -85,18 +87,29 @@ def make_non_strict(cfg: DictConfig):
 
 
 @deprecated('replace with hydra 1.1')
-def merge_specializations(cfg: DictConfig, config_path: str, strict=True, delete_key: bool = False):
+def merge_specializations(cfg: DictConfig, config_path: str, strict=True, delete_key: bool = False, required: Optional[Sequence[str]] = None, force_package_mode: str = 'global'):
     import os
+
+    # force the package mode
+    # -- auto should be obtained from the config header, but this is not yet supported.
+    assert force_package_mode in ['global'], f'invalid force_package_mode, must one of ["global"], got: {repr(force_package_mode)}. "auto" and "group" are not yet supported.'
 
     # TODO: this should eventually be replaced with hydra recursive defaults
     # TODO: this makes config non-strict, allows setdefault to work even if key does not exist in config
 
     assert os.path.isabs(config_path), f'config_path cannot be relative for merge_specializations: {repr(config_path)}, current working directory: {repr(os.getcwd())}'
 
-    # skip if we do not have any specializations
-    if 'specializations' not in cfg:
-        log.warning('`specializations` key not found in `cfg`, skipping merging specializations')
-        return
+    # skip if we do not have any specializations or handle requirements
+    if required is not None:
+        if 'specializations' not in cfg:
+            raise RuntimeError(f'config does not contain the "specializations" key, required specializations include: {sorted(required)}')
+        missing = set(required) - set(cfg.specializations.keys())
+        if missing:
+            raise RuntimeError(f'config does not contain the required specializations, missing keys for: {sorted(missing)}')
+    else:
+        if 'specializations' not in cfg:
+            log.warning('`specializations` key not found in `cfg`, skipping merging specializations')
+            return
 
     # we allow overwrites & missing values to be inserted
     if not strict:
@@ -104,12 +117,15 @@ def merge_specializations(cfg: DictConfig, config_path: str, strict=True, delete
 
     # set and update specializations
     for group, specialization in cfg.specializations.items():
-        assert group not in cfg, f'group={repr(group)} already exists on cfg, specialization merging is not supported!'
         log.info(f'merging specialization: {repr(specialization)}')
         # load specialization config
         specialization_cfg = OmegaConf.load(os.path.join(config_path, group, f'{specialization}.yaml'))
+        # merge warnings
+        conflicts = set(cfg.keys()) & set(specialization_cfg.keys())
+        if conflicts:
+            log.warning(f'- merging specialization has conflicting keys: {sorted(conflicts)}. This is probably an error!')
         # create new config
-        cfg = OmegaConf.merge(cfg, {group: specialization_cfg})
+        cfg = OmegaConf.merge(cfg, specialization_cfg)
 
     # remove specializations key
     if delete_key:
