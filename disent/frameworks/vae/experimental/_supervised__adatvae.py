@@ -47,7 +47,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-@deprecated(reason='Rather use the AdaNegTripletVae')
+#@deprecated(reason='Rather use the AdaNegTripletVae')
 class AdaTripletVae(TripletVae):
 
     REQUIRED_OBS = 3

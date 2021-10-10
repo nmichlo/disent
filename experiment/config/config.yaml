@@ -3,7 +3,7 @@ defaults:
   - framework: betagammavae
   - model: conv64
   - optimizer: radam
-  - dataset: xysquares  # allow framework to override settings here, but placing dataset before framework in defaults
+  - dataset: xysquares # allow framework to override settings here, but placing dataset before framework in defaults
   - augment: none
   - sampling: full_bb
   - metrics: all
@@ -20,17 +20,16 @@ defaults:
 
 job:
   user: 'neonkitchen'
-  project: 'disent_sweep'
-  name: '${framework.beta}:${framework.gamma}:${framework.name}:${framework.module.recon_loss}|${dataset.name}:${sampling.name}|${trainer.steps}'
+  project: 'disent_sweep_long'
+  name: '${dataset}:${framework.beta}:${framework.gamma}:${framework.name}:${framework.module.recon_loss}|${dataset.name}:${sampling.name}|${trainer.steps}'
   partition: stampede
 
 framework:
     beta: 0.001
-    gamma: 0.002, 0.003
+    gamma: 0.001
     module:
       recon_loss: mse4
       loss_reduction: mean
-      latent_distribution: cauchy
       kl_loss_mode: direct_fdiv
     optional:
       latent_distribution: normal  # only used by VAEs

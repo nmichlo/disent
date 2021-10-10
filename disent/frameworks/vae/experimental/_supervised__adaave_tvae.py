@@ -46,7 +46,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-@deprecated(reason='Rather use the AdaNegTripletVae')
+#@deprecated(reason='Rather use the AdaNegTripletVae')
 class AdaAveTripletVae(AdaTripletVae):
     """
     This was a more general attempt of the ada-tvae,
