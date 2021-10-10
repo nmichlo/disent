@@ -310,7 +310,7 @@ defaults:
   - schedule: none
   # data
   - dataset: xyobject
-  - dataset_sampler_cfg: gt__bb
+  - sampling: default__bb
   - augment: none
   # runtime
   - metrics: fast

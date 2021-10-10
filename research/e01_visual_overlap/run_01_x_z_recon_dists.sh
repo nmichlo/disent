@@ -30,11 +30,10 @@ submit_sweep \
     metrics=fast \
     \
     dataset=xyobject,xyobject_shaded,shapes3d,dsprites,cars3d,smallnorb \
-    specializations.dataset_sampler='${dataset.data_type}__${framework.data_sample_mode}' \
+    sampling=default__bb \
     \
     framework.beta=0.001 \
     framework=ae,X--adaae_os,betavae,adavae_os \
-    dataset_sampler_cfg=gt__bb \
     model.z_size=25 \
     \
     hydra.launcher.exclude='"mscluster93,mscluster94,mscluster97"'  # we don't want to sweep over these

@@ -125,8 +125,8 @@ class HydraDataModule(pl.LightningDataModule):
         data = instantiate_recursive(self.hparams.dataset.data)
         # Wrap the data for the framework some datasets need triplets, pairs, etc.
         # Augmentation is done inside the frameworks so that it can be done on the GPU, otherwise things are very slow.
-        self.dataset_train_noaug = DisentDataset(data, hydra.utils.instantiate(self.hparams.dataset_sampler.sampler), transform=self.data_transform, augment=None)
-        self.dataset_train_aug = DisentDataset(data, hydra.utils.instantiate(self.hparams.dataset_sampler.sampler), transform=self.data_transform, augment=self.input_transform)
+        self.dataset_train_noaug = DisentDataset(data, hydra.utils.instantiate(self.hparams.dataset.sampler.cls), transform=self.data_transform, augment=None)
+        self.dataset_train_aug = DisentDataset(data, hydra.utils.instantiate(self.hparams.dataset.sampler.cls), transform=self.data_transform, augment=self.input_transform)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Training Dataset:

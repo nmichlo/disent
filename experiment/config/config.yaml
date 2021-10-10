@@ -6,7 +6,7 @@ defaults:
   - schedule: none
   # data
   - dataset: xyobject
-  - dataset_sampler_cfg: none
+  - sampling: none
   - augment: none
   # runtime
   - metrics: all
@@ -22,7 +22,7 @@ defaults:
 job:
   user: '${env:USER}'
   project: 'test-project'
-  name: '${framework.name}:${framework.module.recon_loss}|${dataset.name}:${dataset_sampler.cfg.name}|${trainer.steps}'
+  name: '${framework.name}:${framework.module.recon_loss}|${dataset.name}:${sampling.name}|${trainer.steps}'
   partition: batch
   seed: NULL
 
@@ -46,19 +46,3 @@ dataset:
 
 optimizer:
   lr: 1e-3
-
-# CUSTOM DEFAULTS SPECIALIZATION
-# - This key is deleted on load and the correct key on the root config is set similar to defaults.
-# - Unfortunately this hack needs to exists as hydra does not yet support this kinda of variable interpolation in defaults.
-specializations:
-  # default samplers -- the framework specified defaults
-  dataset_sampler: ${dataset.data_type}__${framework.data_sample_mode}
-
-  # default samplers -- the framework specified defaults, modified by the current dataset_sampler_cfg
-  # dataset_sampler: ${dataset.data_type}${dataset_sampler.cfg.specialize_postfix}__${framework.data_sample_mode}
-
-  # newer samplers -- only active for frameworks that require 3 observations, otherwise random for 2, and exact for 1
-  # dataset_sampler: gt_dist__${framework.data_sample_mode}
-
-  # random samplers -- force random sampling of observation pairs or triples
-  # dataset_sampler: random__${framework.data_sample_mode}

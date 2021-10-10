@@ -1,5 +1,0 @@
-# @package _group_
-name: random__single
-sampler:
-  _target_: disent.dataset.sampling.RandomSampler
-  num_samples: 1
