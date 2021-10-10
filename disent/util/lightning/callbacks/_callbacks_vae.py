@@ -45,6 +45,7 @@ from disent.frameworks.ae import Ae
 from disent.frameworks.helper.reconstructions import make_reconstruction_loss
 from disent.frameworks.helper.reconstructions import ReconLossHandler
 from disent.frameworks.vae import Vae
+from disent.util.iters import chunked
 from disent.util.lightning.callbacks._callbacks_base import BaseCallbackPeriodic
 from disent.util.lightning.logger_util import log_metrics
 from disent.util.lightning.logger_util import wb_log_metrics
@@ -126,54 +127,48 @@ _AE_DIST_NAMES = ('x', 'z_l1', 'x_recon')
 _VAE_DIST_NAMES = ('x', 'z_l1', 'kl', 'x_recon')
 
 
+@torch.no_grad()
 def _get_dists_ae(ae: Ae, x_a: torch.Tensor, x_b: torch.Tensor, recon_loss: ReconLossHandler):
     # feed forware
     z_a, z_b = ae.encode(x_a), ae.encode(x_b)
     r_a, r_b = ae.decode(z_a), ae.decode(z_b)
     # distances
     return _AE_DIST_NAMES, [
-        # x:
         recon_loss.compute_pairwise_loss(x_a, x_b),
-        # z:
         torch.norm(z_a - z_b, p=1, dim=-1),  # l1 dist
-        # torch.norm(z_a - z_b, p=2, dim=-1),  # l2 dist
-        # x_recon:
         recon_loss.compute_pairwise_loss(r_a, r_b),
-        # center_z:
-        # recon_loss._pairwise_reduce(torch.abs(z_a)    + torch.abs(z_b)),     # l1 dist
-        # recon_loss._pairwise_reduce(torch.square(z_a) + torch.square(z_b)),  # l2 dist
     ]
 
 
+@torch.no_grad()
 def _get_dists_vae(vae: Vae, x_a: torch.Tensor, x_b: torch.Tensor, recon_loss: ReconLossHandler):
     from torch.distributions import kl_divergence
     # feed forward
-    (z_post_a, z_prior_a) = vae.encode_dists(x_a)
-    (z_post_b, z_prior_b) = vae.encode_dists(x_b)
+    (z_post_a, z_prior_a), (z_post_b, z_prior_b) = vae.encode_dists(x_a), vae.encode_dists(x_b)
     z_a, z_b = z_post_a.mean, z_post_b.mean
     r_a, r_b = vae.decode(z_a), vae.decode(z_b)
     # dists
-    kl_a0 = kl_divergence(z_post_a, z_prior_a)
-    kl_b0 = kl_divergence(z_post_b, z_prior_b)
     kl_ab = 0.5 * kl_divergence(z_post_a, z_post_b) + 0.5 * kl_divergence(z_post_b, z_post_a)
     # distances
     return _VAE_DIST_NAMES, [
-        # x:
         recon_loss.compute_pairwise_loss(x_a, x_b),
-        # z:
         torch.norm(z_a - z_b, p=1, dim=-1),  # l1 dist
-        # torch.norm(z_a - z_b, p=2, dim=-1),  # l2 dist
-        # x_recon:
         recon_loss.compute_pairwise_loss(r_a, r_b),
-        # posterior:
         recon_loss._pairwise_reduce(kl_ab),
-        # center_z:
-        # recon_loss._pairwise_reduce(torch.abs(z_a)    + torch.abs(z_b)),     # l1 dist
-        # recon_loss._pairwise_reduce(torch.square(z_a) + torch.square(z_b)),  # l2 dist
-        # center_posterior:
-        # recon_loss._pairwise_reduce(torch.abs(kl_a0)    + torch.abs(kl_b0)),
-        # recon_loss._pairwise_reduce(torch.square(kl_a0) + torch.square(kl_b0)),
     ]
+
+
+@torch.no_grad()
+def _collect_dists_subbatches(model, dists_fn, obs: torch.Tensor, i_a: np.ndarray, i_b: np.ndarray, recon_loss: ReconLossHandler, batch_size: int = 64):
+    # feed forward
+    results = []
+    for idxs in chunked(np.stack([i_a, i_b], axis=-1), chunk_size=batch_size):
+        ia, ib = idxs.T
+        x_a, x_b = obs[ia], obs[ib]
+        # feed forward
+        name, data = dists_fn(model, x_a=x_a, x_b=x_b, recon_loss=recon_loss)
+        results.append(data)
+    return name, [torch.cat(r, dim=0) for r in zip(*results)]
 
 
 class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
@@ -184,10 +179,11 @@ class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
         every_n_steps: Optional[int] = None,
         traversal_repeats: int = 100,
         begin_first_step: bool = False,
-        plt_block_size: float = 1.0,
+        plt_block_size: float = 1.25,
         plt_show: bool = False,
-        plt_transpose: bool = True,
+        plt_transpose: bool = False,
         log_wandb: bool = True,
+        batch_size: int = 128,
         include_factor_dists: bool = True,
     ):
         assert traversal_repeats > 0
@@ -199,6 +195,7 @@ class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
         self._log_wandb = log_wandb
         self._include_gt_factor_dists = include_factor_dists
         self._transpose_plot = plt_transpose
+        self._batch_size = batch_size
         super().__init__(every_n_steps, begin_first_step)
 
     @torch.no_grad()
@@ -210,8 +207,8 @@ class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
             log.warning(f'cannot run {self.__class__.__name__} over non-ground-truth data, skipping!')
             return
         # get aggregate function
-        if isinstance(vae, Vae): agg_fn = _get_dists_vae
-        elif isinstance(vae, Ae): agg_fn = _get_dists_ae
+        if isinstance(vae, Vae): dists_fn = _get_dists_vae
+        elif isinstance(vae, Ae): dists_fn = _get_dists_ae
         else:
             log.warning(f'cannot run {self.__class__.__name__}, unsupported model type: {type(vae)}, must be {Ae.__name__} or {Vae.__name__}')
             return
@@ -238,7 +235,7 @@ class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
                     obs = dataset.dataset_batch_from_indices(indices, 'input')
                     obs = obs.to(vae.device)
                     # feed forward
-                    names, dists = agg_fn(vae, x_a=obs[i_a], x_b=obs[i_b], recon_loss=self._recon_loss)
+                    names, dists = _collect_dists_subbatches(vae, dists_fn=dists_fn, obs=obs, i_a=i_a, i_b=i_b, recon_loss=self._recon_loss, batch_size=self._batch_size)
                     # distances
                     f_dists.append(dists)
                 # aggregate all dists into distances matrices for current factor

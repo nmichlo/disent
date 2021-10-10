@@ -212,9 +212,10 @@ def hydra_append_gt_dists_callback(callbacks, cfg):
             every_n_steps=cfg.callbacks.gt_dists.every_n_steps,
             traversal_repeats=cfg.callbacks.gt_dists.traversal_repeats,
             begin_first_step=False,
-            plt_block_size=1.0,
+            plt_block_size=1.25,
             plt_show=False,
             log_wandb=True,
+            batch_size=cfg.dataset.batch_size,
         ))
 
 

@@ -19,7 +19,7 @@ source "$(dirname "$(dirname "$(realpath -s "$0")")")/helper.sh"
 clog_cudaless_nodes "$PARTITION" 86400 "C-disent" # 24 hours
 
 
-# 1 * (3 * 4 * 6) = 72
+# 1 * (3 * 4 * 6) = 24
 submit_sweep \
     +DUMMY.repeat=1 \
     +EXTRA.tags='sweep_01' \
@@ -33,6 +33,7 @@ submit_sweep \
     sampling=default__bb \
     \
     framework.beta=0.001 \
+    optimizer.lr=3e-4 \
     framework=ae,X--adaae_os,betavae,adavae_os \
     model.z_size=25 \
     \
