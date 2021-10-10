@@ -39,8 +39,8 @@ from disent.frameworks.ae.experimental import *   # pragma: delete-on-release
 from disent.frameworks.vae import *
 from disent.frameworks.vae.experimental import *  # pragma: delete-on-release
 from disent.model import AutoEncoder
-from disent.model.ae import DecoderTest
-from disent.model.ae import EncoderTest
+from disent.model.ae import DecoderLinear
+from disent.model.ae import EncoderLinear
 from disent.nn.transform import ToStandardisedTensor
 
 
@@ -113,8 +113,8 @@ def test_frameworks(Framework, cfg_kwargs, Data):
 
     framework = Framework(
         model=AutoEncoder(
-            encoder=EncoderTest(x_shape=data.x_shape, z_size=6, z_multiplier=2 if issubclass(Framework, Vae) else 1),
-            decoder=DecoderTest(x_shape=data.x_shape, z_size=6),
+            encoder=EncoderLinear(x_shape=data.x_shape, z_size=6, z_multiplier=2 if issubclass(Framework, Vae) else 1),
+            decoder=DecoderLinear(x_shape=data.x_shape, z_size=6),
         ),
         cfg=Framework.cfg(**cfg_kwargs)
     )

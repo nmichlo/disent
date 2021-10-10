@@ -241,12 +241,12 @@ MODELS = _Registry('MODELS')
 MODELS['encoder_conv64']     = _LazyImport('disent.model.ae._vae_conv64.EncoderConv64')
 MODELS['encoder_conv64norm'] = _LazyImport('disent.model.ae._norm_conv64.EncoderConv64Norm')
 MODELS['encoder_fc']         = _LazyImport('disent.model.ae._vae_fc.EncoderFC')
-MODELS['encoder_test']       = _LazyImport('disent.model.ae._test.EncoderTest')
+MODELS['encoder_linear']     = _LazyImport('disent.model.ae._linear.EncoderLinear')
 # [ENCODER]
 MODELS['decoder_conv64']     = _LazyImport('disent.model.ae._vae_conv64.DecoderConv64')
 MODELS['decoder_conv64norm'] = _LazyImport('disent.model.ae._norm_conv64.DecoderConv64Norm')
 MODELS['decoder_fc']         = _LazyImport('disent.model.ae._vae_fc.DecoderFC')
-MODELS['decoder_test']       = _LazyImport('disent.model.ae._test.DecoderTest')
+MODELS['decoder_linear']     = _LazyImport('disent.model.ae._linear.DecoderLinear')
 
 
 # ========================================================================= #

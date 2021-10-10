@@ -35,7 +35,7 @@ from disent.model import DisentEncoder
 # ========================================================================= #
 
 
-class EncoderTest(DisentEncoder):
+class EncoderLinear(DisentEncoder):
 
     def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
@@ -49,7 +49,7 @@ class EncoderTest(DisentEncoder):
         return self.model(x)
 
 
-class DecoderTest(DisentDecoder):
+class DecoderLinear(DisentDecoder):
 
     def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
