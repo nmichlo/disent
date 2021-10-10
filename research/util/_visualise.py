@@ -357,14 +357,13 @@ def plt_2d_density(
     if ymin is None: ymin = y.min()
     if ymax is None: ymax = y.max()
     # Evaluate a gaussian kde on a regular grid of nbins x nbins over data extents
+    xi, yi = np.mgrid[xmin:xmax:n_bins*1j, ymin:ymax:n_bins*1j]
     try:
         k = kde.gaussian_kde([x, y])
+        zi = k(np.stack([xi.flatten(), yi.flatten()], axis=0))
     except np.linalg.LinAlgError:
-        log.warn('Could not create 2d_density plot')
+        log.warning('Could not create 2d_density plot')
         return
-    # continue
-    xi, yi = np.mgrid[xmin:xmax:n_bins*1j, ymin:ymax:n_bins*1j]
-    zi = k(np.stack([xi.flatten(), yi.flatten()], axis=0))
     # update args
     if ax is None: ax = plt
     if pcolormesh_kwargs is None: pcolormesh_kwargs = {}
