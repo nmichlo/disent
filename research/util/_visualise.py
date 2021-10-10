@@ -184,7 +184,8 @@ def plt_subplots_imshow(
     vmin: float = None,
     vmax: float = None,
     # extra
-    show=False,
+    show: bool = False,
+    imshow_kwargs: dict = None,
     **fig_kw,
 ):
     # TODO: add automatic height & width
@@ -206,7 +207,7 @@ def plt_subplots_imshow(
     )
     # show images
     for y, x in np.ndindex(axs.shape):
-        axs[y, x].imshow(grid[y][x], vmin=vmin, vmax=vmax)
+        axs[y, x].imshow(grid[y][x], vmin=vmin, vmax=vmax, **(imshow_kwargs if imshow_kwargs else {}))
     fig.tight_layout(pad=subplot_padding)
     # done!
     if show:

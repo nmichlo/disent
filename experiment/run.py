@@ -43,6 +43,7 @@ from disent.frameworks import DisentConfigurable
 from disent.frameworks import DisentFramework
 from disent.model import AutoEncoder
 from disent.nn.weights import init_model_weights
+from disent.util.lightning.callbacks._callbacks_vae import VaeGtDistsLoggingCallback
 from disent.util.seeds import seed
 from disent.util.strings.fmt import make_box_str
 from disent.util.lightning.callbacks import LoggerProgressCallback
@@ -204,6 +205,19 @@ def hydra_append_correlation_callback(callbacks, cfg):
         # ))
 
 
+def hydra_append_gt_dists_callback(callbacks, cfg):
+    if 'gt_dists' in cfg.callbacks:
+        callbacks.append(VaeGtDistsLoggingCallback(
+            seed=cfg.callbacks.gt_dists.seed,
+            every_n_steps=cfg.callbacks.gt_dists.every_n_steps,
+            traversal_repeats=cfg.callbacks.gt_dists.traversal_repeats,
+            begin_first_step=False,
+            plt_block_size=1.0,
+            plt_show=False,
+            log_wandb=True,
+        ))
+
+
 def hydra_register_schedules(module: DisentFramework, cfg):
     if cfg.schedules is None:
         cfg.schedules = {}
@@ -307,6 +321,7 @@ def run(cfg: DictConfig, config_path: str = None):
     callbacks = []
     hydra_append_progress_callback(callbacks, cfg)
     hydra_append_latent_cycle_logger_callback(callbacks, cfg)
+    hydra_append_gt_dists_callback(callbacks, cfg)
     hydra_append_metric_callback(callbacks, cfg)
     hydra_append_correlation_callback(callbacks, cfg)
 
