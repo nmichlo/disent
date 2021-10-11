@@ -24,7 +24,7 @@
 
 
 import numpy as np
-from disent.dataset.data.groundtruth import XYSquaresData
+from disent.dataset.data import XYSquaresData
 
 
 class XYSquaresSampler(XYSquaresData):

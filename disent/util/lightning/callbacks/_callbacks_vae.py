@@ -153,8 +153,8 @@ def _get_dists_vae(vae: Vae, x_a: torch.Tensor, x_b: torch.Tensor, recon_loss: R
     return _VAE_DIST_NAMES, [
         recon_loss.compute_pairwise_loss(x_a, x_b),
         torch.norm(z_a - z_b, p=1, dim=-1),  # l1 dist
-        recon_loss.compute_pairwise_loss(r_a, r_b),
         recon_loss._pairwise_reduce(kl_ab),
+        recon_loss.compute_pairwise_loss(r_a, r_b),
     ]
 
 

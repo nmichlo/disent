@@ -118,6 +118,8 @@ def plt_subplots(
     titles=None,
     row_labels=None,
     col_labels=None,
+    title_size: int = None,
+    titles_size: int = None,
     label_size: int = None,
     hide_labels='edges',  # none, edges, all
     hide_axis='edges',    # none, edges, all
@@ -158,9 +160,9 @@ def plt_subplots(
                 ax.set_ylabel(row_labels[y], fontsize=label_size)
             # set title
             if titles is not None:
-                ax.set_title(titles[y][x])
+                ax.set_title(titles[y][x], fontsize=titles_size)
     # set title
-    fig.suptitle(title)
+    fig.suptitle(title, fontsize=title_size)
     # done!
     return fig, axs
 
@@ -172,11 +174,13 @@ def plt_subplots_imshow(
     titles=None,
     row_labels=None,
     col_labels=None,
+    title_size: int = None,
+    titles_size: int = None,
     label_size: int = None,
     hide_labels='edges',  # none, edges, all
     hide_axis='all',    # none, edges, all
     # tight_layout:
-    subplot_padding=1.08,
+    subplot_padding: Optional[float] = 1.08,
     # plt.subplots:
     sharex: str = False,
     sharey: str = False,
@@ -198,6 +202,8 @@ def plt_subplots_imshow(
         titles=titles,
         row_labels=row_labels,
         col_labels=col_labels,
+        title_size=title_size,
+        titles_size=titles_size,
         label_size=label_size,
         hide_labels=hide_labels,  # none, edges, all
         hide_axis=hide_axis,      # none, edges, all
@@ -211,7 +217,7 @@ def plt_subplots_imshow(
     # show images
     for y, x in np.ndindex(axs.shape):
         axs[y, x].imshow(grid[y][x], vmin=vmin, vmax=vmax, **(imshow_kwargs if imshow_kwargs else {}))
-    fig.tight_layout(pad=subplot_padding)
+    fig.tight_layout(**({} if (subplot_padding is None) else dict(pad=subplot_padding)))
     # done!
     if show:
         plt.show()
