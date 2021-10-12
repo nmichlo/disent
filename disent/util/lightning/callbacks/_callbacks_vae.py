@@ -288,6 +288,45 @@ class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
             })
 
 
+def _normalize_min_max_mean_std_to_min_max(recon_min, recon_max, recon_mean, recon_std) -> Union[Tuple[None, None], Tuple[np.ndarray, np.ndarray]]:
+    # check recon_min and recon_max
+    if (recon_min is not None) or (recon_max is not None):
+        if (recon_mean is not None) or (recon_std is not None):
+            raise ValueError('must choose either recon_min & recon_max OR recon_mean & recon_std, cannot specify both')
+        if (recon_min is None) or (recon_max is None):
+            raise ValueError('both recon_min & recon_max must be specified')
+        # check strings
+        if isinstance(recon_min, str) or isinstance(recon_max, str):
+            if not (isinstance(recon_min, str) and isinstance(recon_max, str)):
+                raise ValueError('both recon_min & recon_max must be "auto" if one is "auto"')
+            return None, None
+    # check recon_mean and recon_std
+    elif (recon_mean is not None) or (recon_std is not None):
+        if (recon_min is not None) or (recon_max is not None):
+            raise ValueError('must choose either recon_min & recon_max OR recon_mean & recon_std, cannot specify both')
+        if (recon_mean is None) or (recon_std is None):
+            raise ValueError('both recon_mean & recon_std must be specified')
+        # set values:
+        #  | ORIG: [0, 1]
+        #  | TRANSFORM: (x - mean) / std         ->  [(0-mean)/std, (1-mean)/std]
+        #  | REVERT:    (x - min) / (max - min)  ->  [0, 1]
+        #  |            min=(0-mean)/std, max=(1-mean)/std
+        recon_mean, recon_std = np.array(recon_mean, dtype='float32'), np.array(recon_std, dtype='float32')
+        recon_min = np.divide(0 - recon_mean, recon_std)
+        recon_max = np.divide(1 - recon_mean, recon_std)
+    # set defaults
+    if recon_min is None: recon_min = 0.0
+    if recon_max is None: recon_max = 0.0
+    # change type
+    recon_min = np.array(recon_min)
+    recon_max = np.array(recon_max)
+    assert recon_min.ndim in (0, 1)
+    assert recon_max.ndim in (0, 1)
+    # checks
+    assert np.all(recon_min < np.all(recon_max)), f'recon_min={recon_min} must be less than recon_max={recon_max}'
+    return recon_min, recon_max
+
+
 class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
 
     def __init__(
@@ -317,34 +356,14 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
         self._fps = wandb_fps
         # checks
         assert wandb_mode in {'none', 'img', 'vid', 'both'}, f'invalid wandb_mode={repr(wandb_mode)}, must be one of: ("none", "img", "vid", "both")'
-        # check recon_min and recon_max
-        if (recon_min is not None) or (recon_max is not None):
-            if (recon_mean is not None) or (recon_std is not None):
-                raise ValueError('must choose either recon_min & recon_max OR recon_mean & recon_std, cannot specify both')
-            if (recon_min is None) or (recon_max is None):
-                raise ValueError('both recon_min & recon_max must be specified')
-            # set values
-            self._recon_min = np.array(recon_min)
-            self._recon_min = np.array(recon_max)
-        # check recon_mean and recon_std
-        elif (recon_mean is not None) or (recon_std is not None):
-            if (recon_min is not None) or (recon_max is not None):
-                raise ValueError('must choose either recon_min & recon_max OR recon_mean & recon_std, cannot specify both')
-            if (recon_mean is None) or (recon_std is None):
-                raise ValueError('both recon_mean & recon_std must be specified')
-            # set values:
-            #  | ORIG: [0, 1]
-            #  | TRANSFORM: (x - mean) / std         ->  [(0-mean)/std, (1-mean)/std]
-            #  | REVERT:    (x - min) / (max - min)  ->  [0, 1]
-            #  |            min=(0-mean)/std, max=(1-mean)/std
-            recon_mean, recon_std = np.array(recon_mean), np.array(recon_std)
-            self._recon_min = np.divide(0 - recon_mean, recon_std)
-            self._recon_max = np.divide(1 - recon_mean, recon_std)
-        else:
-            self._recon_min = np.array(0.0)
-            self._recon_max = np.array(1.0)
-        # checks
-        assert np.all(self._recon_min < self._recon_max), f'recon_min={self._recon_min} must be less than recon_max={self._recon_max}'
+        # normalize
+        self._recon_min, self._recon_max = _normalize_min_max_mean_std_to_min_max(
+            recon_min=recon_min,
+            recon_max=recon_max,
+            recon_mean=recon_mean,
+            recon_std=recon_std,
+        )
+
 
     def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         # get dataset and vae framework from trainer and module
@@ -371,9 +390,9 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
                 return
 
             # get min and max if auto
-            if (self._recon_min == 'auto') or (self._recon_max == 'auto'):
-                if self._recon_min == 'auto': self._recon_min = float(torch.min(batch).cpu())
-                if self._recon_max == 'auto': self._recon_max = float(torch.max(batch).cpu())
+            if (self._recon_min is None) or (self._recon_max is None):
+                if self._recon_min is None: self._recon_min = float(torch.min(batch).cpu())
+                if self._recon_max is None: self._recon_max = float(torch.max(batch).cpu())
                 log.info(f'auto visualisation min: {self._recon_min} and max: {self._recon_max} obtained from {len(batch)} samples')
 
             # produce latent cycle grid animation
