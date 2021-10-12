@@ -11,8 +11,11 @@ data:
     in_memory: ${dataset.try_in_memory}
 transform:
   _target_: disent.nn.transform.ToStandardisedTensor
-  mean: [0.042494423521889584]
-  std: [0.19516645880626055]
+  mean: ${dataset.vis_mean}
+  std: ${dataset.vis_std}
 x_shape: [1, 64, 64]
 
 data_type: random
+
+vis_mean: [0.042494423521889584]
+vis_std: [0.19516645880626055]

@@ -7,8 +7,11 @@ data:
   in_memory: ${dataset.try_in_memory}
 transform:
   _target_: disent.nn.transform.ToStandardisedTensor
-  mean: [0.502584966788819, 0.5787597566089667, 0.6034499731859578]
-  std: [0.2940814043555559, 0.3443979087517214, 0.3661685981524748]
+  mean: ${dataset.vis_mean}
+  std: ${dataset.vis_std}
 x_shape: [3, 64, 64]
 
 data_type: gt
+
+vis_mean: [0.502584966788819, 0.5787597566089667, 0.6034499731859578]
+vis_std: [0.2940814043555559, 0.3443979087517214, 0.3661685981524748]

@@ -15,10 +15,13 @@ data:
 transform:
   _target_: disent.nn.transform.ToStandardisedTensor
   size: 64
-  mean: [0.8976676149976628, 0.8891658020067508, 0.885147515814868]
-  std: [0.22503195531503034, 0.2399461278981261, 0.24792106319684404]
+  mean: ${dataset.vis_mean}
+  std: ${dataset.vis_std}
 x_shape: [3, 64, 64]
 
 data_type: random
+
+vis_mean: [0.8976676149976628, 0.8891658020067508, 0.885147515814868]
+vis_std: [0.22503195531503034, 0.2399461278981261, 0.24792106319684404]
 
 # TODO: this does not yet copy the data to /tmp/ and thus if run on a cluster of a network drive, this will hammer the network disk. Fix this!
