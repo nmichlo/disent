@@ -2,13 +2,7 @@
 name: xyobject_grey
 data:
   _target_: disent.dataset.data.XYObjectData
-  grid_size: 64
-  grid_spacing: 2
-  min_square_size: 7
-  max_square_size: 15
-  square_size_spacing: 2
   rgb: FALSE
-  palette: "greys_4"
 transform:
   _target_: disent.nn.transform.ToStandardisedTensor
 x_shape: [1, 64, 64]

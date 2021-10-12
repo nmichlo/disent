@@ -2,14 +2,7 @@
 name: xyobject_shaded
 data:
   _target_: disent.dataset.data.XYObjectShadedData
-  grid_size: 64
-  grid_spacing: 2
-  min_square_size: 7
-  max_square_size: 15
-  square_size_spacing: 2
   rgb: TRUE
-  palette: "rainbow_4"
-  brightness_levels: NULL  # inferred from palette
 transform:
   _target_: disent.nn.transform.ToStandardisedTensor
 x_shape: [3, 64, 64]

@@ -2,11 +2,7 @@
 name: xyblocks_grey
 data:
   _target_: disent.dataset.data.XYBlocksData
-  grid_size: 64
-  grid_levels: [1, 2, 3]
-  rgb: False
-  palette: 'white'
-  invert_bg: False
+  rgb: FALSE
 transform:
   _target_: disent.nn.transform.ToStandardisedTensor
 x_shape: [1, 64, 64]
