@@ -27,6 +27,7 @@ import warnings
 from typing import Literal
 from typing import Optional
 from typing import Sequence
+from typing import Tuple
 from typing import Union
 
 import numpy as np
@@ -300,8 +301,11 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
         wandb_fps: int = 4,
         plt_show: bool = False,
         plt_block_size: float = 1.0,
-        recon_min: Union[int, Literal['auto']] = 0.,
-        recon_max: Union[int, Literal['auto']] = 1.,
+        # recon_min & recon_max
+        recon_min: Optional[Union[int, Literal['auto']]] = None,       # scale data in this range [min, max] to [0, 1]
+        recon_max: Optional[Union[int, Literal['auto']]] = None,       # scale data in this range [min, max] to [0, 1]
+        recon_mean: Optional[Union[Tuple[float, ...], float]] = None,  # automatically converted to min & max [(0-mean)/std, (1-mean)/std], assuming original range of values is [0, 1]
+        recon_std: Optional[Union[Tuple[float, ...], float]] = None,   # automatically converted to min & max [(0-mean)/std, (1-mean)/std], assuming original range of values is [0, 1]
     ):
         super().__init__(every_n_steps, begin_first_step)
         self.seed = seed
@@ -309,12 +313,38 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
         self.plt_show = plt_show
         self.plt_block_size = plt_block_size
         self._wandb_mode = wandb_mode
-        self._recon_min = recon_min
-        self._recon_max = recon_max
         self._num_frames = num_frames
         self._fps = wandb_fps
         # checks
         assert wandb_mode in {'none', 'img', 'vid', 'both'}, f'invalid wandb_mode={repr(wandb_mode)}, must be one of: ("none", "img", "vid", "both")'
+        # check recon_min and recon_max
+        if (recon_min is not None) or (recon_max is not None):
+            if (recon_mean is not None) or (recon_std is not None):
+                raise ValueError('must choose either recon_min & recon_max OR recon_mean & recon_std, cannot specify both')
+            if (recon_min is None) or (recon_max is None):
+                raise ValueError('both recon_min & recon_max must be specified')
+            # set values
+            self._recon_min = np.array(recon_min)
+            self._recon_min = np.array(recon_max)
+        # check recon_mean and recon_std
+        elif (recon_mean is not None) or (recon_std is not None):
+            if (recon_min is not None) or (recon_max is not None):
+                raise ValueError('must choose either recon_min & recon_max OR recon_mean & recon_std, cannot specify both')
+            if (recon_mean is None) or (recon_std is None):
+                raise ValueError('both recon_mean & recon_std must be specified')
+            # set values:
+            #  | ORIG: [0, 1]
+            #  | TRANSFORM: (x - mean) / std         ->  [(0-mean)/std, (1-mean)/std]
+            #  | REVERT:    (x - min) / (max - min)  ->  [0, 1]
+            #  |            min=(0-mean)/std, max=(1-mean)/std
+            recon_mean, recon_std = np.array(recon_mean), np.array(recon_std)
+            self._recon_min = np.divide(0 - recon_mean, recon_std)
+            self._recon_max = np.divide(1 - recon_mean, recon_std)
+        else:
+            self._recon_min = np.array(0.0)
+            self._recon_max = np.array(1.0)
+        # checks
+        assert np.all(self._recon_min < self._recon_max), f'recon_min={self._recon_min} must be less than recon_max={self._recon_max}'
 
     def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         # get dataset and vae framework from trainer and module
@@ -325,16 +355,16 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
         with torch.no_grad():
             # get random sample of z_means and z_logvars for computing the range of values for the latent_cycle
             with TempNumpySeed(self.seed):
-                obs = dataset.dataset_sample_batch(64, mode='input').to(vae.device)
+                batch = dataset.dataset_sample_batch(64, mode='input').to(vae.device)
 
             # get representations
             if isinstance(vae, Vae):
                 # variational auto-encoder
-                ds_posterior, ds_prior = vae.encode_dists(obs)
+                ds_posterior, ds_prior = vae.encode_dists(batch)
                 zs_mean, zs_logvar = ds_posterior.mean, torch.log(ds_posterior.variance)
             elif isinstance(vae, Ae):
                 # auto-encoder
-                zs_mean = vae.encode(obs)
+                zs_mean = vae.encode(batch)
                 zs_logvar = torch.ones_like(zs_mean)
             else:
                 log.warning(f'cannot run {self.__class__.__name__}, unsupported type: {type(vae)}, must be {Ae.__name__} or {Vae.__name__}')
@@ -342,9 +372,9 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
 
             # get min and max if auto
             if (self._recon_min == 'auto') or (self._recon_max == 'auto'):
-                if self._recon_min == 'auto': self._recon_min = float(torch.min(obs).cpu())
-                if self._recon_max == 'auto': self._recon_max = float(torch.max(obs).cpu())
-                log.info(f'auto visualisation min: {self._recon_min} and max: {self._recon_max} obtained from {len(obs)} samples')
+                if self._recon_min == 'auto': self._recon_min = float(torch.min(batch).cpu())
+                if self._recon_max == 'auto': self._recon_max = float(torch.max(batch).cpu())
+                log.info(f'auto visualisation min: {self._recon_min} and max: {self._recon_max} obtained from {len(batch)} samples')
 
             # produce latent cycle grid animation
             # TODO: this needs to be fixed to not use logvar, but rather the representations or distributions themselves

@@ -103,6 +103,8 @@ _LATENT_CYCLE_MODES_MAP = {
 # ========================================================================= #
 
 
+# TODO: this function should not convert output to images, it should just be
+#       left as is. That way we don't need to pass in the recon_min and recon_max
 def latent_cycle(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', num_animations=4, num_frames=20, decoder_device=None, recon_min=0., recon_max=1.):
     assert len(z_means) > 1 and len(z_logvars) > 1, 'not enough samples to average'
     # convert

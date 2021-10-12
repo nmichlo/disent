@@ -145,14 +145,8 @@ class ReconLossHandlerMse(ReconLossHandler):
     """
 
     def activate(self, x_partial: torch.Tensor) -> torch.Tensor:
-        # we allow the model output x to generally be in the range [-1, 1] and scale
-        # it to the range [0, 1] here to match the targets.
-        # - this lets it learn more easily as the output is naturally centered on 1
-        # - doing this here directly on the output is easier for visualisation etc.
-        # - TODO: the better alternative is that we rather calculate the MEAN and STD over the dataset
-        #         and normalise that.
-        # - sigmoid is numerically not suitable with MSE
-        return (x_partial + 1) / 2
+        # mse requires no final activation
+        return x_partial
 
     def compute_unreduced_loss(self, x_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
         return F.mse_loss(x_recon, x_targ, reduction='none')
