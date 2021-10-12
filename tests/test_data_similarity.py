@@ -61,6 +61,18 @@ def test_xyobject_similarity():
             assert np.allclose(data0[i], data1[i])
 
 
+def test_xyobject_grey_similarity():
+    for palette in XYObjectData.COLOR_PALETTES_1.keys():
+        # create
+        data0 = XYObjectData(palette=palette, rgb=False)
+        data1 = XYObjectShadedData(palette=palette, rgb=False)
+        assert len(data0) == len(data1)
+        assert data0.factor_sizes == (*data1.factor_sizes[:-2], np.prod(data1.factor_sizes[-2:]))
+        # check random
+        for i in np.random.randint(len(data0), size=100):
+            assert np.allclose(data0[i], data1[i])
+
+
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #

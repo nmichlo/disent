@@ -44,6 +44,7 @@ class Shapes3dData(Hdf5GroundTruthData):
           info:     https://console.cloud.google.com/storage/browser/_details/3d-shapes/3dshapes.h5
     """
 
+    # TODO: name should be `shapes3d` so that it is a valid python identifier
     name = '3dshapes'
 
     factor_names = ('floor_hue', 'wall_hue', 'object_hue', 'scale', 'shape', 'orientation')

@@ -111,7 +111,11 @@ def normalise_hash(hash: Union[str, Dict[str, str]], hash_mode: str) -> str:
     - Allow hashes to be dictionaries that map the hash_mode to the hash.
       This function returns the correct hash if it is a dictionary.
     """
-    return hash[hash_mode] if isinstance(hash, dict) else hash
+    if isinstance(hash, dict):
+        if hash_mode not in hash:
+            raise KeyError(f'hash dictionary does not contain a key for the specified mode: {repr(hash_mode)}, available hashes are: {hash}')
+        return hash[hash_mode]
+    return hash
 
 
 def validate_file_hash(file: str, hash: Union[str, Dict[str, str]], hash_type: str = 'md5', hash_mode: str = 'full', missing_ok=True):
@@ -137,4 +141,3 @@ def is_valid_file_hash(file: str, hash: Union[str, Dict[str, str]], hash_type: s
 # ========================================================================= #
 # file hashing                                                              #
 # ========================================================================= #
-

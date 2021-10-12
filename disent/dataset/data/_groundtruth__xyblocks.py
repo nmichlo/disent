@@ -63,6 +63,10 @@ class XYBlocksData(GroundTruthData):
             [192],
             [255],
         ],
+        # alias for white, so that we can just set `rgb=False`
+        'rgb': [
+            [255],
+        ]
     }
 
     COLOR_PALETTES_3 = {
@@ -94,7 +98,15 @@ class XYBlocksData(GroundTruthData):
     def observation_shape(self) -> Tuple[int, ...]:
         return self._observation_shape
     
-    def __init__(self, grid_size=64, grid_levels=(1, 2, 3), rgb=True, palette='rgb', invert_bg=False, transform=None):
+    def __init__(
+        self,
+        grid_size: int = 64,
+        grid_levels: Tuple[int, ...] = (1, 2, 3),
+        rgb: bool = True,
+        palette: str = 'rgb',
+        invert_bg: bool = False,
+        transform=None,
+    ):
         # colors
         self._rgb = rgb
         if palette != 'rgb':

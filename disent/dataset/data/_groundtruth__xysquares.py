@@ -58,6 +58,8 @@ class XYSquaresMinimalData(GroundTruthData):
             and 255 (fg).
     """
 
+    name = 'xy_squares_minimal'
+
     @property
     def factor_names(self) -> Tuple[str, ...]:
         return 'x_R', 'y_R', 'x_G', 'y_G', 'x_B', 'y_B'
@@ -98,6 +100,8 @@ class XYSquaresData(GroundTruthData):
     NOTE: Unlike XYSquaresMinimalData, XYSquaresData allows adjusting various aspects
           of the data that is generated, but the generation process is slower (~1.25x).
     """
+
+    name = 'xy_squares'
 
     @property
     def factor_names(self) -> Tuple[str, ...]:
