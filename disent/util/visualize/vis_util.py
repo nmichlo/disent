@@ -225,6 +225,7 @@ def reconstructions_to_images(
     moveaxis: bool = True,
     recon_min: Union[float, List[float]] = 0.0,
     recon_max: Union[float, List[float]] = 1.0,
+    warn_if_clipped: bool = True,
 ):
     """
     Convert a batch of reconstructions to images.
@@ -251,8 +252,11 @@ def reconstructions_to_images(
     # scale image
     img = (img - recon_min) / (recon_max - recon_min)
     # check image bounds
-    if np.min(img) < 0 or np.max(img) > 1:
-        warnings.warn('images are being clipped between 0 and 1')
+    if warn_if_clipped:
+        m, M = np.min(img), np.max(img)
+        if m < 0 or M > 1:
+            log.warning('images with range [{m}, {M}] have been clipped to the range [0, 1]')
+    # do clipping
     img = np.clip(img, 0, 1)
     # convert
     if mode == 'float':
