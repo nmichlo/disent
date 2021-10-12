@@ -163,18 +163,6 @@ class ReconLossHandlerMae(ReconLossHandlerMse):
         return torch.abs(x_recon - x_targ)
 
 
-@deprecated('Mse4 loss is being used during development to avoid a new hyper-parameter search')     # pragma: delete-on-release
-class ReconLossHandlerMse4(ReconLossHandlerMse):                                                    # pragma: delete-on-release
-    def compute_unreduced_loss(self, x_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:  # pragma: delete-on-release
-        return super().compute_unreduced_loss(x_recon, x_targ) * 4                                  # pragma: delete-on-release
-
-
-@deprecated('Mae2 loss is being used during development to avoid a new hyper-parameter search')     # pragma: delete-on-release
-class ReconLossHandlerMae2(ReconLossHandlerMae):                                                    # pragma: delete-on-release
-    def compute_unreduced_loss(self, x_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:  # pragma: delete-on-release
-        return super().compute_unreduced_loss(x_recon, x_targ) * 2                                  # pragma: delete-on-release
-
-
 class ReconLossHandlerBce(ReconLossHandler):
     """
     BCE loss should only be used with binary targets {0, 1}.
@@ -289,7 +277,7 @@ _ARG_RECON_LOSSES: List[Tuple[re.Pattern, str, callable]] = [
     # (REGEX, EXAMPLE, FACTORY_FUNC)
     # - factory function takes at min one arg: fn(reduction) with one arg after that per regex capture group
     # - regex expressions are tested in order, expressions should be mutually exclusive or ordered such that more specialized versions occur first.
-    (re.compile(r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_w(\d+\.\d+)$'), 'mse4_xy8_r47_w1.0', lambda reduction, loss, kern, weight: AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, kernel_weight=float(weight))),  # pragma: delete-on-release
+    (re.compile(r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_w(\d+\.\d+)$'), 'mse_xy8_r47_w1.0', lambda reduction, loss, kern, weight: AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, kernel_weight=float(weight))),  # pragma: delete-on-release
 ]
 
 
@@ -305,7 +293,7 @@ def make_reconstruction_loss(name: str, reduction: str) -> ReconLossHandler:
             if result is not None:
                 return fn(reduction, *result.groups())
     # we couldn't find anything
-    raise KeyError(f'Invalid vae reconstruction loss: {repr(name)} Valid losses include: {sorted(registry.RECON_LOSS)}, examples of additional argument based losses include: {[example for _, example, _ in _ARG_RECON_LOSSES]}')
+    raise KeyError(f'Invalid vae reconstruction loss: {repr(name)} Valid losses include: {sorted(registry.RECON_LOSSES)}, examples of additional argument based losses include: {[example for _, example, _ in _ARG_RECON_LOSSES]}')
 
 
 # ========================================================================= #
