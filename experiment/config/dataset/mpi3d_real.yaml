@@ -8,6 +8,8 @@ data:
   subset: 'real'
 transform:
   _target_: disent.nn.transform.ToStandardisedTensor
+  mean: [0.13111154099374112, 0.16746449372488892, 0.14051725201807627]
+  std: [0.10137409845578041, 0.10087824338375781, 0.10534121043187629]
 x_shape: [3, 64, 64]
 
 data_type: gt

@@ -10,6 +10,8 @@ data:
   max_placements: 8
 transform:
   _target_: disent.nn.transform.ToStandardisedTensor
+  mean: NULL  # this will crash
+  std: NULL  # this will crash
 x_shape: [3, 64, 64]
 
 data_type: gt

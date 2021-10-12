@@ -4,6 +4,8 @@ data:
   _target_: disent.dataset.data.XYSquaresMinimalData
 transform:
   _target_: disent.nn.transform.ToStandardisedTensor
+  mean: [0.015625, 0.015625, 0.015625]
+  std: [0.12403473458920855, 0.12403473458920854, 0.12403473458920854]
 x_shape: [3, 64, 64]
 
 data_type: gt

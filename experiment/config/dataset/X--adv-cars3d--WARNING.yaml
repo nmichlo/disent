@@ -5,6 +5,8 @@ data:
   h5_path: '${env:HOME}/workspace/research/disent/out/adversarial_data_approx/2021-09-06--05-42-06_INVERT-VSTRONG-cars3d_invert_margin_0.05_aw10.0_same_k1_close_s200001_Adam_lr0.0005_wd1e-06/data.h5'
 transform:
   _target_: disent.nn.transform.ToStandardisedTensor
+  mean: NULL  # this will crash
+  std: NULL  # this will crash
 x_shape: [3, 64, 64]
 
 data_type: gt

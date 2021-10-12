@@ -12,6 +12,8 @@ data:
 transform:
   _target_: disent.nn.transform.ToStandardisedTensor
   size: 64
+  mean: [0.7520918401088603]
+  std: [0.09563879016827262]
 x_shape: [1, 64, 64]
 
 data_type: random
