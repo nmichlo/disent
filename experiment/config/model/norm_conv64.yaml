@@ -9,7 +9,7 @@ encoder:
   norm: ${model.norm}
   norm_pre_act: ${model.norm_pre_act}
 decoder:
-  _target_: disent.model.ae.DecoderConv64Alt
+  _target_: disent.model.ae.DecoderConv64Norm
   x_shape: ${dataset.x_shape}
   z_size: ${model.z_size}
   activation: ${model.activation}
