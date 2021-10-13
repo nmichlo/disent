@@ -40,6 +40,7 @@ framework:
 
 model:
   z_size: 25
+  weight_init: 'default'
 
 dataset:
   batch_size: 256

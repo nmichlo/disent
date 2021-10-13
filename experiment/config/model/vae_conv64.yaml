@@ -1,6 +1,5 @@
 # @package _group_
 name: vae_conv64
-weight_init: 'xavier_normal'
 encoder:
   _target_: disent.model.ae.EncoderConv64
   x_shape: ${dataset.x_shape}
