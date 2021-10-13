@@ -138,9 +138,6 @@ RECON_LOSSES['bce']         = _LazyImport('disent.frameworks.helper.reconstructi
 RECON_LOSSES['bernoulli']   = _LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerBernoulli')            # reduces to bce - binary values in the set {0, 1}
 RECON_LOSSES['c_bernoulli'] = _LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerContinuousBernoulli')  # bernoulli with a computed offset to handle values in the range [0, 1]
 RECON_LOSSES['normal']      = _LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerNormal')               # handle all real values
-# [EXPERIMENTAL LOSSES]                                                                                                                                                                                 # pragma: delete-on-release
-RECON_LOSSES['mse4']        = _LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerMse4')                 # scaled as if computed over outputs of the range [-1, 1] instead of [0, 1]  # pragma: delete-on-release
-RECON_LOSSES['mae2']        = _LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerMae2')                 # scaled as if computed over outputs of the range [-1, 1] instead of [0, 1]  # pragma: delete-on-release
 
 
 # ========================================================================= #

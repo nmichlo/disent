@@ -1,6 +1,5 @@
 # @package _group_
 name: linear
-weight_init: 'xavier_normal'
 encoder:
   _target_: disent.model.ae.EncoderLinear
   x_shape: ${dataset.x_shape}

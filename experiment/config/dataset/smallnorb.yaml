@@ -8,6 +8,11 @@ data:
 transform:
   _target_: disent.nn.transform.ToStandardisedTensor
   size: 64
+  mean: ${dataset.vis_mean}
+  std: ${dataset.vis_std}
 x_shape: [1, 64, 64]
 
 data_type: gt
+
+vis_mean: [0.7520918401088603]
+vis_std: [0.09563879016827262]

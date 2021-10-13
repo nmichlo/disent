@@ -149,14 +149,19 @@ def hydra_append_progress_callback(callbacks, cfg):
 def hydra_append_latent_cycle_logger_callback(callbacks, cfg):
     if 'latent_cycle' in cfg.callbacks:
         if cfg.logging.wandb.enabled:
+            # checks
+            if all((k not in cfg.dataset) for k in ['vis_min', 'vis_max', 'vis_mean', 'vis_std']):
+                log.warning('dataset does not have visualisation ranges specified, set `vis_min` & `vis_max` OR `vis_mean` & `vis_std`')
             # this currently only supports WANDB logger
             callbacks.append(VaeLatentCycleLoggingCallback(
                 seed=cfg.callbacks.latent_cycle.seed,
                 every_n_steps=cfg.callbacks.latent_cycle.every_n_steps,
                 begin_first_step=False,
                 mode=cfg.callbacks.latent_cycle.mode,
-                recon_min=cfg.dataset.setdefault('vis_min', 0.),
-                recon_max=cfg.dataset.setdefault('vis_max', 1.),
+                recon_min=cfg.dataset.setdefault('vis_min', None),
+                recon_max=cfg.dataset.setdefault('vis_max', None),
+                recon_mean=cfg.dataset.setdefault('vis_mean', None),
+                recon_std=cfg.dataset.setdefault('vis_std', None),
             ))
         else:
             log.warning('latent_cycle callback is not being used because wandb is not enabled!')

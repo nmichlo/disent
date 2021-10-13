@@ -23,6 +23,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
+from typing import Optional
 
 from torch import nn
 from disent.util.strings import colors as c
@@ -36,7 +37,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def init_model_weights(model: nn.Module, mode='xavier_normal', log_level=logging.INFO):
+def init_model_weights(model: nn.Module, mode: Optional[str] = 'xavier_normal', log_level=logging.INFO) -> nn.Module:
     count = 0
 
     # get default mode
@@ -56,7 +57,7 @@ def init_model_weights(model: nn.Module, mode='xavier_normal', log_level=logging
         elif mode == 'default':
             pass
         else:
-            raise KeyError(f'Unknown init mode: {repr(mode)}')
+            raise KeyError(f'Unknown init mode: {repr(mode)}, valid modes are: {["xavier_normal", "default"]}')
 
         # print messages
         if init:

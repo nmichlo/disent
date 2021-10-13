@@ -112,7 +112,8 @@ class Ae(DisentFramework):
     def _get_xs_and_targs(self, batch: Dict[str, Tuple[torch.Tensor, ...]], batch_idx) -> Tuple[Tuple[torch.Tensor, ...], Tuple[torch.Tensor, ...]]:
         xs_targ = batch['x_targ']
         if 'x' not in batch:
-            warnings.warn('dataset does not have input: x -> x_targ using target as input: x_targ -> x_targ')
+            # TODO: re-enable this warning but only ever print once!
+            # warnings.warn('dataset does not have input: x -> x_targ using target as input: x_targ -> x_targ')
             xs = xs_targ
         else:
             xs = batch['x']

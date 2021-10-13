@@ -5,6 +5,11 @@ data:
   rgb: TRUE
 transform:
   _target_: disent.nn.transform.ToStandardisedTensor
+  mean: ${dataset.vis_mean}
+  std: ${dataset.vis_std}
 x_shape: [3, 64, 64]
 
 data_type: gt
+
+vis_mean: [0.10040509259259259, 0.10040509259259259, 0.10040509259259259]
+vis_std: [0.21689087652106678, 0.21689087652106676, 0.21689087652106678]
