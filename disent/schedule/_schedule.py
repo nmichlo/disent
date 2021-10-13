@@ -146,7 +146,8 @@ class CyclicSchedule(Schedule):
                            then no modification to the step is performed. Equivalent to
                            `start_step=0` if no negative step values are passed.
         :param repeats: The number of repeats of this schedule. The end_step of the schedule will
-                        be `start_step + repeats*period`. If `repeats is None` then the schedule never ends.
+                        be `start_step + repeats*period`. If `repeats is None` or `repeats < 0` then the
+                        schedule never ends.
         :param r_start: The ratio of the original value that the schedule will start with
         :param r_end: The ratio of the original value that the schedule will end with
         :param end_mode: what of value the schedule should take after finishing [start, end]
@@ -154,6 +155,10 @@ class CyclicSchedule(Schedule):
         :param p_low: The portion of the period at the start that is spent at the minimum value
         :param p_high: The portion of the period that at the end is spent at the maximum value
         """
+        # checks
+        if repeats < 0:
+            repeats = None
+        # set values
         self.period = period
         self.repeats = repeats
         self.start_step = start_step
@@ -232,6 +237,9 @@ class CosineWaveSchedule(Schedule):
     computed value that is in the range [0, 1]
     """
 
+    # TODO: add r_start
+    # TODO: add start_step
+    # TODO: add repeats
     def __init__(
         self,
         period: int,
@@ -329,9 +337,13 @@ if __name__ == '__main__':
         plt.show()
 
     def main():
+
+        # these should be equivalent
         plot_schedules(
             LinearSchedule(start_step=100, end_step=900, r_start=0.1, r_end=0.8),
             LinearSchedule(start_step=200, end_step=800, r_start=0.9, r_end=0.2),
+            SingleSchedule(start_step=100, end_step=900, r_start=0.1, r_end=0.8),
+            SingleSchedule(start_step=200, end_step=800, r_start=0.9, r_end=0.2),
             # LinearSchedule(min_step=900, max_step=100, r_start=0.1, r_end=0.8), # INVALID
             # LinearSchedule(min_step=900, max_step=100, r_start=0.8, r_end=0.1), # INVALID
         )
@@ -341,7 +353,7 @@ if __name__ == '__main__':
             CyclicSchedule(period=300, start_step=0,   repeats=2,    r_start=0.9, r_end=0.2, end_mode='start', mode='linear',  p_low=0.25, p_high=0.00),
             CyclicSchedule(period=300, start_step=200, repeats=2,    r_start=0.9, r_end=0.2, end_mode='end', mode='linear',    p_low=0.00, p_high=0.25),
             CyclicSchedule(period=300, start_step=0,   repeats=2,    r_start=0.1, r_end=0.8, end_mode='end',   mode='cosine',  p_low=0.25, p_high=0.25),
-            CyclicSchedule(period=300, start_step=0,   repeats=2,    r_start=0.1, r_end=0.8, end_mode='end',   mode='sigmoid', p_low=0.00, p_high=0.00),
+            CyclicSchedule(period=300, start_step=250, repeats=None, r_start=0.1, r_end=0.8, end_mode='end',   mode='sigmoid', p_low=0.00, p_high=0.00),
         )
 
         plot_schedules(
