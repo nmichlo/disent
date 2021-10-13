@@ -2,13 +2,14 @@
 name: xyblocks_grey
 data:
   _target_: disent.dataset.data.XYBlocksData
-  grid_size: 64
-  grid_levels: [1, 2, 3]
-  rgb: False
-  palette: 'white'
-  invert_bg: False
+  rgb: FALSE
 transform:
   _target_: disent.nn.transform.ToStandardisedTensor
+  mean: ${dataset.vis_mean}
+  std: ${dataset.vis_std}
 x_shape: [1, 64, 64]
 
 data_type: gt
+
+vis_mean: "${exit:EXITING... please compute the vis_mean and vis_std}"
+vis_std: "${exit:EXITING... please compute the vis_mean and vis_std}"

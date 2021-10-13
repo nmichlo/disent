@@ -34,7 +34,7 @@ from disent.model.ae import *
     [EncoderConv64,     DecoderConv64],
     [EncoderConv64Norm, DecoderConv64Norm],
     [EncoderFC,         DecoderFC],
-    [EncoderTest,       DecoderTest],
+    [EncoderLinear, DecoderLinear],
 ])
 def test_ae_models(encoder_cls: DisentEncoder, decoder_cls: DisentDecoder):
     x_shape, z_size = (3, 64, 64), 8

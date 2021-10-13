@@ -1,7 +1,0 @@
-# @package _global_
-dataset_sampler:
-  cfg:
-    name: gt_dist__manhat
-    specialize_postfix: "_dist"
-    triplet_sample_mode: "manhattan" # random, factors, manhattan, manhattan_scaled, combined, combined_scaled
-    triplet_swap_chance: 0

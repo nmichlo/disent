@@ -1,6 +1,5 @@
 # @package _group_
 name: norm_conv64
-weight_init: 'xavier_normal'
 encoder:
   _target_: disent.model.ae.EncoderConv64Norm
   x_shape: ${dataset.x_shape}
@@ -10,7 +9,7 @@ encoder:
   norm: ${model.norm}
   norm_pre_act: ${model.norm_pre_act}
 decoder:
-  _target_: disent.model.ae.DecoderConv64Alt
+  _target_: disent.model.ae.DecoderConv64Norm
   x_shape: ${dataset.x_shape}
   z_size: ${model.z_size}
   activation: ${model.activation}

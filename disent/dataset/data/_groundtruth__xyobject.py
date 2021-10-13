@@ -65,11 +65,16 @@ class XYObjectData(GroundTruthData):
          We purposely leave this out to hinder disentanglement! It is subjective!
     """
 
+    name = 'xy_object'
+
     COLOR_PALETTES_1 = {
         'greys_1':   _shades(1, [[255]]),
         'greys_2':   _shades(2, [[255]]),
         'greys_4':   _shades(4, [[255]]),
-        'rainbow_4': _shades(4, [[255]]),  # alias for `greys_4`
+        # aliases for greys so that we can just set `rgb=False` and it still works
+        'rainbow_1': _shades(1, [[255]]),
+        'rainbow_2': _shades(2, [[255]]),
+        'rainbow_4': _shades(4, [[255]]),
     }
 
     COLOR_PALETTES_3 = {
@@ -158,6 +163,8 @@ class XYObjectData(GroundTruthData):
 
 
 class XYOldObjectData(XYObjectData):
+
+    name = 'xy_object_shaded'
 
     def __init__(self, grid_size=64, grid_spacing=1, min_square_size=3, max_square_size=9, square_size_spacing=2, rgb=True, palette='colors', transform=None):
         super().__init__(

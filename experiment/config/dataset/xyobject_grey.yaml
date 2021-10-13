@@ -2,15 +2,14 @@
 name: xyobject_grey
 data:
   _target_: disent.dataset.data.XYObjectData
-  grid_size: 64
-  grid_spacing: 2
-  min_square_size: 7
-  max_square_size: 15
-  square_size_spacing: 2
   rgb: FALSE
-  palette: "greys_4"
 transform:
   _target_: disent.nn.transform.ToStandardisedTensor
+  mean: ${dataset.vis_mean}
+  std: ${dataset.vis_std}
 x_shape: [1, 64, 64]
 
 data_type: gt
+
+vis_mean: "${exit:EXITING... please compute the vis_mean and vis_std}"
+vis_std: "${exit:EXITING... please compute the vis_mean and vis_std}"

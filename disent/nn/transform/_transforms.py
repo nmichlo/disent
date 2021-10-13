@@ -22,6 +22,9 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+from typing import Optional
+from typing import Sequence
+
 import torch
 import disent.nn.transform.functional as F_d
 
@@ -50,7 +53,12 @@ class CheckTensor(object):
     See: disent.transform.functional.check_tensor
     """
 
-    def __init__(self, low=0., high=1., dtype=torch.float32):
+    def __init__(
+        self,
+        low: float = 0.,
+        high: float = 1.,
+        dtype: torch.dtype = torch.float32,
+    ):
         self._low = low
         self._high = high
         self._dtype = dtype
@@ -64,19 +72,32 @@ class CheckTensor(object):
 
 class ToStandardisedTensor(object):
     """
-    Standardise image data after loading, by converting to a tensor
-    in range [0, 1], and resizing to a square if specified.
+    Standardise image data after loading:
+    1. resize if size is specified
+    2. convert to tensor in range [0, 1]
+    3. normalize using mean and std, values might thus be outside of the range [0, 1]
+
     See: disent.transform.functional.to_standardised_tensor
     """
 
-    def __init__(self, size: F_d.SizeType = None, cast_f32: bool = False, check: bool = True, check_range: bool = True):
+    def __init__(
+        self,
+        size: Optional[F_d.SizeType] = None,
+        cast_f32: bool = False,
+        check: bool = True,
+        check_range: bool = True,
+        mean: Optional[Sequence[float]] = None,
+        std: Optional[Sequence[float]] = None,
+    ):
         self._size = size
         self._cast_f32 = cast_f32  # cast after resizing before checks -- disabled by default to so dtype errors can be seen
         self._check = check
         self._check_range = check_range  # if check is `False` then `check_range` can never be `True`
+        self._mean = tuple(mean) if (mean is not None) else None
+        self._std = tuple(std) if (mean is not None) else None
 
     def __call__(self, obs) -> torch.Tensor:
-        return F_d.to_standardised_tensor(obs, size=self._size, cast_f32=self._cast_f32, check=self._check, check_range=self._check_range)
+        return F_d.to_standardised_tensor(obs, size=self._size, cast_f32=self._cast_f32, check=self._check, check_range=self._check_range, mean=self._mean, std=self._std)
 
     def __repr__(self):
         return f'{self.__class__.__name__}(size={repr(self._size)})'
@@ -84,7 +105,11 @@ class ToStandardisedTensor(object):
 
 class ToUint8Tensor(object):
 
-    def __init__(self, size: F_d.SizeType = None, channel_to_front: bool = True):
+    def __init__(
+        self,
+        size: Optional[F_d.SizeType] = None,
+        channel_to_front: bool = True,
+    ):
         self._size = size
         self._channel_to_front = channel_to_front
 

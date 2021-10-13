@@ -50,10 +50,10 @@ class DisentLatentsModule(DisentModule):
 
     def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
         super().__init__()
-        self._x_shape = x_shape
+        self._x_shape = tuple(x_shape)
         self._x_size = int(np.prod(x_shape))
-        self._z_size = z_size
-        self._z_multiplier = z_multiplier
+        self._z_size = int(z_size)
+        self._z_multiplier = int(z_multiplier)
 
     def forward(self, *args, **kwargs):
         raise NotImplementedError

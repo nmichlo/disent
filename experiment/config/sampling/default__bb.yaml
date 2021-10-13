@@ -1,0 +1,21 @@
+# @package _global_
+sampling:
+  name: default__bb
+  specialize_postfix: ""
+  # varying factors (if applicable for pairs) -- sample in range: [min, max]
+  k: [0, -1]
+  k_radius: [0, -1]
+  # varying factors (if applicable for triplets) -- sample in range: [min, max]
+  n_k: [0, -1]
+  n_k_mode: 'bounded_below'
+  n_k_radius: [0, -1]
+  n_k_radius_mode: 'bounded_below'
+  # swap incorrect samples
+  swap_metric: NULL
+  # swap positive and negative if possible
+  swap_chance: NULL
+
+# CUSTOM SPECIALIZATION (hydra does not support variable interpolation in defaults lists)
+# -- choose the default from the framework and dataset
+specializations:
+   _dataset_sampler_: ${dataset.data_type}__${framework.data_sample_mode}

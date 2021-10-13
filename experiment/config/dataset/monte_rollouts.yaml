@@ -7,7 +7,12 @@ data:
   force_download: FALSE
 transform:
   _target_: disent.nn.transform.ToStandardisedTensor
-  size: [64, 64]
+  size: [64, 64]  # slightly squashed?
+  mean: ${dataset.vis_mean}
+  std: ${dataset.vis_std}
 x_shape: [3, 64, 64]  # [3, 210, 160]
 
 data_type: episodes
+
+vis_mean: "${exit:EXITING... please compute the vis_mean and vis_std}"
+vis_std: "${exit:EXITING... please compute the vis_mean and vis_std}"

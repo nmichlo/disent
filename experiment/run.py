@@ -149,14 +149,19 @@ def hydra_append_progress_callback(callbacks, cfg):
 def hydra_append_latent_cycle_logger_callback(callbacks, cfg):
     if 'latent_cycle' in cfg.callbacks:
         if cfg.logging.wandb.enabled:
+            # checks
+            if all((k not in cfg.dataset) for k in ['vis_min', 'vis_max', 'vis_mean', 'vis_std']):
+                log.warning('dataset does not have visualisation ranges specified, set `vis_min` & `vis_max` OR `vis_mean` & `vis_std`')
             # this currently only supports WANDB logger
             callbacks.append(VaeLatentCycleLoggingCallback(
                 seed=cfg.callbacks.latent_cycle.seed,
                 every_n_steps=cfg.callbacks.latent_cycle.every_n_steps,
                 begin_first_step=False,
                 mode=cfg.callbacks.latent_cycle.mode,
-                recon_min=cfg.dataset.setdefault('vis_min', 0.),
-                recon_max=cfg.dataset.setdefault('vis_max', 1.),
+                recon_min=cfg.dataset.setdefault('vis_min', None),
+                recon_max=cfg.dataset.setdefault('vis_max', None),
+                recon_mean=cfg.dataset.setdefault('vis_mean', None),
+                recon_std=cfg.dataset.setdefault('vis_std', None),
             ))
         else:
             log.warning('latent_cycle callback is not being used because wandb is not enabled!')
@@ -212,9 +217,10 @@ def hydra_append_gt_dists_callback(callbacks, cfg):
             every_n_steps=cfg.callbacks.gt_dists.every_n_steps,
             traversal_repeats=cfg.callbacks.gt_dists.traversal_repeats,
             begin_first_step=False,
-            plt_block_size=1.0,
+            plt_block_size=1.25,
             plt_show=False,
             log_wandb=True,
+            batch_size=cfg.dataset.batch_size,
         ))
 
 
@@ -308,7 +314,7 @@ def run(cfg: DictConfig, config_path: str = None):
     log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
 
     # hydra config does not support variables in defaults lists, we handle this manually
-    cfg = merge_specializations(cfg, config_path=CONFIG_PATH if (config_path is None) else config_path)
+    cfg = merge_specializations(cfg, config_path=CONFIG_PATH if (config_path is None) else config_path, required=['_dataset_sampler_'])
 
     # check CUDA setting
     cfg.trainer.setdefault('cuda', 'try_cuda')
@@ -381,6 +387,17 @@ CONFIG_NAME = 'config'
 
 
 if __name__ == '__main__':
+
+    # register a custom OmegaConf resolver that allows us to put in a ${exit:msg} that exits the program
+    # - if we don't register this, the program will still fail because we have an unknown
+    #   resolver. This just prettifies the output.
+    class ConfigurationError(Exception):
+        pass
+
+    def _error_resolver(msg: str):
+        raise ConfigurationError(msg)
+
+    OmegaConf.register_resolver('exit', _error_resolver)
 
     @hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME)
     def hydra_main(cfg: DictConfig):

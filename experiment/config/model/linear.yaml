@@ -1,0 +1,11 @@
+# @package _group_
+name: linear
+encoder:
+  _target_: disent.model.ae.EncoderLinear
+  x_shape: ${dataset.x_shape}
+  z_size: ${model.z_size}
+  z_multiplier: ${framework.model_z_multiplier}
+decoder:
+  _target_: disent.model.ae.DecoderLinear
+  x_shape: ${dataset.x_shape}
+  z_size: ${model.z_size}

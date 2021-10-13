@@ -118,6 +118,9 @@ def plt_subplots(
     titles=None,
     row_labels=None,
     col_labels=None,
+    title_size: int = None,
+    titles_size: int = None,
+    label_size: int = None,
     hide_labels='edges',  # none, edges, all
     hide_axis='edges',    # none, edges, all
     # plt.subplots:
@@ -152,14 +155,14 @@ def plt_subplots(
             plt_hide_axis(ax, hide_xaxis=_hide(hide_axis, y != nrows-1), hide_yaxis=_hide(hide_axis, x != 0))
             # modify ax
             if not _hide(hide_labels, y != nrows-1):
-                ax.set_xlabel(col_labels[x])
+                ax.set_xlabel(col_labels[x], fontsize=label_size)
             if not _hide(hide_labels, x != 0):
-                ax.set_ylabel(row_labels[y])
+                ax.set_ylabel(row_labels[y], fontsize=label_size)
             # set title
             if titles is not None:
-                ax.set_title(titles[y][x])
+                ax.set_title(titles[y][x], fontsize=titles_size)
     # set title
-    fig.suptitle(title)
+    fig.suptitle(title, fontsize=title_size)
     # done!
     return fig, axs
 
@@ -171,10 +174,13 @@ def plt_subplots_imshow(
     titles=None,
     row_labels=None,
     col_labels=None,
+    title_size: int = None,
+    titles_size: int = None,
+    label_size: int = None,
     hide_labels='edges',  # none, edges, all
     hide_axis='all',    # none, edges, all
     # tight_layout:
-    subplot_padding=1.08,
+    subplot_padding: Optional[float] = 1.08,
     # plt.subplots:
     sharex: str = False,
     sharey: str = False,
@@ -196,6 +202,9 @@ def plt_subplots_imshow(
         titles=titles,
         row_labels=row_labels,
         col_labels=col_labels,
+        title_size=title_size,
+        titles_size=titles_size,
+        label_size=label_size,
         hide_labels=hide_labels,  # none, edges, all
         hide_axis=hide_axis,      # none, edges, all
         # plt.subplots:
@@ -208,7 +217,7 @@ def plt_subplots_imshow(
     # show images
     for y, x in np.ndindex(axs.shape):
         axs[y, x].imshow(grid[y][x], vmin=vmin, vmax=vmax, **(imshow_kwargs if imshow_kwargs else {}))
-    fig.tight_layout(pad=subplot_padding)
+    fig.tight_layout(**({} if (subplot_padding is None) else dict(pad=subplot_padding)))
     # done!
     if show:
         plt.show()
@@ -354,14 +363,13 @@ def plt_2d_density(
     if ymin is None: ymin = y.min()
     if ymax is None: ymax = y.max()
     # Evaluate a gaussian kde on a regular grid of nbins x nbins over data extents
+    xi, yi = np.mgrid[xmin:xmax:n_bins*1j, ymin:ymax:n_bins*1j]
     try:
         k = kde.gaussian_kde([x, y])
+        zi = k(np.stack([xi.flatten(), yi.flatten()], axis=0))
     except np.linalg.LinAlgError:
-        log.warn('Could not create 2d_density plot')
+        log.warning('Could not create 2d_density plot')
         return
-    # continue
-    xi, yi = np.mgrid[xmin:xmax:n_bins*1j, ymin:ymax:n_bins*1j]
-    zi = k(np.stack([xi.flatten(), yi.flatten()], axis=0))
     # update args
     if ax is None: ax = plt
     if pcolormesh_kwargs is None: pcolormesh_kwargs = {}

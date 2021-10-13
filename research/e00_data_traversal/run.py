@@ -33,11 +33,14 @@ from disent.dataset import DisentDataset
 from disent.dataset.data import Cars3dData
 from disent.dataset.data import DSpritesData
 from disent.dataset.data import GroundTruthData
+from disent.dataset.data import SelfContainedHdf5GroundTruthData
 from disent.dataset.data import Shapes3dData
 from disent.dataset.data import SmallNorbData
 from disent.dataset.data import XYBlocksData
 from disent.dataset.data import XYObjectData
+from disent.dataset.data import XYObjectShadedData
 from disent.dataset.data import XYSquaresData
+from disent.nn.transform import ToStandardisedTensor
 from disent.util.seeds import TempNumpySeed
 
 
@@ -95,7 +98,7 @@ def plot_dataset_traversals(
     # make figure
     factors, frames, _, _, c = grid.shape
     assert c == 3
-    fig, axs = H.plt_subplots_imshow(grid, row_labels=row_labels, subplot_padding=0.5, figsize=(offset + (1/2.54)*frames*plt_scale, (1/2.54)*factors*plt_scale))
+    fig, axs = H.plt_subplots_imshow(grid, label_size=18, title_size=24, title=gt_data.name, row_labels=row_labels, subplot_padding=None, figsize=(offset + (1/2.54)*frames*plt_scale, (1/2.54)*(factors+0.45)*plt_scale))
     # save figure
     if save and (rel_path is not None):
         plt.savefig(H.make_rel_path_add_ext(rel_path, ext='.png'))
@@ -125,12 +128,34 @@ if __name__ == '__main__':
         data = XYSquaresData(grid_spacing=i, grid_size=8, no_warnings=True)
         plot_dataset_traversals(data, rel_path=f'plots/xy-squares-traversal-spacing{i}', seed=seed-40, add_random_traversal=add_random_traversal, num_cols=num_cols)
 
-    plot_dataset_traversals(XYObjectData(),  rel_path=f'plots/xy-object-traversal', seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
-    plot_dataset_traversals(XYBlocksData(),  rel_path=f'plots/xy-blocks-traversal', seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
-    plot_dataset_traversals(Shapes3dData(),  rel_path=f'plots/shapes3d-traversal',  seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
-    plot_dataset_traversals(DSpritesData(),  rel_path=f'plots/dsprites-traversal',  seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
-    plot_dataset_traversals(SmallNorbData(), rel_path=f'plots/smallnorb-traversal', seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
-    plot_dataset_traversals(Cars3dData(),    rel_path=f'plots/cars3d-traversal',    seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
+    plot_dataset_traversals(XYObjectData(),       rel_path=f'plots/xy-object-traversal',        seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
+    plot_dataset_traversals(XYObjectShadedData(), rel_path=f'plots/xy-object-shaded-traversal', seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
+    plot_dataset_traversals(XYBlocksData(),       rel_path=f'plots/xy-blocks-traversal',        seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
+    plot_dataset_traversals(Shapes3dData(),       rel_path=f'plots/shapes3d-traversal',         seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
+    plot_dataset_traversals(DSpritesData(),       rel_path=f'plots/dsprites-traversal',         seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
+    plot_dataset_traversals(SmallNorbData(),      rel_path=f'plots/smallnorb-traversal',        seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
+    plot_dataset_traversals(Cars3dData(),         rel_path=f'plots/cars3d-traversal',           seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
+
+    BASE = os.path.abspath(os.path.join(__file__, '../../../out/adversarial_data_approx'))
+
+    for folder in [
+        # 'const' datasets
+        ('2021-08-18--00-58-22_FINAL-dsprites_self_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06'),
+        ('2021-08-18--01-33-47_FINAL-shapes3d_self_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06'),
+        ('2021-08-18--02-20-13_FINAL-cars3d_self_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06'),
+        ('2021-08-18--03-10-53_FINAL-smallnorb_self_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06'),
+        # 'invert' datasets
+        ('2021-08-18--03-52-31_FINAL-dsprites_invert_margin_0.005_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06'),
+        ('2021-08-18--04-29-25_FINAL-shapes3d_invert_margin_0.005_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06'),
+        ('2021-08-18--05-13-15_FINAL-cars3d_invert_margin_0.005_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06'),
+        ('2021-08-18--06-03-32_FINAL-smallnorb_invert_margin_0.005_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06'),
+        # stronger 'invert' datasets
+        ('2021-09-06--00-29-23_INVERT-VSTRONG-shapes3d_invert_margin_0.05_aw10.0_same_k1_close_s200001_Adam_lr0.0005_wd1e-06'),
+        ('2021-09-06--03-17-28_INVERT-VSTRONG-dsprites_invert_margin_0.05_aw10.0_same_k1_close_s200001_Adam_lr0.0005_wd1e-06'),
+        ('2021-09-06--05-42-06_INVERT-VSTRONG-cars3d_invert_margin_0.05_aw10.0_same_k1_close_s200001_Adam_lr0.0005_wd1e-06'),
+        ('2021-09-06--09-10-59_INVERT-VSTRONG-smallnorb_invert_margin_0.05_aw10.0_same_k1_close_s200001_Adam_lr0.0005_wd1e-06'),
+    ]:
+        plot_dataset_traversals(SelfContainedHdf5GroundTruthData(f'{BASE}/{folder}/data.h5'), rel_path=f'plots/{folder}__traversal.png', seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
 
 
 # ========================================================================= #

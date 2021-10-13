@@ -24,6 +24,8 @@
 
 import logging
 import warnings
+from typing import List
+from typing import Union
 
 import numpy as np
 import scipy.stats
@@ -217,7 +219,14 @@ def cycle_interval(starting_value, num_frames, min_val, max_val):
 
 # TODO: this functionality is duplicated elsewhere!
 # TODO: similar functions exist: output_image, to_img, to_imgs, reconstructions_to_images
-def reconstructions_to_images(recon, mode='float', moveaxis=True, recon_min=0., recon_max=1.):
+def reconstructions_to_images(
+    recon,
+    mode: str = 'float',
+    moveaxis: bool = True,
+    recon_min: Union[float, List[float]] = 0.0,
+    recon_max: Union[float, List[float]] = 1.0,
+    warn_if_clipped: bool = True,
+) -> Union[np.ndarray, Image.Image]:
     """
     Convert a batch of reconstructions to images.
     A batch in this case consists of an arbitrary number of dimensions of an array,
@@ -232,16 +241,23 @@ def reconstructions_to_images(recon, mode='float', moveaxis=True, recon_min=0., 
     # checks
     assert img.ndim >= 3
     assert img.dtype in (np.float32, np.float64)
+    # move channels axis
+    if moveaxis:
+        img = np.moveaxis(img, -3, -1)
+    # check min and max
+    recon_min = np.array(recon_min)
+    recon_max = np.array(recon_max)
+    assert recon_min.shape == recon_max.shape
+    assert recon_min.ndim in (0, 1)  # supports channels or glbal min . max
     # scale image
     img = (img - recon_min) / (recon_max - recon_min)
     # check image bounds
-    if np.min(img) < 0 or np.max(img) > 1:
-        warnings.warn('images are being clipped between 0 and 1')
+    if warn_if_clipped:
+        m, M = np.min(img), np.max(img)
+        if m < 0 or M > 1:
+            log.warning(f'images with range [{m}, {M}] have been clipped to the range [0, 1]')
+    # do clipping
     img = np.clip(img, 0, 1)
-    # move channels axis
-    if moveaxis:
-        # TODO: automatically detect
-        img = np.moveaxis(img, -3, -1)
     # convert
     if mode == 'float':
         return img

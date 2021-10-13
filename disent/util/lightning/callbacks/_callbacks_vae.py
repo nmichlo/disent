@@ -27,6 +27,7 @@ import warnings
 from typing import Literal
 from typing import Optional
 from typing import Sequence
+from typing import Tuple
 from typing import Union
 
 import numpy as np
@@ -45,6 +46,7 @@ from disent.frameworks.ae import Ae
 from disent.frameworks.helper.reconstructions import make_reconstruction_loss
 from disent.frameworks.helper.reconstructions import ReconLossHandler
 from disent.frameworks.vae import Vae
+from disent.util.iters import chunked
 from disent.util.lightning.callbacks._callbacks_base import BaseCallbackPeriodic
 from disent.util.lightning.logger_util import log_metrics
 from disent.util.lightning.logger_util import wb_log_metrics
@@ -119,57 +121,55 @@ def _to_dmat(
     return dmat
 
 
+# _AE_DIST_NAMES = ('x', 'z_l1', 'z_l2', 'x_recon', 'z_d1', 'z_d2')
+# _VAE_DIST_NAMES = ('x', 'z_l1', 'z_l2', 'kl', 'x_recon', 'z_d1', 'z_d2', 'kl_center_d1', 'kl_center_d2')
+
+_AE_DIST_NAMES = ('x', 'z_l1', 'x_recon')
+_VAE_DIST_NAMES = ('x', 'z_l1', 'kl', 'x_recon')
+
+
+@torch.no_grad()
 def _get_dists_ae(ae: Ae, x_a: torch.Tensor, x_b: torch.Tensor, recon_loss: ReconLossHandler):
     # feed forware
     z_a, z_b = ae.encode(x_a), ae.encode(x_b)
     r_a, r_b = ae.decode(z_a), ae.decode(z_b)
     # distances
     return _AE_DIST_NAMES, [
-        # x:
         recon_loss.compute_pairwise_loss(x_a, x_b),
-        # z:
         torch.norm(z_a - z_b, p=1, dim=-1),  # l1 dist
-        torch.norm(z_a - z_b, p=2, dim=-1),  # l2 dist
-        recon_loss._pairwise_reduce(torch.abs(z_a - z_b)),     # l1 dist
-        recon_loss._pairwise_reduce(torch.square(z_a - z_b)),  # l2 dist
-        # x_recon:
         recon_loss.compute_pairwise_loss(r_a, r_b),
     ]
 
 
-_AE_DIST_NAMES = ('x', 'z_l1', 'z_l2', 'z_d1', 'z_d2', 'x_recon')
-_VAE_DIST_NAMES = ('x', 'z_l1', 'z_l2', 'z_d1', 'z_d2', 'kl', 'kl_center_l1', 'kl_center_l2', 'kl_center_d1', 'kl_center_d2', 'x_recon')
-
-
+@torch.no_grad()
 def _get_dists_vae(vae: Vae, x_a: torch.Tensor, x_b: torch.Tensor, recon_loss: ReconLossHandler):
     from torch.distributions import kl_divergence
     # feed forward
-    (z_post_a, z_prior_a) = vae.encode_dists(x_a)
-    (z_post_b, z_prior_b) = vae.encode_dists(x_b)
+    (z_post_a, z_prior_a), (z_post_b, z_prior_b) = vae.encode_dists(x_a), vae.encode_dists(x_b)
     z_a, z_b = z_post_a.mean, z_post_b.mean
     r_a, r_b = vae.decode(z_a), vae.decode(z_b)
     # dists
-    kl_a = kl_divergence(z_post_a, z_prior_a)
-    kl_b = kl_divergence(z_post_b, z_prior_b)
-    kl_ab = 0.5 * (kl_divergence(z_post_a, z_post_b) + kl_divergence(z_post_b, z_post_a))
+    kl_ab = 0.5 * kl_divergence(z_post_a, z_post_b) + 0.5 * kl_divergence(z_post_b, z_post_a)
     # distances
     return _VAE_DIST_NAMES, [
-        # x:
         recon_loss.compute_pairwise_loss(x_a, x_b),
-        # z:
         torch.norm(z_a - z_b, p=1, dim=-1),  # l1 dist
-        torch.norm(z_a - z_b, p=2, dim=-1),  # l2 dist
-        recon_loss._pairwise_reduce(torch.abs(z_a - z_b)),     # l1 dist
-        recon_loss._pairwise_reduce(torch.square(z_a - z_b)),  # l2 dist
-        # posterior:
         recon_loss._pairwise_reduce(kl_ab),
-        torch.norm(kl_a - kl_b, p=1, dim=-1),  # l1 dist
-        torch.norm(kl_a - kl_b, p=2, dim=-1),  # l2 dist
-        recon_loss._pairwise_reduce(torch.abs(kl_a - kl_b)),
-        recon_loss._pairwise_reduce(torch.square(kl_a - kl_b)),
-        # x_recon:
         recon_loss.compute_pairwise_loss(r_a, r_b),
     ]
+
+
+@torch.no_grad()
+def _collect_dists_subbatches(model, dists_fn, obs: torch.Tensor, i_a: np.ndarray, i_b: np.ndarray, recon_loss: ReconLossHandler, batch_size: int = 64):
+    # feed forward
+    results = []
+    for idxs in chunked(np.stack([i_a, i_b], axis=-1), chunk_size=batch_size):
+        ia, ib = idxs.T
+        x_a, x_b = obs[ia], obs[ib]
+        # feed forward
+        name, data = dists_fn(model, x_a=x_a, x_b=x_b, recon_loss=recon_loss)
+        results.append(data)
+    return name, [torch.cat(r, dim=0) for r in zip(*results)]
 
 
 class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
@@ -180,9 +180,11 @@ class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
         every_n_steps: Optional[int] = None,
         traversal_repeats: int = 100,
         begin_first_step: bool = False,
-        plt_block_size: float = 1.0,
+        plt_block_size: float = 1.25,
         plt_show: bool = False,
+        plt_transpose: bool = False,
         log_wandb: bool = True,
+        batch_size: int = 128,
         include_factor_dists: bool = True,
     ):
         assert traversal_repeats > 0
@@ -193,6 +195,8 @@ class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
         self._plt_show = plt_show
         self._log_wandb = log_wandb
         self._include_gt_factor_dists = include_factor_dists
+        self._transpose_plot = plt_transpose
+        self._batch_size = batch_size
         super().__init__(every_n_steps, begin_first_step)
 
     @torch.no_grad()
@@ -204,8 +208,8 @@ class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
             log.warning(f'cannot run {self.__class__.__name__} over non-ground-truth data, skipping!')
             return
         # get aggregate function
-        if isinstance(vae, Vae): agg_fn = _get_dists_vae
-        elif isinstance(vae, Ae): agg_fn = _get_dists_ae
+        if isinstance(vae, Vae): dists_fn = _get_dists_vae
+        elif isinstance(vae, Ae): dists_fn = _get_dists_ae
         else:
             log.warning(f'cannot run {self.__class__.__name__}, unsupported model type: {type(vae)}, must be {Ae.__name__} or {Vae.__name__}')
             return
@@ -232,7 +236,7 @@ class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
                     obs = dataset.dataset_batch_from_indices(indices, 'input')
                     obs = obs.to(vae.device)
                     # feed forward
-                    names, dists = agg_fn(vae, x_a=obs[i_a], x_b=obs[i_b], recon_loss=self._recon_loss)
+                    names, dists = _collect_dists_subbatches(vae, dists_fn=dists_fn, obs=obs, i_a=i_a, i_b=i_b, recon_loss=self._recon_loss, batch_size=self._batch_size)
                     # distances
                     f_dists.append(dists)
                 # aggregate all dists into distances matrices for current factor
@@ -252,13 +256,28 @@ class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
         log.info(f'| {gt_data.name} - computed factor distances! time{c.GRY}={c.lYLW}{timer.pretty:<9}{c.RST}')
 
         # plot!
-        fig, axs = plt_subplots_imshow(
-            grid=f_data,
-            col_labels=names,
-            row_labels=gt_data.factor_names,
-            figsize=(self._plt_block_size*len(f_data[0]), self._plt_block_size*gt_data.num_factors),
-            imshow_kwargs=dict(cmap='Blues')
-        )
+        title         = f'{vae.__class__.__name__}: {gt_data.name.capitalize()} Distances'
+        imshow_kwargs = dict(cmap='Blues')
+        figsize       = (self._plt_block_size*len(f_data[0]), self._plt_block_size*gt_data.num_factors)
+
+        if not self._transpose_plot:
+            fig, axs = plt_subplots_imshow(
+                grid=f_data,
+                col_labels=names,
+                row_labels=gt_data.factor_names,
+                figsize=figsize,
+                title=title,
+                imshow_kwargs=imshow_kwargs,
+            )
+        else:
+            fig, axs = plt_subplots_imshow(
+                grid=list(zip(*f_data)),
+                col_labels=gt_data.factor_names,
+                row_labels=names,
+                figsize=figsize[::-1],
+                title=title,
+                imshow_kwargs=imshow_kwargs,
+            )
 
         if self._plt_show:
             plt.show()
@@ -267,6 +286,45 @@ class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
             wb_log_metrics(trainer.logger, {
                 'factor_distances': wandb.Image(fig)
             })
+
+
+def _normalize_min_max_mean_std_to_min_max(recon_min, recon_max, recon_mean, recon_std) -> Union[Tuple[None, None], Tuple[np.ndarray, np.ndarray]]:
+    # check recon_min and recon_max
+    if (recon_min is not None) or (recon_max is not None):
+        if (recon_mean is not None) or (recon_std is not None):
+            raise ValueError('must choose either recon_min & recon_max OR recon_mean & recon_std, cannot specify both')
+        if (recon_min is None) or (recon_max is None):
+            raise ValueError('both recon_min & recon_max must be specified')
+        # check strings
+        if isinstance(recon_min, str) or isinstance(recon_max, str):
+            if not (isinstance(recon_min, str) and isinstance(recon_max, str)):
+                raise ValueError('both recon_min & recon_max must be "auto" if one is "auto"')
+            return None, None
+    # check recon_mean and recon_std
+    elif (recon_mean is not None) or (recon_std is not None):
+        if (recon_min is not None) or (recon_max is not None):
+            raise ValueError('must choose either recon_min & recon_max OR recon_mean & recon_std, cannot specify both')
+        if (recon_mean is None) or (recon_std is None):
+            raise ValueError('both recon_mean & recon_std must be specified')
+        # set values:
+        #  | ORIG: [0, 1]
+        #  | TRANSFORM: (x - mean) / std         ->  [(0-mean)/std, (1-mean)/std]
+        #  | REVERT:    (x - min) / (max - min)  ->  [0, 1]
+        #  |            min=(0-mean)/std, max=(1-mean)/std
+        recon_mean, recon_std = np.array(recon_mean, dtype='float32'), np.array(recon_std, dtype='float32')
+        recon_min = np.divide(0 - recon_mean, recon_std)
+        recon_max = np.divide(1 - recon_mean, recon_std)
+    # set defaults
+    if recon_min is None: recon_min = 0.0
+    if recon_max is None: recon_max = 0.0
+    # change type
+    recon_min = np.array(recon_min)
+    recon_max = np.array(recon_max)
+    assert recon_min.ndim in (0, 1)
+    assert recon_max.ndim in (0, 1)
+    # checks
+    assert np.all(recon_min < np.all(recon_max)), f'recon_min={recon_min} must be less than recon_max={recon_max}'
+    return recon_min, recon_max
 
 
 class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
@@ -282,8 +340,11 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
         wandb_fps: int = 4,
         plt_show: bool = False,
         plt_block_size: float = 1.0,
-        recon_min: Union[int, Literal['auto']] = 0.,
-        recon_max: Union[int, Literal['auto']] = 1.,
+        # recon_min & recon_max
+        recon_min: Optional[Union[int, Literal['auto']]] = None,       # scale data in this range [min, max] to [0, 1]
+        recon_max: Optional[Union[int, Literal['auto']]] = None,       # scale data in this range [min, max] to [0, 1]
+        recon_mean: Optional[Union[Tuple[float, ...], float]] = None,  # automatically converted to min & max [(0-mean)/std, (1-mean)/std], assuming original range of values is [0, 1]
+        recon_std: Optional[Union[Tuple[float, ...], float]] = None,   # automatically converted to min & max [(0-mean)/std, (1-mean)/std], assuming original range of values is [0, 1]
     ):
         super().__init__(every_n_steps, begin_first_step)
         self.seed = seed
@@ -291,12 +352,18 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
         self.plt_show = plt_show
         self.plt_block_size = plt_block_size
         self._wandb_mode = wandb_mode
-        self._recon_min = recon_min
-        self._recon_max = recon_max
         self._num_frames = num_frames
         self._fps = wandb_fps
         # checks
         assert wandb_mode in {'none', 'img', 'vid', 'both'}, f'invalid wandb_mode={repr(wandb_mode)}, must be one of: ("none", "img", "vid", "both")'
+        # normalize
+        self._recon_min, self._recon_max = _normalize_min_max_mean_std_to_min_max(
+            recon_min=recon_min,
+            recon_max=recon_max,
+            recon_mean=recon_mean,
+            recon_std=recon_std,
+        )
+
 
     def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         # get dataset and vae framework from trainer and module
@@ -307,26 +374,26 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
         with torch.no_grad():
             # get random sample of z_means and z_logvars for computing the range of values for the latent_cycle
             with TempNumpySeed(self.seed):
-                obs = dataset.dataset_sample_batch(64, mode='input').to(vae.device)
+                batch = dataset.dataset_sample_batch(64, mode='input').to(vae.device)
 
             # get representations
             if isinstance(vae, Vae):
                 # variational auto-encoder
-                ds_posterior, ds_prior = vae.encode_dists(obs)
+                ds_posterior, ds_prior = vae.encode_dists(batch)
                 zs_mean, zs_logvar = ds_posterior.mean, torch.log(ds_posterior.variance)
             elif isinstance(vae, Ae):
                 # auto-encoder
-                zs_mean = vae.encode(obs)
+                zs_mean = vae.encode(batch)
                 zs_logvar = torch.ones_like(zs_mean)
             else:
                 log.warning(f'cannot run {self.__class__.__name__}, unsupported type: {type(vae)}, must be {Ae.__name__} or {Vae.__name__}')
                 return
 
             # get min and max if auto
-            if (self._recon_min == 'auto') or (self._recon_max == 'auto'):
-                if self._recon_min == 'auto': self._recon_min = float(torch.min(obs).cpu())
-                if self._recon_max == 'auto': self._recon_max = float(torch.max(obs).cpu())
-                log.info(f'auto visualisation min: {self._recon_min} and max: {self._recon_max} obtained from {len(obs)} samples')
+            if (self._recon_min is None) or (self._recon_max is None):
+                if self._recon_min is None: self._recon_min = float(torch.min(batch).cpu())
+                if self._recon_max is None: self._recon_max = float(torch.max(batch).cpu())
+                log.info(f'auto visualisation min: {self._recon_min} and max: {self._recon_max} obtained from {len(batch)} samples')
 
             # produce latent cycle grid animation
             # TODO: this needs to be fixed to not use logvar, but rather the representations or distributions themselves

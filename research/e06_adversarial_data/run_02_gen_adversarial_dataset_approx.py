@@ -188,7 +188,7 @@ class AdversarialModel(pl.LightningModule):
         # sampling config
             sampler_name: str = 'close_far',
         # model settings
-            model_type: str = 'ae_test',
+            model_type: str = 'ae_linear',
             model_mask_mode: Optional[str] = 'none',
         # logging settings
             logging_scale_imgs: bool = False,

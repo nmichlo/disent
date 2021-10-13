@@ -8,6 +8,11 @@ data:
   subset: 'realistic'
 transform:
   _target_: disent.nn.transform.ToStandardisedTensor
+  mean: ${dataset.vis_mean}
+  std: ${dataset.vis_std}
 x_shape: [3, 64, 64]
 
 data_type: gt
+
+vis_mean: [0.18240164396358813, 0.20723063241107917, 0.1820551008003256]
+vis_std: [0.09511163559287175, 0.10128881101801782, 0.09428244469525177]

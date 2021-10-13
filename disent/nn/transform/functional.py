@@ -21,7 +21,9 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
 from typing import Optional
+from typing import Sequence
 from typing import Tuple
 from typing import Union
 
@@ -96,6 +98,8 @@ def to_standardised_tensor(
     cast_f32: bool = False,
     check: bool = True,
     check_range: bool = True,
+    mean: Optional[Sequence[float]] = None,
+    std: Optional[Sequence[float]] = None,
 ) -> torch.Tensor:
     """
     Basic transform that should be applied to
@@ -103,6 +107,7 @@ def to_standardised_tensor(
 
     1. resize if size is specified
     2. convert to tensor in range [0, 1]
+    3. normalize using mean and std, values might thus be outside of the range [0, 1]
     """
     # resize image
     if size is not None:
@@ -111,6 +116,7 @@ def to_standardised_tensor(
         obs = F_tv.resize(obs, size=size)
     # transform to tensor
     obs = F_tv.to_tensor(obs)
+    assert obs.ndim == 3
     # cast if needed
     if cast_f32:
         obs = obs.to(torch.float32)
@@ -120,6 +126,10 @@ def to_standardised_tensor(
             obs = check_tensor(obs, low=0, high=1, dtype=torch.float32)
         else:
             obs = check_tensor(obs, low=None, high=None, dtype=torch.float32)
+    # apply mean and std, we obs is of the shape (C, H, W)
+    if (mean is not None) or (std is not None):
+        obs = F_tv.normalize(obs, mean=0. if (mean is None) else mean, std=1. if (std is None) else std, inplace=True)
+    # done!
     return obs
 
 
