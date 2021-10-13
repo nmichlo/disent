@@ -1,10 +1,10 @@
 # @package _global_
-schedules_name: beta_increase
+schedules_name: beta_decrease
 schedules:
   beta:
     _target_: disent.schedule.Single
     start_step: 0
     end_step: ${trainer.steps}
-    r_start: 0.001
-    r_end: 1.0
+    r_start: 1.0
+    r_end: 0.001
     mode: 'linear'

@@ -407,14 +407,18 @@ if __name__ == '__main__':
         try:
             run(cfg)
         except Exception as e:
-            log_error_and_exit(err_type='experiment error', err_msg=str(e))
+            log_error_and_exit(err_type='experiment error', err_msg=str(e), exc_info=True)
+        except:
+            log_error_and_exit(err_type='experiment error', err_msg='<UNKNOWN>', exc_info=True)
 
     try:
         hydra_main()
     except KeyboardInterrupt as e:
         log_error_and_exit(err_type='interrupted', err_msg=str(e), exc_info=False)
     except Exception as e:
-        log_error_and_exit(err_type='hydra error', err_msg=str(e))
+        log_error_and_exit(err_type='hydra error', err_msg=str(e), exc_info=True)
+    except:
+        log_error_and_exit(err_type='hydra error', err_msg='<UNKNOWN>', exc_info=True)
 
 
 # ========================================================================= #
