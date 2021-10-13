@@ -11,7 +11,5 @@ x_shape: [1, 64, 64]
 
 data_type: gt
 
-vis_mean: "${exit:EXITING... please compute the vis_mean and vis_std}"
-vis_std: "${exit:EXITING... please compute the vis_mean and vis_std}"
-#vis_min: auto
-#vis_max: auto
+vis_mean: [0.20482841]
+vis_std: [0.33634909]
