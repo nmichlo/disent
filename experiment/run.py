@@ -154,14 +154,14 @@ def hydra_append_latent_cycle_logger_callback(callbacks, cfg):
                 log.warning('dataset does not have visualisation ranges specified, set `vis_min` & `vis_max` OR `vis_mean` & `vis_std`')
             # this currently only supports WANDB logger
             callbacks.append(VaeLatentCycleLoggingCallback(
-                seed=cfg.callbacks.latent_cycle.seed,
-                every_n_steps=cfg.callbacks.latent_cycle.every_n_steps,
-                begin_first_step=False,
-                mode=cfg.callbacks.latent_cycle.mode,
-                recon_min=cfg.dataset.setdefault('vis_min', None),
-                recon_max=cfg.dataset.setdefault('vis_max', None),
-                recon_mean=cfg.dataset.setdefault('vis_mean', None),
-                recon_std=cfg.dataset.setdefault('vis_std', None),
+                seed             = cfg.callbacks.latent_cycle.seed,
+                every_n_steps    = cfg.callbacks.latent_cycle.every_n_steps,
+                begin_first_step = cfg.callbacks.latent_cycle.setdefault('begin_first_step', False),
+                mode             = cfg.callbacks.latent_cycle.mode,
+                recon_min        = cfg.dataset.setdefault('vis_min', None),
+                recon_max        = cfg.dataset.setdefault('vis_max', None),
+                recon_mean       = cfg.dataset.setdefault('vis_mean', None),
+                recon_std        = cfg.dataset.setdefault('vis_std', None),
             ))
         else:
             log.warning('latent_cycle callback is not being used because wandb is not enabled!')
@@ -193,9 +193,10 @@ def hydra_append_metric_callback(callbacks, cfg):
         # add the metric callback
         if final_metric or train_metric:
             callbacks.append(VaeMetricLoggingCallback(
-                every_n_steps=every_n_steps,
-                step_end_metrics=train_metric,
-                train_end_metrics=final_metric,
+                step_end_metrics  = train_metric,
+                train_end_metrics = final_metric,
+                every_n_steps     = every_n_steps,
+                begin_first_step  = settings.setdefault('begin_first_step', False),
             ))
     cfg.metrics.metric_list = new_metrics_list
 
@@ -213,14 +214,16 @@ def hydra_append_correlation_callback(callbacks, cfg):
 def hydra_append_gt_dists_callback(callbacks, cfg):
     if 'gt_dists' in cfg.callbacks:
         callbacks.append(VaeGtDistsLoggingCallback(
-            seed=cfg.callbacks.gt_dists.seed,
-            every_n_steps=cfg.callbacks.gt_dists.every_n_steps,
-            traversal_repeats=cfg.callbacks.gt_dists.traversal_repeats,
-            begin_first_step=False,
-            plt_block_size=1.25,
-            plt_show=False,
-            log_wandb=True,
-            batch_size=cfg.dataset.batch_size,
+            seed                 = cfg.callbacks.gt_dists.seed,
+            every_n_steps        = cfg.callbacks.gt_dists.every_n_steps,
+            traversal_repeats    = cfg.callbacks.gt_dists.traversal_repeats,
+            begin_first_step     = cfg.callbacks.gt_dists.setdefault('begin_first_step', False),
+            plt_block_size       = cfg.callbacks.gt_dists.setdefault('plt_block_size', 1.25),
+            plt_show             = cfg.callbacks.gt_dists.setdefault('plt_show', False),
+            plt_transpose        = cfg.callbacks.gt_dists.setdefault('plt_transpose', False),
+            log_wandb            = cfg.callbacks.gt_dists.setdefault('log_wandb', True),
+            batch_size           = cfg.dataset.batch_size,
+            include_factor_dists = cfg.callbacks.gt_dists.setdefault('include_factor_dists', True),
         ))
 
 
