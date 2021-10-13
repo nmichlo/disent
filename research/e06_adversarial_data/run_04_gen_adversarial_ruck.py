@@ -266,7 +266,6 @@ Values = List[ray.ObjectRef]
 Population = List[ruck.Member[ray.ObjectRef]]
 
 
-
 # ========================================================================= #
 # Evolutionary System                                                       #
 # ========================================================================= #
@@ -320,6 +319,9 @@ class DatasetMaskModule(ruck.EaModule):
         factor_sizes = gt_data.factor_sizes
         # save hyper parameters to .hparams
         self.save_hyperparameters(include=['factor_sizes'])
+        # compute all distances
+        gt_dist_matrices = cached_compute_all_factor_dist_matrices(dataset_name, normalize_mode=dist_normalize_mode)
+        gt_dist_matrices = ray.put(gt_dist_matrices)
         # get offspring function
         self.generate_offspring = wrapped_partial(
             R.apply_mate_and_mutate,
@@ -335,7 +337,7 @@ class DatasetMaskModule(ruck.EaModule):
         # get evaluation function
         self._evaluate_value_fn = wrapped_partial(
             evaluate_member.remote,
-            gt_dist_matrices=ray.put(cached_compute_all_factor_dist_matrices(dataset_name, normalize_mode=dist_normalize_mode)),
+            gt_dist_matrices=gt_dist_matrices,
             factor_sizes=factor_sizes,
             fitness_overlap_mode=fitness_overlap_mode,
             fitness_overlap_aggregate=fitness_overlap_aggregate,

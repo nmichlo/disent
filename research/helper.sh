@@ -36,7 +36,7 @@ cd "$ROOT_DIR" || exit 1
 echo "working directory is: $(pwd)"
 
 function submit_sweep() {
-    echo "SUBMITTING:" "$@"
+    echo "SUBMITTING SWEEP:" "$@"
     PYTHONPATH="$ROOT_DIR" python3 "$PY_RUN_FILE" -m \
         job.project="$PROJECT" \
         job.partition="$PARTITION" \
@@ -50,6 +50,15 @@ function local_run() {
     echo "RUNNING:" "$@"
     PYTHONPATH="$ROOT_DIR" python3 "$PY_RUN_FILE" \
         job.project="$PROJECT" \
+        job.user="$USERNAME" \
+        "$@"
+}
+
+function local_sweep() {
+    echo "RUNNING SWEEP:" "$@"
+    PYTHONPATH="$ROOT_DIR" python3 "$PY_RUN_FILE" -m \
+        job.project="$PROJECT" \
+        job.user="$USERNAME" \
         "$@"
 }
 

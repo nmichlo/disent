@@ -40,7 +40,7 @@ framework:
 
 model:
   z_size: 25
-  weight_init: 'default'
+  weight_init: 'xavier_normal'  # xavier_normal, default
 
 dataset:
   batch_size: 256
