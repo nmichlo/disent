@@ -226,7 +226,7 @@ def reconstructions_to_images(
     recon_min: Union[float, List[float]] = 0.0,
     recon_max: Union[float, List[float]] = 1.0,
     warn_if_clipped: bool = True,
-):
+) -> Union[np.ndarray, Image.Image]:
     """
     Convert a batch of reconstructions to images.
     A batch in this case consists of an arbitrary number of dimensions of an array,
@@ -255,7 +255,7 @@ def reconstructions_to_images(
     if warn_if_clipped:
         m, M = np.min(img), np.max(img)
         if m < 0 or M > 1:
-            log.warning('images with range [{m}, {M}] have been clipped to the range [0, 1]')
+            log.warning(f'images with range [{m}, {M}] have been clipped to the range [0, 1]')
     # do clipping
     img = np.clip(img, 0, 1)
     # convert
