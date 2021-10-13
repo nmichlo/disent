@@ -301,7 +301,7 @@ if __name__ == '__main__':
         plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(folder), color=color, dataset_or_name=data)
         # compute and print statistics:
         mean, std = compute_data_mean_std(data)
-        print(f'{folder}\n    vis_mean: {mean}\n    vis_std: {std}')
+        print(f'{folder}\n    vis_mean: {mean.tolist()}\n    vis_std: {std.tolist()}')
 
 
 # ========================================================================= #
@@ -313,11 +313,11 @@ if __name__ == '__main__':
 #     vis_mean: [0.04375297]
 #     vis_std: [0.06837677]
 # 2021-08-18--01-33-47_FINAL-shapes3d_self_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06
-#     vis_mean: [0.48852729 0.5872147  0.59863929]
-#     vis_std: [0.08931785 0.18920148 0.23331079]
+#     vis_mean: [0.48852729, 0.5872147 , 0.59863929]
+#     vis_std: [0.08931785, 0.18920148, 0.23331079]
 # 2021-08-18--02-20-13_FINAL-cars3d_self_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06
-#     vis_mean: [0.88888636 0.88274618 0.87782785]
-#     vis_std: [0.18967542 0.20009377 0.20805905]
+#     vis_mean: [0.88888636, 0.88274618, 0.87782785]
+#     vis_std: [0.18967542, 0.20009377, 0.20805905]
 # 2021-08-18--03-10-53_FINAL-smallnorb_self_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06
 #     vis_mean: [0.74029344]
 #     vis_std: [0.06706581]
@@ -326,24 +326,24 @@ if __name__ == '__main__':
 #     vis_mean: [0.0493243]
 #     vis_std: [0.09729655]
 # 2021-08-18--04-29-25_FINAL-shapes3d_invert_margin_0.005_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06
-#     vis_mean: [0.49514523 0.58791172 0.59616399]
-#     vis_std: [0.08637031 0.1895267  0.23397072]
+#     vis_mean: [0.49514523, 0.58791172, 0.59616399]
+#     vis_std: [0.08637031, 0.1895267 , 0.23397072]
 # 2021-08-18--05-13-15_FINAL-cars3d_invert_margin_0.005_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06
-#     vis_mean: [0.88851889 0.88029857 0.87666017]
-#     vis_std: [0.200735  0.2151134 0.2217553]
+#     vis_mean: [0.88851889, 0.88029857, 0.87666017]
+#     vis_std: [0.200735 , 0.2151134, 0.2217553]
 # 2021-08-18--06-03-32_FINAL-smallnorb_invert_margin_0.005_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06
 #     vis_mean: [0.73232105]
 #     vis_std: [0.08755041]
 #
 # 2021-09-06--00-29-23_INVERT-VSTRONG-shapes3d_invert_margin_0.05_aw10.0_same_k1_close_s200001_Adam_lr0.0005_wd1e-06
-#     vis_mean: [0.47992192 0.51311111 0.54627272]
-#     vis_std: [0.28653814 0.29201543 0.27395435]
+#     vis_mean: [0.47992192, 0.51311111, 0.54627272]
+#     vis_std: [0.28653814, 0.29201543, 0.27395435]
 # 2021-09-06--03-17-28_INVERT-VSTRONG-dsprites_invert_margin_0.05_aw10.0_same_k1_close_s200001_Adam_lr0.0005_wd1e-06
 #     vis_mean: [0.20482841]
 #     vis_std: [0.33634909]
 # 2021-09-06--05-42-06_INVERT-VSTRONG-cars3d_invert_margin_0.05_aw10.0_same_k1_close_s200001_Adam_lr0.0005_wd1e-06
-#     vis_mean: [0.76418207 0.75554032 0.75075393]
-#     vis_std: [0.31892905 0.32751031 0.33319886]
+#     vis_mean: [0.76418207, 0.75554032, 0.75075393]
+#     vis_std: [0.31892905, 0.32751031, 0.33319886]
 # 2021-09-06--09-10-59_INVERT-VSTRONG-smallnorb_invert_margin_0.05_aw10.0_same_k1_close_s200001_Adam_lr0.0005_wd1e-06
 #     vis_mean: [0.69691603]
 #     vis_std: [0.21310608]
