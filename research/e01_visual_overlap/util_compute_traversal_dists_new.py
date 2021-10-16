@@ -67,7 +67,8 @@ def _compute_dists(gt_data: GroundTruthData, obs_idx: int, pair_idxs: np.ndarray
     return dists
 
 
-def __compute_batch_dists(gt_data: GroundTruthData, start_idx: int, obs_pair_idxs: np.ndarray):
+@ray.remote
+def _compute_batch_dists(gt_data: GroundTruthData, start_idx: int, obs_pair_idxs: np.ndarray):
     """
     Compute the distances between observations (B,) and their corresponding array of pairs (B, N).
     - The observations are obtained from a starting point in the gt_data and the batch size
@@ -82,11 +83,6 @@ def __compute_batch_dists(gt_data: GroundTruthData, start_idx: int, obs_pair_idx
     # checks
     assert obs_pair_dists.shape == obs_pair_idxs.shape
     return start_idx, obs_pair_dists
-
-
-@ray.remote
-def _compute_batch_dists(gt_data: GroundTruthData, start_idx: int, obs_pair_idxs: np.ndarray):
-    return __compute_batch_dists(gt_data=gt_data, start_idx=start_idx, obs_pair_idxs=obs_pair_idxs)
 
 
 def compute_dists(gt_data: GroundTruthData, obs_pair_idxs: np.ndarray, batch_size: int = 256):
