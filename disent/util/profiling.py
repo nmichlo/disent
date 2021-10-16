@@ -111,6 +111,11 @@ class Timer(ContextDecorator):
             else:
                 log.log(self._log_level, f'{self.name}: {self.pretty}')
 
+    def restart(self):
+        assert self._start_time is not None, 'timer must have been started before we can restart it'
+        assert self._end_time is None, 'timer cannot be restarted if it is finished'
+        self._start_time = time.time_ns()
+
     @property
     def elapsed_ns(self) -> int:
         if self._start_time is not None:
