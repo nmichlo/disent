@@ -234,7 +234,7 @@ def cached_compute_all_factor_dist_matrices(
     # load data
     gt_data = H.make_data(dataset_name, transform_mode='float32')
     # check cache
-    name = f'{dataset_name}_dist-matrices_masked.npz' if masked else f'{dataset_name}_dist-matrices_full.npz'
+    name = f'dist-matrices_{dataset_name}_masked.npz' if masked else f'dist-matrices_{dataset_name}_full.npz'
     cache_path = os.path.abspath(os.path.join(cache_dir, name))
     # generate if it does not exist
     if force or not os.path.exists(cache_path):

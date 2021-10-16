@@ -21,9 +21,8 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-import itertools
+
 import logging
-import os
 from pathlib import Path
 
 import numpy as np
@@ -184,13 +183,13 @@ def cached_compute_dataset_pair_dists(
     assert isinstance(seed, int), f'seed must be an int, got: {type(seed)}'
     assert isinstance(pairs_per_obs, int), f'pairs_per_obs must be an int, got: {type(pairs_per_obs)}'
     assert pair_mode in _PAIR_IDXS_FNS, f'pair_mode is invalid, got: {repr(pair_mode)}, must be one of: {sorted(_PAIR_IDXS_FNS.keys())}'
-    # load data
-    gt_data = H.make_data(dataset_name, transform_mode='float32')
     # cache path
-    cache_path = Path(cache_dir, f'{dataset_name}_{pairs_per_obs}_dists_{pair_mode}_{seed}.npz')
+    cache_path = Path(cache_dir, f'dist-pairs_{dataset_name}_{pairs_per_obs}_{pair_mode}_{seed}.npz')
     # generate if it does not exist
     if force or not cache_path.exists():
         log.info(f'generating cached distances for: {dataset_name} to: {cache_path}')
+        # load data
+        gt_data = H.make_data(dataset_name, transform_mode='float32')
         # generate idxs
         with TempNumpySeed(seed=seed):
             obs_pair_idxs = dataset_pair_idxs(pair_mode, gt_data, num_pairs=pairs_per_obs)
@@ -221,7 +220,8 @@ def cached_compute_dataset_pair_dists(
 # ========================================================================= #
 
 
-def generate_common_cache():
+def generate_common_cache(force=False):
+    import itertools
     # settings
     sweep_pairs_per_obs = [128, 32, 256, 64, 16]
     sweep_pair_modes = ['nearby_scaled', 'random', 'nearby']
@@ -231,7 +231,10 @@ def generate_common_cache():
     # sweep
     for i, (pairs_per_obs, pair_mode, dataset_name) in enumerate(itertools.product(sweep_pairs_per_obs, sweep_pair_modes, sweep_dataset_names)):
         # deterministic seed based on settings
-        seed = int(str(hash((pairs_per_obs, pair_mode, dataset_name)) % 2**64)[:8])
+        import hashlib
+        seed_key = (pairs_per_obs, pair_mode, dataset_name)
+        seed = int(hashlib.md5(str(seed_key).encode()).hexdigest()[:8], base=16) % (2**32)  # [0, 2**32-1]
+        # info
         log.info(f'[{i}] Computing distances for: {repr(dataset_name)} {repr(pair_mode)} {repr(pairs_per_obs)} {repr(seed)}')
         # get the dataset and delete the transform
         cached_compute_dataset_pair_dists(
@@ -239,7 +242,7 @@ def generate_common_cache():
             pair_mode=pair_mode,
             pairs_per_obs=pairs_per_obs,
             seed=seed,
-            force=True,
+            force=force,
             scaled=True
         )
 
@@ -253,3 +256,43 @@ if __name__ == '__main__':
 # ========================================================================= #
 # DONE                                                                      #
 # ========================================================================= #
+
+
+# import re
+# from pathlib import Path
+#
+# if __name__ == '__main__':
+#
+#     root = Path('data/cache')
+#
+#     rename old
+#     for path in root.glob('*_dist-matrices_*.npz'):
+#         # OLD: f'{dataset_name}_dist-matrices_masked.npz' if masked else f'{dataset_name}_dist-matrices_full.npz'
+#         # NEW: f'dist-matrices_{dataset_name}_masked.npz' if masked else f'dist-matrices_{dataset_name}_full.npz'
+#         dataset_name, kind = re.match(r'(.*)_dist-matrices_(.*)\.npz', path.name).groups()
+#         new_path = path.parent.joinpath(f'dist-matrices_{dataset_name}_{kind}.npz')
+#         print(path.name, '->', new_path)
+#         path.rename(new_path)
+#
+#     rename new
+#     for path in root.glob('*_dists_*.npz'):
+#         # OLD: f'{dataset_name}_{pairs_per_obs}_dists_{pair_mode}_{seed}.npz'
+#         # NEW:  f'dist-pairs_{dataset_name}_{pairs_per_obs}_{pair_mode}_{seed}.npz'
+#         dataset_name, pairs_per_obs, pair_mode, seed = re.match(r'(.*)_(\d+)_dists_(.*)_(\d+)\.npz', path.name).groups()
+#         new_path = path.parent.joinpath(f'dist-pairs_{dataset_name}_{pairs_per_obs}_{pair_mode}_{seed}.npz')
+#         print(path, '->', new_path)
+#         path.rename(new_path)
+#
+#     fix hashes
+#     for path in root.glob('dist-pairs_*.npz'):
+#         # OLD: f'{dataset_name}_{pairs_per_obs}_dists_{pair_mode}_{seed}.npz'
+#         # NEW:  f'dist-pairs_{dataset_name}_{pairs_per_obs}_{pair_mode}_{seed}.npz'
+#         dataset_name, pairs_per_obs, pair_mode, seed = re.match(r'dist-pairs_(.*)_(\d+)_(.*)_(\d+)\.npz', path.name).groups()
+#
+#         import hashlib
+#         seed_key = (int(pairs_per_obs), pair_mode, dataset_name)
+#         seed = int(hashlib.md5(str(seed_key).encode()).hexdigest()[:8], base=16) % (2**32)  # [0, 2**32-1]
+#
+#         new_path = path.parent.joinpath(f'dist-pairs_{dataset_name}_{pairs_per_obs}_{pair_mode}_{seed}.npz')
+#         print(path, '->', new_path)
+#         path.rename(new_path)
