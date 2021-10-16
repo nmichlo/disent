@@ -21,22 +21,23 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-from typing import Optional
-
-import ray
-
+import itertools
 import logging
 import os
-from typing import Tuple
+from pathlib import Path
 
 import numpy as np
+import psutil
+import ray
 import torch
 from ray.util.queue import Queue
 from tqdm import tqdm
 
 import research.util as H
 from disent.dataset.data import GroundTruthData
+from disent.util.inout.files import AtomicSaveFile
 from disent.util.profiling import Timer
+from disent.util.seeds import TempNumpySeed
 
 
 log = logging.getLogger(__name__)
@@ -80,7 +81,7 @@ def _compute_given_dists(gt_data, idxs, obs_pair_idxs, progress_queue=None):
         return obs_pair_dists.numpy()
 
 
-def compute_dists(gt_data: GroundTruthData, obs_pair_idxs: np.ndarray, batch_size: int = 256):
+def compute_dists(gt_data: GroundTruthData, obs_pair_idxs: np.ndarray, jobs_per_cpu: int = 1):
     """
     Compute all the distances for ground truth data.
     - obs_pair_idxs is a 2D array (len(gt_dat), N) that is a list
@@ -89,14 +90,16 @@ def compute_dists(gt_data: GroundTruthData, obs_pair_idxs: np.ndarray, batch_siz
     # checks
     assert obs_pair_idxs.ndim == 2
     assert obs_pair_idxs.shape[0] == len(gt_data)
-    # store distances
-    ref_gt_data = ray.put(gt_data)
-    # get chunks
+    assert jobs_per_cpu > 0
+    # get workers
     num_cpus = int(ray.available_resources().get('CPU', 1))
-    pair_idxs_chunks = np.array_split(obs_pair_idxs, num_cpus)
+    num_workers = int(num_cpus * jobs_per_cpu)
+    # get chunks
+    pair_idxs_chunks = np.array_split(obs_pair_idxs, num_workers)
     start_idxs = [0] + np.cumsum([len(c) for c in pair_idxs_chunks]).tolist()
     # progress queue
     progress_queue = Queue()
+    ref_gt_data = ray.put(gt_data)
     # make workers
     futures = [
         _compute_given_dists.remote(ref_gt_data, np.arange(i, i+len(chunk)), chunk, progress_queue)
@@ -140,7 +143,7 @@ def dataset_pair_idxs__nearby(gt_data: GroundTruthData, num_pairs: int = 10, rad
     return nearby_idxs
 
 
-def dataset_pair_idxs__scaled_nearby(gt_data: GroundTruthData, num_pairs: int = 10, min_radius: int = 2, radius_ratio: float = 0.2) -> np.ndarray:
+def dataset_pair_idxs__nearby_scaled(gt_data: GroundTruthData, num_pairs: int = 10, min_radius: int = 2, radius_ratio: float = 0.2) -> np.ndarray:
     return dataset_pair_idxs__nearby(
         gt_data=gt_data,
         num_pairs=num_pairs,
@@ -151,33 +154,102 @@ def dataset_pair_idxs__scaled_nearby(gt_data: GroundTruthData, num_pairs: int = 
 _PAIR_IDXS_FNS = {
     'random': dataset_pair_idxs__random,
     'nearby': dataset_pair_idxs__nearby,
-    'scaled_nearby': dataset_pair_idxs__scaled_nearby,
+    'nearby_scaled': dataset_pair_idxs__nearby_scaled,
 }
 
 
-def dataset_pair_idxs(mode: str, gt_data: GroundTruthData, num_pairs: int = 10, seed: int = 7777, **kwargs):
+def dataset_pair_idxs(mode: str, gt_data: GroundTruthData, num_pairs: int = 10, **kwargs):
     if mode not in _PAIR_IDXS_FNS:
-        raise KeyError('invalid mode: {repr()}')
+        raise KeyError(f'invalid mode: {repr(mode)}, must be one of: {sorted(_PAIR_IDXS_FNS.keys())}')
+    return _PAIR_IDXS_FNS[mode](gt_data, num_pairs=num_pairs, **kwargs)
 
 
 # ========================================================================= #
-# Distance Types                                                            #
+# Cache Distances                                                           #
 # ========================================================================= #
+
+
+def cached_compute_dataset_pair_dists(
+    dataset_name: str = 'smallnorb',
+    pair_mode: str = 'nearby_scaled',  # random, nearby, nearby_scaled
+    pairs_per_obs: int = 100,
+    seed: int = 7777,
+    # cache settings
+    cache_dir: str = 'data/cache',
+    force: bool = False,
+    # normalize
+    scaled: bool = True,
+):
+    # checks
+    assert isinstance(seed, int), f'seed must be an int, got: {type(seed)}'
+    assert isinstance(pairs_per_obs, int), f'pairs_per_obs must be an int, got: {type(pairs_per_obs)}'
+    assert pair_mode in _PAIR_IDXS_FNS, f'pair_mode is invalid, got: {repr(pair_mode)}, must be one of: {sorted(_PAIR_IDXS_FNS.keys())}'
+    # load data
+    gt_data = H.make_data(dataset_name, transform_mode='float32')
+    # cache path
+    cache_path = Path(cache_dir, f'{dataset_name}_{pairs_per_obs}_dists_{pair_mode}_{seed}.npz')
+    # generate if it does not exist
+    if force or not cache_path.exists():
+        log.info(f'generating cached distances for: {dataset_name} to: {cache_path}')
+        # generate idxs
+        with TempNumpySeed(seed=seed):
+            obs_pair_idxs = dataset_pair_idxs(pair_mode, gt_data, num_pairs=pairs_per_obs)
+        obs_pair_dists = compute_dists(gt_data, obs_pair_idxs)
+        # generate & save
+        with AtomicSaveFile(file=cache_path, overwrite=force) as path:
+            np.savez(path, **{
+                'dataset_name': dataset_name,
+                'seed': seed,
+                'obs_pair_idxs': obs_pair_idxs,
+                'obs_pair_dists': obs_pair_dists,
+            })
+    # load cached data
+    else:
+        log.info(f'loading cached distances for: {dataset_name} from: {cache_path}')
+        data = np.load(cache_path)
+        obs_pair_idxs = data['obs_pair_idxs']
+        obs_pair_dists = data['obs_pair_dists']
+    # normalize the max distance to 1.0
+    if scaled:
+        obs_pair_dists /= np.max(obs_pair_dists)
+    # done!
+    return obs_pair_idxs, obs_pair_dists
+
+
+# ========================================================================= #
+# TEST!                                                                     #
+# ========================================================================= #
+
+
+def generate_common_cache():
+    # settings
+    sweep_pairs_per_obs = [128, 32, 256, 64, 16]
+    sweep_pair_modes = ['nearby_scaled', 'random', 'nearby']
+    sweep_dataset_names = ['cars3d', 'smallnorb', 'shapes3d', 'dsprites', 'xysquares']
+    # info
+    log.info(f'Computing distances for sweep of size: {len(sweep_pairs_per_obs)*len(sweep_pair_modes)*len(sweep_dataset_names)}')
+    # sweep
+    for i, (pairs_per_obs, pair_mode, dataset_name) in enumerate(itertools.product(sweep_pairs_per_obs, sweep_pair_modes, sweep_dataset_names)):
+        # deterministic seed based on settings
+        seed = int(str(hash((pairs_per_obs, pair_mode, dataset_name)) % 2**64)[:8])
+        log.info(f'[{i}] Computing distances for: {repr(dataset_name)} {repr(pair_mode)} {repr(pairs_per_obs)} {repr(seed)}')
+        # get the dataset and delete the transform
+        cached_compute_dataset_pair_dists(
+            dataset_name=dataset_name,
+            pair_mode=pair_mode,
+            pairs_per_obs=pairs_per_obs,
+            seed=seed,
+            force=True,
+            scaled=True
+        )
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
+    ray.init(num_cpus=psutil.cpu_count(logical=False))
+    generate_common_cache()
 
-    ray.init(num_cpus=min(os.cpu_count(), 64))
-    # generate_common_cache()
 
-    def main():
-        dataset_name = 'cars3d'
-
-        # load data
-        gt_data = H.make_data(dataset_name, transform_mode='float32')
-
-        obs_pair_idxs = dataset_pair_idxs__scaled_nearby(gt_data)
-
-        results = compute_dists(gt_data, obs_pair_idxs=obs_pair_idxs, batch_size=256)
-
-    main()
+# ========================================================================= #
+# DONE                                                                      #
+# ========================================================================= #
