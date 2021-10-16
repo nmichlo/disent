@@ -47,42 +47,37 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def get_as_completed(obj_ids):
-    # https://github.com/ray-project/ray/issues/5554
-    while obj_ids:
-        done, obj_ids = ray.wait(obj_ids)
-        yield ray.get(done[0])
-
-
-def _compute_dists(gt_data: GroundTruthData, obs_idx: int, pair_idxs: np.ndarray) -> Tuple[int, np.ndarray]:
-    """
-    Compute the distances between a single observation
-    and all the other observations in a list.
-    """
-    obs = gt_data[obs_idx].flatten()
-    batch = torch.stack([gt_data[i].flatten() for i in pair_idxs], dim=0)
-    # compute distances
-    dists = torch.mean((batch - obs[None, :]) ** 2, dim=-1, dtype=torch.float32).numpy()
-    # done!
-    return dists
-
-
 @ray.remote
-def _compute_batch_dists(gt_data: GroundTruthData, start_idx: int, obs_pair_idxs: np.ndarray):
-    """
-    Compute the distances between observations (B,) and their corresponding array of pairs (B, N).
-    - The observations are obtained from a starting point in the gt_data and the batch size
-    - The obs_pair_idxs is a 2D array, the first dim is the batch size, the second dim is the number of pairs per observation.
-    """
-    assert obs_pair_idxs.ndim == 2
-    # compute dists
-    obs_pair_dists = np.stack([
-        _compute_dists(gt_data, start_idx + i, pair_idxs)
-        for i, pair_idxs in enumerate(obs_pair_idxs)
-    ])
+def _compute_given_dists(gt_data, idxs, obs_pair_idxs, progress_queue=None):
     # checks
-    assert obs_pair_dists.shape == obs_pair_idxs.shape
-    return start_idx, obs_pair_dists
+    assert idxs.ndim == 1
+    assert obs_pair_idxs.ndim == 2
+    assert len(obs_pair_idxs) == len(idxs)
+    # storage
+    with torch.no_grad(), Timer() as timer:
+        obs_pair_dists = torch.zeros(*obs_pair_idxs.shape, dtype=torch.float32)
+        # progress
+        done = 0
+        # for each observation
+        for i, (obs_idx, pair_idxs) in enumerate(zip(idxs, obs_pair_idxs)):
+            # load data
+            obs = gt_data[obs_idx].flatten()
+            batch = torch.stack([gt_data[i].flatten() for i in pair_idxs], dim=0)
+            # compute distances
+            obs_pair_dists[i, :] = torch.mean((batch - obs[None, :])**2, dim=-1, dtype=torch.float32)
+            # add progress
+            done += 1
+            if progress_queue is not None:
+                if timer.elapsed > 0.2:
+                    timer.restart()
+                    progress_queue.put(done)
+                    done = 0
+        # final update
+        if progress_queue is not None:
+            if done > 0:
+                progress_queue.put(done)
+        # done!
+        return obs_pair_dists.numpy()
 
 
 def compute_dists(gt_data: GroundTruthData, obs_pair_idxs: np.ndarray, batch_size: int = 256):
@@ -95,21 +90,28 @@ def compute_dists(gt_data: GroundTruthData, obs_pair_idxs: np.ndarray, batch_siz
     assert obs_pair_idxs.ndim == 2
     assert obs_pair_idxs.shape[0] == len(gt_data)
     # store distances
-    obs_pair_dists = np.zeros(obs_pair_idxs.shape, dtype='float32')
     ref_gt_data = ray.put(gt_data)
-    # compute distances
-    # TODO: this should assign a portion of the dataset to each worker, rather than split it like this.
-    #       this is very inefficient for large datasets and small batch sizes.
+    # get chunks
+    num_cpus = int(ray.available_resources().get('CPU', 1))
+    pair_idxs_chunks = np.array_split(obs_pair_idxs, num_cpus)
+    start_idxs = [0] + np.cumsum([len(c) for c in pair_idxs_chunks]).tolist()
+    # progress queue
+    progress_queue = Queue()
+    # make workers
     futures = [
-        _compute_batch_dists.remote(ref_gt_data, start_idx, obs_pair_idxs[start_idx:start_idx+batch_size])
-        for start_idx in range(0, len(gt_data), batch_size)
+        _compute_given_dists.remote(ref_gt_data, np.arange(i, i+len(chunk)), chunk, progress_queue)
+        for i, chunk in zip(start_idxs, pair_idxs_chunks)
     ]
-    # wait for dists
-    for start_idx, pair_dists in tqdm(get_as_completed(futures), total=len(futures)):
-        obs_pair_dists[start_idx:start_idx+len(pair_dists), :] = pair_dists
-    # done!
+    # check progress
+    with tqdm(desc=gt_data.name, total=len(gt_data)) as progress:
+        completed = 0
+        while completed < len(gt_data):
+            done = progress_queue.get()
+            completed += done
+            progress.update(done)
+    # done
+    obs_pair_dists = np.concatenate(ray.get(futures), axis=0)
     return obs_pair_dists
-
 
 # ========================================================================= #
 # Distance Types                                                            #
@@ -164,7 +166,6 @@ def dataset_pair_idxs(mode: str, gt_data: GroundTruthData, num_pairs: int = 10, 
 
 
 if __name__ == '__main__':
-
 
     ray.init(num_cpus=min(os.cpu_count(), 64))
     # generate_common_cache()
