@@ -543,17 +543,17 @@ ROOT_DIR = os.path.abspath(__file__ + '/../../..')
 def main():
     from itertools import product
 
-    # (3 * 2 * 2 * 5)
-    for (fitness_overlap_include_singles, dists_scaled, pair_mode, pairs_per_obs, fitness_overlap_mode, dataset_name) in product(
+    # (2*1 * 3*1*2 * 5) = 60
+    for i, (fitness_overlap_include_singles, dists_scaled, pair_mode, pairs_per_obs, fitness_overlap_mode, dataset_name) in enumerate(product(
         [True, False],
-        [True, False],
+        [True],  # [True, False]
         ['nearby_scaled', 'nearby', 'random'],
-        [64, 16, 256],
+        [64],  # [64, 16, 256]
         ['std', 'range'],
-        ['xysquares_8x8_toy_s2'], # , 'cars3d', 'smallnorb', 'shapes3d', 'dsprites'],
-    ):
+        ['xysquares_8x8_toy_s2', 'cars3d', 'smallnorb', 'shapes3d', 'dsprites'],  # ['xysquares_8x8_toy_s2']
+    )):
         print('='*100)
-        print(f'[STARTING]: dataset_name={repr(dataset_name)} pair_mode={repr(pair_mode)} pairs_per_obs={repr(pairs_per_obs)} dists_scaled={repr(dists_scaled)} fitness_overlap_mode={repr(fitness_overlap_mode)} fitness_overlap_include_singles={repr(fitness_overlap_include_singles)}')
+        print(f'[STARTING]: i={i} dataset_name={repr(dataset_name)} pair_mode={repr(pair_mode)} pairs_per_obs={repr(pairs_per_obs)} dists_scaled={repr(dists_scaled)} fitness_overlap_mode={repr(fitness_overlap_mode)} fitness_overlap_include_singles={repr(fitness_overlap_include_singles)}')
         try:
             run(
                 dataset_name=dataset_name,
@@ -563,21 +563,21 @@ def main():
                 fitness_overlap_mode=fitness_overlap_mode,
                 fitness_overlap_include_singles=fitness_overlap_include_singles,
                 # population
-                generations=256,  # 1000
-                population_size=256,
+                generations=1000,  # 1000
+                population_size=512,
                 seed_=42,
                 save=True,
                 save_prefix='EXP',
                 plot=True,
                 wandb_enabled=True,
                 wandb_project='exp-adversarial-mask',
-                wandb_tags=['exp_pair_dists__TEST']
+                wandb_tags=['exp_pair_dists']
             )
         except KeyboardInterrupt:
             warnings.warn('Exiting early')
             exit(1)
-        # except:
-        #     warnings.warn(f'[FAILED]: dataset_name={repr(dataset_name)} dist_normalize_mode={repr(dist_normalize_mode)} fitness_overlap_mode={repr(fitness_overlap_mode)} fitness_overlap_aggregate={repr(fitness_overlap_aggregate)}')
+        except:
+            warnings.warn(f'[FAILED] i={i}')
         print('='*100)
 
 
