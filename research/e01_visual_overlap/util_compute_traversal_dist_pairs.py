@@ -24,6 +24,7 @@
 
 import logging
 from pathlib import Path
+from typing import Optional
 
 import numpy as np
 import psutil
@@ -167,12 +168,23 @@ def dataset_pair_idxs(mode: str, gt_data: GroundTruthData, num_pairs: int = 10, 
 # Cache Distances                                                           #
 # ========================================================================= #
 
+def _get_default_seed(
+    pairs_per_obs: int,
+    pair_mode: str,
+    dataset_name: str,
+):
+    import hashlib
+    seed_key = (pairs_per_obs, pair_mode, dataset_name)
+    seed_hash = hashlib.md5(str(seed_key).encode())
+    seed = int(seed_hash.hexdigest()[:8], base=16) % (2**32)  # [0, 2**32-1]
+    return seed
+
 
 def cached_compute_dataset_pair_dists(
     dataset_name: str = 'smallnorb',
     pair_mode: str = 'nearby_scaled',  # random, nearby, nearby_scaled
-    pairs_per_obs: int = 100,
-    seed: int = 7777,
+    pairs_per_obs: int = 64,
+    seed: Optional[int] = None,
     # cache settings
     cache_dir: str = 'data/cache',
     force: bool = False,
@@ -180,9 +192,12 @@ def cached_compute_dataset_pair_dists(
     scaled: bool = True,
 ):
     # checks
-    assert isinstance(seed, int), f'seed must be an int, got: {type(seed)}'
+    assert (seed is None) or isinstance(seed, int), f'seed must be an int or None, got: {type(seed)}'
     assert isinstance(pairs_per_obs, int), f'pairs_per_obs must be an int, got: {type(pairs_per_obs)}'
     assert pair_mode in _PAIR_IDXS_FNS, f'pair_mode is invalid, got: {repr(pair_mode)}, must be one of: {sorted(_PAIR_IDXS_FNS.keys())}'
+    # get default seed
+    if seed is None:
+        seed = _get_default_seed(pairs_per_obs=pairs_per_obs, pair_mode=pair_mode, dataset_name=dataset_name)
     # cache path
     cache_path = Path(cache_dir, f'dist-pairs_{dataset_name}_{pairs_per_obs}_{pair_mode}_{seed}.npz')
     # generate if it does not exist
@@ -220,7 +235,7 @@ def cached_compute_dataset_pair_dists(
 # ========================================================================= #
 
 
-def generate_common_cache(force=False):
+def generate_common_cache(force=False, force_seed=None):
     import itertools
     # settings
     sweep_pairs_per_obs = [128, 32, 256, 64, 16]
@@ -231,9 +246,10 @@ def generate_common_cache(force=False):
     # sweep
     for i, (pairs_per_obs, pair_mode, dataset_name) in enumerate(itertools.product(sweep_pairs_per_obs, sweep_pair_modes, sweep_dataset_names)):
         # deterministic seed based on settings
-        import hashlib
-        seed_key = (pairs_per_obs, pair_mode, dataset_name)
-        seed = int(hashlib.md5(str(seed_key).encode()).hexdigest()[:8], base=16) % (2**32)  # [0, 2**32-1]
+        if force_seed is None:
+            seed = _get_default_seed(pairs_per_obs=pairs_per_obs, pair_mode=pair_mode, dataset_name=dataset_name)
+        else:
+            seed = force_seed
         # info
         log.info(f'[{i}] Computing distances for: {repr(dataset_name)} {repr(pair_mode)} {repr(pairs_per_obs)} {repr(seed)}')
         # get the dataset and delete the transform
