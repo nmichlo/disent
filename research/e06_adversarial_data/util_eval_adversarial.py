@@ -67,11 +67,13 @@ def eval_factor_fitness_numpy(
     factor_sizes: Tuple[int, ...],
     fitness_mode: str,
     exclude_diag: bool,
+    increment_single: bool = True,
 ) -> float:
+    assert increment_single, f'`increment_single=False` is not supported for numpy fitness evaluation'
     # generate missing mask axis
-    f_mask = individual.reshape(factor_sizes)
-    f_mask = np.moveaxis(f_mask, f_idx, -1)
-    f_mask = f_mask[..., :, None] & f_mask[..., None, :]
+    mask = individual.reshape(factor_sizes)
+    mask = np.moveaxis(mask, f_idx, -1)
+    f_mask = mask[..., :, None] & mask[..., None, :]
     # the diagonal can change statistics
     if exclude_diag:
         diag = np.arange(f_mask.shape[-1])
@@ -80,10 +82,15 @@ def eval_factor_fitness_numpy(
     f_dists = np.ma.masked_where(~f_mask, f_dist_matrices)
 
     # get distances
-    if   fitness_mode == 'range':     fitness_sparse = (np.ma.max(f_dists, axis=-1) - np.ma.min(f_dists, axis=-1)).mean()
-    elif fitness_mode == 'max':       fitness_sparse = (np.ma.max(f_dists, axis=-1)).mean()
-    elif fitness_mode == 'std':       fitness_sparse = (np.ma.std(f_dists, axis=-1)).mean()
+    if   fitness_mode == 'range': agg_vals = np.ma.max(f_dists, axis=-1) - np.ma.min(f_dists, axis=-1)
+    elif fitness_mode == 'max':   agg_vals = np.ma.max(f_dists, axis=-1)
+    elif fitness_mode == 'std':   agg_vals = np.ma.std(f_dists, axis=-1)
     else: raise KeyError(f'invalid fitness_mode: {repr(fitness_mode)}')
+
+    # mean -- there is still a slight difference between this version
+    #         and the numba version, but this helps improve things...
+    #         It might just be a precision error?
+    fitness_sparse = np.ma.masked_where(~mask, agg_vals).mean()
 
     # combined scores
     return fitness_sparse
@@ -98,6 +105,7 @@ def eval_factor_fitness_numpy(
 def eval_factor_fitness_numba__std_nodiag(
     mask: np.ndarray,
     f_dists: np.ndarray,
+    increment_single: bool = True
 ):
     """
     This is about 10x faster than the built in numpy version
@@ -115,8 +123,9 @@ def eval_factor_fitness_numba__std_nodiag(
         for i, m in enumerate(m_row):
             if not m:
                 continue
-            # init vars
+            # get vars
             dists = d_mat[i]
+            # init vars
             n = 0
             s = 0.0
             s2 = 0.0
@@ -131,14 +140,15 @@ def eval_factor_fitness_numba__std_nodiag(
                 s2 += d*d
             # ^^^ END j
             # update total
-            if n == 1:
-                count += 1
-            elif n > 1:
+            if n > 1:
                 mean2 = (s * s) / (n * n)
                 m2 = (s2 / n)
                 # is this just needed because of precision errors?
                 if m2 > mean2:
                     total += np.sqrt(m2 - mean2)
+                count += 1
+            elif increment_single and (n == 1):
+                total += 0.
                 count += 1
         # ^^^ END i
     if count == 0:
@@ -151,6 +161,7 @@ def eval_factor_fitness_numba__std_nodiag(
 def eval_factor_fitness_numba__range_nodiag(
     mask: np.ndarray,
     f_dists: np.ndarray,
+    increment_single: bool = True,
 ):
     """
     This is about 10x faster than the built in numpy version
@@ -168,9 +179,10 @@ def eval_factor_fitness_numba__range_nodiag(
         for i, m in enumerate(m_row):
             if not m:
                 continue
-            # init vars
+            # get vars
             dists = d_mat[i]
-            added = False
+            # init vars
+            num_checked = False
             m = 0.0
             M = 0.0
             # handle each row -- enumerate is usually faster than range
@@ -179,16 +191,20 @@ def eval_factor_fitness_numba__range_nodiag(
                     continue
                 if not m_row[j]:
                     continue
-                if added:
-                    if d < m: m = d
-                    if d > M: M = d
+                # update range
+                if num_checked > 0:
+                    if d < m:
+                        m = d
+                    if d > M:
+                        M = d
                 else:
-                    added = True
                     m = d
                     M = d
+                # update num checked
+                num_checked += 1
             # ^^^ END j
             # update total
-            if added:
+            if (num_checked > 1) or (increment_single and num_checked == 1):
                 total += (M - m)
                 count += 1
         # ^^^ END i
@@ -205,6 +221,7 @@ def eval_factor_fitness_numba(
     factor_sizes: Tuple[int, ...],
     fitness_mode: str,
     exclude_diag: bool,
+    increment_single: bool = True,
 ):
     """
     We only keep this function as a compatibility layer between:
@@ -216,9 +233,9 @@ def eval_factor_fitness_numba(
     mask = np.moveaxis(individual.reshape(factor_sizes), f_idx, -1)
     # call
     if fitness_mode == 'range':
-        return eval_factor_fitness_numba__range_nodiag(mask=mask, f_dists=f_dist_matrices)
+        return eval_factor_fitness_numba__range_nodiag(mask=mask, f_dists=f_dist_matrices, increment_single=increment_single)
     elif fitness_mode == 'std':
-        return eval_factor_fitness_numba__std_nodiag(mask=mask, f_dists=f_dist_matrices)
+        return eval_factor_fitness_numba__std_nodiag(mask=mask, f_dists=f_dist_matrices, increment_single=increment_single)
     else:
         raise KeyError(f'fast version of eval only supports `fitness_mode in ("range", "std")`, got: {repr(fitness_mode)}')
 
@@ -228,6 +245,12 @@ def eval_factor_fitness_numba(
 # ========================================================================= #
 
 
+_EVAL_BACKENDS = {
+    'numpy': eval_factor_fitness_numpy,
+    'numba': eval_factor_fitness_numba,
+}
+
+
 def eval_individual(
     individual: np.ndarray,
     gt_dist_matrices: np.ndarray,
@@ -235,11 +258,16 @@ def eval_individual(
     fitness_overlap_mode: str,
     fitness_overlap_aggregate: str,
     exclude_diag: bool,
-    eval_factor_fitness_fn=eval_factor_fitness_numba,
+    increment_single: bool = True,
+    backend: str = 'numba',
 ) -> Tuple[float, float]:
+    # get function
+    if backend not in _EVAL_BACKENDS:
+        raise KeyError(f'invalid backend: {repr(backend)}, must be one of: {sorted(_EVAL_BACKENDS.keys())}')
+    eval_fn = _EVAL_BACKENDS[backend]
     # evaluate all factors
     factor_scores = np.array([
-        [eval_factor_fitness_fn(individual, f_idx, f_dist_matrices, factor_sizes=factor_sizes, fitness_mode=fitness_overlap_mode, exclude_diag=exclude_diag)]
+        [eval_fn(individual, f_idx, f_dist_matrices, factor_sizes=factor_sizes, fitness_mode=fitness_overlap_mode, exclude_diag=exclude_diag, increment_single=increment_single)]
         for f_idx, f_dist_matrices in enumerate(gt_dist_matrices)
     ])
     # aggregate
@@ -274,27 +302,35 @@ def _check_equal(
     all_dist_matrices = cached_compute_all_factor_dist_matrices(dataset_name)  # SHAPE FOR: s=factor_sizes, i=f_idx | (*s[:i], *s[i+1:], s[i], s[i])
     mask = np.random.random(len(gt_data)) < 0.5                                # SHAPE: (-1,)
 
-    def eval_factor(eval_fn, f_idx: int):
-        return eval_fn(
+    def eval_factor(backend: str, f_idx: int, increment_single=True):
+        return _EVAL_BACKENDS[backend](
             individual=mask,
             f_idx=f_idx,
             f_dist_matrices=all_dist_matrices[f_idx],
             factor_sizes=gt_data.factor_sizes,
             fitness_mode=fitness_mode,
             exclude_diag=True,
+            increment_single=increment_single,
         )
 
-    def eval_all(eval_fn):
-        return np.around([eval_factor(eval_fn, i) for i in range(gt_data.num_factors)], decimals=15)
+    def eval_all(backend: str, increment_single=True):
+        return np.around([eval_factor(backend, i, increment_single=increment_single) for i in range(gt_data.num_factors)], decimals=15)
 
-    new_vals = eval_all(eval_factor_fitness_numba)
-    new_time = timeit(lambda: eval_all(eval_factor_fitness_numba), number=n) / n
+    new_vals = eval_all('numba', increment_single=False)
+    new_time = timeit(lambda: eval_all('numba', increment_single=False), number=n) / n
+    print(f'- NEW {new_time:.5f}s {new_vals} (increment_single=False)')
+
+    new_vals = eval_all('numba')
+    new_time = timeit(lambda: eval_all('numba'), number=n) / n
     print(f'- NEW {new_time:.5f}s {new_vals}')
 
-    old_vals = eval_all(eval_factor_fitness_numpy)
-    old_time = timeit(lambda: eval_all(eval_factor_fitness_numpy), number=n) / n
+    old_vals = eval_all('numpy')
+    old_time = timeit(lambda: eval_all('numpy'), number=n) / n
     print(f'- OLD {old_time:.5f}s {old_vals}')
     print(f'* speedup: {np.around(old_time/new_time, decimals=2)}x')
+
+    if not np.allclose(new_vals, old_vals):
+        print('[WARNING]: values are not close!')
 
 
 if __name__ == '__main__':
@@ -303,9 +339,8 @@ if __name__ == '__main__':
         print('='*100)
         _check_equal(dataset_name, fitness_mode='std')
         print()
-        # _check_equal(dataset_name, fitness_mode='range')
-        # print('='*100)
-
+        _check_equal(dataset_name, fitness_mode='range')
+        print('='*100)
 
 
 # ========================================================================= #

@@ -52,6 +52,7 @@ from ruck import R
 from ruck.external.ray import ray_map
 from ruck.external.ray import ray_remote_put
 from ruck.external.ray import ray_remote_puts
+from ruck.external.deap import select_nsga2
 
 import research.util as H
 from disent.dataset.wrapper import MaskedDataset
@@ -61,7 +62,6 @@ from disent.util.profiling import Timer
 from disent.util.seeds import seed
 from disent.util.visualize.vis_util import get_idx_traversal
 from research.e01_visual_overlap.util_compute_traversal_dists import cached_compute_all_factor_dist_matrices
-from research.e06_adversarial_data.util_eval_adversarial import eval_factor_fitness_numba
 from research.e06_adversarial_data.util_eval_adversarial import eval_individual
 
 
@@ -101,28 +101,6 @@ NOTES ON MULTI-OBJECTIVE OPTIMIZATION:
 # ========================================================================= #
 # Ruck Helper                                                               #
 # ========================================================================= #
-
-
-def select_nsga2(population, num_offspring: int, weights: Tuple[float, ...]):
-    # TODO: move this into ruck
-    """
-    This is hacky... ruck doesn't yet have NSGA2
-    support, but we want to use it for this!
-    """
-    from deap import creator, tools, base
-    # initialize creator
-    creator.create('IdxFitness', base.Fitness, weights=weights)
-    creator.create('IdxIndividual', int, fitness=creator.IdxFitness)
-    # convert to deap population
-    idx_individuals = []
-    for i, m in enumerate(population):
-        ind = creator.IdxIndividual(i)
-        ind.fitness.values = m.fitness
-        idx_individuals.append(ind)
-    # run nsga2
-    chosen_idx = tools.selNSGA2(individuals=idx_individuals, k=num_offspring)
-    # return values
-    return [population[i] for i in chosen_idx]
 
 
 def mutate_oneof(*mutate_fns):
@@ -219,15 +197,17 @@ def evaluate_member(
     factor_sizes: Tuple[int, ...],
     fitness_overlap_mode: str,
     fitness_overlap_aggregate: str,
+    fitness_overlap_include_singles: bool,
 ) -> Tuple[float, float]:
     overlap_score, usage_ratio = eval_individual(
-        eval_factor_fitness_fn=eval_factor_fitness_numba,
         individual=value,
         gt_dist_matrices=gt_dist_matrices,
         factor_sizes=factor_sizes,
         fitness_overlap_mode=fitness_overlap_mode,
         fitness_overlap_aggregate=fitness_overlap_aggregate,
         exclude_diag=True,
+        increment_single=fitness_overlap_include_singles,
+        backend='numba',
     )
 
     # weight components
@@ -309,6 +289,7 @@ class DatasetMaskModule(ruck.EaModule):
         # fitness settings
         fitness_overlap_aggregate: str = 'mean',
         fitness_overlap_mode: str = 'std',
+        fitness_overlap_include_singles: bool = True,
         # ea settings
         p_mate: float = 0.5,
         p_mutate: float = 0.5,
@@ -341,6 +322,7 @@ class DatasetMaskModule(ruck.EaModule):
             factor_sizes=factor_sizes,
             fitness_overlap_mode=fitness_overlap_mode,
             fitness_overlap_aggregate=fitness_overlap_aggregate,
+            fitness_overlap_include_singles=fitness_overlap_include_singles,
         )
 
 
