@@ -231,6 +231,13 @@ def evaluate_member(
     # convert minimization problem into maximization
     # return - loss
 
+    if overlap_score < 0:
+        log.warning(f'member has invalid overlap_score: {repr(overlap_score)}')
+        overlap_score = 1000  # minimizing target to 0 in range [0, 1] so this is bad
+    if usage_ratio < 0:
+        log.warning(f'member has invalid usage_ratio: {repr(usage_ratio)}')
+        usage_ratio = -1000  # maximizing target to 1 in range [0, 1] so this is bad
+
     return (-overlap_score, usage_ratio)
 
 
@@ -556,8 +563,8 @@ def main():
                 fitness_overlap_mode=fitness_overlap_mode,
                 fitness_overlap_include_singles=fitness_overlap_include_singles,
                 # population
-                generations=256,
-                population_size=128,
+                generations=256,  # 1000
+                population_size=256,
                 seed_=42,
                 save=True,
                 save_prefix='EXP',
