@@ -45,6 +45,7 @@ from typing import Optional
 from typing import Tuple
 
 import numpy as np
+import psutil
 import ray
 import ruck
 from matplotlib import pyplot as plt
@@ -52,7 +53,9 @@ from ruck import R
 from ruck.external.ray import ray_map
 from ruck.external.ray import ray_remote_put
 from ruck.external.ray import ray_remote_puts
-from ruck.external.deap import select_nsga2
+
+from ruck.external.deap import select_nsga2 as select_nsga2_deap
+# from ruck.functional import select_nsga2 as select_nsga2_ruck  # should rather use this!
 
 import research.util as H
 from disent.dataset.wrapper import MaskedDataset
@@ -278,7 +281,7 @@ class DatasetDistPairMaskModule(ruck.EaModule):
         ]
 
     def select_population(self, population: Population, offspring: Population) -> Population:
-        return select_nsga2(population + offspring, len(population), weights=(1.0, 1.0))
+        return select_nsga2_deap(population + offspring, len(population))
 
     def evaluate_values(self, values: Values) -> List[float]:
         return ray.get([self._evaluate_value_fn(v) for v in values])
@@ -458,6 +461,8 @@ def run(
             random_points=random_fitnesses,
             figsize=(7, 7),
         )
+        # plot factor usage ratios
+        # TODO: PLOT 2D matrix of all permutations of factors aggregated
         # log average
         if wandb_enabled:
             wandb.log({
@@ -548,7 +553,7 @@ def main():
         [True, False],
         [True],  # [True, False]
         ['nearby_scaled', 'nearby', 'random'],
-        [64],  # [64, 16, 256]
+        [256],  # [64, 16, 256]
         ['std', 'range'],
         ['xysquares_8x8_toy_s2', 'cars3d', 'smallnorb', 'shapes3d', 'dsprites'],  # ['xysquares_8x8_toy_s2']
     )):
@@ -564,10 +569,10 @@ def main():
                 fitness_overlap_include_singles=fitness_overlap_include_singles,
                 # population
                 generations=1000,  # 1000
-                population_size=512,
+                population_size=384,
                 seed_=42,
                 save=True,
-                save_prefix='EXP',
+                save_prefix='DISTS-SCALED',
                 plot=True,
                 wandb_enabled=True,
                 wandb_project='exp-adversarial-mask',
@@ -587,8 +592,9 @@ if __name__ == '__main__':
 
     # run
     logging.basicConfig(level=logging.INFO)
-    ray.init(num_cpus=64)
+    ray.init(num_cpus=psutil.cpu_count(logical=False))
     main()
+
 
 # ========================================================================= #
 # END                                                                       #
