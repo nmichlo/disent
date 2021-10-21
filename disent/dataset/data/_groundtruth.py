@@ -62,6 +62,10 @@ class GroundTruthData(Dataset, StateSpace):
             factor_names=self.factor_names,
         )
 
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Overridable Defaults                                                  #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
     @property
     def name(self):
         name = self.__class__.__name__
@@ -70,7 +74,7 @@ class GroundTruthData(Dataset, StateSpace):
         return name.lower()
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # Overrides                                                             #
+    # State Space                                                           #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     @property
@@ -103,6 +107,10 @@ class GroundTruthData(Dataset, StateSpace):
         channels = self.img_shape[-1]
         assert channels in (1, 3), f'invalid number of channels for dataset: {self.__class__.__name__}, got: {repr(channels)}, required: 1 or 3'
         return channels
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Overrides                                                             #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     def __getitem__(self, idx):
         obs = self._get_observation(idx)
@@ -195,15 +203,11 @@ class ArrayGroundTruthData(GroundTruthData):
 # ========================================================================= #
 
 
-class DiskGroundTruthData(GroundTruthData, metaclass=ABCMeta):
+class _DiskDataMixin(object):
 
-    """
-    Dataset that prepares a list DataObjects into some local directory.
-    - This directory can be
-    """
+    _data_dir: str
 
-    def __init__(self, data_root: Optional[str] = None, prepare: bool = False, transform=None):
-        super().__init__(transform=transform)
+    def _mixin_disk_init(self, data_root: Optional[str] = None, prepare: bool = False):
         # get root data folder
         if data_root is None:
             data_root = self.default_data_root
@@ -229,6 +233,23 @@ class DiskGroundTruthData(GroundTruthData, metaclass=ABCMeta):
     @property
     def datafiles(self) -> Sequence[DataFile]:
         raise NotImplementedError
+
+    @property
+    def name(self) -> str:
+        raise NotImplementedError
+
+
+class DiskGroundTruthData(_DiskDataMixin, GroundTruthData, metaclass=ABCMeta):
+
+    """
+    Dataset that prepares a list DataObjects into some local directory.
+    - This directory can be
+    """
+
+    def __init__(self, data_root: Optional[str] = None, prepare: bool = False, transform=None):
+        super().__init__(transform=transform)
+        # get root data folder
+        self._mixin_disk_init(data_root=data_root, prepare=prepare)
 
 
 class NumpyFileGroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):

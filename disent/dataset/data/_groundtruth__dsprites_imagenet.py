@@ -25,32 +25,21 @@
 import logging
 import os
 import shutil
-from itertools import chain
-from itertools import repeat
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Optional
 import csv
-from typing import Sequence
-from typing import Tuple
 
 import numpy as np
 import psutil
-from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
-from torch.utils.data.dataset import T_co
 from torchvision.datasets import ImageFolder
 from tqdm import tqdm
 
-from disent.dataset.data import ArrayDataset
 from disent.dataset.data import DSpritesData
-from disent.dataset.data import Hdf5Dataset
-from disent.dataset.data._groundtruth import Data
 from disent.dataset.data._groundtruth import _Hdf5DataMixin
 from disent.dataset.data._groundtruth import _DiskDataMixin
-from disent.dataset.transform import ToStandardisedTensor
-from disent.dataset.util.datafile import DataFile
 from disent.dataset.util.datafile import DataFileHashedDlGen
 from disent.dataset.util.hdf5 import H5Builder
 from disent.util.inout.files import AtomicSaveFile
@@ -193,7 +182,7 @@ class ImageNetTinyDataFile(DataFileHashedDlGen):
         resave_imagenet_tiny_archive(orig_zipped_file=inp_file, new_save_file=out_file, overwrite=True, h5_dataset_name=self.dataset_name)
 
 
-class ImageNetTinyData(_Hdf5DataMixin, _DiskDataMixin, Data):
+class ImageNetTinyData(_Hdf5DataMixin, _DiskDataMixin, Dataset, LengthIter):
 
     name = 'imagenet_tiny'
 
@@ -285,6 +274,6 @@ if __name__ == '__main__':
 
     data = DSpritesImagenetData(prepare=True)
 
-    grid = np.array([data[i] for i in np.arange(16)]).reshape([4, 4, *data.img_shape])
+    grid = np.array([data[i*24733] for i in np.arange(16)]).reshape([4, 4, *data.img_shape])
 
     plt_subplots_imshow(grid, show=True)

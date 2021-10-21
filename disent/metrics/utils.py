@@ -39,9 +39,9 @@ from disent.util import to_numpy
 def generate_batch_factor_code(
         ground_truth_dataset: DisentDataset,
         representation_function,
-        num_points,
-        batch_size,
-        show_progress=False,
+        num_points: int,
+        batch_size: int,
+        show_progress: bool = False,
 ):
     """Sample a single training sample based on a mini-batch of ground-truth data.
     Args:
