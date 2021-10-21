@@ -1,6 +1,5 @@
 import os
 import pytorch_lightning as pl
-from torch.optim import Adam
 from torch.utils.data import DataLoader
 from torchvision import datasets
 from tqdm import tqdm
@@ -9,7 +8,7 @@ from disent.dataset.sampling import RandomSampler
 from disent.frameworks.vae import AdaVae
 from disent.model import AutoEncoder
 from disent.model.ae import DecoderFC, EncoderFC
-from disent.nn.transform import ToImgTensorF32
+from disent.dataset.transform import ToImgTensorF32
 
 
 # modify the mnist dataset to only return images, not labels

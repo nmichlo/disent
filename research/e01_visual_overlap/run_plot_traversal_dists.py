@@ -43,7 +43,7 @@ import research.util as H
 from disent.dataset.data import GroundTruthData
 from disent.dataset.data import SelfContainedHdf5GroundTruthData
 from disent.dataset.util.stats import compute_data_mean_std
-from disent.nn.transform import ToImgTensorF32
+from disent.dataset.transform import ToImgTensorF32
 from disent.util.inout.paths import ensure_parent_dir_exists
 from disent.util.seeds import TempNumpySeed
 

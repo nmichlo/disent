@@ -14,7 +14,7 @@ data:
     prepare: True
     in_memory: ${dataset.try_in_memory}
 transform:
-  _target_: disent.nn.transform.ToImgTensorF32
+  _target_: disent.dataset.transform.ToImgTensorF32
   mean: ${dataset.vis_mean}
   std: ${dataset.vis_std}
 x_shape: [1, 64, 64]

@@ -41,7 +41,7 @@ from disent.frameworks.vae.experimental import *  # pragma: delete-on-release
 from disent.model import AutoEncoder
 from disent.model.ae import DecoderLinear
 from disent.model.ae import EncoderLinear
-from disent.nn.transform import ToImgTensorF32
+from disent.dataset.transform import ToImgTensorF32
 
 
 # ========================================================================= #

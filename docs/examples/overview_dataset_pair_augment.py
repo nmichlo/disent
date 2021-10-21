@@ -1,7 +1,7 @@
 from disent.dataset import DisentDataset
 from disent.dataset.data import XYObjectData
 from disent.dataset.sampling import GroundTruthPairSampler
-from disent.nn.transform import ToImgTensorF32, FftBoxBlur
+from disent.dataset.transform import ToImgTensorF32, FftBoxBlur
 
 
 # prepare the data

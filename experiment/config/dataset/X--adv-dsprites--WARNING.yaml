@@ -4,7 +4,7 @@ data:
   _target_: disent.dataset.data.SelfContainedHdf5GroundTruthData
   h5_path: '${env:HOME}/workspace/research/disent/out/adversarial_data_approx/2021-09-06--03-17-28_INVERT-VSTRONG-dsprites_invert_margin_0.05_aw10.0_same_k1_close_s200001_Adam_lr0.0005_wd1e-06/data.h5'
 transform:
-  _target_: disent.nn.transform.ToImgTensorF32
+  _target_: disent.dataset.transform.ToImgTensorF32
   mean: ${dataset.vis_mean}
   std: ${dataset.vis_std}
 x_shape: [1, 64, 64]

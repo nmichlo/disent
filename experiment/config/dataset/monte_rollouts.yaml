@@ -6,7 +6,7 @@ data:
   download_url: 'https://raw.githubusercontent.com/nmichlo/uploads/main/monte_key.tar.xz'
   force_download: FALSE
 transform:
-  _target_: disent.nn.transform.ToImgTensorF32
+  _target_: disent.dataset.transform.ToImgTensorF32
   size: [64, 64]  # slightly squashed?
   mean: ${dataset.vis_mean}
   std: ${dataset.vis_std}

@@ -2,7 +2,7 @@ from torch.utils.data import DataLoader
 from disent.dataset import DisentDataset
 from disent.dataset.data import XYObjectData
 from disent.dataset.sampling import GroundTruthPairOrigSampler
-from disent.nn.transform import ToImgTensorF32
+from disent.dataset.transform import ToImgTensorF32
 
 # prepare the data
 data = XYObjectData(grid_size=4, min_square_size=1, max_square_size=2, square_size_spacing=1, palette='rgb')

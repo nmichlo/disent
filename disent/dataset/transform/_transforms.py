@@ -26,7 +26,7 @@ from typing import Optional
 from typing import Sequence
 
 import torch
-import disent.nn.transform.functional as F_d
+import disent.dataset.transform.functional as F_d
 
 
 # ========================================================================= #

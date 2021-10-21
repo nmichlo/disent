@@ -227,8 +227,9 @@ from disent.frameworks.vae import BetaVae
 from disent.metrics import metric_dci, metric_mig
 from disent.model import AutoEncoder
 from disent.model.ae import DecoderConv64, EncoderConv64
-from disent.nn.transform import ToImgTensorF32
+from disent.dataset.transform import ToImgTensorF32
 from disent.schedule import CyclicSchedule
+
 
 # create the dataset & dataloaders
 # - ToImgTensorF32 transforms images from numpy arrays to tensors and performs checks
@@ -261,7 +262,9 @@ module.register_schedule(
 
 # train model
 # - for 2048 batches/steps
-trainer = pl.Trainer(max_steps=2048, gpus=1 if torch.cuda.is_available() else None, logger=False, checkpoint_callback=False)
+trainer = pl.Trainer(
+  max_steps=2048, gpus=1 if torch.cuda.is_available() else None, logger=False, checkpoint_callback=False
+)
 trainer.fit(module, dataloader)
 
 # compute disentanglement metrics

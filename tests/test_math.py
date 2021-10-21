@@ -41,7 +41,7 @@ from disent.nn.functional import torch_gaussian_kernel_2d
 from disent.nn.functional import torch_idct
 from disent.nn.functional import torch_idct2
 from disent.nn.functional import torch_mean_generalized
-from disent.nn.transform import ToImgTensorF32
+from disent.dataset.transform import ToImgTensorF32
 from disent.util import to_numpy
 
 

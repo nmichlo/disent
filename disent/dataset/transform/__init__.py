@@ -23,18 +23,14 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 # transforms
-from disent.nn.transform._transforms import CheckTensor
-from disent.nn.transform._transforms import Noop
+from disent.dataset.transform._transforms import CheckTensor
+from disent.dataset.transform._transforms import Noop
 
-from disent.nn.transform._transforms import ToImgTensorF32
-from disent.nn.transform._transforms import ToImgTensorU8
-from disent.nn.transform._transforms import ToStandardisedTensor  # deprecated
-from disent.nn.transform._transforms import ToUint8Tensor         # deprecated
+from disent.dataset.transform._transforms import ToImgTensorF32
+from disent.dataset.transform._transforms import ToImgTensorU8
+from disent.dataset.transform._transforms import ToStandardisedTensor  # deprecated
+from disent.dataset.transform._transforms import ToUint8Tensor         # deprecated
 
 # augments
-from disent.nn.transform._augment import FftGaussianBlur
-from disent.nn.transform._augment import FftBoxBlur
-from disent.nn.transform._augment import FftKernel
 
 # disent dataset augment
-from disent.nn.transform._augment_disent import DisentDatasetTransform

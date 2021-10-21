@@ -48,9 +48,9 @@ from disent.dataset.data import XYObjectData
 from disent.dataset.data import XYSquaresData
 from disent.dataset.sampling import BaseDisentSampler
 from disent.dataset.sampling import GroundTruthSingleSampler
-from disent.nn.transform import Noop
-from disent.nn.transform import ToImgTensorF32
-from disent.nn.transform import ToImgTensorU8
+from disent.dataset.transform import Noop
+from disent.dataset.transform import ToImgTensorF32
+from disent.dataset.transform import ToImgTensorU8
 
 
 # ========================================================================= #

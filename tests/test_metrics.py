@@ -28,7 +28,7 @@ import torch
 from disent.dataset.data import XYObjectData
 from disent.dataset import DisentDataset
 from disent.metrics import *
-from disent.nn.transform import ToImgTensorF32
+from disent.dataset.transform import ToImgTensorF32
 from disent.util.function import wrapped_partial
 
 

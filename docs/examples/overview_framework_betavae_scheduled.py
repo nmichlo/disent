@@ -1,13 +1,11 @@
 import pytorch_lightning as pl
-from torch.optim import Adam
 from torch.utils.data import DataLoader
 from disent.dataset import DisentDataset
 from disent.dataset.data import XYObjectData
-from disent.dataset.sampling import SingleSampler
 from disent.frameworks.vae import BetaVae
 from disent.model import AutoEncoder
 from disent.model.ae import DecoderConv64, EncoderConv64
-from disent.nn.transform import ToImgTensorF32
+from disent.dataset.transform import ToImgTensorF32
 from disent.schedule import CyclicSchedule
 from disent.util import is_test_run  # you can ignore and remove this
 
