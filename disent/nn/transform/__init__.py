@@ -37,4 +37,4 @@ from disent.nn.transform._augment import FftBoxBlur
 from disent.nn.transform._augment import FftKernel
 
 # disent dataset augment
-from disent.nn.transform._augment_groundtruth import DisentDatasetTransform
+from disent.nn.transform._augment_disent import DisentDatasetTransform
