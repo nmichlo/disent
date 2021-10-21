@@ -25,7 +25,11 @@
 # transforms
 from ._transforms import CheckTensor
 from ._transforms import Noop
-from ._transforms import ToStandardisedTensor
+
+from ._transforms import ToImgTensorF32
+from ._transforms import ToImgTensorU8
+from ._transforms import ToStandardisedTensor  # deprecated
+from ._transforms import ToUint8Tensor         # deprecated
 
 # augments
 from ._augment import FftGaussianBlur

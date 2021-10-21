@@ -93,8 +93,9 @@ def to_img_tensor_u8(
     size: Optional[SizeType] = None,
 ) -> torch.Tensor:
     """
-    Basic transform that:
+    Basic transform that makes sure the image tensor is uint8 and a specified size.
 
+    Steps:
     1. resize image if size is specified
     2. add missing channel to greyscale image
     3. move channels to first dim (H, W, C) -> (C, H, W)
@@ -127,14 +128,15 @@ def to_img_tensor_f32(
     std: Optional[Sequence[float]] = None,
 ) -> torch.Tensor:
     """
-    Basic transform that should be applied to
-    any dataset before augmentation.
+    Basic transform that should be applied to most datasets, making sure
+    the image tensor is float32 and a specified size.
 
-    1. resize image if size is specified
-    2. if we have integer inputs, divide by 255
-    3. add missing channel to greyscale image
-    4. move channels to first dim (H, W, C) -> (C, H, W)
-    5. normalize using mean and std, values might thus be outside of the range [0, 1]
+    Steps:
+        1. resize image if size is specified
+        2. if we have integer inputs, divide by 255
+        3. add missing channel to greyscale image
+        4. move channels to first dim (H, W, C) -> (C, H, W)
+        5. normalize using mean and std, values might thus be outside of the range [0, 1]
     """
     # resize image
     if size is not None:

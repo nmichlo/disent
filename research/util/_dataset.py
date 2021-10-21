@@ -48,8 +48,9 @@ from disent.dataset.data import XYObjectData
 from disent.dataset.data import XYSquaresData
 from disent.dataset.sampling import BaseDisentSampler
 from disent.dataset.sampling import GroundTruthSingleSampler
+from disent.nn.transform import Noop
 from disent.nn.transform import ToStandardisedTensor
-from disent.nn.transform._transforms import ToUint8Tensor
+from disent.nn.transform import ToUint8Tensor
 
 
 # ========================================================================= #
@@ -138,9 +139,8 @@ def make_data(
     # transform object
     TransformCls = {
         'uint8': ToUint8Tensor,
-        'float': ToStandardisedTensor,
         'float32': ToStandardisedTensor,
-        'none': (lambda *args, **kwargs: (lambda x: x)),
+        'none': Noop,
     }[transform_mode]
     # make data
     if   name == 'xysquares':      data = XYSquaresData(transform=TransformCls())  # equivalent: [xysquares, xysquares_8x8, xysquares_8x8_s8]
@@ -195,7 +195,7 @@ def make_dataset(
     try_in_memory: bool = False,
     load_into_memory: bool = False,
     load_memory_dtype: torch.dtype = torch.float16,
-    transform_mode: TransformTypeHint = 'float',
+    transform_mode: TransformTypeHint = 'float32',
     sampler: BaseDisentSampler = None,
 ) -> DisentDataset:
     data = make_data(
