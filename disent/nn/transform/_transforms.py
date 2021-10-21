@@ -83,27 +83,28 @@ class ToStandardisedTensor(object):
     def __init__(
         self,
         size: Optional[F_d.SizeType] = None,
-        cast_f32: bool = False,
-        check: bool = True,
-        check_range: bool = True,
         mean: Optional[Sequence[float]] = None,
         std: Optional[Sequence[float]] = None,
     ):
         self._size = size
-        self._cast_f32 = cast_f32  # cast after resizing before checks -- disabled by default to so dtype errors can be seen
-        self._check = check
-        self._check_range = check_range  # if check is `False` then `check_range` can never be `True`
         self._mean = tuple(mean) if (mean is not None) else None
         self._std = tuple(std) if (mean is not None) else None
 
     def __call__(self, obs) -> torch.Tensor:
-        return F_d.to_standardised_tensor(obs, size=self._size, cast_f32=self._cast_f32, check=self._check, check_range=self._check_range, mean=self._mean, std=self._std)
+        return F_d.to_img_tensor_f32(obs, size=self._size, mean=self._mean, std=self._std)
 
     def __repr__(self):
         return f'{self.__class__.__name__}(size={repr(self._size)})'
 
 
 class ToUint8Tensor(object):
+    """
+    Standardise image data after loading:
+    1. resize if size is specified
+    2. make sure that the tensor is of type uint8
+
+    See: disent.transform.functional.to_uint8_tensor
+    """
 
     def __init__(
         self,
@@ -114,7 +115,7 @@ class ToUint8Tensor(object):
         self._channel_to_front = channel_to_front
 
     def __call__(self, obs) -> torch.Tensor:
-        return F_d.to_uint_tensor(obs, size=self._size, channel_to_front=self._channel_to_front)
+        return F_d.to_img_tensor_u8(obs, size=self._size, channel_to_front=self._channel_to_front)
 
     def __repr__(self):
         return f'{self.__class__.__name__}(size={repr(self._size)})'
