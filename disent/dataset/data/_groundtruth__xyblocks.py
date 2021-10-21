@@ -95,7 +95,7 @@ class XYBlocksData(GroundTruthData):
         return self._factor_sizes
 
     @property
-    def observation_shape(self) -> Tuple[int, ...]:
+    def img_shape(self) -> Tuple[int, ...]:
         return self._observation_shape
     
     def __init__(
@@ -148,7 +148,7 @@ class XYBlocksData(GroundTruthData):
         cs, xs, ys = positions[:self._grid_dims*1], positions[self._grid_dims*1:self._grid_dims*2], positions[self._grid_dims*2:]
         assert len(xs) == len(ys) == len(cs)
         # GENERATE
-        obs = np.full(self.observation_shape, self._bg_color, dtype=np.uint8)
+        obs = np.full(self.img_shape, self._bg_color, dtype=np.uint8)
         for i, (x, y, s, c) in enumerate(zip(xs, ys, self._axis_division_sizes, cs)):
             obs[y*s:(y+1)*s, x*s:(x+1)*s, :] = self._colors[c] if np.any(obs[y*s, x*s, :] != self._colors[c]) else self._bg_color
         # RETURN

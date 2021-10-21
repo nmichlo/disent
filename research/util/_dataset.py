@@ -88,7 +88,7 @@ from disent.nn.transform._transforms import ToUint8Tensor
 #     return ArrayGroundTruthData.new_like(tensor, gt_data, array_chn_is_last=False)
 
 
-def load_dataset_into_memory(gt_data: GroundTruthData, obs_shape: Optional[Tuple[int, ...]] = None, batch_size=64, num_workers=min(os.cpu_count(), 16), dtype=torch.float32, raw_array=False):
+def load_dataset_into_memory(gt_data: GroundTruthData, x_shape: Optional[Tuple[int, ...]] = None, batch_size=64, num_workers=min(os.cpu_count(), 16), dtype=torch.float32, raw_array=False):
     assert dtype in {torch.float16, torch.float32}
     # TODO: this should be part of disent?
     from torch.utils.data import DataLoader
@@ -96,10 +96,10 @@ def load_dataset_into_memory(gt_data: GroundTruthData, obs_shape: Optional[Tuple
     from disent.dataset.data import ArrayGroundTruthData
     # get observation shape
     # - manually specify this if the gt_data has a transform applied that resizes the observations for example!
-    if obs_shape is None:
-        obs_shape = gt_data.obs_shape
+    if x_shape is None:
+        x_shape = gt_data.x_shape
     # load dataset into memory manually!
-    data = torch.zeros(len(gt_data), *obs_shape, dtype=dtype)
+    data = torch.zeros(len(gt_data), *x_shape, dtype=dtype)
     # load all batches
     dataloader = DataLoader(gt_data, batch_size=batch_size, shuffle=False, num_workers=num_workers, drop_last=False)
     idx = 0
@@ -181,7 +181,7 @@ def make_data(
     else: raise KeyError(f'invalid data name: {repr(name)}')
     # load into memory
     if load_into_memory:
-        old_data, data = data, load_dataset_into_memory(data, dtype=load_memory_dtype, obs_shape=(data.img_channels, 64, 64))
+        old_data, data = data, load_dataset_into_memory(data, dtype=load_memory_dtype, x_shape=(data.img_channels, 64, 64))
     # make dataset
     if factors:
         raise NotImplementedError('factor returning is not yet implemented in the rewrite! this needs to be fixed!')  # TODO!
