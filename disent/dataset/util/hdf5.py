@@ -29,6 +29,7 @@ Utilities for converting and testing different chunk sizes of hdf5 files
 import contextlib
 import logging
 import os
+from pathlib import Path
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -129,10 +130,22 @@ def h5_assert_deterministic(h5_file: h5py.File) -> h5py.File:
 
 @contextlib.contextmanager
 def h5_open(path: str, mode: str = 'r') -> h5py.File:
+    """
+    MODES:
+        atomic_w Create temp file, then move and overwrite existing when done
+        atomic_x Create temp file, then try move or fail if existing when done
+        r        Readonly, file must exist (default)
+        r+       Read/write, file must exist
+        w        Create file, truncate if exists
+        w- or x  Create file, fail if exists
+        a        Read/write if exists, create otherwise
+    """
     assert str.endswith(path, '.h5'), f'hdf5 file path does not end with extension: `.h5`'
     # get atomic context manager
     if mode == 'atomic_w':
         save_context, mode = AtomicSaveFile(path, open_mode=None, overwrite=True), 'w'
+    elif mode == 'atomic_x':
+        save_context, mode = AtomicSaveFile(path, open_mode=None, overwrite=False), 'x'
     else:
         save_context = contextlib.nullcontext(path)
     # handle saving to file
@@ -143,13 +156,33 @@ def h5_open(path: str, mode: str = 'r') -> h5py.File:
 
 class H5Builder(object):
 
-    def __init__(self, h5_file: h5py.File):
+    def __init__(self, path: Union[str, Path], mode: str = 'x'):
         super().__init__()
         # make sure that the file is deterministic
         # - we might be missing some of the properties that control this
         # - should we add a recursive option?
-        h5_assert_deterministic(h5_file)
-        self._h5_file = h5_file
+        if not isinstance(path, (str, Path)):
+            raise TypeError(f'the given h5py path must be of type: `str`, `pathlib.Path`, got: {type(path)}')
+        self._h5_path = path
+        self._h5_mode = mode
+        self._context_manager = None
+        self._open_file = None
+
+    def __enter__(self):
+        self._context_manager = h5_open(self._h5_path, self._h5_mode)
+        self._open_file = h5_assert_deterministic(self._context_manager.__enter__())
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._context_manager.__exit__(exc_type, exc_val, exc_tb)
+        self._open_file = None
+        self._context_manager = None
+
+    @property
+    def _h5_file(self) -> h5py.File:
+        if self._open_file is None:
+            raise 'The H5Builder has not been opened in a new context, use `with H5Builder(...) as builder: ...`'
+        return self._open_file
 
     def add_dataset(
         self,
@@ -217,7 +250,7 @@ class H5Builder(object):
         # loop variables
         n = len(dataset)
         # save data
-        with tqdm(total=n, disable=not show_progress) as progress:
+        with tqdm(total=n, disable=not show_progress, desc=f'saving {name}') as progress:
             for i in range(0, n, batch_size):
                 j = min(i + batch_size, n)
                 assert j > i, f'this is a bug! {repr(j)} > {repr(i)}, len(dataset)={repr(n)}, batch_size={repr(batch_size)}'
@@ -301,6 +334,32 @@ class H5Builder(object):
             show_progress=show_progress,
         )
         return self
+
+    def add_dataset_from_array(
+        self,
+        name: str,
+        array: np.ndarray,
+        chunk_shape: ChunksType = 'batch',
+        compression_lvl: Optional[int] = 4,
+        attrs: Optional[Dict[str, Any]] = None,
+        batch_size: Union[int, Literal['auto']] = 'auto',
+        show_progress: bool = False,
+    ):
+        self.add_dataset(
+            name=name,
+            shape=array.shape,
+            dtype=array.dtype,
+            chunk_shape=chunk_shape,
+            compression_lvl=compression_lvl,
+            attrs=attrs,
+        )
+        self.fill_dataset_from_array(
+            name=name,
+            array=array,
+            batch_size=batch_size,
+            show_progress=show_progress,
+            mutator=None,
+        )
 
     def add_dataset_from_gt_data(
         self,
