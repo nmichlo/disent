@@ -1,12 +1,12 @@
 from disent.dataset import DisentDataset
 from disent.dataset.data import XYObjectData
 from disent.dataset.sampling import GroundTruthPairSampler
-from disent.nn.transform import ToStandardisedTensor, FftBoxBlur
+from disent.nn.transform import ToImgTensorF32, FftBoxBlur
 
 
 # prepare the data
 data = XYObjectData(grid_size=4, min_square_size=1, max_square_size=2, square_size_spacing=1, palette='rgb')
-dataset = DisentDataset(data, sampler=GroundTruthPairSampler(), transform=ToStandardisedTensor(), augment=FftBoxBlur(radius=1, p=1.0))
+dataset = DisentDataset(data, sampler=GroundTruthPairSampler(), transform=ToImgTensorF32(), augment=FftBoxBlur(radius=1, p=1.0))
 
 # iterate over single epoch
 for obs in dataset:

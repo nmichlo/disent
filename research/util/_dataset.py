@@ -49,8 +49,8 @@ from disent.dataset.data import XYSquaresData
 from disent.dataset.sampling import BaseDisentSampler
 from disent.dataset.sampling import GroundTruthSingleSampler
 from disent.nn.transform import Noop
-from disent.nn.transform import ToStandardisedTensor
-from disent.nn.transform import ToUint8Tensor
+from disent.nn.transform import ToImgTensorF32
+from disent.nn.transform import ToImgTensorU8
 
 
 # ========================================================================= #
@@ -111,7 +111,7 @@ def load_dataset_into_memory(gt_data: GroundTruthData, x_shape: Optional[Tuple[i
     if raw_array:
         return data
     else:
-        # channels get swapped by the below ToStandardisedTensor(), maybe allow `array_chn_is_last` as param
+        # channels get swapped by the below ToImgTensorF32(), maybe allow `array_chn_is_last` as param
         return ArrayGroundTruthData.new_like(array=data, dataset=gt_data, array_chn_is_last=False)
 
 
@@ -138,8 +138,8 @@ def make_data(
         try_in_memory = False
     # transform object
     TransformCls = {
-        'uint8': ToUint8Tensor,
-        'float32': ToStandardisedTensor,
+        'uint8': ToImgTensorU8,
+        'float32': ToImgTensorF32,
         'none': Noop,
     }[transform_mode]
     # make data

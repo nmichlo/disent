@@ -40,7 +40,7 @@ from disent.dataset.data import XYBlocksData
 from disent.dataset.data import XYObjectData
 from disent.dataset.data import XYObjectShadedData
 from disent.dataset.data import XYSquaresData
-from disent.nn.transform import ToStandardisedTensor
+from disent.nn.transform import ToImgTensorF32
 from disent.util.seeds import TempNumpySeed
 
 

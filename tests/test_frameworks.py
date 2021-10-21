@@ -41,7 +41,7 @@ from disent.frameworks.vae.experimental import *  # pragma: delete-on-release
 from disent.model import AutoEncoder
 from disent.model.ae import DecoderLinear
 from disent.model.ae import EncoderLinear
-from disent.nn.transform import ToStandardisedTensor
+from disent.nn.transform import ToImgTensorF32
 
 
 # ========================================================================= #
@@ -108,7 +108,7 @@ def test_frameworks(Framework, cfg_kwargs, Data):
     }[Framework.REQUIRED_OBS]
 
     data = XYObjectData() if (Data is None) else Data()
-    dataset = DisentDataset(data, DataSampler(), transform=ToStandardisedTensor())
+    dataset = DisentDataset(data, DataSampler(), transform=ToImgTensorF32())
     dataloader = DataLoader(dataset=dataset, batch_size=4, shuffle=True)
 
     framework = Framework(

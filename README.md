@@ -227,13 +227,13 @@ from disent.frameworks.vae import BetaVae
 from disent.metrics import metric_dci, metric_mig
 from disent.model import AutoEncoder
 from disent.model.ae import DecoderConv64, EncoderConv64
-from disent.nn.transform import ToStandardisedTensor
+from disent.nn.transform import ToImgTensorF32
 from disent.schedule import CyclicSchedule
 
 # create the dataset & dataloaders
-# - ToStandardisedTensor transforms images from numpy arrays to tensors and performs checks
+# - ToImgTensorF32 transforms images from numpy arrays to tensors and performs checks
 data = XYObjectData()
-dataset = DisentDataset(dataset=data, sampler=SingleSampler(), transform=ToStandardisedTensor())
+dataset = DisentDataset(dataset=data, sampler=SingleSampler(), transform=ToImgTensorF32())
 dataloader = DataLoader(dataset=dataset, batch_size=128, shuffle=True, num_workers=os.cpu_count())
 
 # create the BetaVAE model

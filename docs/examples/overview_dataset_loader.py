@@ -2,11 +2,11 @@ from torch.utils.data import DataLoader
 from disent.dataset import DisentDataset
 from disent.dataset.data import XYObjectData
 from disent.dataset.sampling import GroundTruthPairOrigSampler
-from disent.nn.transform import ToStandardisedTensor
+from disent.nn.transform import ToImgTensorF32
 
 # prepare the data
 data = XYObjectData(grid_size=4, min_square_size=1, max_square_size=2, square_size_spacing=1, palette='rgb')
-dataset = DisentDataset(data, sampler=GroundTruthPairOrigSampler(), transform=ToStandardisedTensor())
+dataset = DisentDataset(data, sampler=GroundTruthPairOrigSampler(), transform=ToImgTensorF32())
 dataloader = DataLoader(dataset=dataset, batch_size=4, shuffle=True)
 
 # iterate over single epoch

@@ -14,7 +14,7 @@ data:
     prepare: True
     is_test: False
 transform:
-  _target_: disent.nn.transform.ToStandardisedTensor
+  _target_: disent.nn.transform.ToImgTensorF32
   size: 64
   mean: ${dataset.vis_mean}
   std: ${dataset.vis_std}

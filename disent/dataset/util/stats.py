@@ -85,7 +85,7 @@ if __name__ == '__main__':
 
     def main(progress=False):
         from disent.dataset import data
-        from disent.nn.transform import ToStandardisedTensor
+        from disent.nn.transform import ToImgTensorF32
 
         for data_cls in [
             # groundtruth -- impl
@@ -104,10 +104,10 @@ if __name__ == '__main__':
             data.XYSquaresMinimalData,  # pragma: delete-on-release
             data.XColumnsData,          # pragma: delete-on-release
         ]:
-            from disent.nn.transform import ToStandardisedTensor
+            from disent.nn.transform import ToImgTensorF32
             # Most common standardized way of computing the mean and std over observations
             # resized to 64px in size of dtype float32 in the range [0, 1].
-            data = data_cls(transform=ToStandardisedTensor(size=64))
+            data = data_cls(transform=ToImgTensorF32(size=64))
             mean, std = compute_data_mean_std(data, progress=progress)
             # results!
             print(f'{data.__class__.__name__} - {data.name}:\n    mean: {mean.tolist()}\n    std: {std.tolist()}')

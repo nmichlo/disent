@@ -7,13 +7,13 @@ from disent.dataset.sampling import SingleSampler
 from disent.frameworks.ae import Ae
 from disent.model import AutoEncoder
 from disent.model.ae import DecoderConv64, EncoderConv64
-from disent.nn.transform import ToStandardisedTensor
+from disent.nn.transform import ToImgTensorF32
 from disent.util import is_test_run  # you can ignore and remove this
 
 
 # prepare the data
 data = XYObjectData()
-dataset = DisentDataset(data, transform=ToStandardisedTensor())
+dataset = DisentDataset(data, transform=ToImgTensorF32())
 dataloader = DataLoader(dataset=dataset, batch_size=4, shuffle=True)
 
 # create the pytorch lightning system

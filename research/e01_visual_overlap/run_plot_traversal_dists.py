@@ -43,7 +43,7 @@ import research.util as H
 from disent.dataset.data import GroundTruthData
 from disent.dataset.data import SelfContainedHdf5GroundTruthData
 from disent.dataset.util.stats import compute_data_mean_std
-from disent.nn.transform import ToStandardisedTensor
+from disent.nn.transform import ToImgTensorF32
 from disent.util.inout.paths import ensure_parent_dir_exists
 from disent.util.seeds import TempNumpySeed
 
@@ -256,7 +256,7 @@ def plot_traversal_stats(
 
 
 def _make_self_contained_dataset(h5_path):
-    return SelfContainedHdf5GroundTruthData(h5_path=h5_path, transform=ToStandardisedTensor())
+    return SelfContainedHdf5GroundTruthData(h5_path=h5_path, transform=ToImgTensorF32())
 
 
 if __name__ == '__main__':

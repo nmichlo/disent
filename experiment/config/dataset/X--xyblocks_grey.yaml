@@ -4,7 +4,7 @@ data:
   _target_: disent.dataset.data.XYBlocksData
   rgb: FALSE
 transform:
-  _target_: disent.nn.transform.ToStandardisedTensor
+  _target_: disent.nn.transform.ToImgTensorF32
   mean: ${dataset.vis_mean}
   std: ${dataset.vis_std}
 x_shape: [1, 64, 64]
