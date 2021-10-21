@@ -53,7 +53,7 @@ class DSpritesData(Hdf5GroundTruthData):
     # TODO: reference implementation has colour variants
     factor_names = ('shape', 'scale', 'orientation', 'position_x', 'position_y')
     factor_sizes = (3, 6, 40, 32, 32)  # TOTAL: 737280
-    observation_shape = (64, 64, 1)
+    img_shape = (64, 64, 1)
 
     datafile = DataFileHashedDlH5(
         # download file/link

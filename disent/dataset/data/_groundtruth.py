@@ -137,19 +137,19 @@ class GroundTruthData(Dataset, StateSpace):
 
 class ArrayGroundTruthData(GroundTruthData):
 
-    def __init__(self, array, factor_names: Tuple[str, ...], factor_sizes: Tuple[int, ...], array_chn_is_last: bool = True, observation_shape: Optional[Tuple[int, ...]] = None, transform=None):
+    def __init__(self, array, factor_names: Tuple[str, ...], factor_sizes: Tuple[int, ...], array_chn_is_last: bool = True, x_shape: Optional[Tuple[int, ...]] = None, transform=None):
         self.__factor_names = tuple(factor_names)
         self.__factor_sizes = tuple(factor_sizes)
         self._array = array
         # get shape
-        if observation_shape is not None:
-            C, H, W = observation_shape
+        if x_shape is not None:
+            C, H, W = x_shape
         elif array_chn_is_last:
             H, W, C = array.shape[1:]
         else:
             C, H, W = array.shape[1:]
         # set observation shape
-        self.__observation_shape = (H, W, C)
+        self.__img_shape = (H, W, C)
         # initialize
         super().__init__(transform=transform)
         # check shapes -- it is up to the user to handle which method they choose
@@ -169,7 +169,7 @@ class ArrayGroundTruthData(GroundTruthData):
 
     @property
     def img_shape(self) -> Tuple[int, ...]:
-        return self.__observation_shape
+        return self.__img_shape
 
     def _get_observation(self, idx):
         # TODO: INVESTIGATE! I think this implements a lock,
@@ -183,7 +183,7 @@ class ArrayGroundTruthData(GroundTruthData):
             factor_names=dataset.factor_names,
             factor_sizes=dataset.factor_sizes,
             array_chn_is_last=array_chn_is_last,
-            observation_shape=None,  # infer from array
+            x_shape=None,  # infer from array
             transform=None,
         )
 
@@ -291,10 +291,20 @@ class _Hdf5DataMixin(object):
             # indexing dataset objects returns numpy array
             # instantiating np.array from the dataset requires double memory.
             self._data = data[:]
+            self._data.flags.writeable = False
             data.close()
         else:
             # Load the dataset from the disk
             self._data = data
+
+    def __len__(self):
+        return len(self._data)
+
+    @property
+    def img_shape(self):
+        shape = self._data.shape[1:]
+        assert len(shape) == 3
+        return shape
 
     # override from GroundTruthData
     def _get_observation(self, idx):
@@ -341,7 +351,7 @@ class SelfContainedHdf5GroundTruthData(_Hdf5DataMixin, GroundTruthData):
         self._attr_factor_sizes = tuple(int(size) for size in self._attrs['factor_sizes'])
         # set size
         (B, H, W, C) = self._data.shape
-        self._observation_shape = (H, W, C)
+        self._img_shape = (H, W, C)
         # initialize!
         super().__init__(transform=transform)
 
@@ -359,7 +369,7 @@ class SelfContainedHdf5GroundTruthData(_Hdf5DataMixin, GroundTruthData):
 
     @property
     def img_shape(self) -> Tuple[int, ...]:
-        return self._observation_shape
+        return self._img_shape
 
 
 # ========================================================================= #

@@ -141,7 +141,7 @@ class SmallNorbData(DiskGroundTruthData):
 
     factor_names = ('category', 'instance', 'elevation', 'rotation', 'lighting')
     factor_sizes = (5, 5, 9, 18, 6)  # TOTAL: 24300
-    observation_shape = (96, 96, 1)
+    img_shape = (96, 96, 1)
 
     TRAIN_DATA_FILES = {
         'dat': DataFileHashedDl(uri='https://cs.nyu.edu/~ylclab/data/norb-v1.0-small/smallnorb-5x46789x9x18x6x2x96x96-training-dat.mat.gz', uri_hash={'fast': '92560cccc7bcbd6512805e435448b62d', 'full': '66054832f9accfe74a0f4c36a75bc0a2'}),

@@ -96,7 +96,7 @@ class XYBlocksData(GroundTruthData):
 
     @property
     def img_shape(self) -> Tuple[int, ...]:
-        return self._observation_shape
+        return self._img_shape
     
     def __init__(
         self,
@@ -138,7 +138,7 @@ class XYBlocksData(GroundTruthData):
         # info
         self._factor_names = tuple([f'{prefix}-{d}' for prefix in ['color', 'x', 'y'] for d in self._axis_divisions])
         self._factor_sizes = tuple([len(self._colors)] * self._grid_dims + list(self._axis_divisions) * 2)
-        self._observation_shape = (grid_size, grid_size, 3 if self._rgb else 1)
+        self._img_shape = (grid_size, grid_size, 3 if self._rgb else 1)
         
         # initialise
         super().__init__(transform=transform)
