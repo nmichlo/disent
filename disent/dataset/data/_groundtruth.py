@@ -89,8 +89,8 @@ class GroundTruthData(Dataset, StateSpace):
     def x_shape(self) -> Tuple[int, ...]:
         # shape as would be for a single observation in a torch batch
         # eg. C x H x W
-        C, H, W = self.img_shape
-        return (H, W, C)
+        H, W, C = self.img_shape
+        return (C, H, W)
 
     @property
     def img_shape(self) -> Tuple[int, ...]:

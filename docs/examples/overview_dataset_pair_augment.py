@@ -5,7 +5,7 @@ from disent.dataset.transform import ToImgTensorF32, FftBoxBlur
 
 
 # prepare the data
-data = XYObjectData(grid_size=4, min_square_size=1, max_square_size=2, square_size_spacing=1, palette='rgb')
+data = XYObjectData(grid_size=4, min_square_size=1, max_square_size=2, square_size_spacing=1, palette='rgb_1')
 dataset = DisentDataset(data, sampler=GroundTruthPairSampler(), transform=ToImgTensorF32(), augment=FftBoxBlur(radius=1, p=1.0))
 
 # iterate over single epoch
