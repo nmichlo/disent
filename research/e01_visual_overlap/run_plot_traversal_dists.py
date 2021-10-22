@@ -40,8 +40,10 @@ import torch.nn.functional as F
 from tqdm import tqdm
 
 import research.util as H
+from disent.dataset.data import DSpritesImagenetData
 from disent.dataset.data import GroundTruthData
 from disent.dataset.data import SelfContainedHdf5GroundTruthData
+from disent.dataset.util.state_space import NonNormalisedFactors
 from disent.dataset.util.stats import compute_data_mean_std
 from disent.dataset.transform import ToImgTensorF32
 from disent.util.inout.paths import ensure_parent_dir_exists
@@ -119,7 +121,7 @@ def _collect_stats_for_factors(
     num_traversal_sample: int = 100,
 ) -> List[Dict[str, List[Any]]]:
     # prepare
-    f_idxs = H.normalise_factor_idxs(gt_data, factors=f_idxs)
+    f_idxs = gt_data.normalise_factor_idxs(f_idxs)
     # generate data per factor
     f_stats = []
     for i, f_idx in enumerate(f_idxs):
@@ -158,7 +160,7 @@ _COLORS = {
 def plot_traversal_stats(
     dataset_or_name: Union[str, GroundTruthData],
     num_repeats: int = 256,
-    f_idxs: Optional[H.NonNormalisedFactors] = None,
+    f_idxs: Optional[NonNormalisedFactors] = None,
     circular_distance: bool = False,
     color='blue',
     suffix: Optional[str] = None,
@@ -212,7 +214,7 @@ def plot_traversal_stats(
 
     # initialize
     gt_data: GroundTruthData = H.make_data(dataset_or_name) if isinstance(dataset_or_name, str) else dataset_or_name
-    f_idxs = H.normalise_factor_idxs(gt_data, factors=f_idxs)
+    f_idxs = gt_data.normalise_factor_idxs(f_idxs)
     c_points, cmap_density, cmap_img = _COLORS[color]
 
     # settings

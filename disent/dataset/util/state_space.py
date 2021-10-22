@@ -21,14 +21,24 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
 from functools import lru_cache
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
+from typing import Union
 
 import numpy as np
 from disent.util.iters import LengthIter
 from disent.util.visualize.vis_util import get_idx_traversal
+
+
+# ========================================================================= #
+# Types                                                                     #
+# ========================================================================= #
+
+
+NonNormalisedFactors = Union[Sequence[Union[int, str]], Union[int, str]]
 
 
 # ========================================================================= #
@@ -85,6 +95,38 @@ class StateSpace(LengthIter):
     def factor_names(self) -> Tuple[str, ...]:
         """A list of names of factors handled by this state space"""
         return self.__factor_names
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Factor Helpers                                                        #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    def normalise_factor_idx(self, factor: Union[int, str]) -> int:
+        # convert a factor name to the factor id
+        if isinstance(factor, str):
+            try:
+                f_idx = self.factor_names.index(factor)
+            except:
+                raise KeyError(f'invalid factor name: {repr(factor)} must be one of: {self.factor_names}')
+        else:
+            f_idx = int(factor)
+        # check that the values are correct
+        assert isinstance(f_idx, int)
+        assert 0 <= f_idx < self.num_factors
+        # return the resulting values
+        return f_idx
+
+    def normalise_factor_idxs(self, factors: 'NonNormalisedFactors') -> np.ndarray:
+        # return the default list of factor indices
+        if factors is None:
+            return np.arange(self.num_factors)
+        # normalize a single factor into a list
+        if isinstance(factors, (int, str)):
+            factors = [factors]
+        # convert all the factors to their indices
+        factors = np.array([self.normalise_factor_idx(factor) for factor in factors])
+        # done! make sure there are not duplicates!
+        assert len(set(factors)) == len(factors), 'duplicate factors were found!'
+        return factors
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Coordinate Transform - any dim array, only last axis counts!          #

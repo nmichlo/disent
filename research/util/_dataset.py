@@ -228,46 +228,13 @@ def get_single_batch(dataloader, cuda=True):
 # ========================================================================= #
 
 
-def normalise_factor_idx(dataset: GroundTruthData, factor: Union[int, str]) -> int:
-    if isinstance(factor, str):
-        try:
-            f_idx = dataset.factor_names.index(factor)
-        except:
-            raise KeyError(f'{repr(factor)} is not one of: {dataset.factor_names}')
-    else:
-        f_idx = factor
-    assert isinstance(f_idx, (int, np.int32, np.int64, np.uint8))
-    assert 0 <= f_idx < dataset.num_factors
-    return int(f_idx)
-
-
-# general type
-NonNormalisedFactors = Optional[Union[Sequence[Union[int, str]], Union[int, str]]]
-
-
-def normalise_factor_idxs(gt_data: GroundTruthData, factors: NonNormalisedFactors) -> np.ndarray:
-    if factors is None:
-        factors = np.arange(gt_data.num_factors)
-    if isinstance(factors, (int, str)):
-        factors = [factors]
-    factors = np.array([normalise_factor_idx(gt_data, factor) for factor in factors])
-    assert len(set(factors)) == len(factors)
-    return factors
-
-
-def get_factor_idxs(gt_data: GroundTruthData, factors: Optional[NonNormalisedFactors] = None) -> np.ndarray:
-    if factors is None:
-        return np.arange(gt_data.num_factors)
-    return normalise_factor_idxs(gt_data, factors)
-
-
 # TODO: clean this up
 def sample_factors(gt_data: GroundTruthData, num_obs: int = 1024, factor_mode: str = 'sample_random', factor: Union[int, str] = None):
     # sample multiple random factor traversals
     if factor_mode == 'sample_traversals':
         assert factor is not None, f'factor cannot be None when factor_mode=={repr(factor_mode)}'
         # get traversal
-        f_idx = normalise_factor_idx(gt_data, factor)
+        f_idx = gt_data.normalise_factor_idx(factor)
         # generate traversals
         factors = []
         for i in range((num_obs + gt_data.factor_sizes[f_idx] - 1) // gt_data.factor_sizes[f_idx]):

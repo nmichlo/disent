@@ -239,9 +239,9 @@ def run_disentangle_dataset_kernel(cfg):
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # initialise dataset and get factor names to disentangle
     dataset = H.make_dataset(cfg.data.name, factors=True, data_root=cfg.dataset.data_root)
-    disentangle_factor_idxs = H.get_factor_idxs(dataset, cfg.kernel.disentangle_factors)
-    cfg.kernel.disentangle_factors = tuple(dataset.factor_names[i] for i in disentangle_factor_idxs)
-    log.info(f'Dataset has ground-truth factors: {dataset.factor_names}')
+    disentangle_factor_idxs = dataset.gt_data.normalise_factor_idxs(cfg.kernel.disentangle_factors)
+    cfg.kernel.disentangle_factors = tuple(dataset.gt_data.factor_names[i] for i in disentangle_factor_idxs)
+    log.info(f'Dataset has ground-truth factors: {dataset.gt_data.factor_names}')
     log.info(f'Chosen ground-truth factors are: {tuple(cfg.kernel.disentangle_factors)}')
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # print everything
