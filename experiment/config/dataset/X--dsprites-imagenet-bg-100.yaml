@@ -1,0 +1,19 @@
+# @package _group_
+name: dsprites_imagenet_bg_100
+data:
+  _target_: disent.dataset.data.DSpritesImagenetData
+  visibility: 100
+  mode: bg
+  data_root: ${dataset.data_root}
+  prepare: True
+  in_memory: ${dataset.try_in_memory}
+transform:
+  _target_: disent.dataset.transform.ToImgTensorF32
+  mean: ${dataset.vis_mean}
+  std: ${dataset.vis_std}
+x_shape: [3, 64, 64]
+
+data_type: gt
+
+vis_mean: [0.5020433619489952, 0.47206398913310593, 0.42380018909780404]
+vis_std: [0.2505510666843685, 0.25007259803668697, 0.2562415603123114]
