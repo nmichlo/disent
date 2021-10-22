@@ -40,10 +40,12 @@ import torch.nn.functional as F
 from tqdm import tqdm
 
 import research.util as H
+from disent.dataset.data import DSpritesImagenetData
 from disent.dataset.data import GroundTruthData
 from disent.dataset.data import SelfContainedHdf5GroundTruthData
+from disent.dataset.util.state_space import NonNormalisedFactors
 from disent.dataset.util.stats import compute_data_mean_std
-from disent.nn.transform import ToStandardisedTensor
+from disent.dataset.transform import ToImgTensorF32
 from disent.util.inout.paths import ensure_parent_dir_exists
 from disent.util.seeds import TempNumpySeed
 
@@ -119,7 +121,7 @@ def _collect_stats_for_factors(
     num_traversal_sample: int = 100,
 ) -> List[Dict[str, List[Any]]]:
     # prepare
-    f_idxs = H.normalise_factor_idxs(gt_data, factors=f_idxs)
+    f_idxs = gt_data.normalise_factor_idxs(f_idxs)
     # generate data per factor
     f_stats = []
     for i, f_idx in enumerate(f_idxs):
@@ -158,7 +160,7 @@ _COLORS = {
 def plot_traversal_stats(
     dataset_or_name: Union[str, GroundTruthData],
     num_repeats: int = 256,
-    f_idxs: Optional[H.NonNormalisedFactors] = None,
+    f_idxs: Optional[NonNormalisedFactors] = None,
     circular_distance: bool = False,
     color='blue',
     suffix: Optional[str] = None,
@@ -212,7 +214,7 @@ def plot_traversal_stats(
 
     # initialize
     gt_data: GroundTruthData = H.make_data(dataset_or_name) if isinstance(dataset_or_name, str) else dataset_or_name
-    f_idxs = H.normalise_factor_idxs(gt_data, factors=f_idxs)
+    f_idxs = gt_data.normalise_factor_idxs(f_idxs)
     c_points, cmap_density, cmap_img = _COLORS[color]
 
     # settings
@@ -256,7 +258,7 @@ def plot_traversal_stats(
 
 
 def _make_self_contained_dataset(h5_path):
-    return SelfContainedHdf5GroundTruthData(h5_path=h5_path, transform=ToStandardisedTensor())
+    return SelfContainedHdf5GroundTruthData(h5_path=h5_path, transform=ToImgTensorF32())
 
 
 if __name__ == '__main__':
@@ -276,6 +278,14 @@ if __name__ == '__main__':
     # plot standard datasets
     for name in ['dsprites', 'shapes3d', 'cars3d', 'smallnorb']:
         plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(name), color='blue', dataset_or_name=name)
+
+    # plot adversarial dsprites datasets
+    for fg in [True, False]:
+        for vis in [1.0, 0.8, 0.6, 0.4, 0.2]:
+            name = f'dsprites_{"fg" if fg else "bg"}_{vis}'
+            plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(name), color='orange', dataset_or_name=name)
+            # mean, std = compute_data_mean_std(H.make_data(name))
+            # print(f'{name}\n    vis_mean: {mean.tolist()}\n    vis_std: {std.tolist()}')
 
     BASE = os.path.abspath(os.path.join(__file__, '../../../out/adversarial_data_approx'))
 
@@ -300,8 +310,8 @@ if __name__ == '__main__':
         data = _make_self_contained_dataset(f'{BASE}/{folder}/data.h5')
         plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(folder), color=color, dataset_or_name=data)
         # compute and print statistics:
-        mean, std = compute_data_mean_std(data)
-        print(f'{folder}\n    vis_mean: {mean.tolist()}\n    vis_std: {std.tolist()}')
+        # mean, std = compute_data_mean_std(data, progress=True)
+        # print(f'{folder}\n    vis_mean: {mean.tolist()}\n    vis_std: {std.tolist()}')
 
 
 # ========================================================================= #

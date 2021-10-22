@@ -156,7 +156,7 @@ class CyclicSchedule(Schedule):
         :param p_high: The portion of the period that at the end is spent at the maximum value
         """
         # checks
-        if repeats < 0:
+        if (repeats is not None) and (repeats < 0):
             repeats = None
         # set values
         self.period = period

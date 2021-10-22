@@ -40,7 +40,7 @@ from disent.dataset.data import Cars3dData
 from disent.dataset.data import DSpritesData
 from disent.dataset.data import Shapes3dData
 from disent.dataset.data import XYSquaresData
-from disent.nn.transform import ToStandardisedTensor
+from disent.dataset.transform import ToImgTensorF32
 from disent.util import to_numpy
 
 
@@ -213,7 +213,7 @@ def plot_all(exp_name, datas, tick_sizes, samples: int, load=True, save=True, sh
     # generate data and plot!
     dfs = {}
     for data_name, make_data_fn in datas.items():
-        gt_dataset = GroundTruthDataset(make_data_fn(), transform=ToStandardisedTensor())
+        gt_dataset = GroundTruthDataset(make_data_fn(), transform=ToImgTensorF32())
         df = generate_data(
             gt_dataset,
             data_name,

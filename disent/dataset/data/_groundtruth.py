@@ -62,6 +62,10 @@ class GroundTruthData(Dataset, StateSpace):
             factor_names=self.factor_names,
         )
 
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Overridable Defaults                                                  #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
     @property
     def name(self):
         name = self.__class__.__name__
@@ -70,7 +74,7 @@ class GroundTruthData(Dataset, StateSpace):
         return name.lower()
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # Overrides                                                             #
+    # State Space                                                           #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     @property
@@ -81,40 +85,32 @@ class GroundTruthData(Dataset, StateSpace):
     def factor_sizes(self) -> Tuple[int, ...]:
         raise NotImplementedError()
 
-    @property
-    def observation_shape(self) -> Tuple[int, ...]:
-        # TODO: deprecate this!
-        # TODO: observation_shape should be called img_shape
-        # shape as would be for a non-batched observation
-        # eg. H x W x C
-        raise NotImplementedError()
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Properties                                                            #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     @property
     def x_shape(self) -> Tuple[int, ...]:
-        # TODO: deprecate this!
-        # TODO: x_shape should be called obs_shape
         # shape as would be for a single observation in a torch batch
         # eg. C x H x W
-        shape = self.observation_shape
-        return shape[-1], *shape[:-1]
+        H, W, C = self.img_shape
+        return (C, H, W)
 
     @property
     def img_shape(self) -> Tuple[int, ...]:
         # shape as would be for an original image
         # eg. H x W x C
-        return self.observation_shape
-
-    @property
-    def obs_shape(self) -> Tuple[int, ...]:
-        # shape as would be for a single observation in a torch batch
-        # eg. C x H x W
-        return self.x_shape
+        raise NotImplementedError()
 
     @property
     def img_channels(self) -> int:
         channels = self.img_shape[-1]
         assert channels in (1, 3), f'invalid number of channels for dataset: {self.__class__.__name__}, got: {repr(channels)}, required: 1 or 3'
         return channels
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Overrides                                                             #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     def __getitem__(self, idx):
         obs = self._get_observation(idx)
@@ -149,23 +145,23 @@ class GroundTruthData(Dataset, StateSpace):
 
 class ArrayGroundTruthData(GroundTruthData):
 
-    def __init__(self, array, factor_names: Tuple[str, ...], factor_sizes: Tuple[int, ...], array_chn_is_last: bool = True, observation_shape: Optional[Tuple[int, ...]] = None, transform=None):
+    def __init__(self, array, factor_names: Tuple[str, ...], factor_sizes: Tuple[int, ...], array_chn_is_last: bool = True, x_shape: Optional[Tuple[int, ...]] = None, transform=None):
         self.__factor_names = tuple(factor_names)
         self.__factor_sizes = tuple(factor_sizes)
         self._array = array
         # get shape
-        if observation_shape is not None:
-            C, H, W = observation_shape
+        if x_shape is not None:
+            C, H, W = x_shape
         elif array_chn_is_last:
             H, W, C = array.shape[1:]
         else:
             C, H, W = array.shape[1:]
         # set observation shape
-        self.__observation_shape = (H, W, C)
+        self.__img_shape = (H, W, C)
         # initialize
         super().__init__(transform=transform)
         # check shapes -- it is up to the user to handle which method they choose
-        assert (array.shape[1:] == self.img_shape) or (array.shape[1:] == self.obs_shape)
+        assert (array.shape[1:] == self.img_shape) or (array.shape[1:] == self.x_shape)
 
     @property
     def array(self):
@@ -180,8 +176,8 @@ class ArrayGroundTruthData(GroundTruthData):
         return self.__factor_sizes
 
     @property
-    def observation_shape(self) -> Tuple[int, ...]:
-        return self.__observation_shape
+    def img_shape(self) -> Tuple[int, ...]:
+        return self.__img_shape
 
     def _get_observation(self, idx):
         # TODO: INVESTIGATE! I think this implements a lock,
@@ -195,7 +191,7 @@ class ArrayGroundTruthData(GroundTruthData):
             factor_names=dataset.factor_names,
             factor_sizes=dataset.factor_sizes,
             array_chn_is_last=array_chn_is_last,
-            observation_shape=None,  # infer from array
+            x_shape=None,  # infer from array
             transform=None,
         )
 
@@ -207,15 +203,12 @@ class ArrayGroundTruthData(GroundTruthData):
 # ========================================================================= #
 
 
-class DiskGroundTruthData(GroundTruthData, metaclass=ABCMeta):
+class _DiskDataMixin(object):
 
-    """
-    Dataset that prepares a list DataObjects into some local directory.
-    - This directory can be
-    """
+    # attr this class defines in _mixin_disk_init
+    _data_dir: str
 
-    def __init__(self, data_root: Optional[str] = None, prepare: bool = False, transform=None):
-        super().__init__(transform=transform)
+    def _mixin_disk_init(self, data_root: Optional[str] = None, prepare: bool = False):
         # get root data folder
         if data_root is None:
             data_root = self.default_data_root
@@ -241,6 +234,23 @@ class DiskGroundTruthData(GroundTruthData, metaclass=ABCMeta):
     @property
     def datafiles(self) -> Sequence[DataFile]:
         raise NotImplementedError
+
+    @property
+    def name(self) -> str:
+        raise NotImplementedError
+
+
+class DiskGroundTruthData(_DiskDataMixin, GroundTruthData, metaclass=ABCMeta):
+
+    """
+    Dataset that prepares a list DataObjects into some local directory.
+    - This directory can be
+    """
+
+    def __init__(self, data_root: Optional[str] = None, prepare: bool = False, transform=None):
+        super().__init__(transform=transform)
+        # get root data folder
+        self._mixin_disk_init(data_root=data_root, prepare=prepare)
 
 
 class NumpyFileGroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
@@ -282,7 +292,7 @@ class NumpyFileGroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
 
 class _Hdf5DataMixin(object):
 
-    # set attributes if _mixin_hdf5_init is called
+    # attrs this class defines in _mixin_hdf5_init
     _in_memory: bool
     _attrs: dict
     _data: Union[Hdf5Dataset, np.ndarray]
@@ -303,10 +313,20 @@ class _Hdf5DataMixin(object):
             # indexing dataset objects returns numpy array
             # instantiating np.array from the dataset requires double memory.
             self._data = data[:]
+            self._data.flags.writeable = False
             data.close()
         else:
             # Load the dataset from the disk
             self._data = data
+
+    def __len__(self):
+        return len(self._data)
+
+    @property
+    def img_shape(self):
+        shape = self._data.shape[1:]
+        assert len(shape) == 3
+        return shape
 
     # override from GroundTruthData
     def _get_observation(self, idx):
@@ -353,7 +373,7 @@ class SelfContainedHdf5GroundTruthData(_Hdf5DataMixin, GroundTruthData):
         self._attr_factor_sizes = tuple(int(size) for size in self._attrs['factor_sizes'])
         # set size
         (B, H, W, C) = self._data.shape
-        self._observation_shape = (H, W, C)
+        self._img_shape = (H, W, C)
         # initialize!
         super().__init__(transform=transform)
 
@@ -370,8 +390,8 @@ class SelfContainedHdf5GroundTruthData(_Hdf5DataMixin, GroundTruthData):
         return self._attr_factor_sizes
 
     @property
-    def observation_shape(self) -> Tuple[int, ...]:
-        return self._observation_shape
+    def img_shape(self) -> Tuple[int, ...]:
+        return self._img_shape
 
 
 # ========================================================================= #

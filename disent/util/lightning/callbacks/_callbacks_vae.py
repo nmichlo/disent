@@ -53,15 +53,13 @@ from disent.util.lightning.logger_util import wb_log_metrics
 from disent.util.lightning.logger_util import wb_log_reduced_summaries
 from disent.util.profiling import Timer
 from disent.util.seeds import TempNumpySeed
+from disent.util.visualize.plot import plt_subplots_imshow
 from disent.util.visualize.vis_model import latent_cycle_grid_animation
 from disent.util.visualize.vis_util import make_image_grid
 
 # TODO: wandb and matplotlib are not in requirements
 import matplotlib.pyplot as plt
 import wandb
-
-from research.util import plt_hide_axis
-from research.util import plt_subplots_imshow
 
 
 log = logging.getLogger(__name__)

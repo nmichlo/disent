@@ -67,8 +67,8 @@ def print_dist_matrix_stats(gt_data: GroundTruthData):
     # assuming storage as f32
     num_pairs = factor_dist_matrix_shapes(gt_data).prod(axis=1).sum(axis=0)
     pre_compute_bytes = num_pairs * (32 // 8)
-    pairwise_compute_bytes = num_pairs * (32 // 8) * np.prod(gt_data.obs_shape) * 2
-    traversal_compute_bytes = np.prod(gt_data.obs_shape) * np.prod(gt_data.factor_sizes) * gt_data.num_factors
+    pairwise_compute_bytes = num_pairs * (32 // 8) * np.prod(gt_data.x_shape) * 2
+    traversal_compute_bytes = np.prod(gt_data.x_shape) * np.prod(gt_data.factor_sizes) * gt_data.num_factors
     # string
     print(
         f'{f"{gt_data.name}:":12s} '

@@ -286,7 +286,7 @@ def angles_between(a, b, dim=-1, nan_to_angle=None):
 #     from disent.frameworks.vae import BetaVae
 #     from disent.frameworks.vae import AdaVae
 #     from disent.model.ae import EncoderConv64, DecoderConv64, AutoEncoder
-#     from disent.transform import ToStandardisedTensor
+#     from disent.transform import ToImgTensorF32
 #     from disent.util import colors
 #     from disent.util import Timer
 #
@@ -316,7 +316,7 @@ def angles_between(a, b, dim=-1, nan_to_angle=None):
 #
 #     results = []
 #     for data in datasets:
-#         dataset = GroundTruthDatasetPairs(data, transform=ToStandardisedTensor())
+#         dataset = GroundTruthDatasetPairs(data, transform=ToImgTensorF32())
 #         dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True, pin_memory=True)
 #         module = AdaVae(
 #             model=AutoEncoder(

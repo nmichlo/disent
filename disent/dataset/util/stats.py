@@ -43,6 +43,7 @@ def compute_data_mean_std(
     batch_size: int = 256,
     num_workers: int = min(os.cpu_count(), 16),
     progress: bool = False,
+    chn_is_last: bool = False
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Input data when collected using a DataLoader should return
@@ -58,14 +59,16 @@ def compute_data_mean_std(
     if progress:
         from tqdm import tqdm
         loader = tqdm(loader, desc=f'{data.__class__.__name__} stats', total=(len(data) + batch_size - 1) // batch_size)
+    # reduction dims
+    dims = (1, 2) if chn_is_last else (2, 3)
     # collect obs means & stds
     img_means, img_stds = [], []
     for batch in loader:
         assert isinstance(batch, torch.Tensor), f'batch must be an instance of torch.Tensor, got: {type(batch)}'
         assert batch.ndim == 4, f'batch shape must be: (B, C, H, W), got: {tuple(batch.shape)}'
         batch = batch.to(torch.float64)
-        img_means.append(torch.mean(batch, dim=(2, 3)))
-        img_stds.append(torch.std(batch, dim=(2, 3)))
+        img_means.append(torch.mean(batch, dim=dims))
+        img_stds.append(torch.std(batch, dim=dims))
     # aggregate obs means & stds
     mean = torch.mean(torch.cat(img_means, dim=0), dim=0)
     std  = torch.mean(torch.cat(img_stds, dim=0), dim=0)
@@ -85,7 +88,7 @@ if __name__ == '__main__':
 
     def main(progress=False):
         from disent.dataset import data
-        from disent.nn.transform import ToStandardisedTensor
+        from disent.dataset.transform import ToImgTensorF32
 
         for data_cls in [
             # groundtruth -- impl
@@ -104,10 +107,10 @@ if __name__ == '__main__':
             data.XYSquaresMinimalData,  # pragma: delete-on-release
             data.XColumnsData,          # pragma: delete-on-release
         ]:
-            from disent.nn.transform import ToStandardisedTensor
+            from disent.dataset.transform import ToImgTensorF32
             # Most common standardized way of computing the mean and std over observations
             # resized to 64px in size of dtype float32 in the range [0, 1].
-            data = data_cls(transform=ToStandardisedTensor(size=64))
+            data = data_cls(transform=ToImgTensorF32(size=64))
             mean, std = compute_data_mean_std(data, progress=progress)
             # results!
             print(f'{data.__class__.__name__} - {data.name}:\n    mean: {mean.tolist()}\n    std: {std.tolist()}')

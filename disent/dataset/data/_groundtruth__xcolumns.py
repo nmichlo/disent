@@ -51,7 +51,7 @@ class XColumnsData(XYSquaresData):
         factors = self.idx_to_pos(idx)
         offset, space, size = self._offset, self._spacing, self._square_size
         # GENERATE
-        obs = np.zeros(self.observation_shape, dtype=self._dtype)
+        obs = np.zeros(self.img_shape, dtype=self._dtype)
         for i, fx in enumerate(factors):
             x = offset + space * fx
             if self._rgb:
