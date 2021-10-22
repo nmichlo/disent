@@ -1,5 +1,5 @@
 # @package _group_
-name: mask_adv_smallnorb
+name: mask_adv_f_smallnorb
 data:
   _target_: disent.dataset.wrapper.MaskedDataset
   mask:
@@ -14,7 +14,7 @@ data:
     prepare: True
     is_test: False
 transform:
-  _target_: disent.nn.transform.ToStandardisedTensor
+  _target_: disent.dataset.transform.ToImgTensorF32
   size: 64
   mean: ${dataset.vis_mean}
   std: ${dataset.vis_std}

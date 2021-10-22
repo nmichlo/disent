@@ -25,6 +25,7 @@
 from functools import wraps
 from typing import Optional
 from typing import Sequence
+from typing import TypeVar
 from typing import Union
 
 import numpy as np
@@ -35,6 +36,7 @@ from disent.dataset.sampling import BaseDisentSampler
 from disent.dataset.data import GroundTruthData
 from disent.dataset.sampling import SingleSampler
 from disent.dataset.wrapper import WrappedDataset
+from disent.util.deprecate import deprecated
 from disent.util.iters import LengthIter
 from disent.util.math.random import random_choice_prng
 
@@ -53,7 +55,10 @@ class NotGroundTruthDataError(Exception):
     """
 
 
-def groundtruth_only(func):
+T = TypeVar('T')
+
+
+def groundtruth_only(func: T) -> T:
     @wraps(func)
     def wrapper(self: 'DisentDataset', *args, **kwargs):
         if not self.is_ground_truth:
@@ -114,6 +119,7 @@ class DisentDataset(Dataset, LengthIter):
         return isinstance(self._dataset, GroundTruthData)
 
     @property
+    @deprecated('ground_truth_data property replaced with `gt_data`')
     @groundtruth_only
     def ground_truth_data(self) -> GroundTruthData:
         return self._dataset

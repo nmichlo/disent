@@ -41,7 +41,7 @@ from disent.nn.functional import torch_gaussian_kernel_2d
 from disent.nn.functional import torch_idct
 from disent.nn.functional import torch_idct2
 from disent.nn.functional import torch_mean_generalized
-from disent.nn.transform import ToStandardisedTensor
+from disent.dataset.transform import ToImgTensorF32
 from disent.util import to_numpy
 
 
@@ -132,7 +132,7 @@ def test_dct():
 
 def test_fft_conv2d():
     data = XYObjectData()
-    dataset = DisentDataset(data, RandomSampler(), transform=ToStandardisedTensor(), augment=None)
+    dataset = DisentDataset(data, RandomSampler(), transform=ToImgTensorF32(), augment=None)
     # sample data
     factors = dataset.ground_truth_data.sample_random_factor_traversal(f_idx=2)
     batch = dataset.dataset_batch_from_factors(factors=factors, mode="input")

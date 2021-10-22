@@ -26,17 +26,19 @@ from typing import Optional
 from typing import Sequence
 
 import torch
-import disent.nn.transform.functional as F_d
+import disent.dataset.transform.functional as F_d
 
 
 # ========================================================================= #
 # Transforms                                                                #
 # ========================================================================= #
+from disent.util.deprecate import deprecated
 
 
 class Noop(object):
     """
     Transform that does absolutely nothing!
+
     See: disent.transform.functional.noop
     """
 
@@ -50,14 +52,15 @@ class Noop(object):
 class CheckTensor(object):
     """
     Check that the data is a tensor, the right dtype, and in the required range.
+
     See: disent.transform.functional.check_tensor
     """
 
     def __init__(
         self,
-        low: float = 0.,
-        high: float = 1.,
-        dtype: torch.dtype = torch.float32,
+        low: Optional[float] = 0.,
+        high: Optional[float] = 1.,
+        dtype: Optional[torch.dtype] = torch.float32,
     ):
         self._low = low
         self._high = high
@@ -67,57 +70,84 @@ class CheckTensor(object):
         return F_d.check_tensor(obs, low=self._low, high=self._high, dtype=self._dtype)
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(low={repr(self._low)}, high={repr(self._high)}, dtype={repr(self._dtype)})'
+        kwargs = dict(low=self._low, high=self._high, dtype=self._dtype)
+        kwargs = ", ".join(f"{k}={repr(v)}" for k, v in kwargs.items() if (v is not None))
+        return f'{self.__class__.__name__}({kwargs})'
 
 
-class ToStandardisedTensor(object):
+class ToImgTensorF32(object):
     """
-    Standardise image data after loading:
-    1. resize if size is specified
-    2. convert to tensor in range [0, 1]
-    3. normalize using mean and std, values might thus be outside of the range [0, 1]
+    Basic transform that should be applied to most datasets, making sure
+    the image tensor is float32 and a specified size.
 
-    See: disent.transform.functional.to_standardised_tensor
+    Steps:
+        1. resize image if size is specified
+        2. if we have integer inputs, divide by 255
+        3. add missing channel to greyscale image
+        4. move channels to first dim (H, W, C) -> (C, H, W)
+        5. normalize using mean and std, values might thus be outside of the range [0, 1]
+
+    See: disent.transform.functional.to_img_tensor_f32
     """
 
     def __init__(
         self,
         size: Optional[F_d.SizeType] = None,
-        cast_f32: bool = False,
-        check: bool = True,
-        check_range: bool = True,
         mean: Optional[Sequence[float]] = None,
         std: Optional[Sequence[float]] = None,
     ):
         self._size = size
-        self._cast_f32 = cast_f32  # cast after resizing before checks -- disabled by default to so dtype errors can be seen
-        self._check = check
-        self._check_range = check_range  # if check is `False` then `check_range` can never be `True`
         self._mean = tuple(mean) if (mean is not None) else None
-        self._std = tuple(std) if (mean is not None) else None
+        self._std = tuple(std) if (std is not None) else None
 
     def __call__(self, obs) -> torch.Tensor:
-        return F_d.to_standardised_tensor(obs, size=self._size, cast_f32=self._cast_f32, check=self._check, check_range=self._check_range, mean=self._mean, std=self._std)
+        return F_d.to_img_tensor_f32(obs, size=self._size, mean=self._mean, std=self._std)
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(size={repr(self._size)})'
+        kwargs = dict(size=self._size, mean=self._mean, std=self._std)
+        kwargs = ", ".join(f"{k}={repr(v)}" for k, v in kwargs.items() if (v is not None))
+        return f'{self.__class__.__name__}({kwargs})'
 
 
-class ToUint8Tensor(object):
+class ToImgTensorU8(object):
+    """
+    Basic transform that makes sure the image tensor is uint8 and a specified size.
+
+    Steps:
+    1. resize image if size is specified
+    2. add missing channel to greyscale image
+    3. move channels to first dim (H, W, C) -> (C, H, W)
+
+    See: disent.transform.functional.to_img_tensor_u8
+    """
 
     def __init__(
         self,
         size: Optional[F_d.SizeType] = None,
-        channel_to_front: bool = True,
     ):
         self._size = size
-        self._channel_to_front = channel_to_front
 
     def __call__(self, obs) -> torch.Tensor:
-        return F_d.to_uint_tensor(obs, size=self._size, channel_to_front=self._channel_to_front)
+        return F_d.to_img_tensor_u8(obs, size=self._size)
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(size={repr(self._size)})'
+        kwargs = f'size={repr(self._size)}' if (self._size is not None) else ''
+        return f'{self.__class__.__name__}({kwargs})'
+
+
+# ========================================================================= #
+# Deprecated                                                                #
+# ========================================================================= #
+
+
+@deprecated('ToStandardisedTensor renamed to ToImgTensorF32')
+class ToStandardisedTensor(ToImgTensorF32):
+    pass
+
+
+@deprecated('ToUint8Tensor renamed to ToImgTensorU8')
+class ToUint8Tensor(ToImgTensorU8):
+    pass
 
 
 # ========================================================================= #

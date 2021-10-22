@@ -45,6 +45,7 @@ from typing import Optional
 from typing import Tuple
 
 import numpy as np
+import psutil
 import ray
 import ruck
 from matplotlib import pyplot as plt
@@ -52,7 +53,9 @@ from ruck import R
 from ruck.external.ray import ray_map
 from ruck.external.ray import ray_remote_put
 from ruck.external.ray import ray_remote_puts
-from ruck.external.deap import select_nsga2
+
+from ruck.external.deap import select_nsga2 as select_nsga2_deap
+# from ruck.functional import select_nsga2 as select_nsga2_ruck  # should rather use this!
 
 import research.util as H
 from disent.dataset.wrapper import MaskedDataset
@@ -231,6 +234,13 @@ def evaluate_member(
     # convert minimization problem into maximization
     # return - loss
 
+    if overlap_score < 0:
+        log.warning(f'member has invalid overlap_score: {repr(overlap_score)}')
+        overlap_score = 1000  # minimizing target to 0 in range [0, 1] so this is bad
+    if usage_ratio < 0:
+        log.warning(f'member has invalid usage_ratio: {repr(usage_ratio)}')
+        usage_ratio = -1000  # maximizing target to 1 in range [0, 1] so this is bad
+
     return (-overlap_score, usage_ratio)
 
 
@@ -271,7 +281,7 @@ class DatasetDistPairMaskModule(ruck.EaModule):
         ]
 
     def select_population(self, population: Population, offspring: Population) -> Population:
-        return select_nsga2(population + offspring, len(population), weights=(1.0, 1.0))
+        return select_nsga2_deap(population + offspring, len(population))
 
     def evaluate_values(self, values: Values) -> List[float]:
         return ray.get([self._evaluate_value_fn(v) for v in values])
@@ -451,6 +461,8 @@ def run(
             random_points=random_fitnesses,
             figsize=(7, 7),
         )
+        # plot factor usage ratios
+        # TODO: PLOT 2D matrix of all permutations of factors aggregated
         # log average
         if wandb_enabled:
             wandb.log({
@@ -536,17 +548,17 @@ ROOT_DIR = os.path.abspath(__file__ + '/../../..')
 def main():
     from itertools import product
 
-    # (3 * 2 * 2 * 5)
-    for (fitness_overlap_include_singles, dists_scaled, pair_mode, pairs_per_obs, fitness_overlap_mode, dataset_name) in product(
+    # (2*1 * 3*1*2 * 5) = 60
+    for i, (fitness_overlap_include_singles, dists_scaled, pair_mode, pairs_per_obs, fitness_overlap_mode, dataset_name) in enumerate(product(
         [True, False],
-        [True, False],
+        [True],  # [True, False]
         ['nearby_scaled', 'nearby', 'random'],
-        [64, 16, 256],
+        [256],  # [64, 16, 256]
         ['std', 'range'],
-        ['xysquares_8x8_toy_s2'], # , 'cars3d', 'smallnorb', 'shapes3d', 'dsprites'],
-    ):
+        ['xysquares_8x8_toy_s2', 'cars3d', 'smallnorb', 'shapes3d', 'dsprites'],  # ['xysquares_8x8_toy_s2']
+    )):
         print('='*100)
-        print(f'[STARTING]: dataset_name={repr(dataset_name)} pair_mode={repr(pair_mode)} pairs_per_obs={repr(pairs_per_obs)} dists_scaled={repr(dists_scaled)} fitness_overlap_mode={repr(fitness_overlap_mode)} fitness_overlap_include_singles={repr(fitness_overlap_include_singles)}')
+        print(f'[STARTING]: i={i} dataset_name={repr(dataset_name)} pair_mode={repr(pair_mode)} pairs_per_obs={repr(pairs_per_obs)} dists_scaled={repr(dists_scaled)} fitness_overlap_mode={repr(fitness_overlap_mode)} fitness_overlap_include_singles={repr(fitness_overlap_include_singles)}')
         try:
             run(
                 dataset_name=dataset_name,
@@ -556,21 +568,21 @@ def main():
                 fitness_overlap_mode=fitness_overlap_mode,
                 fitness_overlap_include_singles=fitness_overlap_include_singles,
                 # population
-                generations=256,
-                population_size=128,
+                generations=1000,  # 1000
+                population_size=384,
                 seed_=42,
                 save=True,
-                save_prefix='EXP',
+                save_prefix='DISTS-SCALED',
                 plot=True,
                 wandb_enabled=True,
                 wandb_project='exp-adversarial-mask',
-                wandb_tags=['exp_pair_dists__TEST']
+                wandb_tags=['exp_pair_dists']
             )
         except KeyboardInterrupt:
             warnings.warn('Exiting early')
             exit(1)
-        # except:
-        #     warnings.warn(f'[FAILED]: dataset_name={repr(dataset_name)} dist_normalize_mode={repr(dist_normalize_mode)} fitness_overlap_mode={repr(fitness_overlap_mode)} fitness_overlap_aggregate={repr(fitness_overlap_aggregate)}')
+        except:
+            warnings.warn(f'[FAILED] i={i}')
         print('='*100)
 
 
@@ -580,8 +592,9 @@ if __name__ == '__main__':
 
     # run
     logging.basicConfig(level=logging.INFO)
-    ray.init(num_cpus=64)
+    ray.init(num_cpus=psutil.cpu_count(logical=False))
     main()
+
 
 # ========================================================================= #
 # END                                                                       #

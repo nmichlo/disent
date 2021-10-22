@@ -9,7 +9,7 @@ data:
     data_root: ${dataset.data_root}
     prepare: True
 transform:
-  _target_: disent.nn.transform.ToStandardisedTensor
+  _target_: disent.dataset.transform.ToImgTensorF32
   size: 64
   mean: ${dataset.vis_mean}
   std: ${dataset.vis_std}

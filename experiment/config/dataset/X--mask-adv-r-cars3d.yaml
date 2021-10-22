@@ -1,19 +1,19 @@
 # @package _group_
-name: mask_adv_cars3d
+name: mask_adv_r_cars3d
 data:
   _target_: disent.dataset.wrapper.MaskedDataset
   mask:
     _target_: research.e06_adversarial_data.util_load_adversarial_mask.get_closest_mask
     usage_ratio: ${framework.optional.usage_ratio}
-    # pickle_file: '${env:HOME}/workspace/research/disent/out/adversarial_mask/2021-09-27--21-23-27_EXP_cars3d_1000x256_all_std_mean/data.pkl.gz'
-    pickle_file: '${env:HOME}/workspace/research/disent/out/adversarial_mask/2021-09-27--22-58-24_EXP_cars3d_1000x256_all_std_gmean/data.pkl.gz'
+    # pickle_file: '${env:HOME}/workspace/research/disent/out/adversarial_mask/2021-10-19--14-49-26_DISTS-SCALED_cars3d_1000x384_random_256_True_std_False/data.pkl.gz'
+    pickle_file: '${env:HOME}/workspace/research/disent/out/adversarial_mask/2021-10-19--18-41-14_DISTS-SCALED_cars3d_1000x384_random_256_True_range_False/data.pkl.gz'
   randomize: FALSE
   data:
     _target_: disent.dataset.data.Cars3dData
     data_root: ${dataset.data_root}
     prepare: True
 transform:
-  _target_: disent.nn.transform.ToStandardisedTensor
+  _target_: disent.dataset.transform.ToImgTensorF32
   size: 64
   mean: ${dataset.vis_mean}
   std: ${dataset.vis_std}

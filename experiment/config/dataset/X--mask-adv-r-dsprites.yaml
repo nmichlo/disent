@@ -1,0 +1,27 @@
+# @package _group_
+name: mask_adv_r_dsprites
+data:
+  _target_: disent.dataset.wrapper.MaskedDataset
+  mask:
+    _target_: research.e06_adversarial_data.util_load_adversarial_mask.get_closest_mask
+    usage_ratio: ${framework.optional.usage_ratio}
+    # pickle_file: '${env:HOME}/workspace/research/disent/out/adversarial_mask/2021-10-19--16-31-56_DISTS-SCALED_dsprites_1000x384_random_256_True_std_False/data.pkl.gz'
+    pickle_file: '${env:HOME}/workspace/research/disent/out/adversarial_mask/2021-10-19--19-58-39_DISTS-SCALED_dsprites_1000x384_random_256_True_range_False/data.pkl.gz'
+  randomize: FALSE
+  data:
+    _target_: disent.dataset.data.DSpritesData
+    data_root: ${dataset.data_root}
+    prepare: True
+    in_memory: ${dataset.try_in_memory}
+transform:
+  _target_: disent.dataset.transform.ToImgTensorF32
+  mean: ${dataset.vis_mean}
+  std: ${dataset.vis_std}
+x_shape: [1, 64, 64]
+
+data_type: random
+
+vis_mean: [0.042494423521889584]
+vis_std: [0.19516645880626055]
+
+# TODO: this does not yet copy the data to /tmp/ and thus if run on a cluster of a network drive, this will hammer the network disk. Fix this!

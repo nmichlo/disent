@@ -9,7 +9,7 @@ data:
   rgb: TRUE
   max_placements: 8
 transform:
-  _target_: disent.nn.transform.ToStandardisedTensor
+  _target_: disent.dataset.transform.ToImgTensorF32
   mean: ${dataset.vis_mean}
   std: ${dataset.vis_std}
 x_shape: [3, 64, 64]

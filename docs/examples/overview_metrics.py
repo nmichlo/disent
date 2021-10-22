@@ -1,18 +1,16 @@
 import pytorch_lightning as pl
-from torch.optim import Adam
 from torch.utils.data import DataLoader
 from disent.dataset import DisentDataset
 from disent.dataset.data import XYObjectData
-from disent.dataset.sampling import SingleSampler
 from disent.frameworks.vae import BetaVae
 from disent.model import AutoEncoder
 from disent.model.ae import DecoderConv64, EncoderConv64
-from disent.nn.transform import ToStandardisedTensor
+from disent.dataset.transform import ToImgTensorF32
 from disent.metrics import metric_dci, metric_mig
 from disent.util import is_test_run
 
 data = XYObjectData()
-dataset = DisentDataset(data, transform=ToStandardisedTensor(), augment=None)
+dataset = DisentDataset(data, transform=ToImgTensorF32(), augment=None)
 dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True)
 
 def make_vae(beta):

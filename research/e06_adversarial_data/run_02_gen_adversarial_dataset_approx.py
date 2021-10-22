@@ -486,9 +486,10 @@ def run_gen_adversarial_dataset(cfg):
         if torch.cuda.is_available():
             framework = framework.cuda()
         # create new h5py file -- TODO: use this in other places!
-        with h5_open(path=save_path_data, mode='atomic_w') as h5_file:
+
+        with H5Builder(path=save_path_data, mode='atomic_w') as builder:
             # this dataset is self-contained and can be loaded by SelfContainedHdf5GroundTruthData
-            H5Builder(h5_file).add_dataset_from_gt_data(
+            builder.add_dataset_from_gt_data(
                 data=framework.dataset,  # produces tensors
                 mutator=framework.batch_to_adversarial_imgs,  # consumes tensors -> np.ndarrays
                 img_shape=(64, 64, None),

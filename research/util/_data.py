@@ -54,8 +54,8 @@ class TransformDataset(GroundTruthData):
         return self.base_data.factor_sizes
 
     @property
-    def observation_shape(self) -> Tuple[int, ...]:
-        return self.base_data.observation_shape
+    def img_shape(self) -> Tuple[int, ...]:
+        return self.base_data.img_shape
 
     def _get_observation(self, idx):
         return self.base_data[idx]

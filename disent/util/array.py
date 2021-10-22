@@ -22,15 +22,34 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-# transforms
-from ._transforms import CheckTensor
-from ._transforms import Noop
-from ._transforms import ToStandardisedTensor
+import numpy as np
+from wandb.wandb_torch import torch
 
-# augments
-from ._augment import FftGaussianBlur
-from ._augment import FftBoxBlur
-from ._augment import FftKernel
 
-# disent dataset augment
-from ._augment_groundtruth import DisentDatasetTransform
+# ========================================================================= #
+# DEBUG                                                                     #
+# ========================================================================= #
+
+
+def replace_arrays_with_shapes(obj):
+    """
+    recursively replace all arrays of an object
+    with their shapes to make debugging easier!
+    """
+    if isinstance(obj, (torch.Tensor, np.ndarray)):
+        return obj.shape
+    elif isinstance(obj, dict):
+        return {replace_arrays_with_shapes(k): replace_arrays_with_shapes(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return list(replace_arrays_with_shapes(v) for v in obj)
+    elif isinstance(obj, tuple):
+        return tuple(replace_arrays_with_shapes(v) for v in obj)
+    elif isinstance(obj, set):
+        return {replace_arrays_with_shapes(k) for k in obj}
+    else:
+        return obj
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #
