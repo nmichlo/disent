@@ -22,13 +22,13 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import csv
 import logging
 import os
 import shutil
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Optional
-import csv
 
 import numpy as np
 import psutil
@@ -37,15 +37,14 @@ from torch.utils.data import Dataset
 from torchvision.datasets import ImageFolder
 from tqdm import tqdm
 
-from disent.dataset.data import DSpritesData
-from disent.dataset.data._groundtruth import _Hdf5DataMixin
 from disent.dataset.data._groundtruth import _DiskDataMixin
+from disent.dataset.data._groundtruth import _Hdf5DataMixin
+from disent.dataset.data._groundtruth__dsprites import DSpritesData
 from disent.dataset.util.datafile import DataFileHashedDlGen
 from disent.dataset.util.hdf5 import H5Builder
 from disent.util.inout.files import AtomicSaveFile
 from disent.util.iters import LengthIter
 from disent.util.math.random import random_choice_prng
-from research.util import plt_subplots_imshow
 
 
 log = logging.getLogger(__name__)
@@ -198,7 +197,8 @@ class ImageNetTinyData(_Hdf5DataMixin, _DiskDataMixin, Dataset, LengthIter):
     datafiles = (datafile_imagenet_h5,)
 
     def __init__(self, data_root: Optional[str] = None, prepare: bool = False, in_memory=False, transform=None):
-        super().__init__(transform=transform)
+        super().__init__()
+        self._transform = transform
         # initialize mixin
         self._mixin_disk_init(
             data_root=data_root,
@@ -209,6 +209,12 @@ class ImageNetTinyData(_Hdf5DataMixin, _DiskDataMixin, Dataset, LengthIter):
             h5_dataset_name=self.datafile_imagenet_h5.dataset_name,
             in_memory=in_memory,
         )
+
+    def __getitem__(self, idx: int):
+        obs = self._data[idx]
+        if self._transform is not None:
+            obs = self._transform(obs)
+        return obs
 
 
 # ========================================================================= #
@@ -227,7 +233,7 @@ class DSpritesImagenetData(DSpritesData):
     # original dsprites it only (64, 64, 1) imagenet adds the colour channel
     img_shape = (64, 64, 3)
 
-    def __init__(self, brightness: float = 0.75, invert: bool = False, data_root: Optional[str] = None, prepare: bool = False, in_memory=False, transform=None):
+    def __init__(self, brightness: float = 1.0, invert: bool = False, data_root: Optional[str] = None, prepare: bool = False, in_memory=False, transform=None):
         super().__init__(data_root=data_root, prepare=prepare, in_memory=in_memory, transform=transform)
         # checks
         assert 0 <= brightness <= 1, f'incorrect brightness value: {repr(brightness)}, must be in range [0, 1]'
