@@ -22,11 +22,9 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-import csv
 import logging
 import os
 import shutil
-from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Optional
 
@@ -37,85 +35,20 @@ from torch.utils.data import Dataset
 from torchvision.datasets import ImageFolder
 from tqdm import tqdm
 
+from disent.dataset.data import GroundTruthData
 from disent.dataset.data._groundtruth import _DiskDataMixin
 from disent.dataset.data._groundtruth import _Hdf5DataMixin
 from disent.dataset.data._groundtruth__dsprites import DSpritesData
+from disent.dataset.transform import ToImgTensorF32
 from disent.dataset.util.datafile import DataFileHashedDlGen
 from disent.dataset.util.hdf5 import H5Builder
+from disent.dataset.util.stats import compute_data_mean_std
 from disent.util.inout.files import AtomicSaveFile
 from disent.util.iters import LengthIter
 from disent.util.math.random import random_choice_prng
 
 
 log = logging.getLogger(__name__)
-
-
-# ========================================================================= #
-# load imagenet-tiny meta data                                              #
-# ========================================================================= #
-
-
-def _read_csv(path, col_types=None, n_rows: int = None, n_cols: int = None, flatten: bool = False, delimiter='\t') -> list:
-    assert (n_rows is None) or n_rows >= 1
-    assert (n_cols is None) or n_cols >= 1
-    assert (not flatten) or (n_cols is None) or (n_cols == 1)
-    # read the CVS entries
-    rows = []
-    with open(path, 'r') as fp:
-        reader = csv.reader(fp, delimiter=delimiter)
-        # read each row of the CSV and process it
-        for row in reader:
-            if n_cols is not None:
-                assert len(row) == n_cols, f'invalid number of columns, got: {len(row)}, required: {n_cols}'
-            if col_types is not None:
-                assert len(col_types) == len(row), f'invalid number of col_types entries, got: {len(col_types)}, required: {len(row)}'
-                row = [(v if t is None else t(v)) for t, v in zip(col_types, row)]
-            if flatten:
-                rows.extend(row)
-            else:
-                rows.append(row)
-    # check we have the right number of rows
-    if n_rows is not None:
-        assert len(rows) == n_rows, f'invalid number of rows, got: {len(rows)}, required: {n_rows}'
-    return rows
-
-
-def load_imagenet_tiny_meta(raw_data_dir):
-    """
-    tiny-imagenet-200.zip contains:
-        1. /tiny-imagenet-200/wnids.txt                    # <class>
-        2. /tiny-imagenet-200/words.txt                    # <class> <description>
-        3. /tiny-imagenet-200/train/n#/n#_boxes.txt        # <img_name>         <i> <j> <k> <l>
-           /tiny-imagenet-200/train/n#/images/n#_#.JPEG
-        4. /tiny-imagenet-200/val/images/val_#.JPEG
-           /tiny-imagenet-200/val/val_annotations.txt      # <img_name> <class> <i> <j> <k> <l>
-        5. /tiny-imagenet-200/test/images/test_#.JPEG
-    """
-    root = Path(raw_data_dir)
-    # 1. read the classes
-    wnids = _read_csv(root.joinpath('wnids.txt'), col_types=(str,), n_rows=200, flatten=True)
-    assert len(wnids) == 200
-    # 2. read the class descriptions
-    cls_descs = {k: v for k, v in _read_csv(root.joinpath('words.txt'), col_types=(str, str), n_rows=82115)}
-    cls_descs = {k: cls_descs[k] for k in wnids}
-    assert len(cls_descs) == 200
-    # 3. load the training data
-    train_meta = []
-    for cls_name in wnids:
-        cls_folder = root.joinpath('train', cls_name)
-        cls_meta = _read_csv(cls_folder.joinpath(f'{cls_name}_boxes.txt'), col_types=(str, int, int, int, int), n_rows=500)
-        cls_meta = [(os.path.join('train', cls_name, name), cls_name, (i, j, k, l)) for name, i, j, k, l in cls_meta]
-        train_meta.extend(cls_meta)
-    assert len(train_meta) == 100_000
-    # 4. read the validation data
-    val_meta = _read_csv(root.joinpath('val', 'val_annotations.txt'), col_types=(str, str, int, int, int, int), n_rows=10000)
-    val_meta = [(os.path.join('val', 'images', name), cls, (i, j, k, l)) for name, cls, i, j, k, l in val_meta]
-    assert len(val_meta) == 10_000
-    # 5. load the test data
-    test_meta = [os.path.join('test', 'images', path.name) for path in root.joinpath('test', 'images').glob('test_*.JPEG')]
-    assert len(test_meta) == 10_000
-    # return data
-    return train_meta, val_meta, test_meta, cls_descs
 
 
 # ========================================================================= #
@@ -222,64 +155,129 @@ class ImageNetTinyData(_Hdf5DataMixin, _DiskDataMixin, Dataset, LengthIter):
 # ========================================================================= #
 
 
-class DSpritesImagenetData(DSpritesData):
+class DSpritesImagenetData(GroundTruthData):
     """
     DSprites that has imagenet images in the background.
     """
 
-    # keep the dataset name as dsprites so we don't have to download and reprocess it...
-    name = 'dsprites'
+    name = 'dsprites_imagenet'
 
     # original dsprites it only (64, 64, 1) imagenet adds the colour channel
     img_shape = (64, 64, 3)
+    factor_names = DSpritesData.factor_names
+    factor_sizes = DSpritesData.factor_sizes
 
-    def __init__(self, brightness: float = 1.0, invert: bool = False, data_root: Optional[str] = None, prepare: bool = False, in_memory=False, transform=None):
-        super().__init__(data_root=data_root, prepare=prepare, in_memory=in_memory, transform=transform)
+    def __init__(self, visibility: float = 1.0, foreground: bool = False, data_root: Optional[str] = None, prepare: bool = False, in_memory=False, transform=None):
+        super().__init__(transform=transform)
         # checks
-        assert 0 <= brightness <= 1, f'incorrect brightness value: {repr(brightness)}, must be in range [0, 1]'
-        self._brightness = brightness
-        self._invert = invert
-        # handle the imagenet data
-        self._imagenet_tiny = ImageNetTinyData(
-            data_root=data_root,
-            prepare=prepare,
-            in_memory=in_memory,
-            transform=None,
-        )
+        assert 0 <= visibility <= 1, f'incorrect visibility ratio: {repr(visibility)}, must be in range [0, 1]'
+        self._visibility = visibility
+        self._foreground = foreground
+        # handle the datasets
+        self._dsprites = DSpritesData(data_root=data_root, prepare=prepare, in_memory=in_memory, transform=None)
+        self._imagenet = ImageNetTinyData(data_root=data_root, prepare=prepare, in_memory=in_memory, transform=None)
         # deterministic randomization of the imagenet order
         self._imagenet_order = random_choice_prng(
-            len(self._imagenet_tiny),
+            len(self._imagenet),
             size=len(self),
             seed=42,
         )
 
-    # we need to combine the two dataset images
     def _get_observation(self, idx):
+        # we need to combine the two dataset images
         # dsprites contains only {0, 255} for values
         # we can directly use these values to mask the imagenet image
-        bg = self._imagenet_tiny[self._imagenet_order[idx]]
-        fg = self._data[idx].repeat(3, axis=-1)
+        bg = self._imagenet[self._imagenet_order[idx]]
+        fg = self._dsprites[idx].repeat(3, axis=-1)
         # compute background
-        obs = (bg * self._brightness).astype('uint8')
         # set foreground
-        if self._invert:
+        r = self._visibility
+        if self._foreground:
+            # lerp content to white, and then insert into fg regions
+            # r*bg + (1-r)*255
+            obs = (r*bg + ((1-r)*255)).astype('uint8')
             obs[fg <= 127] = 0
         else:
+            # lerp content to black, and then insert into bg regions
+            # r*bg + (1-r)*000
+            obs = (r*bg).astype('uint8')
             obs[fg > 127] = 255
         # checks
         return obs
 
 
 # ========================================================================= #
-# END                                                                       #
+# STATS                                                                     #
 # ========================================================================= #
 
 
+"""
+dsprites_fg_1.0
+    vis_mean: [0.02067051643494642, 0.018688392816012946, 0.01632900510079384]
+    vis_std: [0.10271307751834059, 0.09390213983525653, 0.08377594259970281]
+dsprites_fg_0.8
+    vis_mean: [0.024956427531012196, 0.02336780403840578, 0.021475119672280243]
+    vis_std: [0.11864125016313823, 0.11137998105649799, 0.10281424917834255]
+dsprites_fg_0.6
+    vis_mean: [0.029335176871153983, 0.028145355435322966, 0.026731731769287146]
+    vis_std: [0.13663242436043319, 0.13114320478634894, 0.1246542727733097]
+dsprites_fg_0.4
+    vis_mean: [0.03369999506331255, 0.03290657349801835, 0.03196482946320608]
+    vis_std: [0.155514074438101, 0.1518464537731621, 0.14750944591836743]
+dsprites_fg_0.2
+    vis_mean: [0.038064750024334834, 0.03766780505193579, 0.03719798677641122]
+    vis_std: [0.17498878664096565, 0.17315570657628318, 0.1709923319496426]
+dsprites_bg_1.0
+    vis_mean: [0.5020433619489952, 0.47206398913310593, 0.42380018909780404]
+    vis_std: [0.2505510666843685, 0.25007259803668697, 0.2562415603123114]
+dsprites_bg_0.8
+    vis_mean: [0.40867981393820857, 0.38468564002021527, 0.34611573047508204]
+    vis_std: [0.22048328737091344, 0.22102216869942384, 0.22692977053753477]
+dsprites_bg_0.6
+    vis_mean: [0.31676960943447674, 0.29877166834408025, 0.2698556821388113]
+    vis_std: [0.19745897110349003, 0.1986606891520453, 0.203808842880044]
+dsprites_bg_0.4
+    vis_mean: [0.2248598986983768, 0.21285772298967615, 0.19359577132944206]
+    vis_std: [0.1841631708032332, 0.18554895825833284, 0.1893568926398198]
+dsprites_bg_0.2
+    vis_mean: [0.13294969414492142, 0.12694375140936273, 0.11733572285575933]
+    vis_std: [0.18311250427586276, 0.1840916474752131, 0.18607373519458442]
+"""
+
+
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
 
-    data = DSpritesImagenetData(prepare=True)
 
-    grid = np.array([data[i*24733] for i in np.arange(16)]).reshape([4, 4, *data.img_shape])
+    def compute_all_stats():
+        from disent.util.visualize.plot import plt_subplots_imshow
 
-    plt_subplots_imshow(grid, show=True)
+        def compute_stats(visibility, fg):
+            # plot images
+            data = DSpritesImagenetData(prepare=True, visibility=visibility, foreground=fg)
+            grid = np.array([data[i*24733] for i in np.arange(16)]).reshape([4, 4, *data.img_shape])
+            plt_subplots_imshow(grid, show=True, title=f'{DSpritesImagenetData.name} visibility={visibility} foreground={fg}')
+            # compute stats
+            name = f'dsprites_{"fg" if fg else "bg"}_{visibility}'
+            data = DSpritesImagenetData(prepare=True, visibility=visibility, foreground=fg, transform=ToImgTensorF32())
+            mean, std = compute_data_mean_std(data, batch_size=256, num_workers=min(psutil.cpu_count(logical=False), 64), progress=True)
+            print(f'{name}\n    vis_mean: {mean.tolist()}\n    vis_std: {std.tolist()}')
+            # return stats
+            return name, mean, std
+
+        # compute common stats
+        stats = []
+        for fg in [True, False]:
+            for vis in [1.0, 0.8, 0.6, 0.4, 0.2]:
+                stats.append(compute_stats(vis, fg))
+
+        # print once at end
+        for name, mean, std in stats:
+            print(f'{name}\n    vis_mean: {mean.tolist()}\n    vis_std: {std.tolist()}')
+
+    compute_all_stats()
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #

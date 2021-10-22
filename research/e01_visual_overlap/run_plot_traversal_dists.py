@@ -279,6 +279,14 @@ if __name__ == '__main__':
     for name in ['dsprites', 'shapes3d', 'cars3d', 'smallnorb']:
         plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(name), color='blue', dataset_or_name=name)
 
+    # plot adversarial dsprites datasets
+    for fg in [True, False]:
+        for vis in [1.0, 0.8, 0.6, 0.4, 0.2]:
+            name = f'dsprites_{"fg" if fg else "bg"}_{vis}'
+            plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(name), color='orange', dataset_or_name=name)
+            # mean, std = compute_data_mean_std(H.make_data(name))
+            # print(f'{name}\n    vis_mean: {mean.tolist()}\n    vis_std: {std.tolist()}')
+
     BASE = os.path.abspath(os.path.join(__file__, '../../../out/adversarial_data_approx'))
 
     # plot adversarial datasets
@@ -302,8 +310,8 @@ if __name__ == '__main__':
         data = _make_self_contained_dataset(f'{BASE}/{folder}/data.h5')
         plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(folder), color=color, dataset_or_name=data)
         # compute and print statistics:
-        mean, std = compute_data_mean_std(data)
-        print(f'{folder}\n    vis_mean: {mean.tolist()}\n    vis_std: {std.tolist()}')
+        # mean, std = compute_data_mean_std(data, progress=True)
+        # print(f'{folder}\n    vis_mean: {mean.tolist()}\n    vis_std: {std.tolist()}')
 
 
 # ========================================================================= #

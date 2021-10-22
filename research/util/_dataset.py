@@ -180,12 +180,17 @@ def make_data(
     elif name == 'shapes3d':       data = Shapes3dData(data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
     elif name == 'dsprites':       data = DSpritesData(data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
     # CUSTOM DATASETS
-    elif name == 'dsprites_imagenet_1.0':   data = DSpritesImagenetData(brightness=1.0, invert=False, data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
-    elif name == 'dsprites_imagenet_0.5':   data = DSpritesImagenetData(brightness=0.5, invert=False, data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
-    elif name == 'dsprites_imagenet_0.1':   data = DSpritesImagenetData(brightness=0.1, invert=False, data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
-    elif name == 'dsprites_imagenet_1.0_I': data = DSpritesImagenetData(brightness=1.0, invert=True, data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
-    elif name == 'dsprites_imagenet_0.5_I': data = DSpritesImagenetData(brightness=0.5, invert=True, data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
-    elif name == 'dsprites_imagenet_0.1_I': data = DSpritesImagenetData(brightness=0.1, invert=True, data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'dsprites_bg_1.0': data = DSpritesImagenetData(visibility=1.0, foreground=False, data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'dsprites_bg_0.8': data = DSpritesImagenetData(visibility=0.8, foreground=False, data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'dsprites_bg_0.6': data = DSpritesImagenetData(visibility=0.6, foreground=False, data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'dsprites_bg_0.4': data = DSpritesImagenetData(visibility=0.4, foreground=False, data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'dsprites_bg_0.2': data = DSpritesImagenetData(visibility=0.2, foreground=False, data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    # --- #
+    elif name == 'dsprites_fg_1.0': data = DSpritesImagenetData(visibility=1.0, foreground=True, data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'dsprites_fg_0.8': data = DSpritesImagenetData(visibility=0.8, foreground=True, data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'dsprites_fg_0.6': data = DSpritesImagenetData(visibility=0.6, foreground=True, data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'dsprites_fg_0.4': data = DSpritesImagenetData(visibility=0.4, foreground=True, data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'dsprites_fg_0.2': data = DSpritesImagenetData(visibility=0.2, foreground=True, data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
     # DONE
     else: raise KeyError(f'invalid data name: {repr(name)}')
     # load into memory
