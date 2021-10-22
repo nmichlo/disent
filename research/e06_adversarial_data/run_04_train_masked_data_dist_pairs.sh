@@ -26,7 +26,7 @@ submit_sweep \
     \
     run_callbacks=vis_slow \
     run_length=short \
-    metrics=all_fast_final \
+    metrics=all \
     \
     framework.beta=0.0316,0.01,0.1 \
     framework=betavae,adavae_os \

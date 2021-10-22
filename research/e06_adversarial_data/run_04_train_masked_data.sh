@@ -41,7 +41,7 @@ submit_sweep \
     +EXTRA.tags='sweep_usage_ratio' \
     \
     run_length=short \
-    metrics=all_fast_final \
+    metrics=all \
     \
     framework.beta=0.001 \
     framework=betavae,adavae_os \

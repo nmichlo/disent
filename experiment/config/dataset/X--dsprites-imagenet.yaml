@@ -2,8 +2,8 @@
 name: dsprites_imagenet_${dataset.data.mode}_${dataset.data.visibility}
 data:
   _target_: disent.dataset.data.DSpritesImagenetData
-  visibility: 100
-  mode: fg
+  visibility: 40
+  mode: bg
   data_root: ${dataset.data_root}
   prepare: True
   in_memory: ${dataset.try_in_memory}
@@ -15,8 +15,8 @@ x_shape: [3, 64, 64]
 
 data_type: gt
 
-vis_mean: ${dataset.__STATS.${dataset.name}.vis_mean}
-vis_std: ${dataset.__STATS.${dataset.name}.vis_std}
+vis_mean: ${exit:EXITING... dsprites-imagenet has been disabled} # ${dataset.__STATS.${dataset.name}.vis_mean}
+vis_std: ${exit:EXITING... dsprites-imagenet has been disabled} # ${dataset.__STATS.${dataset.name}.vis_std}
 
 __STATS:
   dsprites_imagenet_fg_100:
