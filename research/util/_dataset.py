@@ -39,6 +39,7 @@ import torch.utils.data
 from disent.dataset import DisentDataset
 from disent.dataset.data import Cars3dData
 from disent.dataset.data import DSpritesData
+from disent.dataset.data import DSpritesImagenetData
 from disent.dataset.data import GroundTruthData
 from disent.dataset.data import Shapes3dData
 from disent.dataset.data import SmallNorbData
@@ -178,6 +179,14 @@ def make_data(
     elif name == 'smallnorb':      data = SmallNorbData(data_root=data_root, prepare=True, transform=TransformCls(size=64))
     elif name == 'shapes3d':       data = Shapes3dData(data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
     elif name == 'dsprites':       data = DSpritesData(data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    # CUSTOM DATASETS
+    elif name == 'dsprites_imagenet_1.0':   data = DSpritesImagenetData(brightness=1.0, invert=False, data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_0.5':   data = DSpritesImagenetData(brightness=0.5, invert=False, data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_0.1':   data = DSpritesImagenetData(brightness=0.1, invert=False, data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_1.0_I': data = DSpritesImagenetData(brightness=1.0, invert=True, data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_0.5_I': data = DSpritesImagenetData(brightness=0.5, invert=True, data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_0.1_I': data = DSpritesImagenetData(brightness=0.1, invert=True, data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    # DONE
     else: raise KeyError(f'invalid data name: {repr(name)}')
     # load into memory
     if load_into_memory:
