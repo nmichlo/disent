@@ -40,6 +40,7 @@ submit_sweep \
     +DUMMY.repeat=1,2,3 \
     +EXTRA.tags='sweep_usage_ratio' \
     \
+    run_callbacks=vis \
     run_length=short \
     metrics=all \
     \
@@ -51,4 +52,4 @@ submit_sweep \
     dataset=X--mask-adv-f-dsprites,X--mask-ran-dsprites,dsprites,X--mask-adv-f-shapes3d,X--mask-ran-shapes3d,shapes3d,X--mask-adv-f-smallnorb,X--mask-ran-smallnorb,smallnorb,X--mask-adv-f-cars3d,X--mask-ran-cars3d,cars3d \
     sampling=random \
     \
-    hydra.launcher.exclude='"mscluster93,mscluster94,mscluster97"'  # we don't want to sweep over these
+    hydra.launcher.exclude='"mscluster93,mscluster94,mscluster97,mscluster99"'  # we don't want to sweep over these
