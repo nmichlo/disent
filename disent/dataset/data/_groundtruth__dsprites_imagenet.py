@@ -167,12 +167,15 @@ class DSpritesImagenetData(GroundTruthData):
     factor_names = DSpritesData.factor_names
     factor_sizes = DSpritesData.factor_sizes
 
-    def __init__(self, visibility: float = 1.0, foreground: bool = False, data_root: Optional[str] = None, prepare: bool = False, in_memory=False, transform=None):
+    def __init__(self, visibility: int = 100, mode: str = 'bg', data_root: Optional[str] = None, prepare: bool = False, in_memory=False, transform=None):
         super().__init__(transform=transform)
-        # checks
-        assert 0 <= visibility <= 1, f'incorrect visibility ratio: {repr(visibility)}, must be in range [0, 1]'
-        self._visibility = visibility
-        self._foreground = foreground
+        # check visibility and convert to ratio
+        assert isinstance(visibility, int), f'incorrect visibility percentage type, expected int, got: {type(visibility)}'
+        assert 0 <= visibility <= 100, f'incorrect visibility percentage: {repr(visibility)}, must be in range [0, 100]. '
+        self._visibility = visibility / 100
+        # check mode and convert to foreground boolean
+        assert mode in {'bg', 'fg'}, f'incorrect mode: {repr(mode)}, must be one of: ["bg", "fg"]'
+        self._foreground = (mode == 'fg')
         # handle the datasets
         self._dsprites = DSpritesData(data_root=data_root, prepare=prepare, in_memory=in_memory, transform=None)
         self._imagenet = ImageNetTinyData(data_root=data_root, prepare=prepare, in_memory=in_memory, transform=None)
@@ -252,14 +255,14 @@ if __name__ == '__main__':
     def compute_all_stats():
         from disent.util.visualize.plot import plt_subplots_imshow
 
-        def compute_stats(visibility, fg):
+        def compute_stats(visibility, mode):
             # plot images
-            data = DSpritesImagenetData(prepare=True, visibility=visibility, foreground=fg)
+            data = DSpritesImagenetData(prepare=True, visibility=visibility, mode=mode)
             grid = np.array([data[i*24733] for i in np.arange(16)]).reshape([4, 4, *data.img_shape])
-            plt_subplots_imshow(grid, show=True, title=f'{DSpritesImagenetData.name} visibility={visibility} foreground={fg}')
+            plt_subplots_imshow(grid, show=True, title=f'{DSpritesImagenetData.name} visibility={repr(visibility)} mode={repr(mode)}')
             # compute stats
-            name = f'dsprites_{"fg" if fg else "bg"}_{visibility}'
-            data = DSpritesImagenetData(prepare=True, visibility=visibility, foreground=fg, transform=ToImgTensorF32())
+            name = f'dsprites_{mode}_{visibility}'
+            data = DSpritesImagenetData(prepare=True, visibility=visibility, mode=mode, transform=ToImgTensorF32())
             mean, std = compute_data_mean_std(data, batch_size=256, num_workers=min(psutil.cpu_count(logical=False), 64), progress=True)
             print(f'{name}\n    vis_mean: {mean.tolist()}\n    vis_std: {std.tolist()}')
             # return stats
@@ -267,9 +270,9 @@ if __name__ == '__main__':
 
         # compute common stats
         stats = []
-        for fg in [True, False]:
-            for vis in [1.0, 0.8, 0.6, 0.4, 0.2]:
-                stats.append(compute_stats(vis, fg))
+        for mode in ['fg', 'bg']:
+            for vis in [100, 80, 60, 40, 20]:
+                stats.append(compute_stats(vis, mode))
 
         # print once at end
         for name, mean, std in stats:

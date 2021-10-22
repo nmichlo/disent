@@ -40,11 +40,9 @@ import torch.nn.functional as F
 from tqdm import tqdm
 
 import research.util as H
-from disent.dataset.data import DSpritesImagenetData
 from disent.dataset.data import GroundTruthData
 from disent.dataset.data import SelfContainedHdf5GroundTruthData
 from disent.dataset.util.state_space import NonNormalisedFactors
-from disent.dataset.util.stats import compute_data_mean_std
 from disent.dataset.transform import ToImgTensorF32
 from disent.util.inout.paths import ensure_parent_dir_exists
 from disent.util.seeds import TempNumpySeed
@@ -281,8 +279,8 @@ if __name__ == '__main__':
 
     # plot adversarial dsprites datasets
     for fg in [True, False]:
-        for vis in [1.0, 0.8, 0.6, 0.4, 0.2]:
-            name = f'dsprites_{"fg" if fg else "bg"}_{vis}'
+        for vis in [100, 80, 60, 40, 20]:
+            name = f'dsprites_imagenet_{"fg" if fg else "bg"}_{vis}'
             plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(name), color='orange', dataset_or_name=name)
             # mean, std = compute_data_mean_std(H.make_data(name))
             # print(f'{name}\n    vis_mean: {mean.tolist()}\n    vis_std: {std.tolist()}')
