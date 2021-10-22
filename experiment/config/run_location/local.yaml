@@ -10,8 +10,9 @@ dataset:
   num_workers: 8
   data_root: '/tmp/${env:USER}/datasets'
   pin_memory: ${trainer.cuda}
-  try_in_memory: FALSE
+  try_in_memory: TRUE
   gpu_augment: FALSE
+  prepare: TRUE
 
 hydra:
   job:

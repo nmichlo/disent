@@ -10,8 +10,9 @@ dataset:
   num_workers: 12
   data_root: '${env:HOME}/workspace/research/disent/data/dataset'
   pin_memory: ${trainer.cuda}
-  try_in_memory: FALSE
+  try_in_memory: TRUE
   gpu_augment: FALSE
+  prepare: TRUE
 
 hydra:
   job:

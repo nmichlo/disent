@@ -3,15 +3,16 @@ logging:
   logs_dir: 'logs'
 
 trainer:
-  cuda: NULL  # auto detect cuda, some nodes are not configured correctly
+  cuda: NULL  # auto detect cuda, some nodes may be configured incorrectly
   prepare_data_per_node: TRUE
 
 dataset:
   num_workers: 8
   data_root: '/tmp/${env:USER}/datasets'
   pin_memory: ${trainer.cuda}
-  try_in_memory: FALSE
+  try_in_memory: TRUE
   gpu_augment: FALSE
+  prepare: TRUE
 
 hydra:
   job:
@@ -22,7 +23,7 @@ hydra:
     dir: '${logging.logs_dir}/hydra_sweep/${now:%Y-%m-%d_%H-%M-%S}_${hydra.job.name}'
     subdir: '${hydra.job.id}' # hydra.job.id is not available for dir
   launcher:
-    partition: ${job.partition}
+    partition: invalid
     mem_gb: 0
     timeout_min: 1440  # minutes
     submitit_folder: '${hydra.sweep.dir}/%j'
