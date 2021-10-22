@@ -3,7 +3,7 @@ name: 3dshapes
 data:
   _target_: disent.dataset.data.Shapes3dData
   data_root: ${dataset.data_root}
-  prepare: True
+  prepare: ${dataset.prepare}
   in_memory: ${dataset.try_in_memory}
 transform:
   _target_: disent.dataset.transform.ToImgTensorF32

@@ -11,7 +11,7 @@ defaults:
   # runtime
   - metrics: all
   - run_length: long
-  - run_location: cluster_many
+  - run_location: stampede_tmp
   - run_callbacks: vis
   - run_logging: wandb
   # plugins
@@ -23,7 +23,6 @@ job:
   user: '${env:USER}'
   project: 'test-project'
   name: '${framework.name}:${framework.module.recon_loss}|${dataset.name}:${sampling.name}|${trainer.steps}'
-  partition: batch
   seed: NULL
 
 framework:

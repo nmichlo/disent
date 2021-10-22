@@ -3,7 +3,7 @@ name: mpi3d_realistic
 data:
   _target_: disent.dataset.data.Mpi3dData
   data_root: ${dataset.data_root}
-  prepare: True
+  prepare: ${dataset.prepare}
   in_memory: ${dataset.try_in_memory}
   subset: 'realistic'
 transform:

@@ -3,7 +3,7 @@ name: cars3d
 data:
   _target_: disent.dataset.data.Cars3dData
   data_root: ${dataset.data_root}
-  prepare: True
+  prepare: ${dataset.prepare}
 transform:
   _target_: disent.dataset.transform.ToImgTensorF32
   size: 64

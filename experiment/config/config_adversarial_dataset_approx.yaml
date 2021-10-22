@@ -110,4 +110,3 @@ job:
   # wandb
   user: 'n_michlo'
   project: 'exp-disentangle-dataset-approx'
-  partition: stampede

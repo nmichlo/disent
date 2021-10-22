@@ -7,7 +7,7 @@ data:
   gt_data:
     _target_: disent.dataset.data.SmallNorbData
     data_root: ${dataset.data_root}
-    prepare: True
+    prepare: ${dataset.prepare}
     is_test: False
 transform:
   _target_: disent.dataset.transform.ToImgTensorF32
