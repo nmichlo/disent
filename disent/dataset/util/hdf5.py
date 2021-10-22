@@ -45,6 +45,7 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+from disent.util.deprecate import deprecated
 from disent.util.strings import colors as c
 from disent.util.inout.files import AtomicSaveFile
 from disent.util.iters import iter_chunks
@@ -140,7 +141,7 @@ def h5_open(path: str, mode: str = 'r') -> h5py.File:
         w- or x  Create file, fail if exists
         a        Read/write if exists, create otherwise
     """
-    assert str.endswith(path, '.h5'), f'hdf5 file path does not end with extension: `.h5`'
+    assert str.endswith(path, '.h5') or str.endswith(path, '.hdf5'), f'hdf5 file path does not end with extension: `.h5` or `.hdf5`, got: {path}'
     # get atomic context manager
     if mode == 'atomic_w':
         save_context, mode = AtomicSaveFile(path, open_mode=None, overwrite=True), 'w'
@@ -298,6 +299,10 @@ class H5Builder(object):
                 batch = mutator(batch)
             return np.array(batch)
 
+        # get the batch size
+        if batch_size == 'auto' and isinstance(array, h5py.Dataset):
+            batch_size = array.chunks[0]
+
         # copy into the dataset
         self.fill_dataset(
             name=name,
@@ -344,11 +349,15 @@ class H5Builder(object):
         attrs: Optional[Dict[str, Any]] = None,
         batch_size: Union[int, Literal['auto']] = 'auto',
         show_progress: bool = False,
+        # optional, discovered automatically from array otherwise
+        mutator: Optional[Callable[[np.ndarray], np.ndarray]] = None,
+        dtype: Optional[np.dtype] = None,
+        shape: Optional[Tuple[int, ...]] = None,
     ):
         self.add_dataset(
             name=name,
-            shape=array.shape,
-            dtype=array.dtype,
+            shape=array.shape if (shape is None) else shape,
+            dtype=array.dtype if (dtype is None) else dtype,
             chunk_shape=chunk_shape,
             compression_lvl=compression_lvl,
             attrs=attrs,
@@ -358,7 +367,7 @@ class H5Builder(object):
             array=array,
             batch_size=batch_size,
             show_progress=show_progress,
-            mutator=None,
+            mutator=mutator,
         )
 
     def add_dataset_from_gt_data(
@@ -368,7 +377,7 @@ class H5Builder(object):
         img_shape: Tuple[Optional[int], ...] = (None, None, None),  # None items are automatically found
         batch_size: int = 32,
         compression_lvl: Optional[int] = 9,
-        num_workers=min(os.cpu_count(), 16),
+        num_workers: int = min(os.cpu_count(), 16),
         show_progress: bool = True,
         dtype: str = 'uint8',
         attrs: Optional[dict] = None
@@ -411,6 +420,65 @@ class H5Builder(object):
             show_progress=show_progress,
             mutator=mutator,
         )
+
+#     def resave_dataset(self,
+#         name: str,
+#         inp: Union[str, Path, h5py.File, h5py.Dataset, np.ndarray],
+#         # h5 re-save settings
+#         chunk_shape: ChunksType = 'batch',
+#         compression_lvl: Optional[int] = 4,
+#         attrs: Optional[Dict[str, Any]] = None,
+#         batch_size: Union[int, Literal['auto']] = 'auto',
+#         show_progress: bool = False,
+#         # optional, discovered automatically from array otherwise
+#         mutator: Optional[Callable[[np.ndarray], np.ndarray]] = None,
+#         dtype: Optional[np.dtype] = None,
+#         obs_shape: Optional[Tuple[int, ...]] = None,
+#     ):
+#         # TODO: should this be more general and be able to handle add_dataset_from_gt_data too?
+#         # TODO: this is very similar to save dataset below!
+#         with _get_array_context(inp, name) as arr:
+#             self.add_dataset_from_array(
+#                 name=name,
+#                 array=arr,
+#                 chunk_shape=chunk_shape,
+#                 compression_lvl=compression_lvl,
+#                 attrs=attrs,
+#                 batch_size=batch_size,
+#                 show_progress=show_progress,
+#                 mutator=mutator,
+#                 dtype=dtype,
+#                 shape=(len(arr), *obs_shape) if obs_shape else None,
+#             )
+#
+#
+# @contextlib.contextmanager
+# def _get_array_context(
+#     inp: Union[str, Path, h5py.File, h5py.Dataset, np.ndarray],
+#     dataset_name: str = None,
+# ) -> Union[h5py.Dataset, np.ndarray]:
+#     # check the inputs
+#     if not isinstance(inp, (str, Path, h5py.File, h5py.Dataset, np.ndarray)):
+#         raise TypeError(f'unsupported input type: {type(inp)}')
+#     # handle loading files
+#     if isinstance(inp, str):
+#         _, ext = os.path.splitext(inp)
+#         if ext in ('.h5', '.hdf5'):
+#             inp_context = h5py.File(inp, 'r')
+#         else:
+#             raise ValueError(f'unsupported extension: {repr(ext)} for path: {repr(inp)}')
+#     else:
+#         import contextlib
+#         inp_context = contextlib.nullcontext(inp)
+#     # re-save datasets
+#     with inp_context as inp_data:
+#         # get input dataset from h5 file
+#         if isinstance(inp_data, h5py.File):
+#             if dataset_name is None:
+#                 raise ValueError('dataset_name must be specified if the input is an h5py.File so we can retrieve a h5py.Dataset')
+#             inp_data = inp_data[dataset_name]
+#         # return the data
+#         yield inp_data
 
 
 # ========================================================================= #
