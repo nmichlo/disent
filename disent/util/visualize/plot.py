@@ -30,14 +30,15 @@ from typing import Optional
 import numpy as np
 import torch
 import logging
-from matplotlib import pyplot as plt
 
 from disent.dataset import DisentDataset
+from disent.dataset.util.state_space import NonNormalisedFactors
 from disent.util.seeds import TempNumpySeed
 from disent.util.visualize.vis_util import make_animated_image_grid
 from disent.util.visualize.vis_util import make_image_grid
-from research.util._dataset import get_factor_idxs
-from research.util._dataset import NonNormalisedFactors
+
+# TODO: matplotlib is not in requirements
+from matplotlib import pyplot as plt
 
 
 log = logging.getLogger(__name__)
@@ -287,12 +288,12 @@ def visualize_dataset_traversal(
     """
 
     # get factors from dataset
-    factor_idxs = get_factor_idxs(dataset.ground_truth_data, factor_names)
+    factor_idxs = dataset.gt_data.normalise_factor_idxs(factor_names)
 
     # get factor traversals
     with TempNumpySeed(seed):
         factors = np.stack([
-            dataset.ground_truth_data.sample_random_factor_traversal(f_idx, base_factors=base_factors, num=num_frames, mode=traverse_mode)
+            dataset.gt_data.sample_random_factor_traversal(f_idx, base_factors=base_factors, num=num_frames, mode=traverse_mode)
             for f_idx in factor_idxs
         ], axis=0)
 

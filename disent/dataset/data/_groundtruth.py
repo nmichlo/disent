@@ -205,6 +205,7 @@ class ArrayGroundTruthData(GroundTruthData):
 
 class _DiskDataMixin(object):
 
+    # attr this class defines in _mixin_disk_init
     _data_dir: str
 
     def _mixin_disk_init(self, data_root: Optional[str] = None, prepare: bool = False):
@@ -291,7 +292,7 @@ class NumpyFileGroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
 
 class _Hdf5DataMixin(object):
 
-    # set attributes if _mixin_hdf5_init is called
+    # attrs this class defines in _mixin_hdf5_init
     _in_memory: bool
     _attrs: dict
     _data: Union[Hdf5Dataset, np.ndarray]
