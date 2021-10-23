@@ -32,6 +32,6 @@ submit_sweep \
     framework=adavae_os,betavae \
     \
     dataset=dsprites,X--dsprites-imagenet-bg-20,X--dsprites-imagenet-bg-40,X--dsprites-imagenet-bg-60,X--dsprites-imagenet-bg-80,X--dsprites-imagenet-bg-100,X--dsprites-imagenet-fg-20,X--dsprites-imagenet-fg-40,X--dsprites-imagenet-fg-60,X--dsprites-imagenet-fg-80,X--dsprites-imagenet-fg-100 \
-    sampling=default \
+    sampling=default__bb \
     \
     hydra.launcher.exclude='"mscluster93,mscluster94,mscluster97,mscluster99"'  # we don't want to sweep over these
