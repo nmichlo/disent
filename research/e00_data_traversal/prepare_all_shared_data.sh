@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# This script is intended to prepare all shared data on the wits cluster
+# you can probably modify it for your own purposes
+# - data is loaded and processed into ~/downloads/datasets which is a
+#   shared drive, instead of /tmp/<user>, which is a local drive.
+
 # ========================================================================= #
 # Settings                                                                  #
 # ========================================================================= #
@@ -29,7 +34,7 @@ DATASETS=(
   #X--adv-dsprites--WARNING
   #X--adv-shapes3d--WARNING
   #X--adv-smallnorb--WARNING
-  X--dsprites-imagenet
+  #X--dsprites-imagenet
   #X--dsprites-imagenet-bg-20
   #X--dsprites-imagenet-bg-40
   #X--dsprites-imagenet-bg-60

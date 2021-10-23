@@ -7,7 +7,7 @@ defaults:
   - run_length: long
   # data
   - dataset: xyobject
-  - sampling: none
+  - sampling: default
   - augment: none
   # logs
   - metrics: all
