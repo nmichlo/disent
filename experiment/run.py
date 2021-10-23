@@ -298,7 +298,7 @@ def prepare_data(cfg: DictConfig, config_path: str = None):
     prepare_data_per_node = cfg.trainer.setdefault('prepare_data_per_node', True)
     hydra_check_datadir(prepare_data_per_node, cfg)
     # print the config
-    log.info(f'Final Config Is:\n{make_box_str(OmegaConf.to_yaml(cfg))}')
+    log.info(f'Dataset Config Is:\n{make_box_str(OmegaConf.to_yaml({"dataset": cfg.dataset}))}')
     # prepare data
     datamodule = HydraDataModule(cfg)
     datamodule.prepare_data()

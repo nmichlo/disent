@@ -61,9 +61,9 @@ DATASETS=(
   #X--mask-ran-dsprites
   #X--mask-ran-shapes3d
   #X--mask-ran-smallnorb
-  X--xyblocks
+  "X--xyblocks"
   #X--xyblocks_grey
-  X--xysquares
+  "X--xysquares"
   #X--xysquares_grey
   #X--xysquares_rgb
   xyobject
