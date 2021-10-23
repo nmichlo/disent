@@ -4,20 +4,23 @@ defaults:
   - model: vae_conv64
   - optimizer: adam
   - schedule: beta_cyclic
+  - run_length: test
   # data
   - dataset: xyobject
   - sampling: default
   - augment: none
-  # runtime
+  # logs
   - metrics: test
-  - run_length: test
-  - run_location: local_cpu
   - run_callbacks: none
   - run_logging: none
-  # plugins
   - hydra/job_logging: colorlog
   - hydra/hydra_logging: colorlog
-  - hydra/launcher: submitit_slurm
+  # runtime
+  - run_location: local_cpu
+  - run_launcher: local
+  - hydra/launcher: basic
+  # action
+  - action: train
 
 job:
   user: invalid

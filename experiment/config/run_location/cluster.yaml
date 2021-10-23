@@ -22,9 +22,6 @@ hydra:
   sweep:
     dir: '${logging.logs_dir}/hydra_sweep/${now:%Y-%m-%d_%H-%M-%S}_${hydra.job.name}'
     subdir: '${hydra.job.id}' # hydra.job.id is not available for dir
-  launcher:
-    partition: invalid
-    mem_gb: 0
-    timeout_min: 1440  # minutes
-    submitit_folder: '${hydra.sweep.dir}/%j'
-    array_parallelism: 10
+
+job:
+  partition: batch
