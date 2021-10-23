@@ -4,20 +4,23 @@ defaults:
   - model: vae_conv64
   - optimizer: adam
   - schedule: none
+  - run_length: long
   # data
   - dataset: xyobject
   - sampling: none
   - augment: none
-  # runtime
+  # logs
   - metrics: all
-  - run_length: long
-  - run_location: stampede_tmp
   - run_callbacks: vis
   - run_logging: wandb
-  # plugins
   - hydra/job_logging: colorlog
   - hydra/hydra_logging: colorlog
+  # runtime
+  - run_location: stampede_tmp
+  - run_launcher: slurm
   - hydra/launcher: submitit_slurm
+  # action
+  - action: train
 
 job:
   user: '${env:USER}'
