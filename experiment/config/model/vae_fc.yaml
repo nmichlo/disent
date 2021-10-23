@@ -1,4 +1,3 @@
-# @package _group_
 name: vae_fc
 encoder:
   _target_: disent.model.ae.EncoderFC

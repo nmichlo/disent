@@ -8,7 +8,7 @@ trainer:
 
 dataset:
   num_workers: 16
-  data_root: '${env:HOME}/downloads/datasets'  # WE NEED TO BE VERY CAREFUL ABOUT USING A SHARED DRIVE
+  data_root: '${oc.env:HOME}/downloads/datasets'  # WE NEED TO BE VERY CAREFUL ABOUT USING A SHARED DRIVE
   pin_memory: ${trainer.cuda}
   try_in_memory: TRUE
   gpu_augment: FALSE

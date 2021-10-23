@@ -1,7 +1,6 @@
-# @package _group_
 name: adanegtvae
 module:
-  _target_: disent.frameworks.vae.experimental.AdaNegTripletVae
+  _target_: disent.frameworks.vae.experimental.AdaNegTripletVae.cfg
   # base vae
   latent_distribution: ${framework.optional.latent_distribution}
   # disable various components

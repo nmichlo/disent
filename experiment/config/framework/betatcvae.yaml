@@ -1,7 +1,6 @@
-# @package _group_
 name: betatcvae
 module:
-  _target_: disent.frameworks.vae.BetaTcVae
+  _target_: disent.frameworks.vae.BetaTcVae.cfg
   # base vae
   latent_distribution: ${framework.optional.latent_distribution}
   # disable various components

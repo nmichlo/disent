@@ -50,16 +50,16 @@ class AugPosTripletVae(TripletVae):
 
     def __init__(self, model: 'AutoEncoder', cfg: cfg = None, batch_augment=None):
         super().__init__(model=model, cfg=cfg, batch_augment=batch_augment)
-        # initialise & check augment
-        self._augment = None
-        if self.cfg.overlap_augment is not None:
-            # TODO: this should not reference experiments!
-            from experiment.util.hydra_utils import instantiate_object_if_needed
-            self._augment = instantiate_object_if_needed(self.cfg.overlap_augment)
-            assert callable(self._augment), f'augment is not callable: {repr(self._augment)}'
+        # set augment and instantiate if needed
+        self._augment = self.cfg.overlap_augment
+        if isinstance(self._augment, dict):
+            import hydra
+            self._augment = hydra.utils.instantiate(self._augment)
+        # get default if needed
         if self._augment is None:
             self._augment = torch.nn.Identity()
             warnings.warn(f'{self.__class__.__name__}, no overlap_augment was specified, defaulting to nn.Identity which WILL break things!')
+        # checks!
         assert callable(self._augment), f'augment is not callable: {repr(self._augment)}'
 
     def do_training_step(self, batch, batch_idx):

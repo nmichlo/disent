@@ -1,4 +1,3 @@
-# @package _group_
 name: xysquares_minimal
 data:
   _target_: disent.dataset.data.XYSquaresMinimalData

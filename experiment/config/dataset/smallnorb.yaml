@@ -1,4 +1,3 @@
-# @package _group_
 name: smallnorb
 data:
   _target_: disent.dataset.data.SmallNorbData

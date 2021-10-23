@@ -30,7 +30,6 @@ from omegaconf import DictConfig
 
 from disent.dataset import DisentDataset
 from disent.dataset.transform import DisentDatasetTransform
-from experiment.util.hydra_utils import instantiate_recursive
 
 
 log = logging.getLogger(__name__)
@@ -88,10 +87,10 @@ class HydraDataModule(pl.LightningDataModule):
         else:
             self.hparams.update(hparams)
         # transform: prepares data from datasets
-        self.data_transform = instantiate_recursive(self.hparams.dataset.transform)
+        self.data_transform = hydra.utils.instantiate(self.hparams.dataset.transform)
         assert (self.data_transform is None) or callable(self.data_transform)
         # input_transform_aug: augment data for inputs, then apply input_transform
-        self.input_transform = instantiate_recursive(self.hparams.augment.transform)
+        self.input_transform = hydra.utils.instantiate(self.hparams.augment.transform)
         assert (self.input_transform is None) or callable(self.input_transform)
         # batch_augment: augments transformed data for inputs, should be applied across a batch
         # which version of the dataset we need to use if GPU augmentation is enabled or not.
@@ -117,12 +116,12 @@ class HydraDataModule(pl.LightningDataModule):
         #   things could go wrong. We try be efficient about it by removing the
         #   in_memory argument if it exists.
         log.info(f'Data - Preparation & Downloading')
-        instantiate_recursive(data)
+        hydra.utils.instantiate(data)
 
     def setup(self, stage=None) -> None:
         # ground truth data
         log.info(f'Data - Instance')
-        data = instantiate_recursive(self.hparams.dataset.data)
+        data = hydra.utils.instantiate(self.hparams.dataset.data)
         # Wrap the data for the framework some datasets need triplets, pairs, etc.
         # Augmentation is done inside the frameworks so that it can be done on the GPU, otherwise things are very slow.
         self.dataset_train_noaug = DisentDataset(data, hydra.utils.instantiate(self.hparams.dataset.sampler.cls), transform=self.data_transform, augment=None)

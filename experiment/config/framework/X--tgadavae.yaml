@@ -1,7 +1,6 @@
-# @package _group_
 name: tgadavae
 module:
-  _target_: disent.frameworks.vae.experimental.TripletGuidedAdaVae
+  _target_: disent.frameworks.vae.experimental.TripletGuidedAdaVae.cfg
   # base vae
   latent_distribution: ${framework.optional.latent_distribution}
   # disable various components

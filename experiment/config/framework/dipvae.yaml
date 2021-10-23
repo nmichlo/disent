@@ -1,7 +1,6 @@
-# @package _group_
 name: dipvae
 module:
-  _target_: disent.frameworks.vae.DipVae
+  _target_: disent.frameworks.vae.DipVae.cfg
   # base vae
   latent_distribution: ${framework.optional.latent_distribution}
   # disable various components

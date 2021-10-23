@@ -1,7 +1,6 @@
-# @package _group_
 name: badavae
 module:
-  _target_: disent.frameworks.vae.experimental.BoundedAdaVae
+  _target_: disent.frameworks.vae.experimental.BoundedAdaVae.cfg
   # base vae
   latent_distribution: ${framework.optional.latent_distribution}
   # disable various components

@@ -1,4 +1,3 @@
-# @package _group_
 name: dsprites_imagenet_${dataset.data.mode}_${dataset.data.visibility}
 data:
   _target_: disent.dataset.data.DSpritesImagenetData

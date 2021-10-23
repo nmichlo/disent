@@ -1,4 +1,3 @@
-# @package _group_
 name: xyblocks_grey
 data:
   _target_: disent.dataset.data.XYBlocksData
