@@ -16,7 +16,7 @@ defaults:
   - hydra/job_logging: colorlog
   - hydra/hydra_logging: colorlog
   # runtime
-  - run_location: stampede_tmp
+  - run_location: stampede_shr
   - run_launcher: slurm
   - hydra/launcher: submitit_slurm
   # action
