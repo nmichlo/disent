@@ -7,7 +7,7 @@ defaults:
   - run_length: long
   # data
   - dataset: xyobject
-  - sampling: default
+  - sampling: default__bb
   - augment: none
   # logs
   - metrics: all
@@ -29,7 +29,7 @@ job:
   seed: NULL
 
 framework:
-    beta: 0.001
+    beta: 0.0316
     module:
       recon_loss: mse
       loss_reduction: mean  # TODO: this should be renamed to `loss_mode="scaled"` or `enable_loss_scaling=True"` or `enable_beta_scaling`
