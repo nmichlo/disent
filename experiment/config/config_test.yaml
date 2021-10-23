@@ -13,14 +13,17 @@ defaults:
   - metrics: test
   - run_callbacks: none
   - run_logging: none
-  - hydra/job_logging: colorlog
-  - hydra/hydra_logging: colorlog
   # runtime
   - run_location: local_cpu
   - run_launcher: local
-  - hydra/launcher: basic
   # action
   - action: train
+  # overrides
+  - hydra/job_logging: colorlog
+  - hydra/hydra_logging: colorlog
+  - hydra/launcher: basic
+  # so that the defaults list does not override entries in this file
+  - _self_
 
 job:
   user: invalid

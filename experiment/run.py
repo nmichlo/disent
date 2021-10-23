@@ -52,7 +52,6 @@ from disent.util.lightning.callbacks import VaeLatentCycleLoggingCallback
 from experiment.util.hydra_data import HydraDataModule
 from experiment.util.hydra_utils import make_non_strict
 from experiment.util.hydra_utils import merge_specializations
-from experiment.util.hydra_utils import instantiate_recursive
 from experiment.util.run_utils import log_error_and_exit
 from experiment.util.run_utils import safe_unset_debug_logger
 from experiment.util.run_utils import safe_unset_debug_trainer
@@ -233,17 +232,14 @@ def hydra_register_schedules(module: DisentFramework, cfg):
     if cfg.schedules:
         log.info(f'Registering Schedules:')
         for target, schedule in cfg.schedules.items():
-            module.register_schedule(target, instantiate_recursive(schedule), logging=True)
+            module.register_schedule(target, hydra.utils.instantiate(schedule), logging=True)
 
 
 def hydra_create_framework_config(cfg):
     # create framework config - this is also kinda hacky
     # - we need instantiate_recursive because of optimizer_kwargs,
     #   otherwise the dictionary is left as an OmegaConf dict
-    framework_cfg: DisentConfigurable.cfg = instantiate_recursive({
-        **cfg.framework.module,
-        **dict(_target_=cfg.framework.module._target_ + '.cfg')
-    })
+    framework_cfg: DisentConfigurable.cfg = hydra.utils.instantiate(cfg.framework.module)
     # warn if some of the cfg variables were not overridden
     missing_keys = sorted(set(framework_cfg.get_keys()) - (set(cfg.framework.module.keys())))
     if missing_keys:
@@ -261,18 +257,21 @@ def hydra_create_framework(framework_cfg: DisentConfigurable.cfg, datamodule, cf
     # - not supported normally, we need to instantiate to get the class (is there hydra support for this?)
     framework_cfg.optimizer = hydra.utils.instantiate(dict(_target_=framework_cfg.optimizer), [torch.Tensor()]).__class__
     framework_cfg.optimizer_kwargs = dict(framework_cfg.optimizer_kwargs)
-    # instantiate
-    return hydra.utils.instantiate(
-        dict(_target_=cfg.framework.module._target_),
-        model=init_model_weights(
-            AutoEncoder(
-                encoder=hydra.utils.instantiate(cfg.model.encoder),
-                decoder=hydra.utils.instantiate(cfg.model.decoder)
-            ), mode=cfg.model.weight_init
-        ),
-        # apply augmentations to batch on GPU which can be faster than via the dataloader
-        batch_augment=datamodule.batch_augment,
-        cfg=framework_cfg
+    # get framework path
+    assert str.endswith(cfg.framework.module._target_, '.cfg'), f'`cfg.framework.module._target_` does not end with ".cfg", got: {repr(cfg.framework.module._target_)}'
+    framework_cls = hydra.utils.get_class(cfg.framework.module._target_[:-len(".cfg")])
+    # create model
+    model = AutoEncoder(
+        encoder=hydra.utils.instantiate(cfg.model.encoder),
+        decoder=hydra.utils.instantiate(cfg.model.decoder),
+    )
+    # initialise the model
+    model = init_model_weights(model, mode=cfg.model.weight_init)
+    # create framework
+    return framework_cls(
+        model=model,
+        cfg=framework_cfg,
+        batch_augment=datamodule.batch_augment, # apply augmentations to batch on GPU which can be faster than via the dataloader
     )
 
 
@@ -431,7 +430,7 @@ if __name__ == '__main__':
     def _error_resolver(msg: str):
         raise ConfigurationError(msg)
 
-    OmegaConf.register_resolver('exit', _error_resolver)
+    OmegaConf.register_new_resolver('exit', _error_resolver)
 
     @hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME)
     def hydra_main(cfg: DictConfig):

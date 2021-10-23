@@ -12,19 +12,22 @@ defaults:
   # logs
   - metrics: all
   - run_callbacks: vis
-  - run_logging: wandb
-  - hydra/job_logging: colorlog
-  - hydra/hydra_logging: colorlog
+  - run_logging: none
   # runtime
   - run_location: stampede_shr
   - run_launcher: slurm
-  - hydra/launcher: submitit_slurm
   # action
   - action: train
+  # overrides
+  - override hydra/job_logging: colorlog
+  - override hydra/hydra_logging: colorlog
+  - override hydra/launcher: submitit_slurm
+  # so that the defaults list does not override entries in this file
+  - _self_
 
 job:
-  user: '${env:USER}'
-  project: 'test-project'
+  user: 'n_michlo'
+  project: 'DELETE'
   name: '${framework.name}:${framework.module.recon_loss}|${dataset.name}:${sampling.name}|${trainer.steps}'
   seed: NULL
 
