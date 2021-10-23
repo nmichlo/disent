@@ -3,6 +3,7 @@ defaults:
   - run_length: short
   - run_logging: wandb
   - run_location: stampede_tmp
+  - run_launcher: slurm
   # plugins
   - hydra/job_logging: colorlog
   - hydra/hydra_logging: colorlog
