@@ -41,7 +41,7 @@ def test_experiment_run():
     os.environ['HYDRA_FULL_ERROR'] = '1'
     with temp_sys_args([experiment_run.__file__]):
         # why does this not work when config is absolute?
-        hydra_main = hydra.main(config_path='config', config_name='config_test')(experiment_run.run)
+        hydra_main = hydra.main(config_path='config', config_name='config_test')(experiment_run.train)
         hydra_main()
 
 

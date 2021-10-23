@@ -277,11 +277,34 @@ def hydra_create_framework(framework_cfg: DisentConfigurable.cfg, datamodule, cf
 
 
 # ========================================================================= #
-# RUNNER                                                                    #
+# ACTIONS                                                                    #
 # ========================================================================= #
 
 
-def run(cfg: DictConfig, config_path: str = None):
+def prepare_data(cfg: DictConfig, config_path: str = None):
+    # get the time the run started
+    time_string = datetime.today().strftime('%Y-%m-%d--%H-%M-%S')
+    log.info(f'Starting run at time: {time_string}')
+    # allow the cfg to be edited
+    cfg = make_non_strict(cfg)
+    # deterministic seed
+    seed(cfg.job.setdefault('seed', None))
+    # print useful info
+    log.info(f"Current working directory : {os.getcwd()}")
+    log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
+    # hydra config does not support variables in defaults lists, we handle this manually
+    cfg = merge_specializations(cfg, config_path=CONFIG_PATH if (config_path is None) else config_path, required=['_dataset_sampler_'])
+    # check data preparation
+    prepare_data_per_node = cfg.trainer.setdefault('prepare_data_per_node', True)
+    hydra_check_datadir(prepare_data_per_node, cfg)
+    # print the config
+    log.info(f'Final Config Is:\n{make_box_str(OmegaConf.to_yaml(cfg))}')
+    # prepare data
+    datamodule = HydraDataModule(cfg)
+    datamodule.prepare_data()
+
+
+def train(cfg: DictConfig, config_path: str = None):
 
     # get the time the run started
     time_string = datetime.today().strftime('%Y-%m-%d--%H-%M-%S')
@@ -322,6 +345,7 @@ def run(cfg: DictConfig, config_path: str = None):
     # check CUDA setting
     cfg.trainer.setdefault('cuda', 'try_cuda')
     hydra_check_cuda(cfg)
+
     # check data preparation
     prepare_data_per_node = cfg.trainer.setdefault('prepare_data_per_node', True)
     hydra_check_datadir(prepare_data_per_node, cfg)
@@ -378,6 +402,13 @@ def run(cfg: DictConfig, config_path: str = None):
     trainer.fit(framework, datamodule=datamodule)
 
 
+# available actions
+ACTIONS = {
+    'prepare_data': prepare_data,
+    'train': train,
+}
+
+
 # ========================================================================= #
 # MAIN                                                                      #
 # ========================================================================= #
@@ -405,7 +436,13 @@ if __name__ == '__main__':
     @hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME)
     def hydra_main(cfg: DictConfig):
         try:
-            run(cfg)
+            action_key = cfg.get('action', {}).get('name', 'train')
+            # get the action
+            if action_key not in ACTIONS:
+                raise KeyError(f'The given action: {repr(action_key)} is invalid, must be one of: {sorted(ACTIONS.keys())}')
+            action = ACTIONS[action_key]
+            # run the action
+            action(cfg)
         except Exception as e:
             log_error_and_exit(err_type='experiment error', err_msg=str(e), exc_info=True)
         except:

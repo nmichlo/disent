@@ -24,7 +24,8 @@ wandb>=0.10.32
 
 # UTILITY
 # =======
-hydra-core==1.0.7  # includes omegaconf
+omegaconf>=2.1.0   # only 2.1.0 supports nested variable interpolation eg. ${group.${group.key}}
+hydra-core==1.0.7  # needs omegaconf
 hydra-colorlog==1.0.1
 hydra-submitit-launcher==1.1.1
 
