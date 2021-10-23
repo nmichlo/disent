@@ -1,7 +1,9 @@
-# @package framework.module
-optimizer: torch_optimizer.RAdam
-optimizer_kwargs:
-  lr: ${optimizer.lr}
-  betas: [0.9, 0.999]
-  eps: 1e-8
-  weight_decay: 0
+# @package _global_
+framework:
+  module:
+    optimizer: torch_optimizer.RAdam
+    optimizer_kwargs:
+      lr: ${optimizer.lr}
+      betas: [0.9, 0.999]
+      eps: 1e-8
+      weight_decay: 0

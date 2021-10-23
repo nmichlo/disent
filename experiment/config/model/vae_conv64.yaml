@@ -1,4 +1,3 @@
-# @package _group_
 name: vae_conv64
 encoder:
   _target_: disent.model.ae.EncoderConv64

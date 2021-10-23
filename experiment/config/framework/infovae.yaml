@@ -1,7 +1,6 @@
-# @package _group_
 name: infovae
 module:
-  _target_: disent.frameworks.vae.InfoVae
+  _target_: disent.frameworks.vae.InfoVae.cfg
   # base vae
   latent_distribution: ${framework.optional.latent_distribution}
   # disable various components

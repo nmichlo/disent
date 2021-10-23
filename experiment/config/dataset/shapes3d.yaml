@@ -1,4 +1,3 @@
-# @package _group_
 name: 3dshapes
 data:
   _target_: disent.dataset.data.Shapes3dData

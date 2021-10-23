@@ -1,4 +1,3 @@
-# @package _group_
 name: xyobject_grey
 data:
   _target_: disent.dataset.data.XYObjectData

@@ -1,7 +1,6 @@
-# @package _group_
 name: do_tvae_aug
 module:
-  _target_: disent.frameworks.vae.experimental.DataOverlapTripletVae
+  _target_: disent.frameworks.vae.experimental.DataOverlapTripletVae.cfg
   # base vae
   latent_distribution: ${framework.optional.latent_distribution}
   # disable various components

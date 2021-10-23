@@ -1,7 +1,6 @@
-# @package _group_
 name: augpos_tvae_os
 module:
-  _target_: disent.frameworks.vae.experimental.AugPosTripletVae
+  _target_: disent.frameworks.vae.experimental.AugPosTripletVae.cfg
   # base vae
   latent_distribution: ${framework.optional.latent_distribution}
   # disable various components

@@ -1,4 +1,3 @@
-# @package _group_
 name: mask_dthr_shapes3d
 data:
   _target_: disent.dataset.wrapper.DitheredDataset

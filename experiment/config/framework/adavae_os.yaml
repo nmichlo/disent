@@ -1,7 +1,6 @@
-# @package _group_
 name: adavae_os
 module:
-  _target_: disent.frameworks.vae.AdaVae
+  _target_: disent.frameworks.vae.AdaVae.cfg
   # base vae
   latent_distribution: ${framework.optional.latent_distribution}
   # disable various components

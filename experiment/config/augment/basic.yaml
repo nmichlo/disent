@@ -1,4 +1,3 @@
-# @package _group_
 name: basic
 transform:
   _target_: torchvision.transforms.RandomOrder

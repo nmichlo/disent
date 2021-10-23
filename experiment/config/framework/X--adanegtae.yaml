@@ -1,7 +1,6 @@
-# @package _group_
 name: adanegtae
 module:
-  _target_: disent.frameworks.ae.experimental.AdaNegTripletAe
+  _target_: disent.frameworks.ae.experimental.AdaNegTripletAe.cfg
   # disable various components
   disable_decoder: FALSE
   disable_rec_loss: FALSE

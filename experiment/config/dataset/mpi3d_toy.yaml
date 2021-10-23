@@ -1,4 +1,3 @@
-# @package _group_
 name: mpi3d_toy
 data:
   _target_: disent.dataset.data.Mpi3dData

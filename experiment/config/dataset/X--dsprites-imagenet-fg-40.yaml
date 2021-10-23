@@ -1,4 +1,3 @@
-# @package _group_
 name: dsprites_imagenet_fg_40
 data:
   _target_: disent.dataset.data.DSpritesImagenetData

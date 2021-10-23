@@ -1,7 +1,6 @@
-# @package _group_
 name: dor_vae
 module:
-  _target_: disent.frameworks.vae.experimental.DataOverlapRankVae
+  _target_: disent.frameworks.vae.experimental.DataOverlapRankVae.cfg
   # base vae
   latent_distribution: ${framework.optional.latent_distribution}
   # disable various components

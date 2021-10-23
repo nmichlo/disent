@@ -1,4 +1,3 @@
-# @package _group_
 name: dsprites
 data:
   _target_: disent.dataset.data.DSpritesData

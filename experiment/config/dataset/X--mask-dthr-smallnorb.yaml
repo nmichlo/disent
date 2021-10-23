@@ -1,4 +1,3 @@
-# @package _group_
 name: mask_dthr_smallnorb
 data:
   _target_: disent.dataset.wrapper.DitheredDataset
