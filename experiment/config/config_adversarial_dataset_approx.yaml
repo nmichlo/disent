@@ -75,7 +75,7 @@ framework:
   # | dataset_name: 'dsprites'  # cars3d, smallnorb, dsprites, shapes3d, xysquares_8x8_mini
   dataset_batch_size: 256  # x3
   dataset_num_workers: ${dataset.num_workers}
-  data_root: ${dataset.data_root}
+  data_root: ${defaults_settings.storage.data_root}
   data_load_into_memory: FALSE  # I don't think this is truly multi-threaded, possible lock on array access?
   # adversarial loss options
   # | adversarial_mode: 'invert_margin_0.005'  # [self, invert_margin_0.005] invert, invert_unbounded
@@ -106,7 +106,7 @@ job:
   save_prefix: ''
   save_model: TRUE
   save_data: TRUE
-  name: INVERT-VSTRONG-${framework.dataset_name}_${framework.adversarial_mode}_aw${framework.loss_adversarial_weight}_${framework.sampler_name}_s${trainer.steps}_${framework.optimizer_name}_lr${framework.optimizer_lr}_wd${framework.optimizer_kwargs.weight_decay}
+  name: INVERT-VSTRONG-${framework.dataset_name}_${framework.adversarial_mode}_aw${framework.loss_adversarial_weight}_${framework.sampler_name}_s${train.trainer.max_steps}_${framework.optimizer_name}_lr${framework.optimizer_lr}_wd${framework.optimizer_kwargs.weight_decay}
   # wandb
   user: 'n_michlo'
   project: 'exp-disentangle-dataset-approx'

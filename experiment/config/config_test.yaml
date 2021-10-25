@@ -1,54 +1,49 @@
 defaults:
-  # system
-  - framework: betavae
-  - model: vae_conv64
-  - optimizer: adam
-  - schedule: beta_cyclic
-  - run_length: test
   # data
-  - dataset: xyobject
-  - sampling: default
-  - augment: none
+  - dataset/sampling: default__bb
+  - dataset/data: xyobject
+  - dataset/augment: none
+  # system
+  - system/framework: betavae
+  - system/model: vae_conv64
+  # training
+  - train/optimizer: adam
+  - train/schedule: beta_cyclic
+  - train/length: test
   # logs
-  - metrics: test
-  - run_callbacks: none
-  - run_logging: none
+  - logging/metrics: test
+  - logging/callbacks: none
+  - logging/backend: none
   # runtime
-  - run_location: local_cpu
-  - run_launcher: local
-  # action
-  - action: train
-  # overrides
-  - hydra/job_logging: colorlog
-  - hydra/hydra_logging: colorlog
-  - hydra/launcher: basic
-  # so that the defaults list does not override entries in this file
+  - run/location: local_cpu
+  - run/launcher: local
+  - run/action: train
+  # entries in this file override entries from default lists
   - _self_
 
-job:
-  user: invalid
-  project: invalid
-  name: '${framework.name}:${framework.module.recon_loss}|${dataset.name}:${sampling.name}|${trainer.steps}'
-  seed: NULL
+settings:
+  job:
+    user: 'invalid'
+    project: 'invalid'
+    name: '${framework.name}:${settings.framework.recon_loss}|${data.name}:${sampling.name}|${train.trainer.max_steps}'
+    seed: NULL
 
-framework:
-    beta: 0.001
-    module:
-      recon_loss: mse
-      loss_reduction: mean  # TODO: this should be renamed to `loss_mode="scaled"` or `enable_loss_scaling=True"` or `enable_beta_scaling`
+  framework:
+    beta: 0.0316
+    recon_loss: mse
+    loss_reduction: mean         # TODO: this should be renamed to `loss_mode="scaled"` or `enable_loss_scaling=True"` or `enable_beta_scaling`
 
-    # only some frameworks support these features
-    optional:
-      latent_distribution: normal  # only used by VAEs
-      overlap_loss: NULL  # only used for experimental dotvae and dorvae  # pragma: delete-on-release
-      usage_ratio: 0.5    # only used by adversarial masked datasets      # pragma: delete-on-release
+  framework_opt:
+    latent_distribution: normal  # only used by VAEs
+    overlap_loss: NULL           # only used for experimental dotvae and dorvae  # pragma: delete-on-release
+    usage_ratio: 0.5             # only used by adversarial masked datasets      # pragma: delete-on-release
 
-model:
-  z_size: 25
-  weight_init: 'xavier_normal'  # xavier_normal, default
+  model:
+    z_size: 25
+    weight_init: 'xavier_normal'  # xavier_normal, default
 
-dataset:
-  batch_size: 5
+  dataset:
+    batch_size: 5
 
-optimizer:
-  lr: 1e-3
+  optimizer:
+    lr: 1e-3

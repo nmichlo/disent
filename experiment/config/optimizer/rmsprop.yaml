@@ -1,9 +1,10 @@
 # @package _global_
+
 framework:
-  module:
+  cfg:
     optimizer: torch.optim.RMSprop
     optimizer_kwargs:
-      lr: ${optimizer.lr}  # default was 1e-2
+      lr: ${settings.optimizer.lr}  # default was 1e-2
       alpha: 0.99
       eps: 1e-8
       weight_decay: 0

@@ -1,4 +1,0 @@
-# @package _global_
-trainer:
-  epochs: 3
-  steps: 3

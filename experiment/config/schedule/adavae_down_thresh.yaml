@@ -1,9 +1,9 @@
-# @package _global_
-schedules_name: averaging_decrease__thresh
-schedules:
+name: averaging_decrease__thresh
+
+schedule_items:
   ada_thresh_ratio:
     _target_: disent.schedule.LinearSchedule
     start_step: 0
-    end_step: ${trainer.steps}
+    end_step: ${train.trainer.max_steps}
     r_start: 1.0  # all averaged, should this not be 0.5 the recommended value
     r_end: 0.0    # none averaged

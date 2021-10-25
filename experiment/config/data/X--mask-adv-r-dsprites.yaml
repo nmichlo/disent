@@ -1,0 +1,28 @@
+defaults:
+  - _data_type_: random
+
+name: mask_adv_r_dsprites
+
+data_cls:
+  _target_: disent.dataset.wrapper.MaskedDataset
+  mask:
+    _target_: research.e06_adversarial_data.util_load_adversarial_mask.get_closest_mask
+    usage_ratio: ${settings.framework_opt.usage_ratio}
+    # pickle_file: '${oc.env:HOME}/workspace/research/disent/out/adversarial_mask/2021-10-19--16-31-56_DISTS-SCALED_dsprites_1000x384_random_256_True_std_False/data.pkl.gz'
+    pickle_file: '${oc.env:HOME}/workspace/research/disent/out/adversarial_mask/2021-10-19--19-58-39_DISTS-SCALED_dsprites_1000x384_random_256_True_range_False/data.pkl.gz'
+  randomize: FALSE
+  data:
+    _target_: disent.dataset.data.DSpritesData
+    data_root: ${defaults_settings.storage.data_root}
+    prepare: ${defaults_settings.dataset.prepare}
+    in_memory: ${defaults_settings.dataset.try_in_memory}
+
+transform_cls:
+  _target_: disent.dataset.transform.ToImgTensorF32
+  mean: ${data.meta.vis_mean}
+  std: ${data.meta.vis_std}
+
+meta:
+  x_shape: [1, 64, 64]
+  vis_mean: [0.042494423521889584]
+  vis_std: [0.19516645880626055]

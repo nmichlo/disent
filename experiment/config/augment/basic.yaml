@@ -1,5 +1,6 @@
 name: basic
-transform:
+
+augment_cls:
   _target_: torchvision.transforms.RandomOrder
   transforms:
     - _target_: kornia.augmentation.ColorJitter

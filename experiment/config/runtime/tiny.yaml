@@ -1,0 +1,5 @@
+# @package _global_
+
+trainer:
+  max_epochs: 14400
+  max_steps: 14400

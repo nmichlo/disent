@@ -1,0 +1,7 @@
+metric_list: []
+
+# these are the default settings, these can be placed in the list above
+default_on_final: TRUE
+default_on_train: TRUE
+default_every_n_steps: 1200
+default_begin_first_step: FALSE

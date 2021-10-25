@@ -1,0 +1,12 @@
+name: gt_dist__weak_pair
+
+sampler_cls:
+  _target_: disent.dataset.sampling.GroundTruthDistSampler
+  num_samples: 2
+  triplet_sample_mode: ${sampling.triplet_sample_mode} # random, factors, manhattan, combined
+  triplet_swap_chance: ${sampling.triplet_swap_chance}
+
+# ================================================== #
+# NOTE!!! THIS IS A DUMMY WRAPPER ,SO WE DON'T CRASH #
+# WHEN WE DO GRID SEARCHES WITH RUN EPISODE DATASETS #
+# ================================================== #

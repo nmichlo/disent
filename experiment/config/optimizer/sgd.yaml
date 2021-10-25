@@ -1,9 +1,10 @@
 # @package _global_
+
 framework:
-  module:
+  cfg:
     optimizer: torch.optim.SGD
     optimizer_kwargs:
-      lr: ${optimizer.lr}
+      lr: ${settings.optimizer.lr}
       momentum: 0
       dampening: 0
       weight_decay: 0

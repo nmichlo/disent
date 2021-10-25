@@ -19,7 +19,7 @@ clog_cudaless_nodes "$PARTITION" 86400 "C-disent" # 24 hours
 
 # RESULT:
 # - BAD: ada_thresh_mode=symmetric_kl, rather use "dist"
-# - BAD: framework.module.adaave_decode_orig=FALSE, rather use TRUE
+# - BAD: system.framework.cfg_cls.adaave_decode_orig=FALSE, rather use TRUE
 # - adat_share_ave_mode depends on other settings, but usually doesnt matter
 # - adaave_augment_orig depends on other settings, but usually doesnt matter
 # - GOOD: adat_triplet_loss=triplet_hard_neg_ave
@@ -42,16 +42,16 @@ submit_sweep \
     sampling.triplet_swap_chance=0 \
     dataset=xysquares \
     \
-    framework.module.triplet_loss=triplet \
-    framework.module.triplet_margin_min=0.001 \
-    framework.module.triplet_margin_max=1 \
-    framework.module.triplet_scale=0.1 \
-    framework.module.triplet_p=1 \
+    system.framework.cfg_cls.triplet_loss=triplet \
+    system.framework.cfg_cls.triplet_margin_min=0.001 \
+    system.framework.cfg_cls.triplet_margin_max=1 \
+    system.framework.cfg_cls.triplet_scale=0.1 \
+    system.framework.cfg_cls.triplet_p=1 \
     \
-    framework.module.detach=FALSE \
-    framework.module.detach_decoder=FALSE \
-    framework.module.detach_no_kl=FALSE \
-    framework.module.detach_std=NULL \
+    system.framework.cfg_cls.detach=FALSE \
+    system.framework.cfg_cls.detach_decoder=FALSE \
+    system.framework.cfg_cls.detach_no_kl=FALSE \
+    system.framework.cfg_cls.detach_std=NULL \
     \
     framework.module.ada_average_mode=gvae \
     framework.module.ada_thresh_mode=symmetric_kl,dist \

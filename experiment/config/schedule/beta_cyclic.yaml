@@ -1,6 +1,6 @@
-# @package _global_
-schedules_name: beta_cyclic
-schedules:
+name: beta_cyclic
+
+schedule_items:
   beta:
     _target_: disent.schedule.Cyclic
     period: 7200

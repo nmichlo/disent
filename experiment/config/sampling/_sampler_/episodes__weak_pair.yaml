@@ -1,0 +1,12 @@
+name: episodes__weak_pair
+
+sampler_cls:
+  _target_: disent.dataset.sampling.RandomEpisodeSampler
+  num_samples: 2
+  # TODO: this needs to be updated to use the same API as ground_truth wrappers.
+  sample_radius: 32
+
+# ================================================== #
+# NOTE!!! THIS IS A DUMMY WRAPPER ,SO WE DON'T CRASH #
+# WHEN WE DO GRID SEARCHES WITH RUN EPISODE DATASETS #
+# ================================================== #

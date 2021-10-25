@@ -1,10 +1,12 @@
 name: linear
-encoder:
+
+encoder_cls:
   _target_: disent.model.ae.EncoderLinear
-  x_shape: ${dataset.x_shape}
-  z_size: ${model.z_size}
-  z_multiplier: ${framework.model_z_multiplier}
-decoder:
+  x_shape: ${data.meta.x_shape}
+  z_size: ${settings.model.z_size}
+  z_multiplier: ${framework.meta.model_z_multiplier}
+
+decoder_cls:
   _target_: disent.model.ae.DecoderLinear
-  x_shape: ${dataset.x_shape}
-  z_size: ${model.z_size}
+  x_shape: ${data.meta.x_shape}
+  z_size: ${settings.model.z_size}

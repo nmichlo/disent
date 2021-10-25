@@ -1,7 +1,0 @@
-# @package _global_
-dataset:
-  sampler:
-    name: random__triplet
-    cls:
-      _target_: disent.dataset.sampling.RandomSampler
-      num_samples: 3

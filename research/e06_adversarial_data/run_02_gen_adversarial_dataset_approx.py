@@ -452,8 +452,8 @@ def run_gen_adversarial_dataset(cfg):
     callbacks.extend(framework.make_train_periodic_callbacks(cfg))
     # train
     trainer = pl.Trainer(
-        log_every_n_steps=cfg.logging.setdefault('log_every_n_steps', 50),
-        flush_logs_every_n_steps=cfg.logging.setdefault('flush_logs_every_n_steps', 100),
+        log_every_n_steps=cfg.log.setdefault('log_every_n_steps', 50),
+        flush_logs_every_n_steps=cfg.log.setdefault('flush_logs_every_n_steps', 100),
         logger=logger,
         callbacks=callbacks,
         gpus=1 if cfg.trainer.cuda else 0,

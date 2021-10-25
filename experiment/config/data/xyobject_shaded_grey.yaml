@@ -1,0 +1,18 @@
+defaults:
+  - _data_type_: gt
+
+name: xyobject_shaded_grey
+
+data_cls:
+  _target_: disent.dataset.data.XYObjectShadedData
+  rgb: FALSE
+
+transform_cls:
+  _target_: disent.dataset.transform.ToImgTensorF32
+  mean: ${data.meta.vis_mean}
+  std: ${data.meta.vis_std}
+
+meta:
+  x_shape: [1, 64, 64]
+  vis_mean: "${exit:EXITING... please compute the vis_mean and vis_std}"
+  vis_std: "${exit:EXITING... please compute the vis_mean and vis_std}"

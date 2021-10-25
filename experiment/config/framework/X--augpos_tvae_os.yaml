@@ -1,8 +1,15 @@
+defaults:
+  - _input_mode_: weak_pair
+
 name: augpos_tvae_os
-module:
+
+cfg:
   _target_: disent.frameworks.vae.experimental.AugPosTripletVae.cfg
+  # base ae
+  recon_loss: ${settings.framework.recon_loss}
+  loss_reduction: ${settings.framework.loss_reduction}
   # base vae
-  latent_distribution: ${framework.optional.latent_distribution}
+  latent_distribution: ${settings.framework_opt.latent_distribution}
   # disable various components
   disable_decoder: FALSE
   disable_reg_loss: FALSE
@@ -10,7 +17,7 @@ module:
   disable_aug_loss: FALSE
   disable_posterior_scale: NULL
   # Beta-VAE
-  beta: ${framework.beta}
+  beta: ${settings.framework.beta}
   # tvae: triplet stuffs
   triplet_loss: triplet
   triplet_margin_min: 0.001
@@ -35,6 +42,5 @@ module:
     #     # kornia.augmentation.RandomRotation(degrees=4),
     # ])
 
-# settings used elsewhere
-data_sample_mode: weak_pair
-model_z_multiplier: 2
+meta:
+  model_z_multiplier: 2
