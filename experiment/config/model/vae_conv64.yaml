@@ -2,11 +2,11 @@ name: vae_conv64
 
 encoder_cls:
   _target_: disent.model.ae.EncoderConv64
-  x_shape: ${data.meta.x_shape}
+  x_shape: ${dataset.meta.x_shape}
   z_size: ${settings.model.z_size}
   z_multiplier: ${framework.meta.model_z_multiplier}
 
 decoder_cls:
   _target_: disent.model.ae.DecoderConv64
-  x_shape: ${data.meta.x_shape}
+  x_shape: ${dataset.meta.x_shape}
   z_size: ${settings.model.z_size}

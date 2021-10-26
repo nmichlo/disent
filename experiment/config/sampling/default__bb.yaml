@@ -1,6 +1,6 @@
 # SPECIALIZATION: choose the default from the framework and dataset
 defaults:
-  - _sampler_: ${data/_data_type_}__${framework/_input_mode_}
+  - _sampler_: ${dataset/_data_type_}__${framework/_input_mode_}
 
 name: default__bb
 

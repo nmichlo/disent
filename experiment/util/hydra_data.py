@@ -89,7 +89,7 @@ class HydraDataModule(pl.LightningDataModule):
         else:
             self.hparams.update(hparams)
         # transform: prepares data from datasets
-        self.data_transform = hydra.utils.instantiate(self.hparams.data.transform_cls)
+        self.data_transform = hydra.utils.instantiate(self.hparams.dataset.transform)
         assert (self.data_transform is None) or callable(self.data_transform)
         # input_transform_aug: augment data for inputs, then apply input_transform
         self.input_transform = hydra.utils.instantiate(self.hparams.augment.augment_cls)
@@ -111,7 +111,7 @@ class HydraDataModule(pl.LightningDataModule):
         # *NB* Do not set model parameters here.
         # - Instantiate data once to download and prepare if needed.
         # - trainer.prepare_data_per_node affects this functions behavior per node.
-        data = dict(self.hparams.data.data_cls)
+        data = dict(self.hparams.dataset.data)
         if 'in_memory' in data:
             del data['in_memory']
         # create the data
@@ -124,7 +124,7 @@ class HydraDataModule(pl.LightningDataModule):
     def setup(self, stage=None) -> None:
         # ground truth data
         log.info(f'Data - Instance')
-        data = hydra.utils.instantiate(self.hparams.data.data_cls)
+        data = hydra.utils.instantiate(self.hparams.dataset.data)
         # Wrap the data for the framework some datasets need triplets, pairs, etc.
         # Augmentation is done inside the frameworks so that it can be done on the GPU, otherwise things are very slow.
         self.dataset_train_noaug = DisentDataset(data, hydra.utils.instantiate(self.hparams.sampling._sampler_.sampler_cls), transform=self.data_transform, augment=None)

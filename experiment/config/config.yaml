@@ -1,7 +1,7 @@
 defaults:
   # data
   - sampling: default__bb
-  - data: xyobject
+  - dataset: xyobject
   - augment: none
   # system
   - framework: betavae
@@ -25,7 +25,7 @@ settings:
   job:
     user: '${oc.env:USER}'
     project: 'DELETE'
-    name: '${framework.name}:${settings.framework.recon_loss}|${data.name}:${sampling.name}|${train.trainer.max_steps}'
+    name: '${framework.name}:${settings.framework.recon_loss}|${dataset.name}:${sampling.name}|${train.trainer.max_steps}'
     seed: NULL
 
   framework:

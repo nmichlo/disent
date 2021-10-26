@@ -1,0 +1,20 @@
+defaults:
+  - _data_type_: gt
+
+name: adv_shapes3d
+
+data:
+  _target_: disent.dataset.data.SelfContainedHdf5GroundTruthData
+  h5_path: '${oc.env:HOME}/workspace/research/disent/out/adversarial_data_approx/2021-09-06--00-29-23_INVERT-VSTRONG-shapes3d_invert_margin_0.05_aw10.0_same_k1_close_s200001_Adam_lr0.0005_wd1e-06/data.h5'
+
+transform:
+  _target_: disent.dataset.transform.ToImgTensorF32
+  mean: ${dataset.meta.vis_mean}
+  std: ${dataset.meta.vis_std}
+
+meta:
+  x_shape: [3, 64, 64]
+  vis_mean: [0.47992192, 0.51311111, 0.54627272]
+  vis_std: [0.28653814, 0.29201543, 0.27395435]
+
+# TODO: this does not yet copy the data to /tmp/ and thus if run on a cluster of a network drive, this will hammer the network disk. Fix this!

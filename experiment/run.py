@@ -143,8 +143,8 @@ def _callback_make_latent_cycle(cfg, callback_cfg):
             mode             = callback_cfg.mode,
             # recon_min        = cfg.data.meta.vis_min,
             # recon_max        = cfg.data.meta.vis_max,
-            recon_mean       = cfg.data.meta.vis_mean,
-            recon_std        = cfg.data.meta.vis_std,
+            recon_mean       = cfg.dataset.meta.vis_mean,
+            recon_std        = cfg.dataset.meta.vis_std,
         )
     else:
         log.warning('latent_cycle callback is not being used because wandb is not enabled!')
@@ -379,7 +379,7 @@ def train(cfg: DictConfig, config_path: str = None):
     # get config sections
     print_cfg, boxed_pop = dict(cfg), lambda *keys: make_box_str(OmegaConf.to_yaml({k: print_cfg.pop(k) for k in keys} if keys else print_cfg))
     cfg_str_logging  = boxed_pop('logging', 'callbacks', 'metrics')
-    cfg_str_dataset  = boxed_pop('data', 'sampling', 'augment')
+    cfg_str_dataset  = boxed_pop('dataset', 'sampling', 'augment')
     cfg_str_system   = boxed_pop('framework', 'model', 'schedule')
     cfg_str_settings = boxed_pop('defaults_settings', 'settings')
     cfg_str_other    = boxed_pop()
