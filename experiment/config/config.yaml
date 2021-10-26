@@ -9,8 +9,8 @@ defaults:
   # training
   - optimizer: adam
   - schedule: none
-  - runtime: long
   - metrics: all
+  - run_length: long
   # logs
   - run_callbacks: vis
   - run_logging: wandb

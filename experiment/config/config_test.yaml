@@ -9,8 +9,8 @@ defaults:
   # training
   - optimizer: adam
   - schedule: beta_cyclic
-  - runtime: test
   - metrics: test
+  - run_length: test
   # logs
   - run_callbacks: test
   - run_logging: none
