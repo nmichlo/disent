@@ -73,8 +73,7 @@ DATASETS=(
 )
 
 local_sweep \
-    action=prepare_data \
+    run_action=prepare_data \
     run_location=stampede_shr \
     run_launcher=local \
-    hydra/launcher=basic \
     dataset="$(IFS=, ; echo "${DATASETS[*]}")"

@@ -10,3 +10,5 @@ hydra:
     timeout_min: 1440  # minutes
     submitit_folder: '${hydra.sweep.dir}/%j'
     array_parallelism: 32
+    # broken nodes on stampede
+    exclude: "mscluster93,mscluster94,mscluster97,mscluster99"
