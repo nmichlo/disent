@@ -4,7 +4,7 @@ schedule_items:
   beta:
     _target_: disent.schedule.Single
     start_step: 0
-    end_step: ${train.trainer.max_steps}
+    end_step: ${trainer.max_steps}
     r_start: 0.001
     r_end: 1.0
     mode: 'linear'

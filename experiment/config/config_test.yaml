@@ -1,23 +1,23 @@
 defaults:
   # data
-  - dataset/sampling: default__bb
-  - dataset/data: xyobject
-  - dataset/augment: none
+  - sampling: default__bb
+  - dataset: xyobject
+  - augment: none
   # system
-  - system/framework: betavae
-  - system/model: vae_conv64
+  - framework: betavae
+  - model: vae_conv64
   # training
-  - train/optimizer: adam
-  - train/schedule: beta_cyclic
-  - train/length: test
+  - optimizer: adam
+  - schedule: beta_cyclic
+  - runtime: test
+  - metrics: test
   # logs
-  - logging/metrics: test
-  - logging/callbacks: none
-  - logging/backend: none
+  - run_callbacks: test
+  - run_logging: none
   # runtime
-  - run/location: local_cpu
-  - run/launcher: local
-  - run/action: train
+  - run_location: local_cpu
+  - run_launcher: local
+  - run_action: train
   # entries in this file override entries from default lists
   - _self_
 
@@ -25,7 +25,7 @@ settings:
   job:
     user: 'invalid'
     project: 'invalid'
-    name: '${framework.name}:${settings.framework.recon_loss}|${data.name}:${sampling.name}|${train.trainer.max_steps}'
+    name: '${framework.name}:${settings.framework.recon_loss}|${data.name}:${sampling.name}|${trainer.max_steps}'
     seed: NULL
 
   framework:

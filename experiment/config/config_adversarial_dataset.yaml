@@ -48,7 +48,7 @@ job:
   # saving
   save_prefix: ''
   save_data: TRUE
-  name: TEST-${framework.dataset_name}_${framework.adversarial_mode}_${framework.sampler_name}_s${train.trainer.max_steps}_${framework.optimizer_name}_lr${framework.optimizer_lr} # _wd${framework.optimizer_kwargs.weight_decay}
+  name: TEST-${framework.dataset_name}_${framework.adversarial_mode}_${framework.sampler_name}_s${trainer.max_steps}_${framework.optimizer_name}_lr${framework.optimizer_lr} # _wd${framework.optimizer_kwargs.weight_decay}
   # wandb
   user: 'n_michlo'
   project: 'exp-disentangle-dataset'
