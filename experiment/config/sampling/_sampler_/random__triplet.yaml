@@ -1,0 +1,5 @@
+name: random__triplet
+
+sampler_cls:
+  _target_: disent.dataset.sampling.RandomSampler
+  num_samples: 3

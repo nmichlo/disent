@@ -109,7 +109,7 @@ class Cars3dData(NumpyFileGroundTruthData):
 
     factor_names = ('elevation', 'azimuth', 'object_type')
     factor_sizes = (4, 24, 183)  # TOTAL: 17568
-    observation_shape = (128, 128, 3)
+    img_shape = (128, 128, 3)
 
     datafile = DataFileCars3d(
         uri='http://www.scottreed.info/files/nips2015-analogy-data.tar.gz',

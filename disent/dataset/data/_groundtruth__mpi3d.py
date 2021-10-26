@@ -52,7 +52,7 @@ class Mpi3dData(NumpyFileGroundTruthData):
 
     factor_names = ('object_color', 'object_shape', 'object_size', 'camera_height', 'background_color', 'first_dof', 'second_dof')
     factor_sizes = (4, 4, 2, 3, 3, 40, 40)  # TOTAL: 460800
-    observation_shape = (64, 64, 3)
+    img_shape = (64, 64, 3)
 
     # override
     data_key = 'images'

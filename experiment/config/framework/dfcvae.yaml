@@ -1,9 +1,15 @@
-# @package _group_
+defaults:
+  - _input_mode_: single
+
 name: dfcvae
-module:
-  _target_: disent.frameworks.vae.DfcVae
+
+cfg:
+  _target_: disent.frameworks.vae.DfcVae.cfg
+  # base ae
+  recon_loss: ${settings.framework.recon_loss}
+  loss_reduction: ${settings.framework.loss_reduction}
   # base vae
-  latent_distribution: ${framework.optional.latent_distribution}
+  latent_distribution: ${settings.framework_opt.latent_distribution}
   # disable various components
   disable_decoder: FALSE
   disable_reg_loss: FALSE
@@ -11,11 +17,10 @@ module:
   disable_aug_loss: FALSE
   disable_posterior_scale: NULL
   # Beta-VAE
-  beta: ${framework.beta}
+  beta: ${settings.framework.beta}
   # dfcvae
   feature_layers: ['14', '24', '34', '43']
   feature_inputs_mode: 'none'  # none, clamp, assert
 
-# settings used elsewhere
-data_sample_mode: single
-model_z_multiplier: 2
+meta:
+  model_z_multiplier: 2

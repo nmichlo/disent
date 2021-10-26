@@ -333,7 +333,7 @@ def aggregate_measure_distances_along_factor(
 #     from disent.frameworks.vae import AdaVae
 #     from disent.frameworks.vae import TripletVae
 #     from disent.model.ae import EncoderConv64, DecoderConv64, AutoEncoder
-#     from disent.transform import ToStandardisedTensor
+#     from disent.transform import ToImgTensorF32
 #     from disent.util import colors
 #     from disent.util import Timer
 #
@@ -370,7 +370,7 @@ def aggregate_measure_distances_along_factor(
 #     results = []
 #     for data in datasets:
 #
-#         # dataset = GroundTruthDistDataset(data, transform=ToStandardisedTensor(), num_samples=2, triplet_sample_mode='manhattan')
+#         # dataset = GroundTruthDistDataset(data, transform=ToImgTensorF32(), num_samples=2, triplet_sample_mode='manhattan')
 #         # dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True, pin_memory=True)
 #         # module = AdaVae(
 #         #     model=AutoEncoder(
@@ -380,7 +380,7 @@ def aggregate_measure_distances_along_factor(
 #         #     cfg=AdaVae.cfg(beta=0.001, loss_reduction='mean', optimizer=torch.optim.Adam, optimizer_kwargs=dict(lr=5e-4))
 #         # )
 #
-#         dataset = GroundTruthDistDataset(data, transform=ToStandardisedTensor(), num_samples=3, triplet_sample_mode='manhattan')
+#         dataset = GroundTruthDistDataset(data, transform=ToImgTensorF32(), num_samples=3, triplet_sample_mode='manhattan')
 #         dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True, pin_memory=True)
 #         module = TripletVae(
 #             model=AutoEncoder(

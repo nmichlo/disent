@@ -1,0 +1,8 @@
+# @package _global_
+action: prepare_data
+
+# override settings from job/location
+dsettings:
+  dataset:
+    try_in_memory: FALSE
+    prepare: TRUE

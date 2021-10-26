@@ -1,49 +1,49 @@
 defaults:
+  # data
+  - sampling: default__bb
+  - dataset: xyobject
+  - augment: none
   # system
   - framework: betavae
   - model: vae_conv64
+  # training
   - optimizer: adam
   - schedule: none
-  # data
-  - dataset: xyobject
-  - sampling: none
-  - augment: none
-  # runtime
   - metrics: all
   - run_length: long
-  - run_location: cluster_many
-  - run_callbacks: vis_slow
+  # logs
+  - run_callbacks: vis
   - run_logging: wandb
-  # plugins
-  - hydra/job_logging: colorlog
-  - hydra/hydra_logging: colorlog
-  - hydra/launcher: submitit_slurm
+  # runtime
+  - run_location: stampede_shr
+  - run_launcher: slurm
+  - run_action: train
+  # entries in this file override entries from default lists
+  - _self_
 
-job:
-  user: '${env:USER}'
-  project: 'test-project'
-  name: '${framework.name}:${framework.module.recon_loss}|${dataset.name}:${sampling.name}|${trainer.steps}'
-  partition: batch
-  seed: NULL
+settings:
+  job:
+    user: '${oc.env:USER}'
+    project: 'DELETE'
+    name: '${framework.name}:${settings.framework.recon_loss}|${dataset.name}:${sampling.name}|${trainer.max_steps}'
+    seed: NULL
 
-framework:
-    beta: 0.001
-    module:
-      recon_loss: mse
-      loss_reduction: mean  # TODO: this should be renamed to `loss_mode="scaled"` or `enable_loss_scaling=True"` or `enable_beta_scaling`
+  framework:
+    beta: 0.0316
+    recon_loss: mse
+    loss_reduction: mean         # TODO: this should be renamed to `loss_mode="scaled"` or `enable_loss_scaling=True"` or `enable_beta_scaling`
 
-    # only some frameworks support these features
-    optional:
-      latent_distribution: normal  # only used by VAEs
-      overlap_loss: NULL  # only used for experimental dotvae and dorvae  # pragma: delete-on-release
-      usage_ratio: 0.5    # only used by adversarial masked datasets      # pragma: delete-on-release
+  framework_opt:
+    latent_distribution: normal  # only used by VAEs
+    overlap_loss: NULL           # only used for experimental dotvae and dorvae  # pragma: delete-on-release
+    usage_ratio: 0.5             # only used by adversarial masked datasets      # pragma: delete-on-release
 
-model:
-  z_size: 25
-  weight_init: 'default'
+  model:
+    z_size: 25
+    weight_init: 'xavier_normal'  # xavier_normal, default
 
-dataset:
-  batch_size: 256
+  dataset:
+    batch_size: 256
 
-optimizer:
-  lr: 1e-3
+  optimizer:
+    lr: 1e-3

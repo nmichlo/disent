@@ -33,22 +33,19 @@ import numpy as np
 # ========================================================================= #
 
 
-def scale(r, a, b):
-    return a + r * (b - a)
-
-
-def lerp(r, a, b):
+def lerp(ratio, start_val, end_val):
     """Linear interpolation between parameters, respects bounds when t is out of bounds [0, 1]"""
     # assert a < b
-    r = np.clip(r, 0., 1.)
+    r = np.clip(ratio, 0., 1.)
     # precise method, guarantees v==b when t==1 | simplifies to: a + t*(b-a)
-    return (1 - r) * a + r * b
+    return (1 - r) * start_val + r * end_val
+    # return start_val + r * (end_val - start_val)  # EQUIVALENT
 
 
-def lerp_step(step, max_step, a, b):
+def lerp_step(step, max_step, start_val, end_val):
     """Linear interpolation based on a step count."""
     assert max_step > 0
-    return lerp(step / max_step, a, b)
+    return lerp(ratio=step / max_step, start_val=start_val, end_val=end_val)
 
 
 # ========================================================================= #
@@ -85,12 +82,12 @@ _END_VALUES = {
 def cyclical_anneal(
     step: Union[int, float, np.ndarray],
     period: float = 3600,
-    low_ratio=0.0,
-    high_ratio=0.0,
+    low_ratio: float = 0.0,
+    high_ratio: float = 0.0,
     repeats: int = None,
-    start_low=True,
-    end_value='high',
-    mode='linear',
+    start_low: bool = True,
+    end_value: str = 'high',
+    mode: str = 'linear',
 ):
     # check values
     assert 0 <= low_ratio <= 1

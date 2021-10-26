@@ -24,7 +24,6 @@
 
 import logging
 import os
-import sys
 from datetime import datetime
 
 import hydra
@@ -33,6 +32,7 @@ import torch
 import torch.utils.data
 import wandb
 from omegaconf import DictConfig
+from omegaconf import ListConfig
 from omegaconf import OmegaConf
 from pytorch_lightning.loggers import CometLogger
 from pytorch_lightning.loggers import LoggerCollection
@@ -43,16 +43,14 @@ from disent.frameworks import DisentConfigurable
 from disent.frameworks import DisentFramework
 from disent.model import AutoEncoder
 from disent.nn.weights import init_model_weights
-from disent.util.lightning.callbacks._callbacks_vae import VaeGtDistsLoggingCallback
 from disent.util.seeds import seed
 from disent.util.strings.fmt import make_box_str
 from disent.util.lightning.callbacks import LoggerProgressCallback
 from disent.util.lightning.callbacks import VaeMetricLoggingCallback
 from disent.util.lightning.callbacks import VaeLatentCycleLoggingCallback
+from disent.util.lightning.callbacks import VaeGtDistsLoggingCallback
 from experiment.util.hydra_data import HydraDataModule
 from experiment.util.hydra_utils import make_non_strict
-from experiment.util.hydra_utils import merge_specializations
-from experiment.util.hydra_utils import instantiate_recursive
 from experiment.util.run_utils import log_error_and_exit
 from experiment.util.run_utils import safe_unset_debug_logger
 from experiment.util.run_utils import safe_unset_debug_trainer
@@ -69,27 +67,31 @@ log = logging.getLogger(__name__)
 
 
 def hydra_check_cuda(cfg):
+    cuda = cfg.dsettings.trainer.cuda
     # set cuda
-    if cfg.trainer.cuda in {'try_cuda', None}:
-        cfg.trainer.cuda = torch.cuda.is_available()
-        if not cfg.trainer.cuda:
+    if cuda in {'try_cuda', None}:
+        cfg.dsettings.trainer.cuda = torch.cuda.is_available()
+        if not cuda:
             log.warning('CUDA was requested, but not found on this system... CUDA has been disabled!')
     else:
         if not torch.cuda.is_available():
-            if cfg.trainer.cuda:
+            if cuda:
                 log.error('trainer.cuda=True but CUDA is not available on this machine!')
                 raise RuntimeError('CUDA not available!')
             else:
                 log.warning('CUDA is not available on this machine!')
         else:
-            if not cfg.trainer.cuda:
+            if not cuda:
                 log.warning('CUDA is available but is not being used!')
 
 
-def hydra_check_datadir(prepare_data_per_node, cfg):
-    if not os.path.isabs(cfg.dataset.data_root):
+def hydra_check_data_paths(cfg):
+    prepare_data_per_node = cfg.trainer.prepare_data_per_node
+    data_root             = cfg.dsettings.storage.data_root
+    # check relative paths
+    if not os.path.isabs(data_root):
         log.warning(
-            f'A relative path was specified for dataset.data_root={repr(cfg.dataset.data_root)}.'
+            f'A relative path was specified for dsettings.storage.data_root={repr(data_root)}.'
             f' This is probably an error! Using relative paths can have unintended consequences'
             f' and performance drawbacks if the current working directory is on a shared/network drive.'
             f' Hydra config also uses a new working directory for each run of the program, meaning'
@@ -97,158 +99,152 @@ def hydra_check_datadir(prepare_data_per_node, cfg):
         )
         if prepare_data_per_node:
             log.error(
-                f'trainer.prepare_data_per_node={repr(prepare_data_per_node)} but  dataset.data_root='
-                f'{repr(cfg.dataset.data_root)} is a relative path which may be an error! Try specifying an'
-                f' absolute path that is guaranteed to be unique from each node, eg. dataset.data_root=/tmp/dataset'
+                f'trainer.prepare_data_per_node={repr(prepare_data_per_node)} but dsettings.storage.data_root='
+                f'{repr(data_root)} is a relative path which may be an error! Try specifying an'
+                f' absolute path that is guaranteed to be unique from each node, eg. default_settings.storage.data_root=/tmp/dataset'
             )
-        raise RuntimeError(f'dataset.data_root={repr(cfg.dataset.data_root)} is a relative path!')
+        raise RuntimeError(f'default_settings.storage.data_root={repr(data_root)} is a relative path!')
 
 
 def hydra_make_logger(cfg):
-    loggers = []
+    # make wandb logger
+    backend = cfg.logging.wandb
+    if backend.enabled:
+        log.info('Initialising Weights & Biases Logger')
+        return WandbLogger(
+            offline=backend.offline,
+            entity=backend.entity,    # cometml: workspace
+            project=backend.project,  # cometml: project_name
+            name=backend.name,        # cometml: experiment_name
+            group=backend.group,      # experiment group
+            tags=backend.tags,        # experiment tags
+            save_dir=hydra.utils.to_absolute_path(cfg.dsettings.storage.logs_dir),  # relative to hydra's original cwd
+        )
+    # don't return a logger
+    return None  # LoggerCollection([...]) OR DummyLogger(...)
 
-    # initialise logging dict
-    cfg.setdefault('logging', {})
 
-    if ('wandb' in cfg.logging) and cfg.logging.wandb.setdefault('enabled', True):
-        loggers.append(WandbLogger(
-            offline=cfg.logging.wandb.setdefault('offline', False),
-            entity=cfg.logging.wandb.setdefault('entity', None),  # cometml: workspace
-            project=cfg.logging.wandb.project,                    # cometml: project_name
-            name=cfg.logging.wandb.name,                          # cometml: experiment_name
-            group=cfg.logging.wandb.setdefault('group', None),    # experiment group
-            tags=cfg.logging.wandb.setdefault('tags', None),      # experiment tags
-            save_dir=hydra.utils.to_absolute_path(cfg.logging.logs_dir),  # relative to hydra's original cwd
-        ))
+def _callback_make_progress(cfg, callback_cfg):
+    return LoggerProgressCallback(
+        interval=callback_cfg.interval
+    )
+
+
+def _callback_make_latent_cycle(cfg, callback_cfg):
+    if cfg.logging.wandb.enabled:
+        # checks
+        if not (('vis_min' in cfg.dataset and 'vis_max' in cfg.dataset) or ('vis_mean' in cfg.dataset and 'vis_std' in cfg.dataset)):
+            log.warning('dataset does not have visualisation ranges specified, set `vis_min` & `vis_max` OR `vis_mean` & `vis_std`')
+        # this currently only supports WANDB logger
+        return VaeLatentCycleLoggingCallback(
+            seed             = callback_cfg.seed,
+            every_n_steps    = callback_cfg.every_n_steps,
+            begin_first_step = callback_cfg.begin_first_step,
+            mode             = callback_cfg.mode,
+            # recon_min        = cfg.data.meta.vis_min,
+            # recon_max        = cfg.data.meta.vis_max,
+            recon_mean       = cfg.dataset.meta.vis_mean,
+            recon_std        = cfg.dataset.meta.vis_std,
+        )
     else:
-        cfg.logging.setdefault('wandb', dict(enabled=False))
-
-    if ('cometml' in cfg.logging) and cfg.logging.cometml.setdefault('enabled', True):
-        loggers.append(CometLogger(
-            offline=cfg.logging.cometml.setdefault('offline', False),
-            workspace=cfg.logging.cometml.setdefault('workspace', None),  # wandb: entity
-            project_name=cfg.logging.cometml.project,                     # wandb: project
-            experiment_name=cfg.logging.cometml.name,                     # wandb: name
-            api_key=os.environ['COMET_API_KEY'],                          # TODO: use dotenv
-            save_dir=hydra.utils.to_absolute_path(cfg.logging.logs_dir),  # relative to hydra's original cwd
-        ))
-    else:
-        cfg.logging.setdefault('cometml', dict(enabled=False))
-
-    # TODO: maybe return DummyLogger instead?
-    return LoggerCollection(loggers) if loggers else None  # lists are turned into a LoggerCollection by pl
+        log.warning('latent_cycle callback is not being used because wandb is not enabled!')
+        return None
 
 
-def hydra_append_progress_callback(callbacks, cfg):
-    if 'progress' in cfg.callbacks:
-        callbacks.append(LoggerProgressCallback(
-            interval=cfg.callbacks.progress.interval
-        ))
+def _callback_make_gt_dists(cfg, callback_cfg):
+    return VaeGtDistsLoggingCallback(
+        seed                 = callback_cfg.seed,
+        every_n_steps        = callback_cfg.every_n_steps,
+        traversal_repeats    = callback_cfg.traversal_repeats,
+        begin_first_step     = callback_cfg.begin_first_step,
+        plt_block_size       = 1.25,
+        plt_show             = False,
+        plt_transpose        = False,
+        log_wandb            = True,
+        batch_size           = cfg.settings.dataset.batch_size,
+        include_factor_dists = True,
+    )
 
 
-def hydra_append_latent_cycle_logger_callback(callbacks, cfg):
-    if 'latent_cycle' in cfg.callbacks:
-        if cfg.logging.wandb.enabled:
-            # checks
-            if all((k not in cfg.dataset) for k in ['vis_min', 'vis_max', 'vis_mean', 'vis_std']):
-                log.warning('dataset does not have visualisation ranges specified, set `vis_min` & `vis_max` OR `vis_mean` & `vis_std`')
-            # this currently only supports WANDB logger
-            callbacks.append(VaeLatentCycleLoggingCallback(
-                seed=cfg.callbacks.latent_cycle.seed,
-                every_n_steps=cfg.callbacks.latent_cycle.every_n_steps,
-                begin_first_step=False,
-                mode=cfg.callbacks.latent_cycle.mode,
-                recon_min=cfg.dataset.setdefault('vis_min', None),
-                recon_max=cfg.dataset.setdefault('vis_max', None),
-                recon_mean=cfg.dataset.setdefault('vis_mean', None),
-                recon_std=cfg.dataset.setdefault('vis_std', None),
-            ))
+_CALLBACK_MAKERS = {
+    'progress': _callback_make_progress,
+    'latent_cycle': _callback_make_latent_cycle,
+    'gt_dists': _callback_make_gt_dists,
+}
+
+
+def hydra_append_callbacks(callbacks, cfg):
+    # add all callbacks
+    for name, item in cfg.callbacks.items():
+        # custom callback handling vs instantiation
+        if '_target_' in item:
+            name = f'{name} ({item._target_})'
+            callback = hydra.utils.instantiate(item)
         else:
-            log.warning('latent_cycle callback is not being used because wandb is not enabled!')
+            callback = _CALLBACK_MAKERS[name](cfg, item)
+        # add to callbacks list
+        if callback is not None:
+            log.info(f'made callback: {name}')
+            callbacks.append(callback)
+        else:
+            log.info(f'skipped callback: {name}')
 
 
 def hydra_append_metric_callback(callbacks, cfg):
     # set default values used later
-    default_every_n_steps = cfg.metrics.setdefault('default_every_n_steps', 3600)
-    default_on_final = cfg.metrics.setdefault('default_on_final', True)
-    default_on_train = cfg.metrics.setdefault('default_on_train', True)
+    default_every_n_steps    = cfg.metrics.default_every_n_steps
+    default_on_final         = cfg.metrics.default_on_final
+    default_on_train         = cfg.metrics.default_on_train
+    default_begin_first_step = cfg.metrics.default_begin_first_step
     # get metrics
-    metric_list = cfg.metrics.setdefault('metric_list', [])
-    if metric_list == 'all':
-        cfg.metrics.metric_list = metric_list = [{k: {}} for k in metrics.DEFAULT_METRICS]
+    metric_list = cfg.metrics.metric_list
+    assert isinstance(metric_list, (list, ListConfig)), f'`metrics.metric_list` is not a list, got: {type(metric_list)}'
     # get metrics
-    new_metrics_list = []
-    for i, metric in enumerate(metric_list):
+    for metric in metric_list:
+        assert isinstance(metric, (dict, DictConfig)), f'entry in metric list is not a dictionary, got type: {type(metric)} or value: {repr(metric)}'
         # fix the values
         if isinstance(metric, str):
             metric = {metric: {}}
         ((name, settings),) = metric.items()
-        if settings is None:
-            settings = {}
-        new_metrics_list.append({name: settings})
-        # get metrics
-        every_n_steps = settings.get('every_n_steps', default_every_n_steps)
-        train_metric = [metrics.FAST_METRICS[name]] if settings.get('on_train', default_on_train) else None
+        # check values
+        assert isinstance(metric, (dict, DictConfig)), f'settings for entry in metric list is not a dictionary, got type: {type(settings)} or value: {repr(settings)}'
+        # make metrics
+        train_metric = [metrics.FAST_METRICS[name]]    if settings.get('on_train', default_on_train) else None
         final_metric = [metrics.DEFAULT_METRICS[name]] if settings.get('on_final', default_on_final) else None
         # add the metric callback
         if final_metric or train_metric:
             callbacks.append(VaeMetricLoggingCallback(
-                every_n_steps=every_n_steps,
-                step_end_metrics=train_metric,
-                train_end_metrics=final_metric,
+                step_end_metrics  = train_metric,
+                train_end_metrics = final_metric,
+                every_n_steps     = settings.get('every_n_steps', default_every_n_steps),
+                begin_first_step  = settings.get('begin_first_step', default_begin_first_step),
             ))
-    cfg.metrics.metric_list = new_metrics_list
-
-
-def hydra_append_correlation_callback(callbacks, cfg):
-    if 'correlation' in cfg.callbacks:
-        log.warning('Correlation callback has been disabled. skipping!')
-        # callbacks.append(VaeLatentCorrelationLoggingCallback(
-        #     repeats_per_factor=cfg.callbacks.correlation.repeats_per_factor,
-        #     every_n_steps=cfg.callbacks.correlation.every_n_steps,
-        #     begin_first_step=False,
-        # ))
-
-
-def hydra_append_gt_dists_callback(callbacks, cfg):
-    if 'gt_dists' in cfg.callbacks:
-        callbacks.append(VaeGtDistsLoggingCallback(
-            seed=cfg.callbacks.gt_dists.seed,
-            every_n_steps=cfg.callbacks.gt_dists.every_n_steps,
-            traversal_repeats=cfg.callbacks.gt_dists.traversal_repeats,
-            begin_first_step=False,
-            plt_block_size=1.25,
-            plt_show=False,
-            log_wandb=True,
-            batch_size=cfg.dataset.batch_size,
-        ))
 
 
 def hydra_register_schedules(module: DisentFramework, cfg):
-    if cfg.schedules is None:
-        cfg.schedules = {}
-    if cfg.schedules:
+    # check the type
+    schedule_items = cfg.schedule.schedule_items
+    assert isinstance(schedule_items, (dict, DictConfig)), f'`schedule.schedule_items` must be a dictionary, got type: {type(schedule_items)} with value: {repr(schedule_items)}'
+    # add items
+    if schedule_items:
         log.info(f'Registering Schedules:')
-        for target, schedule in cfg.schedules.items():
-            module.register_schedule(target, instantiate_recursive(schedule), logging=True)
+        for target, schedule in schedule_items.items():
+            module.register_schedule(target, hydra.utils.instantiate(schedule), logging=True)
 
 
-def hydra_create_framework_config(cfg):
+def hydra_create_and_update_framework_config(cfg) -> DisentConfigurable.cfg:
     # create framework config - this is also kinda hacky
     # - we need instantiate_recursive because of optimizer_kwargs,
     #   otherwise the dictionary is left as an OmegaConf dict
-    framework_cfg: DisentConfigurable.cfg = instantiate_recursive({
-        **cfg.framework.module,
-        **dict(_target_=cfg.framework.module._target_ + '.cfg')
-    })
+    framework_cfg: DisentConfigurable.cfg = hydra.utils.instantiate(cfg.framework.cfg)
     # warn if some of the cfg variables were not overridden
-    missing_keys = sorted(set(framework_cfg.get_keys()) - (set(cfg.framework.module.keys())))
+    missing_keys = sorted(set(framework_cfg.get_keys()) - (set(cfg.framework.cfg.keys())))
     if missing_keys:
         log.error(f'Framework {repr(cfg.framework.name)} is missing config keys for:')
         for k in missing_keys:
             log.error(f'{repr(k)}')
     # update config params in case we missed variables in the cfg
-    cfg.framework.module.update(framework_cfg.to_dict())
+    cfg.framework.cfg.update(framework_cfg.to_dict())
     # return config
     return framework_cfg
 
@@ -256,29 +252,57 @@ def hydra_create_framework_config(cfg):
 def hydra_create_framework(framework_cfg: DisentConfigurable.cfg, datamodule, cfg):
     # specific handling for experiment, this is HACKY!
     # - not supported normally, we need to instantiate to get the class (is there hydra support for this?)
-    framework_cfg.optimizer = hydra.utils.instantiate(dict(_target_=framework_cfg.optimizer), [torch.Tensor()]).__class__
+    framework_cfg.optimizer        = hydra.utils.get_class(framework_cfg.optimizer)
     framework_cfg.optimizer_kwargs = dict(framework_cfg.optimizer_kwargs)
-    # instantiate
-    return hydra.utils.instantiate(
-        dict(_target_=cfg.framework.module._target_),
-        model=init_model_weights(
-            AutoEncoder(
-                encoder=hydra.utils.instantiate(cfg.model.encoder),
-                decoder=hydra.utils.instantiate(cfg.model.decoder)
-            ), mode=cfg.model.weight_init
-        ),
-        # apply augmentations to batch on GPU which can be faster than via the dataloader
-        batch_augment=datamodule.batch_augment,
-        cfg=framework_cfg
+    # get framework path
+    assert str.endswith(cfg.framework.cfg._target_, '.cfg'), f'`cfg.framework.cfg._target_` does not end with ".cfg", got: {repr(cfg.framework.cfg._target_)}'
+    framework_cls = hydra.utils.get_class(cfg.framework.cfg._target_[:-len(".cfg")])
+    # create model
+    model = AutoEncoder(
+        encoder=hydra.utils.instantiate(cfg.model.encoder_cls),
+        decoder=hydra.utils.instantiate(cfg.model.decoder_cls),
+    )
+    # initialise the model
+    model = init_model_weights(model, mode=cfg.settings.model.weight_init)
+    # create framework
+    return framework_cls(
+        model=model,
+        cfg=framework_cfg,
+        batch_augment=datamodule.batch_augment,  # apply augmentations to batch on GPU which can be faster than via the dataloader
     )
 
 
 # ========================================================================= #
-# RUNNER                                                                    #
+# ACTIONS                                                                    #
 # ========================================================================= #
 
 
-def run(cfg: DictConfig, config_path: str = None):
+def prepare_data(cfg: DictConfig, config_path: str = None):
+    # get the time the run started
+    time_string = datetime.today().strftime('%Y-%m-%d--%H-%M-%S')
+    log.info(f'Starting run at time: {time_string}')
+    raise NotImplementedError
+
+    # # allow the cfg to be edited
+    # cfg = make_non_strict(cfg)
+    # # deterministic seed
+    # seed(cfg.job.setdefault('seed', None))
+    # # print useful info
+    # log.info(f"Current working directory : {os.getcwd()}")
+    # log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
+    # # hydra config does not support variables in defaults lists, we handle this manually
+    # cfg = merge_specializations(cfg, config_path=CONFIG_PATH if (config_path is None) else config_path, required=['_dataset_sampler_'])
+    # # check data preparation
+    # prepare_data_per_node = cfg.trainer.setdefault('prepare_data_per_node', True)
+    # hydra_check_datadir(prepare_data_per_node, cfg)
+    # # print the config
+    # log.info(f'Dataset Config Is:\n{make_box_str(OmegaConf.to_yaml({"dataset": cfg.dataset}))}')
+    # # prepare data
+    # datamodule = HydraDataModule(cfg)
+    # datamodule.prepare_data()
+
+
+def train(cfg: DictConfig, config_path: str = None):
 
     # get the time the run started
     time_string = datetime.today().strftime('%Y-%m-%d--%H-%M-%S')
@@ -300,7 +324,7 @@ def run(cfg: DictConfig, config_path: str = None):
     cfg = make_non_strict(cfg)
 
     # deterministic seed
-    seed(cfg.job.setdefault('seed', None))
+    seed(cfg.settings.job.seed)
 
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
     # INITIALISE & SETDEFAULT IN CONFIG
@@ -313,27 +337,20 @@ def run(cfg: DictConfig, config_path: str = None):
     log.info(f"Current working directory : {os.getcwd()}")
     log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
 
-    # hydra config does not support variables in defaults lists, we handle this manually
-    cfg = merge_specializations(cfg, config_path=CONFIG_PATH if (config_path is None) else config_path, required=['_dataset_sampler_'])
-
     # check CUDA setting
-    cfg.trainer.setdefault('cuda', 'try_cuda')
     hydra_check_cuda(cfg)
+
     # check data preparation
-    prepare_data_per_node = cfg.trainer.setdefault('prepare_data_per_node', True)
-    hydra_check_datadir(prepare_data_per_node, cfg)
+    hydra_check_data_paths(cfg)
 
     # TRAINER CALLBACKS
     callbacks = []
-    hydra_append_progress_callback(callbacks, cfg)
-    hydra_append_latent_cycle_logger_callback(callbacks, cfg)
-    hydra_append_gt_dists_callback(callbacks, cfg)
+    hydra_append_callbacks(callbacks, cfg)
     hydra_append_metric_callback(callbacks, cfg)
-    hydra_append_correlation_callback(callbacks, cfg)
 
     # HYDRA MODULES
     datamodule = HydraDataModule(cfg)
-    framework_cfg = hydra_create_framework_config(cfg)
+    framework_cfg = hydra_create_and_update_framework_config(cfg)
     framework = hydra_create_framework(framework_cfg, datamodule, cfg)
 
     # register schedules
@@ -341,30 +358,35 @@ def run(cfg: DictConfig, config_path: str = None):
 
     # Setup Trainer
     trainer = set_debug_trainer(pl.Trainer(
-        log_every_n_steps=cfg.logging.setdefault('log_every_n_steps', 50),
-        flush_logs_every_n_steps=cfg.logging.setdefault('flush_logs_every_n_steps', 100),
         logger=logger,
         callbacks=callbacks,
-        gpus=1 if cfg.trainer.cuda else 0,
-        max_epochs=cfg.trainer.setdefault('epochs', 100),
-        max_steps=cfg.trainer.setdefault('steps', None),
-        prepare_data_per_node=prepare_data_per_node,
-        progress_bar_refresh_rate=0,  # ptl 0.9
-        terminate_on_nan=True,  # we do this here so we don't run the final metrics
+        gpus=1 if cfg.dsettings.trainer.cuda else 0,
+        # we do this here too so we don't run the final
+        # metrics, even through we check for it manually.
+        terminate_on_nan=True,
         # TODO: re-enable this in future... something is not compatible
         #       with saving/checkpointing models + allow enabling from the
         #       config. Seems like something cannot be pickled?
         checkpoint_callback=False,
+        # additional trainer kwargs
+        **cfg.trainer,
     ))
 
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
     # BEGIN TRAINING
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
 
-    # print the config
-    log.info(f'Final Config Is:\n{make_box_str(OmegaConf.to_yaml(cfg))}')
+    # get config sections
+    print_cfg, boxed_pop = dict(cfg), lambda *keys: make_box_str(OmegaConf.to_yaml({k: print_cfg.pop(k) for k in keys} if keys else print_cfg))
+    cfg_str_logging  = boxed_pop('logging', 'callbacks', 'metrics')
+    cfg_str_dataset  = boxed_pop('dataset', 'sampling', 'augment')
+    cfg_str_system   = boxed_pop('framework', 'model', 'schedule')
+    cfg_str_settings = boxed_pop('dsettings', 'settings')
+    cfg_str_other    = boxed_pop()
+    # print config sections
+    log.info(f'Final Config For Action: {cfg.action}\n\nLOGGING:{cfg_str_logging}\nDATASET:{cfg_str_dataset}\nSYSTEM:{cfg_str_system}\nTRAINER:{cfg_str_other}\nSETTINGS:{cfg_str_settings}')
 
-    # save hparams TODO: I think this is a pytorch lightning bug... The trainer should automatically save these if hparams is set.
+    # save hparams TODO: is this a pytorch lightning bug? The trainer should automatically save these if hparams is set?
     framework.hparams.update(cfg)
     if trainer.logger:
         trainer.logger.log_hyperparams(framework.hparams)
@@ -373,6 +395,13 @@ def run(cfg: DictConfig, config_path: str = None):
     # -- if an error/signal occurs while pytorch lightning is
     #    initialising the training process we cannot capture it!
     trainer.fit(framework, datamodule=datamodule)
+
+
+# available actions
+ACTIONS = {
+    'prepare_data': prepare_data,
+    'train': train,
+}
 
 
 # ========================================================================= #
@@ -397,21 +426,31 @@ if __name__ == '__main__':
     def _error_resolver(msg: str):
         raise ConfigurationError(msg)
 
-    OmegaConf.register_resolver('exit', _error_resolver)
+    OmegaConf.register_new_resolver('exit', _error_resolver)
 
     @hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME)
     def hydra_main(cfg: DictConfig):
         try:
-            run(cfg)
+            action_key = cfg.action
+            # get the action
+            if action_key not in ACTIONS:
+                raise KeyError(f'The given action: {repr(action_key)} is invalid, must be one of: {sorted(ACTIONS.keys())}')
+            action = ACTIONS[action_key]
+            # run the action
+            action(cfg)
         except Exception as e:
-            log_error_and_exit(err_type='experiment error', err_msg=str(e))
+            log_error_and_exit(err_type='experiment error', err_msg=str(e), exc_info=True)
+        except:
+            log_error_and_exit(err_type='experiment error', err_msg='<UNKNOWN>', exc_info=True)
 
     try:
         hydra_main()
     except KeyboardInterrupt as e:
         log_error_and_exit(err_type='interrupted', err_msg=str(e), exc_info=False)
     except Exception as e:
-        log_error_and_exit(err_type='hydra error', err_msg=str(e))
+        log_error_and_exit(err_type='hydra error', err_msg=str(e), exc_info=True)
+    except:
+        log_error_and_exit(err_type='hydra error', err_msg='<UNKNOWN>', exc_info=True)
 
 
 # ========================================================================= #

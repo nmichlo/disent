@@ -52,6 +52,7 @@ from ruck import R
 from ruck.external.ray import ray_map
 from ruck.external.ray import ray_remote_put
 from ruck.external.ray import ray_remote_puts
+from ruck.external.deap import select_nsga2
 
 import research.util as H
 from disent.dataset.wrapper import MaskedDataset
@@ -61,7 +62,6 @@ from disent.util.profiling import Timer
 from disent.util.seeds import seed
 from disent.util.visualize.vis_util import get_idx_traversal
 from research.e01_visual_overlap.util_compute_traversal_dists import cached_compute_all_factor_dist_matrices
-from research.e06_adversarial_data.util_eval_adversarial import eval_factor_fitness_numba
 from research.e06_adversarial_data.util_eval_adversarial import eval_individual
 
 
@@ -101,28 +101,6 @@ NOTES ON MULTI-OBJECTIVE OPTIMIZATION:
 # ========================================================================= #
 # Ruck Helper                                                               #
 # ========================================================================= #
-
-
-def select_nsga2(population, num_offspring: int, weights: Tuple[float, ...]):
-    # TODO: move this into ruck
-    """
-    This is hacky... ruck doesn't yet have NSGA2
-    support, but we want to use it for this!
-    """
-    from deap import creator, tools, base
-    # initialize creator
-    creator.create('IdxFitness', base.Fitness, weights=weights)
-    creator.create('IdxIndividual', int, fitness=creator.IdxFitness)
-    # convert to deap population
-    idx_individuals = []
-    for i, m in enumerate(population):
-        ind = creator.IdxIndividual(i)
-        ind.fitness.values = m.fitness
-        idx_individuals.append(ind)
-    # run nsga2
-    chosen_idx = tools.selNSGA2(individuals=idx_individuals, k=num_offspring)
-    # return values
-    return [population[i] for i in chosen_idx]
 
 
 def mutate_oneof(*mutate_fns):
@@ -219,15 +197,17 @@ def evaluate_member(
     factor_sizes: Tuple[int, ...],
     fitness_overlap_mode: str,
     fitness_overlap_aggregate: str,
+    fitness_overlap_include_singles: bool,
 ) -> Tuple[float, float]:
     overlap_score, usage_ratio = eval_individual(
-        eval_factor_fitness_fn=eval_factor_fitness_numba,
         individual=value,
         gt_dist_matrices=gt_dist_matrices,
         factor_sizes=factor_sizes,
         fitness_overlap_mode=fitness_overlap_mode,
         fitness_overlap_aggregate=fitness_overlap_aggregate,
         exclude_diag=True,
+        increment_single=fitness_overlap_include_singles,
+        backend='numba',
     )
 
     # weight components
@@ -254,6 +234,13 @@ def evaluate_member(
     # convert minimization problem into maximization
     # return - loss
 
+    if overlap_score < 0:
+        log.warning(f'member has invalid overlap_score: {repr(overlap_score)}')
+        overlap_score = 1000  # minimizing target to 0 in range [0, 1] so this is bad
+    if usage_ratio < 0:
+        log.warning(f'member has invalid usage_ratio: {repr(usage_ratio)}')
+        usage_ratio = -1000  # maximizing target to 1 in range [0, 1] so this is bad
+
     return (-overlap_score, usage_ratio)
 
 
@@ -264,7 +251,6 @@ def evaluate_member(
 
 Values = List[ray.ObjectRef]
 Population = List[ruck.Member[ray.ObjectRef]]
-
 
 
 # ========================================================================= #
@@ -310,6 +296,7 @@ class DatasetMaskModule(ruck.EaModule):
         # fitness settings
         fitness_overlap_aggregate: str = 'mean',
         fitness_overlap_mode: str = 'std',
+        fitness_overlap_include_singles: bool = True,
         # ea settings
         p_mate: float = 0.5,
         p_mutate: float = 0.5,
@@ -320,6 +307,9 @@ class DatasetMaskModule(ruck.EaModule):
         factor_sizes = gt_data.factor_sizes
         # save hyper parameters to .hparams
         self.save_hyperparameters(include=['factor_sizes'])
+        # compute all distances
+        gt_dist_matrices = cached_compute_all_factor_dist_matrices(dataset_name, normalize_mode=dist_normalize_mode)
+        gt_dist_matrices = ray.put(gt_dist_matrices)
         # get offspring function
         self.generate_offspring = wrapped_partial(
             R.apply_mate_and_mutate,
@@ -335,10 +325,11 @@ class DatasetMaskModule(ruck.EaModule):
         # get evaluation function
         self._evaluate_value_fn = wrapped_partial(
             evaluate_member.remote,
-            gt_dist_matrices=ray.put(cached_compute_all_factor_dist_matrices(dataset_name, normalize_mode=dist_normalize_mode)),
+            gt_dist_matrices=gt_dist_matrices,
             factor_sizes=factor_sizes,
             fitness_overlap_mode=fitness_overlap_mode,
             fitness_overlap_aggregate=fitness_overlap_aggregate,
+            fitness_overlap_include_singles=fitness_overlap_include_singles,
         )
 
 
@@ -350,11 +341,13 @@ class DatasetMaskModule(ruck.EaModule):
 def run(
     dataset_name: str = 'shapes3d',  # xysquares_8x8_toy_s4, xcolumns_8x_toy_s1
     dist_normalize_mode: str = 'all',  # all, each, none
+    # population
     generations: int = 250,
     population_size: int = 128,
     # fitness settings
     fitness_overlap_mode: str = 'std',
     fitness_overlap_aggregate: str = 'mean',
+    fitness_overlap_include_singles: bool = True,
     # save settings
     save: bool = False,
     save_prefix: str = '',
@@ -375,7 +368,10 @@ def run(
     log.info(f'Starting run at time: {time_string}')
 
     # get hparams
-    hparams = dict(dataset_name=dataset_name, dist_normalize_mode=dist_normalize_mode, generations=generations, population_size=population_size, fitness_overlap_mode=fitness_overlap_mode, fitness_overlap_aggregate=fitness_overlap_aggregate, save=save, save_prefix=save_prefix, seed_=seed_, plot=plot, wandb_enabled=wandb_enabled, wandb_init=wandb_init, wandb_project=wandb_project, wandb_user=wandb_user, wandb_job_name=wandb_job_name)
+    hparams = dict(dataset_name=dataset_name, dist_normalize_mode=dist_normalize_mode, generations=generations, population_size=population_size, fitness_overlap_mode=fitness_overlap_mode, fitness_overlap_aggregate=fitness_overlap_aggregate, fitness_overlap_include_singles=fitness_overlap_include_singles, save=save, save_prefix=save_prefix, seed_=seed_, plot=plot, wandb_enabled=wandb_enabled, wandb_init=wandb_init, wandb_project=wandb_project, wandb_user=wandb_user, wandb_job_name=wandb_job_name)
+    # name
+    name = f'{(save_prefix + "_" if save_prefix else "")}{dataset_name}_{generations}x{population_size}_{dist_normalize_mode}_{fitness_overlap_mode}_{fitness_overlap_aggregate}_{fitness_overlap_include_singles}'
+    log.info(f'- Run name is: {name}')
 
     # enable wandb
     wandb = None
@@ -392,7 +388,7 @@ def run(
             wandb.init(
                 entity=wandb_user,
                 project=wandb_project,
-                name=wandb_job_name if (wandb_job_name is not None) else f'{(save_prefix + "_" if save_prefix else "")}{dataset_name}_{generations}x{population_size}_{fitness_overlap_mode}_{fitness_overlap_aggregate}',
+                name=wandb_job_name if (wandb_job_name is not None) else name,
                 group=None,
                 tags=wandb_tags,
             )
@@ -412,6 +408,7 @@ def run(
             population_size=population_size,
             fitness_overlap_mode=fitness_overlap_mode,
             fitness_overlap_aggregate=fitness_overlap_aggregate,
+            fitness_overlap_include_singles=fitness_overlap_include_singles,
         )
         # train
         population, logbook, halloffame = ruck.Trainer(generations=generations, progress=True).fit(problem)
@@ -429,9 +426,8 @@ def run(
 
     # generate average images
     if plot or wandb_enabled:
-        title = f'{dataset_name}: g{generations} p{population_size} [{dist_normalize_mode}, {fitness_overlap_mode}, {fitness_overlap_aggregate}]'
         # plot average
-        fig_ave_imgs_hof = plot_averages(dataset_name, values, title_prefix='HOF', subtitle=title, show=plot)
+        fig_ave_imgs_hof = plot_averages(dataset_name, values, title_prefix='HOF', subtitle=name, show=plot)
         # get individuals -- this is not ideal because not evenly spaced
         idxs_chosen_f0 = get_spaced(np.argsort([m.fitness[0] for m in population])[::-1], 5)  # overlap
         idxs_chosen_f1 = get_spaced(np.argsort([m.fitness[1] for m in population]),       5)  # usage
@@ -439,14 +435,14 @@ def run(
         chosen_values_f1    = [ray.get(population[i].value) for i in idxs_chosen_f1]
         random_fitnesses = problem.evaluate_values([ray.put(np.random.random(values[0].shape) < p) for p in np.linspace(0.025, 1, num=population_size+2)[1:-1]])
         # plot averages
-        fig_ave_imgs_f0 = plot_averages(dataset_name, chosen_values_f0, subtitle=title, titles=[f'{population[i].fitness[0]:2f}' for i in idxs_chosen_f0], title_prefix='Overlap -', show=plot)
-        fig_ave_imgs_f1 = plot_averages(dataset_name, chosen_values_f1, subtitle=title, titles=[f'{population[i].fitness[1]:2f}' for i in idxs_chosen_f1], title_prefix='Usage -', show=plot)
+        fig_ave_imgs_f0 = plot_averages(dataset_name, chosen_values_f0, subtitle=name, titles=[f'{population[i].fitness[0]:2f}' for i in idxs_chosen_f0], title_prefix='Overlap -', show=plot)
+        fig_ave_imgs_f1 = plot_averages(dataset_name, chosen_values_f1, subtitle=name, titles=[f'{population[i].fitness[1]:2f}' for i in idxs_chosen_f1], title_prefix='Usage -', show=plot)
         # plot parento optimal solutions
         fig_pareto_sol, axs = plt_pareto_solutions(
             population,
             label_fitness_0='Overlap Score',
             label_fitness_1='Usage Score',
-            title=f'Pareto-Optimal Solutions\n{title}',
+            title=f'Pareto-Optimal Solutions\n{name}',
             plot=plot,
             chosen_idxs_f0=idxs_chosen_f0,
             chosen_idxs_f1=idxs_chosen_f1,
@@ -476,7 +472,7 @@ def run(
         for k, v in logbook[-1].items(): wandb.summary[f'log:end:{k}'] = v
 
     # generate paths
-    job_name = f'{time_string}_{(save_prefix + "_" if save_prefix else "")}{dataset_name}_{generations}x{population_size}_{dist_normalize_mode}_{fitness_overlap_mode}_{fitness_overlap_aggregate}'
+    job_name = f'{time_string}_{name}'
 
     # collect results
     results = {
@@ -528,27 +524,6 @@ def run(
 
 
 # ========================================================================= #
-# QUICK RUN                                                                 #
-# ========================================================================= #
-
-
-def quick_generate_adversarial_mask(
-    dataset_name: str = 'shapes3d',
-    dist_normalize_mode: str = 'all',
-    generations: int = 250,
-    population_size: int = 128,
-    # fitness settings
-    fitness_overlap_mode: str = 'std',
-    fitness_overlap_aggregate: str = 'mean',
-    # save settings
-    seed_: Optional[int] = None,
-    # wandb_settings
-    wandb_enabled: bool = True,
-) -> Dict[str, Any]:
-    pass
-
-
-# ========================================================================= #
 # ENTRYPOINT                                                                #
 # ========================================================================= #
 
@@ -560,14 +535,15 @@ def main():
     from itertools import product
 
     # (3 * 2 * 2 * 5)
-    for (dist_normalize_mode, fitness_overlap_aggregate, fitness_overlap_mode, dataset_name) in product(
+    for (fitness_overlap_include_singles, dist_normalize_mode, fitness_overlap_aggregate, fitness_overlap_mode, dataset_name) in product(
+        [True, False],
         ['all', 'each', 'none'],
         ['gmean', 'mean'],
         ['std', 'range'],
         ['xysquares_8x8_toy_s2', 'cars3d', 'smallnorb', 'shapes3d', 'dsprites'],
     ):
         print('='*100)
-        print(f'[STARTING]: dataset_name={repr(dataset_name)} dist_normalize_mode={repr(dist_normalize_mode)} fitness_overlap_mode={repr(fitness_overlap_mode)} fitness_overlap_aggregate={repr(fitness_overlap_aggregate)}')
+        print(f'[STARTING]: dataset_name={repr(dataset_name)} dist_normalize_mode={repr(dist_normalize_mode)} fitness_overlap_mode={repr(fitness_overlap_mode)} fitness_overlap_aggregate={repr(fitness_overlap_aggregate)} fitness_overlap_include_singles={repr(fitness_overlap_include_singles)}')
         try:
             run(
                 dataset_name=dataset_name,
@@ -575,6 +551,7 @@ def main():
                 # fitness
                 fitness_overlap_aggregate=fitness_overlap_aggregate,
                 fitness_overlap_mode=fitness_overlap_mode,
+                fitness_overlap_include_singles=fitness_overlap_include_singles,
                 # population
                 generations=1000,
                 population_size=256,
@@ -583,7 +560,8 @@ def main():
                 save_prefix='EXP',
                 plot=True,
                 wandb_enabled=True,
-                wandb_tags=['exp']
+                wandb_project='exp-adversarial-mask',
+                wandb_tags=['exp_factor_dists']
             )
         except KeyboardInterrupt:
             warnings.warn('Exiting early')

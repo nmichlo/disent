@@ -1,5 +1,8 @@
-# @package _group_
+defaults:
+  - _data_type_: gt
+
 name: xysquares_rgb
+
 data:
   _target_: disent.dataset.data.XYSquaresData
   square_size: 8
@@ -8,13 +11,13 @@ data:
   num_squares: 3
   rgb: TRUE
   max_placements: 8
+
 transform:
-  _target_: disent.nn.transform.ToStandardisedTensor
-  mean: ${dataset.vis_mean}
-  std: ${dataset.vis_std}
-x_shape: [3, 64, 64]
+  _target_: disent.dataset.transform.ToImgTensorF32
+  mean: ${dataset.meta.vis_mean}
+  std: ${dataset.meta.vis_std}
 
-data_type: gt
-
-mean: "${exit:EXITING... please compute the vis_mean and vis_std}"
-std: "${exit:EXITING... please compute the vis_mean and vis_std}"
+meta:
+  x_shape: [3, 64, 64]
+  mean: "${exit:EXITING... please compute the vis_mean and vis_std}"
+  std: "${exit:EXITING... please compute the vis_mean and vis_std}"

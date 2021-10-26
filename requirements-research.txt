@@ -10,5 +10,5 @@
 # psutil
 # seaborn
 
-ray==1.6.0
-ruck==0.2.0
+ray>=1.6.0
+ruck==0.2.4

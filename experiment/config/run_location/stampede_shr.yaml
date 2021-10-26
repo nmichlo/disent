@@ -1,0 +1,32 @@
+# @package _global_
+
+dsettings:
+  trainer:
+    cuda: NULL  # auto-detect cuda, some nodes are not configured correctly
+  storage:
+    logs_dir: 'logs'
+    data_root: '${oc.env:HOME}/downloads/datasets'  # WE NEED TO BE VERY CAREFUL ABOUT USING A SHARED DRIVE
+  dataset:
+    gpu_augment: FALSE
+    prepare: FALSE                                # WE MUST PREPARE DATA MANUALLY BEFOREHAND
+    try_in_memory: TRUE
+
+trainer:
+  prepare_data_per_node: TRUE
+
+dataloader:
+  num_workers: 16
+  pin_memory: ${dsettings.trainer.cuda}
+  batch_size: ${settings.dataset.batch_size}
+
+hydra:
+  job:
+    name: 'disent'
+  run:
+    dir: '${dsettings.storage.logs_dir}/hydra_run/${now:%Y-%m-%d_%H-%M-%S}_${hydra.job.name}'
+  sweep:
+    dir: '${dsettings.storage.logs_dir}/hydra_sweep/${now:%Y-%m-%d_%H-%M-%S}_${hydra.job.name}'
+    subdir: '${hydra.job.id}' # hydra.job.id is not available for dir
+
+#job:
+#  partition: stampede

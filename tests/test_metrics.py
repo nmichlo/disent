@@ -28,7 +28,7 @@ import torch
 from disent.dataset.data import XYObjectData
 from disent.dataset import DisentDataset
 from disent.metrics import *
-from disent.nn.transform import ToStandardisedTensor
+from disent.dataset.transform import ToImgTensorF32
 from disent.util.function import wrapped_partial
 
 
@@ -50,7 +50,7 @@ def test_metrics(metric_fn):
     z_size = 8
     # ground truth data
     # TODO: DisentDataset should not be needed to compute metrics!
-    dataset = DisentDataset(XYObjectData(), transform=ToStandardisedTensor())
+    dataset = DisentDataset(XYObjectData(), transform=ToImgTensorF32())
     # randomly sampled representation
     get_repr = lambda x: torch.randn(len(x), z_size)
     # evaluate

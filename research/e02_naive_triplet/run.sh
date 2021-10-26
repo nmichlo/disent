@@ -22,10 +22,10 @@ submit_sweep \
     \
     +DUMMY.repeat=1,2 \
     \
-    framework.module.triplet_margin_max=1.0,10.0 \
-    framework.module.triplet_scale=0.1,1.0,0.01 \
+    system.framework.cfg_cls.triplet_margin_max=1.0,10.0 \
+    system.framework.cfg_cls.triplet_scale=0.1,1.0,0.01 \
     sampling=gt_dist_factors,gt_dist_manhat,gt_dist_combined \
-    framework.module.triplet_p=1,2
+    system.framework.cfg_cls.triplet_p=1,2
 
 # 2 * (3=3) = 6
 submit_sweep \
@@ -36,7 +36,7 @@ submit_sweep \
     +DUMMY.repeat=1,2 \
     \
     sampling=gt_dist_factors,gt_dist_manhat,gt_dist_combined \
-    framework.module.triplet_scale=0.0
+    system.framework.cfg_cls.triplet_scale=0.0
 
 # 2 * (2*3=6) = 12
 submit_sweep \

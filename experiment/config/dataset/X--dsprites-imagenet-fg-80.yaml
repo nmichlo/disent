@@ -1,0 +1,22 @@
+defaults:
+  - _data_type_: gt
+
+name: dsprites_imagenet_fg_80
+
+data:
+  _target_: disent.dataset.data.DSpritesImagenetData
+  visibility: 80
+  mode: fg
+  data_root: ${dsettings.storage.data_root}
+  prepare: ${dsettings.dataset.prepare}
+  in_memory: ${dsettings.dataset.try_in_memory}
+
+transform:
+  _target_: disent.dataset.transform.ToImgTensorF32
+  mean: ${dataset.meta.vis_mean}
+  std: ${dataset.meta.vis_std}
+
+meta:
+  x_shape: [3, 64, 64]
+  vis_mean: [0.024956427531012196, 0.02336780403840578, 0.021475119672280243]
+  vis_std: [0.11864125016313823, 0.11137998105649799, 0.10281424917834255]

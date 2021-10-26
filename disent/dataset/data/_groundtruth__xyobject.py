@@ -103,7 +103,7 @@ class XYObjectData(GroundTruthData):
         return self._placements, self._placements, len(self._square_scales), len(self._colors)
 
     @property
-    def observation_shape(self) -> Tuple[int, ...]:
+    def img_shape(self) -> Tuple[int, ...]:
         return self._width, self._width, (3 if self._rgb else 1)
 
     def __init__(
@@ -157,7 +157,7 @@ class XYObjectData(GroundTruthData):
         r = (self._max_square_size - s) // 2
         x, y = self._spacing*x + r, self._spacing*y + r
         # GENERATE
-        obs = np.zeros(self.observation_shape, dtype=np.uint8)
+        obs = np.zeros(self.img_shape, dtype=np.uint8)
         obs[y:y+s, x:x+s] = self._colors[c]
         return obs
 
@@ -199,7 +199,7 @@ class XYObjectShadedData(XYObjectData):
         return self._placements, self._placements, len(self._square_scales), self._brightness_levels, len(self._colors)
 
     @property
-    def observation_shape(self) -> Tuple[int, ...]:
+    def img_shape(self) -> Tuple[int, ...]:
         return self._width, self._width, (3 if self._rgb else 1)
 
     def __init__(
@@ -247,7 +247,7 @@ class XYObjectShadedData(XYObjectData):
         r = (self._max_square_size - s) // 2
         x, y = self._spacing*x + r, self._spacing*y + r
         # GENERATE
-        obs = np.zeros(self.observation_shape, dtype=np.uint8)
+        obs = np.zeros(self.img_shape, dtype=np.uint8)
         obs[y:y+s, x:x+s] = self._colors[c] * (b + 1) // self._brightness_levels
         return obs
 

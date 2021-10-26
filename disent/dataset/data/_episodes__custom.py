@@ -79,7 +79,7 @@ class EpisodesPickledData(BaseEpisodesData):
         # check variables
         option_ids_to_names = {}
         ground_truth_keys = None
-        observation_shape = None
+        img_shape = None
         # load data
         episodes = []
         for i, raw_episode in enumerate(raw_episodes):
@@ -102,11 +102,11 @@ class EpisodesPickledData(BaseEpisodesData):
                     for gt_state in ground_truth_states:
                         assert ground_truth_keys == gt_state.keys()
                 # CHECK: observation shapes
-                if observation_shape is None:
-                    observation_shape = observed_states[0].shape
+                if img_shape is None:
+                    img_shape = observed_states[0].shape
                 else:
                     for observation in observed_states:
-                        assert observation.shape == observation_shape
+                        assert observation.shape == img_shape
                 # APPEND: all observations into one long episode
                 rollout.extend(observed_states)
                 # cleanup unused memory! This is not ideal, but works well.

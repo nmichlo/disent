@@ -76,10 +76,11 @@ class DataOverlapMixin(object):
         # initialise
         if self.cfg.overlap_augment_mode != 'none':
             assert self.cfg.overlap_augment is not None, 'if cfg.overlap_augment_mode is not "none", then cfg.overlap_augment must be defined.'
-        if self.cfg.overlap_augment is not None:
-            # TODO: this should not reference experiments!
-            from experiment.util.hydra_utils import instantiate_object_if_needed
-            self._augment = instantiate_object_if_needed(self.cfg.overlap_augment)
+        # set augment and instantiate if needed
+        self._augment = None
+        if isinstance(self._augment, dict):
+            import hydra
+            self._augment = hydra.utils.instantiate(self.cfg.overlap_augment)
             assert callable(self._augment), f'augment is not callable: {repr(self._augment)}'
         # get overlap loss
         overlap_loss = self.cfg.overlap_loss if (self.cfg.overlap_loss is not None) else self.cfg.recon_loss

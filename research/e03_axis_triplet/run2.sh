@@ -28,16 +28,16 @@ submit_sweep \
     run_length=medium \
     model.z_size=25 \
     \
-    framework.module.triplet_margin_max=1.0,5.0 \
-    framework.module.triplet_scale=0.1,0.02,0.5 \
-    framework.module.triplet_p=1 \
+    system.framework.cfg_cls.triplet_margin_max=1.0,5.0 \
+    system.framework.cfg_cls.triplet_scale=0.1,0.02,0.5 \
+    system.framework.cfg_cls.triplet_p=1 \
     sampling=gt_dist_manhat \
     \
-    framework.module.thresh_ratio=0.5 \
-    framework.module.ada_triplet_ratio=1.0 \
-    framework.module.ada_triplet_soft_scale=0.25,1.0,4.0 \
-    framework.module.ada_triplet_sample=FALSE \
+    system.framework.cfg_cls.thresh_ratio=0.5 \
+    system.framework.cfg_cls.ada_triplet_ratio=1.0 \
+    system.framework.cfg_cls.ada_triplet_soft_scale=0.25,1.0,4.0 \
+    system.framework.cfg_cls.ada_triplet_sample=FALSE \
     \
     schedule=adavae_all,adavae_thresh,adavae_ratio \
-    framework.module.ada_triplet_loss=triplet_all_soft_ave \
+    system.framework.cfg_cls.ada_triplet_loss=triplet_all_soft_ave \
     dataset=xysquares

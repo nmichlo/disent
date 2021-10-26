@@ -1,16 +1,18 @@
-# @package _group_
 metric_list:
-  - flatness:             # pragma: delete-on-release
-  - flatness_components:  # pragma: delete-on-release
-  - mig:
-  - sap:
-  - unsupervised:
+  - flatness: {}             # pragma: delete-on-release
+  - flatness_components: {}  # pragma: delete-on-release
+  - mig: {}
+  - sap: {}
   - dci:
-      every_n_steps: 3600
+      every_n_steps: 7200
+      on_final: TRUE
   - factor_vae:
-      every_n_steps: 3600
+      every_n_steps: 7200
+      on_final: TRUE
+  - unsupervised: {}
 
 # these are the default settings, these can be placed in the list above
 default_on_final: TRUE
 default_on_train: TRUE
-default_every_n_steps: 1200
+default_every_n_steps: 2400
+default_begin_first_step: FALSE

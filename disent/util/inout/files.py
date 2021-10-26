@@ -24,7 +24,9 @@
 
 import logging
 import os
+from pathlib import Path
 from typing import Optional
+from typing import Union
 from uuid import uuid4
 
 from disent.util.inout.paths import uri_parse_file_or_url
@@ -58,16 +60,15 @@ class AtomicSaveFile(object):
 
     def __init__(
         self,
-        file: str,
+        file: Union[str, Path],
         open_mode: Optional[str] = None,
         overwrite: bool = False,
         makedirs: bool = True,
         tmp_prefix: Optional[str] = '.temp.',
         tmp_suffix: Optional[str] = None,
     ):
-        from pathlib import Path
         # check files
-        if not file:
+        if not file or not Path(file).name:
             raise ValueError(f'file must not be empty: {repr(file)}')
         # get files
         self.trg_file = Path(file).absolute()

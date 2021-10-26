@@ -1,7 +1,13 @@
-# @package _group_
+defaults:
+  - _input_mode_: single
+
 name: dotae
-module:
-  _target_: disent.frameworks.ae.experimental.DataOverlapTripletAe
+
+cfg:
+  _target_: disent.frameworks.ae.experimental.DataOverlapTripletAe.cfg
+  # base ae
+  recon_loss: ${settings.framework.recon_loss}
+  loss_reduction: ${settings.framework.loss_reduction}
   # disable various components
   disable_decoder: FALSE
   disable_rec_loss: FALSE
@@ -17,7 +23,7 @@ module:
   # ada_tvae - loss
   adat_triplet_share_scale: 0.95  # >> USE WITH A SCHEDULE << only works for: adat_triplet_loss == "triplet_hard_neg_ave_scaled"
   # dotvae
-  overlap_loss: ${framework.optional.overlap_loss}  # any of the recon_loss values, or NULL to use the recon_loss value
+  overlap_loss: ${settings.framework_opt.overlap_loss}  # any of the recon_loss values, or NULL to use the recon_loss value
   overlap_num: 512
   overlap_mine_ratio: 0.1
   overlap_mine_triplet_mode: 'none'  # none, hard_neg, semi_hard_neg, hard_pos, easy_pos, ran:hard_neg+hard_pos <- etc, dynamically evaluated, can chain multiple "+"s
@@ -25,6 +31,5 @@ module:
   overlap_augment_mode: 'none'
   overlap_augment: NULL
 
-# settings used elsewhere
-data_sample_mode: single
-model_z_multiplier: 2
+meta:
+  model_z_multiplier: 2

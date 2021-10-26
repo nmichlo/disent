@@ -1,8 +1,11 @@
-# @package framework.module
-optimizer: torch.optim.SGD
-optimizer_kwargs:
-  lr: ${optimizer.lr}
-  momentum: 0
-  dampening: 0
-  weight_decay: 0
-  nesterov: False
+# @package _global_
+
+framework:
+  cfg:
+    optimizer: torch.optim.SGD
+    optimizer_kwargs:
+      lr: ${settings.optimizer.lr}
+      momentum: 0
+      dampening: 0
+      weight_decay: 0
+      nesterov: False

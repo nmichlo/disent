@@ -339,8 +339,8 @@ def run_gen_adversarial_dataset(cfg):
     callbacks.append(framework.make_train_periodic_callback(cfg))
     # train
     trainer = pl.Trainer(
-        log_every_n_steps=cfg.logging.setdefault('log_every_n_steps', 50),
-        flush_logs_every_n_steps=cfg.logging.setdefault('flush_logs_every_n_steps', 100),
+        log_every_n_steps=cfg.log.setdefault('log_every_n_steps', 50),
+        flush_logs_every_n_steps=cfg.log.setdefault('flush_logs_every_n_steps', 100),
         logger=logger,
         callbacks=callbacks,
         gpus=1 if cfg.trainer.cuda else 0,
@@ -372,10 +372,10 @@ def run_gen_adversarial_dataset(cfg):
         if torch.cuda.is_available():
             framework = framework.cuda()
         # create new h5py file -- TODO: use this in other places!
-        with h5_open(path=save_path_data, mode='atomic_w') as h5_file:
+        with H5Builder(path=save_path_data, mode='atomic_w') as builder:
             # this dataset is self-contained and can be loaded by SelfContainedHdf5GroundTruthData
             # we normalize the values to have approx mean of 0 and std of 1
-            H5Builder(h5_file).add_dataset_from_gt_data(
+            builder.add_dataset_from_gt_data(
                 data=framework.dataset,  # produces tensors
                 mutator=lambda x: np.moveaxis((to_numpy(x).astype('float32') - mean) / std, -3, -1).astype('float16'),  # consumes tensors -> np.ndarrays
                 img_shape=(64, 64, None),

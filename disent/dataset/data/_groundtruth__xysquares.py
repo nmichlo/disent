@@ -69,14 +69,14 @@ class XYSquaresMinimalData(GroundTruthData):
         return 8, 8, 8, 8, 8, 8  # R, G, B squares
 
     @property
-    def observation_shape(self) -> Tuple[int, ...]:
+    def img_shape(self) -> Tuple[int, ...]:
         return 64, 64, 3
 
     def _get_observation(self, idx):
         # get factors
         factors = np.reshape(np.unravel_index(idx, self.factor_sizes), (-1, 2))
         # GENERATE
-        obs = np.zeros(self.observation_shape, dtype=np.uint8)
+        obs = np.zeros(self.img_shape, dtype=np.uint8)
         for i, (fx, fy) in enumerate(factors):
             x, y = 8 * fx, 8 * fy
             obs[y:y+8, x:x+8, i] = 255
@@ -112,7 +112,7 @@ class XYSquaresData(GroundTruthData):
         return (self._placements, self._placements) * self._num_squares  # R, G, B squares
 
     @property
-    def observation_shape(self) -> Tuple[int, ...]:
+    def img_shape(self) -> Tuple[int, ...]:
         return self._width, self._width, (3 if self._rgb else 1)
 
     def __init__(
@@ -187,7 +187,7 @@ class XYSquaresData(GroundTruthData):
         factors = self.idx_to_pos(idx)
         offset, space, size = self._offset, self._spacing, self._square_size
         # GENERATE
-        obs = np.zeros(self.observation_shape, dtype=self._dtype)
+        obs = np.zeros(self.img_shape, dtype=self._dtype)
         for i, (fx, fy) in enumerate(iter_chunks(factors, 2)):
             x, y = offset + space * fx, offset + space * fy
             if self._rgb:

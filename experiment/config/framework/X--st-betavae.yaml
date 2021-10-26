@@ -1,9 +1,15 @@
-# @package _group_
+defaults:
+  - _input_mode_: pair
+
 name: st-betavae
-module:
-  _target_: disent.frameworks.vae.experimental.SwappedTargetBetaVae
+
+cfg:
+  _target_: disent.frameworks.vae.experimental.SwappedTargetBetaVae.cfg
+  # base ae
+  recon_loss: ${settings.framework.recon_loss}
+  loss_reduction: ${settings.framework.loss_reduction}
   # base vae
-  latent_distribution: ${framework.optional.latent_distribution}
+  latent_distribution: ${settings.framework_opt.latent_distribution}
   # disable various components
   disable_decoder: FALSE
   disable_reg_loss: FALSE
@@ -11,10 +17,9 @@ module:
   disable_aug_loss: FALSE
   disable_posterior_scale: NULL
   # Beta-VAE
-  beta: ${framework.beta}
+  beta: ${settings.framework.beta}
   # swapped target
   swap_chance: 0.1
 
-# settings used elsewhere
-data_sample_mode: pair
-model_z_multiplier: 2
+meta:
+  model_z_multiplier: 2

@@ -1,7 +1,13 @@
-# @package _group_
+defaults:
+  - _input_mode_: pair
+
 name: adaae
-module:
-  _target_: disent.frameworks.ae.experimental.AdaAe
+
+cfg:
+  _target_: disent.frameworks.ae.experimental.AdaAe.cfg
+  # base ae
+  recon_loss: ${settings.framework.recon_loss}
+  loss_reduction: ${settings.framework.loss_reduction}
   # disable various components
   disable_decoder: FALSE
   disable_rec_loss: FALSE
@@ -9,6 +15,5 @@ module:
   # adavae
   ada_thresh_ratio: 0.5
 
-# settings used elsewhere
-data_sample_mode: pair
-model_z_multiplier: 1
+meta:
+  model_z_multiplier: 1

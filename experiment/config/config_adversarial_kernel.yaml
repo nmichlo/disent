@@ -2,7 +2,8 @@ defaults:
   # runtime
   - run_length: short
   - run_logging: wandb
-  - run_location: cluster_many
+  - run_location: stampede_tmp
+  - run_launcher: slurm
   # plugins
   - hydra/job_logging: colorlog
   - hydra/hydra_logging: colorlog
@@ -11,8 +12,7 @@ defaults:
 job:
   user: 'n_michlo'
   project: 'exp-disentangle-kernel'
-  name: r${kernel.radius}-${kernel.channels}_s${trainer.steps}_${optimizer.name}_lr${optimizer.lr}_wd${optimizer.weight_decay}_${data.name}
-  partition: stampede
+  name: r${kernel.radius}-${kernel.channels}_s${trainer.max_steps}_${optimizer.name}_lr${settings.optimizer.lr}_wd${optimizer.weight_decay}_${data.name}
 
 optimizer:
   name: adam

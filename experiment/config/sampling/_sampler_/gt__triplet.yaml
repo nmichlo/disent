@@ -1,0 +1,16 @@
+name: gt__triplet
+
+sampler_cls:
+  _target_: disent.dataset.sampling.GroundTruthTripleSampler
+  # factor sampling
+  p_k_range: ${sampling.k}
+  n_k_range: ${sampling.n_k}
+  n_k_sample_mode: ${sampling.n_k_mode}
+  n_k_is_shared: TRUE
+  # radius sampling
+  p_radius_range: ${sampling.k_radius}
+  n_radius_range: ${sampling.n_k_radius}
+  n_radius_sample_mode: ${sampling.n_k_radius_mode}
+  # final checks
+  swap_metric: ${sampling.swap_metric}
+  swap_chance: ${sampling.swap_chance}

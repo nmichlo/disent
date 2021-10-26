@@ -39,6 +39,7 @@ import torch.utils.data
 from disent.dataset import DisentDataset
 from disent.dataset.data import Cars3dData
 from disent.dataset.data import DSpritesData
+from disent.dataset.data import DSpritesImagenetData
 from disent.dataset.data import GroundTruthData
 from disent.dataset.data import Shapes3dData
 from disent.dataset.data import SmallNorbData
@@ -48,8 +49,9 @@ from disent.dataset.data import XYObjectData
 from disent.dataset.data import XYSquaresData
 from disent.dataset.sampling import BaseDisentSampler
 from disent.dataset.sampling import GroundTruthSingleSampler
-from disent.nn.transform import ToStandardisedTensor
-from disent.nn.transform._transforms import ToUint8Tensor
+from disent.dataset.transform import Noop
+from disent.dataset.transform import ToImgTensorF32
+from disent.dataset.transform import ToImgTensorU8
 
 
 # ========================================================================= #
@@ -88,7 +90,7 @@ from disent.nn.transform._transforms import ToUint8Tensor
 #     return ArrayGroundTruthData.new_like(tensor, gt_data, array_chn_is_last=False)
 
 
-def load_dataset_into_memory(gt_data: GroundTruthData, obs_shape: Optional[Tuple[int, ...]] = None, batch_size=64, num_workers=min(os.cpu_count(), 16), dtype=torch.float32, raw_array=False):
+def load_dataset_into_memory(gt_data: GroundTruthData, x_shape: Optional[Tuple[int, ...]] = None, batch_size=64, num_workers=min(os.cpu_count(), 16), dtype=torch.float32, raw_array=False):
     assert dtype in {torch.float16, torch.float32}
     # TODO: this should be part of disent?
     from torch.utils.data import DataLoader
@@ -96,10 +98,10 @@ def load_dataset_into_memory(gt_data: GroundTruthData, obs_shape: Optional[Tuple
     from disent.dataset.data import ArrayGroundTruthData
     # get observation shape
     # - manually specify this if the gt_data has a transform applied that resizes the observations for example!
-    if obs_shape is None:
-        obs_shape = gt_data.obs_shape
+    if x_shape is None:
+        x_shape = gt_data.x_shape
     # load dataset into memory manually!
-    data = torch.zeros(len(gt_data), *obs_shape, dtype=dtype)
+    data = torch.zeros(len(gt_data), *x_shape, dtype=dtype)
     # load all batches
     dataloader = DataLoader(gt_data, batch_size=batch_size, shuffle=False, num_workers=num_workers, drop_last=False)
     idx = 0
@@ -110,7 +112,7 @@ def load_dataset_into_memory(gt_data: GroundTruthData, obs_shape: Optional[Tuple
     if raw_array:
         return data
     else:
-        # channels get swapped by the below ToStandardisedTensor(), maybe allow `array_chn_is_last` as param
+        # channels get swapped by the below ToImgTensorF32(), maybe allow `array_chn_is_last` as param
         return ArrayGroundTruthData.new_like(array=data, dataset=gt_data, array_chn_is_last=False)
 
 
@@ -137,10 +139,9 @@ def make_data(
         try_in_memory = False
     # transform object
     TransformCls = {
-        'uint8': ToUint8Tensor,
-        'float': ToStandardisedTensor,
-        'float32': ToStandardisedTensor,
-        'none': (lambda *args, **kwargs: (lambda x: x)),
+        'uint8': ToImgTensorU8,
+        'float32': ToImgTensorF32,
+        'none': Noop,
     }[transform_mode]
     # make data
     if   name == 'xysquares':      data = XYSquaresData(transform=TransformCls())  # equivalent: [xysquares, xysquares_8x8, xysquares_8x8_s8]
@@ -178,10 +179,23 @@ def make_data(
     elif name == 'smallnorb':      data = SmallNorbData(data_root=data_root, prepare=True, transform=TransformCls(size=64))
     elif name == 'shapes3d':       data = Shapes3dData(data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
     elif name == 'dsprites':       data = DSpritesData(data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    # CUSTOM DATASETS
+    elif name == 'dsprites_imagenet_bg_100': data = DSpritesImagenetData(visibility=100, mode='bg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_bg_80':  data = DSpritesImagenetData(visibility=80, mode='bg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_bg_60':  data = DSpritesImagenetData(visibility=60, mode='bg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_bg_40':  data = DSpritesImagenetData(visibility=40, mode='bg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_bg_20':  data = DSpritesImagenetData(visibility=20, mode='bg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    # --- #
+    elif name == 'dsprites_imagenet_fg_100': data = DSpritesImagenetData(visibility=100, mode='fg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_fg_80':  data = DSpritesImagenetData(visibility=80, mode='fg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_fg_60':  data = DSpritesImagenetData(visibility=60, mode='fg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_fg_40':  data = DSpritesImagenetData(visibility=40, mode='fg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_fg_20':  data = DSpritesImagenetData(visibility=20, mode='fg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    # DONE
     else: raise KeyError(f'invalid data name: {repr(name)}')
     # load into memory
     if load_into_memory:
-        old_data, data = data, load_dataset_into_memory(data, dtype=load_memory_dtype, obs_shape=(data.img_channels, 64, 64))
+        old_data, data = data, load_dataset_into_memory(data, dtype=load_memory_dtype, x_shape=(data.img_channels, 64, 64))
     # make dataset
     if factors:
         raise NotImplementedError('factor returning is not yet implemented in the rewrite! this needs to be fixed!')  # TODO!
@@ -195,7 +209,7 @@ def make_dataset(
     try_in_memory: bool = False,
     load_into_memory: bool = False,
     load_memory_dtype: torch.dtype = torch.float16,
-    transform_mode: TransformTypeHint = 'float',
+    transform_mode: TransformTypeHint = 'float32',
     sampler: BaseDisentSampler = None,
 ) -> DisentDataset:
     data = make_data(
@@ -228,46 +242,13 @@ def get_single_batch(dataloader, cuda=True):
 # ========================================================================= #
 
 
-def normalise_factor_idx(dataset: GroundTruthData, factor: Union[int, str]) -> int:
-    if isinstance(factor, str):
-        try:
-            f_idx = dataset.factor_names.index(factor)
-        except:
-            raise KeyError(f'{repr(factor)} is not one of: {dataset.factor_names}')
-    else:
-        f_idx = factor
-    assert isinstance(f_idx, (int, np.int32, np.int64, np.uint8))
-    assert 0 <= f_idx < dataset.num_factors
-    return int(f_idx)
-
-
-# general type
-NonNormalisedFactors = Optional[Union[Sequence[Union[int, str]], Union[int, str]]]
-
-
-def normalise_factor_idxs(gt_data: GroundTruthData, factors: NonNormalisedFactors) -> np.ndarray:
-    if factors is None:
-        factors = np.arange(gt_data.num_factors)
-    if isinstance(factors, (int, str)):
-        factors = [factors]
-    factors = np.array([normalise_factor_idx(gt_data, factor) for factor in factors])
-    assert len(set(factors)) == len(factors)
-    return factors
-
-
-def get_factor_idxs(gt_data: GroundTruthData, factors: Optional[NonNormalisedFactors] = None) -> np.ndarray:
-    if factors is None:
-        return np.arange(gt_data.num_factors)
-    return normalise_factor_idxs(gt_data, factors)
-
-
 # TODO: clean this up
 def sample_factors(gt_data: GroundTruthData, num_obs: int = 1024, factor_mode: str = 'sample_random', factor: Union[int, str] = None):
     # sample multiple random factor traversals
     if factor_mode == 'sample_traversals':
         assert factor is not None, f'factor cannot be None when factor_mode=={repr(factor_mode)}'
         # get traversal
-        f_idx = normalise_factor_idx(gt_data, factor)
+        f_idx = gt_data.normalise_factor_idx(factor)
         # generate traversals
         factors = []
         for i in range((num_obs + gt_data.factor_sizes[f_idx] - 1) // gt_data.factor_sizes[f_idx]):
