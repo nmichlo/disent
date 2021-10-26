@@ -10,14 +10,14 @@ defaults:
   - optimizer: adam
   - schedule: none
   - runtime: long
+  - metrics: all
   # logs
-  - log/metrics: all
-  - log/callbacks: vis
-  - log/backend: none
+  - run_callbacks: vis
+  - run_logging: none
   # runtime
-  - run/location: stampede_shr
-  - run/launcher: slurm
-  - run/action: train
+  - run_location: stampede_shr
+  - run_launcher: slurm
+  - run_action: train
   # entries in this file override entries from default lists
   - _self_
 

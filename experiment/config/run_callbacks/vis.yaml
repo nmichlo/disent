@@ -1,14 +1,14 @@
-name: vis_slow
+# @package _global_
 
-callback_items:
+callbacks:
   latent_cycle:
     seed: 7777
-    every_n_steps: 7200
+    every_n_steps: 3600
     mode: 'minmax_interval_cycle'  # 'minmax_interval_cycle', 'fitted_gaussian_cycle'
     begin_first_step: TRUE
 
   gt_dists:
     seed: 7777
-    every_n_steps: 7200
+    every_n_steps: 3600
     traversal_repeats: 100
     begin_first_step: TRUE

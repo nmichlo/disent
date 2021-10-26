@@ -108,7 +108,7 @@ def hydra_check_data_paths(cfg):
 
 def hydra_make_logger(cfg):
     # make wandb logger
-    backend = cfg.log.backend.wandb
+    backend = cfg.logging.wandb
     if backend.enabled:
         log.info('Initialising Weights & Biases Logger')
         return WandbLogger(
@@ -131,7 +131,7 @@ def _callback_make_progress(cfg, callback_cfg):
 
 
 def _callback_make_latent_cycle(cfg, callback_cfg):
-    if cfg.log.backend.wandb.enabled:
+    if cfg.logging.wandb.enabled:
         # checks
         if not (('vis_min' in cfg.dataset and 'vis_max' in cfg.dataset) or ('vis_mean' in cfg.dataset and 'vis_std' in cfg.dataset)):
             log.warning('dataset does not have visualisation ranges specified, set `vis_min` & `vis_max` OR `vis_mean` & `vis_std`')
@@ -174,9 +174,8 @@ _CALLBACK_MAKERS = {
 
 
 def hydra_append_callbacks(callbacks, cfg):
-    callback_items = cfg.log.callbacks.callback_items
     # add all callbacks
-    for name, item in callback_items.items():
+    for name, item in cfg.callbacks.items():
         # custom callback handling vs instantiation
         if '_target_' in item:
             name = f'{name} ({item._target_})'
@@ -193,13 +192,13 @@ def hydra_append_callbacks(callbacks, cfg):
 
 def hydra_append_metric_callback(callbacks, cfg):
     # set default values used later
-    default_every_n_steps    = cfg.log.metrics.default_every_n_steps
-    default_on_final         = cfg.log.metrics.default_on_final
-    default_on_train         = cfg.log.metrics.default_on_train
-    default_begin_first_step = cfg.log.metrics.default_begin_first_step
+    default_every_n_steps    = cfg.metrics.default_every_n_steps
+    default_on_final         = cfg.metrics.default_on_final
+    default_on_train         = cfg.metrics.default_on_train
+    default_begin_first_step = cfg.metrics.default_begin_first_step
     # get metrics
-    metric_list = cfg.log.metrics.metric_list
-    assert isinstance(metric_list, (list, ListConfig)), f'`log.metrics.metric_list` is not a list, got: {type(metric_list)}'
+    metric_list = cfg.metrics.metric_list
+    assert isinstance(metric_list, (list, ListConfig)), f'`metrics.metric_list` is not a list, got: {type(metric_list)}'
     # get metrics
     for metric in metric_list:
         assert isinstance(metric, (dict, DictConfig)), f'entry in metric list is not a dictionary, got type: {type(metric)} or value: {repr(metric)}'
@@ -377,13 +376,14 @@ def train(cfg: DictConfig, config_path: str = None):
     # BEGIN TRAINING
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
 
-    # print the config
-    print_cfg = dict(cfg)
-    cfg_str_logging  = make_box_str(OmegaConf.to_yaml({'log': print_cfg.pop('log')}))
-    cfg_str_dataset  = make_box_str(OmegaConf.to_yaml({'data': print_cfg.pop('data'), 'sampling': print_cfg.pop('sampling'), 'augment': print_cfg.pop('augment')}))
-    cfg_str_system   = make_box_str(OmegaConf.to_yaml({'framework':  print_cfg.pop('framework'), 'model':  print_cfg.pop('model')}))
-    cfg_str_settings = make_box_str(OmegaConf.to_yaml({'defaults_settings': print_cfg.pop('defaults_settings'), 'settings': print_cfg.pop('settings')}))
-    cfg_str_other    = make_box_str(OmegaConf.to_yaml(print_cfg))
+    # get config sections
+    print_cfg, boxed_pop = dict(cfg), lambda *keys: make_box_str(OmegaConf.to_yaml({k: print_cfg.pop(k) for k in keys} if keys else print_cfg))
+    cfg_str_logging  = boxed_pop('logging', 'callbacks', 'metrics')
+    cfg_str_dataset  = boxed_pop('data', 'sampling', 'augment')
+    cfg_str_system   = boxed_pop('framework', 'model', 'schedule')
+    cfg_str_settings = boxed_pop('defaults_settings', 'settings')
+    cfg_str_other    = boxed_pop()
+    # print config sections
     log.info(f'Final Config For Action: {cfg.action}\n\nLOGGING:{cfg_str_logging}\nDATASET:{cfg_str_dataset}\nSYSTEM:{cfg_str_system}\nTRAINER:{cfg_str_other}\nSETTINGS:{cfg_str_settings}')
 
     # save hparams TODO: is this a pytorch lightning bug? The trainer should automatically save these if hparams is set?
