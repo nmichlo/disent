@@ -5,9 +5,9 @@
 # ========================================================================= #
 
 export USERNAME="n_michlo"
-export PROJECT="final-01__incr-overlap"
-export PARTITION="stampede"
-export PARALLELISM=28
+export PROJECT="final-02__naive-triplet-equivalence"
+export PARTITION="batch"
+export PARALLELISM=24
 
 # source the helper file
 source "$(dirname "$(dirname "$(realpath -s "$0")")")/helper.sh"
@@ -16,33 +16,34 @@ source "$(dirname "$(dirname "$(realpath -s "$0")")")/helper.sh"
 # Experiment                                                                #
 # ========================================================================= #
 
-# background launch various xysquares
-# -- original experiment also had dfcvae
-# 5 * (2*2*8 = 32) = 160
+# make sure the tvae is actually working
+# like a vae when the triplet loss is disabled
+# 1 * (4=4) = 4
 submit_sweep \
-    +DUMMY.repeat=5 \
-    +EXTRA.tags='sweep_xy_squares' \
+    +DUMMY.repeat=1,2 \
+    +EXTRA.tags='check_equivalence' \
     \
     run_length=medium \
-    framework=betavae,adavae_os \
+    metrics=all \
     \
+    framework=tvae \
+    framework.cfg.triplet_scale=0.0 \
     settings.framework.beta=0.0316 \
-    settings.model.z_size=9,25 \
     \
     dataset=xysquares \
-    dataset.data.grid_spacing=8,7,6,5,4,3,2,1
+    sampling=gt_dist__manhat_scaled,gt_dist__manhat,gt__dist_combined,gt_dist__factors
 
-# background launch traditional datasets
-# -- original experiment also had dfcvae
-# 5 * (2*2*4 = 16) = 80
+# check how sampling effects beta and adavae
+# 2 * (2*3=6) = 12
 submit_sweep \
-    +DUMMY.repeat=5 \
-    +EXTRA.tags='sweep_other' \
+    +DUMMY.repeat=1,2 \
+    +EXTRA.tags='check_vae_sampling' \
     \
     run_length=medium \
-    framework=betavae,adavae_os \
+    metrics=all \
     \
+    framework=betavae,adavae \
     settings.framework.beta=0.0316 \
-    settings.model.z_size=9,25 \
     \
-    dataset=cars3d,shapes3d,dsprites,smallnorb
+    dataset=xysquares \
+    sampling=gt_dist__manhat_scaled,gt_dist__manhat,gt__dist_combined,gt_dist__factors

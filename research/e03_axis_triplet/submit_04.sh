@@ -4,7 +4,8 @@
 # Settings                                                                  #
 # ========================================================================= #
 
-export PROJECT="exp-axis-triplet-4.0"
+export USERNAME="n_michlo"
+export PROJECT="final-03__axis-triplet-4.0"
 export PARTITION="stampede"
 export PARALLELISM=24
 
@@ -17,9 +18,13 @@ source "$(dirname "$(dirname "$(realpath -s "$0")")")/helper.sh"
 
 clog_cudaless_nodes "$PARTITION" 86400 "C-disent" # 24 hours
 
+# TODO: update this script
+echo UPDATE THIS SCRIPT
+exit 1
+
 # RESULT:
 # - BAD: ada_thresh_mode=symmetric_kl, rather use "dist"
-# - BAD: system.framework.cfg_cls.adaave_decode_orig=FALSE, rather use TRUE
+# - BAD: framework.cfg.adaave_decode_orig=FALSE, rather use TRUE
 # - adat_share_ave_mode depends on other settings, but usually doesnt matter
 # - adaave_augment_orig depends on other settings, but usually doesnt matter
 # - GOOD: adat_triplet_loss=triplet_hard_neg_ave
@@ -42,16 +47,16 @@ submit_sweep \
     sampling.triplet_swap_chance=0 \
     dataset=xysquares \
     \
-    system.framework.cfg_cls.triplet_loss=triplet \
-    system.framework.cfg_cls.triplet_margin_min=0.001 \
-    system.framework.cfg_cls.triplet_margin_max=1 \
-    system.framework.cfg_cls.triplet_scale=0.1 \
-    system.framework.cfg_cls.triplet_p=1 \
+    framework.cfg.triplet_loss=triplet \
+    framework.cfg.triplet_margin_min=0.001 \
+    framework.cfg.triplet_margin_max=1 \
+    framework.cfg.triplet_scale=0.1 \
+    framework.cfg.triplet_p=1 \
     \
-    system.framework.cfg_cls.detach=FALSE \
-    system.framework.cfg_cls.detach_decoder=FALSE \
-    system.framework.cfg_cls.detach_no_kl=FALSE \
-    system.framework.cfg_cls.detach_std=NULL \
+    framework.cfg.detach=FALSE \
+    framework.cfg.detach_decoder=FALSE \
+    framework.cfg.detach_no_kl=FALSE \
+    framework.cfg.detach_std=NULL \
     \
     framework.module.ada_average_mode=gvae \
     framework.module.ada_thresh_mode=symmetric_kl,dist \

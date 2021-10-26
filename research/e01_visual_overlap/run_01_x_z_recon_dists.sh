@@ -5,9 +5,9 @@
 # ========================================================================= #
 
 export USERNAME="n_michlo"
-export PROJECT="exp-gt-vs-learnt-dists"
+export PROJECT="final-01__gt-vs-learnt-dists"
 export PARTITION="stampede"
-export PARALLELISM=24
+export PARALLELISM=28
 
 # source the helper file
 source "$(dirname "$(dirname "$(realpath -s "$0")")")/helper.sh"
@@ -19,22 +19,20 @@ source "$(dirname "$(dirname "$(realpath -s "$0")")")/helper.sh"
 clog_cudaless_nodes "$PARTITION" 86400 "C-disent" # 24 hours
 
 
-# 1 * (3 * 4 * 6) = 24
+# 1 * (3 * 6 * 4 * 2) = 144
 submit_sweep \
     +DUMMY.repeat=1 \
     +EXTRA.tags='sweep' \
     \
     model=linear,vae_fc,vae_conv64 \
     \
-    run_length=short \
-    metrics=fast \
+    run_length=medium \
+    metrics=all \
     \
     dataset=xyobject,xyobject_shaded,shapes3d,dsprites,cars3d,smallnorb \
     sampling=default__bb \
-    \
-    framework.beta=0.001 \
-    optimizer.lr=3e-4 \
     framework=ae,X--adaae_os,betavae,adavae_os \
-    model.z_size=25 \
     \
-    hydra.launcher.exclude='"mscluster93,mscluster94,mscluster97"'  # we don't want to sweep over these
+    settings.framework.beta=0.0316 \
+    settings.optimizer.lr=3e-4 \
+    settings.model.z_size=9,25
