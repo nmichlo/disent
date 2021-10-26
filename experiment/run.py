@@ -67,10 +67,10 @@ log = logging.getLogger(__name__)
 
 
 def hydra_check_cuda(cfg):
-    cuda = cfg.defaults_settings.trainer.cuda
+    cuda = cfg.dsettings.trainer.cuda
     # set cuda
     if cuda in {'try_cuda', None}:
-        cfg.defaults_settings.trainer.cuda = torch.cuda.is_available()
+        cfg.dsettings.trainer.cuda = torch.cuda.is_available()
         if not cuda:
             log.warning('CUDA was requested, but not found on this system... CUDA has been disabled!')
     else:
@@ -87,11 +87,11 @@ def hydra_check_cuda(cfg):
 
 def hydra_check_data_paths(cfg):
     prepare_data_per_node = cfg.trainer.prepare_data_per_node
-    data_root             = cfg.defaults_settings.storage.data_root
+    data_root             = cfg.dsettings.storage.data_root
     # check relative paths
     if not os.path.isabs(data_root):
         log.warning(
-            f'A relative path was specified for defaults_settings.storage.data_root={repr(data_root)}.'
+            f'A relative path was specified for dsettings.storage.data_root={repr(data_root)}.'
             f' This is probably an error! Using relative paths can have unintended consequences'
             f' and performance drawbacks if the current working directory is on a shared/network drive.'
             f' Hydra config also uses a new working directory for each run of the program, meaning'
@@ -99,7 +99,7 @@ def hydra_check_data_paths(cfg):
         )
         if prepare_data_per_node:
             log.error(
-                f'trainer.prepare_data_per_node={repr(prepare_data_per_node)} but defaults_settings.storage.data_root='
+                f'trainer.prepare_data_per_node={repr(prepare_data_per_node)} but dsettings.storage.data_root='
                 f'{repr(data_root)} is a relative path which may be an error! Try specifying an'
                 f' absolute path that is guaranteed to be unique from each node, eg. default_settings.storage.data_root=/tmp/dataset'
             )
@@ -118,7 +118,7 @@ def hydra_make_logger(cfg):
             name=backend.name,        # cometml: experiment_name
             group=backend.group,      # experiment group
             tags=backend.tags,        # experiment tags
-            save_dir=hydra.utils.to_absolute_path(cfg.defaults_settings.storage.logs_dir),  # relative to hydra's original cwd
+            save_dir=hydra.utils.to_absolute_path(cfg.dsettings.storage.logs_dir),  # relative to hydra's original cwd
         )
     # don't return a logger
     return None  # LoggerCollection([...]) OR DummyLogger(...)
@@ -360,7 +360,7 @@ def train(cfg: DictConfig, config_path: str = None):
     trainer = set_debug_trainer(pl.Trainer(
         logger=logger,
         callbacks=callbacks,
-        gpus=1 if cfg.defaults_settings.trainer.cuda else 0,
+        gpus=1 if cfg.dsettings.trainer.cuda else 0,
         # we do this here too so we don't run the final
         # metrics, even through we check for it manually.
         terminate_on_nan=True,
@@ -381,7 +381,7 @@ def train(cfg: DictConfig, config_path: str = None):
     cfg_str_logging  = boxed_pop('logging', 'callbacks', 'metrics')
     cfg_str_dataset  = boxed_pop('dataset', 'sampling', 'augment')
     cfg_str_system   = boxed_pop('framework', 'model', 'schedule')
-    cfg_str_settings = boxed_pop('defaults_settings', 'settings')
+    cfg_str_settings = boxed_pop('dsettings', 'settings')
     cfg_str_other    = boxed_pop()
     # print config sections
     log.info(f'Final Config For Action: {cfg.action}\n\nLOGGING:{cfg_str_logging}\nDATASET:{cfg_str_dataset}\nSYSTEM:{cfg_str_system}\nTRAINER:{cfg_str_other}\nSETTINGS:{cfg_str_settings}')

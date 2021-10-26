@@ -1,6 +1,6 @@
 # @package _global_
 
-defaults_settings:
+dsettings:
   trainer:
     cuda: TRUE
   storage:
@@ -16,14 +16,14 @@ trainer:
 
 dataloader:
   num_workers: 32  # max 128, more than 16 doesn't really seem to help (tested on batch size 256*3)?
-  pin_memory: ${defaults_settings.trainer.cuda}
+  pin_memory: ${dsettings.trainer.cuda}
   batch_size: ${settings.dataset.batch_size}
 
 hydra:
   job:
     name: 'disent'
   run:
-    dir: '${defaults_settings.storage.logs_dir}/hydra_run/${now:%Y-%m-%d_%H-%M-%S}_${hydra.job.name}'
+    dir: '${dsettings.storage.logs_dir}/hydra_run/${now:%Y-%m-%d_%H-%M-%S}_${hydra.job.name}'
   sweep:
-    dir: '${defaults_settings.storage.logs_dir}/hydra_sweep/${now:%Y-%m-%d_%H-%M-%S}_${hydra.job.name}'
+    dir: '${dsettings.storage.logs_dir}/hydra_sweep/${now:%Y-%m-%d_%H-%M-%S}_${hydra.job.name}'
     subdir: '${hydra.job.id}' # hydra.job.id is not available for dir

@@ -9,8 +9,8 @@ data:
   keep_ratio: ${settings.framework_opt.usage_ratio}
   gt_data:
     _target_: disent.dataset.data.SmallNorbData
-    data_root: ${defaults_settings.storage.data_root}
-    prepare: ${defaults_settings.dataset.prepare}
+    data_root: ${dsettings.storage.data_root}
+    prepare: ${dsettings.dataset.prepare}
     is_test: False
 
 transform:

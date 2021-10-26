@@ -7,9 +7,9 @@ data:
   _target_: disent.dataset.data.DSpritesImagenetData
   visibility: 20
   mode: fg
-  data_root: ${defaults_settings.storage.data_root}
-  prepare: ${defaults_settings.dataset.prepare}
-  in_memory: ${defaults_settings.dataset.try_in_memory}
+  data_root: ${dsettings.storage.data_root}
+  prepare: ${dsettings.dataset.prepare}
+  in_memory: ${dsettings.dataset.try_in_memory}
 
 transform:
   _target_: disent.dataset.transform.ToImgTensorF32

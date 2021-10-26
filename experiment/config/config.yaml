@@ -13,7 +13,7 @@ defaults:
   - metrics: all
   # logs
   - run_callbacks: vis
-  - run_logging: none
+  - run_logging: wandb
   # runtime
   - run_location: stampede_shr
   - run_launcher: slurm

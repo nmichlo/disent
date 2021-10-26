@@ -97,7 +97,7 @@ class HydraDataModule(pl.LightningDataModule):
         # batch_augment: augments transformed data for inputs, should be applied across a batch
         # which version of the dataset we need to use if GPU augmentation is enabled or not.
         # - corresponds to below in train_dataloader()
-        if self.hparams.defaults_settings.dataset.gpu_augment:
+        if self.hparams.dsettings.dataset.gpu_augment:
             # TODO: this is outdated!
             self.batch_augment = DisentDatasetTransform(transform=self.input_transform)
             warnings.warn('`gpu_augment=True` is outdated and may no longer be equivalent to `gpu_augment=False`')
@@ -149,7 +149,7 @@ class HydraDataModule(pl.LightningDataModule):
         """
         # Select which version of the dataset we need to use if GPU augmentation is enabled or not.
         # - corresponds to above in __init__()
-        if self.hparams.defaults_settings.dataset.gpu_augment:
+        if self.hparams.dsettings.dataset.gpu_augment:
             dataset = self.dataset_train_noaug
         else:
             dataset = self.dataset_train_aug
@@ -158,7 +158,7 @@ class HydraDataModule(pl.LightningDataModule):
             'shuffle': True,
             # This should usually be TRUE if cuda is enabled.
             # About 20% faster with the xysquares dataset, RTX 2060 Rev. A, and Intel i7-3930K
-            'pin_memory': self.hparams.defaults_settings.trainer.cuda
+            'pin_memory': self.hparams.dsettings.trainer.cuda
         }
         # get config kwargs
         kwargs = self.hparams.dataloader
