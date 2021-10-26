@@ -1,27 +1,32 @@
 # @package _global_
-logging:
-  logs_dir: 'logs'
+
+dsettings:
+  trainer:
+    cuda: NULL  # auto-detect cuda, some nodes are not configured correctly
+  storage:
+    logs_dir: 'logs'
+    data_root: '/tmp/${oc.env:USER}/datasets'
+  dataset:
+    gpu_augment: FALSE
+    prepare: TRUE
+    try_in_memory: TRUE
 
 trainer:
-  cuda: NULL  # auto detect cuda, some nodes are not configured correctly
   prepare_data_per_node: TRUE
 
-dataset:
+dataloader:
   num_workers: 16
-  data_root: '/tmp/${oc.env:USER}/datasets'
-  pin_memory: ${trainer.cuda}
-  try_in_memory: TRUE
-  gpu_augment: FALSE
-  prepare: TRUE
+  pin_memory: ${dsettings.trainer.cuda}
+  batch_size: ${settings.dataset.batch_size}
 
 hydra:
   job:
     name: 'disent'
   run:
-    dir: '${logging.logs_dir}/hydra_run/${now:%Y-%m-%d_%H-%M-%S}_${hydra.job.name}'
+    dir: '${dsettings.storage.logs_dir}/hydra_run/${now:%Y-%m-%d_%H-%M-%S}_${hydra.job.name}'
   sweep:
-    dir: '${logging.logs_dir}/hydra_sweep/${now:%Y-%m-%d_%H-%M-%S}_${hydra.job.name}'
+    dir: '${dsettings.storage.logs_dir}/hydra_sweep/${now:%Y-%m-%d_%H-%M-%S}_${hydra.job.name}'
     subdir: '${hydra.job.id}' # hydra.job.id is not available for dir
 
-job:
-  partition: stampede
+#job:
+#  partition: stampede

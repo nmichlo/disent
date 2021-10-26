@@ -1,17 +1,21 @@
+defaults:
+  - _data_type_: gt
+
 name: mpi3d_toy
+
 data:
   _target_: disent.dataset.data.Mpi3dData
-  data_root: ${dataset.data_root}
-  prepare: ${dataset.prepare}
-  in_memory: ${dataset.try_in_memory}
+  data_root: ${dsettings.storage.data_root}
+  prepare: ${dsettings.dataset.prepare}
+  in_memory: ${dsettings.dataset.try_in_memory}
   subset: 'toy'
+
 transform:
   _target_: disent.dataset.transform.ToImgTensorF32
-  mean: ${dataset.vis_mean}
-  std: ${dataset.vis_std}
-x_shape: [3, 64, 64]
+  mean: ${dataset.meta.vis_mean}
+  std: ${dataset.meta.vis_std}
 
-data_type: gt
-
-vis_mean: [0.22681593831231503, 0.22353985202496676, 0.22666059934624702]
-vis_std: [0.07854112062669572, 0.07319301658077378, 0.0790763900050426]
+meta:
+  x_shape: [3, 64, 64]
+  vis_mean: [0.22681593831231503, 0.22353985202496676, 0.22666059934624702]
+  vis_std: [0.07854112062669572, 0.07319301658077378, 0.0790763900050426]

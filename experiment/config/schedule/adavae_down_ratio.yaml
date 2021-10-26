@@ -1,21 +1,21 @@
-# @package _global_
-schedules_name: averaging_decrease__ratio
-schedules:
+name: averaging_decrease__ratio
+
+schedule_items:
   adat_triplet_ratio:
     _target_: disent.schedule.LinearSchedule
     start_step: 0
-    end_step: ${trainer.steps}
+    end_step: ${trainer.max_steps}
     r_start: 1.0  # ada triplet
     r_end: 0.0    # triplet
   adat_triplet_soft_scale:
     _target_: disent.schedule.LinearSchedule
     start_step: 0
-    end_step: ${trainer.steps}
+    end_step: ${trainer.max_steps}
     r_start: 1.0  # loss active
     r_end: 0.0    # loss inactive
   adat_triplet_share_scale:  # reversed compared to others
     _target_: disent.schedule.LinearSchedule
     start_step: 0
-    end_step: ${trainer.steps}
+    end_step: ${trainer.max_steps}
     r_start: 0.5  # ada weighted triplet
     r_end: 1.0    # normal triplet

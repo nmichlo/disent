@@ -1,8 +1,15 @@
+defaults:
+  - _input_mode_: single
+
 name: infovae
-module:
+
+cfg:
   _target_: disent.frameworks.vae.InfoVae.cfg
+  # base ae
+  recon_loss: ${settings.framework.recon_loss}
+  loss_reduction: ${settings.framework.loss_reduction}
   # base vae
-  latent_distribution: ${framework.optional.latent_distribution}
+  latent_distribution: ${settings.framework_opt.latent_distribution}
   # disable various components
   disable_decoder: FALSE
   disable_reg_loss: FALSE
@@ -16,6 +23,5 @@ module:
   info_lambda: 5.0
   info_kernel: "rbf"  # rbf kernel is the only kernel currently
 
-# settings used elsewhere
-data_sample_mode: single
-model_z_multiplier: 2
+meta:
+  model_z_multiplier: 2

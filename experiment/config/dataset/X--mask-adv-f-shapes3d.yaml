@@ -1,26 +1,28 @@
+defaults:
+  - _data_type_: random
+
 name: mask_adv_f_shapes3d
+
 data:
   _target_: disent.dataset.wrapper.MaskedDataset
   mask:
     _target_: research.e06_adversarial_data.util_load_adversarial_mask.get_closest_mask
-    usage_ratio: ${framework.optional.usage_ratio}
+    usage_ratio: ${settings.framework_opt.usage_ratio}
     # pickle_file: '${oc.env:HOME}/workspace/research/disent/out/adversarial_mask/2021-09-27--21-33-57_EXP_shapes3d_1000x256_all_std_mean/data.pkl.gz'
     pickle_file: '${oc.env:HOME}/workspace/research/disent/out/adversarial_mask/2021-09-27--23-09-05_EXP_shapes3d_1000x256_all_std_gmean/data.pkl.gz'
   randomize: FALSE
   data:
     _target_: disent.dataset.data.Shapes3dData
-    data_root: ${dataset.data_root}
-    prepare: ${dataset.prepare}
-    in_memory: ${dataset.try_in_memory}
+    data_root: ${dsettings.storage.data_root}
+    prepare: ${dsettings.dataset.prepare}
+    in_memory: ${dsettings.dataset.try_in_memory}
+
 transform:
   _target_: disent.dataset.transform.ToImgTensorF32
-  mean: ${dataset.vis_mean}
-  std: ${dataset.vis_std}
-x_shape: [3, 64, 64]
+  mean: ${dataset.meta.vis_mean}
+  std: ${dataset.meta.vis_std}
 
-data_type: random
-
-vis_mean: [0.502584966788819, 0.5787597566089667, 0.6034499731859578]
-vis_std: [0.2940814043555559, 0.3443979087517214, 0.3661685981524748]
-
-# TODO: this does not yet copy the data to /tmp/ and thus if run on a cluster of a network drive, this will hammer the network disk. Fix this!
+meta:
+  x_shape: [3, 64, 64]
+  vis_mean: [0.502584966788819, 0.5787597566089667, 0.6034499731859578]
+  vis_std: [0.2940814043555559, 0.3443979087517214, 0.3661685981524748]

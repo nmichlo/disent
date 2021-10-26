@@ -1,18 +1,24 @@
 # @package _global_
+
+defaults:
+  - override /hydra/job_logging: colorlog
+  - override /hydra/hydra_logging: colorlog
+
+trainer:
+  log_every_n_steps: 100
+  flush_logs_every_n_steps: 200
+  progress_bar_refresh_rate: 0  # disable the builtin progress bar
+
 callbacks:
   progress:
     interval: 15
 
 logging:
-  # logging frequency in number of batchers, default: log_every_n_steps=50, flush_logs_every_n_steps=100
-  log_every_n_steps: 100
-  flush_logs_every_n_steps: 200
-  # log to online service
   wandb:
     enabled: TRUE
     offline: FALSE
-    entity: '${job.user}'
-    project: '${job.project}'
-    name: '${job.name}'
+    entity: '${settings.job.user}'
+    project: '${settings.job.project}'
+    name: '${settings.job.name}'
     group: null
     tags: []

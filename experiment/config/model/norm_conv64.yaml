@@ -1,16 +1,18 @@
 name: norm_conv64
-encoder:
+
+encoder_cls:
   _target_: disent.model.ae.EncoderConv64Norm
-  x_shape: ${dataset.x_shape}
-  z_size: ${model.z_size}
-  z_multiplier: ${framework.model_z_multiplier}
+  x_shape: ${data.meta.x_shape}
+  z_size: ${settings.model.z_size}
+  z_multiplier: ${framework.meta.model_z_multiplier}
   activation: ${model.activation}
   norm: ${model.norm}
   norm_pre_act: ${model.norm_pre_act}
-decoder:
+
+decoder_cls:
   _target_: disent.model.ae.DecoderConv64Norm
-  x_shape: ${dataset.x_shape}
-  z_size: ${model.z_size}
+  x_shape: ${data.meta.x_shape}
+  z_size: ${settings.model.z_size}
   activation: ${model.activation}
   norm: ${model.norm}
   norm_pre_act: ${model.norm_pre_act}

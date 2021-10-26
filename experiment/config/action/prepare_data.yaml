@@ -1,8 +1,0 @@
-# @package _global_
-action:
-  name: prepare_data
-
-# override settings from run_location
-dataset:
-  try_in_memory: FALSE
-  prepare: TRUE

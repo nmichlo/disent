@@ -29,3 +29,4 @@ from disent.util.lightning.callbacks._callbacks_pl import LoggerProgressCallback
 
 from disent.util.lightning.callbacks._callbacks_vae import VaeMetricLoggingCallback
 from disent.util.lightning.callbacks._callbacks_vae import VaeLatentCycleLoggingCallback
+from disent.util.lightning.callbacks._callbacks_vae import VaeGtDistsLoggingCallback

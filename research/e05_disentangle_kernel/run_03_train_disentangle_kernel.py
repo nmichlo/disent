@@ -238,7 +238,7 @@ def run_disentangle_dataset_kernel(cfg):
     seed(disent.util.seeds.seed)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # initialise dataset and get factor names to disentangle
-    dataset = H.make_dataset(cfg.data.name, factors=True, data_root=cfg.dataset.data_root)
+    dataset = H.make_dataset(cfg.data.name, factors=True, data_root=cfg.default_settings.storage.data_root)
     disentangle_factor_idxs = dataset.gt_data.normalise_factor_idxs(cfg.kernel.disentangle_factors)
     cfg.kernel.disentangle_factors = tuple(dataset.gt_data.factor_names[i] for i in disentangle_factor_idxs)
     log.info(f'Dataset has ground-truth factors: {dataset.gt_data.factor_names}')
@@ -261,8 +261,8 @@ def run_disentangle_dataset_kernel(cfg):
         framework.logger.log_hyperparams(framework.hparams)
     # train
     trainer = pl.Trainer(
-        log_every_n_steps=cfg.logging.setdefault('log_every_n_steps', 50),
-        flush_logs_every_n_steps=cfg.logging.setdefault('flush_logs_every_n_steps', 100),
+        log_every_n_steps=cfg.log.setdefault('log_every_n_steps', 50),
+        flush_logs_every_n_steps=cfg.log.setdefault('flush_logs_every_n_steps', 100),
         logger=logger,
         callbacks=callbacks,
         gpus=1 if cfg.trainer.cuda else 0,

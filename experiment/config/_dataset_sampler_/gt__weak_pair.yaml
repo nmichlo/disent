@@ -1,8 +1,0 @@
-# @package _global_
-dataset:
-  sampler:
-    name: gt__weak_pair
-    cls:
-      _target_: disent.dataset.sampling.GroundTruthPairOrigSampler
-      # factor sampling
-      p_k: ${sampling.k.1}

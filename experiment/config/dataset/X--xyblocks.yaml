@@ -1,14 +1,18 @@
+defaults:
+  - _data_type_: gt
+
 name: xyblocks
+
 data:
   _target_: disent.dataset.data.XYBlocksData
   rgb: TRUE
+
 transform:
   _target_: disent.dataset.transform.ToImgTensorF32
-  mean: ${dataset.vis_mean}
-  std: ${dataset.vis_std}
-x_shape: [3, 64, 64]
+  mean: ${dataset.meta.vis_mean}
+  std: ${dataset.meta.vis_std}
 
-data_type: gt
-
-vis_mean: [0.10040509259259259, 0.10040509259259259, 0.10040509259259259]
-vis_std: [0.21689087652106678, 0.21689087652106676, 0.21689087652106678]
+meta:
+  x_shape: [3, 64, 64]
+  vis_mean: [0.10040509259259259, 0.10040509259259259, 0.10040509259259259]
+  vis_std: [0.21689087652106678, 0.21689087652106676, 0.21689087652106678]

@@ -1,8 +1,15 @@
+defaults:
+  - _input_mode_: triplet
+
 name: adanegtvae
-module:
+
+cfg:
   _target_: disent.frameworks.vae.experimental.AdaNegTripletVae.cfg
+  # base ae
+  recon_loss: ${settings.framework.recon_loss}
+  loss_reduction: ${settings.framework.loss_reduction}
   # base vae
-  latent_distribution: ${framework.optional.latent_distribution}
+  latent_distribution: ${settings.framework_opt.latent_distribution}
   # disable various components
   disable_decoder: FALSE
   disable_reg_loss: FALSE
@@ -10,7 +17,7 @@ module:
   disable_aug_loss: FALSE
   disable_posterior_scale: NULL
   # Beta-VAE
-  beta: ${framework.beta}
+  beta: ${settings.framework.beta}
   # tvae: triplet stuffs
   triplet_loss: triplet
   triplet_margin_min: 0.001
@@ -26,6 +33,5 @@ module:
   # ada_tvae - averaging
   adat_share_mask_mode: posterior
 
-# settings used elsewhere
-data_sample_mode: triplet
-model_z_multiplier: 2
+meta:
+  model_z_multiplier: 2

@@ -1,6 +1,6 @@
 metric_list:
-  - mig:
-  - sap:
+  - mig: {}
+  - sap: {}
   - dci:
       every_n_steps: 7200
       on_final: TRUE
@@ -12,3 +12,4 @@ metric_list:
 default_on_final: TRUE
 default_on_train: TRUE
 default_every_n_steps: 2400
+default_begin_first_step: FALSE

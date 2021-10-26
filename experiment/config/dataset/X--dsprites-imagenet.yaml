@@ -1,21 +1,25 @@
-name: dsprites_imagenet_${dataset.data.mode}_${dataset.data.visibility}
+defaults:
+  - _data_type_: gt
+
+name: dsprites_imagenet_${dataset.mode}_${dataset.visibility}
+
 data:
   _target_: disent.dataset.data.DSpritesImagenetData
   visibility: 40
   mode: bg
-  data_root: ${dataset.data_root}
-  prepare: ${dataset.prepare}
-  in_memory: ${dataset.try_in_memory}
+  data_root: ${dsettings.storage.data_root}
+  prepare: ${dsettings.dataset.prepare}
+  in_memory: ${dsettings.dataset.try_in_memory}
+
 transform:
   _target_: disent.dataset.transform.ToImgTensorF32
-  mean: ${dataset.vis_mean}
-  std: ${dataset.vis_std}
-x_shape: [3, 64, 64]
+  mean: ${dataset.meta.vis_mean}
+  std: ${dataset.meta.vis_std}
 
-data_type: gt
-
-vis_mean: ${exit:EXITING... dsprites-imagenet has been disabled} # ${dataset.__STATS.${dataset.name}.vis_mean}
-vis_std: ${exit:EXITING... dsprites-imagenet has been disabled} # ${dataset.__STATS.${dataset.name}.vis_std}
+meta:
+  x_shape: [3, 64, 64]
+  vis_mean: ${exit:EXITING... dsprites-imagenet has been disabled} # ${dataset.__STATS.${dataset.name}.vis_mean}
+  vis_std: ${exit:EXITING... dsprites-imagenet has been disabled} # ${dataset.__STATS.${dataset.name}.vis_std}
 
 __STATS:
   dsprites_imagenet_fg_100:

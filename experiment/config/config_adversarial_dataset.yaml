@@ -26,7 +26,7 @@ framework:
   # | dataset_name: 'cars3d'  # cars3d, smallnorb, xysquares_8x8_mini
   dataset_batch_size: 2048  # x3
   dataset_num_workers: ${dataset.num_workers}
-  data_root: ${dataset.data_root}
+  data_root: ${dsettings.storage.data_root}
   # adversarial loss options
   # | adversarial_mode: 'invert_margin_0.005'  # [self, invert_margin_0.005] invert, invert_unbounded
   adversarial_swapped: FALSE
@@ -48,7 +48,7 @@ job:
   # saving
   save_prefix: ''
   save_data: TRUE
-  name: TEST-${framework.dataset_name}_${framework.adversarial_mode}_${framework.sampler_name}_s${trainer.steps}_${framework.optimizer_name}_lr${framework.optimizer_lr} # _wd${framework.optimizer_kwargs.weight_decay}
+  name: TEST-${framework.dataset_name}_${framework.adversarial_mode}_${framework.sampler_name}_s${trainer.max_steps}_${framework.optimizer_name}_lr${framework.optimizer_lr} # _wd${framework.optimizer_kwargs.weight_decay}
   # wandb
   user: 'n_michlo'
   project: 'exp-disentangle-dataset'

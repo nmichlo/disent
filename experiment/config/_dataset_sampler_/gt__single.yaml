@@ -1,6 +1,0 @@
-# @package _global_
-dataset:
-  sampler:
-    name: gt__single
-    cls:
-      _target_: disent.dataset.sampling.GroundTruthSingleSampler

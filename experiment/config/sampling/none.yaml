@@ -1,20 +1,8 @@
-# @package _global_
-sampling:
-  name: none
-  # this config forces an error to be thrown! This is to make
-  # sure that we don't encounter errors when updating old configs.
+# SPECIALIZATION: force the user to choose a different sampling strategy
+defaults:
+  - _sampler_: "${exit:EXITING... please specify in the defaults list a sampling method other than none}"
 
-specializations:
-  _dataset_sampler_: "${exit:EXITING... please specify in the defaults list a sampling method other than none}"
+name: none
 
-# CUSTOM DEFAULTS SPECIALIZATION
-# - This key is deleted on load and the correct key on the root config is set similar to defaults.
-# - Unfortunately this hack needs to exists as hydra does not yet support this kinda of variable interpolation in defaults.
-# specializations:
-  # _dataset_sampler_: ${dataset.data_type}__${framework.data_sample_mode}
-
-  # newer samplers -- only active for frameworks that require 3 observations, otherwise random for 2, and exact for 1
-  # _dataset_sampler_: gt_dist__${framework.data_sample_mode}
-
-  # random samplers -- force random sampling of observation pairs or triples
-  # _dataset_sampler_: random__${framework.data_sample_mode}
+# this config forces an error to be thrown! This is to make
+# sure that we don't encounter errors when updating old configs.
