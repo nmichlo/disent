@@ -167,13 +167,13 @@ class ReconLossHandlerMae(ReconLossHandlerMse):
         return torch.abs(x_recon - x_targ)
 
 
-@deprecated('Mse4 loss is being used during development to avoid a new hyper-parameter search')
+#@deprecated('Mse4 loss is being used during development to avoid a new hyper-parameter search')
 class ReconLossHandlerMse4(ReconLossHandlerMse):
     def compute_unreduced_loss(self, x_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
         return super().compute_unreduced_loss(x_recon, x_targ) * 4
 
 
-@deprecated('Mae2 loss is being used during development to avoid a new hyper-parameter search')
+#@deprecated('Mae2 loss is being used during development to avoid a new hyper-parameter search')
 class ReconLossHandlerMae2(ReconLossHandlerMae):
     def compute_unreduced_loss(self, x_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
         return super().compute_unreduced_loss(x_recon, x_targ) * 2
