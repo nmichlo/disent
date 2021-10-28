@@ -95,6 +95,35 @@ class StateSpace(LengthIter):
         positions = np.unravel_index(indices, self._factor_sizes)
         return np.moveaxis(positions, source=0, destination=-1)
 
+    def allowed_factor(self, factor) -> np.ndarray:
+        """
+        Convert an index to a position (or convert a list of indices to a list of positions)
+        - indices are integers < size
+        - positions are lists of integers, with each element < their corresponding factor size
+        """
+        (x, y) = factor
+        if (x in range(0, 4)) and (y in range(0, 4)):
+            allowed_x = x
+            allowed_y = y
+        elif (x in range(0, 4)) and (y in range(4, 8)):
+                allowed_x = x
+                allowed_y = y - 4
+
+        elif (x in range(4, 8)) and (y in range(0, 4)):
+                allowed_x = x - 4
+                allowed_y = y
+        elif (x in range(4, 8)) and (y in range(4, 8)):
+            allowed_x = x
+            allowed_y = y
+        else:
+            allowed_x = 999
+            allowed_y = 999
+
+        allowed_factor = (allowed_x, allowed_y)
+
+
+        return allowed_factor
+
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Sampling Functions - any dim array, only last axis counts!            #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #

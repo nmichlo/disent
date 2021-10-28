@@ -37,7 +37,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class XYSquaresClusterDataTest(GroundTruthData):
+class XYSquaresClusterData(GroundTruthData):
     """
     Dataset that generates all possible permutations of 3 (R, G, B) coloured
     squares placed on a square grid.
@@ -58,8 +58,9 @@ class XYSquaresClusterDataTest(GroundTruthData):
     def observation_shape(self) -> Tuple[int, ...]:
         return self._width, self._width, (3 if self._rgb else 1)
 
-    def __init__(self, square_size=8, grid_size=64, grid_spacing=None, num_squares=3, rgb=True, no_warnings=False,
-                 fill_value=None, max_placements=None):
+
+    def __init__(self, square_size=8, grid_size=64, grid_spacing=None, num_squares=1, rgb=False, no_warnings=False,
+                 fill_value=None, max_placements=None, outlines=False):
         if grid_spacing is None:
             grid_spacing = square_size
         if grid_spacing < square_size and not no_warnings:
@@ -84,36 +85,35 @@ class XYSquaresClusterDataTest(GroundTruthData):
             assert isinstance(max_placements, int)
             assert max_placements > 0
             self._placements = min(self._placements, max_placements)
+        # outline regions
+        self.outlines = outlines
         # center elements
         self._offset = (self._width - (self._square_size + (self._placements - 1) * self._spacing)) // 2
-        self.factor_test = []
-        for x in range(0,8):
-            for y in range(0,8):
-                if x < 4 and y < 4:
-                    self.factor_test.append(np.array([x, y]))
-                if x >= 4 and y >= 4:
-                    self.factor_test.append(np.array([x, y]))
-
-
         super().__init__()
 
     def __getitem__(self, idx):
         # get factors
-        factors = self.factor_test[min(31,idx)]#self.idx_to_pos(idx)
-        #print((factors))
-        #print((self.factor_test[idx]))
+        factors = self.idx_to_pos(idx)
+        allowed_factors = self.allowed_factor(factors)
+        #print(factors,':', allowed_factors)
         offset, space, size = self._offset, self._spacing, self._square_size
         # GENERATE
         obs = np.zeros(self.observation_shape, dtype=np.uint8)
-        for i, (fx, fy) in enumerate(iter_chunks(factors, 2)):
+        if self.outlines:
+            obs[self._width//2] = self._fill_value
+            obs[:, self._width//2] = self._fill_value
+
+        for i, (fx, fy) in enumerate(iter_chunks(allowed_factors, 2)):
+
+            #(Fx, Fy) = self.make_base_factor(fx, fy)
+
             x, y = offset + space * fx, offset + space * fy
+
             if self._rgb:
                 obs[y:y + size, x:x + size, i] = self._fill_value
             else:
                 obs[y:y + size, x:x + size, :] = self._fill_value
         return obs
-
-
 
 '''
 import logging
