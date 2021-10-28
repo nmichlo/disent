@@ -90,15 +90,7 @@ class XYSquaresClusterData(GroundTruthData):
             self._placements = min(self._placements, max_placements)
         # center elements
         self._offset = (self._width - (self._square_size + (self._placements - 1) * self._spacing)) // 2
-        self.factors_cluster = []
-        for x in range(0, 8):
-            for y in range(0, 8):
-                if x > 3 and y <= 3:
-                    continue
-                elif x <= 3 and y > 3:
-                    continue
-                else:
-                    self.factors_cluster.append([x, y])
+
         super().__init__()
 
     def __getitem__(self, idx):

@@ -5,7 +5,7 @@ data:
   square_size: 8
   grid_size: 64
   grid_spacing: 8
-  num_squares: 3
+  num_squares: 1
   rgb: TRUE
   max_placements: 8
 transform:
