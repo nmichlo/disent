@@ -20,8 +20,8 @@ defaults:
 
 job:
   user: 'neonkitchen'
-  project: 'disent_sweep_long'
-  name: '${dataset}:${framework.beta}:${framework.gamma}:${framework.name}:${framework.module.recon_loss}|${dataset.name}:${sampling.name}|${trainer.steps}'
+  project: 'disent_sweep_draft'
+  name: '${dataset.name}:${framework.beta}:${framework.gamma}:${framework.name}:${framework.module.recon_loss}|${dataset.name}:${sampling.name}|${trainer.steps}'
   partition: stampede
 
 framework:
