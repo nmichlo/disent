@@ -5,8 +5,8 @@ data:
   square_size: 8
   grid_size: 64
   grid_spacing: 8
-  num_squares: 3
-  rgb: TRUE
+  num_squares: 1
+  rgb: FALSE
   max_placements: 8
 transform:
   _target_: disent.transform.ToStandardisedTensor
