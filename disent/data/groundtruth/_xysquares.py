@@ -58,7 +58,7 @@ class XYSquaresData(GroundTruthData):
     def observation_shape(self) -> Tuple[int, ...]:
         return self._width, self._width, (3 if self._rgb else 1)
 
-    def __init__(self, square_size=8, grid_size=64, grid_spacing=None, num_squares=3, rgb=True, no_warnings=False,
+    def __init__(self, square_size=8, grid_size=64, grid_spacing=None, num_squares=1, rgb=False, no_warnings=False,
                  fill_value=None, max_placements=None):
         if grid_spacing is None:
             grid_spacing = square_size
