@@ -1,0 +1,16 @@
+# @package _group_
+metric_list:
+#  - flatness:
+#  - flatness_components:
+  - mig:
+  - sap:
+  - unsupervised:
+  - dci:
+      every_n_steps: 57600
+  - factor_vae:
+      every_n_steps: 57600
+
+# these are the default settings, these can be placed in the list above
+default_on_final: TRUE
+default_on_train: TRUE
+default_every_n_steps: 57600

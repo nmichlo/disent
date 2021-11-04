@@ -2,8 +2,8 @@
 callbacks:
   latent_cycle:
     seed: 7777
-    every_n_steps: 100
+    every_n_steps: 57600
     mode: 'minmax_interval_cycle'  # 'minmax_interval_cycle', 'fitted_gaussian_cycle'
   correlation:
     repeats_per_factor: 10
-    every_n_steps: 102
+    every_n_steps: 57600

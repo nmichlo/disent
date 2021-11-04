@@ -6,12 +6,12 @@ defaults:
   - dataset: xysquares_cluster # allow framework to override settings here, but placing dataset before framework in defaults
   - augment: none
   - sampling: full_bb
-  - metrics: all
+  - metrics: test
   - schedule: none
   # runtime
-  - run_length: tiny
-  - run_location: cluster
-  - run_callbacks: vis_slow
+  - run_length: medium
+  - run_location: cluster_many
+  - run_callbacks: test
   - run_logging: wandb
   # plugins
   - hydra/job_logging: colorlog
