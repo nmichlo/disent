@@ -44,7 +44,7 @@ log = logging.getLogger(__name__)
 
 
 def metric_sap(
-        ground_truth_data: DisentDataset,
+        dataset: DisentDataset,
         representation_function,
         num_train=10000,
         num_test=5000,
@@ -53,7 +53,7 @@ def metric_sap(
 ):
     """Computes the SAP score.
     Args:
-      ground_truth_data: GroundTruthData to be sampled from.
+      dataset: DisentDataset to be sampled from.
       representation_function: Function that takes observations as input and
         outputs a dim_representation sized representation for each observation.
       num_train: Number of points used for training.
@@ -64,8 +64,8 @@ def metric_sap(
       Dictionary with SAP score.
     """
     log.debug("Generating training set.")
-    mus, ys = utils.generate_batch_factor_code(ground_truth_data, representation_function, num_train, batch_size)
-    mus_test, ys_test = utils.generate_batch_factor_code(ground_truth_data, representation_function, num_test, batch_size)
+    mus, ys = utils.generate_batch_factor_code(dataset, representation_function, num_train, batch_size)
+    mus_test, ys_test = utils.generate_batch_factor_code(dataset, representation_function, num_test, batch_size)
     log.debug("Computing score matrix.")
     return _compute_sap(mus, ys, mus_test, ys_test, continuous_factors)
 

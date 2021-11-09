@@ -43,14 +43,14 @@ log = logging.getLogger(__name__)
 
 
 def metric_mig(
-        ground_truth_data: DisentDataset,
+        dataset: DisentDataset,
         representation_function,
         num_train=10000,
         batch_size=16,
 ):
     """Computes the mutual information gap.
     Args:
-      ground_truth_data: GroundTruthData to be sampled from.
+      dataset: DisentDataset to be sampled from.
       representation_function: Function that takes observations as input and
         outputs a dim_representation sized representation for each observation.
       num_train: Number of points used for training.
@@ -59,7 +59,7 @@ def metric_mig(
       Dict with average mutual information gap.
     """
     log.debug("Generating training set.")
-    mus_train, ys_train = utils.generate_batch_factor_code(ground_truth_data, representation_function, num_train, batch_size)
+    mus_train, ys_train = utils.generate_batch_factor_code(dataset, representation_function, num_train, batch_size)
     assert mus_train.shape[1] == num_train
     return _compute_mig(mus_train, ys_train)
 
