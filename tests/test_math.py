@@ -134,7 +134,7 @@ def test_fft_conv2d():
     data = XYObjectData()
     dataset = DisentDataset(data, RandomSampler(), transform=ToImgTensorF32(), augment=None)
     # sample data
-    factors = dataset.ground_truth_data.sample_random_factor_traversal(f_idx=2)
+    factors = dataset.gt_data.sample_random_factor_traversal(f_idx=2)
     batch = dataset.dataset_batch_from_factors(factors=factors, mode="input")
     # test torch_conv2d_channel_wise variants
     for i in range(1, 5):

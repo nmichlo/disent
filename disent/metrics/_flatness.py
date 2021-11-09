@@ -51,7 +51,7 @@ log = logging.getLogger(__name__)
 
 @deprecated('flatness metric is deprecated in favour of flatness_components, this metric still gives useful alternative info however.')
 def metric_flatness(
-        ground_truth_dataset: DisentDataset,
+        data: DisentDataset,
         representation_function: callable,
         factor_repeats: int = 1024,
         batch_size: int = 64,
@@ -71,7 +71,7 @@ def metric_flatness(
       - 1024 is accurate to about +- 0.001
 
     Args:
-      ground_truth_dataset: GroundTruthData to be sampled from.
+      data: DisentDataset to be sampled from.
       representation_function: Function that takes observations as input and outputs a dim_representation sized representation for each observation.
       factor_repeats: how many times to repeat a traversal along each factors, these are then averaged together.
       batch_size: Batch size to process at any time while generating representations, should not effect metric results.
@@ -80,9 +80,9 @@ def metric_flatness(
       Dictionary with average disentanglement score, completeness and
         informativeness (train and test).
     """
-    p_fs_measures = aggregate_measure_distances_along_all_factors(ground_truth_dataset, representation_function, repeats=factor_repeats, batch_size=batch_size, ps=(1, 2))
+    p_fs_measures = aggregate_measure_distances_along_all_factors(data, representation_function, repeats=factor_repeats, batch_size=batch_size, ps=(1, 2))
     # get info
-    factor_sizes = ground_truth_dataset.ground_truth_data.factor_sizes
+    factor_sizes = data.gt_data.factor_sizes
     # aggregate data
     results = {
         'flatness.ave_flatness':    compute_flatness(widths=p_fs_measures[2]['fs_ave_widths'], lengths=p_fs_measures[1]['fs_ave_lengths'], factor_sizes=factor_sizes),
@@ -123,7 +123,7 @@ def filter_inactive_factors(tensor, factor_sizes):
 
 
 def aggregate_measure_distances_along_all_factors(
-        ground_truth_dataset: DisentDataset,
+        data: DisentDataset,
         representation_function,
         repeats: int,
         batch_size: int,
@@ -132,8 +132,8 @@ def aggregate_measure_distances_along_all_factors(
     # COMPUTE AGGREGATES FOR EACH FACTOR
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     fs_p_measures = [
-        aggregate_measure_distances_along_factor(ground_truth_dataset, representation_function, f_idx=f_idx, repeats=repeats, batch_size=batch_size, ps=ps)
-        for f_idx in range(ground_truth_dataset.ground_truth_data.num_factors)
+        aggregate_measure_distances_along_factor(data, representation_function, f_idx=f_idx, repeats=repeats, batch_size=batch_size, ps=ps)
+        for f_idx in range(data.gt_data.num_factors)
     ]
 
     # FINALIZE FOR EACH FACTOR
@@ -143,7 +143,7 @@ def aggregate_measure_distances_along_all_factors(
         fs_ave_widths = fs_measures['ave_width']
         # get number of spaces deltas (number of points minus 1)
         # compute length: estimated version of factors_ave_width = factors_num_deltas * factors_ave_delta
-        _fs_num_deltas = torch.as_tensor(ground_truth_dataset.ground_truth_data.factor_sizes, device=fs_ave_widths.device) - 1
+        _fs_num_deltas = torch.as_tensor(data.gt_data.factor_sizes, device=fs_ave_widths.device) - 1
         _fs_ave_deltas = fs_measures['ave_delta']
         fs_ave_lengths = _fs_num_deltas * _fs_ave_deltas
         # angles
