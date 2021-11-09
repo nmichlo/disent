@@ -28,7 +28,6 @@ Generate an adversarial dataset
 - All data is stored in memory, with minibatches taken and optimized.
 """
 
-
 import logging
 import os
 import warnings
@@ -49,11 +48,11 @@ from torch.utils.data.dataset import T_co
 import research.util as H
 from disent.dataset import DisentDataset
 from disent.dataset.sampling import BaseDisentSampler
-from disent.dataset.util.hdf5 import h5_open
 from disent.dataset.util.hdf5 import H5Builder
 from disent.util import to_numpy
 from disent.util.inout.paths import ensure_parent_dir_exists
 from disent.util.lightning.callbacks import BaseCallbackPeriodic
+from disent.util.lightning.callbacks import LoggerProgressCallback
 from disent.util.lightning.logger_util import wb_log_metrics
 from disent.util.math.random import random_choice_prng
 from disent.util.seeds import seed
@@ -61,7 +60,7 @@ from disent.util.seeds import TempNumpySeed
 from disent.util.strings.fmt import bytes_to_human
 from disent.util.strings.fmt import make_box_str
 from disent.util.visualize.vis_util import make_image_grid
-from experiment.run import hydra_append_progress_callback
+from experiment.run import hydra_get_callbacks
 from experiment.run import hydra_check_cuda
 from experiment.run import hydra_make_logger
 from experiment.util.hydra_utils import make_non_strict
@@ -313,8 +312,7 @@ def run_gen_adversarial_dataset(cfg):
     # create logger
     logger = hydra_make_logger(cfg)
     # create callbacks
-    callbacks = []
-    hydra_append_progress_callback(callbacks, cfg)
+    callbacks = [c for c in hydra_get_callbacks(cfg) if isinstance(c, LoggerProgressCallback)]
     # - - - - - - - - - - - - - - - #
     # check save dirs
     assert not os.path.isabs(cfg.exp.rel_save_dir), f'rel_save_dir must be relative: {repr(cfg.exp.rel_save_dir)}'

@@ -48,7 +48,6 @@ import research.util as H
 from disent import registry
 from disent.dataset import DisentDataset
 from disent.dataset.sampling import BaseDisentSampler
-from disent.dataset.util.hdf5 import h5_open
 from disent.dataset.util.hdf5 import H5Builder
 from disent.model import AutoEncoder
 from disent.nn.activations import Swish
@@ -56,6 +55,7 @@ from disent.nn.modules import DisentModule
 from disent.util import to_numpy
 from disent.util.inout.paths import ensure_parent_dir_exists
 from disent.util.lightning.callbacks import BaseCallbackPeriodic
+from disent.util.lightning.callbacks import LoggerProgressCallback
 from disent.util.lightning.logger_util import wb_has_logger
 from disent.util.lightning.logger_util import wb_log_metrics
 from disent.util.seeds import seed
@@ -63,8 +63,8 @@ from disent.util.seeds import TempNumpySeed
 from disent.util.strings.fmt import bytes_to_human
 from disent.util.strings.fmt import make_box_str
 from disent.util.visualize.vis_util import make_image_grid
-from experiment.run import hydra_append_progress_callback
 from experiment.run import hydra_check_cuda
+from experiment.run import hydra_get_callbacks
 from experiment.run import hydra_make_logger
 from experiment.util.hydra_utils import make_non_strict
 from experiment.util.run_utils import log_error_and_exit
@@ -290,7 +290,6 @@ class AdversarialModel(pl.LightningModule):
                 F.mse_loss(p_y.std(dim=[-3, -2, -1]), p_x.std(dim=[-3, -2, -1]), reduction='mean') +
                 F.mse_loss(n_y.std(dim=[-3, -2, -1]), n_x.std(dim=[-3, -2, -1]), reduction='mean')
             ))
-
         # - try keep similar to inputs
         loss_sim = 0
         if (self.hparams.loss_similarity_weight is not None) and (self.hparams.loss_similarity_weight > 0):
@@ -429,8 +428,7 @@ def run_gen_adversarial_dataset(cfg):
     # create logger
     logger = hydra_make_logger(cfg)
     # create callbacks
-    callbacks = []
-    hydra_append_progress_callback(callbacks, cfg)
+    callbacks = [c for c in hydra_get_callbacks(cfg) if isinstance(c, LoggerProgressCallback)]
     # - - - - - - - - - - - - - - - #
     # check save dirs
     assert not os.path.isabs(cfg.exp.rel_save_dir), f'rel_save_dir must be relative: {repr(cfg.exp.rel_save_dir)}'
