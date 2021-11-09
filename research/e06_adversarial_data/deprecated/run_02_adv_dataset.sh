@@ -2,7 +2,7 @@
 
 # get the path to the script
 PARENT_DIR="$(dirname "$(realpath -s "$0")")"
-ROOT_DIR="$(dirname "$(dirname "$PARENT_DIR")")"
+ROOT_DIR="$(dirname "$(dirname "$(dirname "$PARENT_DIR")")")"
 
 # TODO: fix this!
 # TODO: this is out of date
