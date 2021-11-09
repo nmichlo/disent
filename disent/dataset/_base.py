@@ -81,7 +81,11 @@ def wrapped_only(func):
 # ========================================================================= #
 
 
+_DO_COPY = object()
+
+
 class DisentDataset(Dataset, LengthIter):
+
 
     def __init__(
         self,
@@ -101,6 +105,20 @@ class DisentDataset(Dataset, LengthIter):
         # initialize sampler
         if not self._sampler.is_init:
             self._sampler.init(dataset)
+
+    def shallow_copy(
+        self,
+        transform=_DO_COPY,
+        augment=_DO_COPY,
+        return_indices=_DO_COPY,
+    ) -> 'DisentDataset':
+        return DisentDataset(
+            dataset=self._dataset,
+            sampler=self._sampler,
+            transform=self._transform if (transform is _DO_COPY) else transform,
+            augment=self._augment if (augment is _DO_COPY) else augment,
+            return_indices=self._return_indices if (return_indices is _DO_COPY) else return_indices,
+        )
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Properties                                                            #
