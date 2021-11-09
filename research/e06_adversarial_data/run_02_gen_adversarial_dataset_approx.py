@@ -31,6 +31,7 @@ the dataset and the target adversarial images using a model.
 import logging
 import os
 from datetime import datetime
+from typing import List
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
@@ -53,6 +54,7 @@ from disent.model import AutoEncoder
 from disent.nn.activations import Swish
 from disent.nn.modules import DisentModule
 from disent.util import to_numpy
+from disent.util.deprecate import deprecated
 from disent.util.function import wrapped_partial
 from disent.util.inout.paths import ensure_parent_dir_exists
 from disent.util.lightning.callbacks import BaseCallbackPeriodic
@@ -119,8 +121,8 @@ def make_delta_model(model_type: str, x_shape: Tuple[int, ...]):
     # get model
     if model_type.startswith('ae_'):
         return AeModel(
-            encoder=registry.MODELS[f'encoder{model_type[len("ae_"):]}'](x_shape=x_shape, z_size=64, z_multiplier=1),
-            decoder=registry.MODELS[f'decoder{model_type[len("ae_"):]}'](x_shape=x_shape, z_size=64, z_multiplier=1),
+            encoder=registry.MODELS[f'encoder_{model_type[len("ae_"):]}'](x_shape=x_shape, z_size=64, z_multiplier=1),
+            decoder=registry.MODELS[f'decoder_{model_type[len("ae_"):]}'](x_shape=x_shape, z_size=64, z_multiplier=1),
         )
     elif model_type == 'fcn_small':
         return torch.nn.Sequential(
@@ -331,8 +333,8 @@ class AdversarialModel(pl.LightningModule):
         batch = self.model(batch)
         batch = (batch - m) / (M - m)
         if mode == 'uint8': return H.to_imgs(batch).numpy()
-        elif mode == 'float32': return torch.moveaxis(batch, -3, -1).to(torch.float32).numpy()
-        elif mode == 'float16': return torch.moveaxis(batch, -3, -1).to(torch.float16).numpy()
+        elif mode == 'float32': return torch.moveaxis(batch, -3, -1).to(torch.float32).cpu().numpy()
+        elif mode == 'float16': return torch.moveaxis(batch, -3, -1).to(torch.float16).cpu().numpy()
         else: raise KeyError(f'invalid output mode: {repr(mode)}')
 
     def make_train_periodic_callbacks(self, cfg) -> Sequence[BaseCallbackPeriodic]:
@@ -353,25 +355,28 @@ class AdversarialModel(pl.LightningModule):
             @torch.no_grad()
             def do_step(this, trainer: pl.Trainer, pl_module: pl.LightningModule):
                 if not wb_has_logger(trainer.logger):
+                    log.warning(f'no wandb logger found, skipping visualisation: {self.__class__.__name__}')
                     return
                 if self.dataset is None:
-                    log.warning('dataset not initialized, skipping visualisation')
+                    log.warning(f'dataset not initialized, skipping visualisation: {self.__class__.__name__}')
                     return
                 log.info(f'visualising: {this.__class__.__name__}')
-                # hack to get transformed data
-                assert self.dataset._transform is None  # TODO: this is hacky!
-                self.dataset._transform = make_dataset_transform()
+                # make dataset with required transform
+                # -- this is inefficient for multiple subclasses of this class, we need to recompute the transform each time
+                dataset = self.dataset.shallow_copy(transform=make_dataset_transform())
                 try:
-                    this._do_step(trainer, pl_module)
+                    this._do_step(trainer, pl_module, dataset)
                 except:
                     log.error('Failed to do visualise callback step!', exc_info=True)
-                self.dataset._transform = None  # TODO: this is hacky!
+            # override this
+            def _do_step(this, trainer: pl.Trainer, pl_module: pl.LightningModule, dataset: DisentDataset):
+                raise NotImplementedError
         # show image callback
         class ImShowCallback(_BaseDatasetCallback):
-            def _do_step(this, trainer: pl.Trainer, pl_module: pl.LightningModule):
+            def _do_step(this, trainer: pl.Trainer, pl_module: pl.LightningModule, dataset: DisentDataset):
                 # get images & traversal
-                image = make_image_grid(self.dataset.dataset_sample_batch(num_samples=16, mode='input'))
-                wandb_image, wandb_animation = H.visualize_dataset_traversal(self.dataset, data_mode='input', output_wandb=True)
+                image = make_image_grid(dataset.dataset_sample_batch(num_samples=16, mode='input'))
+                wandb_image, wandb_animation = H.visualize_dataset_traversal(dataset, data_mode='input', output_wandb=True)
                 # log images to WANDB
                 wb_log_metrics(trainer.logger, {
                     'random_images': wandb.Image(image),
@@ -380,9 +385,9 @@ class AdversarialModel(pl.LightningModule):
                 })
         # show stats callback
         class StatsShowCallback(_BaseDatasetCallback):
-            def _do_step(this, trainer: pl.Trainer, pl_module: pl.LightningModule):
+            def _do_step(this, trainer: pl.Trainer, pl_module: pl.LightningModule, dataset: DisentDataset):
                 # get batches
-                batch, factors = self.dataset.dataset_sample_batch_with_factors(num_samples=512, mode='input')
+                batch, factors = dataset.dataset_sample_batch_with_factors(num_samples=512, mode='input')
                 batch = batch.to(torch.float32)
                 a_idx = torch.randint(0, len(batch), size=[4*len(batch)])
                 b_idx = torch.randint(0, len(batch), size=[4*len(batch)])
@@ -391,7 +396,7 @@ class AdversarialModel(pl.LightningModule):
                 # compute distances
                 deltas = to_numpy(H.pairwise_overlap(batch[a_idx[mask]], batch[b_idx[mask]], mode='mse'))
                 fdists = to_numpy(torch.abs(factors[a_idx[mask]] - factors[b_idx[mask]]).sum(dim=-1))
-                sdists = to_numpy((torch.abs(factors[a_idx[mask]] - factors[b_idx[mask]]) / to_numpy(self.dataset.gt_data.factor_sizes)[None, :]).sum(dim=-1))
+                sdists = to_numpy((torch.abs(factors[a_idx[mask]] - factors[b_idx[mask]]) / to_numpy(dataset.gt_data.factor_sizes)[None, :]).sum(dim=-1))
                 # log to wandb
                 from matplotlib import pyplot as plt
                 plt.scatter(fdists, deltas); img_fdists = wandb.Image(plt); plt.close()
@@ -402,8 +407,8 @@ class AdversarialModel(pl.LightningModule):
                 })
         # done!
         return [
-            ImShowCallback(every_n_steps=cfg.exp.show_every_n_steps, begin_first_step=True),
-            StatsShowCallback(every_n_steps=cfg.exp.show_every_n_steps, begin_first_step=True),
+            ImShowCallback(every_n_steps=cfg.settings.exp.show_every_n_steps, begin_first_step=True),
+            StatsShowCallback(every_n_steps=cfg.settings.exp.show_every_n_steps, begin_first_step=True),
         ]
 
 
@@ -428,16 +433,15 @@ def run_gen_adversarial_dataset(cfg):
     cfg = make_non_strict(cfg)
     # - - - - - - - - - - - - - - - #
     # check CUDA setting
-    cfg.trainer.setdefault('cuda', 'try_cuda')
     hydra_check_cuda(cfg)
     # create logger
     logger = hydra_make_logger(cfg)
     # create callbacks
-    callbacks = [c for c in hydra_get_callbacks(cfg) if isinstance(c, LoggerProgressCallback)]
+    callbacks: List[pl.Callback] = [c for c in hydra_get_callbacks(cfg) if isinstance(c, LoggerProgressCallback)]
     # - - - - - - - - - - - - - - - #
     # check save dirs
-    assert not os.path.isabs(cfg.exp.rel_save_dir), f'rel_save_dir must be relative: {repr(cfg.exp.rel_save_dir)}'
-    save_dir = os.path.join(ROOT_DIR, cfg.exp.rel_save_dir)
+    assert not os.path.isabs(cfg.settings.exp.rel_save_dir), f'rel_save_dir must be relative: {repr(cfg.settings.exp.rel_save_dir)}'
+    save_dir = os.path.join(ROOT_DIR, cfg.settings.exp.rel_save_dir)
     assert os.path.isabs(save_dir), f'save_dir must be absolute: {repr(save_dir)}'
     # - - - - - - - - - - - - - - - #
     # get the logger and initialize
@@ -447,43 +451,47 @@ def run_gen_adversarial_dataset(cfg):
     log.info('Final Config' + make_box_str(OmegaConf.to_yaml(cfg)))
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # | | | | | | | | | | | | | | | #
-    seed(cfg.exp.seed)
+    seed(cfg.settings.job.seed)
     # | | | | | | | | | | | | | | | #
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # make framework
-    framework = AdversarialModel(**cfg.framework)
+    framework = AdversarialModel(**cfg.adv_system)
     callbacks.extend(framework.make_train_periodic_callbacks(cfg))
     # train
     trainer = pl.Trainer(
-        log_every_n_steps=cfg.log.setdefault('log_every_n_steps', 50),
-        flush_logs_every_n_steps=cfg.log.setdefault('flush_logs_every_n_steps', 100),
         logger=logger,
         callbacks=callbacks,
-        gpus=1 if cfg.trainer.cuda else 0,
-        max_epochs=cfg.trainer.setdefault('epochs', None),
-        max_steps=cfg.trainer.setdefault('steps', 10000),
-        progress_bar_refresh_rate=0,  # ptl 0.9
-        terminate_on_nan=True,  # we do this here so we don't run the final metrics
+        # cfg.dsettings.trainer
+        gpus=1 if cfg.dsettings.trainer.cuda else 0,
+        # cfg.trainer
+        max_epochs=cfg.trainer.max_epochs,
+        max_steps=cfg.trainer.max_steps,
+        log_every_n_steps=cfg.trainer.log_every_n_steps,
+        flush_logs_every_n_steps=cfg.trainer.flush_logs_every_n_steps,
+        progress_bar_refresh_rate=cfg.trainer.progress_bar_refresh_rate,
+        prepare_data_per_node=cfg.trainer.prepare_data_per_node,
+        # we do this here so we don't run the final metrics
+        terminate_on_nan=True,
         checkpoint_callback=False,
     )
     trainer.fit(framework)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # get save paths
-    save_prefix = f'{cfg.job.save_prefix}_' if cfg.job.save_prefix else ''
-    save_path_model = os.path.join(save_dir, f'{save_prefix}{time_string}_{cfg.job.name}', f'model.pt')
-    save_path_data = os.path.join(save_dir, f'{save_prefix}{time_string}_{cfg.job.name}', f'data.h5')
+    save_prefix = f'{cfg.settings.exp.save_prefix}_' if cfg.settings.exp.save_prefix else ''
+    save_path_model = os.path.join(save_dir, f'{save_prefix}{time_string}_{cfg.settings.job.name}', f'model.pt')
+    save_path_data = os.path.join(save_dir, f'{save_prefix}{time_string}_{cfg.settings.job.name}', f'data.h5')
     # create directories
-    if cfg.job.save_model: ensure_parent_dir_exists(save_path_model)
-    if cfg.job.save_data: ensure_parent_dir_exists(save_path_data)
+    if cfg.settings.exp.save_model: ensure_parent_dir_exists(save_path_model)
+    if cfg.settings.exp.save_data: ensure_parent_dir_exists(save_path_data)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # save adversarial model
-    if cfg.job.save_model:
+    if cfg.settings.exp.save_model:
         log.info(f'saving model to path: {repr(save_path_model)}')
         torch.save(framework.model, save_path_model)
         log.info(f'saved model size: {bytes_to_human(os.path.getsize(save_path_model))}')
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # save adversarial dataset
-    if cfg.job.save_data:
+    if cfg.settings.exp.save_data:
         log.info(f'saving data to path: {repr(save_path_data)}')
         # transfer to GPU
         if torch.cuda.is_available():
@@ -493,10 +501,10 @@ def run_gen_adversarial_dataset(cfg):
             # this dataset is self-contained and can be loaded by SelfContainedHdf5GroundTruthData
             builder.add_dataset_from_gt_data(
                 data=framework.dataset,  # produces tensors
-                mutator=wrapped_partial(framework.batch_to_adversarial_imgs, mode=cfg.job.save_dtype),  # consumes tensors -> np.ndarrays
+                mutator=wrapped_partial(framework.batch_to_adversarial_imgs, mode=cfg.settings.exp.save_dtype),  # consumes tensors -> np.ndarrays
                 img_shape=(64, 64, None),
                 compression_lvl=4,
-                dtype=cfg.job.save_dtype,
+                dtype=cfg.settings.exp.save_dtype,
                 batch_size=32,
             )
         log.info(f'saved data size: {bytes_to_human(os.path.getsize(save_path_data))}')
