@@ -5,12 +5,12 @@
 # ========================================================================= #
 
 export USERNAME="n_michlo"
-export PROJECT="final-06__masked-datasets-dist-pairs"
+export PROJECT="final-06__adversarial-modified-data"
 export PARTITION="stampede"
-export PARALLELISM=36
+export PARALLELISM=28
 
 # source the helper file
-source "$(dirname "$(dirname "$(realpath -s "$0")")")/helper.sh"
+source "$(dirname "$(dirname "$(dirname "$(realpath -s "$0")")")")/helper.sh"
 
 # ========================================================================= #
 # Experiment                                                                #
@@ -22,22 +22,37 @@ clog_cudaless_nodes "$PARTITION" 86400 "C-disent" # 24 hours
 echo UPDATE THIS SCRIPT
 exit 1
 
-# (3*2*3*12 = 72) = 216
-# TODO: z_size needs tuning
+# 1 * (4 * 2 * 2) = 16
+local_sweep \
+    +DUMMY.repeat=1 \
+    +EXTRA.tags='sweep_griffin' \
+    run_location='griffin' \
+    \
+    run_length=short \
+    metrics=fast \
+    \
+    framework.beta=0.001,0.00316,0.01,0.000316 \
+    framework=betavae,adavae_os \
+    model.z_size=25 \
+    \
+    dataset=X--adv-dsprites--WARNING,X--adv-shapes3d--WARNING \
+    sampling=default__bb # \
+    # \
+    # hydra.launcher.exclude='"mscluster93,mscluster94,mscluster97"'  # we don't want to sweep over these
+
+# 2 * (8 * 2 * 4) = 128
 submit_sweep \
     +DUMMY.repeat=1 \
-    +EXTRA.tags='sweep_dist_pairs_usage_ratio' \
+    +EXTRA.tags='sweep_beta' \
     \
-    run_callbacks=vis \
     run_length=short \
-    metrics=all \
+    metrics=fast \
     \
-    framework.beta=0.0316,0.01,0.1 \
+    framework.beta=0.000316,0.001,0.00316,0.01,0.0316,0.1,0.316,1.0 \
     framework=betavae,adavae_os \
-    model.z_size=16 \
-    framework.optional.usage_ratio=0.5,0.2,0.05 \
+    model.z_size=25 \
     \
-    dataset=X--mask-adv-r-dsprites,X--mask-ran-dsprites,dsprites,X--mask-adv-r-shapes3d,X--mask-ran-shapes3d,shapes3d,X--mask-adv-r-smallnorb,X--mask-ran-smallnorb,smallnorb,X--mask-adv-r-cars3d,X--mask-ran-cars3d,cars3d \
-    sampling=random \
+    dataset=dsprites,shapes3d,cars3d,smallnorb \
+    sampling=default__bb \
     \
     hydra.launcher.exclude='"mscluster93,mscluster94,mscluster97,mscluster99"'  # we don't want to sweep over these
