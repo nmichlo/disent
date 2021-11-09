@@ -35,7 +35,7 @@ trainer:
   max_epochs: 20
 
 adv_system:
-  ### [[[ IMPORTANT SETTINGS ]]] ###
+  ### IMPORTANT SETTINGS ###
   #   best:
   #     - close_p_random_n
   #   note: sampler_name (adversarial_mode=invert_margin_0.005)
@@ -52,7 +52,7 @@ adv_system:
   dataset_name:     'cars3d'               # [cars3d, smallnorb, dsprites, shapes3d, xysquares_8x8_mini]
   adversarial_mode: 'invert_margin_0.05'   # [self, invert_margin_0.05, invert_margin_0.005] invert, invert_unbounded
 
-  ### [[[ OTHER SETTINGS ]]] ###
+  ### OTHER SETTINGS ###
   # optimizer options
   optimizer_name: 'adam'
   optimizer_lr: 5e-4
