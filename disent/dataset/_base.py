@@ -308,13 +308,13 @@ class DisentDataset(Dataset, LengthIter):
     @groundtruth_only
     def dataset_batch_from_factors(self, factors: np.ndarray, mode: str):
         """Get a batch of observations X from a batch of factors Y."""
-        indices = self.ground_truth_data.pos_to_idx(factors)
+        indices = self.gt_data.pos_to_idx(factors)
         return self.dataset_batch_from_indices(indices, mode=mode)
 
     @groundtruth_only
     def dataset_sample_batch_with_factors(self, num_samples: int, mode: str):
         """Sample a batch of observations X and factors Y."""
-        factors = self.ground_truth_data.sample_factors(num_samples)
+        factors = self.gt_data.sample_factors(num_samples)
         batch = self.dataset_batch_from_factors(factors, mode=mode)
         return batch, default_collate(factors)
 

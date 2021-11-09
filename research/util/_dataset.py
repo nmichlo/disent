@@ -113,7 +113,7 @@ def load_dataset_into_memory(gt_data: GroundTruthData, x_shape: Optional[Tuple[i
         return data
     else:
         # channels get swapped by the below ToImgTensorF32(), maybe allow `array_chn_is_last` as param
-        return ArrayGroundTruthData.new_like(array=data, dataset=gt_data, array_chn_is_last=False)
+        return ArrayGroundTruthData.new_like(array=data, gt_data=gt_data, array_chn_is_last=False)
 
 
 # ========================================================================= #
@@ -263,7 +263,7 @@ def sample_factors(gt_data: GroundTruthData, num_obs: int = 1024, factor_mode: s
 
 # TODO: move into dataset class
 def sample_batch_and_factors(dataset: DisentDataset, num_samples: int, factor_mode: str = 'sample_random', factor: Union[int, str] = None, device=None):
-    factors = sample_factors(dataset.ground_truth_data, num_obs=num_samples, factor_mode=factor_mode, factor=factor)
+    factors = sample_factors(dataset.gt_data, num_obs=num_samples, factor_mode=factor_mode, factor=factor)
     batch = dataset.dataset_batch_from_factors(factors, mode='target').to(device=device)
     factors = torch.from_numpy(factors).to(dtype=torch.float32, device=device)
     return batch, factors
