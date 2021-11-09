@@ -50,6 +50,7 @@ from disent.dataset import DisentDataset
 from disent.dataset.sampling import BaseDisentSampler
 from disent.dataset.util.hdf5 import H5Builder
 from disent.util import to_numpy
+from disent.util.deprecate import deprecated
 from disent.util.inout.paths import ensure_parent_dir_exists
 from disent.util.lightning.callbacks import BaseCallbackPeriodic
 from disent.util.lightning.callbacks import LoggerProgressCallback
@@ -294,6 +295,7 @@ class AdversarialModel(pl.LightningModule):
 ROOT_DIR = os.path.abspath(__file__ + '/../../../..')
 
 
+@deprecated('Replaced with run_02_gen_adversarial_dataset_approx')
 def run_gen_adversarial_dataset(cfg):
     time_string = datetime.today().strftime('%Y-%m-%d--%H-%M-%S')
     log.info(f'Starting run at time: {time_string}')

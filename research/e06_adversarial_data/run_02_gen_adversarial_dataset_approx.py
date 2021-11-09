@@ -53,6 +53,7 @@ from disent.model import AutoEncoder
 from disent.nn.activations import Swish
 from disent.nn.modules import DisentModule
 from disent.util import to_numpy
+from disent.util.function import wrapped_partial
 from disent.util.inout.paths import ensure_parent_dir_exists
 from disent.util.lightning.callbacks import BaseCallbackPeriodic
 from disent.util.lightning.callbacks import LoggerProgressCallback
@@ -324,11 +325,15 @@ class AdversarialModel(pl.LightningModule):
     # dataset                            #
     # ================================== #
 
-    def batch_to_adversarial_imgs(self, batch: torch.Tensor, m=0, M=1) -> np.ndarray:
+    @torch.no_grad()
+    def batch_to_adversarial_imgs(self, batch: torch.Tensor, m=0, M=1, mode='uint8') -> np.ndarray:
         batch = batch.to(device=self.device, dtype=torch.float32)
         batch = self.model(batch)
         batch = (batch - m) / (M - m)
-        return H.to_imgs(batch).numpy()
+        if mode == 'uint8': return H.to_imgs(batch).numpy()
+        elif mode == 'float32': return torch.moveaxis(batch, -3, -1).to(torch.float32).numpy()
+        elif mode == 'float16': return torch.moveaxis(batch, -3, -1).to(torch.float16).numpy()
+        else: raise KeyError(f'invalid output mode: {repr(mode)}')
 
     def make_train_periodic_callbacks(self, cfg) -> Sequence[BaseCallbackPeriodic]:
         # dataset transform helper
@@ -484,14 +489,14 @@ def run_gen_adversarial_dataset(cfg):
         if torch.cuda.is_available():
             framework = framework.cuda()
         # create new h5py file -- TODO: use this in other places!
-
         with H5Builder(path=save_path_data, mode='atomic_w') as builder:
             # this dataset is self-contained and can be loaded by SelfContainedHdf5GroundTruthData
             builder.add_dataset_from_gt_data(
                 data=framework.dataset,  # produces tensors
-                mutator=framework.batch_to_adversarial_imgs,  # consumes tensors -> np.ndarrays
+                mutator=wrapped_partial(framework.batch_to_adversarial_imgs, mode=cfg.job.save_dtype),  # consumes tensors -> np.ndarrays
                 img_shape=(64, 64, None),
-                compression_lvl=9,
+                compression_lvl=4,
+                dtype=cfg.job.save_dtype,
                 batch_size=32,
             )
         log.info(f'saved data size: {bytes_to_human(os.path.getsize(save_path_data))}')
