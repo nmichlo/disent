@@ -383,6 +383,51 @@ class AdversarialModel(pl.LightningModule):
                     'traversal_image': wandb_image,
                     'traversal_animation': wandb_animation,
                 })
+        # factor distances callback
+        class DistsPlotCallback(_BaseDatasetCallback):
+            def _do_step(this, trainer: pl.Trainer, pl_module: pl.LightningModule, dataset: DisentDataset):
+                from disent.util.lightning.callbacks._callbacks_vae import compute_factor_distances, plt_factor_distances
+                # make distances function
+                def dists_fn(xs_a, xs_b):
+                    dists = H.pairwise_loss(xs_a, xs_b, mode=self.hparams.pixel_loss_mode, mean_dtype=torch.float32, mask=None)
+                    return [dists]
+                def transform_batch(batch):
+                    return batch.to(dtype=torch.float32, device=self.device)
+                # compute various distances matrices for each factor
+                dists_names, f_grid = compute_factor_distances(
+                    dataset=dataset,
+                    dists_fn=dists_fn,
+                    dists_names=['dists'],
+                    traversal_repeats=1,
+                    batch_size=self.hparams.dataset_batch_size,
+                    include_gt_factor_dists=True,
+                    transform_batch=transform_batch,
+                    seed=777,
+                    data_mode='input',
+                )
+                # plot these results
+                fig, axs = plt_factor_distances(
+                    gt_data=dataset.gt_data,
+                    f_grid=f_grid,
+                    dists_names=dists_names,
+                    title=f'{self.hparams.model_type.capitalize()}: {self.hparams.dataset_name.capitalize()} Distances',
+                    plt_block_size=1.25,
+                    plt_transpose=True,
+                    plt_cmap='Blues',
+                )
+                # recolour dists axis
+                for ax in axs[-1, :]:
+                    ax.images[0].set_cmap('Reds')
+                # show the plot
+                if True:
+                    from matplotlib import pyplot as plt
+                    plt.show()
+                # log the plot to wandb
+                if True:
+                    wb_log_metrics(trainer.logger, {
+                        'factor_distances': wandb.Image(fig)
+                    })
+
         # show stats callback
         class StatsShowCallback(_BaseDatasetCallback):
             def _do_step(this, trainer: pl.Trainer, pl_module: pl.LightningModule, dataset: DisentDataset):
@@ -408,6 +453,7 @@ class AdversarialModel(pl.LightningModule):
         # done!
         return [
             ImShowCallback(every_n_steps=cfg.settings.exp.show_every_n_steps, begin_first_step=True),
+            DistsPlotCallback(every_n_steps=cfg.settings.exp.show_every_n_steps, begin_first_step=True),
             StatsShowCallback(every_n_steps=cfg.settings.exp.show_every_n_steps, begin_first_step=True),
         ]
 
