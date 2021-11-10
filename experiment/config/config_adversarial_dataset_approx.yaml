@@ -75,7 +75,7 @@ adv_system:
   loss_same_stats_weight:    0.0   # not really needed
   loss_similarity_weight:    1.0   # important
   # model settings
-  model_type: 'ae_conv64'  # ae_conv64, ae_linear
+  model_type: 'ae_conv64'  # ae_conv64, ae_linear, ae_conv64norm
   model_mask_mode: 'none'  # std, diff, none
   model_weight_init: 'xavier_normal'   # [xavier_normal, default]
   # logging settings

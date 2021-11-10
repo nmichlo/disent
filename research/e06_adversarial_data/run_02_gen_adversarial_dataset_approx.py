@@ -55,7 +55,6 @@ from disent.nn.activations import Swish
 from disent.nn.modules import DisentModule
 from disent.nn.weights import init_model_weights
 from disent.util import to_numpy
-from disent.util.deprecate import deprecated
 from disent.util.function import wrapped_partial
 from disent.util.inout.paths import ensure_parent_dir_exists
 from disent.util.lightning.callbacks import BaseCallbackPeriodic
@@ -346,9 +345,10 @@ class AdversarialModel(pl.LightningModule):
         else: raise KeyError(f'invalid output mode: {repr(mode)}')
 
     def make_train_periodic_callbacks(self, cfg) -> Sequence[BaseCallbackPeriodic]:
+
         # dataset transform helper
         @TempNumpySeed(42)
-        def make_dataset_transform():
+        def make_scale_uint8_transform():
             # get scaling values
             if self.hparams.logging_scale_imgs:
                 samples = self.dataset.dataset_sample_batch(num_samples=128, mode='raw').to(torch.float32)
@@ -357,31 +357,34 @@ class AdversarialModel(pl.LightningModule):
             else:
                 m, M = 0, 1
             return lambda x: self.batch_to_adversarial_imgs(x[None, ...], m=m, M=M)[0]
+
         # show image callback
         class _BaseDatasetCallback(BaseCallbackPeriodic):
             @TempNumpySeed(777)
             @torch.no_grad()
-            def do_step(this, trainer: pl.Trainer, pl_module: pl.LightningModule):
+            def do_step(this, trainer: pl.Trainer, system: AdversarialModel):
                 if not wb_has_logger(trainer.logger):
-                    log.warning(f'no wandb logger found, skipping visualisation: {self.__class__.__name__}')
+                    log.warning(f'no wandb logger found, skipping visualisation: {system.__class__.__name__}')
                     return
-                if self.dataset is None:
-                    log.warning(f'dataset not initialized, skipping visualisation: {self.__class__.__name__}')
+                if system.dataset is None:
+                    log.warning(f'dataset not initialized, skipping visualisation: {system.__class__.__name__}')
                     return
                 log.info(f'visualising: {this.__class__.__name__}')
-                # make dataset with required transform
-                # -- this is inefficient for multiple subclasses of this class, we need to recompute the transform each time
-                dataset = self.dataset.shallow_copy(transform=make_dataset_transform())
                 try:
-                    this._do_step(trainer, pl_module, dataset)
+                    this._do_step(trainer, system)
                 except:
                     log.error('Failed to do visualise callback step!', exc_info=True)
+
             # override this
-            def _do_step(this, trainer: pl.Trainer, pl_module: pl.LightningModule, dataset: DisentDataset):
+            def _do_step(this, trainer: pl.Trainer, system: AdversarialModel):
                 raise NotImplementedError
+
         # show image callback
         class ImShowCallback(_BaseDatasetCallback):
-            def _do_step(this, trainer: pl.Trainer, pl_module: pl.LightningModule, dataset: DisentDataset):
+            def _do_step(this, trainer: pl.Trainer, system: AdversarialModel):
+                # make dataset with required transform
+                # -- this is inefficient for multiple subclasses of this class, we need to recompute the transform each time
+                dataset = system.dataset.shallow_copy(transform=make_scale_uint8_transform())
                 # get images & traversal
                 image = make_image_grid(dataset.dataset_sample_batch(num_samples=16, mode='input'))
                 wandb_image, wandb_animation = H.visualize_dataset_traversal(dataset, data_mode='input', output_wandb=True)
@@ -391,23 +394,27 @@ class AdversarialModel(pl.LightningModule):
                     'traversal_image': wandb_image,
                     'traversal_animation': wandb_animation,
                 })
+
         # factor distances callback
         class DistsPlotCallback(_BaseDatasetCallback):
-            def _do_step(this, trainer: pl.Trainer, pl_module: pl.LightningModule, dataset: DisentDataset):
+            def _do_step(this, trainer: pl.Trainer, system: AdversarialModel):
                 from disent.util.lightning.callbacks._callbacks_vae import compute_factor_distances, plt_factor_distances
+
                 # make distances function
                 def dists_fn(xs_a, xs_b):
-                    dists = H.pairwise_loss(xs_a, xs_b, mode=self.hparams.pixel_loss_mode, mean_dtype=torch.float32, mask=None)
+                    dists = H.pairwise_loss(xs_a, xs_b, mode=system.hparams.pixel_loss_mode, mean_dtype=torch.float32, mask=None)
                     return [dists]
+
                 def transform_batch(batch):
-                    return batch.to(dtype=torch.float32, device=self.device)
+                    return batch.to(device=system.device)
+
                 # compute various distances matrices for each factor
                 dists_names, f_grid = compute_factor_distances(
-                    dataset=dataset,
+                    dataset=system.dataset,
                     dists_fn=dists_fn,
                     dists_names=['dists'],
                     traversal_repeats=100,
-                    batch_size=self.hparams.dataset_batch_size,
+                    batch_size=system.hparams.dataset_batch_size,
                     include_gt_factor_dists=True,
                     transform_batch=transform_batch,
                     seed=777,
@@ -415,10 +422,10 @@ class AdversarialModel(pl.LightningModule):
                 )
                 # plot these results
                 fig, axs = plt_factor_distances(
-                    gt_data=dataset.gt_data,
+                    gt_data=system.dataset.gt_data,
                     f_grid=f_grid,
                     dists_names=dists_names,
-                    title=f'{self.hparams.model_type.capitalize()}: {self.hparams.dataset_name.capitalize()} Distances',
+                    title=f'{system.hparams.model_type.capitalize()}: {system.hparams.dataset_name.capitalize()} Distances',
                     plt_block_size=1.25,
                     plt_transpose=True,
                     plt_cmap='Blues',
@@ -426,19 +433,22 @@ class AdversarialModel(pl.LightningModule):
                 # recolour dists axis
                 for ax in axs[-1, :]:
                     ax.images[0].set_cmap('Reds')
-                # show the plot
-                if False:
-                    from matplotlib import pyplot as plt
-                    plt.show()
+                # generate image & close matplotlib instace
+                from matplotlib import pyplot as plt
+                img = wandb.Image(fig)
+                plt.close()
                 # log the plot to wandb
                 if True:
                     wb_log_metrics(trainer.logger, {
-                        'factor_distances': wandb.Image(fig)
+                        'factor_distances': img
                     })
 
         # show stats callback
         class StatsShowCallback(_BaseDatasetCallback):
-            def _do_step(this, trainer: pl.Trainer, pl_module: pl.LightningModule, dataset: DisentDataset):
+            def _do_step(this, trainer: pl.Trainer, system: AdversarialModel):
+                # make dataset with required transform
+                # -- this is inefficient for multiple subclasses of this class, we need to recompute the transform each time
+                dataset = system.dataset.shallow_copy(transform=make_scale_uint8_transform())
                 # get batches
                 batch, factors = dataset.dataset_sample_batch_with_factors(num_samples=512, mode='input')
                 batch = batch.to(torch.float32)
@@ -458,6 +468,7 @@ class AdversarialModel(pl.LightningModule):
                     'fdists_vs_overlap': img_fdists,
                     'sdists_vs_overlap': img_sdists,
                 })
+
         # done!
         return [
             ImShowCallback(every_n_steps=cfg.settings.exp.show_every_n_steps, begin_first_step=True),
