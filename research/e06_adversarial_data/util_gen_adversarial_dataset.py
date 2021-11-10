@@ -28,6 +28,7 @@ adversarial datasets using triplet sampling.
 """
 
 import logging
+from functools import lru_cache
 from typing import Literal
 from typing import Optional
 from typing import Tuple
@@ -41,6 +42,7 @@ from disent.dataset.data import GroundTruthData
 from disent.dataset.sampling import BaseDisentSampler
 from disent.dataset.sampling import GroundTruthPairSampler
 from disent.dataset.sampling import GroundTruthTripleSampler
+from disent.dataset.sampling import RandomSampler
 from disent.util.strings import colors as c
 
 
@@ -270,8 +272,41 @@ def make_adversarial_sampler(mode: str = 'close_far'):
             p_radius_range=(0, -1), n_radius_range=(0, -1), n_radius_sample_mode='random',
             swap_metric='manhattan_norm'
         )
+    elif mode == 'random':
+        return RandomSampler(num_samples=3)
     else:
         raise KeyError(f'invalid adversarial sampler: mode={repr(mode)}')
+
+
+# ========================================================================= #
+# Adversarial Sort                                                          #
+# ========================================================================= #
+
+
+@torch.no_grad()
+def sort_samples(a_x: torch.Tensor, p_x: torch.Tensor, n_x: torch.Tensor, sort_mode: str = 'none', pixel_loss_mode: str = 'mse'):
+    # NOTE: this function may mutate its inputs, however
+    #       the returned values should be used.
+    # do not sort!
+    if sort_mode == 'none':
+        return (a_x, p_x, n_x)
+    elif sort_mode == 'swap':
+        return (a_x, n_x, p_x)
+    # compute deltas
+    p_deltas = H.pairwise_loss(a_x, p_x, mode=pixel_loss_mode, mean_dtype=torch.float32, mask=None)
+    n_deltas = H.pairwise_loss(a_x, n_x, mode=pixel_loss_mode, mean_dtype=torch.float32, mask=None)
+    # get swap mask
+    if   sort_mode == 'sort_inorder': swap_mask = p_deltas > n_deltas
+    elif sort_mode == 'sort_reverse': swap_mask = p_deltas < n_deltas
+    else: raise KeyError(f'invalid sort_mode: {repr(sort_mode)}, must be one of: ["none", "swap", "sort_inorder", "sort_reverse"]')
+    # handle mutate or copy
+    idx_swap = torch.where(swap_mask)
+    # swap memory values -- TODO: `p_x[idx_swap], n_x[idx_swap] = n_x[idx_swap], p_x[idx_swap]` is this fine?
+    temp = torch.clone(n_x[idx_swap])
+    n_x[idx_swap] = p_x[idx_swap]
+    p_x[idx_swap] = temp
+    # done!
+    return (a_x, p_x, n_x)
 
 
 # ========================================================================= #
@@ -290,12 +325,22 @@ def _get_triple(x: TensorTriple, adversarial_swapped: bool):
     return a, p, n
 
 
-def _parse_margin_mode(adversarial_mode):
-    if adversarial_mode == 'invert_margin':
-        raise KeyError('`invert_margin` is not valid, specify the margin in the name, eg. `invert_margin_0.01`')
-    elif adversarial_mode.startswith('invert_margin_'):
-        margin = float(adversarial_mode[len('invert_margin_'):])
-        return 'invert_margin', margin
+_MARGIN_MODES = {
+    'invert_margin',
+    'triplet_margin',
+}
+
+
+@lru_cache()
+def _parse_margin_mode(adversarial_mode: str):
+    # parse the MARGIN_MODES -- linear search
+    for margin_mode in _MARGIN_MODES:
+        if adversarial_mode == margin_mode:
+            raise KeyError(f'`{margin_mode}` is not valid, specify the margin in the name, eg. `{margin_mode}_0.01`')
+        elif adversarial_mode.startswith(f'{margin_mode}_'):
+            margin = float(adversarial_mode[len(f'{margin_mode}_'):])
+            return margin_mode, margin
+    # done!
     return adversarial_mode, None
 
 
@@ -331,17 +376,20 @@ def adversarial_loss(
 
     # compute loss deltas
     if   adversarial_mode == 'self':             loss_deltas = torch.abs(deltas)
-    elif adversarial_mode == 'self2':            loss_deltas = torch.abs(deltas) ** 2
+    # elif adversarial_mode == 'self2':          loss_deltas = torch.abs(deltas) ** 2
     elif adversarial_mode == 'self_random':
+        # the above should be equivalent with the right sampling strategy?
         all_deltas = torch.cat([p_deltas, n_deltas], dim=0)
-        indices = np.arange(len(deltas))
+        indices = np.arange(len(all_deltas))
         np.random.shuffle(indices)
-        deltas = all_deltas[len(deltas):] - all_deltas[:len(deltas)]
+        deltas = all_deltas[indices[len(deltas):]] - all_deltas[indices[:len(deltas)]]
         loss_deltas = torch.abs(deltas)
-    elif adversarial_mode == 'invert_unbounded': loss_deltas = deltas
+    # elif adversarial_mode == 'invert_unbounded': loss_deltas = deltas
     elif adversarial_mode == 'invert':           loss_deltas = torch.maximum(deltas, torch.zeros_like(deltas))
-    elif adversarial_mode == 'invert_shift':     loss_deltas = torch.maximum(0.01 + deltas, torch.zeros_like(deltas))    # triplet_loss = torch.clamp_min(p_dist - n_dist + margin_max, 0)
-    elif adversarial_mode == 'invert_margin':    loss_deltas = torch.maximum(margin + deltas, torch.zeros_like(deltas))  # triplet_loss = torch.clamp_min(p_dist - n_dist + margin_max, 0)
+    # elif adversarial_mode == 'invert_shift':     loss_deltas = torch.maximum(0.01 + deltas, torch.zeros_like(deltas))    # invert_loss  = torch.clamp_min(n_dist - p_dist + margin_max, 0)
+    elif adversarial_mode == 'invert_margin':    loss_deltas = torch.maximum(margin + deltas, torch.zeros_like(deltas))  # invert_loss  = torch.clamp_min(n_dist - p_dist + margin_max, 0)
+    elif adversarial_mode == 'triplet':          loss_deltas = torch.maximum(-deltas, torch.zeros_like(deltas))          # triplet_loss = torch.clamp_min(p_dist - n_dist + margin_max, 0)
+    elif adversarial_mode == 'triplet_margin':   loss_deltas = torch.maximum(margin - deltas, torch.zeros_like(deltas))  # triplet_loss = torch.clamp_min(p_dist - n_dist + margin_max, 0)
     else:
         raise KeyError(f'invalid `adversarial_mode`: {repr(adversarial_mode)}')
     assert deltas.shape == loss_deltas.shape, 'this is a bug'

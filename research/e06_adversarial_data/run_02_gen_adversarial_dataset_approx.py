@@ -53,6 +53,7 @@ from disent.dataset.util.hdf5 import H5Builder
 from disent.model import AutoEncoder
 from disent.nn.activations import Swish
 from disent.nn.modules import DisentModule
+from disent.nn.weights import init_model_weights
 from disent.util import to_numpy
 from disent.util.deprecate import deprecated
 from disent.util.function import wrapped_partial
@@ -73,6 +74,7 @@ from experiment.util.hydra_utils import make_non_strict
 from experiment.util.run_utils import log_error_and_exit
 from research.e06_adversarial_data.util_gen_adversarial_dataset import adversarial_loss
 from research.e06_adversarial_data.util_gen_adversarial_dataset import make_adversarial_sampler
+from research.e06_adversarial_data.util_gen_adversarial_dataset import sort_samples
 
 
 log = logging.getLogger(__name__)
@@ -190,9 +192,11 @@ class AdversarialModel(pl.LightningModule):
             loss_out_of_bounds_weight: Optional[float] = 0.0,
         # sampling config
             sampler_name: str = 'close_far',
+            samples_sort_mode: str = 'none',
         # model settings
             model_type: str = 'ae_linear',
             model_mask_mode: Optional[str] = 'none',
+            model_weight_init: str = 'xavier_normal',
         # logging settings
             logging_scale_imgs: bool = False,
             # log_wb_stats_table: bool = True,
@@ -235,6 +239,8 @@ class AdversarialModel(pl.LightningModule):
                 hparams=dict(self.hparams)
             ),
         )
+        # initialize model
+        self.model = init_model_weights(self.model, mode=self.hparams.model_weight_init)
 
     def train_dataloader(self):
         return DataLoader(
@@ -261,6 +267,8 @@ class AdversarialModel(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         (a_x, p_x, n_x) = batch['x_targ']
+        # sort inputs
+        a_x, p_x, n_x = sort_samples(a_x, p_x, n_x, sort_mode=self.hparams.samples_sort_mode, pixel_loss_mode=self.hparams.pixel_loss_mode)
         # feed forward
         a_y = self.model(a_x)
         p_y = self.model(p_x)
@@ -398,7 +406,7 @@ class AdversarialModel(pl.LightningModule):
                     dataset=dataset,
                     dists_fn=dists_fn,
                     dists_names=['dists'],
-                    traversal_repeats=1,
+                    traversal_repeats=100,
                     batch_size=self.hparams.dataset_batch_size,
                     include_gt_factor_dists=True,
                     transform_batch=transform_batch,
@@ -419,7 +427,7 @@ class AdversarialModel(pl.LightningModule):
                 for ax in axs[-1, :]:
                     ax.images[0].set_cmap('Reds')
                 # show the plot
-                if True:
+                if False:
                     from matplotlib import pyplot as plt
                     plt.show()
                 # log the plot to wandb
