@@ -21,12 +21,12 @@ ROOT_DIR="$(dirname "$(dirname "$PARENT_DIR")")"
 #    adv_system.dataset_name=smallnorb
 
 PYTHONPATH="$ROOT_DIR" python3 "$PARENT_DIR/run_02_gen_adversarial_dataset_approx.py" \
-    -m \
+    -m "$@" \
     settings.dataset.batch_size=128 \
     adv_system.loss_out_of_bounds_weight=1.0 \
     \
-    adv_system.sampler_name=random_swap_manhattan,close_p_random_n \
-    adv_system.samples_sort_mode=none,swap,sort_inorder,sort_reverse \
+    adv_system.sampler_name=same_k1_close,close_p_random_n,random_swap_manhattan \
+    adv_system.samples_sort_mode=swap,sort_reverse,none,sort_inorder \
     \
     adv_system.adversarial_mode=triplet_margin_0.1 \
-    adv_system.dataset_name=smallnorb
+    adv_system.dataset_name=smallnorb \

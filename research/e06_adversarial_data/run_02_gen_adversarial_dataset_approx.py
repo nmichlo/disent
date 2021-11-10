@@ -406,7 +406,7 @@ class AdversarialModel(pl.LightningModule):
                     return [dists]
 
                 def transform_batch(batch):
-                    return batch.to(device=system.device)
+                    return system.model(batch.to(device=system.device))
 
                 # compute various distances matrices for each factor
                 dists_names, f_grid = compute_factor_distances(

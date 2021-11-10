@@ -48,7 +48,7 @@ adv_system:
   #   note: sampler_name (adversarial_mode=self)
   #     - close_p_random_n:      seems better based on plot of fdists vs overlap (converges better, but loss is higher which makes sense)
   #     - same_k1_close:         seems worse based on plot of fdists vs overlap (seems to maintain original shape more, might hinder disentanglement? not actually tested)
-  sampler_name:      'random_swap_manhattan' # [close_p_random_n, same_k1_close]
+  sampler_name:      'random_swap_manhattan' # [random_swap_manhattan, close_p_random_n, same_k1_close]
   samples_sort_mode: 'none'                  # [none, swap, sort_inorder, sort_reverse]
   dataset_name:      'smallnorb'             # [cars3d, smallnorb, dsprites, shapes3d, xysquares_8x8_mini]
   adversarial_mode:  'triplet_margin_0.1'    # [self, invert_margin_0.05, invert_margin_0.005] invert, invert_unbounded
