@@ -56,55 +56,78 @@ def ensure_rgb(img: np.ndarray) -> np.ndarray:
     return img
 
 
-def plot_dataset_traversals(
+def plot_dataset_overlap(
     gt_data: GroundTruthData,
     f_idxs=None,
-    num_cols: Optional[int] = 8,
-    base_factors=None,
-    add_random_traversal=True,
-    pad=8,
-    bg_color=127,
-    border=False,
+    obs_max: Optional[int] = None,
+    obs_spacing: int = 1,
     rel_path=None,
     save=True,
     seed=777,
     plt_scale=4.5,
     offset=0.75
 ):
-    # convert
-    dataset = DisentDataset(gt_data)
-    f_idxs = gt_data.normalise_factor_idxs(f_idxs)
-    num_cols = num_cols if (num_cols is not None) else min(max(gt_data.factor_sizes), 32)
-    # get traversal grid
-    row_labels = [gt_data.factor_names[i] for i in f_idxs]
-    grid, _, _ = H.visualize_dataset_traversal(
-        dataset=dataset,
-        data_mode='raw',
-        factor_names=f_idxs,
-        num_frames=num_cols,
-        seed=seed,
-        base_factors=base_factors,
-        traverse_mode='interval',
-        pad=pad,
-        bg_color=bg_color,
-        border=border,
-    )
-    # add random traversal
-    if add_random_traversal:
-        with TempNumpySeed(seed):
-            row_labels = ['random'] + row_labels
-            row = dataset.dataset_sample_batch(num_samples=num_cols, mode='raw')[None, ...]  # torch.Tensor
-            grid = np.concatenate([ensure_rgb(row), grid])
-    # make figure
-    factors, frames, _, _, c = grid.shape
-    assert c == 3
-    fig, axs = H.plt_subplots_imshow(grid, label_size=18, title_size=24, title=gt_data.name, row_labels=row_labels, subplot_padding=None, figsize=(offset + (1/2.54)*frames*plt_scale, (1/2.54)*(factors+0.45)*plt_scale))
-    # save figure
-    if save and (rel_path is not None):
-        plt.savefig(H.make_rel_path_add_ext(rel_path, ext='.png'))
-    plt.show()
-    # done!
-    return fig, axs
+    with TempNumpySeed(seed):
+        # choose an f_idx
+        f_idx = np.random.choice(gt_data.normalise_factor_idxs(f_idxs))
+        f_name = gt_data.factor_names[f_idx]
+        num_cols = gt_data.factor_sizes[f_idx]
+        # get a traversal
+        factors, indices, obs = gt_data.sample_random_obs_traversal(f_idx=f_idx)
+        # get subset
+        if obs_max is not None:
+            max_obs_spacing, i = obs_spacing, 1
+            while max_obs_spacing*obs_max > len(obs):
+                max_obs_spacing = obs_spacing-i
+                i += 1
+            i = max((len(obs) - obs_max*max_obs_spacing) // 2, 0)
+            obs = obs[i:i+obs_max*obs_spacing:max_obs_spacing][:obs_max]
+        # convert
+        obs = np.array([ensure_rgb(x) for x in obs], dtype='float32') / 255
+        # compute the distances
+        grid = np.zeros([len(obs), len(obs), *obs[0].shape])
+        for i, i_obs in enumerate(obs):
+            for j, j_obs in enumerate(obs):
+                grid[i, j] = np.abs(i_obs - j_obs)
+        # normalize
+        grid /= grid.max()
+        # make figure
+        factors, frames, _, _, c = grid.shape
+        assert c == 3
+        # plot
+        fig, axs = H.plt_subplots_imshow(grid, label_size=18, title_size=24, title=f'{gt_data.name}: {f_name}', subplot_padding=None, figsize=(offset + (1/2.54)*frames*plt_scale, (1/2.54)*(factors+0.45)*plt_scale))
+        # save figure
+        if save and (rel_path is not None):
+            plt.savefig(H.make_rel_path_add_ext(rel_path, ext='.png'))
+        plt.show()
+        # add obs
+        if True:
+            factors += 1
+            frames += 1
+            # scaled_obs = obs
+            scaled_obs = obs  * 0.5 + 0.25
+            # grid = 1 - grid
+            # grid = grid * 0.5 + 0.25
+            grid = np.concatenate([scaled_obs[None, :], grid], axis=0)
+            add_row = np.concatenate([np.ones_like(obs[0:1]), scaled_obs], axis=0)
+            grid = np.concatenate([grid, add_row[:, None]], axis=1)
+        # plot
+        fig, axs = H.plt_subplots_imshow(grid, label_size=18, title_size=24, row_labels=["traversal"] + (["diff."] * len(obs)), col_labels=(["diff."] * len(obs)) + ["traversal"], title=f'{gt_data.name}: {f_name}', subplot_padding=None, figsize=(offset + (1/2.54)*frames*plt_scale, (1/2.54)*(factors+0.45)*plt_scale))
+        # save figure
+        if save and (rel_path is not None):
+            plt.savefig(H.make_rel_path_add_ext(rel_path + '_combined', ext='.png'))
+        plt.show()
+        # plot
+        # fig, axs = H.plt_subplots_imshow(obs[:, None], subplot_padding=None, figsize=(offset + (1/2.54)*1*plt_scale, (1/2.54)*(factors+0.45)*plt_scale))
+        # if save and (rel_path is not None):
+        #     plt.savefig(H.make_rel_path_add_ext(rel_path + '_v', ext='.png'))
+        # plt.show()
+        # fig, axs = H.plt_subplots_imshow(obs[None, :], subplot_padding=None, figsize=(offset + (1/2.54)*frames*plt_scale, (1/2.54)*(1+0.45)*plt_scale))
+        # if save and (rel_path is not None):
+        #     plt.savefig(H.make_rel_path_add_ext(rel_path + '_h', ext='.png'))
+        # plt.show()
+        # done!
+        return fig, axs
 
 
 # ========================================================================= #
@@ -121,46 +144,16 @@ if __name__ == '__main__':
     all_squares = True
     add_random_traversal = True
     num_cols = 7
-    seed = 47
+    seed = 48
 
     # save images
-    for i in ([1, 2, 3, 4, 5, 6, 7, 8] if all_squares else [1, 8]):
+    for i in ([1, 2, 4, 8] if all_squares else [1, 8]):
         data = XYSquaresData(grid_spacing=i, grid_size=8, no_warnings=True)
-        plot_dataset_traversals(data, rel_path=f'plots/xy-squares-traversal-spacing{i}', seed=seed-40, add_random_traversal=add_random_traversal, num_cols=num_cols)
+        plot_dataset_overlap(data, rel_path=f'plots/overlap__xy-squares-spacing{i}', obs_max=3, obs_spacing=4, seed=seed-40)
 
-    plot_dataset_traversals(XYObjectData(),                  rel_path=f'plots/xy-object-traversal',                seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
-    plot_dataset_traversals(XYObjectShadedData(),            rel_path=f'plots/xy-object-shaded-traversal',         seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
-    plot_dataset_traversals(XYBlocksData(),                  rel_path=f'plots/xy-blocks-traversal',                seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
-    plot_dataset_traversals(Shapes3dData(),                  rel_path=f'plots/shapes3d-traversal',                 seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
-    plot_dataset_traversals(DSpritesData(),                  rel_path=f'plots/dsprites-traversal',                 seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
-    plot_dataset_traversals(DSpritesImagenetData(100, 'bg'), rel_path=f'plots/dsprites-imagenet-bg-100-traversal', seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
-    plot_dataset_traversals(DSpritesImagenetData( 50, 'bg'), rel_path=f'plots/dsprites-imagenet-bg-50-traversal',  seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
-    plot_dataset_traversals(DSpritesImagenetData(100, 'fg'), rel_path=f'plots/dsprites-imagenet-fg-100-traversal', seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
-    plot_dataset_traversals(DSpritesImagenetData( 50, 'fg'), rel_path=f'plots/dsprites-imagenet-fg-50-traversal',  seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
-    plot_dataset_traversals(SmallNorbData(),                 rel_path=f'plots/smallnorb-traversal',                seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
-    plot_dataset_traversals(Cars3dData(),                    rel_path=f'plots/cars3d-traversal',                   seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
-
-    BASE = os.path.abspath(os.path.join(__file__, '../../../out/adversarial_data_approx'))
-
-    for folder in [
-        # 'const' datasets
-        ('2021-08-18--00-58-22_FINAL-dsprites_self_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06'),
-        ('2021-08-18--01-33-47_FINAL-shapes3d_self_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06'),
-        ('2021-08-18--02-20-13_FINAL-cars3d_self_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06'),
-        ('2021-08-18--03-10-53_FINAL-smallnorb_self_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06'),
-        # 'invert' datasets
-        ('2021-08-18--03-52-31_FINAL-dsprites_invert_margin_0.005_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06'),
-        ('2021-08-18--04-29-25_FINAL-shapes3d_invert_margin_0.005_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06'),
-        ('2021-08-18--05-13-15_FINAL-cars3d_invert_margin_0.005_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06'),
-        ('2021-08-18--06-03-32_FINAL-smallnorb_invert_margin_0.005_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06'),
-        # stronger 'invert' datasets
-        ('2021-09-06--00-29-23_INVERT-VSTRONG-shapes3d_invert_margin_0.05_aw10.0_same_k1_close_s200001_Adam_lr0.0005_wd1e-06'),
-        ('2021-09-06--03-17-28_INVERT-VSTRONG-dsprites_invert_margin_0.05_aw10.0_same_k1_close_s200001_Adam_lr0.0005_wd1e-06'),
-        ('2021-09-06--05-42-06_INVERT-VSTRONG-cars3d_invert_margin_0.05_aw10.0_same_k1_close_s200001_Adam_lr0.0005_wd1e-06'),
-        ('2021-09-06--09-10-59_INVERT-VSTRONG-smallnorb_invert_margin_0.05_aw10.0_same_k1_close_s200001_Adam_lr0.0005_wd1e-06'),
-    ]:
-        plot_dataset_traversals(SelfContainedHdf5GroundTruthData(f'{BASE}/{folder}/data.h5'), rel_path=f'plots/{folder}__traversal.png', seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
-
+    gt_data = DSpritesData()
+    for f_idx, f_name in enumerate(gt_data.factor_names):
+        plot_dataset_overlap(gt_data, rel_path=f'plots/overlap__dsprites__f-{f_name}', obs_max=3, obs_spacing=4, f_idxs=f_idx, seed=seed)
 
 # ========================================================================= #
 # END                                                                       #

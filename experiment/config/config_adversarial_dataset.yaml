@@ -1,23 +1,43 @@
+
+# ========================================================================= #
+# CONFIG                                                                    #
+# ========================================================================= #
+
+
 defaults:
-  # runtime
   - run_logging: wandb_fast
   - run_location: griffin
-  # plugins
-  - hydra/job_logging: colorlog
-  - hydra/hydra_logging: colorlog
-#  - hydra/launcher: submitit_slurm
+  - run_launcher: local
+  # entries in this file override entries from default lists
+  - _self_
+
+settings:
+  job:
+    user: 'n_michlo'
+    project: 'DELETE'  # exp-disentangle-dataset
+    name: 'no-name' # TEST-${framework.dataset_name}_${framework.adversarial_mode}_${framework.sampler_name}_s${trainer.max_steps}_${framework.optimizer_name}_lr${framework.optimizer_lr} # _wd${framework.optimizer_kwargs.weight_decay}
+    seed: 777
+  exp:
+    show_every_n_steps: 500
+    # saving
+    rel_save_dir: 'out/adversarial_data/'
+    save_prefix: 'PREFIX'
+    save_data: TRUE
+  dataset:
+    batch_size: 32
 
 trainer:
-  cuda: TRUE
-  steps: 30001
+  # same as defaults: - run_length: ...
+  max_steps: 30001
+  max_epochs: 30001
 
-framework:
-  # IMPORTANT SETTINGS:
+adv_system:
+  ### IMPORTANT SETTINGS ###
   dataset_name: 'dsprites'          # [cars3d, smallnorb, dsprites, shapes3d, xysquares_8x8_mini]
   adversarial_mode: 'self'          # [self, invert_margin_0.005] invert, invert_unbounded
   sampler_name: 'close_p_random_n'  # [close_p_random_n, same_k1_close]
 
-  # OTHER SETTINGS:
+  ### OTHER SETTINGS ###
   # optimizer options
   optimizer_name: 'Adam'
   optimizer_lr: 1e-1
@@ -25,7 +45,7 @@ framework:
   # dataset config options
   # | dataset_name: 'cars3d'  # cars3d, smallnorb, xysquares_8x8_mini
   dataset_batch_size: 2048  # x3
-  dataset_num_workers: ${dataset.num_workers}
+  dataset_num_workers: ${dataloader.num_workers}
   data_root: ${dsettings.storage.data_root}
   # adversarial loss options
   # | adversarial_mode: 'invert_margin_0.005'  # [self, invert_margin_0.005] invert, invert_unbounded
@@ -38,17 +58,3 @@ framework:
   # train options
   train_batch_optimizer: TRUE
   train_dataset_fp16: TRUE
-
-exp:
-  seed: 777
-  show_every_n_steps: 500
-  rel_save_dir: 'out/adversarial_data'
-
-job:
-  # saving
-  save_prefix: ''
-  save_data: TRUE
-  name: TEST-${framework.dataset_name}_${framework.adversarial_mode}_${framework.sampler_name}_s${trainer.max_steps}_${framework.optimizer_name}_lr${framework.optimizer_lr} # _wd${framework.optimizer_kwargs.weight_decay}
-  # wandb
-  user: 'n_michlo'
-  project: 'exp-disentangle-dataset'

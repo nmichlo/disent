@@ -10,7 +10,7 @@ export PARTITION="stampede"
 export PARALLELISM=28
 
 # source the helper file
-source "$(dirname "$(dirname "$(realpath -s "$0")")")/helper.sh"
+source "$(dirname "$(dirname "$(dirname "$(realpath -s "$0")")")")/helper.sh"
 
 # ========================================================================= #
 # Experiment                                                                #

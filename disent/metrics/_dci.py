@@ -45,7 +45,7 @@ log = logging.getLogger(__name__)
 
 
 def metric_dci(
-        ground_truth_dataset: DisentDataset,
+        dataset: DisentDataset,
         representation_function: callable,
         num_train: int = 10000,
         num_test: int = 5000,
@@ -55,7 +55,7 @@ def metric_dci(
 ):
     """Computes the DCI scores according to Sec 2.
     Args:
-      ground_truth_dataset: GroundTruthData to be sampled from.
+      dataset: DisentDataset to be sampled from.
       representation_function: Function that takes observations as input and
         outputs a dim_representation sized representation for each observation.
       num_train: Number of points used for training.
@@ -70,10 +70,10 @@ def metric_dci(
     log.debug("Generating training set.")
     # mus_train are of shape [num_codes, num_train], while ys_train are of shape
     # [num_factors, num_train].
-    mus_train, ys_train = utils.generate_batch_factor_code(ground_truth_dataset, representation_function, num_train, batch_size, show_progress=False)
+    mus_train, ys_train = utils.generate_batch_factor_code(dataset, representation_function, num_train, batch_size, show_progress=False)
     assert mus_train.shape[1] == num_train
     assert ys_train.shape[1] == num_train
-    mus_test, ys_test = utils.generate_batch_factor_code(ground_truth_dataset, representation_function, num_test, batch_size, show_progress=False)
+    mus_test, ys_test = utils.generate_batch_factor_code(dataset, representation_function, num_test, batch_size, show_progress=False)
 
     log.debug("Computing DCI metric.")
     scores = _compute_dci(mus_train, ys_train, mus_test, ys_test, boost_mode=boost_mode, show_progress=show_progress)

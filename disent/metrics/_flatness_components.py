@@ -53,7 +53,7 @@ log = logging.getLogger(__name__)
 
 
 def metric_flatness_components(
-        ground_truth_dataset: DisentDataset,
+        dataset: DisentDataset,
         representation_function: callable,
         factor_repeats: int = 1024,
         batch_size: int = 64,
@@ -71,18 +71,18 @@ def metric_flatness_components(
         ave_axis_alignment:     axis ratio is bounded by linear ratio - compute: axis / linear
 
     Args:
-      ground_truth_dataset: GroundTruthData to be sampled from.
+      dataset: DisentDataset to be sampled from.
       representation_function: Function that takes observations as input and outputs a dim_representation sized representation for each observation.
       factor_repeats: how many times to repeat a traversal along each factors, these are then averaged together.
       batch_size: Batch size to process at any time while generating representations, should not effect metric results.
     Returns:
       Dictionary with metrics
     """
-    fs_measures, ran_measures = aggregate_measure_distances_along_all_factors(ground_truth_dataset, representation_function, repeats=factor_repeats, batch_size=batch_size)
+    fs_measures, ran_measures = aggregate_measure_distances_along_all_factors(dataset, representation_function, repeats=factor_repeats, batch_size=batch_size)
 
     results = {}
     for k, v in fs_measures.items():
-        results[f'flatness_components.{k}'] = float(filtered_mean(v, p='geometric', factor_sizes=ground_truth_dataset.ground_truth_data.factor_sizes))
+        results[f'flatness_components.{k}'] = float(filtered_mean(v, p='geometric', factor_sizes=dataset.gt_data.factor_sizes))
     for k, v in ran_measures.items():
         results[f'flatness_components.{k}'] = float(v.mean(dim=0))
 
@@ -104,7 +104,7 @@ def filtered_mean(values, p, factor_sizes):
 
 
 def aggregate_measure_distances_along_all_factors(
-        ground_truth_dataset: DisentDataset,
+        dataset: DisentDataset,
         representation_function,
         repeats: int,
         batch_size: int,
@@ -113,18 +113,18 @@ def aggregate_measure_distances_along_all_factors(
     # COMPUTE AGGREGATES FOR EACH FACTOR
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     fs_measures = default_collate([
-        aggregate_measure_distances_along_factor(ground_truth_dataset, representation_function, f_idx=f_idx, repeats=repeats, batch_size=batch_size)
-        for f_idx in range(ground_truth_dataset.ground_truth_data.num_factors)
+        aggregate_measure_distances_along_factor(dataset, representation_function, f_idx=f_idx, repeats=repeats, batch_size=batch_size)
+        for f_idx in range(dataset.gt_data.num_factors)
     ])
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     # COMPUTE RANDOM SWAP RATIO
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     values = []
-    num_samples = int(np.mean(ground_truth_dataset.ground_truth_data.factor_sizes) * repeats)
+    num_samples = int(np.mean(dataset.gt_data.factor_sizes) * repeats)
     for idxs in iter_chunks(range(num_samples), batch_size):
         # encode factors
-        factors = ground_truth_dataset.ground_truth_data.sample_factors(size=len(idxs))
-        zs = encode_all_factors(ground_truth_dataset, representation_function, factors, batch_size=batch_size)
+        factors = dataset.gt_data.sample_factors(size=len(idxs))
+        zs = encode_all_factors(dataset, representation_function, factors, batch_size=batch_size)
         # get random triplets from factors
         rai, rpi, rni = np.random.randint(0, len(factors), size=(3, len(factors) * 4))
         rai, rpi, rni = reorder_by_factor_dist(factors, rai, rpi, rni)

@@ -1,3 +1,92 @@
+
+# ========================================================================= #
+# CONFIG                                                                    #
+# ========================================================================= #
+
+defaults:
+  - run_logging: wandb_fast
+  - run_location: griffin
+  - run_launcher: local
+  # entries in this file override entries from default lists
+  - _self_
+
+settings:
+  job:
+    user: 'n_michlo'
+    project: 'DELETE'
+    name: 'TEST-${adv_system.dataset_name}_${adv_system.adversarial_mode}_${adv_system.samples_sort_mode}_aw${adv_system.loss_adversarial_weight}_${adv_system.sampler_name}_s${trainer.max_steps}_${adv_system.optimizer_name}_lr${adv_system.optimizer_lr}_wd${adv_system.optimizer_kwargs.weight_decay}_b${settings.dataset.batch_size}_${settings.exp.save_dtype}'
+    seed: 424242
+  exp:
+    show_every_n_steps: 1000
+    # saving
+    rel_save_dir: 'out/adversarial_data_approx/'
+    save_prefix: 'PREFIX'
+    save_model: FALSE
+    save_data: FALSE
+    save_dtype: float16
+  dataset:
+    batch_size: 128
+
+trainer:
+  # same as defaults: - run_length: ...
+  # - 15000 takes 40 mins with batch size 512 (heartofgold, 12 workers)
+  # - 50000 takes 33 mins with batch size 256 (griffin, 16 workers)
+  max_steps: 20000
+  max_epochs: 20000
+
+adv_system:
+  ### IMPORTANT SETTINGS ###
+  #   best:
+  #     - close_p_random_n
+  #   note: sampler_name (adversarial_mode=invert_margin_0.005)
+  #     - random_swap_manhattan: worst [no inversion before 5k]     (probability of encountering close is too low, don't use! ++easiest to implement)
+  #     - close_p_random_n:      good  [inversion before 5k]        (easier to implement)
+  #     - close_p_random_n_bb:   good  [inversion before 5k]        (hard to implement, but pretty much the same as close_p_random_n)
+  #     - same_k:                bad   [no inversion before 5k]     (probability of encountering close is too low, don't use! --harder to implement, better guarantees than random_swap_manhattan)
+  #     - same_k_close:          ok    [almost inversion before 5k] (harder to implement)
+  #     - same_k1_close:         best  [inversion well before 5 k]  (easier to implement)
+  #   note: sampler_name (adversarial_mode=self)
+  #     - close_p_random_n:      seems better based on plot of fdists vs overlap (converges better, but loss is higher which makes sense)
+  #     - same_k1_close:         seems worse based on plot of fdists vs overlap (seems to maintain original shape more, might hinder disentanglement? not actually tested)
+  sampler_name:      'random_swap_manhattan' # [close_p_random_n, same_k1_close]
+  samples_sort_mode: 'none'                  # [none, swap, sort_inorder, sort_reverse]
+  dataset_name:      'smallnorb'             # [cars3d, smallnorb, dsprites, shapes3d, xysquares_8x8_mini]
+  adversarial_mode:  'triplet_margin_0.1'    # [self, invert_margin_0.05, invert_margin_0.005] invert, invert_unbounded
+
+  ### OTHER SETTINGS ###
+  # optimizer options
+  optimizer_name: 'adam'
+  optimizer_lr: 1e-3
+  optimizer_kwargs:
+     weight_decay: 1e-6
+  # dataset config options
+  dataset_batch_size: ${dataloader.batch_size}  # x3
+  dataset_num_workers: ${dataloader.num_workers}
+  data_root: ${dsettings.storage.data_root}
+  data_load_into_memory: FALSE  # I don't think this is truly multi-threaded, possible lock on array access?
+  # adversarial loss options
+  adversarial_swapped: FALSE
+  adversarial_masking: FALSE  # can produce weird artefacts that look like they might go against the training process, eg. improve disentanglement on dsprites, not actually checked by trianing model on this.
+  adversarial_top_k:   NULL   # NULL or range(1, batch_size)
+  pixel_loss_mode:    'mse'
+  # loss extras
+  loss_adversarial_weight:  10.0
+  loss_out_of_bounds_weight: 1.0   # not really needed -- if this is too high it struggles to "invert"
+  loss_same_stats_weight:    0.0   # not really needed
+  loss_similarity_weight:    1.0   # important
+  # model settings
+  model_type: 'ae_conv64'  # ae_conv64, ae_linear
+  model_mask_mode: 'none'  # std, diff, none
+  model_weight_init: 'xavier_normal'   # [xavier_normal, default]
+  # logging settings
+  logging_scale_imgs: FALSE
+
+
+# ========================================================================= #
+# OLD EXPERIMENTS                                                           #
+# ========================================================================= #
+
+
 # EXPERIMENT SWEEP:
 # -m framework.sampler_name=close_p_random_n framework.adversarial_mode=self,invert_margin_0.005 framework.dataset_name=dsprites,shapes3d,cars3d,smallnorb
 # -m framework.loss_adversarial_weight=100.0 framework.sampler_name=same_k1_close framework.adversarial_mode=self2,self framework.dataset_name=dsprites,shapes3d,cars3d,smallnorb
@@ -24,89 +113,8 @@
 #   DOING: -m framework.sampler_name=close_p_random_n framework.adversarial_mode=invert_margin_0.05 framework.dataset_name=smallnorb,cars3d
 #   TODO: -m framework.sampler_name=close_p_random_n framework.adversarial_mode=invert_margin_0.05 framework.dataset_name=cars3d,smallnorb
 
-
 # NEW EXPERIMENT 2:
 # -m framework.sampler_name=same_k1_close,close_p_random_n framework.adversarial_mode=invert_margin_0.05 framework.loss_out_of_bounds_weight=1000.0 framework.dataset_name=dsprites,shapes3d,smallnorb,cars3d
 
 # NEW EXPERIMENT 3:
 # -m framework.sampler_name=same_k1_close framework.adversarial_mode=invert_margin_0.05 framework.loss_out_of_bounds_weight=10000.0 framework.dataset_name=shapes3d,dsprites,cars3d,smallnorb
-
-defaults:
-  # runtime
-  - run_logging: wandb
-  - run_location: griffin
-  # plugins
-  - hydra/job_logging: colorlog
-  - hydra/hydra_logging: colorlog
-#  - hydra/launcher: submitit_slurm
-#  - hydra/launcher: joblib
-
-trainer:
-  cuda: TRUE
-  # try increasing the number of steps
-  # - 15000 takes 40 mins with batch size 512 (heartofgold, 12 workers)
-  # - 50000 takes 33 mins with batch size 256 (griffin, 16 workers)
-  steps: 200001
-
-framework:
-  # IMPORTANT SETTINGS:
-  dataset_name:     'dsprites'             # [cars3d, smallnorb, dsprites, shapes3d, xysquares_8x8_mini]
-  adversarial_mode: 'invert_margin_0.05'   # [self, invert_margin_0.05, invert_margin_0.005] invert, invert_unbounded
-  # note: sampler_name (adversarial_mode=invert_margin_0.005)
-  # - random_swap_manhattan: worst [no inversion before 5k]     (probability of encountering close is too low, don't use! ++easiest to implement)
-  # - close_p_random_n:      good  [inversion before 5k]        (easier to implement)
-  # - close_p_random_n_bb:   good  [inversion before 5k]        (hard to implement, but pretty much the same as close_p_random_n)
-  # - same_k:                bad   [no inversion before 5k]     (probability of encountering close is too low, don't use! --harder to implement, better guarantees than random_swap_manhattan)
-  # - same_k_close:          ok    [almost inversion before 5k] (harder to implement)
-  # - same_k1_close:         best  [inversion well before 5 k]  (easier to implement)
-  # note: sampler_name (adversarial_mode=self)
-  # - close_p_random_n:      seems better based on plot of fdists vs overlap (converges better, but loss is higher which makes sense)
-  # - same_k1_close:         seems worse based on plot of fdists vs overlap (seems to maintain original shape more, might hinder disentanglement? not actually tested)
-  # <<< DECISION: close_p_random_n >>>
-  sampler_name: 'close_p_random_n'     # [close_p_random_n, same_k1_close]
-
-  # OTHER SETTINGS:
-  # optimizer options
-  optimizer_name: 'Adam'
-  optimizer_lr: 5e-4
-  optimizer_kwargs:
-     weight_decay: 1e-6
-  # dataset config options
-  # | dataset_name: 'dsprites'  # cars3d, smallnorb, dsprites, shapes3d, xysquares_8x8_mini
-  dataset_batch_size: 256  # x3
-  dataset_num_workers: ${dataset.num_workers}
-  data_root: ${dsettings.storage.data_root}
-  data_load_into_memory: FALSE  # I don't think this is truly multi-threaded, possible lock on array access?
-  # adversarial loss options
-  # | adversarial_mode: 'invert_margin_0.005'  # [self, invert_margin_0.005] invert, invert_unbounded
-  adversarial_swapped: FALSE
-  adversarial_masking: FALSE  # can produce weird artefacts that look like they might go against the training process, eg. improve disentanglement on dsprites, not actually checked by trianing model on this.
-  adversarial_top_k: NULL  # NULL or range(1, batch_size)
-  pixel_loss_mode: 'mse'
-  # loss extras
-  loss_adversarial_weight: 10.0
-  loss_out_of_bounds_weight: 1.0   # not really needed -- if this is too high it struggles to "invert"
-  loss_same_stats_weight: 0.0      # not really needed
-  loss_similarity_weight: 1.0      # important
-  # sampling config
-  # | sampler_name: 'close_p_random_n'   # [close_p_random_n] (see notes above) -- close_p_random_n, close_p_random_n_bb, same_k, same_k_close, same_k1_close, same_k (might be wrong!), same_k_close, same_k1_close, close_far, close_factor_far_random, close_far_same_factor, same_factor, random_bb, random_swap_manhat, random_swap_manhat_norm
-  # model settings
-  model_type: 'ae_conv64'
-  model_mask_mode: 'none'  # std, diff, none
-  # logging settings
-  logging_scale_imgs: FALSE
-
-exp:
-  seed: 777
-  show_every_n_steps: 2000
-  rel_save_dir: 'out/adversarial_data_approx/'
-
-job:
-  # saving
-  save_prefix: ''
-  save_model: TRUE
-  save_data: TRUE
-  name: INVERT-VSTRONG-${framework.dataset_name}_${framework.adversarial_mode}_aw${framework.loss_adversarial_weight}_${framework.sampler_name}_s${trainer.max_steps}_${framework.optimizer_name}_lr${framework.optimizer_lr}_wd${framework.optimizer_kwargs.weight_decay}
-  # wandb
-  user: 'n_michlo'
-  project: 'exp-disentangle-dataset-approx'

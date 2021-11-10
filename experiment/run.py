@@ -173,7 +173,8 @@ _CALLBACK_MAKERS = {
 }
 
 
-def hydra_append_callbacks(callbacks, cfg):
+def hydra_get_callbacks(cfg) -> list:
+    callbacks = []
     # add all callbacks
     for name, item in cfg.callbacks.items():
         # custom callback handling vs instantiation
@@ -188,9 +189,11 @@ def hydra_append_callbacks(callbacks, cfg):
             callbacks.append(callback)
         else:
             log.info(f'skipped callback: {name}')
+    return callbacks
 
 
-def hydra_append_metric_callback(callbacks, cfg):
+def hydra_get_metric_callbacks(cfg) -> list:
+    callbacks = []
     # set default values used later
     default_every_n_steps    = cfg.metrics.default_every_n_steps
     default_on_final         = cfg.metrics.default_on_final
@@ -219,6 +222,7 @@ def hydra_append_metric_callback(callbacks, cfg):
                 every_n_steps     = settings.get('every_n_steps', default_every_n_steps),
                 begin_first_step  = settings.get('begin_first_step', default_begin_first_step),
             ))
+    return callbacks
 
 
 def hydra_register_schedules(module: DisentFramework, cfg):
@@ -344,9 +348,10 @@ def train(cfg: DictConfig, config_path: str = None):
     hydra_check_data_paths(cfg)
 
     # TRAINER CALLBACKS
-    callbacks = []
-    hydra_append_callbacks(callbacks, cfg)
-    hydra_append_metric_callback(callbacks, cfg)
+    callbacks = [
+        *hydra_get_callbacks(cfg),
+        *hydra_get_metric_callbacks(cfg),
+    ]
 
     # HYDRA MODULES
     datamodule = HydraDataModule(cfg)

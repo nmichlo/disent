@@ -81,7 +81,11 @@ def wrapped_only(func):
 # ========================================================================= #
 
 
+_DO_COPY = object()
+
+
 class DisentDataset(Dataset, LengthIter):
+
 
     def __init__(
         self,
@@ -101,6 +105,20 @@ class DisentDataset(Dataset, LengthIter):
         # initialize sampler
         if not self._sampler.is_init:
             self._sampler.init(dataset)
+
+    def shallow_copy(
+        self,
+        transform=_DO_COPY,
+        augment=_DO_COPY,
+        return_indices=_DO_COPY,
+    ) -> 'DisentDataset':
+        return DisentDataset(
+            dataset=self._dataset,
+            sampler=self._sampler,
+            transform=self._transform if (transform is _DO_COPY) else transform,
+            augment=self._augment if (augment is _DO_COPY) else augment,
+            return_indices=self._return_indices if (return_indices is _DO_COPY) else return_indices,
+        )
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Properties                                                            #
@@ -290,13 +308,13 @@ class DisentDataset(Dataset, LengthIter):
     @groundtruth_only
     def dataset_batch_from_factors(self, factors: np.ndarray, mode: str):
         """Get a batch of observations X from a batch of factors Y."""
-        indices = self.ground_truth_data.pos_to_idx(factors)
+        indices = self.gt_data.pos_to_idx(factors)
         return self.dataset_batch_from_indices(indices, mode=mode)
 
     @groundtruth_only
     def dataset_sample_batch_with_factors(self, num_samples: int, mode: str):
         """Sample a batch of observations X and factors Y."""
-        factors = self.ground_truth_data.sample_factors(num_samples)
+        factors = self.gt_data.sample_factors(num_samples)
         batch = self.dataset_batch_from_factors(factors, mode=mode)
         return batch, default_collate(factors)
 
