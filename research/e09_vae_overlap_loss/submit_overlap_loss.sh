@@ -5,7 +5,7 @@
 # ========================================================================= #
 
 export USERNAME="n_michlo"
-export PROJECT="CVPR-00__basic-hparam-tuning"
+export PROJECT="CVPR-09__vae_overlap_loss"
 export PARTITION="stampede"
 export PARALLELISM=28
 
@@ -21,37 +21,18 @@ clog_cudaless_nodes "$PARTITION" 86400 "C-disent" # 24 hours
 # RUN SWEEP FOR GOOD BETA VALUES
 # - beta: 0.01, 0.0316 seem good, 0.1 starts getting too strong, 0.00316 is a bit weak
 # - beta:
-# 1 * (2 * 8 * 2 * 5) = 160
+# 1 * (2 * 5 * 2 * 6) = 120
 submit_sweep \
     +DUMMY.repeat=1 \
-    +EXTRA.tags='sweep_beta' \
+    +EXTRA.tags='sweep_overlap_loss' \
     \
     run_length=long \
     metrics=all \
     \
-    settings.framework.beta=0.000316,0.001,0.00316,0.01,0.0316,0.1,0.316,1.0 \
     framework=betavae,adavae_os \
-    schedule=none \
+    settings.framework.beta=0.001,0.00316,0.01,0.0316,0.1 \
     settings.model.z_size=9,25 \
+    settings.framework.recon_loss=mse_box_r47_w0.5,mse_box_r45_w0.5,mse_box_r33_w0.5,mse_box_r29_w0.5,mse_box_r25_w0.5,mse \
     \
-    dataset=dsprites,shapes3d,cars3d,smallnorb,X--xysquares \
-    sampling=default__bb
-
-submit_sweep
-
-# RUN SWEEP FOR GOOD SCHEDULES
-# 1 * (4 * 2 * 4 * 2 * 5) = 320
-submit_sweep \
-    +DUMMY.repeat=1 \
-    +EXTRA.tags='sweep_schedule' \
-    \
-    run_length=long \
-    metrics=all \
-    \
-    settings.framework.beta=0.0316,0.1,0.316,1.0 \
-    framework=betavae,adavae_os \
-    schedule=beta_cyclic,beta_cyclic_slow,beta_cyclic_fast,beta_decrease \
-    settings.model.z_size=9,25 \
-    \
-    dataset=dsprites,shapes3d,cars3d,smallnorb,X--xysquares \
+    dataset=X--xysquares \
     sampling=default__bb
