@@ -273,7 +273,7 @@ def hydra_create_framework(framework_cfg: DisentConfigurable.cfg, datamodule, cf
 
 
 # ========================================================================= #
-# ACTIONS                                                                    #
+# ACTIONS                                                                   #
 # ========================================================================= #
 
 
@@ -300,9 +300,6 @@ def action_train(cfg: DictConfig):
     # get the time the run started
     time_string = datetime.today().strftime('%Y-%m-%d--%H-%M-%S')
     log.info(f'Starting run at time: {time_string}')
-
-    # print initial config
-    log.info(f'Initial Config For Action: {cfg.action}\n\nCONFIG:{make_box_str(OmegaConf.to_yaml(cfg), char_v=":", char_h=".")}')
 
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
 
@@ -389,6 +386,16 @@ def action_train(cfg: DictConfig):
     # -- if an error/signal occurs while pytorch lightning is
     #    initialising the training process we cannot capture it!
     trainer.fit(framework, datamodule=datamodule)
+
+    # -~-~-~-~-~-~-~-~-~-~-~-~- #
+
+    # cleanup this run
+    try:
+        wandb.finish()
+    except:
+        pass
+
+    # -~-~-~-~-~-~-~-~-~-~-~-~- #
 
 
 # available actions
