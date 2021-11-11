@@ -37,10 +37,9 @@ submit_sweep \
     dataset=dsprites,shapes3d,cars3d,smallnorb,X--xysquares \
     sampling=default__bb
 
-submit_sweep
 
 # RUN SWEEP FOR GOOD SCHEDULES
-# 1 * (4 * 2 * 4 * 2 * 5) = 320
+# 1 * (3 * 2 * 4 * 5) = 120
 submit_sweep \
     +DUMMY.repeat=1 \
     +EXTRA.tags='sweep_schedule' \
@@ -48,10 +47,10 @@ submit_sweep \
     run_length=long \
     metrics=all \
     \
-    settings.framework.beta=0.0316,0.1,0.316,1.0 \
+    settings.framework.beta=0.1,0.316,1.0 \
     framework=betavae,adavae_os \
     schedule=beta_cyclic,beta_cyclic_slow,beta_cyclic_fast,beta_decrease \
-    settings.model.z_size=9,25 \
+    settings.model.z_size=25 \
     \
     dataset=dsprites,shapes3d,cars3d,smallnorb,X--xysquares \
     sampling=default__bb
