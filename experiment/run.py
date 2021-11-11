@@ -277,7 +277,7 @@ def hydra_create_framework(framework_cfg: DisentConfigurable.cfg, datamodule, cf
 # ========================================================================= #
 
 
-def prepare_data(cfg: DictConfig, config_path: str = None):
+def action_prepare_data(cfg: DictConfig):
     # get the time the run started
     time_string = datetime.today().strftime('%Y-%m-%d--%H-%M-%S')
     log.info(f'Starting run at time: {time_string}')
@@ -295,7 +295,7 @@ def prepare_data(cfg: DictConfig, config_path: str = None):
     datamodule.prepare_data()
 
 
-def train(cfg: DictConfig, config_path: str = None):
+def action_train(cfg: DictConfig):
 
     # get the time the run started
     time_string = datetime.today().strftime('%Y-%m-%d--%H-%M-%S')
@@ -393,9 +393,19 @@ def train(cfg: DictConfig, config_path: str = None):
 
 # available actions
 ACTIONS = {
-    'prepare_data': prepare_data,
-    'train': train,
+    'prepare_data': action_prepare_data,
+    'train': action_train,
 }
+
+
+def run_action(cfg: DictConfig):
+    action_key = cfg.action
+    # get the action
+    if action_key not in ACTIONS:
+        raise KeyError(f'The given action: {repr(action_key)} is invalid, must be one of: {sorted(ACTIONS.keys())}')
+    action = ACTIONS[action_key]
+    # run the action
+    action(cfg)
 
 
 # ========================================================================= #
@@ -425,13 +435,7 @@ if __name__ == '__main__':
     @hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME)
     def hydra_main(cfg: DictConfig):
         try:
-            action_key = cfg.action
-            # get the action
-            if action_key not in ACTIONS:
-                raise KeyError(f'The given action: {repr(action_key)} is invalid, must be one of: {sorted(ACTIONS.keys())}')
-            action = ACTIONS[action_key]
-            # run the action
-            action(cfg)
+            run_action(cfg)
         except Exception as e:
             log_error_and_exit(err_type='experiment error', err_msg=str(e), exc_info=True)
         except:
