@@ -22,9 +22,10 @@ fi
 
 echo "(1/3) [GIT] Creating Prepare Branch" && \
     git checkout -b xdev-prepare && \
+    ( git branch --unset-upstream 2>/dev/null || true ) && \
     \
     echo "(2/3) [PREPARE]" && \
-    $SHELL ./prepare_release.sh && \
+    bash ./prepare_release.sh && \
     \
     echo "(3/3) [GIT] Committing Files" && \
     git add .  && \
