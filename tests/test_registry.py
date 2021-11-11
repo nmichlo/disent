@@ -44,17 +44,6 @@ COUNTS = {
 }
 
 
-COUNTS = {              # pragma: delete-on-release
-    'DATASETS': 10,     # pragma: delete-on-release
-    'SAMPLERS': 8,      # pragma: delete-on-release
-    'FRAMEWORKS': 25,   # pragma: delete-on-release
-    'RECON_LOSSES': 6,  # pragma: delete-on-release
-    'LATENT_DISTS': 2,  # pragma: delete-on-release
-    'OPTIMIZERS': 30,   # pragma: delete-on-release
-    'METRICS': 7,       # pragma: delete-on-release
-    'SCHEDULES': 5,     # pragma: delete-on-release
-    'MODELS': 8,        # pragma: delete-on-release
-}                       # pragma: delete-on-release
 
 
 def test_registry_loading():
