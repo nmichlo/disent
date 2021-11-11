@@ -34,8 +34,6 @@ import wandb
 from omegaconf import DictConfig
 from omegaconf import ListConfig
 from omegaconf import OmegaConf
-from pytorch_lightning.loggers import CometLogger
-from pytorch_lightning.loggers import LoggerCollection
 from pytorch_lightning.loggers import WandbLogger
 
 from disent import metrics
@@ -45,12 +43,12 @@ from disent.model import AutoEncoder
 from disent.nn.weights import init_model_weights
 from disent.util.seeds import seed
 from disent.util.strings.fmt import make_box_str
+from disent.util.strings import colors as c
 from disent.util.lightning.callbacks import LoggerProgressCallback
 from disent.util.lightning.callbacks import VaeMetricLoggingCallback
 from disent.util.lightning.callbacks import VaeLatentCycleLoggingCallback
 from disent.util.lightning.callbacks import VaeGtDistsLoggingCallback
 from experiment.util.hydra_data import HydraDataModule
-from experiment.util.hydra_utils import make_non_strict
 from experiment.util.run_utils import log_error_and_exit
 from experiment.util.run_utils import safe_unset_debug_logger
 from experiment.util.run_utils import safe_unset_debug_trainer
@@ -244,11 +242,9 @@ def hydra_create_and_update_framework_config(cfg) -> DisentConfigurable.cfg:
     # warn if some of the cfg variables were not overridden
     missing_keys = sorted(set(framework_cfg.get_keys()) - (set(cfg.framework.cfg.keys())))
     if missing_keys:
-        log.error(f'Framework {repr(cfg.framework.name)} is missing config keys for:')
+        log.warning(f'{c.RED}Framework {repr(cfg.framework.name)} is missing config keys for:{c.RST}')
         for k in missing_keys:
-            log.error(f'{repr(k)}')
-    # update config params in case we missed variables in the cfg
-    cfg.framework.cfg.update(framework_cfg.to_dict())
+            log.warning(f'{c.RED}{repr(k)}{c.RST}')
     # return config
     return framework_cfg
 
@@ -285,25 +281,18 @@ def prepare_data(cfg: DictConfig, config_path: str = None):
     # get the time the run started
     time_string = datetime.today().strftime('%Y-%m-%d--%H-%M-%S')
     log.info(f'Starting run at time: {time_string}')
-    raise NotImplementedError
-
-    # # allow the cfg to be edited
-    # cfg = make_non_strict(cfg)
-    # # deterministic seed
-    # seed(cfg.job.setdefault('seed', None))
-    # # print useful info
-    # log.info(f"Current working directory : {os.getcwd()}")
-    # log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
-    # # hydra config does not support variables in defaults lists, we handle this manually
-    # cfg = merge_specializations(cfg, config_path=CONFIG_PATH if (config_path is None) else config_path, required=['_dataset_sampler_'])
-    # # check data preparation
-    # prepare_data_per_node = cfg.trainer.setdefault('prepare_data_per_node', True)
-    # hydra_check_datadir(prepare_data_per_node, cfg)
-    # # print the config
-    # log.info(f'Dataset Config Is:\n{make_box_str(OmegaConf.to_yaml({"dataset": cfg.dataset}))}')
-    # # prepare data
-    # datamodule = HydraDataModule(cfg)
-    # datamodule.prepare_data()
+    # deterministic seed
+    seed(cfg.settings.job.seed)
+    # print useful info
+    log.info(f"Current working directory : {os.getcwd()}")
+    log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
+    # check data preparation
+    hydra_check_data_paths(cfg)
+    # print the config
+    log.info(f'Dataset Config Is:\n{make_box_str(OmegaConf.to_yaml({"dataset": cfg.dataset}))}')
+    # prepare data
+    datamodule = HydraDataModule(cfg)
+    datamodule.prepare_data()
 
 
 def train(cfg: DictConfig, config_path: str = None):
@@ -311,6 +300,9 @@ def train(cfg: DictConfig, config_path: str = None):
     # get the time the run started
     time_string = datetime.today().strftime('%Y-%m-%d--%H-%M-%S')
     log.info(f'Starting run at time: {time_string}')
+
+    # print initial config
+    log.info(f'Initial Config For Action: {cfg.action}\n\nCONFIG:{make_box_str(OmegaConf.to_yaml(cfg), char_v=":", char_h=".")}')
 
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
 
@@ -323,9 +315,6 @@ def train(cfg: DictConfig, config_path: str = None):
         pass
 
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
-
-    # allow the cfg to be edited
-    cfg = make_non_strict(cfg)
 
     # deterministic seed
     seed(cfg.settings.job.seed)
