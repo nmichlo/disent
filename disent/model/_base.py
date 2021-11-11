@@ -50,10 +50,10 @@ class DisentLatentsModule(DisentModule):
 
     def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
         super().__init__()
-        self._x_shape = x_shape
+        self._x_shape = tuple(x_shape)
         self._x_size = int(np.prod(x_shape))
-        self._z_size = z_size
-        self._z_multiplier = z_multiplier
+        self._z_size = int(z_size)
+        self._z_multiplier = int(z_multiplier)
 
     def forward(self, *args, **kwargs):
         raise NotImplementedError
@@ -86,7 +86,7 @@ class DisentEncoder(DisentLatentsModule):
     def forward(self, x, chunk=True) -> torch.Tensor:
         """same as self.encode but with size checks"""
         # checks
-        assert x.ndim == 4, f'ndim mismatch: 4 (required) != {x.ndim} (given)'
+        assert x.ndim == 4, f'ndim mismatch: 4 (required) != {x.ndim} (given) [shape={x.shape}]'
         assert x.shape[1:] == self.x_shape, f'x_shape mismatch: {self.x_shape} (required) != {x.shape[1:]} (batch)'
         # encode | p(z|x)
         # for a gaussian encoder, we treat z as concat(z_mean, z_logvar) where z_mean.shape == z_logvar.shape

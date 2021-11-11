@@ -1,19 +1,17 @@
 import pytorch_lightning as pl
-from torch.optim import Adam
 from torch.utils.data import DataLoader
 from disent.dataset import DisentDataset
 from disent.dataset.data import XYObjectData
-from disent.dataset.sampling import SingleSampler
 from disent.frameworks.vae import BetaVae
 from disent.model import AutoEncoder
 from disent.model.ae import DecoderConv64, EncoderConv64
-from disent.nn.transform import ToStandardisedTensor
+from disent.dataset.transform import ToImgTensorF32
 from disent.util import is_test_run  # you can ignore and remove this
 
 
 # prepare the data
 data = XYObjectData()
-dataset = DisentDataset(data, transform=ToStandardisedTensor())
+dataset = DisentDataset(data, transform=ToImgTensorF32())
 dataloader = DataLoader(dataset=dataset, batch_size=4, shuffle=True)
 
 # create the pytorch lightning system

@@ -48,7 +48,7 @@ from tests.util import no_stdout
 
 
 # factors=(3, 3, 2, 3), len=54
-TestXYObjectData = wrapped_partial(XYObjectData, grid_size=4, min_square_size=1, max_square_size=2, square_size_spacing=1, palette='rgb')
+TestXYObjectData = wrapped_partial(XYObjectData, grid_size=4, grid_spacing=1, min_square_size=1, max_square_size=2, square_size_spacing=1, palette='rgb_1')
 _TEST_LEN = 54
 
 

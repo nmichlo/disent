@@ -1,0 +1,4 @@
+name: gt__single
+
+sampler_cls:
+  _target_: disent.dataset.sampling.GroundTruthSingleSampler

@@ -1,0 +1,23 @@
+defaults:
+  - _input_mode_: weak_pair
+
+name: adagvae_minimal_os
+
+cfg:
+  _target_: disent.frameworks.vae.AdaGVaeMinimal.cfg
+  # base ae
+  recon_loss: ${settings.framework.recon_loss}
+  loss_reduction: ${settings.framework.loss_reduction}
+  # base vae
+  latent_distribution: ${settings.framework_opt.latent_distribution}
+  # disable various components
+  disable_decoder: FALSE
+  disable_reg_loss: FALSE
+  disable_rec_loss: FALSE
+  disable_aug_loss: FALSE
+  disable_posterior_scale: NULL
+  # Beta-VAE
+  beta: ${settings.framework.beta}
+
+meta:
+  model_z_multiplier: 2

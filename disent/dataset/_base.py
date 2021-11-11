@@ -25,6 +25,7 @@
 from functools import wraps
 from typing import Optional
 from typing import Sequence
+from typing import TypeVar
 from typing import Union
 
 import numpy as np
@@ -35,6 +36,7 @@ from disent.dataset.sampling import BaseDisentSampler
 from disent.dataset.data import GroundTruthData
 from disent.dataset.sampling import SingleSampler
 from disent.dataset.wrapper import WrappedDataset
+from disent.util.deprecate import deprecated
 from disent.util.iters import LengthIter
 from disent.util.math.random import random_choice_prng
 
@@ -53,7 +55,10 @@ class NotGroundTruthDataError(Exception):
     """
 
 
-def groundtruth_only(func):
+T = TypeVar('T')
+
+
+def groundtruth_only(func: T) -> T:
     @wraps(func)
     def wrapper(self: 'DisentDataset', *args, **kwargs):
         if not self.is_ground_truth:
@@ -76,7 +81,11 @@ def wrapped_only(func):
 # ========================================================================= #
 
 
+_DO_COPY = object()
+
+
 class DisentDataset(Dataset, LengthIter):
+
 
     def __init__(
         self,
@@ -97,6 +106,20 @@ class DisentDataset(Dataset, LengthIter):
         if not self._sampler.is_init:
             self._sampler.init(dataset)
 
+    def shallow_copy(
+        self,
+        transform=_DO_COPY,
+        augment=_DO_COPY,
+        return_indices=_DO_COPY,
+    ) -> 'DisentDataset':
+        return DisentDataset(
+            dataset=self._dataset,
+            sampler=self._sampler,
+            transform=self._transform if (transform is _DO_COPY) else transform,
+            augment=self._augment if (augment is _DO_COPY) else augment,
+            return_indices=self._return_indices if (return_indices is _DO_COPY) else return_indices,
+        )
+
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Properties                                                            #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -114,6 +137,7 @@ class DisentDataset(Dataset, LengthIter):
         return isinstance(self._dataset, GroundTruthData)
 
     @property
+    @deprecated('ground_truth_data property replaced with `gt_data`')
     @groundtruth_only
     def ground_truth_data(self) -> GroundTruthData:
         return self._dataset
@@ -284,13 +308,13 @@ class DisentDataset(Dataset, LengthIter):
     @groundtruth_only
     def dataset_batch_from_factors(self, factors: np.ndarray, mode: str):
         """Get a batch of observations X from a batch of factors Y."""
-        indices = self.ground_truth_data.pos_to_idx(factors)
+        indices = self.gt_data.pos_to_idx(factors)
         return self.dataset_batch_from_indices(indices, mode=mode)
 
     @groundtruth_only
     def dataset_sample_batch_with_factors(self, num_samples: int, mode: str):
         """Sample a batch of observations X and factors Y."""
-        factors = self.ground_truth_data.sample_factors(num_samples)
+        factors = self.gt_data.sample_factors(num_samples)
         batch = self.dataset_batch_from_factors(factors, mode=mode)
         return batch, default_collate(factors)
 

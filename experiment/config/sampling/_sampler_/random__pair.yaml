@@ -1,0 +1,5 @@
+name: random__pair
+
+sampler_cls:
+  _target_: disent.dataset.sampling.RandomSampler
+  num_samples: 2

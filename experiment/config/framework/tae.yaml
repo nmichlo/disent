@@ -1,7 +1,13 @@
-# @package _group_
+defaults:
+  - _input_mode_: triplet
+
 name: tae
-module:
-  _target_: disent.frameworks.ae.TripletAe
+
+cfg:
+  _target_: disent.frameworks.ae.TripletAe.cfg
+  # base ae
+  recon_loss: ${settings.framework.recon_loss}
+  loss_reduction: ${settings.framework.loss_reduction}
   # disable various components
   disable_decoder: FALSE
   disable_rec_loss: FALSE
@@ -13,6 +19,5 @@ module:
   triplet_scale: 0.1
   triplet_p: 1
 
-# settings used elsewhere
-data_sample_mode: triplet
-model_z_multiplier: 1
+meta:
+  model_z_multiplier: 1

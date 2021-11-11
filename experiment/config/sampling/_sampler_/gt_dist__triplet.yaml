@@ -1,0 +1,7 @@
+name: gt_dist__triplet
+
+sampler_cls:
+  _target_: disent.dataset.sampling.GroundTruthDistSampler
+  num_samples: 3
+  triplet_sample_mode: ${sampling.triplet_sample_mode} # random, factors, manhattan, combined
+  triplet_swap_chance: ${sampling.triplet_swap_chance}

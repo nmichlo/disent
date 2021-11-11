@@ -24,6 +24,7 @@
 
 import logging
 from functools import wraps
+from typing import Optional
 
 
 # ========================================================================= #
@@ -31,13 +32,55 @@ from functools import wraps
 # ========================================================================= #
 
 
-def deprecated(msg: str):
+def _get_traceback_string() -> str:
+    from io import StringIO
+    import traceback
+    # print the stack trace to an in-memory buffer
+    file = StringIO()
+    traceback.print_stack(file=file)
+    return file.getvalue()
+
+
+def _get_traceback_file_groups():
+    # filter the lines
+    results = []
+    group = []
+    for line in _get_traceback_string().splitlines():
+        if line.strip().startswith('File "'):
+            if group:
+                results.append(group)
+                group = []
+        group.append(line)
+    if group:
+        results.append(group)
+    return results
+
+
+def _get_stack_file_strings():
+    # mimic the output of a traceback so pycharm performs syntax highlighting when printed
+    import inspect
+    results = []
+    for frame_info in inspect.stack():
+        results.append(f'File "{frame_info.filename}", line {frame_info.lineno}, in {frame_info.function}')
+    return results[::-1]
+
+
+_TRACEBACK_MODES = {'none', 'first', 'mini', 'traceback'}
+DEFAULT_TRACEBACK_MODE = 'first'
+
+
+def deprecated(msg: str, traceback_mode: Optional[str] = None):
     """
     Mark a function or class as deprecated, and print a warning the
     first time it is used.
     - This decorator wraps functions, but only replaces the __init__
       method of a class so that we can still inherit from a deprecated class!
     """
+    assert isinstance(msg, str), f'msg must be a str, got type: {type(msg)}'
+    if traceback_mode is None:
+        traceback_mode = DEFAULT_TRACEBACK_MODE
+    assert traceback_mode in _TRACEBACK_MODES, f'invalid traceback_mode, got: {repr(traceback_mode)}, must be one of: {sorted(_TRACEBACK_MODES)}'
+
     def _decorator(fn):
         # we need to handle classes and function separately
         is_class = isinstance(fn, type) and hasattr(fn, '__init__')
@@ -51,8 +94,19 @@ def deprecated(msg: str):
             # print the message!
             if dat is not None:
                 name, path, dsc = dat
-                logging.getLogger(name).warning(f'[DEPRECATED] {path} - {repr(dsc)}')
+                logger = logging.getLogger(name)
+                logger.warning(f'[DEPRECATED] {path} - {repr(dsc)}')
+                # get stack trace lines
+                if traceback_mode == 'first': lines = _get_stack_file_strings()[-3:-2]
+                elif traceback_mode == 'mini': lines = _get_stack_file_strings()[:-2]
+                elif traceback_mode == 'traceback': lines = (l[2:] for g in _get_traceback_file_groups()[:-3] for l in g)
+                else: lines = []
+                # print lines
+                for line in lines:
+                    logger.warning(f'| {line}')
+                # never run this again
                 dat = None
+            # call the function
             return call_fn(*args, **kwargs)
         # handle function or class
         if is_class:

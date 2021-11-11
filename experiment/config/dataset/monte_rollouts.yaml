@@ -1,13 +1,21 @@
-# @package _group_
+defaults:
+  - _data_type_: episodes
+
 name: monte_rollouts
+
 data:
   _target_: disent.dataset.data.EpisodesDownloadZippedPickledData
-  required_file: ${dataset.data_root}/episodes/monte.pkl
+  required_file: ${dsettings.storage.data_root}/episodes/monte.pkl
   download_url: 'https://raw.githubusercontent.com/nmichlo/uploads/main/monte_key.tar.xz'
-  force_download: FALSE
-transform:
-  _target_: disent.nn.transform.ToStandardisedTensor
-  size: [64, 64]
-x_shape: [3, 64, 64]  # [3, 210, 160]
+  prepare: ${dsettings.dataset.prepare}
 
-data_type: episodes
+transform:
+  _target_: disent.dataset.transform.ToImgTensorF32
+  size: [64, 64]  # slightly squashed?
+  mean: ${dataset.meta.vis_mean}
+  std: ${dataset.meta.vis_std}
+
+meta:
+  x_shape: [3, 64, 64]  # [3, 210, 160]
+  vis_mean: "${exit:EXITING... please compute the vis_mean and vis_std}"
+  vis_std: "${exit:EXITING... please compute the vis_mean and vis_std}"

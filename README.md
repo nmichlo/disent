@@ -227,13 +227,14 @@ from disent.frameworks.vae import BetaVae
 from disent.metrics import metric_dci, metric_mig
 from disent.model import AutoEncoder
 from disent.model.ae import DecoderConv64, EncoderConv64
-from disent.nn.transform import ToStandardisedTensor
+from disent.dataset.transform import ToImgTensorF32
 from disent.schedule import CyclicSchedule
 
+
 # create the dataset & dataloaders
-# - ToStandardisedTensor transforms images from numpy arrays to tensors and performs checks
+# - ToImgTensorF32 transforms images from numpy arrays to tensors and performs checks
 data = XYObjectData()
-dataset = DisentDataset(dataset=data, sampler=SingleSampler(), transform=ToStandardisedTensor())
+dataset = DisentDataset(dataset=data, sampler=SingleSampler(), transform=ToImgTensorF32())
 dataloader = DataLoader(dataset=dataset, batch_size=128, shuffle=True, num_workers=os.cpu_count())
 
 # create the BetaVAE model
@@ -261,7 +262,9 @@ module.register_schedule(
 
 # train model
 # - for 2048 batches/steps
-trainer = pl.Trainer(max_steps=2048, gpus=1 if torch.cuda.is_available() else None, logger=False, checkpoint_callback=False)
+trainer = pl.Trainer(
+  max_steps=2048, gpus=1 if torch.cuda.is_available() else None, logger=False, checkpoint_callback=False
+)
 trainer.fit(module, dataloader)
 
 # compute disentanglement metrics
@@ -304,13 +307,13 @@ files (config options) in the subfolders (config groups) in
 ```yaml
 defaults:
   # system
-  - framework: adavae
+  - framework: adavae_os
   - model: vae_conv64
   - optimizer: adam
   - schedule: none
   # data
   - dataset: xyobject
-  - dataset_sampling: full_bb
+  - sampling: default__bb
   - augment: none
   # runtime
   - metrics: fast

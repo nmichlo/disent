@@ -37,15 +37,15 @@ from disent.util import to_numpy
 
 
 def generate_batch_factor_code(
-        ground_truth_dataset: DisentDataset,
+        dataset: DisentDataset,
         representation_function,
-        num_points,
-        batch_size,
-        show_progress=False,
+        num_points: int,
+        batch_size: int,
+        show_progress: bool = False,
 ):
     """Sample a single training sample based on a mini-batch of ground-truth data.
     Args:
-      ground_truth_dataset: GroundTruthData to be sampled from.
+      dataset: DisentDataset to be sampled from.
       representation_function: Function that takes observation as input and outputs a representation.
       num_points: Number of points to sample.
       batch_size: Batchsize to sample points.
@@ -62,7 +62,7 @@ def generate_batch_factor_code(
     with tqdm(total=num_points, disable=not show_progress) as bar:
         while i < num_points:
             num_points_iter = min(num_points - i, batch_size)
-            current_observations, current_factors = ground_truth_dataset.dataset_sample_batch_with_factors(num_points_iter, mode='input')
+            current_observations, current_factors = dataset.dataset_sample_batch_with_factors(num_points_iter, mode='input')
             if i == 0:
                 factors = current_factors
                 representations = to_numpy(representation_function(current_observations))

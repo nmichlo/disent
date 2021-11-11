@@ -1,0 +1,12 @@
+name: beta_cyclic
+
+schedule_items:
+  beta:
+    _target_: disent.schedule.Cyclic
+    period: 3600
+    start_step: 3600
+    repeats: NULL
+    r_start: 0.001
+    r_end: 1.0
+    end_mode: 'end'
+    mode: 'cosine'

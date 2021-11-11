@@ -1,0 +1,8 @@
+# SPECIALIZATION: force the user to choose a different sampling strategy
+defaults:
+  - _sampler_: "${exit:EXITING... please specify in the defaults list a sampling method other than none}"
+
+name: none
+
+# this config forces an error to be thrown! This is to make
+# sure that we don't encounter errors when updating old configs.

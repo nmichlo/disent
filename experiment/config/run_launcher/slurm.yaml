@@ -1,0 +1,13 @@
+# @package _global_
+
+defaults:
+  - override /hydra/launcher: submitit_slurm
+
+hydra:
+  launcher:
+    partition: ${dsettings.launcher.partition}
+    mem_gb: 0
+    timeout_min: 1440  # minutes
+    submitit_folder: '${hydra.sweep.dir}/%j'
+    array_parallelism: ${dsettings.launcher.array_parallelism}
+    exclude: ${dsettings.launcher.exclude}

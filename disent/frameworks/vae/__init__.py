@@ -35,3 +35,4 @@ from disent.frameworks.vae._unsupervised__vae import Vae
 
 # weakly supervised frameworks
 from disent.frameworks.vae._weaklysupervised__adavae import AdaVae
+from disent.frameworks.vae._weaklysupervised__adavae import AdaGVaeMinimal

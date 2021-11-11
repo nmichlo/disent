@@ -29,6 +29,7 @@ Utilities for converting and testing different chunk sizes of hdf5 files
 import contextlib
 import logging
 import os
+from pathlib import Path
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -44,6 +45,7 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+from disent.util.deprecate import deprecated
 from disent.util.strings import colors as c
 from disent.util.inout.files import AtomicSaveFile
 from disent.util.iters import iter_chunks
@@ -129,10 +131,22 @@ def h5_assert_deterministic(h5_file: h5py.File) -> h5py.File:
 
 @contextlib.contextmanager
 def h5_open(path: str, mode: str = 'r') -> h5py.File:
-    assert str.endswith(path, '.h5'), f'hdf5 file path does not end with extension: `.h5`'
+    """
+    MODES:
+        atomic_w Create temp file, then move and overwrite existing when done
+        atomic_x Create temp file, then try move or fail if existing when done
+        r        Readonly, file must exist (default)
+        r+       Read/write, file must exist
+        w        Create file, truncate if exists
+        w- or x  Create file, fail if exists
+        a        Read/write if exists, create otherwise
+    """
+    assert str.endswith(path, '.h5') or str.endswith(path, '.hdf5'), f'hdf5 file path does not end with extension: `.h5` or `.hdf5`, got: {path}'
     # get atomic context manager
     if mode == 'atomic_w':
         save_context, mode = AtomicSaveFile(path, open_mode=None, overwrite=True), 'w'
+    elif mode == 'atomic_x':
+        save_context, mode = AtomicSaveFile(path, open_mode=None, overwrite=False), 'x'
     else:
         save_context = contextlib.nullcontext(path)
     # handle saving to file
@@ -143,13 +157,33 @@ def h5_open(path: str, mode: str = 'r') -> h5py.File:
 
 class H5Builder(object):
 
-    def __init__(self, h5_file: h5py.File):
+    def __init__(self, path: Union[str, Path], mode: str = 'x'):
         super().__init__()
         # make sure that the file is deterministic
         # - we might be missing some of the properties that control this
         # - should we add a recursive option?
-        h5_assert_deterministic(h5_file)
-        self._h5_file = h5_file
+        if not isinstance(path, (str, Path)):
+            raise TypeError(f'the given h5py path must be of type: `str`, `pathlib.Path`, got: {type(path)}')
+        self._h5_path = path
+        self._h5_mode = mode
+        self._context_manager = None
+        self._open_file = None
+
+    def __enter__(self):
+        self._context_manager = h5_open(self._h5_path, self._h5_mode)
+        self._open_file = h5_assert_deterministic(self._context_manager.__enter__())
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._context_manager.__exit__(exc_type, exc_val, exc_tb)
+        self._open_file = None
+        self._context_manager = None
+
+    @property
+    def _h5_file(self) -> h5py.File:
+        if self._open_file is None:
+            raise 'The H5Builder has not been opened in a new context, use `with H5Builder(...) as builder: ...`'
+        return self._open_file
 
     def add_dataset(
         self,
@@ -217,7 +251,7 @@ class H5Builder(object):
         # loop variables
         n = len(dataset)
         # save data
-        with tqdm(total=n, disable=not show_progress) as progress:
+        with tqdm(total=n, disable=not show_progress, desc=f'saving {name}') as progress:
             for i in range(0, n, batch_size):
                 j = min(i + batch_size, n)
                 assert j > i, f'this is a bug! {repr(j)} > {repr(i)}, len(dataset)={repr(n)}, batch_size={repr(batch_size)}'
@@ -265,6 +299,10 @@ class H5Builder(object):
                 batch = mutator(batch)
             return np.array(batch)
 
+        # get the batch size
+        if batch_size == 'auto' and isinstance(array, h5py.Dataset):
+            batch_size = array.chunks[0]
+
         # copy into the dataset
         self.fill_dataset(
             name=name,
@@ -302,6 +340,36 @@ class H5Builder(object):
         )
         return self
 
+    def add_dataset_from_array(
+        self,
+        name: str,
+        array: np.ndarray,
+        chunk_shape: ChunksType = 'batch',
+        compression_lvl: Optional[int] = 4,
+        attrs: Optional[Dict[str, Any]] = None,
+        batch_size: Union[int, Literal['auto']] = 'auto',
+        show_progress: bool = False,
+        # optional, discovered automatically from array otherwise
+        mutator: Optional[Callable[[np.ndarray], np.ndarray]] = None,
+        dtype: Optional[np.dtype] = None,
+        shape: Optional[Tuple[int, ...]] = None,
+    ):
+        self.add_dataset(
+            name=name,
+            shape=array.shape if (shape is None) else shape,
+            dtype=array.dtype if (dtype is None) else dtype,
+            chunk_shape=chunk_shape,
+            compression_lvl=compression_lvl,
+            attrs=attrs,
+        )
+        self.fill_dataset_from_array(
+            name=name,
+            array=array,
+            batch_size=batch_size,
+            show_progress=show_progress,
+            mutator=mutator,
+        )
+
     def add_dataset_from_gt_data(
         self,
         data: Union['DisentDataset', 'GroundTruthData'],
@@ -309,7 +377,7 @@ class H5Builder(object):
         img_shape: Tuple[Optional[int], ...] = (None, None, None),  # None items are automatically found
         batch_size: int = 32,
         compression_lvl: Optional[int] = 9,
-        num_workers=min(os.cpu_count(), 16),
+        num_workers: int = min(os.cpu_count(), 16),
         show_progress: bool = True,
         dtype: str = 'uint8',
         attrs: Optional[dict] = None
@@ -352,6 +420,65 @@ class H5Builder(object):
             show_progress=show_progress,
             mutator=mutator,
         )
+
+#     def resave_dataset(self,
+#         name: str,
+#         inp: Union[str, Path, h5py.File, h5py.Dataset, np.ndarray],
+#         # h5 re-save settings
+#         chunk_shape: ChunksType = 'batch',
+#         compression_lvl: Optional[int] = 4,
+#         attrs: Optional[Dict[str, Any]] = None,
+#         batch_size: Union[int, Literal['auto']] = 'auto',
+#         show_progress: bool = False,
+#         # optional, discovered automatically from array otherwise
+#         mutator: Optional[Callable[[np.ndarray], np.ndarray]] = None,
+#         dtype: Optional[np.dtype] = None,
+#         obs_shape: Optional[Tuple[int, ...]] = None,
+#     ):
+#         # TODO: should this be more general and be able to handle add_dataset_from_gt_data too?
+#         # TODO: this is very similar to save dataset below!
+#         with _get_array_context(inp, name) as arr:
+#             self.add_dataset_from_array(
+#                 name=name,
+#                 array=arr,
+#                 chunk_shape=chunk_shape,
+#                 compression_lvl=compression_lvl,
+#                 attrs=attrs,
+#                 batch_size=batch_size,
+#                 show_progress=show_progress,
+#                 mutator=mutator,
+#                 dtype=dtype,
+#                 shape=(len(arr), *obs_shape) if obs_shape else None,
+#             )
+#
+#
+# @contextlib.contextmanager
+# def _get_array_context(
+#     inp: Union[str, Path, h5py.File, h5py.Dataset, np.ndarray],
+#     dataset_name: str = None,
+# ) -> Union[h5py.Dataset, np.ndarray]:
+#     # check the inputs
+#     if not isinstance(inp, (str, Path, h5py.File, h5py.Dataset, np.ndarray)):
+#         raise TypeError(f'unsupported input type: {type(inp)}')
+#     # handle loading files
+#     if isinstance(inp, str):
+#         _, ext = os.path.splitext(inp)
+#         if ext in ('.h5', '.hdf5'):
+#             inp_context = h5py.File(inp, 'r')
+#         else:
+#             raise ValueError(f'unsupported extension: {repr(ext)} for path: {repr(inp)}')
+#     else:
+#         import contextlib
+#         inp_context = contextlib.nullcontext(inp)
+#     # re-save datasets
+#     with inp_context as inp_data:
+#         # get input dataset from h5 file
+#         if isinstance(inp_data, h5py.File):
+#             if dataset_name is None:
+#                 raise ValueError('dataset_name must be specified if the input is an h5py.File so we can retrieve a h5py.Dataset')
+#             inp_data = inp_data[dataset_name]
+#         # return the data
+#         yield inp_data
 
 
 # ========================================================================= #

@@ -38,7 +38,7 @@ from disent.frameworks.helper.util import compute_ave_loss
 from disent.nn.loss.reduction import batch_loss_reduction
 from disent.nn.loss.reduction import loss_reduction
 from disent.nn.modules import DisentModule
-from disent.nn.transform import FftKernel
+from disent.dataset.transform import FftKernel
 
 
 # ========================================================================= #
@@ -144,14 +144,8 @@ class ReconLossHandlerMse(ReconLossHandler):
     """
 
     def activate(self, x_partial: torch.Tensor) -> torch.Tensor:
-        # we allow the model output x to generally be in the range [-1, 1] and scale
-        # it to the range [0, 1] here to match the targets.
-        # - this lets it learn more easily as the output is naturally centered on 1
-        # - doing this here directly on the output is easier for visualisation etc.
-        # - TODO: the better alternative is that we rather calculate the MEAN and STD over the dataset
-        #         and normalise that.
-        # - sigmoid is numerically not suitable with MSE
-        return (x_partial + 1) / 2
+        # mse requires no final activation
+        return x_partial
 
     def compute_unreduced_loss(self, x_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
         return F.mse_loss(x_recon, x_targ, reduction='none')
@@ -166,10 +160,6 @@ class ReconLossHandlerMae(ReconLossHandlerMse):
     """
     def compute_unreduced_loss(self, x_recon, x_targ):
         return torch.abs(x_recon - x_targ)
-
-
-
-
 
 
 class ReconLossHandlerBce(ReconLossHandler):
@@ -291,9 +281,9 @@ _ARG_RECON_LOSSES: List[Tuple[re.Pattern, str, callable]] = [
 
 # NOTE: this function compliments make_kernel in transform/_augment.py
 def make_reconstruction_loss(name: str, reduction: str) -> ReconLossHandler:
-    if name in registry.RECON_LOSS:
+    if name in registry.RECON_LOSSES:
         # search normal losses!
-        return registry.RECON_LOSS[name](reduction)
+        return registry.RECON_LOSSES[name](reduction)
     else:
         # regex search losses, and call with args!
         for r, _, fn in _ARG_RECON_LOSSES:
@@ -301,7 +291,7 @@ def make_reconstruction_loss(name: str, reduction: str) -> ReconLossHandler:
             if result is not None:
                 return fn(reduction, *result.groups())
     # we couldn't find anything
-    raise KeyError(f'Invalid vae reconstruction loss: {repr(name)} Valid losses include: {sorted(registry.RECON_LOSS)}, examples of additional argument based losses include: {[example for _, example, _ in _ARG_RECON_LOSSES]}')
+    raise KeyError(f'Invalid vae reconstruction loss: {repr(name)} Valid losses include: {sorted(registry.RECON_LOSSES)}, examples of additional argument based losses include: {[example for _, example, _ in _ARG_RECON_LOSSES]}')
 
 
 # ========================================================================= #
