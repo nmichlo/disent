@@ -5,10 +5,9 @@ defaults:
 
 hydra:
   launcher:
-    partition: ${job.partition}
+    partition: ${dsettings.launcher.partition}
     mem_gb: 0
     timeout_min: 1440  # minutes
     submitit_folder: '${hydra.sweep.dir}/%j'
-    array_parallelism: 32
-    # broken nodes on stampede
-    exclude: "mscluster93,mscluster94,mscluster97,mscluster99"
+    array_parallelism: ${dsettings.launcher.array_parallelism}
+    exclude: ${dsettings.launcher.exclude}

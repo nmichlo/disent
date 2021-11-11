@@ -375,8 +375,8 @@ def adversarial_loss(
     adversarial_mode, margin = _parse_margin_mode(adversarial_mode)
 
     # compute loss deltas
+    # AUTO-CONSTANT
     if   adversarial_mode == 'self':             loss_deltas = torch.abs(deltas)
-    # elif adversarial_mode == 'self2':          loss_deltas = torch.abs(deltas) ** 2
     elif adversarial_mode == 'self_random':
         # the above should be equivalent with the right sampling strategy?
         all_deltas = torch.cat([p_deltas, n_deltas], dim=0)
@@ -384,14 +384,19 @@ def adversarial_loss(
         np.random.shuffle(indices)
         deltas = all_deltas[indices[len(deltas):]] - all_deltas[indices[:len(deltas)]]
         loss_deltas = torch.abs(deltas)
-    # elif adversarial_mode == 'invert_unbounded': loss_deltas = deltas
-    elif adversarial_mode == 'invert':           loss_deltas = torch.maximum(deltas, torch.zeros_like(deltas))
-    # elif adversarial_mode == 'invert_shift':     loss_deltas = torch.maximum(0.01 + deltas, torch.zeros_like(deltas))    # invert_loss  = torch.clamp_min(n_dist - p_dist + margin_max, 0)
-    elif adversarial_mode == 'invert_margin':    loss_deltas = torch.maximum(margin + deltas, torch.zeros_like(deltas))  # invert_loss  = torch.clamp_min(n_dist - p_dist + margin_max, 0)
-    elif adversarial_mode == 'triplet':          loss_deltas = torch.maximum(-deltas, torch.zeros_like(deltas))          # triplet_loss = torch.clamp_min(p_dist - n_dist + margin_max, 0)
-    elif adversarial_mode == 'triplet_margin':   loss_deltas = torch.maximum(margin - deltas, torch.zeros_like(deltas))  # triplet_loss = torch.clamp_min(p_dist - n_dist + margin_max, 0)
+    # INVERT
+    elif adversarial_mode == 'invert':            loss_deltas = torch.maximum(deltas, torch.zeros_like(deltas))
+    elif adversarial_mode == 'invert_margin':     loss_deltas = torch.maximum(margin + deltas, torch.zeros_like(deltas))  # invert_loss  = torch.clamp_min(n_dist - p_dist + margin_max, 0)
+    elif adversarial_mode == 'invert_unbounded':  loss_deltas = deltas
+    # TRIPLET
+    elif adversarial_mode == 'triplet':           loss_deltas = torch.maximum(-deltas, torch.zeros_like(deltas))
+    elif adversarial_mode == 'triplet_margin':    loss_deltas = torch.maximum(margin - deltas, torch.zeros_like(deltas))  # triplet_loss = torch.clamp_min(p_dist - n_dist + margin_max, 0)
+    elif adversarial_mode == 'triplet_unbounded': loss_deltas = -deltas
+    # OTHER
     else:
         raise KeyError(f'invalid `adversarial_mode`: {repr(adversarial_mode)}')
+
+    # checks
     assert deltas.shape == loss_deltas.shape, 'this is a bug'
 
     # top k deltas

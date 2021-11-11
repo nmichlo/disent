@@ -10,6 +10,10 @@ dsettings:
     gpu_augment: FALSE
     prepare: TRUE
     try_in_memory: TRUE
+  launcher:
+    partition: batch
+    array_parallelism: 16
+    exclude: "mscluster93,mscluster94,mscluster97,mscluster99"
 
 trainer:
   prepare_data_per_node: TRUE
@@ -27,6 +31,3 @@ hydra:
   sweep:
     dir: '${dsettings.storage.logs_dir}/hydra_sweep/${now:%Y-%m-%d_%H-%M-%S}_${hydra.job.name}'
     subdir: '${hydra.job.id}' # hydra.job.id is not available for dir
-
-#job:
-#  partition: batch

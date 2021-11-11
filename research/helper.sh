@@ -39,8 +39,8 @@ function submit_sweep() {
     echo "SUBMITTING SWEEP:" "$@"
     PYTHONPATH="$ROOT_DIR" python3 "$PY_RUN_FILE" -m \
         run_launcher=slurm \
+        dsettings.launcher.partition="$PARTITION" \
         settings.job.project="$PROJECT" \
-        settings.job.partition="$PARTITION" \
         settings.job.user="$USERNAME" \
         hydra.launcher.array_parallelism="$PARALLELISM" \
         "$@" \

@@ -164,7 +164,8 @@ def _get_dists_fn(model, recon_loss: ReconLossHandler) -> Tuple[Optional[Tuple[s
     elif isinstance(model, Ae):
         dists_names, dists_fn = _AE_DIST_NAMES, wrapped_partial(_get_dists_ae, model, recon_loss)
     else:
-        return None, None
+        dists_names, dists_fn = None, None
+    return dists_names, dists_fn
 
 
 @torch.no_grad()
