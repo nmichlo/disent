@@ -1,5 +1,5 @@
 # @package _global_
 
 trainer:
-  max_epochs: 3
-  max_steps: 3
+  max_epochs: 5
+  max_steps: 5

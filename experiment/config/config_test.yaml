@@ -25,7 +25,7 @@ settings:
   job:
     user: 'invalid'
     project: 'invalid'
-    name: '${framework.name}:${settings.framework.recon_loss}|${data.name}:${sampling.name}|${trainer.max_steps}'
+    name: '${framework.name}:${settings.framework.recon_loss}|${dataset.name}:${sampling.name}|${trainer.max_steps}'
     seed: NULL
 
   framework:
