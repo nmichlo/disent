@@ -241,7 +241,7 @@ class ReconLossHandlerNormal(ReconLossHandlerMse):
 
 class AugmentedReconLossHandler(ReconLossHandler):
 
-    def __init__(self, recon_loss_handler: ReconLossHandler, kernel: Union[str, torch.Tensor], kernel_weight=1.0):
+    def __init__(self, recon_loss_handler: ReconLossHandler, kernel: Union[str, torch.Tensor], wrap_weight=1.0, aug_weight=1.0):
         super().__init__(reduction=recon_loss_handler._reduction)
         # save variables
         self._recon_loss_handler = recon_loss_handler
@@ -251,16 +251,21 @@ class AugmentedReconLossHandler(ReconLossHandler):
         # load the kernel
         self._kernel = FftKernel(kernel=kernel, normalize=True)
         # kernel weighting
-        assert 0 <= kernel_weight <= 1, f'kernel weight must be in the range [0, 1] but received: {repr(kernel_weight)}'
-        self._kernel_weight = kernel_weight
+        assert 0 <= wrap_weight, f'loss_weight must be in the range [0, inf) but received: {repr(wrap_weight)}'
+        assert 0 <= aug_weight, f'kern_weight must be in the range [0, inf) but received: {repr(aug_weight)}'
+        self._wrap_weight = wrap_weight
+        self._aug_weight = aug_weight
+        # disable gradients
+        for param in self.parameters():
+            param.requires_grad = False
 
     def activate(self, x_partial: torch.Tensor):
         return self._recon_loss_handler.activate(x_partial)
 
     def compute_unreduced_loss(self, x_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
-        aug_loss = self._recon_loss_handler.compute_unreduced_loss(self._kernel(x_recon), self._kernel(x_targ))
-        loss = self._recon_loss_handler.compute_unreduced_loss(x_recon, x_targ)
-        return (1. - self._kernel_weight) * loss + self._kernel_weight * aug_loss
+        wrap_loss = self._recon_loss_handler.compute_unreduced_loss(x_recon, x_targ)
+        aug_loss  = self._recon_loss_handler.compute_unreduced_loss(self._kernel(x_recon), self._kernel(x_targ))
+        return (self._wrap_weight * wrap_loss) + (self._aug_weight * aug_loss)
 
     def compute_unreduced_loss_from_partial(self, x_partial_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
         return self.compute_unreduced_loss(self.activate(x_partial_recon), x_targ)
@@ -276,7 +281,8 @@ _ARG_RECON_LOSSES: List[Tuple[re.Pattern, str, callable]] = [
     # (REGEX, EXAMPLE, FACTORY_FUNC)
     # - factory function takes at min one arg: fn(reduction) with one arg after that per regex capture group
     # - regex expressions are tested in order, expressions should be mutually exclusive or ordered such that more specialized versions occur first.
-    (re.compile(r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_w(\d+\.\d+)$'), 'mse_xy8_r47_w1.0', lambda reduction, loss, kern, weight: AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, kernel_weight=float(weight))),  # pragma: delete-on-release
+    (re.compile(r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_w(\d+\.\d+)$'),             'mse_xy8_r47_w1.0',      lambda reduction, loss, kern, weight:             AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=1-float(weight), aug_weight=float(weight))),    # pragma: delete-on-release
+    (re.compile(r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_l(\d+\.\d+)_k(\d+\.\d+)$'), 'mse_xy8_r47_l1.0_k1.0', lambda reduction, loss, kern, l_weight, k_weight: AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=float(l_weight), aug_weight=float(k_weight))),  # pragma: delete-on-release
 ]
 
 
