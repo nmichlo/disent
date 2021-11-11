@@ -50,6 +50,7 @@ import torch
 from tqdm import tqdm
 
 import research.util as H
+from disent.util.deprecate import deprecated
 from disent.util.inout.paths import ensure_parent_dir_exists
 from disent.util.profiling import Timer
 from disent.util.seeds import seed
@@ -397,6 +398,8 @@ def run_generate_and_save_adversarial_dataset_mp(
 # test adversarial dataset generator                                      #
 # ========================================================================= #
 
+
+@deprecated('Replaced with run_02_gen_adversarial_dataset_approx')
 def run_generate_adversarial_data(
     dataset: str ='shapes3d',
     factor: str ='wall_hue',

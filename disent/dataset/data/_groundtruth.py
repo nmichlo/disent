@@ -185,11 +185,12 @@ class ArrayGroundTruthData(GroundTruthData):
         return self._array[idx]
 
     @classmethod
-    def new_like(cls, array, dataset: GroundTruthData, array_chn_is_last: bool = True):
+    def new_like(cls, array, gt_data: GroundTruthData, array_chn_is_last: bool = True):
+        # TODO: should this not copy the x_shape and transform?
         return cls(
             array=array,
-            factor_names=dataset.factor_names,
-            factor_sizes=dataset.factor_sizes,
+            factor_names=gt_data.factor_names,
+            factor_sizes=gt_data.factor_sizes,
             array_chn_is_last=array_chn_is_last,
             x_shape=None,  # infer from array
             transform=None,

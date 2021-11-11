@@ -5,18 +5,22 @@
 # ========================================================================= #
 
 export USERNAME="n_michlo"
-export PROJECT="exp-adversarial-modified-data"
+export PROJECT="final-06__adversarial-modified-data"
 export PARTITION="stampede"
 export PARALLELISM=28
 
 # source the helper file
-source "$(dirname "$(dirname "$(realpath -s "$0")")")/helper.sh"
+source "$(dirname "$(dirname "$(dirname "$(realpath -s "$0")")")")/helper.sh"
 
 # ========================================================================= #
 # Experiment                                                                #
 # ========================================================================= #
 
 clog_cudaless_nodes "$PARTITION" 86400 "C-disent" # 24 hours
+
+# TODO: update this script
+echo UPDATE THIS SCRIPT
+exit 1
 
 # 1 * (4 * 2 * 2) = 16
 local_sweep \

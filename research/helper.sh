@@ -38,9 +38,10 @@ echo "working directory is: $(pwd)"
 function submit_sweep() {
     echo "SUBMITTING SWEEP:" "$@"
     PYTHONPATH="$ROOT_DIR" python3 "$PY_RUN_FILE" -m \
-        job.project="$PROJECT" \
-        job.partition="$PARTITION" \
-        job.user="$USERNAME" \
+        run_launcher=slurm \
+        dsettings.launcher.partition="$PARTITION" \
+        settings.job.project="$PROJECT" \
+        settings.job.user="$USERNAME" \
         hydra.launcher.array_parallelism="$PARALLELISM" \
         "$@" \
         & # run in background
@@ -49,16 +50,18 @@ function submit_sweep() {
 function local_run() {
     echo "RUNNING:" "$@"
     PYTHONPATH="$ROOT_DIR" python3 "$PY_RUN_FILE" \
-        job.project="$PROJECT" \
-        job.user="$USERNAME" \
+        run_launcher=local \
+        settings.job.project="$PROJECT" \
+        settings.job.user="$USERNAME" \
         "$@"
 }
 
 function local_sweep() {
     echo "RUNNING SWEEP:" "$@"
     PYTHONPATH="$ROOT_DIR" python3 "$PY_RUN_FILE" -m \
-        job.project="$PROJECT" \
-        job.user="$USERNAME" \
+        run_launcher=local \
+        settings.job.project="$PROJECT" \
+        settings.job.user="$USERNAME" \
         "$@"
 }
 

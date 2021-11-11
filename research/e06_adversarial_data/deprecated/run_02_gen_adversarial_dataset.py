@@ -28,13 +28,14 @@ Generate an adversarial dataset
 - All data is stored in memory, with minibatches taken and optimized.
 """
 
-
 import logging
 import os
 import warnings
 from datetime import datetime
 from typing import Iterator
+from typing import List
 from typing import Optional
+from typing import Sequence
 
 import hydra
 import numpy as np
@@ -49,11 +50,12 @@ from torch.utils.data.dataset import T_co
 import research.util as H
 from disent.dataset import DisentDataset
 from disent.dataset.sampling import BaseDisentSampler
-from disent.dataset.util.hdf5 import h5_open
 from disent.dataset.util.hdf5 import H5Builder
 from disent.util import to_numpy
+from disent.util.deprecate import deprecated
 from disent.util.inout.paths import ensure_parent_dir_exists
 from disent.util.lightning.callbacks import BaseCallbackPeriodic
+from disent.util.lightning.callbacks import LoggerProgressCallback
 from disent.util.lightning.logger_util import wb_log_metrics
 from disent.util.math.random import random_choice_prng
 from disent.util.seeds import seed
@@ -61,7 +63,7 @@ from disent.util.seeds import TempNumpySeed
 from disent.util.strings.fmt import bytes_to_human
 from disent.util.strings.fmt import make_box_str
 from disent.util.visualize.vis_util import make_image_grid
-from experiment.run import hydra_append_progress_callback
+from experiment.run import hydra_get_callbacks
 from experiment.run import hydra_check_cuda
 from experiment.run import hydra_make_logger
 from experiment.util.hydra_utils import make_non_strict
@@ -262,7 +264,7 @@ class AdversarialModel(pl.LightningModule):
             shuffle=False,
         )
 
-    def make_train_periodic_callback(self, cfg) -> BaseCallbackPeriodic:
+    def make_train_periodic_callbacks(self, cfg) -> Sequence[pl.Callback]:
         class ImShowCallback(BaseCallbackPeriodic):
             def do_step(this, trainer: pl.Trainer, pl_module: pl.LightningModule):
                 if self.dataset is None:
@@ -284,7 +286,7 @@ class AdversarialModel(pl.LightningModule):
                     'random_images': wandb.Image(image),
                     'traversal_image': wandb_image, 'traversal_animation': wandb_animation,
                 })
-        return ImShowCallback(every_n_steps=cfg.exp.show_every_n_steps, begin_first_step=True)
+        return [ImShowCallback(every_n_steps=cfg.exp.show_every_n_steps, begin_first_step=True)]
 
 
 # ========================================================================= #
@@ -295,6 +297,7 @@ class AdversarialModel(pl.LightningModule):
 ROOT_DIR = os.path.abspath(__file__ + '/../../../..')
 
 
+@deprecated('Replaced with run_02_gen_adversarial_dataset_approx')
 def run_gen_adversarial_dataset(cfg):
     time_string = datetime.today().strftime('%Y-%m-%d--%H-%M-%S')
     log.info(f'Starting run at time: {time_string}')
@@ -308,17 +311,15 @@ def run_gen_adversarial_dataset(cfg):
     cfg = make_non_strict(cfg)
     # - - - - - - - - - - - - - - - #
     # check CUDA setting
-    cfg.trainer.setdefault('cuda', 'try_cuda')
     hydra_check_cuda(cfg)
     # create logger
     logger = hydra_make_logger(cfg)
     # create callbacks
-    callbacks = []
-    hydra_append_progress_callback(callbacks, cfg)
+    callbacks: List[pl.Callback] = [c for c in hydra_get_callbacks(cfg) if isinstance(c, LoggerProgressCallback)]
     # - - - - - - - - - - - - - - - #
     # check save dirs
-    assert not os.path.isabs(cfg.exp.rel_save_dir), f'rel_save_dir must be relative: {repr(cfg.exp.rel_save_dir)}'
-    save_dir = os.path.join(ROOT_DIR, cfg.exp.rel_save_dir)
+    assert not os.path.isabs(cfg.settings.exp.rel_save_dir), f'rel_save_dir must be relative: {repr(cfg.settings.exp.rel_save_dir)}'
+    save_dir = os.path.join(ROOT_DIR, cfg.settings.exp.rel_save_dir)
     assert os.path.isabs(save_dir), f'save_dir must be absolute: {repr(save_dir)}'
     # - - - - - - - - - - - - - - - #
     # get the logger and initialize
@@ -328,35 +329,36 @@ def run_gen_adversarial_dataset(cfg):
     log.info('Final Config' + make_box_str(OmegaConf.to_yaml(cfg)))
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # | | | | | | | | | | | | | | | #
-    seed(cfg.exp.seed)
+    seed(cfg.settings.job.seed)
     # | | | | | | | | | | | | | | | #
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # make framework
-    framework = AdversarialModel(
-        train_is_gpu=cfg.trainer.cuda,
-        **cfg.framework
-    )
-    callbacks.append(framework.make_train_periodic_callback(cfg))
+    framework = AdversarialModel(train_is_gpu=cfg.trainer.cuda, **cfg.adv_system)
+    callbacks.extend(framework.make_train_periodic_callbacks(cfg))
     # train
     trainer = pl.Trainer(
-        log_every_n_steps=cfg.log.setdefault('log_every_n_steps', 50),
-        flush_logs_every_n_steps=cfg.log.setdefault('flush_logs_every_n_steps', 100),
         logger=logger,
         callbacks=callbacks,
-        gpus=1 if cfg.trainer.cuda else 0,
-        max_epochs=cfg.trainer.setdefault('epochs', None),
-        max_steps=cfg.trainer.setdefault('steps', 10000),
-        progress_bar_refresh_rate=0,  # ptl 0.9
-        terminate_on_nan=True,  # we do this here so we don't run the final metrics
+        # cfg.dsettings.trainer
+        gpus=1 if cfg.dsettings.trainer.cuda else 0,
+        # cfg.trainer
+        max_epochs=cfg.trainer.max_epochs,
+        max_steps=cfg.trainer.max_steps,
+        log_every_n_steps=cfg.trainer.log_every_n_steps,
+        flush_logs_every_n_steps=cfg.trainer.flush_logs_every_n_steps,
+        progress_bar_refresh_rate=cfg.trainer.progress_bar_refresh_rate,
+        prepare_data_per_node=cfg.trainer.prepare_data_per_node,
+        # we do this here so we don't run the final metrics
+        terminate_on_nan=True,
         checkpoint_callback=False,
     )
     trainer.fit(framework)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # get save paths
-    save_prefix = f'{cfg.job.save_prefix}_' if cfg.job.save_prefix else ''
-    save_path_data = os.path.join(save_dir, f'{save_prefix}{time_string}_{cfg.job.name}', f'data.h5')
+    save_prefix = f'{cfg.settings.exp.save_prefix}_' if cfg.settings.exp.save_prefix else ''
+    save_path_data = os.path.join(save_dir, f'{save_prefix}{time_string}_{cfg.settings.job.name}', f'data.h5')
     # create directories
-    if cfg.job.save_data: ensure_parent_dir_exists(save_path_data)
+    if cfg.settings.exp.save_data: ensure_parent_dir_exists(save_path_data)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # compute standard deviation when saving and scale so
     # that we have mean=0 and std=1 of the saved data!
@@ -366,7 +368,7 @@ def run_gen_adversarial_dataset(cfg):
         log.info(f'normalizing saved dataset of shape: {tuple(framework.array.shape)} and dtype: {framework.array.dtype} with mean: {repr(mean)} and std: {repr(std)}')
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # save adversarial dataset
-    if cfg.job.save_data:
+    if cfg.settings.exp.save_data:
         log.info(f'saving data to path: {repr(save_path_data)}')
         # transfer to GPU
         if torch.cuda.is_available():

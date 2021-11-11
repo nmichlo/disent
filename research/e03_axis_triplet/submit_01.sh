@@ -4,7 +4,8 @@
 # Settings                                                                  #
 # ========================================================================= #
 
-export PROJECT="exp-axis-triplet-3.0"
+export USERNAME="n_michlo"
+export PROJECT="final-03__axis-triplet-3.0"
 export PARTITION="batch"
 export PARALLELISM=24
 
@@ -17,6 +18,10 @@ source "$(dirname "$(dirname "$(realpath -s "$0")")")/helper.sh"
 
 clog_cudaless_nodes "$PARTITION" 43200 "C-disent" # 12 hours
 
+# TODO: update this script
+echo UPDATE THIS SCRIPT
+exit 1
+
 # SHORT RUNS:
 # - test for best ada loss types
 # 1 * (2*4*2*8=112) = 128
@@ -27,18 +32,18 @@ submit_sweep \
     dataset=xysquares \
     run_length=short \
     \
-    system.framework.cfg_cls.triplet_margin_max=1.0 \
-    system.framework.cfg_cls.triplet_scale=0.1 \
-    system.framework.cfg_cls.triplet_p=1 \
+    framework.cfg.triplet_margin_max=1.0 \
+    framework.cfg.triplet_scale=0.1 \
+    framework.cfg.triplet_p=1 \
     sampling=gt_dist_manhat \
     \
     model.z_size=25,9 \
     \
-    system.framework.cfg_cls.thresh_ratio=0.5 \
-    system.framework.cfg_cls.ada_triplet_ratio=1.0 \
+    framework.cfg.thresh_ratio=0.5 \
+    framework.cfg.ada_triplet_ratio=1.0 \
     schedule=adavae_thresh,adavae_all,adavae_ratio,none \
-    system.framework.cfg_cls.ada_triplet_sample=TRUE,FALSE \
-    system.framework.cfg_cls.ada_triplet_loss=system.framework.cfg_cls.ada_triplet_loss=triplet,triplet_soft_ave,triplet_soft_neg_ave,triplet_all_soft_ave,triplet_hard_ave,triplet_hard_neg_ave,triplet_hard_neg_ave_pull,triplet_all_hard_ave
+    framework.cfg.ada_triplet_sample=TRUE,FALSE \
+    framework.cfg.ada_triplet_loss=framework.cfg.ada_triplet_loss=triplet,triplet_soft_ave,triplet_soft_neg_ave,triplet_all_soft_ave,triplet_hard_ave,triplet_hard_neg_ave,triplet_hard_neg_ave_pull,triplet_all_hard_ave
 
 # ADA TRIPLET LOSS MODES (short runs):
 # - generally dont use sampling, except for: triplet_hard_neg_ave_pull

@@ -56,7 +56,7 @@ def make_optimizer(model: torch.nn.Module, name: str = 'sgd', lr=1e-3, weight_de
     if name in _SPECIALIZATIONS:
         name, kwargs = _SPECIALIZATIONS[name]
     # get optimizer class
-    optimizer_cls = registry.OPTIMIZER[name]
+    optimizer_cls = registry.OPTIMIZERS[name]
     optimizer_params = set(inspect.signature(optimizer_cls).parameters.keys())
     # add optional arguments
     if weight_decay is not None:

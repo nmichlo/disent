@@ -5,18 +5,22 @@
 # ========================================================================= #
 
 export USERNAME="n_michlo"
-export PROJECT="exp-masked-datasets"
+export PROJECT="final-06__masked-datasets"
 export PARTITION="stampede"
 export PARALLELISM=28
 
 # source the helper file
-source "$(dirname "$(dirname "$(realpath -s "$0")")")/helper.sh"
+source "$(dirname "$(dirname "$(dirname "$(realpath -s "$0")")")")/helper.sh"
 
 # ========================================================================= #
 # Experiment                                                                #
 # ========================================================================= #
 
 clog_cudaless_nodes "$PARTITION" 86400 "C-disent" # 24 hours
+
+# TODO: update this script
+echo UPDATE THIS SCRIPT
+exit 1
 
 # 3 * (12 * 2 * 2) = 144
 #submit_sweep \
