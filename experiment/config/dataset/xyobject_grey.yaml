@@ -1,16 +1,18 @@
-# @package _group_
+defaults:
+  - _data_type_: gt
+
 name: xyobject_grey
+
 data:
   _target_: disent.dataset.data.XYObjectData
-  grid_size: 64
-  grid_spacing: 1
-  min_square_size: 3
-  max_square_size: 9
-  square_size_spacing: 2
   rgb: FALSE
-  palette: 'white'
-transform:
-  _target_: disent.nn.transform.ToStandardisedTensor
-x_shape: [1, 64, 64]
 
-data_type: ground_truth
+transform:
+  _target_: disent.dataset.transform.ToImgTensorF32
+  mean: ${dataset.meta.vis_mean}
+  std: ${dataset.meta.vis_std}
+
+meta:
+  x_shape: [1, 64, 64]
+  vis_mean: "${exit:EXITING... please compute the vis_mean and vis_std}"
+  vis_std: "${exit:EXITING... please compute the vis_mean and vis_std}"

@@ -1,20 +1,10 @@
-# @package _global_
-schedules_name: beta_increase
-schedules:
+name: beta_increase
+
+schedule_items:
   beta:
-    # skip the first cycle
-    _target_: disent.schedule.Clip
-    min_step: 3600
-    max_step: NULL
-    shift_step: TRUE
-    min_value: NULL
-    max_value: NULL
-    # nested schedule
-    schedule:
-      _target_: disent.schedule.Cyclic
-      period: 14400
-      repeats: 1
-      r_start: 0.001
-      r_end: 1.0
-      end_value: 'start'  # start/end -- only used if repeats is set
-      mode: 'linear'
+    _target_: disent.schedule.Single
+    start_step: 0
+    end_step: ${trainer.max_steps}
+    r_start: 0.001
+    r_end: 1.0
+    mode: 'linear'

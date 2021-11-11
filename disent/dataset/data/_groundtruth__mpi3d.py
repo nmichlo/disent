@@ -44,17 +44,18 @@ class Mpi3dData(NumpyFileGroundTruthData):
     reference implementation: https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/data/ground_truth/mpi3d.py
     """
 
-    name = 'mpi3d'
-
     MPI3D_DATASETS = {
-        'toy':        DataFileHashedDl(uri='https://storage.googleapis.com/disentanglement_dataset/Final_Dataset/mpi3d_toy.npz',       uri_hash=None),
-        'realistic':  DataFileHashedDl(uri='https://storage.googleapis.com/disentanglement_dataset/Final_Dataset/mpi3d_realistic.npz', uri_hash=None),
-        'real':       DataFileHashedDl(uri='https://storage.googleapis.com/disentanglement_dataset/Final_Dataset/mpi3d_real.npz',      uri_hash=None),
+        'toy':        DataFileHashedDl(uri='https://storage.googleapis.com/disentanglement_dataset/Final_Dataset/mpi3d_toy.npz',       uri_hash={'fast': '146138e36ff495e77ceacdc8cf14c37e', 'full': '55889cb7c7dfc655d6e0277beee88868'}),
+        'realistic':  DataFileHashedDl(uri='https://storage.googleapis.com/disentanglement_dataset/Final_Dataset/mpi3d_realistic.npz', uri_hash={'fast': '96c8ff1155dd61f79d3493edef9f19e9', 'full': '59a6225b88b635365f70c91b3e52f70f'}),
+        'real':       DataFileHashedDl(uri='https://storage.googleapis.com/disentanglement_dataset/Final_Dataset/mpi3d_real.npz',      uri_hash={'fast': 'e2941bba6f4a2b130edc5f364637b39e', 'full': '0f33f609918fb5c97996692f91129802'}),
     }
 
     factor_names = ('object_color', 'object_shape', 'object_size', 'camera_height', 'background_color', 'first_dof', 'second_dof')
     factor_sizes = (4, 4, 2, 3, 3, 40, 40)  # TOTAL: 460800
-    observation_shape = (64, 64, 3)
+    img_shape = (64, 64, 3)
+
+    # override
+    data_key = 'images'
 
     def __init__(self, data_root: Optional[str] = None, prepare: bool = False, subset='realistic', in_memory=False, transform=None):
         # check subset is correct
@@ -71,6 +72,10 @@ class Mpi3dData(NumpyFileGroundTruthData):
     @property
     def datafile(self) -> DataFileHashedDl:
         return self.MPI3D_DATASETS[self._subset]
+
+    @property
+    def name(self) -> str:
+        return f'mpi3d_{self._subset}'
 
 
 # ========================================================================= #

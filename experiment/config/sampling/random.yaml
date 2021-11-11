@@ -1,0 +1,8 @@
+# SPECIALIZATION: force the random strategy to be used as the dataset sampler
+defaults:
+  - _sampler_: random__${framework/_input_mode_}
+
+name: random
+
+# this config forces an error to be thrown if
+# sampler config settings are required.

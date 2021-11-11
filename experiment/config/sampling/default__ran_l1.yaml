@@ -1,0 +1,18 @@
+# SPECIALIZATION: choose the default from the framework and dataset
+defaults:
+  - _sampler_: ${dataset/_data_type_}__${framework/_input_mode_}
+
+name: default__ran_l1
+
+# varying factors (if applicable for pairs) -- sample in range: [min, max]
+k: [0, -1]
+k_radius: [0, -1]
+# varying factors (if applicable for triplets) -- sample in range: [min, max]
+n_k: [0, -1]
+n_k_mode: 'random'
+n_k_radius: [0, -1]
+n_k_radius_mode: 'random'
+# swap incorrect samples
+swap_metric: 'manhattan'
+# swap positive and negative if possible
+swap_chance: NULL

@@ -23,7 +23,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 
-from disent.registry import REGISTRY
+from disent.registry import REGISTRIES
 
 
 # ========================================================================= #
@@ -32,15 +32,15 @@ from disent.registry import REGISTRY
 
 
 COUNTS = {
-    'dataset': 6,
-    'sampler': 8,
-    'framework': 10,
-    'recon_loss': 6,
-    'latent_dist': 2,
-    'optimizer': 38,
-    'metric': 5,
-    'schedule': 5,
-    'model': 8,
+    'DATASETS': 6,
+    'SAMPLERS': 8,
+    'FRAMEWORKS': 10,
+    'RECON_LOSSES': 6,
+    'LATENT_DISTS': 2,
+    'OPTIMIZERS': 30,
+    'METRICS': 5,
+    'SCHEDULES': 5,
+    'MODELS': 8,
 }
 
 
@@ -49,14 +49,14 @@ COUNTS = {
 def test_registry_loading():
     # load everything and check the counts
     total = 0
-    for registry in REGISTRY:
+    for registry in REGISTRIES:
         count = 0
-        for name in REGISTRY[registry]:
-            loaded = REGISTRY[registry][name]
+        for name in REGISTRIES[registry]:
+            loaded = REGISTRIES[registry][name]
             count += 1
             total += 1
-        assert COUNTS[registry] == count
-    assert total == sum(COUNTS.values())
+        assert COUNTS[registry] == count, f'invalid count for: {registry}'
+    assert total == sum(COUNTS.values()), f'invalid total'
 
 
 # ========================================================================= #

@@ -41,7 +41,7 @@ from torchvision.models import vgg19_bn
 from disent.frameworks.helper.util import compute_ave_loss
 from disent.frameworks.vae._unsupervised__betavae import BetaVae
 from disent.nn.loss.reduction import get_mean_loss_scale
-from disent.nn.transform.functional import check_tensor
+from disent.dataset.transform.functional import check_tensor
 
 
 # ========================================================================= #

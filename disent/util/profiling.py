@@ -36,12 +36,17 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def get_memory_usage():
+def get_memory_usage(pretty: bool = False):
     import os
     import psutil
     process = psutil.Process(os.getpid())
     num_bytes = process.memory_info().rss  # in bytes
-    return num_bytes
+    # format the bytes
+    if pretty:
+        from disent.util.strings.fmt import bytes_to_human
+        return bytes_to_human(num_bytes)
+    else:
+        return num_bytes
 
 
 # ========================================================================= #
@@ -106,6 +111,11 @@ class Timer(ContextDecorator):
             else:
                 log.log(self._log_level, f'{self.name}: {self.pretty}')
 
+    def restart(self):
+        assert self._start_time is not None, 'timer must have been started before we can restart it'
+        assert self._end_time is None, 'timer cannot be restarted if it is finished'
+        self._start_time = time.time_ns()
+
     @property
     def elapsed_ns(self) -> int:
         if self._start_time is not None:
@@ -159,4 +169,3 @@ class Timer(ContextDecorator):
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-

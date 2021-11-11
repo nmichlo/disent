@@ -1,0 +1,8 @@
+# SPECIALIZATION: force gt_dist to be used as the dataset sampler, this might not be supported by some datasets
+defaults:
+  - _sampler_: gt_dist__${framework/_input_mode_}
+
+name: gt_dist__manhat
+
+triplet_sample_mode: "manhattan" # random, factors, manhattan, manhattan_scaled, combined, combined_scaled
+triplet_swap_chance: 0

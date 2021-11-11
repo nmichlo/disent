@@ -1,0 +1,8 @@
+# SPECIALIZATION: choose the default from the framework and dataset
+defaults:
+  - _sampler_: ${dataset/_data_type_}__${framework/_input_mode_}
+
+name: default
+
+# this config forces an error to be thrown if
+# sampler config settings are required.

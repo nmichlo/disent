@@ -1,0 +1,10 @@
+name: beta_decrease
+
+schedule_items:
+  beta:
+    _target_: disent.schedule.Single
+    start_step: 0
+    end_step: ${trainer.max_steps}
+    r_start: 1.0
+    r_end: 0.001
+    mode: 'linear'

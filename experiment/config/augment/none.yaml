@@ -1,3 +1,3 @@
-# @package _group_
 name: none
-transform: NULL
+
+augment_cls: NULL

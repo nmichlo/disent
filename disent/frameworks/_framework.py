@@ -96,11 +96,11 @@ class DisentFramework(DisentConfigurable, DisentLightningModule):
         super().__init__(cfg=cfg)
         # get the optimizer
         if isinstance(self.cfg.optimizer, str):
-            if self.cfg.optimizer not in registry.OPTIMIZER:
+            if self.cfg.optimizer not in registry.OPTIMIZERS:
                 raise KeyError(f'invalid optimizer: {repr(self.cfg.optimizer)}, valid optimizers are: {sorted(registry.OPTIMIZER)}, otherwise pass a torch.optim.Optimizer class instead.')
-            self.cfg.optimizer = registry.OPTIMIZER[self.cfg.optimizer]
+            self.cfg.optimizer = registry.OPTIMIZERS[self.cfg.optimizer]
         # check the optimizer values
-        assert isinstance(self.cfg.optimizer, type) and issubclass(self.cfg.optimizer, torch.optim.Optimizer) and (self.cfg.optimizer != torch.optim.Optimizer)
+        assert callable(self.cfg.optimizer)
         assert isinstance(self.cfg.optimizer_kwargs, dict) or (self.cfg.optimizer_kwargs is None), f'invalid optimizer_kwargs type, got: {type(self.cfg.optimizer_kwargs)}'
         # set default values for optimizer
         if self.cfg.optimizer_kwargs is None:
@@ -119,14 +119,17 @@ class DisentFramework(DisentConfigurable, DisentLightningModule):
 
     @final
     def configure_optimizers(self):
-        optimizer = self.cfg.optimizer
-        # instantiate the optimizer!
-        if issubclass(optimizer, torch.optim.Optimizer):
-            optimizer = optimizer(self.parameters(), **self.cfg.optimizer_kwargs)
-        elif not isinstance(optimizer, torch.optim.Optimizer):
-            raise TypeError(f'unsupported optimizer type: {type(optimizer)}')
+        optimizer_cls = self.cfg.optimizer
+        # check that we can call the optimizer
+        if not callable(optimizer_cls):
+            raise TypeError(f'unsupported optimizer type: {type(optimizer_cls)}')
+        # instantiate class
+        optimizer_instance = optimizer_cls(self.parameters(), **self.cfg.optimizer_kwargs)
+        # check instance
+        if not isinstance(optimizer_instance, torch.optim.Optimizer):
+            raise TypeError(f'returned object is not an instance of torch.optim.Optimizer, got: {type(optimizer_instance)}')
         # return the optimizer
-        return optimizer
+        return optimizer_instance
 
     @final
     def training_step(self, batch, batch_idx):

@@ -50,3 +50,4 @@ from disent.dataset.data._groundtruth__shapes3d import Shapes3dData
 
 # groundtruth -- impl synthetic
 from disent.dataset.data._groundtruth__xyobject import XYObjectData
+from disent.dataset.data._groundtruth__xyobject import XYObjectShadedData

@@ -1,4 +1,0 @@
-# @package _group_
-name: ground_truth_single
-sampler:
-  _target_: disent.dataset.sampling.GroundTruthSingleSampler

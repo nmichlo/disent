@@ -56,7 +56,8 @@ class LoggerProgressCallback(BaseCallbackTimed):
         if hasattr(trainer, 'batch_idx'):
             batch = (trainer.batch_idx + 1)
         else:
-            warnings.warn('batch_idx missing on pl.Trainer')
+            # TODO: re-enable this warning but only ever print once!
+            # warnings.warn('batch_idx missing on pl.Trainer')
             batch = global_step % max_batches  # might not be int?
         # completion
         train_pct = global_step / max_steps

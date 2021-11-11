@@ -44,11 +44,12 @@ class Shapes3dData(Hdf5GroundTruthData):
           info:     https://console.cloud.google.com/storage/browser/_details/3d-shapes/3dshapes.h5
     """
 
+    # TODO: name should be `shapes3d` so that it is a valid python identifier
     name = '3dshapes'
 
     factor_names = ('floor_hue', 'wall_hue', 'object_hue', 'scale', 'shape', 'orientation')
     factor_sizes = (10, 10, 10, 8, 4, 15)  # TOTAL: 480000
-    observation_shape = (64, 64, 3)
+    img_shape = (64, 64, 3)
 
     datafile = DataFileHashedDlH5(
         # download file/link
@@ -59,7 +60,7 @@ class Shapes3dData(Hdf5GroundTruthData):
         # h5 re-save settings
         hdf5_dataset_name='images',
         hdf5_chunk_size=(1, 64, 64, 3),
-        hdf5_obs_shape=observation_shape,
+        hdf5_obs_shape=img_shape,
     )
 
 

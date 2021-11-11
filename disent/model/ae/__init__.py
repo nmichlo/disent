@@ -29,5 +29,5 @@ from disent.model.ae._norm_conv64 import DecoderConv64Norm
 from disent.model.ae._norm_conv64 import EncoderConv64Norm
 from disent.model.ae._vae_fc import DecoderFC
 from disent.model.ae._vae_fc import EncoderFC
-from disent.model.ae._test import DecoderTest
-from disent.model.ae._test import EncoderTest
+from disent.model.ae._linear import DecoderLinear
+from disent.model.ae._linear import EncoderLinear

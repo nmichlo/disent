@@ -44,7 +44,7 @@ log = logging.getLogger(__name__)
 
 
 def metric_factor_vae(
-        ground_truth_dataset: DisentDataset,
+        dataset: DisentDataset,
         representation_function: callable,
         batch_size: int = 64,
         num_train: int = 10000,
@@ -84,7 +84,7 @@ def metric_factor_vae(
     Most importantly, it circumvents the failure mode of the earlier metric, since the classifier needs to see the lowest variance in a latent dimension for a given factor to classify it correctly
 
     Args:
-      ground_truth_dataset: GroundTruthData to be sampled from.
+      dataset: DisentDataset to be sampled from.
       representation_function: Function that takes observations as input and
         outputs a dim_representation sized representation for each observation.
       batch_size: Number of points to be used to compute the training_sample.
@@ -99,7 +99,7 @@ def metric_factor_vae(
     """
 
     log.debug("Computing global variances to standardise.")
-    global_variances = _compute_variances(ground_truth_dataset, representation_function, num_variance_estimate)
+    global_variances = _compute_variances(dataset, representation_function, num_variance_estimate)
     active_dims = _prune_dims(global_variances)
 
     if not active_dims.any():
@@ -110,7 +110,7 @@ def metric_factor_vae(
         }
 
     log.debug("Generating training set.")
-    training_votes = _generate_training_batch(ground_truth_dataset, representation_function, batch_size, num_train, global_variances, active_dims, show_progress=show_progress)
+    training_votes = _generate_training_batch(dataset, representation_function, batch_size, num_train, global_variances, active_dims, show_progress=show_progress)
     classifier = np.argmax(training_votes, axis=0)
     other_index = np.arange(training_votes.shape[1])
 
@@ -118,7 +118,7 @@ def metric_factor_vae(
     train_accuracy = np.sum(training_votes[classifier, other_index]) * 1. / np.sum(training_votes)
 
     log.debug("Generating evaluation set.")
-    eval_votes = _generate_training_batch(ground_truth_dataset, representation_function, batch_size, num_eval, global_variances, active_dims, show_progress=show_progress)
+    eval_votes = _generate_training_batch(dataset, representation_function, batch_size, num_eval, global_variances, active_dims, show_progress=show_progress)
 
     # Evaluate evaluation set accuracy
     eval_accuracy = np.sum(eval_votes[classifier, other_index]) * 1. / np.sum(eval_votes)
@@ -137,21 +137,21 @@ def _prune_dims(variances, threshold=0.):
 
 
 def _compute_variances(
-        ground_truth_dataset: DisentDataset,
+        dataset: DisentDataset,
         representation_function: callable,
         batch_size: int,
         eval_batch_size: int = 64
 ):
     """Computes the variance for each dimension of the representation.
     Args:
-      ground_truth_dataset: GroundTruthData to be sampled from.
+      dataset: DisentDataset to be sampled from.
       representation_function: Function that takes observation as input and outputs a representation.
       batch_size: Number of points to be used to compute the variances.
       eval_batch_size: Batch size used to eval representation.
     Returns:
       Vector with the variance of each dimension.
     """
-    observations = ground_truth_dataset.dataset_sample_batch(batch_size, mode='input')
+    observations = dataset.dataset_sample_batch(batch_size, mode='input')
     representations = to_numpy(utils.obtain_representation(observations, representation_function, eval_batch_size))
     representations = np.transpose(representations)
     assert representations.shape[0] == batch_size
@@ -159,7 +159,7 @@ def _compute_variances(
 
 
 def _generate_training_sample(
-        ground_truth_dataset: DisentDataset,
+        dataset: DisentDataset,
         representation_function: callable,
         batch_size: int,
         global_variances: np.ndarray,
@@ -167,7 +167,7 @@ def _generate_training_sample(
 ) -> (int, int):
     """Sample a single training sample based on a mini-batch of ground-truth data.
     Args:
-      ground_truth_dataset: GroundTruthData to be sampled from.
+      dataset: DisentDataset to be sampled from.
       representation_function: Function that takes observation as input and
         outputs a representation.
       batch_size: Number of points to be used to compute the training_sample.
@@ -178,13 +178,13 @@ def _generate_training_sample(
       argmin: Index of representation coordinate with the least variance.
     """
     # Select random coordinate to keep fixed.
-    factor_index = np.random.randint(ground_truth_dataset.ground_truth_data.num_factors)
+    factor_index = np.random.randint(dataset.gt_data.num_factors)
     # Sample two mini batches of latent variables.
-    factors = ground_truth_dataset.ground_truth_data.sample_factors(batch_size)
+    factors = dataset.gt_data.sample_factors(batch_size)
     # Fix the selected factor across mini-batch.
     factors[:, factor_index] = factors[0, factor_index]
     # Obtain the observations.
-    observations = ground_truth_dataset.dataset_batch_from_factors(factors, mode='input')
+    observations = dataset.dataset_batch_from_factors(factors, mode='input')
     representations = to_numpy(representation_function(observations))
     local_variances = np.var(representations, axis=0, ddof=1)
     argmin = np.argmin(local_variances[active_dims] / global_variances[active_dims])
@@ -192,7 +192,7 @@ def _generate_training_sample(
 
 
 def _generate_training_batch(
-        ground_truth_dataset: DisentDataset,
+        dataset: DisentDataset,
         representation_function: callable,
         batch_size: int,
         num_points: int,
@@ -202,7 +202,7 @@ def _generate_training_batch(
 ):
     """Sample a set of training samples based on a batch of ground-truth data.
     Args:
-      ground_truth_dataset: GroundTruthData to be sampled from.
+      dataset: DisentDataset to be sampled from.
       representation_function: Function that takes observations as input and outputs a dim_representation sized representation for each observation.
       batch_size: Number of points to be used to compute the training_sample.
       num_points: Number of points to be sampled for training set.
@@ -211,9 +211,9 @@ def _generate_training_batch(
     Returns:
       (num_factors, dim_representation)-sized numpy array with votes.
     """
-    votes = np.zeros((ground_truth_dataset.ground_truth_data.num_factors, global_variances.shape[0]), dtype=np.int64)
+    votes = np.zeros((dataset.gt_data.num_factors, global_variances.shape[0]), dtype=np.int64)
     for _ in tqdm(range(num_points), disable=(not show_progress)):
-        factor_index, argmin = _generate_training_sample(ground_truth_dataset, representation_function, batch_size, global_variances, active_dims)
+        factor_index, argmin = _generate_training_sample(dataset, representation_function, batch_size, global_variances, active_dims)
         votes[factor_index, argmin] += 1
     return votes
 

@@ -1,4 +1,5 @@
 # @package _global_
+
 trainer:
-  epochs: 3600
-  steps: 3600
+  max_epochs: 7200
+  max_steps: 7200

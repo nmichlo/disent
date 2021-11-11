@@ -1,57 +1,47 @@
 defaults:
+  # data
+  - sampling: default__bb
+  - dataset: xyobject
+  - augment: none
   # system
-  - framework: adavae
+  - framework: betavae
   - model: vae_conv64
+  # training
   - optimizer: adam
   - schedule: none
-  # data
-  - dataset: xyobject
-  - dataset_sampling: full_bb
-  - augment: none
-  # runtime
-  - metrics: fast
-  - run_length: short
-  - run_location: local
+  - metrics: all
+  - run_length: long
+  # logs
   - run_callbacks: vis
   - run_logging: wandb
-  # plugins
-  - hydra/job_logging: colorlog
-  - hydra/hydra_logging: colorlog
-  - hydra/launcher: submitit_slurm
+  # runtime
+  - run_location: stampede_shr
+  - run_launcher: slurm
+  - run_action: train
+  # entries in this file override entries from default lists
+  - _self_
 
-job:
-  user: '${env:USER}'
-  project: 'test-project'
-  name: '${framework.name}:${framework.module.recon_loss}|${dataset.name}:${dataset_sampling.name}|${trainer.steps}'
-  partition: batch
-  seed: NULL
+settings:
+  job:
+    user: '${oc.env:USER}'
+    project: 'DELETE'
+    name: '${framework.name}:${settings.framework.recon_loss}|${dataset.name}:${sampling.name}|${trainer.max_steps}'
+    seed: NULL
 
-framework:
-    beta: 4
-    module:
-      recon_loss: mse
-      loss_reduction: mean_sum
+  framework:
+    beta: 0.0316
+    recon_loss: mse
+    loss_reduction: mean         # TODO: this should be renamed to `loss_mode="scaled"` or `enable_loss_scaling=True"` or `enable_beta_scaling`
 
-    # only some frameworks support these features
-    optional:
-      latent_distribution: normal  # only used by VAEs
-      overlap_loss: NULL
+  framework_opt:
+    latent_distribution: normal  # only used by VAEs
 
-model:
-  z_size: 25
+  model:
+    z_size: 25
+    weight_init: 'xavier_normal'  # xavier_normal, default
 
-optimizer:
-  lr: 1e-3
+  dataset:
+    batch_size: 256
 
-# CUSTOM DEFAULTS SPECIALIZATION
-# - This key is deleted on load and the correct key on the root config is set similar to defaults.
-# - Unfortunately this hack needs to exists as hydra does not yet support this kinda of variable interpolation in defaults.
-specializations:
-  # default samplers -- the framework specified defaults
-  dataset_sampler: ${dataset.data_type}_${framework.data_sample_mode}
-
-  # newer samplers -- only active for frameworks that require 3 observations, otherwise random for 2, and exact for 1
-  # dataset_sampler: gt_dist_${framework.data_sample_mode}
-
-  # random samplers -- force random sampling of observation pairs or triples
-  # dataset_sampler: random_${framework.data_sample_mode}
+  optimizer:
+    lr: 1e-3

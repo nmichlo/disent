@@ -41,14 +41,14 @@ log = logging.getLogger(__name__)
 
 
 def metric_unsupervised(
-        ground_truth_data: DisentDataset,
+        dataset: DisentDataset,
         representation_function,
         num_train=10000,
         batch_size=16
 ):
     """Computes unsupervised scores based on covariance and mutual information.
     Args:
-      ground_truth_data: GroundTruthData to be sampled from.
+      dataset: DisentDataset to be sampled from.
       representation_function: Function that takes observations as input and
         outputs a dim_representation sized representation for each observation.
       random_state: Numpy random state used for randomness.
@@ -59,7 +59,7 @@ def metric_unsupervised(
       Dictionary with scores.
     """
     log.debug("Generating training set.")
-    mus_train, _ = utils.generate_batch_factor_code(ground_truth_data, representation_function, num_train, batch_size)
+    mus_train, _ = utils.generate_batch_factor_code(dataset, representation_function, num_train, batch_size)
     num_codes = mus_train.shape[0]
     cov_mus = np.cov(mus_train)
     assert num_codes == cov_mus.shape[0]

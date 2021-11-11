@@ -37,9 +37,9 @@ from disent.dataset.sampling import GroundTruthTripleSampler
 from disent.frameworks.ae import *
 from disent.frameworks.vae import *
 from disent.model import AutoEncoder
-from disent.model.ae import DecoderTest
-from disent.model.ae import EncoderTest
-from disent.nn.transform import ToStandardisedTensor
+from disent.model.ae import DecoderLinear
+from disent.model.ae import EncoderLinear
+from disent.dataset.transform import ToImgTensorF32
 
 
 # ========================================================================= #
@@ -66,6 +66,7 @@ from disent.nn.transform import ToStandardisedTensor
     # VAE - weakly supervised
     (AdaVae,               dict(),                                                                      XYObjectData),
     (AdaVae,               dict(ada_average_mode='ml-vae'),                                             XYObjectData),
+    (AdaGVaeMinimal,       dict(),                                                                      XYObjectData),
     # VAE - supervised
     (TripletVae,           dict(),                                                                      XYObjectData),
     (TripletVae,           dict(disable_decoder=True, disable_reg_loss=True, disable_posterior_scale=0.5), XYObjectData),
@@ -78,13 +79,13 @@ def test_frameworks(Framework, cfg_kwargs, Data):
     }[Framework.REQUIRED_OBS]
 
     data = XYObjectData() if (Data is None) else Data()
-    dataset = DisentDataset(data, DataSampler(), transform=ToStandardisedTensor())
+    dataset = DisentDataset(data, DataSampler(), transform=ToImgTensorF32())
     dataloader = DataLoader(dataset=dataset, batch_size=4, shuffle=True)
 
     framework = Framework(
         model=AutoEncoder(
-            encoder=EncoderTest(x_shape=data.x_shape, z_size=6, z_multiplier=2 if issubclass(Framework, Vae) else 1),
-            decoder=DecoderTest(x_shape=data.x_shape, z_size=6),
+            encoder=EncoderLinear(x_shape=data.x_shape, z_size=6, z_multiplier=2 if issubclass(Framework, Vae) else 1),
+            decoder=DecoderLinear(x_shape=data.x_shape, z_size=6),
         ),
         cfg=Framework.cfg(**cfg_kwargs)
     )
