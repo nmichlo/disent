@@ -100,12 +100,8 @@ if __name__ == '__main__':
             wrapped_partial(data.Mpi3dData, subset='realistic', in_memory=True),
             wrapped_partial(data.Mpi3dData, subset='real',      in_memory=True),
             # groundtruth -- impl synthetic
-            data.XYBlocksData,          # pragma: delete-on-release
             data.XYObjectData,
             data.XYObjectShadedData,
-            data.XYSquaresData,         # pragma: delete-on-release
-            data.XYSquaresMinimalData,  # pragma: delete-on-release
-            data.XColumnsData,          # pragma: delete-on-release
         ]:
             from disent.dataset.transform import ToImgTensorF32
             # Most common standardized way of computing the mean and std over observations
