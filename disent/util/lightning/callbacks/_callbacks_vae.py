@@ -127,20 +127,20 @@ _VAE_DIST_NAMES = ('x', 'z_l1', 'kl', 'x_recon')
 
 
 @torch.no_grad()
-def _get_dists_ae(ae: Ae, recon_loss: ReconLossHandler, x_a: torch.Tensor, x_b: torch.Tensor):
+def _get_dists_ae(ae: Ae, x_a: torch.Tensor, x_b: torch.Tensor):
     # feed forware
     z_a, z_b = ae.encode(x_a), ae.encode(x_b)
     r_a, r_b = ae.decode(z_a), ae.decode(z_b)
     # distances
     return [
-        recon_loss.compute_pairwise_loss(x_a, x_b),
+        ae.recon_handler.compute_pairwise_loss(x_a, x_b),
         torch.norm(z_a - z_b, p=1, dim=-1),  # l1 dist
-        recon_loss.compute_pairwise_loss(r_a, r_b),
+        ae.recon_handler.compute_pairwise_loss(r_a, r_b),
     ]
 
 
 @torch.no_grad()
-def _get_dists_vae(vae: Vae, recon_loss: ReconLossHandler, x_a: torch.Tensor, x_b: torch.Tensor):
+def _get_dists_vae(vae: Vae, x_a: torch.Tensor, x_b: torch.Tensor):
     from torch.distributions import kl_divergence
     # feed forward
     (z_post_a, z_prior_a), (z_post_b, z_prior_b) = vae.encode_dists(x_a), vae.encode_dists(x_b)
@@ -150,19 +150,19 @@ def _get_dists_vae(vae: Vae, recon_loss: ReconLossHandler, x_a: torch.Tensor, x_
     kl_ab = 0.5 * kl_divergence(z_post_a, z_post_b) + 0.5 * kl_divergence(z_post_b, z_post_a)
     # distances
     return [
-        recon_loss.compute_pairwise_loss(x_a, x_b),
+        vae.recon_handler.compute_pairwise_loss(x_a, x_b),
         torch.norm(z_a - z_b, p=1, dim=-1),  # l1 dist
-        recon_loss._pairwise_reduce(kl_ab),
-        recon_loss.compute_pairwise_loss(r_a, r_b),
+        vae.recon_handler._pairwise_reduce(kl_ab),
+        vae.recon_handler.compute_pairwise_loss(r_a, r_b),
     ]
 
 
-def _get_dists_fn(model, recon_loss: ReconLossHandler) -> Tuple[Optional[Tuple[str, ...]], Optional[Callable[[object, object], Sequence[Sequence[float]]]]]:
+def _get_dists_fn(model: Ae) -> Tuple[Optional[Tuple[str, ...]], Optional[Callable[[object, object], Sequence[Sequence[float]]]]]:
     # get aggregate function
     if isinstance(model, Vae):
-        dists_names, dists_fn = _VAE_DIST_NAMES, wrapped_partial(_get_dists_vae, model, recon_loss)
+        dists_names, dists_fn = _VAE_DIST_NAMES, wrapped_partial(_get_dists_vae, model)
     elif isinstance(model, Ae):
-        dists_names, dists_fn = _AE_DIST_NAMES, wrapped_partial(_get_dists_ae, model, recon_loss)
+        dists_names, dists_fn = _AE_DIST_NAMES, wrapped_partial(_get_dists_ae, model)
     else:
         dists_names, dists_fn = None, None
     return dists_names, dists_fn
@@ -303,7 +303,6 @@ class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
         assert traversal_repeats > 0
         self._traversal_repeats = traversal_repeats
         self._seed = seed
-        self._recon_loss = make_reconstruction_loss('mse', 'mean')
         self._plt_block_size = plt_block_size
         self._plt_show = plt_show
         self._log_wandb = log_wandb
@@ -321,7 +320,7 @@ class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
             log.warning(f'cannot run {self.__class__.__name__} over non-ground-truth data, skipping!')
             return
         # get aggregate function
-        dists_names, dists_fn = _get_dists_fn(vae, self._recon_loss)
+        dists_names, dists_fn = _get_dists_fn(vae)
         if (dists_names is None) or (dists_fn is None):
             log.warning(f'cannot run {self.__class__.__name__}, unsupported model type: {type(vae)}, must be {Ae.__name__} or {Vae.__name__}')
             return
