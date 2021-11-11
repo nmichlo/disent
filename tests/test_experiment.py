@@ -26,22 +26,28 @@ import os
 import os.path
 
 import hydra
+import pytest
+
 import experiment.run as experiment_run
 from tests.util import temp_sys_args
+
 
 # ========================================================================= #
 # TESTS                                                                     #
 # ========================================================================= #
 
 
-def test_experiment_run():
-    # used by run() internally
-    experiment_run.CONFIG_PATH = os.path.join(os.path.dirname(experiment_run.__file__), 'config')
-
+@pytest.mark.parametrize('args', [
+    ['run_action=prepare_data'],
+    ['run_action=train'],
+])
+def test_experiment_run(args):
     os.environ['HYDRA_FULL_ERROR'] = '1'
-    with temp_sys_args([experiment_run.__file__]):
-        # why does this not work when config is absolute?
-        hydra_main = hydra.main(config_path='config', config_name='config_test')(experiment_run.train)
+
+    # TODO: why does this not work when config_path is absolute?
+    #      ie. config_path=os.path.join(os.path.dirname(experiment_run.__file__), 'config')
+    with temp_sys_args([experiment_run.__file__, *args]):
+        hydra_main = hydra.main(config_path='config', config_name='config_test')(experiment_run.run_action)
         hydra_main()
 
 

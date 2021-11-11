@@ -90,17 +90,21 @@ Please use the following citation if you use Disent in your own research:
 
 ## Architecture
 
-The disent directory structure:
+The disent module structure:
 
-- `disent/dataset`: dataset wrappers, datasets & sampling strategies
-    + `disent/dataset/data`: raw datasets
-    + `disent/dataset/sampling`: sampling strategies for `DisentDataset`
-- `disent/framework`: frameworks, including Auto-Encoders and VAEs
-- `disent/metric`: metrics for evaluating disentanglement using ground truth datasets
-- `disent/model`: common encoder and decoder models used for VAE research
-- `disent/nn`: torch components for building models including layers, transforms, losses and general maths
-- `disent/schedule`: annealing schedules that can be registered to a framework
-- `disent/util`: helper classes, functions, callbacks, anything unrelated to a pytorch system/model/framework.
+- `disent.dataset`: dataset wrappers, datasets & sampling strategies
+    + `disent.dataset.data`: raw datasets
+    + `disent.dataset.sampling`: sampling strategies for `DisentDataset` when multiple elements are required by frameworks, eg. for triplet loss
+    + `disent.dataset.transform`: common data transforms and augmentations
+    + `disent.dataset.wrapper`: wrapped datasets are no longer ground-truth datasets, these may have some elements masked out. We can still unwrap these classes to obtain the original datasets for benchmarking.
+- `disent.frameworks`: frameworks, including Auto-Encoders and VAEs
+    + `disent.frameworks.ae`: Auto-Encoder based frameworks
+    + `disent.frameworks.vae`: Variational Auto-Encoder based frameworks
+- `disent.metrics`: metrics for evaluating disentanglement using ground truth datasets
+- `disent.model`: common encoder and decoder models used for VAE research
+- `disent.nn`: torch components for building models including layers, transforms, losses and general maths
+- `disent.schedule`: annealing schedules that can be registered to a framework
+- `disent.util`: helper classes, functions, callbacks, anything unrelated to a pytorch system/model/framework.
 
 **Please Note The API Is Still Unstable ⚠️**
 
@@ -113,6 +117,7 @@ Easily run experiments with hydra config, these files
 are not available from `pip install`.
 
 - `experiment/run.py`: entrypoint for running basic experiments with [hydra](https://github.com/facebookresearch/hydra) config
+- `experiment/config/config.yaml`: main configuration file, this is probably what you want to edit!
 - `experiment/config`: root folder for [hydra](https://github.com/facebookresearch/hydra) config files
 - `experiment/util`: various helper code for experiments
 
@@ -182,6 +187,8 @@ low-memory disk-based access.
 
 - **Ground Truth Synthetic**:
   + 🧵 XYObject: *A simplistic version of dSprites with a single square.*
+  + 🧵 XYObjectShaded: *Exact same dataset as XYObject, but ground truth factors have a different representation*
+  + 🧵 DSpritesImagenet: *Version of DSprite with foreground or background deterministically masked out with tiny-imagenet data*
 
   <p align="center">
     <img width="384" src="docs/img/xy-object-traversal.png" alt="XYObject Dataset Factor Traversals">
@@ -211,25 +218,26 @@ The currently implemented schedules include:
 The following is a basic working example of disent that trains a BetaVAE with a cyclic
 beta schedule and evaluates the trained model with various metrics.
 
-<details><summary><b>Basic Example</b></summary>
+<details><summary><b>💾 Basic Example</b></summary>
 <p>
 
 ```python3
 import os
 import pytorch_lightning as pl
 import torch
-from torch.optim import Adam
 from torch.utils.data import DataLoader
+
 from disent.dataset import DisentDataset
 from disent.dataset.data import XYObjectData
 from disent.dataset.sampling import SingleSampler
-from disent.frameworks.vae import BetaVae
-from disent.metrics import metric_dci, metric_mig
-from disent.model import AutoEncoder
-from disent.model.ae import DecoderConv64, EncoderConv64
 from disent.dataset.transform import ToImgTensorF32
+from disent.frameworks.vae import BetaVae
+from disent.metrics import metric_dci
+from disent.metrics import metric_mig
+from disent.model import AutoEncoder
+from disent.model.ae import DecoderConv64
+from disent.model.ae import EncoderConv64
 from disent.schedule import CyclicSchedule
-
 
 # create the dataset & dataloaders
 # - ToImgTensorF32 transforms images from numpy arrays to tensors and performs checks
@@ -246,8 +254,10 @@ module = BetaVae(
     decoder=DecoderConv64(x_shape=data.x_shape, z_size=10),
   ),
   cfg=BetaVae.cfg(
-    optimizer='adam', optimizer_kwargs=dict(lr=1e-3),
-    loss_reduction='mean_sum', beta=4,
+    optimizer='adam',
+    optimizer_kwargs=dict(lr=1e-3),
+    loss_reduction='mean_sum',
+    beta=4,
   )
 )
 
@@ -301,26 +311,30 @@ a defaults list with entries corresponding to yaml configuration
 files (config options) in the subfolders (config groups) in
 `experiment/config/<config_group>/<option>.yaml`.
 
-<details><summary><b>Config Defaults Example</b></summary>
+<details><summary><b>💾 Config Defaults Example</b></summary>
 <p>
 
 ```yaml
 defaults:
+  # data
+  - sampling: default__bb
+  - dataset: xyobject
+  - augment: none
   # system
   - framework: adavae_os
   - model: vae_conv64
+  # training
   - optimizer: adam
-  - schedule: none
-  # data
-  - dataset: xyobject
-  - sampling: default__bb
-  - augment: none
-  # runtime
+  - schedule: beta_cyclic
   - metrics: fast
   - run_length: short
-  - run_location: local
+  # logs
   - run_callbacks: vis
   - run_logging: wandb
+  # runtime
+  - run_location: local
+  - run_launcher: local
+  - run_action: train
 
 # <rest of config.yaml left out>
 ...
