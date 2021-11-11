@@ -488,6 +488,19 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
             plt.show()
 
 
+def _normalized_numeric_metrics(items: dict):
+    results = {}
+    for k, v in items.items():
+        if isinstance(v, (float, int)):
+            results[k] = v
+        else:
+            try:
+                results[k] = float(v)
+            except:
+                log.warning(f'SKIPPED: metric with key: {repr(k)}, result has invalid type: {type(v)} with value: {repr(v)}')
+    return results
+
+
 class VaeMetricLoggingCallback(BaseCallbackPeriodic):
 
     def __init__(
@@ -521,10 +534,11 @@ class VaeMetricLoggingCallback(BaseCallbackPeriodic):
                 scores = metric(dataset, lambda x: vae.encode(x.to(vae.device)))
             metric_results = ' '.join(f'{k}{c.GRY}={c.lMGT}{v:.3f}{c.RST}' for k, v in scores.items())
             log.info(f'| {metric.__name__:<{pad}} - time{c.GRY}={c.lYLW}{timer.pretty:<9}{c.RST} - {metric_results}')
+
             # log to trainer
             prefix = 'final_metric' if is_final else 'epoch_metric'
             prefixed_scores = {f'{prefix}/{k}': v for k, v in scores.items()}
-            log_metrics(trainer.logger, prefixed_scores)
+            log_metrics(trainer.logger, _normalized_numeric_metrics(prefixed_scores))
 
             # log summary for WANDB
             # this is kinda hacky... the above should work for parallel coordinate plots

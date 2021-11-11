@@ -158,6 +158,10 @@ class Vae(Ae):
             'recon_loss': recon_loss,
             'reg_loss': reg_loss,
             'aug_loss': aug_loss,
+            # ratios
+            'ratio_reg': (reg_loss   / loss) if (loss != 0) else 0,
+            'ratio_rec': (recon_loss / loss) if (loss != 0) else 0,
+            'ratio_aug': (aug_loss   / loss) if (loss != 0) else 0,
         }
 
     # --------------------------------------------------------------------- #
