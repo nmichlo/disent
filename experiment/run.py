@@ -402,6 +402,7 @@ def action_train(cfg: DictConfig):
 ACTIONS = {
     'prepare_data': action_prepare_data,
     'train': action_train,
+    'skip': lambda *args, **kwargs: None,
 }
 
 
