@@ -5,12 +5,12 @@ name: xysquares_rgb
 
 data:
   _target_: disent.dataset.data.XYSquaresData
-  square_size: 8
-  grid_size: 64
-  grid_spacing: 8
-  num_squares: 3
-  rgb: TRUE
-  max_placements: 8
+  square_size: 8     # AFFECTS: mean and std
+  image_size: 64     # usually ok to adjust
+  grid_size: 8       # usually ok to adjust
+  grid_spacing: 8    # usually ok to adjust
+  num_squares: 3     # AFFECTS: mean and std
+  rgb: TRUE          # AFFECTS: mean and std
 
 transform:
   _target_: disent.dataset.transform.ToImgTensorF32
@@ -19,5 +19,5 @@ transform:
 
 meta:
   x_shape: [3, 64, 64]
-  mean: "${exit:EXITING... please compute the vis_mean and vis_std}"
-  std: "${exit:EXITING... please compute the vis_mean and vis_std}"
+  vis_mean: [0.015625, 0.015625, 0.015625]
+  vis_std: [0.12403473458920855, 0.12403473458920854, 0.12403473458920854]

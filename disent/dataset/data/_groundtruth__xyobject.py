@@ -116,19 +116,7 @@ class XYObjectData(GroundTruthData):
         rgb: bool = True,
         palette: str = 'rainbow_4',
         transform=None,
-        warn_: bool = True
     ):
-        if warn_:
-            warnings.warn(
-                '`XYObjectData` defaults were changed in disent v0.3.0, if you want `approx` <= v0.2.x behavior then use the following parameters. Pallets also changed slightly too.'
-                '\n\tgrid_size=64'
-                '\n\tgrid_spacing=1'
-                '\n\tmin_square_size=3'
-                '\n\tmax_square_size=9'
-                '\n\tsquare_size_spacing=2'
-                '\n\trgb=True'
-                '\n\tpalette="colors_1"'
-            )
         # generation
         self._rgb = rgb
         # check the pallete name
@@ -238,7 +226,6 @@ class XYObjectShadedData(XYObjectData):
             rgb=rgb,
             palette=f'{palette}_1',
             transform=transform,
-            warn_=False,
         )
 
     def _get_observation(self, idx):
