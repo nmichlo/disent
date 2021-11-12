@@ -41,6 +41,7 @@ from disent.dataset.data import XYBlocksData
 from disent.dataset.data import XYObjectData
 from disent.dataset.data import XYObjectShadedData
 from disent.dataset.data import XYSquaresData
+from disent.util.function import wrapped_partial
 from disent.util.seeds import TempNumpySeed
 
 
@@ -62,6 +63,9 @@ def plot_dataset_overlap(
     obs_max: Optional[int] = None,
     obs_spacing: int = 1,
     rel_path=None,
+    plot_base: bool = False,
+    plot_combined: bool = True,
+    plot_sidebar: bool = False,
     save=True,
     seed=777,
     plt_scale=4.5,
@@ -91,43 +95,56 @@ def plot_dataset_overlap(
                 grid[i, j] = np.abs(i_obs - j_obs)
         # normalize
         grid /= grid.max()
+
         # make figure
         factors, frames, _, _, c = grid.shape
         assert c == 3
+
+        if plot_base:
+            # plot
+            fig, axs = H.plt_subplots_imshow(grid, label_size=18, title_size=24, title=f'{gt_data.name}: {f_name}', subplot_padding=None, figsize=(offset + (1/2.54)*frames*plt_scale, (1/2.54)*(factors+0.45)*plt_scale))
+            # save figure
+            if save and (rel_path is not None):
+                path = H.make_rel_path_add_ext(rel_path, ext='.png')
+                plt.savefig(path)
+                print(f'saved: {repr(path)}')
+            plt.show()
+
+        if plot_combined:
+            # add obs
+            if True:
+                factors += 1
+                frames += 1
+                # scaled_obs = obs
+                scaled_obs = obs  * 0.5 + 0.25
+                # grid = 1 - grid
+                # grid = grid * 0.5 + 0.25
+                grid = np.concatenate([scaled_obs[None, :], grid], axis=0)
+                add_row = np.concatenate([np.ones_like(obs[0:1]), scaled_obs], axis=0)
+                grid = np.concatenate([grid, add_row[:, None]], axis=1)
+            # plot
+            fig, axs = H.plt_subplots_imshow(grid, label_size=18, title_size=24, row_labels=["traversal"] + (["diff."] * len(obs)), col_labels=(["diff."] * len(obs)) + ["traversal"], title=f'{gt_data.name}: {f_name}', subplot_padding=None, figsize=(offset + (1/2.54)*frames*plt_scale, (1/2.54)*(factors+0.45)*plt_scale))
+            # save figure
+            if save and (rel_path is not None):
+                path = H.make_rel_path_add_ext(rel_path + '__combined', ext='.png')
+                plt.savefig(path)
+                print(f'saved: {repr(path)}')
+            plt.show()
+
         # plot
-        fig, axs = H.plt_subplots_imshow(grid, label_size=18, title_size=24, title=f'{gt_data.name}: {f_name}', subplot_padding=None, figsize=(offset + (1/2.54)*frames*plt_scale, (1/2.54)*(factors+0.45)*plt_scale))
-        # save figure
-        if save and (rel_path is not None):
-            plt.savefig(H.make_rel_path_add_ext(rel_path, ext='.png'))
-        plt.show()
-        # add obs
-        if True:
-            factors += 1
-            frames += 1
-            # scaled_obs = obs
-            scaled_obs = obs  * 0.5 + 0.25
-            # grid = 1 - grid
-            # grid = grid * 0.5 + 0.25
-            grid = np.concatenate([scaled_obs[None, :], grid], axis=0)
-            add_row = np.concatenate([np.ones_like(obs[0:1]), scaled_obs], axis=0)
-            grid = np.concatenate([grid, add_row[:, None]], axis=1)
-        # plot
-        fig, axs = H.plt_subplots_imshow(grid, label_size=18, title_size=24, row_labels=["traversal"] + (["diff."] * len(obs)), col_labels=(["diff."] * len(obs)) + ["traversal"], title=f'{gt_data.name}: {f_name}', subplot_padding=None, figsize=(offset + (1/2.54)*frames*plt_scale, (1/2.54)*(factors+0.45)*plt_scale))
-        # save figure
-        if save and (rel_path is not None):
-            plt.savefig(H.make_rel_path_add_ext(rel_path + '_combined', ext='.png'))
-        plt.show()
-        # plot
-        # fig, axs = H.plt_subplots_imshow(obs[:, None], subplot_padding=None, figsize=(offset + (1/2.54)*1*plt_scale, (1/2.54)*(factors+0.45)*plt_scale))
-        # if save and (rel_path is not None):
-        #     plt.savefig(H.make_rel_path_add_ext(rel_path + '_v', ext='.png'))
-        # plt.show()
-        # fig, axs = H.plt_subplots_imshow(obs[None, :], subplot_padding=None, figsize=(offset + (1/2.54)*frames*plt_scale, (1/2.54)*(1+0.45)*plt_scale))
-        # if save and (rel_path is not None):
-        #     plt.savefig(H.make_rel_path_add_ext(rel_path + '_h', ext='.png'))
-        # plt.show()
-        # done!
-        return fig, axs
+        if plot_sidebar:
+            fig, axs = H.plt_subplots_imshow(obs[:, None], subplot_padding=None, figsize=(offset + (1/2.54)*1*plt_scale, (1/2.54)*(factors+0.45)*plt_scale))
+            if save and (rel_path is not None):
+                path = H.make_rel_path_add_ext(rel_path + '__v', ext='.png')
+                plt.savefig(path)
+                print(f'saved: {repr(path)}')
+            plt.show()
+            fig, axs = H.plt_subplots_imshow(obs[None, :], subplot_padding=None, figsize=(offset + (1/2.54)*frames*plt_scale, (1/2.54)*(1+0.45)*plt_scale))
+            if save and (rel_path is not None):
+                path = H.make_rel_path_add_ext(rel_path + '__h', ext='.png')
+                plt.savefig(path)
+                print(f'saved: {repr(path)}')
+            plt.show()
 
 
 # ========================================================================= #
@@ -146,14 +163,24 @@ if __name__ == '__main__':
     num_cols = 7
     seed = 48
 
-    # save images
-    for i in ([1, 2, 4, 8] if all_squares else [1, 8]):
-        data = XYSquaresData(grid_spacing=i, grid_size=8, no_warnings=True)
-        plot_dataset_overlap(data, rel_path=f'plots/overlap__xy-squares-spacing{i}', obs_max=3, obs_spacing=4, seed=seed-40)
+    for gt_data_cls, name in [
+        (wrapped_partial(XYSquaresData, grid_spacing=1, grid_size=8, no_warnings=True), f'xy-squares-spacing1'),
+        (wrapped_partial(XYSquaresData, grid_spacing=2, grid_size=8, no_warnings=True), f'xy-squares-spacing2'),
+        (wrapped_partial(XYSquaresData, grid_spacing=4, grid_size=8, no_warnings=True), f'xy-squares-spacing4'),
+        (wrapped_partial(XYSquaresData, grid_spacing=8, grid_size=8, no_warnings=True), f'xy-squares-spacing8'),
+    ]:
+        plot_dataset_overlap(gt_data_cls(), rel_path=f'plots/overlap__{name}', obs_max=3, obs_spacing=4, seed=seed-40)
 
-    gt_data = DSpritesData()
-    for f_idx, f_name in enumerate(gt_data.factor_names):
-        plot_dataset_overlap(gt_data, rel_path=f'plots/overlap__dsprites__f-{f_name}', obs_max=3, obs_spacing=4, f_idxs=f_idx, seed=seed)
+    for gt_data_cls, name in [
+        (DSpritesData,    f'dsprites'),
+        (Shapes3dData,    f'shapes3d'),
+        (Cars3dData,      f'cars3d'),
+        (SmallNorbData,   f'smallnorb'),
+    ]:
+        gt_data = gt_data_cls()
+        for f_idx, f_name in enumerate(gt_data.factor_names):
+            plot_dataset_overlap(gt_data, rel_path=f'plots/overlap__{name}__f{f_idx}-{f_name}', obs_max=3, obs_spacing=4, f_idxs=f_idx, seed=seed)
+
 
 # ========================================================================= #
 # END                                                                       #

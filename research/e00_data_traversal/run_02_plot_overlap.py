@@ -101,7 +101,9 @@ def plot_dataset_traversals(
     fig, axs = H.plt_subplots_imshow(grid, label_size=18, title_size=24, title=gt_data.name, row_labels=row_labels, subplot_padding=None, figsize=(offset + (1/2.54)*frames*plt_scale, (1/2.54)*(factors+0.45)*plt_scale))
     # save figure
     if save and (rel_path is not None):
-        plt.savefig(H.make_rel_path_add_ext(rel_path, ext='.png'))
+        path = H.make_rel_path_add_ext(rel_path, ext='.png')
+        plt.savefig(path)
+        print(f'saved: {repr(path)}')
     plt.show()
     # done!
     return fig, axs
@@ -119,26 +121,29 @@ if __name__ == '__main__':
 
     # options
     all_squares = True
-    add_random_traversal = True
+    add_random_traversal = False
     num_cols = 7
     seed = 47
+
+    # get name
+    prefix = 'traversal' if add_random_traversal else 'traversal-noran'
 
     # save images
     for i in ([1, 2, 3, 4, 5, 6, 7, 8] if all_squares else [1, 8]):
         data = XYSquaresData(grid_spacing=i, grid_size=8, no_warnings=True)
-        plot_dataset_traversals(data, rel_path=f'plots/xy-squares-traversal-spacing{i}', seed=seed-40, add_random_traversal=add_random_traversal, num_cols=num_cols)
+        plot_dataset_traversals(data, rel_path=f'plots/{prefix}__xy-squares__spacing{i}', seed=seed-40, add_random_traversal=add_random_traversal, num_cols=num_cols)
 
-    plot_dataset_traversals(XYObjectData(),                  rel_path=f'plots/xy-object-traversal',                seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
-    plot_dataset_traversals(XYObjectShadedData(),            rel_path=f'plots/xy-object-shaded-traversal',         seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
-    plot_dataset_traversals(XYBlocksData(),                  rel_path=f'plots/xy-blocks-traversal',                seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
-    plot_dataset_traversals(Shapes3dData(),                  rel_path=f'plots/shapes3d-traversal',                 seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
-    plot_dataset_traversals(DSpritesData(),                  rel_path=f'plots/dsprites-traversal',                 seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
-    plot_dataset_traversals(DSpritesImagenetData(100, 'bg'), rel_path=f'plots/dsprites-imagenet-bg-100-traversal', seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
-    plot_dataset_traversals(DSpritesImagenetData( 50, 'bg'), rel_path=f'plots/dsprites-imagenet-bg-50-traversal',  seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
-    plot_dataset_traversals(DSpritesImagenetData(100, 'fg'), rel_path=f'plots/dsprites-imagenet-fg-100-traversal', seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
-    plot_dataset_traversals(DSpritesImagenetData( 50, 'fg'), rel_path=f'plots/dsprites-imagenet-fg-50-traversal',  seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
-    plot_dataset_traversals(SmallNorbData(),                 rel_path=f'plots/smallnorb-traversal',                seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
-    plot_dataset_traversals(Cars3dData(),                    rel_path=f'plots/cars3d-traversal',                   seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
+    plot_dataset_traversals(XYObjectData(),                  rel_path=f'plots/{prefix}__xy-object',                seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
+    plot_dataset_traversals(XYObjectShadedData(),            rel_path=f'plots/{prefix}__xy-object-shaded',         seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
+    plot_dataset_traversals(XYBlocksData(),                  rel_path=f'plots/{prefix}__xy-blocks',                seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
+    plot_dataset_traversals(Shapes3dData(),                  rel_path=f'plots/{prefix}__shapes3d',                 seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
+    plot_dataset_traversals(DSpritesData(),                  rel_path=f'plots/{prefix}__dsprites',                 seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
+    plot_dataset_traversals(DSpritesImagenetData(100, 'bg'), rel_path=f'plots/{prefix}__dsprites-imagenet-bg-100', seed=seed-6, add_random_traversal=add_random_traversal, num_cols=num_cols)
+    plot_dataset_traversals(DSpritesImagenetData( 50, 'bg'), rel_path=f'plots/{prefix}__dsprites-imagenet-bg-50',  seed=seed-6, add_random_traversal=add_random_traversal, num_cols=num_cols)
+    plot_dataset_traversals(DSpritesImagenetData(100, 'fg'), rel_path=f'plots/{prefix}__dsprites-imagenet-fg-100', seed=seed-6, add_random_traversal=add_random_traversal, num_cols=num_cols)
+    plot_dataset_traversals(DSpritesImagenetData( 50, 'fg'), rel_path=f'plots/{prefix}__dsprites-imagenet-fg-50',  seed=seed-6, add_random_traversal=add_random_traversal, num_cols=num_cols)
+    plot_dataset_traversals(SmallNorbData(),                 rel_path=f'plots/{prefix}__smallnorb',                seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
+    plot_dataset_traversals(Cars3dData(),                    rel_path=f'plots/{prefix}__cars3d',                   seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
 
     BASE = os.path.abspath(os.path.join(__file__, '../../../out/adversarial_data_approx'))
 
@@ -159,7 +164,7 @@ if __name__ == '__main__':
         ('2021-09-06--05-42-06_INVERT-VSTRONG-cars3d_invert_margin_0.05_aw10.0_same_k1_close_s200001_Adam_lr0.0005_wd1e-06'),
         ('2021-09-06--09-10-59_INVERT-VSTRONG-smallnorb_invert_margin_0.05_aw10.0_same_k1_close_s200001_Adam_lr0.0005_wd1e-06'),
     ]:
-        plot_dataset_traversals(SelfContainedHdf5GroundTruthData(f'{BASE}/{folder}/data.h5'), rel_path=f'plots/{folder}__traversal.png', seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
+        plot_dataset_traversals(SelfContainedHdf5GroundTruthData(f'{BASE}/{folder}/data.h5'), rel_path=f'plots/{prefix}__{folder}.png', seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
 
 
 # ========================================================================= #
