@@ -20,11 +20,20 @@ clog_cudaless_nodes "$PARTITION" 129600 "C-disent" # 36 hours
 
 # RUN SWEEP FOR GOOD BETA VALUES
 # - beta: 0.01, 0.0316 seem good, 0.1 starts getting too strong, 0.00316 is a bit weak
-# - beta:
+# - z_size: higher means you can increase beta, eg. 25: beta=0.1 and 9: beta=0.01
+# - framework: adavae needs lower beta, eg. betavae: 0.1, adavae25: 0.0316, adavae9: 0.00316
+# - xy_squares really struggles to learn when non-overlapping, beta needs to be very low.
+#              might be worth using a warmup schedule
+#              betavae with zsize=25 and beta<=0.00316
+#              betavae with zsize=09 and beta<=0.000316
+#              adavae  with zsize=25 does not work
+#              adavae  with zsize=09 and beta<=0.001 (must get very lucky)
+
 # 1 * (2 * 8 * 2 * 5) = 160
 submit_sweep \
     +DUMMY.repeat=1 \
     +EXTRA.tags='sweep_beta' \
+    hydra.job.name="vae_hparams" \
     \
     run_length=long \
     metrics=all \

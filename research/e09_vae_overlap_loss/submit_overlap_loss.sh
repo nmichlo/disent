@@ -22,6 +22,7 @@ clog_cudaless_nodes "$PARTITION" 86400 "C-disent" # 24 hours
 submit_sweep \
     +DUMMY.repeat=1 \
     +EXTRA.tags='sweep_overlap_boxblur' \
+    hydra.job.name="ovlp_loss" \
     \
     +VAR.recon_loss_weight=1.0 \
     +VAR.kernel_loss_weight=3969.0 \
