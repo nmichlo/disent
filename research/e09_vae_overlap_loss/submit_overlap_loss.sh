@@ -19,7 +19,7 @@ source "$(dirname "$(dirname "$(realpath -s "$0")")")/helper.sh"
 clog_cudaless_nodes "$PARTITION" 86400 "C-disent" # 24 hours
 
 # 1 * (5 * 2*4*2) = 80
-local_sweep \
+submit_sweep \
     +DUMMY.repeat=1 \
     +EXTRA.tags='sweep_overlap_boxblur' \
     \
