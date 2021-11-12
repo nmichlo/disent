@@ -102,8 +102,24 @@ function clog_cudaless_nodes() {
   fi
 }
 
+function clog_cuda_nodes() {
+  if [ -z "$1" ]; then echo "partition is not set"; exit 1; fi
+  if [ -z "$2" ]; then echo wait=120; else wait="$2"; fi
+  if [ -z "$3" ]; then echo name="HAS-CUDA"; else name="$3"; fi
+  # clog idle nodes
+  n=$(num_idle_nodes "$1")
+  if [ "$n" -lt "1" ]; then
+    echo -e "\e[93mclogging skipped! no idle nodes found on partition '$1'\e[0m";
+  else
+    echo -e "\e[92mclogging $n nodes on partition '$1' for ${wait}s if cuda is available!\e[0m";
+    sbatch --array=1-"$n" --partition="$1" --job-name="$name" --output=/dev/null --error=/dev/null \
+           --wrap='python -c "import torch; import time; cuda=torch.cuda.is_available(); print(\"CUDA:\", cuda, flush=True); print(flush=True); time.sleep(5 if not cuda else '"$wait"');"'
+  fi
+}
+
 export num_idle_nodes
 export clog_cudaless_nodes
+export clog_cuda_nodes
 
 # ========================================================================= #
 # End                                                                       #
