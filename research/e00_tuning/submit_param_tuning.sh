@@ -16,7 +16,7 @@ source "$(dirname "$(dirname "$(realpath -s "$0")")")/helper.sh"
 # Experiment                                                                #
 # ========================================================================= #
 
-clog_cudaless_nodes "$PARTITION" 86400 "C-disent" # 24 hours
+clog_cudaless_nodes "$PARTITION" 129600 "C-disent" # 36 hours
 
 # RUN SWEEP FOR GOOD BETA VALUES
 # - beta: 0.01, 0.0316 seem good, 0.1 starts getting too strong, 0.00316 is a bit weak
@@ -40,17 +40,17 @@ submit_sweep \
 
 # RUN SWEEP FOR GOOD SCHEDULES
 # 1 * (3 * 2 * 4 * 5) = 120
-submit_sweep \
-    +DUMMY.repeat=1 \
-    +EXTRA.tags='sweep_schedule' \
-    \
-    run_length=long \
-    metrics=all \
-    \
-    settings.framework.beta=0.1,0.316,1.0 \
-    framework=betavae,adavae_os \
-    schedule=beta_cyclic,beta_cyclic_slow,beta_cyclic_fast,beta_decrease \
-    settings.model.z_size=25 \
-    \
-    dataset=dsprites,shapes3d,cars3d,smallnorb,X--xysquares \
-    sampling=default__bb
+#submit_sweep \
+#    +DUMMY.repeat=1 \
+#    +EXTRA.tags='sweep_schedule' \
+#    \
+#    run_length=long \
+#    metrics=all \
+#    \
+#    settings.framework.beta=0.1,0.316,1.0 \
+#    framework=betavae,adavae_os \
+#    schedule=beta_cyclic,beta_cyclic_slow,beta_cyclic_fast,beta_decrease \
+#    settings.model.z_size=25 \
+#    \
+#    dataset=dsprites,shapes3d,cars3d,smallnorb,X--xysquares \
+#    sampling=default__bb
