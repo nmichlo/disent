@@ -161,8 +161,14 @@ def plot_traversal_stats(
     f_idxs: Optional[NonNormalisedFactors] = None,
     circular_distance: bool = False,
     color='blue',
+    color_gt_dist='blue',
+    color_im_dist='purple',
     suffix: Optional[str] = None,
     save_path: Optional[str] = None,
+    plot_freq: bool = True,
+    plot_title: Union[bool, str] = False,
+    fig_block_size: float = 4.0,
+    col_titles: Union[bool, List[str]] = True,
 ):
     # - - - - - - - - - - - - - - - - - #
 
@@ -180,31 +186,47 @@ def plot_traversal_stats(
         with TempNumpySeed(777): np.random.shuffle(fdists)
 
         # subplot!
-        ax0, ax1, ax2, ax3 = axs[:, i]
+        if plot_freq:
+            ax0, ax1, ax2, ax3 = axs[:, i]
+        else:
+            (ax0, ax1), (ax2, ax3) = (None, None), axs[:, i]
 
-        ax0.set_title(f'{gt_data.factor_names[f_idx]} ({gt_data.factor_sizes[f_idx]})')
-        ax0.violinplot([deltas], vert=False)
-        ax0.set_xlabel('deltas')
-        ax0.set_ylabel('proportion')
+        # get title
+        curr_title = None
+        if isinstance(col_titles, bool):
+            if col_titles:
+                curr_title = gt_data.factor_names[f_idx]
+        else:
+            curr_title = col_titles[i]
 
-        ax1.set_title('deltas vs. fdists')
-        ax1.scatter(x=deltas[:15_000], y=fdists[:15_000], s=20, alpha=0.1, c=c_points)
-        H.plt_2d_density(
-            x=deltas[:10_000], xmin=deltas.min(), xmax=deltas.max(),
-            y=fdists[:10_000], ymin=fdists.min() - 0.5, ymax=fdists.max() + 0.5,
-            n_bins=100,
-            ax=ax1, pcolormesh_kwargs=dict(cmap=cmap_density, alpha=0.5),
-        )
-        ax1.set_xlabel('deltas')
-        ax1.set_ylabel('fdists')
+        # set column titles
+        if curr_title is not None:
+            (ax0 if plot_freq else ax2).set_title(f'{curr_title}\n', fontsize=24)
 
-        ax2.set_title('fdists')
-        ax2.imshow(fdists_matrix, cmap=cmap_img)
+        # plot the frequency stuffs
+        if plot_freq:
+            ax0.violinplot([deltas], vert=False)
+            ax0.set_xlabel('deltas')
+            ax0.set_ylabel('proportion')
+
+            ax1.set_title('deltas vs. fdists')
+            ax1.scatter(x=deltas[:15_000], y=fdists[:15_000], s=20, alpha=0.1, c=c_points)
+            H.plt_2d_density(
+                x=deltas[:10_000], xmin=deltas.min(), xmax=deltas.max(),
+                y=fdists[:10_000], ymin=fdists.min() - 0.5, ymax=fdists.max() + 0.5,
+                n_bins=100,
+                ax=ax1, pcolormesh_kwargs=dict(cmap=cmap_density, alpha=0.5),
+            )
+            ax1.set_xlabel('deltas')
+            ax1.set_ylabel('fdists')
+
+        # ax2.set_title('fdists')
+        ax2.imshow(fdists_matrix, cmap=gt_cmap_img)
         ax2.set_xlabel('f_idx')
         ax2.set_ylabel('f_idx')
 
-        ax3.set_title('divergence')
-        ax3.imshow(deltas_matrix, cmap=cmap_img)
+        # ax3.set_title('divergence')
+        ax3.imshow(deltas_matrix, cmap=im_cmap_img)
         ax3.set_xlabel('f_idx')
         ax3.set_ylabel('f_idx')
 
@@ -213,15 +235,27 @@ def plot_traversal_stats(
     # initialize
     gt_data: GroundTruthData = H.make_data(dataset_or_name) if isinstance(dataset_or_name, str) else dataset_or_name
     f_idxs = gt_data.normalise_factor_idxs(f_idxs)
+
     c_points, cmap_density, cmap_img = _COLORS[color]
+    im_c_points, im_cmap_density, im_cmap_img = _COLORS[color if (color_im_dist is None) else color_im_dist]
+    gt_c_points, gt_cmap_density, gt_cmap_img = _COLORS[color if (color_gt_dist is None) else color_gt_dist]
+
+    n = 4 if plot_freq else 2
+
+    # get additional spacing
+    title_offset = 0 if (isinstance(col_titles, bool) and not col_titles) else 0.2
 
     # settings
-    r, c = [4,  len(f_idxs)]
-    h, w = [16, len(f_idxs)*4]
+    r, c = [n,  len(f_idxs)]
+    h, w = [(n+title_offset)*fig_block_size, len(f_idxs)*fig_block_size]
 
     # initialize plot
     fig, axs = plt.subplots(r, c, figsize=(w, h), squeeze=False)
-    fig.suptitle(f'{gt_data.name} [circular={circular_distance}]{f" {suffix}" if suffix else ""}\n', fontsize=25)
+
+    if isinstance(plot_title, str):
+        fig.suptitle(f'{plot_title}\n', fontsize=25)
+    elif plot_title:
+        fig.suptitle(f'{gt_data.name} [circular={circular_distance}]{f" {suffix}" if suffix else ""}\n', fontsize=25)
 
     # generate plot
     _collect_stats_for_factors(
@@ -264,24 +298,26 @@ if __name__ == '__main__':
     plt.style.use(os.path.join(os.path.dirname(__file__), '../gadfly.mplstyle'))
 
     CIRCULAR = False
+    PLOT_FREQ = False
 
     def sp(name):
         prefix = 'CIRCULAR_' if CIRCULAR else 'DIST_'
+        prefix = prefix + ('FREQ_' if PLOT_FREQ else 'NO-FREQ_')
         return os.path.join(os.path.dirname(__file__), 'plots', f'{prefix}{name}.png')
 
     # plot xysquares with increasing overlap
     for s in [1, 2, 3, 4, 5, 6, 7, 8]:
-        plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(f'xysquares_8x8_s{s}'), color='blue', dataset_or_name=f'xysquares_8x8_s{s}', f_idxs=[1])
+        plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(f'xysquares_8x8_s{s}'), color='blue', dataset_or_name=f'xysquares_8x8_s{s}', f_idxs=[1], col_titles=['x & y'], plot_freq=PLOT_FREQ)
 
     # plot standard datasets
     for name in ['dsprites', 'shapes3d', 'cars3d', 'smallnorb']:
-        plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(name), color='blue', dataset_or_name=name)
+        plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(name), color='blue', dataset_or_name=name, plot_freq=PLOT_FREQ)
 
     # plot adversarial dsprites datasets
     for fg in [True, False]:
         for vis in [100, 80, 60, 40, 20]:
             name = f'dsprites_imagenet_{"fg" if fg else "bg"}_{vis}'
-            plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(name), color='orange', dataset_or_name=name)
+            plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(name), color='orange', dataset_or_name=name, plot_freq=PLOT_FREQ)
             # mean, std = compute_data_mean_std(H.make_data(name))
             # print(f'{name}\n    vis_mean: {mean.tolist()}\n    vis_std: {std.tolist()}')
 
@@ -306,7 +342,7 @@ if __name__ == '__main__':
         ('red', '2021-09-06--09-10-59_INVERT-VSTRONG-smallnorb_invert_margin_0.05_aw10.0_same_k1_close_s200001_Adam_lr0.0005_wd1e-06'),
     ]:
         data = _make_self_contained_dataset(f'{BASE}/{folder}/data.h5')
-        plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(folder), color=color, dataset_or_name=data)
+        plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(folder), color=color, dataset_or_name=data, plot_freq=PLOT_FREQ)
         # compute and print statistics:
         # mean, std = compute_data_mean_std(data, progress=True)
         # print(f'{folder}\n    vis_mean: {mean.tolist()}\n    vis_std: {std.tolist()}')

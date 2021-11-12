@@ -6,9 +6,7 @@
 
 # github
 # matplotlib
-# pandas
 # psutil
-# seaborn
 
 
 ray>=1.6.0

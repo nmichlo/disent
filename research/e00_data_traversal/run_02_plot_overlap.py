@@ -121,7 +121,7 @@ if __name__ == '__main__':
 
     # options
     all_squares = True
-    add_random_traversal = False
+    add_random_traversal = True
     num_cols = 7
     seed = 47
 
@@ -129,9 +129,10 @@ if __name__ == '__main__':
     prefix = 'traversal' if add_random_traversal else 'traversal-noran'
 
     # save images
-    for i in ([1, 2, 3, 4, 5, 6, 7, 8] if all_squares else [1, 8]):
+    for i in ([1, 2, 4, 8] if all_squares else [1, 8]):
         data = XYSquaresData(grid_spacing=i, grid_size=8, no_warnings=True)
         plot_dataset_traversals(data, rel_path=f'plots/{prefix}__xy-squares__spacing{i}', seed=seed-40, add_random_traversal=add_random_traversal, num_cols=num_cols)
+        plot_dataset_traversals(data, rel_path=f'plots/{prefix}__xy-squares__spacing{i}__some', seed=seed-40, add_random_traversal=add_random_traversal, num_cols=num_cols, f_idxs=[0, 3])
 
     plot_dataset_traversals(XYObjectData(),                  rel_path=f'plots/{prefix}__xy-object',                seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
     plot_dataset_traversals(XYObjectShadedData(),            rel_path=f'plots/{prefix}__xy-object-shaded',         seed=seed, add_random_traversal=add_random_traversal, num_cols=num_cols)
