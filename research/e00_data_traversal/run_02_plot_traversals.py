@@ -60,6 +60,7 @@ def plot_dataset_traversals(
     gt_data: GroundTruthData,
     f_idxs=None,
     num_cols: Optional[int] = 8,
+    take_cols: Optional[int] = None,
     base_factors=None,
     add_random_traversal=True,
     pad=8,
@@ -69,8 +70,11 @@ def plot_dataset_traversals(
     save=True,
     seed=777,
     plt_scale=4.5,
-    offset=0.75
+    offset=0.75,
+    transpose=False,
 ):
+    if take_cols is not None:
+        assert take_cols >= num_cols
     # convert
     dataset = DisentDataset(gt_data)
     f_idxs = gt_data.normalise_factor_idxs(f_idxs)
@@ -81,7 +85,7 @@ def plot_dataset_traversals(
         dataset=dataset,
         data_mode='raw',
         factor_names=f_idxs,
-        num_frames=num_cols,
+        num_frames=num_cols if (take_cols is None) else take_cols,
         seed=seed,
         base_factors=base_factors,
         traverse_mode='interval',
@@ -89,6 +93,8 @@ def plot_dataset_traversals(
         bg_color=bg_color,
         border=border,
     )
+    if take_cols is not None:
+        grid = grid[:, :num_cols, ...]
     # add random traversal
     if add_random_traversal:
         with TempNumpySeed(seed):
@@ -98,7 +104,11 @@ def plot_dataset_traversals(
     # make figure
     factors, frames, _, _, c = grid.shape
     assert c == 3
-    fig, axs = H.plt_subplots_imshow(grid, label_size=18, title_size=24, title=gt_data.name, row_labels=row_labels, subplot_padding=None, figsize=(offset + (1/2.54)*frames*plt_scale, (1/2.54)*(factors+0.45)*plt_scale))
+
+    if transpose:
+        fig, axs = H.plt_subplots_imshow(np.swapaxes(grid, 0, 1), label_size=18, title_size=24, title=gt_data.name, col_labels=row_labels, subplot_padding=None, figsize=(offset + (1/2.54)*frames*plt_scale, (1/2.54)*(factors+0.45)*plt_scale)[::-1])
+    else:
+        fig, axs = H.plt_subplots_imshow(grid, label_size=18, title_size=24, title=gt_data.name, row_labels=row_labels, subplot_padding=None, figsize=(offset + (1/2.54)*frames*plt_scale, (1/2.54)*(factors+0.45)*plt_scale))
     # save figure
     if save and (rel_path is not None):
         path = H.make_rel_path_add_ext(rel_path, ext='.png')
@@ -123,10 +133,28 @@ if __name__ == '__main__':
     all_squares = True
     add_random_traversal = True
     num_cols = 7
+    mini_cols = 5
+    transpose_cols = 3
     seed = 47
 
     # get name
     prefix = 'traversal' if add_random_traversal else 'traversal-noran'
+
+    # mini versions
+    plot_dataset_traversals(XYSquaresData(), rel_path=f'plots/traversal-mini__xy-squares__spacing8', seed=seed, transpose=False, add_random_traversal=False, num_cols=mini_cols)
+    plot_dataset_traversals(Shapes3dData(),  rel_path=f'plots/traversal-mini__shapes3d',             seed=seed, transpose=False, add_random_traversal=False, num_cols=mini_cols)
+    plot_dataset_traversals(DSpritesData(),  rel_path=f'plots/traversal-mini__dsprites',             seed=seed, transpose=False, add_random_traversal=False, num_cols=mini_cols)
+    plot_dataset_traversals(SmallNorbData(), rel_path=f'plots/traversal-mini__smallnorb',            seed=seed, transpose=False, add_random_traversal=False, num_cols=mini_cols)
+    plot_dataset_traversals(Cars3dData(),    rel_path=f'plots/traversal-mini__cars3d',               seed=seed, transpose=False, add_random_traversal=False, num_cols=mini_cols, take_cols=mini_cols+1)
+
+    # transpose versions
+    plot_dataset_traversals(XYSquaresData(), rel_path=f'plots/traversal-transpose__xy-squares__spacing8', seed=seed, transpose=True, add_random_traversal=False, num_cols=transpose_cols)
+    plot_dataset_traversals(Shapes3dData(),  rel_path=f'plots/traversal-transpose__shapes3d',             seed=seed, transpose=True, add_random_traversal=False, num_cols=transpose_cols)
+    plot_dataset_traversals(DSpritesData(),  rel_path=f'plots/traversal-transpose__dsprites',             seed=seed, transpose=True, add_random_traversal=False, num_cols=transpose_cols)
+    plot_dataset_traversals(SmallNorbData(), rel_path=f'plots/traversal-transpose__smallnorb',            seed=seed, transpose=True, add_random_traversal=False, num_cols=transpose_cols)
+    plot_dataset_traversals(Cars3dData(),    rel_path=f'plots/traversal-transpose__cars3d',               seed=seed, transpose=True, add_random_traversal=False, num_cols=transpose_cols, take_cols=mini_cols+1)
+
+    exit(1)
 
     # save images
     for i in ([1, 2, 4, 8] if all_squares else [1, 8]):

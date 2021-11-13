@@ -169,6 +169,10 @@ def plot_traversal_stats(
     plot_title: Union[bool, str] = False,
     fig_block_size: float = 4.0,
     col_titles: Union[bool, List[str]] = True,
+    hide_axis: bool = True,
+    hide_labels: bool = True,
+    y_size_offset: float = 0.0,
+    x_size_offset: float = 0.0,
 ):
     # - - - - - - - - - - - - - - - - - #
 
@@ -222,13 +226,16 @@ def plot_traversal_stats(
 
         # ax2.set_title('fdists')
         ax2.imshow(fdists_matrix, cmap=gt_cmap_img)
-        ax2.set_xlabel('f_idx')
-        ax2.set_ylabel('f_idx')
+        if not hide_labels: ax2.set_xlabel('f_idx')
+        if not hide_labels: ax2.set_ylabel('f_idx')
+        if hide_axis: H.plt_hide_axis(ax2)
 
         # ax3.set_title('divergence')
         ax3.imshow(deltas_matrix, cmap=im_cmap_img)
-        ax3.set_xlabel('f_idx')
-        ax3.set_ylabel('f_idx')
+        if not hide_labels: ax3.set_xlabel('f_idx')
+        if not hide_labels: ax3.set_ylabel('f_idx')
+        if hide_axis: H.plt_hide_axis(ax3)
+
 
     # - - - - - - - - - - - - - - - - - #
 
@@ -243,11 +250,11 @@ def plot_traversal_stats(
     n = 4 if plot_freq else 2
 
     # get additional spacing
-    title_offset = 0 if (isinstance(col_titles, bool) and not col_titles) else 0.2
+    title_offset = 0 if (isinstance(col_titles, bool) and not col_titles) else 0.15
 
     # settings
     r, c = [n,  len(f_idxs)]
-    h, w = [(n+title_offset)*fig_block_size, len(f_idxs)*fig_block_size]
+    h, w = [(n+title_offset)*fig_block_size + y_size_offset, len(f_idxs)*fig_block_size + x_size_offset]
 
     # initialize plot
     fig, axs = plt.subplots(r, c, figsize=(w, h), squeeze=False)
@@ -268,6 +275,102 @@ def plot_traversal_stats(
     )
 
     # finalize plot
+    fig.tight_layout(pad=1.4 if hide_labels else 1.08)
+
+    # save the path
+    if save_path is not None:
+        assert save_path.endswith('.png')
+        ensure_parent_dir_exists(save_path)
+        plt.savefig(save_path)
+        print(f'saved {gt_data.name} to: {save_path}')
+
+    # show it!
+    plt.show()
+
+    # - - - - - - - - - - - - - - - - - #
+    return fig
+
+
+# TODO: fix
+def plot_traversal_stats(
+    dataset_or_name: Union[str, GroundTruthData],
+    num_repeats: int = 256,
+    f_idxs: Optional[NonNormalisedFactors] = None,
+    circular_distance: bool = False,
+    color='blue',
+    color_gt_dist='blue',
+    color_im_dist='purple',
+    suffix: Optional[str] = None,
+    save_path: Optional[str] = None,
+    plot_freq: bool = True,
+    plot_title: Union[bool, str] = False,
+    fig_block_size: float = 4.0,
+    col_titles: Union[bool, List[str]] = True,
+    hide_axis: bool = True,
+    hide_labels: bool = True,
+    y_size_offset: float = 0.0,
+    x_size_offset: float = 0.0,
+):
+    # - - - - - - - - - - - - - - - - - #
+
+    def stats_fn(gt_data, i, f_idx):
+        return sample_factor_traversal_info_and_distmat(
+            gt_data=gt_data, f_idx=f_idx, circular_distance=circular_distance
+        )
+
+    grid_t = []
+    grid_titles = []
+
+    def plot_ax(stats: dict, i: int, f_idx: int):
+        fdists_matrix = np.mean(stats['fdists_matrix'], axis=0)
+        deltas_matrix = np.mean(stats['deltas_matrix'], axis=0)
+        grid_t.append([fdists_matrix, deltas_matrix])
+        # get the title
+        if isinstance(col_titles, bool):
+            if col_titles:
+                grid_titles.append(gt_data.factor_names[f_idx])
+        else:
+            grid_titles.append(col_titles[i])
+
+    # initialize
+    gt_data: GroundTruthData = H.make_data(dataset_or_name) if isinstance(dataset_or_name, str) else dataset_or_name
+    f_idxs = gt_data.normalise_factor_idxs(f_idxs)
+
+    # settings
+    h, w = [2.07 * fig_block_size, len(f_idxs) * fig_block_size]
+
+    # get title
+    if isinstance(plot_title, str):
+        suptitle = f'{plot_title}'
+    elif plot_title:
+        suptitle = f'{gt_data.name} [circular={circular_distance}]{f" {suffix}" if suffix else ""}'
+    else:
+        suptitle = None
+
+    # generate plot
+    _collect_stats_for_factors(
+        gt_data=gt_data,
+        f_idxs=f_idxs,
+        stats_fn=stats_fn,
+        keep_keys=['deltas', 'fdists', 'deltas_matrix', 'fdists_matrix'],
+        stats_callback=plot_ax,
+        num_traversal_sample=num_repeats,
+    )
+
+    fig, axs = H.plt_subplots_imshow(
+        grid=list(zip(*grid_t)),
+        title=suptitle,
+        titles=grid_titles if grid_titles else None,
+        titles_size=36,
+        subplot_padding=None,
+        figsize=(w, h)
+    )
+
+    # recolor axes
+    for (ax0, ax1) in axs.T:
+        ax0.images[0].set_cmap('Blues')
+        ax1.images[0].set_cmap('Purples')
+
     fig.tight_layout()
 
     # save the path
@@ -317,10 +420,11 @@ if __name__ == '__main__':
     for fg in [True, False]:
         for vis in [100, 80, 60, 40, 20]:
             name = f'dsprites_imagenet_{"fg" if fg else "bg"}_{vis}'
-            plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(name), color='orange', dataset_or_name=name, plot_freq=PLOT_FREQ)
+            plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(name), color='orange', dataset_or_name=name, plot_freq=PLOT_FREQ, x_size_offset=0.4)
             # mean, std = compute_data_mean_std(H.make_data(name))
             # print(f'{name}\n    vis_mean: {mean.tolist()}\n    vis_std: {std.tolist()}')
 
+    exit(1)
     BASE = os.path.abspath(os.path.join(__file__, '../../../out/adversarial_data_approx'))
 
     # plot adversarial datasets
@@ -342,7 +446,7 @@ if __name__ == '__main__':
         ('red', '2021-09-06--09-10-59_INVERT-VSTRONG-smallnorb_invert_margin_0.05_aw10.0_same_k1_close_s200001_Adam_lr0.0005_wd1e-06'),
     ]:
         data = _make_self_contained_dataset(f'{BASE}/{folder}/data.h5')
-        plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(folder), color=color, dataset_or_name=data, plot_freq=PLOT_FREQ)
+        plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(folder), color=color, dataset_or_name=data, plot_freq=PLOT_FREQ, x_size_offset=0.4)
         # compute and print statistics:
         # mean, std = compute_data_mean_std(data, progress=True)
         # print(f'{folder}\n    vis_mean: {mean.tolist()}\n    vis_std: {std.tolist()}')

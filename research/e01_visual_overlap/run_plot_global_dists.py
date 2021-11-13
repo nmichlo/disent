@@ -151,12 +151,12 @@ def dual_plot_from_generated_data(df: pd.DataFrame, data_name: str = None, save_
     ax1.set_ylim(-0.025, 1.025)
     # plot
     ax0.set_title('Ordered Traversals')
-    sns.ecdfplot(ax=ax0, data=df[df['ordered']==True], x="overlap", hue="samples")
+    sns.ecdfplot(ax=ax0, data=df[df['ordered']==True], x="distance", hue="samples")
     ax1.set_title('Shuffled Traversals')
-    sns.ecdfplot(ax=ax1, data=df[df['ordered']==False], x="overlap", hue="samples")
+    sns.ecdfplot(ax=ax1, data=df[df['ordered']==False], x="distance", hue="samples")
     # edit plots
-    ax0.set_xlabel('Overlap')
-    ax1.set_xlabel('Overlap')
+    ax0.set_xlabel('Visual Distance')
+    ax1.set_xlabel('Visual Distance')
     if tick_size is not None:
         ax0.xaxis.set_major_locator(MultipleLocator(base=tick_size))
         ax1.xaxis.set_major_locator(MultipleLocator(base=tick_size))
@@ -188,10 +188,10 @@ def all_plot_from_all_generated_data(dfs: dict, ordered=True, save_name: str = N
     for i, (ax, (data_name, df)) in enumerate(zip(axs, dfs.items())):
         # plot
         ax.set_title(data_name)
-        sns.ecdfplot(ax=ax, data=df[df['ordered']==ordered], x="overlap", hue="samples")
+        sns.ecdfplot(ax=ax, data=df[df['ordered']==ordered], x="distance", hue="samples")
         # edit plots
         ax.set_ylim(-0.025, 1.025)
-        ax.set_xlabel('Overlap')
+        ax.set_xlabel('Visual Distance')
         if (tick_sizes is not None) and (data_name in tick_sizes):
             ax.xaxis.set_major_locator(MultipleLocator(base=tick_sizes[data_name]))
         if i == 0:
@@ -226,6 +226,9 @@ def plot_all(exp_name: str, gt_data_classes, tick_sizes: dict, samples: int, loa
             save_cache=save,
         )
         dfs[data_name] = df
+        # flip overlap
+        df['distance'] = - df['overlap']
+        del df['overlap']
         # plot ordered + shuffled
         fig = dual_plot_from_generated_data(
             df,
@@ -347,7 +350,7 @@ if __name__ == '__main__':
         save_plt=True,
         show_dual_plt=False,
         fig_l_pad=1,
-        fig_w=7,
+        fig_w=5.5,
         fig_h=13,
         tick_sizes={
             'DSprites': 0.05,
