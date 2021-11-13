@@ -27,6 +27,7 @@ import dataclasses
 import inspect
 import io
 import os
+from typing import Optional
 from typing import Union
 
 import torch
@@ -221,6 +222,16 @@ def make_rel_path(*path_segments, is_file=True):
 
 def make_rel_path_add_ext(*path_segments, ext='.png'):
     return _make_rel_path_add_ext(*path_segments, ext=ext, _calldepth=1)
+
+
+def plt_rel_path_savefig(rel_path: Optional[str], save: bool = True, show: bool = True, ext='.png', dpi: Optional[int] = None):
+    import matplotlib.pyplot as plt
+    if save and (rel_path is not None):
+        path = _make_rel_path_add_ext(rel_path, ext=ext, _calldepth=2)
+        plt.savefig(path, dpi=dpi)
+        print(f'saved: {repr(path)}')
+    if show:
+        plt.show()
 
 
 # ========================================================================= #
