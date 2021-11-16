@@ -403,70 +403,66 @@ def plot_traversal_stats(
 
 
 @torch.no_grad()
-def factor_stats(gt_data: GroundTruthData, f_idxs=None, max_factor_sec: float = 100, factor_repeats: int = 1000, recon_loss: str = 'mse', sample_mode: str = 'random') -> Tuple[Sequence[int], List[np.ndarray]]:
+def factor_stats(gt_data: GroundTruthData, f_idxs=None, min_samples: int = 100_000, min_repeats: int = 5000, recon_loss: str = 'mse', sample_mode: str = 'random') -> Tuple[Sequence[int], List[np.ndarray]]:
     from disent.registry import RECON_LOSSES
-    recon_loss = RECON_LOSSES[recon_loss](reduction='mean')
+    from disent.frameworks.helper.reconstructions import ReconLossHandler
+    recon_loss: ReconLossHandler = RECON_LOSSES[recon_loss](reduction='mean')
 
     f_dists = []
     f_idxs = gt_data.normalise_factor_idxs(f_idxs)
     # for each factor
     for f_idx in f_idxs:
         dists = []
-        with Timer() as t:
+        with tqdm(desc=gt_data.factor_names[f_idx], total=min_samples) as p:
             # for multiple random factor traversals along the factor
-            for _ in tqdm(range(factor_repeats), desc=gt_data.factor_names[f_idx]):
+            while len(dists) < min_samples or p.n < min_repeats:
                 # based on: sample_factor_traversal_info(...) # TODO: should add recon loss to that function instead
                 factors, indices, obs = gt_data.sample_random_obs_traversal(f_idx=f_idx, obs_collect_fn=torch.stack)
                 # random pairs -- we use this because it does not include [i == i]
                 idxs_a, idxs_b = H.pair_indices(max_idx=len(indices), mode=sample_mode)
                 # get distances
                 d = recon_loss.compute_pairwise_loss(obs[idxs_a], obs[idxs_b])
+                d = d.numpy().tolist()
                 # H.plt_subplots_imshow([[np.moveaxis(o.numpy(), 0, -1) for o in obs]])
                 # plt.show()
-                dists.append(d)
-                # exit early
-                if t.elapsed > max_factor_sec:
-                    print('max time reached!')
-                    break
+                dists.extend(d)
+                p.update(len(d))
         # aggregate the average distances
-        f_dists.append(torch.cat(dists).numpy())
+        f_dists.append(np.array(dists)[:min_samples])
 
     return f_idxs, f_dists
 
 
-def get_random_dists(gt_data: GroundTruthData, samples: int = 10000, recon_loss: str = 'mse', max_time_sec: float = 100):
+def get_random_dists(gt_data: GroundTruthData, num_samples: int = 100_000, recon_loss: str = 'mse'):
     from disent.registry import RECON_LOSSES
-    from disent.frameworks.helper.reconstructions import ReconLossHandlerMse
-    recon_loss: ReconLossHandlerMse = RECON_LOSSES[recon_loss](reduction='mean')
+    from disent.frameworks.helper.reconstructions import ReconLossHandler
+    recon_loss: ReconLossHandler = RECON_LOSSES[recon_loss](reduction='mean')
 
     dists = []
-    with Timer() as t:
+    with tqdm(desc=gt_data.name, total=num_samples) as p:
         # for multiple random factor traversals along the factor
-        for _ in tqdm(range(samples), desc=gt_data.name):
+        while len(dists) < num_samples:
             # random pair
             i, j = np.random.randint(0, len(gt_data), size=2)
             # get distance
             d = recon_loss.compute_pairwise_loss(gt_data[i][None, ...], gt_data[j][None, ...])
             # plt.show()
             dists.append(float(d.flatten()))
-            # exit early
-            if t.elapsed > max_time_sec:
-                print('max time reached!')
-                break
+            p.update()
     # done!
     return np.array(dists)
 
 
-def print_ave_dists(gt_data: GroundTruthData, samples: int = 25000, recon_loss: str = 'mse', max_time_sec: float = 100):
-    dists = get_random_dists(gt_data=gt_data, samples=samples, recon_loss=recon_loss, max_time_sec=max_time_sec)
+def print_ave_dists(gt_data: GroundTruthData, num_samples: int = 100_000, recon_loss: str = 'mse'):
+    dists = get_random_dists(gt_data=gt_data, num_samples=num_samples, recon_loss=recon_loss)
     f_mean = np.mean(dists)
     f_std = np.std(dists)
-    print(f'[{gt_data.name}] RANDOM: {f_mean:7.4f} ± {f_std:7.4f}')
+    print(f'[{gt_data.name}] RANDOM ({len(gt_data)}, {len(dists)}) - mean: {f_mean:7.4f}  std: {f_std:7.4f}')
 
 
-def print_ave_factor_stats(gt_data: GroundTruthData, f_idxs=None, max_factor_sec: float = 100, factor_repeats: int = 1000, recon_loss: str = 'mse', sample_mode: str = 'random'):
+def print_ave_factor_stats(gt_data: GroundTruthData, f_idxs=None, min_samples: int = 100_000, min_repeats: int = 5000, recon_loss: str = 'mse', sample_mode: str = 'random'):
     # compute average distances
-    f_idxs, f_dists = factor_stats(gt_data=gt_data, f_idxs=f_idxs, max_factor_sec=max_factor_sec, factor_repeats=factor_repeats, recon_loss=recon_loss, sample_mode=sample_mode)
+    f_idxs, f_dists = factor_stats(gt_data=gt_data, f_idxs=f_idxs, min_repeats=min_repeats, min_samples=min_samples, recon_loss=recon_loss, sample_mode=sample_mode)
     # compute dists
     f_means = [np.mean(d) for d in f_dists]
     f_stds = [np.std(d) for d in f_dists]
@@ -475,52 +471,54 @@ def print_ave_factor_stats(gt_data: GroundTruthData, f_idxs=None, max_factor_sec
     # print information
     for i in order:
         f_idx, f_mean, f_std = f_idxs[i], f_means[i], f_stds[i]
-        print(f'[{gt_data.name}] {gt_data.factor_names[f_idx]}: {f_mean:7.4f} ± {f_std:7.4f}')
+        print(f'[{gt_data.name}] {gt_data.factor_names[f_idx]} ({gt_data.factor_sizes[f_idx]}, {len(f_dists[f_idx])}) - mean: {f_mean:7.4f}  std: {f_std:7.4f}')
 
 
-def main_compute_dists(factor_repeats: int = 15000, random_samples: int = 100000, max_time_sec: float = 100, recon_loss: str = 'mse', sample_mode: str = 'random'):
+def main_compute_dists(factor_samples: int = 50_000, min_repeats: int = 5000, random_samples: int = 50_000, recon_loss: str = 'mse', sample_mode: str = 'random', seed: int = 777):
     # plot standard datasets
     for name in ['dsprites', 'shapes3d', 'cars3d', 'smallnorb', 'xysquares_8x8_s8']:
         gt_data = H.make_data(name)
-        if factor_repeats is not None:
-            print_ave_factor_stats(gt_data, max_factor_sec=max_time_sec, factor_repeats=factor_repeats, recon_loss=recon_loss, sample_mode=sample_mode)
+        if factor_samples is not None:
+            with TempNumpySeed(seed):
+                print_ave_factor_stats(gt_data, min_samples=factor_samples, min_repeats=min_repeats, recon_loss=recon_loss, sample_mode=sample_mode)
         if random_samples is not None:
-            print_ave_dists(gt_data, samples=random_samples, recon_loss=recon_loss, max_time_sec=max_time_sec)
+            with TempNumpySeed(seed):
+                print_ave_dists(gt_data, num_samples=random_samples, recon_loss=recon_loss)
 
-# [dsprites] position_y:  0.0564 ±  0.0367
-# [dsprites] scale:  0.0249 ±  0.0146
-# [dsprites] shape:  0.0214 ±  0.0095
-# [dsprites] orientation:  0.0163 ±  0.0104
-# [dsprites] RANDOM:  0.0753 ±  0.0289
+# [dsprites] position_y (32, 50000) - mean:  0.0584  std:  0.0378
+# [dsprites] position_x (32, 50000) - mean:  0.0559  std:  0.0363
+# [dsprites] scale (6, 50000) - mean:  0.0250  std:  0.0148
+# [dsprites] shape (3, 50000) - mean:  0.0214  std:  0.0095
+# [dsprites] orientation (40, 50000) - mean:  0.0172  std:  0.0106
+# [dsprites] RANDOM (737280, 50000) - mean:  0.0754  std:  0.0289
 
-# [3dshapes] wall_hue:  0.1127 ±  0.0663
-# [3dshapes] floor_hue:  0.1093 ±  0.0620
-# [3dshapes] object_hue:  0.0424 ±  0.0293
-# [3dshapes] shape:  0.0210 ±  0.0167
-# [3dshapes] scale:  0.0181 ±  0.0149
-# [3dshapes] orientation:  0.0116 ±  0.0081
-# [3dshapes] RANDOM:  0.2440 ±  0.0922
+# [3dshapes] wall_hue (10, 50000) - mean:  0.1122  std:  0.0661
+# [3dshapes] floor_hue (10, 50000) - mean:  0.1086  std:  0.0623
+# [3dshapes] object_hue (10, 50000) - mean:  0.0416  std:  0.0292
+# [3dshapes] shape (4, 50000) - mean:  0.0207  std:  0.0161
+# [3dshapes] scale (8, 50000) - mean:  0.0182  std:  0.0153
+# [3dshapes] orientation (15, 50000) - mean:  0.0116  std:  0.0079
+# [3dshapes] RANDOM (480000, 50000) - mean:  0.2432  std:  0.0918
 
-# [cars3d] azimuth:  0.0358 ±  0.0185
-# [cars3d] object_type:  0.0340 ±  0.0172
-# [cars3d] elevation:  0.0174 ±  0.0100
-# [cars3d] RANDOM:  0.0522 ±  0.0189
+# [cars3d] azimuth (24, 50000) - mean:  0.0355  std:  0.0185
+# [cars3d] object_type (183, 50000) - mean:  0.0349  std:  0.0176
+# [cars3d] elevation (4, 50000) - mean:  0.0174  std:  0.0100
+# [cars3d] RANDOM (17568, 50000) - mean:  0.0519  std:  0.0188
 
-# [smallnorb] lighting:  0.0533 ±  0.0565
-# [smallnorb] category:  0.0113 ±  0.0066
-# [smallnorb] rotation:  0.0090 ±  0.0068
-# [smallnorb] instance:  0.0069 ±  0.0049
-# [smallnorb] elevation:  0.0035 ±  0.0032
-# [smallnorb] RANDOM:  0.0530 ±  0.0524
+# [smallnorb] lighting (6, 50000) - mean:  0.0531  std:  0.0563
+# [smallnorb] category (5, 50000) - mean:  0.0113  std:  0.0066
+# [smallnorb] rotation (18, 50000) - mean:  0.0090  std:  0.0071
+# [smallnorb] instance (5, 50000) - mean:  0.0068  std:  0.0048
+# [smallnorb] elevation (9, 50000) - mean:  0.0034  std:  0.0030
+# [smallnorb] RANDOM (24300, 50000) - mean:  0.0535  std:  0.0529
 
-# [xy_squares] y_B:  0.0104 ±  0.0000
-# [xy_squares] x_B:  0.0104 ±  0.0000
-# [xy_squares] y_G:  0.0104 ±  0.0000
-# [xy_squares] x_G:  0.0104 ±  0.0000
-# [xy_squares] y_R:  0.0104 ±  0.0000
-# [xy_squares] x_R:  0.0104 ±  0.0000
-# [xy_squares] RANDOM:  0.0308 ±  0.0022
-
+# [xy_squares] y_B (8, 50000) - mean:  0.0104  std:  0.0000
+# [xy_squares] x_B (8, 50000) - mean:  0.0104  std:  0.0000
+# [xy_squares] y_G (8, 50000) - mean:  0.0104  std:  0.0000
+# [xy_squares] x_G (8, 50000) - mean:  0.0104  std:  0.0000
+# [xy_squares] y_R (8, 50000) - mean:  0.0104  std:  0.0000
+# [xy_squares] x_R (8, 50000) - mean:  0.0104  std:  0.0000
+# [xy_squares] RANDOM (262144, 50000) - mean:  0.0308  std:  0.0022
 
 # ========================================================================= #
 # MAIN - PLOTTING                                                           #

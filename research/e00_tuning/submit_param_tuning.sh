@@ -29,6 +29,7 @@ clog_cudaless_nodes "$PARTITION" 129600 "C-disent" # 36 hours
 #              adavae  with zsize=25 does not work
 #              adavae  with zsize=09 and beta<=0.001 (must get very lucky)
 
+# TODO: I should try lower the learning rate to 1e-4 from 1e-3, this might help with xysquares
 # 1 * (2 * 8 * 2 * 5) = 160
 submit_sweep \
     +DUMMY.repeat=1 \
