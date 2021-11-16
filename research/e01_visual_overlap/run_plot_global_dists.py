@@ -39,7 +39,6 @@ import research.util as H
 from disent.dataset import DisentDataset
 from disent.dataset.data import Cars3dData
 from disent.dataset.data import DSpritesData
-from disent.dataset.data import GroundTruthData
 from disent.dataset.data import Shapes3dData
 from disent.dataset.data import XYSquaresData
 from disent.dataset.transform import ToImgTensorF32

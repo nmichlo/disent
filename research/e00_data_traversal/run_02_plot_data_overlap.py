@@ -69,7 +69,7 @@ def plot_dataset_overlap(
     save=True,
     seed=777,
     plt_scale=4.5,
-    offset=0.75
+    offset=0.75,
 ):
     with TempNumpySeed(seed):
         # choose an f_idx

@@ -31,6 +31,7 @@ from typing import List
 from typing import Literal
 from typing import Optional
 from typing import Sequence
+from typing import Tuple
 from typing import Union
 
 import matplotlib.pyplot as plt
@@ -44,7 +45,9 @@ from disent.dataset.data import GroundTruthData
 from disent.dataset.data import SelfContainedHdf5GroundTruthData
 from disent.dataset.util.state_space import NonNormalisedFactors
 from disent.dataset.transform import ToImgTensorF32
+from disent.dataset.util.stats import compute_data_mean_std
 from disent.util.inout.paths import ensure_parent_dir_exists
+from disent.util.profiling import Timer
 from disent.util.seeds import TempNumpySeed
 
 
@@ -275,7 +278,7 @@ def plot_traversal_stats(
     )
 
     # finalize plot
-    fig.tight_layout(pad=1.4 if hide_labels else 1.08)
+    fig.tight_layout()  # (pad=1.4 if hide_labels else 1.08)
 
     # save the path
     if save_path is not None:
@@ -304,12 +307,15 @@ def plot_traversal_stats(
     save_path: Optional[str] = None,
     plot_freq: bool = True,
     plot_title: Union[bool, str] = False,
-    fig_block_size: float = 4.0,
+    plt_scale: float = 6,
     col_titles: Union[bool, List[str]] = True,
     hide_axis: bool = True,
     hide_labels: bool = True,
-    y_size_offset: float = 0.0,
-    x_size_offset: float = 0.0,
+    y_size_offset: float = 0.45,
+    x_size_offset: float = 0.75,
+    disable_labels: bool = False,
+    bottom_labels: bool = False,
+    label_size: int = 23,
 ):
     # - - - - - - - - - - - - - - - - - #
 
@@ -336,9 +342,6 @@ def plot_traversal_stats(
     gt_data: GroundTruthData = H.make_data(dataset_or_name) if isinstance(dataset_or_name, str) else dataset_or_name
     f_idxs = gt_data.normalise_factor_idxs(f_idxs)
 
-    # settings
-    h, w = [2.07 * fig_block_size, len(f_idxs) * fig_block_size]
-
     # get title
     if isinstance(plot_title, str):
         suptitle = f'{plot_title}'
@@ -357,13 +360,20 @@ def plot_traversal_stats(
         num_traversal_sample=num_repeats,
     )
 
+    labels = None
+    if (not disable_labels) and grid_titles:
+        labels = grid_titles
+
+    # settings
     fig, axs = H.plt_subplots_imshow(
         grid=list(zip(*grid_t)),
         title=suptitle,
-        titles=grid_titles if grid_titles else None,
-        titles_size=36,
+        titles=None if bottom_labels else labels,
+        titles_size=label_size,
+        col_labels=labels if bottom_labels else None,
+        label_size=label_size,
         subplot_padding=None,
-        figsize=(w, h)
+        figsize=((1/2.54) * len(f_idxs) * plt_scale + x_size_offset, (1/2.54) * (2) * plt_scale + y_size_offset)
     )
 
     # recolor axes
@@ -388,7 +398,132 @@ def plot_traversal_stats(
 
 
 # ========================================================================= #
-# ENTRY                                                                     #
+# MAIN - DISTS                                                              #
+# ========================================================================= #
+
+
+@torch.no_grad()
+def factor_stats(gt_data: GroundTruthData, f_idxs=None, max_factor_sec: float = 100, factor_repeats: int = 1000, recon_loss: str = 'mse', sample_mode: str = 'random') -> Tuple[Sequence[int], List[np.ndarray]]:
+    from disent.registry import RECON_LOSSES
+    recon_loss = RECON_LOSSES[recon_loss](reduction='mean')
+
+    f_dists = []
+    f_idxs = gt_data.normalise_factor_idxs(f_idxs)
+    # for each factor
+    for f_idx in f_idxs:
+        dists = []
+        with Timer() as t:
+            # for multiple random factor traversals along the factor
+            for _ in tqdm(range(factor_repeats), desc=gt_data.factor_names[f_idx]):
+                # based on: sample_factor_traversal_info(...) # TODO: should add recon loss to that function instead
+                factors, indices, obs = gt_data.sample_random_obs_traversal(f_idx=f_idx, obs_collect_fn=torch.stack)
+                # random pairs -- we use this because it does not include [i == i]
+                idxs_a, idxs_b = H.pair_indices(max_idx=len(indices), mode=sample_mode)
+                # get distances
+                d = recon_loss.compute_pairwise_loss(obs[idxs_a], obs[idxs_b])
+                # H.plt_subplots_imshow([[np.moveaxis(o.numpy(), 0, -1) for o in obs]])
+                # plt.show()
+                dists.append(d)
+                # exit early
+                if t.elapsed > max_factor_sec:
+                    print('max time reached!')
+                    break
+        # aggregate the average distances
+        f_dists.append(torch.cat(dists).numpy())
+
+    return f_idxs, f_dists
+
+
+def get_random_dists(gt_data: GroundTruthData, samples: int = 10000, recon_loss: str = 'mse', max_time_sec: float = 100):
+    from disent.registry import RECON_LOSSES
+    from disent.frameworks.helper.reconstructions import ReconLossHandlerMse
+    recon_loss: ReconLossHandlerMse = RECON_LOSSES[recon_loss](reduction='mean')
+
+    dists = []
+    with Timer() as t:
+        # for multiple random factor traversals along the factor
+        for _ in tqdm(range(samples), desc=gt_data.name):
+            # random pair
+            i, j = np.random.randint(0, len(gt_data), size=2)
+            # get distance
+            d = recon_loss.compute_pairwise_loss(gt_data[i][None, ...], gt_data[j][None, ...])
+            # plt.show()
+            dists.append(float(d.flatten()))
+            # exit early
+            if t.elapsed > max_time_sec:
+                print('max time reached!')
+                break
+    # done!
+    return np.array(dists)
+
+
+def print_ave_dists(gt_data: GroundTruthData, samples: int = 25000, recon_loss: str = 'mse', max_time_sec: float = 100):
+    dists = get_random_dists(gt_data=gt_data, samples=samples, recon_loss=recon_loss, max_time_sec=max_time_sec)
+    f_mean = np.mean(dists)
+    f_std = np.std(dists)
+    print(f'[{gt_data.name}] RANDOM: {f_mean:7.4f} ± {f_std:7.4f}')
+
+
+def print_ave_factor_stats(gt_data: GroundTruthData, f_idxs=None, max_factor_sec: float = 100, factor_repeats: int = 1000, recon_loss: str = 'mse', sample_mode: str = 'random'):
+    # compute average distances
+    f_idxs, f_dists = factor_stats(gt_data=gt_data, f_idxs=f_idxs, max_factor_sec=max_factor_sec, factor_repeats=factor_repeats, recon_loss=recon_loss, sample_mode=sample_mode)
+    # compute dists
+    f_means = [np.mean(d) for d in f_dists]
+    f_stds = [np.std(d) for d in f_dists]
+    # sort in order of importance
+    order = np.argsort(f_means)[::-1]
+    # print information
+    for i in order:
+        f_idx, f_mean, f_std = f_idxs[i], f_means[i], f_stds[i]
+        print(f'[{gt_data.name}] {gt_data.factor_names[f_idx]}: {f_mean:7.4f} ± {f_std:7.4f}')
+
+
+def main_compute_dists(factor_repeats: int = 15000, random_samples: int = 100000, max_time_sec: float = 100, recon_loss: str = 'mse', sample_mode: str = 'random'):
+    # plot standard datasets
+    for name in ['dsprites', 'shapes3d', 'cars3d', 'smallnorb', 'xysquares_8x8_s8']:
+        gt_data = H.make_data(name)
+        if factor_repeats is not None:
+            print_ave_factor_stats(gt_data, max_factor_sec=max_time_sec, factor_repeats=factor_repeats, recon_loss=recon_loss, sample_mode=sample_mode)
+        if random_samples is not None:
+            print_ave_dists(gt_data, samples=random_samples, recon_loss=recon_loss, max_time_sec=max_time_sec)
+
+# [dsprites] position_y:  0.0564 ±  0.0367
+# [dsprites] scale:  0.0249 ±  0.0146
+# [dsprites] shape:  0.0214 ±  0.0095
+# [dsprites] orientation:  0.0163 ±  0.0104
+# [dsprites] RANDOM:  0.0753 ±  0.0289
+
+# [3dshapes] wall_hue:  0.1127 ±  0.0663
+# [3dshapes] floor_hue:  0.1093 ±  0.0620
+# [3dshapes] object_hue:  0.0424 ±  0.0293
+# [3dshapes] shape:  0.0210 ±  0.0167
+# [3dshapes] scale:  0.0181 ±  0.0149
+# [3dshapes] orientation:  0.0116 ±  0.0081
+# [3dshapes] RANDOM:  0.2440 ±  0.0922
+
+# [cars3d] azimuth:  0.0358 ±  0.0185
+# [cars3d] object_type:  0.0340 ±  0.0172
+# [cars3d] elevation:  0.0174 ±  0.0100
+# [cars3d] RANDOM:  0.0522 ±  0.0189
+
+# [smallnorb] lighting:  0.0533 ±  0.0565
+# [smallnorb] category:  0.0113 ±  0.0066
+# [smallnorb] rotation:  0.0090 ±  0.0068
+# [smallnorb] instance:  0.0069 ±  0.0049
+# [smallnorb] elevation:  0.0035 ±  0.0032
+# [smallnorb] RANDOM:  0.0530 ±  0.0524
+
+# [xy_squares] y_B:  0.0104 ±  0.0000
+# [xy_squares] x_B:  0.0104 ±  0.0000
+# [xy_squares] y_G:  0.0104 ±  0.0000
+# [xy_squares] x_G:  0.0104 ±  0.0000
+# [xy_squares] y_R:  0.0104 ±  0.0000
+# [xy_squares] x_R:  0.0104 ±  0.0000
+# [xy_squares] RANDOM:  0.0308 ±  0.0022
+
+
+# ========================================================================= #
+# MAIN - PLOTTING                                                           #
 # ========================================================================= #
 
 
@@ -396,10 +531,15 @@ def _make_self_contained_dataset(h5_path):
     return SelfContainedHdf5GroundTruthData(h5_path=h5_path, transform=ToImgTensorF32())
 
 
-if __name__ == '__main__':
-    # matplotlib style
-    plt.style.use(os.path.join(os.path.dirname(__file__), '../gadfly.mplstyle'))
+def _print_data_mean_std(data_or_name, print_mean_std: bool = True):
+    if print_mean_std:
+        data = H.make_data(data_or_name) if isinstance(data_or_name, str) else data_or_name
+        name = data_or_name if isinstance(data_or_name, str) else data.name
+        mean, std = compute_data_mean_std(data)
+        print(f'{name}\n    vis_mean: {mean.tolist()}\n    vis_std: {std.tolist()}')
 
+
+def main_plotting(plot_all=False, print_mean_std=False):
     CIRCULAR = False
     PLOT_FREQ = False
 
@@ -410,21 +550,24 @@ if __name__ == '__main__':
 
     # plot xysquares with increasing overlap
     for s in [1, 2, 3, 4, 5, 6, 7, 8]:
-        plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(f'xysquares_8x8_s{s}'), color='blue', dataset_or_name=f'xysquares_8x8_s{s}', f_idxs=[1], col_titles=['x & y'], plot_freq=PLOT_FREQ)
+        plot_traversal_stats(circular_distance=CIRCULAR, plt_scale=8, label_size=26, x_size_offset=0, y_size_offset=0.6, save_path=sp(f'xysquares_8x8_s{s}'), color='blue', dataset_or_name=f'xysquares_8x8_s{s}', f_idxs=[1], col_titles=[f'Space: {s}px'], plot_freq=PLOT_FREQ)
+        _print_data_mean_std(f'xysquares_8x8_s{s}', print_mean_std)
 
     # plot standard datasets
     for name in ['dsprites', 'shapes3d', 'cars3d', 'smallnorb']:
-        plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(name), color='blue', dataset_or_name=name, plot_freq=PLOT_FREQ)
+        plot_traversal_stats(circular_distance=CIRCULAR, x_size_offset=0, y_size_offset=0.6, num_repeats=256, disable_labels=False, save_path=sp(name), color='blue', dataset_or_name=name, plot_freq=PLOT_FREQ)
+        _print_data_mean_std(name, print_mean_std)
+
+    if not plot_all:
+        return
 
     # plot adversarial dsprites datasets
     for fg in [True, False]:
         for vis in [100, 80, 60, 40, 20]:
             name = f'dsprites_imagenet_{"fg" if fg else "bg"}_{vis}'
             plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(name), color='orange', dataset_or_name=name, plot_freq=PLOT_FREQ, x_size_offset=0.4)
-            # mean, std = compute_data_mean_std(H.make_data(name))
-            # print(f'{name}\n    vis_mean: {mean.tolist()}\n    vis_std: {std.tolist()}')
+            _print_data_mean_std(name, print_mean_std)
 
-    exit(1)
     BASE = os.path.abspath(os.path.join(__file__, '../../../out/adversarial_data_approx'))
 
     # plot adversarial datasets
@@ -447,9 +590,20 @@ if __name__ == '__main__':
     ]:
         data = _make_self_contained_dataset(f'{BASE}/{folder}/data.h5')
         plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(folder), color=color, dataset_or_name=data, plot_freq=PLOT_FREQ, x_size_offset=0.4)
-        # compute and print statistics:
-        # mean, std = compute_data_mean_std(data, progress=True)
-        # print(f'{folder}\n    vis_mean: {mean.tolist()}\n    vis_std: {std.tolist()}')
+        _print_data_mean_std(data, print_mean_std)
+
+
+# ========================================================================= #
+# STATS                                                                     #
+# ========================================================================= #
+
+
+if __name__ == '__main__':
+    # matplotlib style
+    plt.style.use(os.path.join(os.path.dirname(__file__), '../gadfly.mplstyle'))
+    # run!
+    # main_plotting()
+    main_compute_dists()
 
 
 # ========================================================================= #
