@@ -10,5 +10,12 @@
 # psutil
 # seaborn
 
+
 ray>=1.6.0
 ruck==0.2.4
+
+seaborn>=0.11.0
+pandas>=1.3.0
+cachier>=1.5.0
+
+statsmodels>=0.13.0  # required for seaborn, to estimate outliers in regression plots

@@ -48,7 +48,7 @@ from disent.util.lightning.logger_util import wb_log_metrics
 from disent.util.seeds import seed
 from disent.util.strings.fmt import make_box_str
 from experiment.run import hydra_append_progress_callback
-from experiment.run import hydra_check_cuda
+from experiment.run import hydra_get_gpus
 from experiment.run import hydra_make_logger
 from experiment.util.hydra_utils import make_non_strict
 
@@ -228,7 +228,7 @@ def run_disentangle_dataset_kernel(cfg):
     # TODO: some of this code is duplicated between this and the main experiment run.py
     # check CUDA setting
     cfg.trainer.setdefault('cuda', 'try_cuda')
-    hydra_check_cuda(cfg)
+    gpus = hydra_get_gpus(cfg)
     # CREATE LOGGER
     logger = hydra_make_logger(cfg)
     # TRAINER CALLBACKS
@@ -265,7 +265,7 @@ def run_disentangle_dataset_kernel(cfg):
         flush_logs_every_n_steps=cfg.log.setdefault('flush_logs_every_n_steps', 100),
         logger=logger,
         callbacks=callbacks,
-        gpus=1 if cfg.trainer.cuda else 0,
+        gpus=1 if gpus else 0,
         max_epochs=cfg.trainer.setdefault('epochs', None),
         max_steps=cfg.trainer.setdefault('steps', 10000),
         progress_bar_refresh_rate=0,  # ptl 0.9

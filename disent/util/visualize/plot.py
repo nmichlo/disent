@@ -135,7 +135,10 @@ def plt_subplots(
     assert isinstance(ncols, int)
     # check titles
     if titles is not None:
-        titles = np.array(titles).reshape([nrows, ncols])
+        titles = np.array(titles)
+        if titles.ndim == 1:
+            titles = np.array([titles] + ([[None]*ncols] * (nrows-1)))
+        assert titles.ndim == 2
     # get labels
     if (row_labels is None) or isinstance(row_labels, str):
         row_labels = [row_labels] * nrows
@@ -161,7 +164,8 @@ def plt_subplots(
                 ax.set_ylabel(row_labels[y], fontsize=label_size)
             # set title
             if titles is not None:
-                ax.set_title(titles[y][x], fontsize=titles_size)
+                if titles[y][x] is not None:
+                    ax.set_title(titles[y][x], fontsize=titles_size)
     # set title
     fig.suptitle(title, fontsize=title_size)
     # done!

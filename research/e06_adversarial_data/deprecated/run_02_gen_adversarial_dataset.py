@@ -64,7 +64,7 @@ from disent.util.strings.fmt import bytes_to_human
 from disent.util.strings.fmt import make_box_str
 from disent.util.visualize.vis_util import make_image_grid
 from experiment.run import hydra_get_callbacks
-from experiment.run import hydra_check_cuda
+from experiment.run import hydra_get_gpus
 from experiment.run import hydra_make_logger
 from experiment.util.hydra_utils import make_non_strict
 from experiment.util.run_utils import log_error_and_exit
@@ -311,7 +311,7 @@ def run_gen_adversarial_dataset(cfg):
     cfg = make_non_strict(cfg)
     # - - - - - - - - - - - - - - - #
     # check CUDA setting
-    hydra_check_cuda(cfg)
+    gpus = hydra_get_gpus(cfg)
     # create logger
     logger = hydra_make_logger(cfg)
     # create callbacks
@@ -340,7 +340,7 @@ def run_gen_adversarial_dataset(cfg):
         logger=logger,
         callbacks=callbacks,
         # cfg.dsettings.trainer
-        gpus=1 if cfg.dsettings.trainer.cuda else 0,
+        gpus=gpus,
         # cfg.trainer
         max_epochs=cfg.trainer.max_epochs,
         max_steps=cfg.trainer.max_steps,
