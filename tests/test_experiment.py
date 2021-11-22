@@ -38,6 +38,7 @@ from tests.util import temp_sys_args
 
 
 @pytest.mark.parametrize('args', [
+    ['run_action=skip'],
     ['run_action=prepare_data'],
     ['run_action=train'],
 ])

@@ -122,25 +122,25 @@ def _to_dmat(
     return dmat
 
 
-_AE_DIST_NAMES = ('x', 'z_l1', 'x_recon')
-_VAE_DIST_NAMES = ('x', 'z_l1', 'kl', 'x_recon')
+_AE_DIST_NAMES = ('x', 'z', 'x_recon')
+_VAE_DIST_NAMES = ('x', 'z', 'kl', 'x_recon')
 
 
 @torch.no_grad()
-def _get_dists_ae(ae: Ae, recon_loss: ReconLossHandler, x_a: torch.Tensor, x_b: torch.Tensor):
+def _get_dists_ae(ae: Ae, x_a: torch.Tensor, x_b: torch.Tensor):
     # feed forware
     z_a, z_b = ae.encode(x_a), ae.encode(x_b)
     r_a, r_b = ae.decode(z_a), ae.decode(z_b)
     # distances
     return [
-        recon_loss.compute_pairwise_loss(x_a, x_b),
-        torch.norm(z_a - z_b, p=1, dim=-1),  # l1 dist
-        recon_loss.compute_pairwise_loss(r_a, r_b),
+        ae.recon_handler.compute_pairwise_loss(x_a, x_b),
+        torch.norm(z_a - z_b, p=2, dim=-1),  # l2 dist
+        ae.recon_handler.compute_pairwise_loss(r_a, r_b),
     ]
 
 
 @torch.no_grad()
-def _get_dists_vae(vae: Vae, recon_loss: ReconLossHandler, x_a: torch.Tensor, x_b: torch.Tensor):
+def _get_dists_vae(vae: Vae, x_a: torch.Tensor, x_b: torch.Tensor):
     from torch.distributions import kl_divergence
     # feed forward
     (z_post_a, z_prior_a), (z_post_b, z_prior_b) = vae.encode_dists(x_a), vae.encode_dists(x_b)
@@ -150,19 +150,19 @@ def _get_dists_vae(vae: Vae, recon_loss: ReconLossHandler, x_a: torch.Tensor, x_
     kl_ab = 0.5 * kl_divergence(z_post_a, z_post_b) + 0.5 * kl_divergence(z_post_b, z_post_a)
     # distances
     return [
-        recon_loss.compute_pairwise_loss(x_a, x_b),
-        torch.norm(z_a - z_b, p=1, dim=-1),  # l1 dist
-        recon_loss._pairwise_reduce(kl_ab),
-        recon_loss.compute_pairwise_loss(r_a, r_b),
+        vae.recon_handler.compute_pairwise_loss(x_a, x_b),
+        torch.norm(z_a - z_b, p=2, dim=-1),  # l2 dist
+        vae.recon_handler._pairwise_reduce(kl_ab),
+        vae.recon_handler.compute_pairwise_loss(r_a, r_b),
     ]
 
 
-def _get_dists_fn(model, recon_loss: ReconLossHandler) -> Tuple[Optional[Tuple[str, ...]], Optional[Callable[[object, object], Sequence[Sequence[float]]]]]:
+def _get_dists_fn(model: Ae) -> Tuple[Optional[Tuple[str, ...]], Optional[Callable[[object, object], Sequence[Sequence[float]]]]]:
     # get aggregate function
     if isinstance(model, Vae):
-        dists_names, dists_fn = _VAE_DIST_NAMES, wrapped_partial(_get_dists_vae, model, recon_loss)
+        dists_names, dists_fn = _VAE_DIST_NAMES, wrapped_partial(_get_dists_vae, model)
     elif isinstance(model, Ae):
-        dists_names, dists_fn = _AE_DIST_NAMES, wrapped_partial(_get_dists_ae, model, recon_loss)
+        dists_names, dists_fn = _AE_DIST_NAMES, wrapped_partial(_get_dists_ae, model)
     else:
         dists_names, dists_fn = None, None
     return dists_names, dists_fn
@@ -303,7 +303,6 @@ class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
         assert traversal_repeats > 0
         self._traversal_repeats = traversal_repeats
         self._seed = seed
-        self._recon_loss = make_reconstruction_loss('mse', 'mean')
         self._plt_block_size = plt_block_size
         self._plt_show = plt_show
         self._log_wandb = log_wandb
@@ -321,7 +320,7 @@ class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
             log.warning(f'cannot run {self.__class__.__name__} over non-ground-truth data, skipping!')
             return
         # get aggregate function
-        dists_names, dists_fn = _get_dists_fn(vae, self._recon_loss)
+        dists_names, dists_fn = _get_dists_fn(vae)
         if (dists_names is None) or (dists_fn is None):
             log.warning(f'cannot run {self.__class__.__name__}, unsupported model type: {type(vae)}, must be {Ae.__name__} or {Vae.__name__}')
             return
@@ -488,6 +487,19 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
             plt.show()
 
 
+def _normalized_numeric_metrics(items: dict):
+    results = {}
+    for k, v in items.items():
+        if isinstance(v, (float, int)):
+            results[k] = v
+        else:
+            try:
+                results[k] = float(v)
+            except:
+                log.warning(f'SKIPPED: metric with key: {repr(k)}, result has invalid type: {type(v)} with value: {repr(v)}')
+    return results
+
+
 class VaeMetricLoggingCallback(BaseCallbackPeriodic):
 
     def __init__(
@@ -521,10 +533,11 @@ class VaeMetricLoggingCallback(BaseCallbackPeriodic):
                 scores = metric(dataset, lambda x: vae.encode(x.to(vae.device)))
             metric_results = ' '.join(f'{k}{c.GRY}={c.lMGT}{v:.3f}{c.RST}' for k, v in scores.items())
             log.info(f'| {metric.__name__:<{pad}} - time{c.GRY}={c.lYLW}{timer.pretty:<9}{c.RST} - {metric_results}')
+
             # log to trainer
             prefix = 'final_metric' if is_final else 'epoch_metric'
             prefixed_scores = {f'{prefix}/{k}': v for k, v in scores.items()}
-            log_metrics(trainer.logger, prefixed_scores)
+            log_metrics(trainer.logger, _normalized_numeric_metrics(prefixed_scores))
 
             # log summary for WANDB
             # this is kinda hacky... the above should work for parallel coordinate plots

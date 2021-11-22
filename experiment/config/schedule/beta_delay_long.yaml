@@ -1,0 +1,10 @@
+name: beta_increase
+
+schedule_items:
+  beta:
+    _target_: disent.schedule.Single
+    start_step: 7200
+    end_step: 14400
+    r_start: 0.001
+    r_end: 1.0
+    mode: 'linear'

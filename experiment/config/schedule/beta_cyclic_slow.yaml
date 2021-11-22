@@ -1,4 +1,4 @@
-name: beta_cyclic
+name: beta_cyclic_slow
 
 schedule_items:
   beta:

@@ -185,8 +185,10 @@ class FftKernel(DisentModule):
 
     def __init__(self, kernel: Union[torch.Tensor, str], normalize: bool = True):
         super().__init__()
-        # load the kernel
-        self._kernel = torch.nn.Parameter(get_kernel(kernel, normalize=normalize), requires_grad=False)
+        # load & save the kernel -- no gradients allowed
+        self._kernel: torch.Tensor
+        self.register_buffer('_kernel', get_kernel(kernel, normalize=normalize), persistent=True)
+        self._kernel.requires_grad = False
 
     def forward(self, obs):
         # add or remove batch dim

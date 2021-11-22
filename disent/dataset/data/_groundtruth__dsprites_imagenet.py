@@ -62,9 +62,13 @@ class NumpyFolder(ImageFolder):
         return np.array(img)
 
 
+def _noop(x):
+    return x
+
+
 def load_imagenet_tiny_data(raw_data_dir):
     data = NumpyFolder(os.path.join(raw_data_dir, 'train'))
-    data = DataLoader(data, batch_size=64, num_workers=min(16, psutil.cpu_count(logical=False)), shuffle=False, drop_last=False, collate_fn=lambda x: x)
+    data = DataLoader(data, batch_size=64, num_workers=min(16, psutil.cpu_count(logical=False)), shuffle=False, drop_last=False, collate_fn=_noop)
     # load data - this is a bit memory inefficient doing it like this instead of with a loop into a pre-allocated array
     imgs = np.concatenate(list(tqdm(data, 'loading')), axis=0)
     assert imgs.shape == (100_000, 64, 64, 3)
