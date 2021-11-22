@@ -64,23 +64,24 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def hydra_check_cuda(cfg):
-    cuda = cfg.dsettings.trainer.cuda
-    # set cuda
-    if cuda in {'try_cuda', None}:
-        cfg.dsettings.trainer.cuda = torch.cuda.is_available()
-        if not cuda:
+def hydra_get_gpus(cfg) -> int:
+    use_cuda = cfg.dsettings.trainer.cuda
+    # check cuda values
+    if use_cuda in {'try_cuda', None}:
+        use_cuda = torch.cuda.is_available()
+        if not use_cuda:
             log.warning('CUDA was requested, but not found on this system... CUDA has been disabled!')
+    elif use_cuda:
+        if not torch.cuda.is_available():
+            log.error('`dsettings.trainer.cuda=True` but CUDA is not available on this machine!')
+            raise RuntimeError('CUDA not available!')
     else:
         if not torch.cuda.is_available():
-            if cuda:
-                log.error('trainer.cuda=True but CUDA is not available on this machine!')
-                raise RuntimeError('CUDA not available!')
-            else:
-                log.warning('CUDA is not available on this machine!')
+            log.info('CUDA is not available on this machine!')
         else:
-            if not cuda:
-                log.warning('CUDA is available but is not being used!')
+            log.warning('CUDA is available but is not being used!')
+    # get number of gpus to use
+    return (1 if use_cuda else 0)
 
 
 def hydra_check_data_paths(cfg):
@@ -273,7 +274,7 @@ def hydra_create_framework(framework_cfg: DisentConfigurable.cfg, datamodule, cf
 
 
 # ========================================================================= #
-# ACTIONS                                                                    #
+# ACTIONS                                                                   #
 # ========================================================================= #
 
 
@@ -300,9 +301,6 @@ def action_train(cfg: DictConfig):
     # get the time the run started
     time_string = datetime.today().strftime('%Y-%m-%d--%H-%M-%S')
     log.info(f'Starting run at time: {time_string}')
-
-    # print initial config
-    log.info(f'Initial Config For Action: {cfg.action}\n\nCONFIG:{make_box_str(OmegaConf.to_yaml(cfg), char_v=":", char_h=".")}')
 
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
 
@@ -331,7 +329,7 @@ def action_train(cfg: DictConfig):
     log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
 
     # check CUDA setting
-    hydra_check_cuda(cfg)
+    gpus = hydra_get_gpus(cfg)
 
     # check data preparation
     hydra_check_data_paths(cfg)
@@ -354,7 +352,7 @@ def action_train(cfg: DictConfig):
     trainer = set_debug_trainer(pl.Trainer(
         logger=logger,
         callbacks=callbacks,
-        gpus=1 if cfg.dsettings.trainer.cuda else 0,
+        gpus=gpus,
         # we do this here too so we don't run the final
         # metrics, even through we check for it manually.
         terminate_on_nan=True,
@@ -390,11 +388,22 @@ def action_train(cfg: DictConfig):
     #    initialising the training process we cannot capture it!
     trainer.fit(framework, datamodule=datamodule)
 
+    # -~-~-~-~-~-~-~-~-~-~-~-~- #
+
+    # cleanup this run
+    try:
+        wandb.finish()
+    except:
+        pass
+
+    # -~-~-~-~-~-~-~-~-~-~-~-~- #
+
 
 # available actions
 ACTIONS = {
     'prepare_data': action_prepare_data,
     'train': action_train,
+    'skip': lambda *args, **kwargs: None,
 }
 
 
