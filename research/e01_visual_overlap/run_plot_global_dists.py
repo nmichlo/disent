@@ -36,12 +36,14 @@ from matplotlib.ticker import MultipleLocator
 from tqdm import tqdm
 
 import research.util as H
+from disent.dataset import DisentDataset
 from disent.dataset.data import Cars3dData
 from disent.dataset.data import DSpritesData
 from disent.dataset.data import Shapes3dData
 from disent.dataset.data import XYSquaresData
 from disent.dataset.transform import ToImgTensorF32
 from disent.util import to_numpy
+from disent.util.function import wrapped_partial
 
 
 # ========================================================================= #
@@ -73,7 +75,7 @@ def plot_overlap(a, b, mode='abs'):
 # ========================================================================= #
 
 
-def generate_data(gt_dataset, data_name: str, batch_size=64, samples=100_000, plot_diffs=False, load_cache=True, save_cache=True, overlap_loss: str = 'mse'):
+def generate_data(dataset: DisentDataset, data_name: str, batch_size=64, samples=100_000, plot_diffs=False, load_cache=True, save_cache=True, overlap_loss: str = 'mse'):
     # cache
     file_path = os.path.join(os.path.dirname(__file__), f'cache/{data_name}_{samples}.pkl')
     if load_cache:
@@ -90,8 +92,8 @@ def generate_data(gt_dataset, data_name: str, batch_size=64, samples=100_000, pl
         name = 'random'
         for i in tqdm(range((samples + (batch_size-1) - 1) // (batch_size-1)), desc=f'{data_name}: {name}'):
             # get random batch of unique elements
-            idxs = H.sample_unique_batch_indices(num_obs=len(gt_dataset), num_samples=batch_size)
-            batch = gt_dataset.dataset_batch_from_indices(idxs, mode='input')
+            idxs = H.sample_unique_batch_indices(num_obs=len(dataset), num_samples=batch_size)
+            batch = dataset.dataset_batch_from_indices(idxs, mode='input')
             # plot
             if plot_diffs and (i == 0):
                 plot_overlap(batch[0], batch[1])
@@ -101,12 +103,12 @@ def generate_data(gt_dataset, data_name: str, batch_size=64, samples=100_000, pl
             df[False][name].extend(o)
 
         # traversal overlaps
-        for f_idx in range(gt_dataset.num_factors):
-            name = f'f_{gt_dataset.factor_names[f_idx]}'
-            for i in tqdm(range((samples + (gt_dataset.factor_sizes[f_idx] - 1) - 1) // (gt_dataset.factor_sizes[f_idx] - 1)), desc=f'{data_name}: {name}'):
+        for f_idx in range(dataset.gt_data.num_factors):
+            name = f'f_{dataset.gt_data.factor_names[f_idx]}'
+            for i in tqdm(range((samples + (dataset.gt_data.factor_sizes[f_idx] - 1) - 1) // (dataset.gt_data.factor_sizes[f_idx] - 1)), desc=f'{data_name}: {name}'):
                 # get random batch that is a factor traversal
-                factors = gt_dataset.sample_random_factor_traversal(f_idx)
-                batch = gt_dataset.dataset_batch_from_factors(factors, mode='input')
+                factors = dataset.gt_data.sample_random_factor_traversal(f_idx)
+                batch = dataset.dataset_batch_from_factors(factors, mode='input')
                 # shuffle indices
                 idxs = np.arange(len(factors))
                 np.random.shuffle(idxs)
@@ -138,7 +140,7 @@ def generate_data(gt_dataset, data_name: str, batch_size=64, samples=100_000, pl
 # ========================================================================= #
 
 
-def dual_plot_from_generated_data(df, data_name: str = None, save_name: str = None, tick_size: float = None, fig_l_pad=1, fig_w=7, fig_h=13):
+def dual_plot_from_generated_data(df: pd.DataFrame, data_name: str = None, save_name: str = None, tick_size: float = None, fig_l_pad=1, fig_w=7, fig_h=13):
     # make subplots
     cm = 1 / 2.54
     fig, (ax0, ax1) = plt.subplots(1, 2, figsize=((fig_l_pad+2*fig_w)*cm, fig_h*cm))
@@ -148,12 +150,12 @@ def dual_plot_from_generated_data(df, data_name: str = None, save_name: str = No
     ax1.set_ylim(-0.025, 1.025)
     # plot
     ax0.set_title('Ordered Traversals')
-    sns.ecdfplot(ax=ax0, data=df[df['ordered']==True], x="overlap", hue="samples")
+    sns.ecdfplot(ax=ax0, data=df[df['ordered']==True], x="distance", hue="samples")
     ax1.set_title('Shuffled Traversals')
-    sns.ecdfplot(ax=ax1, data=df[df['ordered']==False], x="overlap", hue="samples")
+    sns.ecdfplot(ax=ax1, data=df[df['ordered']==False], x="distance", hue="samples")
     # edit plots
-    ax0.set_xlabel('Overlap')
-    ax1.set_xlabel('Overlap')
+    ax0.set_xlabel('Visual Distance')
+    ax1.set_xlabel('Visual Distance')
     if tick_size is not None:
         ax0.xaxis.set_major_locator(MultipleLocator(base=tick_size))
         ax1.xaxis.set_major_locator(MultipleLocator(base=tick_size))
@@ -185,10 +187,10 @@ def all_plot_from_all_generated_data(dfs: dict, ordered=True, save_name: str = N
     for i, (ax, (data_name, df)) in enumerate(zip(axs, dfs.items())):
         # plot
         ax.set_title(data_name)
-        sns.ecdfplot(ax=ax, data=df[df['ordered']==ordered], x="overlap", hue="samples")
+        sns.ecdfplot(ax=ax, data=df[df['ordered']==ordered], x="distance", hue="samples")
         # edit plots
         ax.set_ylim(-0.025, 1.025)
-        ax.set_xlabel('Overlap')
+        ax.set_xlabel('Visual Distance')
         if (tick_sizes is not None) and (data_name in tick_sizes):
             ax.xaxis.set_major_locator(MultipleLocator(base=tick_sizes[data_name]))
         if i == 0:
@@ -209,13 +211,12 @@ def all_plot_from_all_generated_data(dfs: dict, ordered=True, save_name: str = N
     return fig
 
 
-def plot_all(exp_name, datas, tick_sizes, samples: int, load=True, save=True, show_plt=True, show_dual_plt=False, save_plt=True, hide_extra_legends=False, fig_l_pad=1, fig_w=7, fig_h=13):
+def plot_all(exp_name: str, gt_data_classes, tick_sizes: dict, samples: int, load=True, save=True, show_plt=True, show_dual_plt=False, save_plt=True, hide_extra_legends=False, fig_l_pad=1, fig_w=7, fig_h=13):
     # generate data and plot!
     dfs = {}
-    for data_name, make_data_fn in datas.items():
-        gt_dataset = GroundTruthDataset(make_data_fn(), transform=ToImgTensorF32())
+    for data_name, data_cls in gt_data_classes.items():
         df = generate_data(
-            gt_dataset,
+            DisentDataset(data_cls(), transform=ToImgTensorF32()),
             data_name,
             batch_size=64,
             samples=samples,
@@ -224,6 +225,9 @@ def plot_all(exp_name, datas, tick_sizes, samples: int, load=True, save=True, sh
             save_cache=save,
         )
         dfs[data_name] = df
+        # flip overlap
+        df['distance'] = - df['overlap']
+        del df['overlap']
         # plot ordered + shuffled
         fig = dual_plot_from_generated_data(
             df,
@@ -345,7 +349,7 @@ if __name__ == '__main__':
         save_plt=True,
         show_dual_plt=False,
         fig_l_pad=1,
-        fig_w=7,
+        fig_w=5.5,
         fig_h=13,
         tick_sizes={
             'DSprites': 0.05,
@@ -377,15 +381,15 @@ if __name__ == '__main__':
 
     dfs = plot_all(
         exp_name='dataset-overlap',
-        datas={
-          # 'XYObject':  lambda: XYObjectData(),
-          # 'XYBlocks':  lambda: XYBlocksData(),
-            'XYSquares': lambda: XYSquaresData(),
-            'DSprites':  lambda: DSpritesData(),
-            'Shapes3d':  lambda: Shapes3dData(),
-            'Cars3d':    lambda: Cars3dData(),
-          # 'SmallNorb': lambda: SmallNorbData(),
-          # 'Mpi3d':     lambda: Mpi3dData(),
+        gt_data_classes={
+          # 'XYObject':  wrapped_partial(XYObjectData),
+          # 'XYBlocks':  wrapped_partial(XYBlocksData),
+            'XYSquares': wrapped_partial(XYSquaresData),
+            'DSprites':  wrapped_partial(DSpritesData),
+            'Shapes3d':  wrapped_partial(Shapes3dData),
+            'Cars3d':    wrapped_partial(Cars3dData),
+          # 'SmallNorb': wrapped_partial(SmallNorbData),
+          # 'Mpi3d':     wrapped_partial(Mpi3dData),
         },
         hide_extra_legends=False,
         **SHARED_SETTINGS
@@ -395,15 +399,15 @@ if __name__ == '__main__':
 
     dfs = plot_all(
         exp_name='increasing-overlap',
-        datas={
-            'XYSquares-1': lambda: XYSquaresData(grid_spacing=1),
-            'XYSquares-2': lambda: XYSquaresData(grid_spacing=2),
-            'XYSquares-3': lambda: XYSquaresData(grid_spacing=3),
-            'XYSquares-4': lambda: XYSquaresData(grid_spacing=4),
-            'XYSquares-5': lambda: XYSquaresData(grid_spacing=5),
-            'XYSquares-6': lambda: XYSquaresData(grid_spacing=6),
-            'XYSquares-7': lambda: XYSquaresData(grid_spacing=7),
-            'XYSquares-8': lambda: XYSquaresData(grid_spacing=8),
+        gt_data_classes={
+            'XYSquares-1': wrapped_partial(XYSquaresData, grid_spacing=1),
+            'XYSquares-2': wrapped_partial(XYSquaresData, grid_spacing=2),
+            'XYSquares-3': wrapped_partial(XYSquaresData, grid_spacing=3),
+            'XYSquares-4': wrapped_partial(XYSquaresData, grid_spacing=4),
+            'XYSquares-5': wrapped_partial(XYSquaresData, grid_spacing=5),
+            'XYSquares-6': wrapped_partial(XYSquaresData, grid_spacing=6),
+            'XYSquares-7': wrapped_partial(XYSquaresData, grid_spacing=7),
+            'XYSquares-8': wrapped_partial(XYSquaresData, grid_spacing=8),
         },
         hide_extra_legends=True,
         **SHARED_SETTINGS
@@ -427,15 +431,15 @@ if __name__ == '__main__':
 
     dfs = plot_all(
         exp_name='increasing-overlap-fixed',
-        datas={
-            'XYSquares-1-8': lambda: XYSquaresData(square_size=8, grid_spacing=1, grid_size=8),
-            'XYSquares-2-8': lambda: XYSquaresData(square_size=8, grid_spacing=2, grid_size=8),
-            'XYSquares-3-8': lambda: XYSquaresData(square_size=8, grid_spacing=3, grid_size=8),
-            'XYSquares-4-8': lambda: XYSquaresData(square_size=8, grid_spacing=4, grid_size=8),
-            'XYSquares-5-8': lambda: XYSquaresData(square_size=8, grid_spacing=5, grid_size=8),
-            'XYSquares-6-8': lambda: XYSquaresData(square_size=8, grid_spacing=6, grid_size=8),
-            'XYSquares-7-8': lambda: XYSquaresData(square_size=8, grid_spacing=7, grid_size=8),
-            'XYSquares-8-8': lambda: XYSquaresData(square_size=8, grid_spacing=8, grid_size=8),
+        gt_data_classes={
+            'XYSquares-1-8': wrapped_partial(XYSquaresData, square_size=8, grid_spacing=1, grid_size=8),
+            'XYSquares-2-8': wrapped_partial(XYSquaresData, square_size=8, grid_spacing=2, grid_size=8),
+            'XYSquares-3-8': wrapped_partial(XYSquaresData, square_size=8, grid_spacing=3, grid_size=8),
+            'XYSquares-4-8': wrapped_partial(XYSquaresData, square_size=8, grid_spacing=4, grid_size=8),
+            'XYSquares-5-8': wrapped_partial(XYSquaresData, square_size=8, grid_spacing=5, grid_size=8),
+            'XYSquares-6-8': wrapped_partial(XYSquaresData, square_size=8, grid_spacing=6, grid_size=8),
+            'XYSquares-7-8': wrapped_partial(XYSquaresData, square_size=8, grid_spacing=7, grid_size=8),
+            'XYSquares-8-8': wrapped_partial(XYSquaresData, square_size=8, grid_spacing=8, grid_size=8),
         },
         hide_extra_legends=True,
         **SHARED_SETTINGS

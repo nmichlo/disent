@@ -22,11 +22,20 @@ ROOT_DIR="$(dirname "$(dirname "$PARENT_DIR")")"
 
 PYTHONPATH="$ROOT_DIR" python3 "$PARENT_DIR/run_02_gen_adversarial_dataset_approx.py" \
     -m "$@" \
-    settings.dataset.batch_size=128 \
-    adv_system.loss_out_of_bounds_weight=1.0 \
     \
-    adv_system.sampler_name=same_k1_close,close_p_random_n,random_swap_manhattan \
+    +meta.tag='unbounded_manhat' \
+    settings.job.name_prefix=MANHAT \
+    \
+    adv_system.sampler_name=same_k_close,random_swap_manhattan,close_p_random_n \
     adv_system.samples_sort_mode=swap,sort_reverse,none,sort_inorder \
     \
-    adv_system.adversarial_mode=triplet_margin_0.1 \
+    adv_system.adversarial_mode=triplet_unbounded \
     adv_system.dataset_name=smallnorb \
+    \
+    trainer.max_steps=7500 \
+    trainer.max_epochs=7500 \
+    \
+    adv_system.optimizer_lr=5e-3 \
+    settings.exp.show_every_n_steps=500 \
+    \
+    settings.dataset.batch_size=128

@@ -348,6 +348,7 @@ class AdversarialModel(pl.LightningModule):
 
         # dataset transform helper
         @TempNumpySeed(42)
+        @torch.no_grad()
         def make_scale_uint8_transform():
             # get scaling values
             if self.hparams.logging_scale_imgs:

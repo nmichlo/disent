@@ -122,8 +122,8 @@ def _to_dmat(
     return dmat
 
 
-_AE_DIST_NAMES = ('x', 'z_l1', 'x_recon')
-_VAE_DIST_NAMES = ('x', 'z_l1', 'kl', 'x_recon')
+_AE_DIST_NAMES = ('x', 'z', 'x_recon')
+_VAE_DIST_NAMES = ('x', 'z', 'kl', 'x_recon')
 
 
 @torch.no_grad()
@@ -134,7 +134,7 @@ def _get_dists_ae(ae: Ae, x_a: torch.Tensor, x_b: torch.Tensor):
     # distances
     return [
         ae.recon_handler.compute_pairwise_loss(x_a, x_b),
-        torch.norm(z_a - z_b, p=1, dim=-1),  # l1 dist
+        torch.norm(z_a - z_b, p=2, dim=-1),  # l2 dist
         ae.recon_handler.compute_pairwise_loss(r_a, r_b),
     ]
 
@@ -151,7 +151,7 @@ def _get_dists_vae(vae: Vae, x_a: torch.Tensor, x_b: torch.Tensor):
     # distances
     return [
         vae.recon_handler.compute_pairwise_loss(x_a, x_b),
-        torch.norm(z_a - z_b, p=1, dim=-1),  # l1 dist
+        torch.norm(z_a - z_b, p=2, dim=-1),  # l2 dist
         vae.recon_handler._pairwise_reduce(kl_ab),
         vae.recon_handler.compute_pairwise_loss(r_a, r_b),
     ]
