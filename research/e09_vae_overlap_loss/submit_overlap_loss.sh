@@ -1,5 +1,17 @@
 #!/bin/bash
 
+# OVERVIEW:
+# - this experiment is designed to test how changing the reconstruction loss to match the
+#   ground-truth distances allows datasets to be disentangled.
+
+
+# OUTCOMES:
+# - When the reconstruction loss is used as a distance function between observations, and those
+#   distances match the ground truth, it enables disentanglement.
+# - Loss must still be able to reconstruct the inputs correctly.
+# - AEs have no incentive to learn the same distances as VAEs
+
+
 # ========================================================================= #
 # Settings                                                                  #
 # ========================================================================= #

@@ -1,5 +1,16 @@
 #!/bin/bash
 
+
+# OVERVIEW:
+# - this experiment is designed to find the optimal hyper-parameters for disentanglement, as well as investigate the
+#   effect of the adversarial XYSquares dataset against existing approaches.
+
+
+# OUTCOMES:
+# - Existing frameworks fail on the adversarial dataset
+# - Much lower beta is required for adversarial dataset
+
+
 # ========================================================================= #
 # Settings                                                                  #
 # ========================================================================= #
