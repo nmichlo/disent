@@ -48,7 +48,28 @@ submit_sweep \
     sampling=default__bb
 
 
+# TEST DISTANCES IN AEs VS VAEs
+# -- supplementary material
+# 3 * (1 * 5 = 2) = 15
+submit_sweep \
+    +DUMMY.repeat=1,2,3 \
+    +EXTRA.tags='sweep_ae' \
+    hydra.job.name="ae_test" \
+    \
+    run_length=medium \
+    metrics=all \
+    \
+    settings.framework.beta=0.0001 \
+    framework=ae \
+    schedule=none \
+    settings.model.z_size=25 \
+    \
+    dataset=dsprites,shapes3d,cars3d,smallnorb,X--xysquares \
+    sampling=default__bb
+
+
 # RUN SWEEP FOR GOOD SCHEDULES
+# -- unused
 # 1 * (3 * 2 * 4 * 5) = 120
 #submit_sweep \
 #    +DUMMY.repeat=1 \
