@@ -237,8 +237,6 @@ _ARG_KERNELS = [
     # (REGEX, EXAMPLE, FACTORY_FUNC)
     # - factory function takes at min one arg: fn(reduction) with one arg after that per regex capture group
     # - regex expressions are tested in order, expressions should be mutually exclusive or ordered such that more specialized versions occur first.
-    (re.compile(r'^(xy8)_r(47)$'),  'xy8_r47', lambda kern, radius: torch.load(os.path.abspath(os.path.join(disent.__file__, '../../../data/adversarial_kernel', 'r47-1_s28800_adam_lr0.003_wd0.0_xy8x8.pt')))),  # pragma: delete-on-release
-    (re.compile(r'^(xy1)_r(47)$'),  'xy1_r47', lambda kern, radius: torch.load(os.path.abspath(os.path.join(disent.__file__, '../../../data/adversarial_kernel', 'r47-1_s28800_adam_lr0.003_wd0.0_xy1x1.pt')))),  # pragma: delete-on-release
     (re.compile(r'^(box)_r(\d+)$'), 'box_r31', lambda kern, radius: torch_box_kernel_2d(radius=int(radius))[None, ...]),
     (re.compile(r'^(gau)_r(\d+)$'), 'gau_r31', lambda kern, radius: torch_gaussian_kernel_2d(sigma=int(radius) / 4.0, truncate=4.0)[None, None, ...]),
 ]

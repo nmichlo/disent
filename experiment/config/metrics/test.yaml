@@ -1,8 +1,4 @@
 metric_list:
-  - flatness:             # pragma: delete-on-release
-      every_n_steps: 110  # pragma: delete-on-release
-  - flatness_components:  # pragma: delete-on-release
-      every_n_steps: 111  # pragma: delete-on-release
   - mig:
       every_n_steps: 112
   - sap:
