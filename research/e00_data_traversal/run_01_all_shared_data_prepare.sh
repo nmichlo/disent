@@ -39,12 +39,12 @@ DATASETS=(
   #X--dsprites-imagenet-bg-40
   #X--dsprites-imagenet-bg-60
   #X--dsprites-imagenet-bg-80
-  X--dsprites-imagenet-bg-100
+  #X--dsprites-imagenet-bg-100
   #X--dsprites-imagenet-fg-20
   #X--dsprites-imagenet-fg-40
   #X--dsprites-imagenet-fg-60
   #X--dsprites-imagenet-fg-80
-  X--dsprites-imagenet-fg-100
+  #X--dsprites-imagenet-fg-100
   #X--mask-adv-f-cars3d
   #X--mask-adv-f-dsprites
   #X--mask-adv-f-shapes3d
