@@ -5,10 +5,10 @@ name: test
 
 on:
   push:
-    branches: [ "main", "dev", "dev*", "feature*"]
+    branches: [ "main", "dev", "dev*", "feature*", "xdev", "xdev*"]
     tags: [ '*' ]
   pull_request:
-    branches: [ "main", "dev", "dev*", "feature*"]
+    branches: [ "main", "dev", "dev*", "feature*", "xdev", "xdev*"]
 
 jobs:
   build:
