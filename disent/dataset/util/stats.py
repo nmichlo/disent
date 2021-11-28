@@ -97,22 +97,8 @@ if __name__ == '__main__':
             data.SmallNorbData,
             data.Shapes3dData,
             # groundtruth -- impl synthetic
-            data.XYBlocksData,          # pragma: delete-on-release
             data.XYObjectData,
             data.XYObjectShadedData,
-            data.XYSquaresData,         # pragma: delete-on-release
-            data.XYSquaresMinimalData,  # pragma: delete-on-release
-            data.XColumnsData,          # pragma: delete-on-release
-            # groundtruth -- increasing overlap                        # pragma: delete-on-release
-            (data.XYSquaresData, dict(grid_size=8, grid_spacing=8)),   # pragma: delete-on-release
-            (data.XYSquaresData, dict(grid_size=8, grid_spacing=7)),   # pragma: delete-on-release
-            (data.XYSquaresData, dict(grid_size=8, grid_spacing=6)),   # pragma: delete-on-release
-            (data.XYSquaresData, dict(grid_size=8, grid_spacing=5)),   # pragma: delete-on-release
-            (data.XYSquaresData, dict(grid_size=8, grid_spacing=4)),   # pragma: delete-on-release
-            (data.XYSquaresData, dict(grid_size=8, grid_spacing=3)),   # pragma: delete-on-release
-            (data.XYSquaresData, dict(grid_size=8, grid_spacing=2)),   # pragma: delete-on-release
-            (data.XYSquaresData, dict(grid_size=8, grid_spacing=1)),   # pragma: delete-on-release
-            (data.XYSquaresData, dict(rgb=False)),                     # pragma: delete-on-release
             # large datasets
             (data.Mpi3dData, dict(subset='toy',       in_memory=True)),
             (data.Mpi3dData, dict(subset='realistic', in_memory=True)),
