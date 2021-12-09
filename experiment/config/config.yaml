@@ -3,7 +3,7 @@ defaults:
   - framework: betagammavae
   - model: conv64
   - optimizer: radam
-  - dataset: xysquares_cluster # allow framework to override settings here, but placing dataset before framework in defaults
+  - dataset: xysquares_cluster4 # allow framework to override settings here, but placing dataset before framework in defaults
   - augment: none
   - sampling: full_bb
   - metrics: test

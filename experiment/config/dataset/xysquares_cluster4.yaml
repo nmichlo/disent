@@ -1,0 +1,15 @@
+# @package _group_
+name: xysquares_cluster4
+data:
+  _target_: disent.data.groundtruth.XYSquaresClusterData
+  square_size: 8
+  grid_size: 64
+  grid_spacing: 8
+  num_squares: 1
+  rgb: FALSE
+  max_placements: 8
+transform:
+  _target_: disent.transform.ToStandardisedTensor
+x_shape: [1, 64, 64]
+
+data_type: ground_truth
