@@ -95,23 +95,26 @@ class StateSpace(LengthIter):
         positions = np.unravel_index(indices, self._factor_sizes)
         return np.moveaxis(positions, source=0, destination=-1)
 
-    def allowed_factor(self, factor) -> np.ndarray:
+    def allowed_factor(self, factor, num_clusters=2) -> np.ndarray:
         """
         Convert an index to a position (or convert a list of indices to a list of positions)
         - indices are integers < size
         - positions are lists of integers, with each element < their corresponding factor size
         """
         (x, y) = factor
+        #Q1
         if (x in range(0, 4)) and (y in range(0, 4)):
             allowed_x = x
             allowed_y = y
+        #Q2 to Q1
         elif (x in range(0, 4)) and (y in range(4, 8)):
                 allowed_x = x
                 allowed_y = y - 4
-
+        #Q3 to Q1
         elif (x in range(4, 8)) and (y in range(0, 4)):
                 allowed_x = x - 4
                 allowed_y = y
+        #Q4
         elif (x in range(4, 8)) and (y in range(4, 8)):
             allowed_x = x
             allowed_y = y
@@ -119,7 +122,41 @@ class StateSpace(LengthIter):
             allowed_x = 999
             allowed_y = 999
 
+        if num_clusters == 4:
+            x_ = allowed_x
+            y_ = allowed_y
+            # splitting Q1
+            if (x_ in range(0, 2)) and (y_ in range(0, 2)):
+                    allowed_x = x_
+                    allowed_y = y_
+            elif (x in range(0, 2)) and (y in range(2, 4)):
+                    allowed_x = x_
+                    allowed_y = y_ - 2
+            elif (x in range(2, 4)) and (y in range(0, 2)):
+                    allowed_x = x_ - 2
+                    allowed_y = y_ 
+            elif (x in range(2, 4)) and (y in range(2, 4)):
+                    allowed_x = x_ - 2
+                    allowed_y = y_
+            # splitting Q4
+            if (x_ in range(4, 6)) and (y_ in range(4, 6)):
+                    allowed_x = x_
+                    allowed_y = y_
+            elif (x in range(4, 6)) and (y in range(6, 8)):
+                    allowed_x = x_
+                    allowed_y = y_ - 2
+            elif (x in range(6, 8)) and (y in range(4, 6)):
+                    allowed_x = x_ - 2
+                    allowed_y = y_ 
+            elif (x in range(6, 8)) and (y in range(6, 8)):
+                    allowed_x = x_
+                    allowed_y = y_
+            else:
+                allowed_x = 999
+                allowed_y = 999      
+
         allowed_factor = (allowed_x, allowed_y)
+
 
 
         return allowed_factor
@@ -141,7 +178,7 @@ class StateSpace(LengthIter):
         # get factor sizes
         sizes = self._factor_sizes if (factor_indices is None) else self._factor_sizes[factor_indices]
         # get resample size
-        if size is not None:
+        if size is not None: 
             # empty np.array(()) gets dtype float which is incompatible with len
             size = np.append(np.array(size, dtype=int), len(sizes))
         # sample for factors
