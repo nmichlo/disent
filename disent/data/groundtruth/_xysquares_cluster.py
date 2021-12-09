@@ -59,7 +59,7 @@ class XYSquaresClusterData(GroundTruthData):
         return self._width, self._width, (3 if self._rgb else 1)
 
 
-    def __init__(self, square_size=8, grid_size=64, grid_spacing=None, num_squares=1, rgb=False, no_warnings=False,
+    def __init__(self, square_size=8, grid_size=64, grid_spacing=None, num_squares=1,num_clusters=2, rgb=False, no_warnings=False,
                  fill_value=None, max_placements=None, outlines=False):
         if grid_spacing is None:
             grid_spacing = square_size
@@ -74,6 +74,7 @@ class XYSquaresClusterData(GroundTruthData):
         self._width = grid_size
         # number of squares
         self._num_squares = num_squares
+        self.num_clusters = num_clusters
         assert 1 <= num_squares <= 3, 'Only 1, 2 or 3 squares are supported!'
         # square scales
         self._square_size = square_size
@@ -94,7 +95,7 @@ class XYSquaresClusterData(GroundTruthData):
     def __getitem__(self, idx):
         # get factors
         factors = self.idx_to_pos(idx)
-        allowed_factors = self.allowed_factor(factors)
+        allowed_factors = self.allowed_factor(factors,num_clusters=self.num_clusters )
         #print(factors,':', allowed_factors)
         offset, space, size = self._offset, self._spacing, self._square_size
         # GENERATE
