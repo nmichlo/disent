@@ -136,7 +136,7 @@ class StateSpace(LengthIter):
                     allowed_x = x_ - 2
                     allowed_y = y_ 
             elif (x in range(2, 4)) and (y in range(2, 4)):
-                    allowed_x = x_ - 2
+                    allowed_x = x_
                     allowed_y = y_
             # splitting Q4
             if (x_ in range(4, 6)) and (y_ in range(4, 6)):
@@ -151,9 +151,9 @@ class StateSpace(LengthIter):
             elif (x in range(6, 8)) and (y in range(6, 8)):
                     allowed_x = x_
                     allowed_y = y_
-            else:
-                allowed_x = 999
-                allowed_y = 999      
+            #else:
+                #allowed_x = 999
+                #allowed_y = 999      
 
         allowed_factor = (allowed_x, allowed_y)
 
