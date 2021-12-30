@@ -122,7 +122,7 @@ class StateSpace(LengthIter):
             allowed_x = 999
             allowed_y = 999
 
-        if num_clusters == 4:
+        if num_clusters == 4 or num_clusters ==8:
             x_ = allowed_x
             y_ = allowed_y
             # splitting Q1
@@ -153,7 +153,68 @@ class StateSpace(LengthIter):
                     allowed_y = y_
             #else:
                 #allowed_x = 999
-                #allowed_y = 999      
+                #allowed_y = 999
+
+        if num_clusters == 8:
+            x_ = allowed_x
+            y_ = allowed_y
+
+            # splitting 0:2,0:2
+            if (x_ in range(0, 1)) and (y_ in range(0, 1)):
+                    allowed_x = x_
+                    allowed_y = y_
+            elif (x in range(0, 1)) and (y in range(1, 2)):
+                    allowed_x = x_
+                    allowed_y = y_ - 1
+            elif (x in range(1, 2)) and (y in range(1, 2)):
+                    allowed_x = x_
+                    allowed_y = y_
+            elif (x in range(1, 2)) and (y in range(0, 1)):
+                    allowed_x = x_ -1
+                    allowed_y = y_
+
+            # splitting 2:4,2:4
+            if (x_ in range(2, 3)) and (y_ in range(2, 3)):
+                    allowed_x = x_
+                    allowed_y = y_
+            elif (x in range(2, 3)) and (y in range(3, 4)):
+                    allowed_x = x_
+                    allowed_y = y_ - 1
+            elif (x in range(3, 4)) and (y in range(3, 4)):
+                    allowed_x = x_
+                    allowed_y = y_
+            elif (x in range(3, 4)) and (y in range(2, 3)):
+                    allowed_x = x_ -1
+                    allowed_y = y_
+
+            # splitting 4:6,4:6
+            if (x_ in range(4, 5)) and (y_ in range(4, 5)):
+                    allowed_x = x_
+                    allowed_y = y_
+            elif (x in range(4, 5)) and (y in range(5, 6)):
+                    allowed_x = x_
+                    allowed_y = y_ - 1
+            elif (x in range(5, 6)) and (y in range(5, 6)):
+                    allowed_x = x_
+                    allowed_y = y_
+            elif (x in range(5, 6)) and (y in range(4, 5)):
+                    allowed_x = x_ -1
+                    allowed_y = y_
+
+
+            # splitting 6:8,6:8
+            if (x_ in range(6, 7)) and (y_ in range(6, 7)):
+                    allowed_x = x_
+                    allowed_y = y_
+            elif (x in range(6, 7)) and (y in range(7, 8)):
+                    allowed_x = x_
+                    allowed_y = y_ - 1
+            elif (x in range(7, 8)) and (y in range(7, 8)):
+                    allowed_x = x_
+                    allowed_y = y_
+            elif (x in range(7, 8)) and (y in range(6, 7)):
+                    allowed_x = x_ -1
+                    allowed_y = y_
 
         allowed_factor = (allowed_x, allowed_y)
 
