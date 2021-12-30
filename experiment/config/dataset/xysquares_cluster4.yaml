@@ -1,7 +1,7 @@
 # @package _group_
 name: xysquares_cluster4
 data:
-  _target_: disent.data.groundtruth.XYSquaresClusterData
+  _target_: disent.data.groundtruth.XYSquaresClusterData4
   square_size: 8
   grid_size: 64
   grid_spacing: 8
