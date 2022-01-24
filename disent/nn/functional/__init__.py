@@ -47,11 +47,11 @@ from disent.nn.functional._mean import torch_mean_quadratic
 from disent.nn.functional._mean import torch_mean_geometric
 from disent.nn.functional._mean import torch_mean_harmonic
 
-from disent.nn.functional._dist import torch_norm_p
-from disent.nn.functional._dist import torch_norm_p_unbounded
-from disent.nn.functional._dist import torch_norm_euclidean
-from disent.nn.functional._dist import torch_norm_manhattan
-from disent.nn.functional._dist import torch_norm_hamming
+from disent.nn.functional._norm import torch_norm
+from disent.nn.functional._norm import torch_dist
+from disent.nn.functional._norm import torch_norm_euclidean
+from disent.nn.functional._norm import torch_norm_manhattan
+from disent.nn.functional._norm import torch_dist_hamming
 
 from disent.nn.functional._other import torch_normalize
 from disent.nn.functional._other import torch_nan_to_num

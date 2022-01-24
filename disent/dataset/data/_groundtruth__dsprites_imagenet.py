@@ -29,7 +29,6 @@ from tempfile import TemporaryDirectory
 from typing import Optional
 
 import numpy as np
-import psutil
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
 from torchvision.datasets import ImageFolder
@@ -67,8 +66,9 @@ def _noop(x):
 
 
 def load_imagenet_tiny_data(raw_data_dir):
+    # load the data
     data = NumpyFolder(os.path.join(raw_data_dir, 'train'))
-    data = DataLoader(data, batch_size=64, num_workers=min(16, psutil.cpu_count(logical=False)), shuffle=False, drop_last=False, collate_fn=_noop)
+    data = DataLoader(data, batch_size=64, num_workers=min(16, os.cpu_count()), shuffle=False, drop_last=False, collate_fn=_noop)
     # load data - this is a bit memory inefficient doing it like this instead of with a loop into a pre-allocated array
     imgs = np.concatenate(list(tqdm(data, 'loading')), axis=0)
     assert imgs.shape == (100_000, 64, 64, 3)
@@ -260,6 +260,7 @@ if __name__ == '__main__':
         from disent.util.visualize.plot import plt_subplots_imshow
 
         def compute_stats(visibility, mode):
+            import psutil
             # plot images
             data = DSpritesImagenetData(prepare=True, visibility=visibility, mode=mode)
             grid = np.array([data[i*24733] for i in np.arange(16)]).reshape([4, 4, *data.img_shape])

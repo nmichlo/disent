@@ -58,30 +58,23 @@ _P_NORM_MAP = {
 # ========================================================================= #
 
 
-def torch_norm_p(xs: torch.Tensor, dim: _DimTypeHint = None, p: Union[float, str] = 1, keepdim: bool = False, unbounded_p: bool = False):
+def torch_dist(xs: torch.Tensor, dim: _DimTypeHint = -1, p: Union[float, str] = 1, keepdim: bool = False):
     """
-    Compute the generalised p-norm over the given dimension of a vector!
-        - If `unbounded_p=True` then allow p values that are less than 1
-
-    Closely related to the generalised mean.
-        - p-norm:          (sum(|x|^p)) ^ (1/p)
-        - gen-mean:  (1/n * sum(x ^ p)) ^ (1/p)
+    Like torch_norm, but allows arbitrary p values that may
+    result in the returned values not being a valid norm.
+    - norm's require p >= 1
     """
     if isinstance(p, str):
         p = _P_NORM_MAP[p]
-    # check values
-    if not unbounded_p:
-        if p < 1:
-            raise ValueError(f'p-norm cannot have a p value less than 1, got: {repr(p)}, to bypass this error set `unbounded_p=True`.')
     # get absolute values
     xs = torch.abs(xs)
     # compute the specific extreme cases
     # -- its kind of odd that the p-norm and generalised mean converge to the
     #    same values, just from different directions!
     if p == _POS_INF:
-        return torch.max(xs, dim=dim, keepdim=keepdim).values if (dim is not None) else torch.max(xs, keepdim=keepdim)
+        return torch.amax(xs, dim=dim, keepdim=keepdim)
     elif p == _NEG_INF:
-        return torch.min(xs, dim=dim, keepdim=keepdim).values if (dim is not None) else torch.min(xs, keepdim=keepdim)
+        return torch.amin(xs, dim=dim, keepdim=keepdim)
     # get the dimensions
     if dim is None:
         dim = list(range(xs.ndim))
@@ -101,20 +94,34 @@ def torch_norm_p(xs: torch.Tensor, dim: _DimTypeHint = None, p: Union[float, str
         return torch.sum(xs ** p, dim=dim, keepdim=keepdim) ** (1/p)
 
 
-def torch_norm_p_unbounded(xs: torch.Tensor, dim: _DimTypeHint = None, p: Union[float, str] = 1, keepdim: bool = False):
-    return torch_norm_p(xs=xs, dim=dim, p=p, keepdim=keepdim, unbounded_p=True)
+def torch_norm(xs: torch.Tensor, dim: _DimTypeHint = -1, p: Union[float, str] = 1, keepdim: bool = False):
+    """
+    Compute the generalised p-norm over the given dimension of a vector!
+    - p values must be >= 1
+
+    Closely related to the generalised mean.
+        - p-norm:          (sum(|x|^p)) ^ (1/p)
+        - gen-mean:  (1/n * sum(x ^ p)) ^ (1/p)
+    """
+    if isinstance(p, str):
+        p = _P_NORM_MAP[p]
+    # check values
+    if p < 1:
+        raise ValueError(f'p-norm cannot have a p value less than 1, got: {repr(p)}, to bypass this error set `unbounded_p=True`.')
+    # return norm
+    return torch_dist(xs=xs, dim=dim, p=p, keepdim=keepdim)
 
 
-def torch_norm_euclidean(xs, dim: _DimTypeHint = None, keepdim: bool = False):
-    return torch_norm_p(xs, dim=dim, p='euclidean', keepdim=keepdim, unbounded_p=False)
+def torch_norm_euclidean(xs, dim: _DimTypeHint = -1, keepdim: bool = False):
+    return torch_dist(xs, dim=dim, p='euclidean', keepdim=keepdim)
 
 
-def torch_norm_manhattan(xs, dim: _DimTypeHint = None, keepdim: bool = False):
-    return torch_norm_p(xs, dim=dim, p='manhattan', keepdim=keepdim, unbounded_p=False)
+def torch_norm_manhattan(xs, dim: _DimTypeHint = -1, keepdim: bool = False):
+    return torch_dist(xs, dim=dim, p='manhattan', keepdim=keepdim)
 
 
-def torch_norm_hamming(xs, dim: _DimTypeHint = None, keepdim: bool = False):
-    return torch_norm_p(xs, dim=dim, p='hamming', keepdim=keepdim, unbounded_p=True)
+def torch_dist_hamming(xs, dim: _DimTypeHint = -1, keepdim: bool = False):
+    return torch_dist(xs, dim=dim, p='hamming', keepdim=keepdim)
 
 
 # ========================================================================= #
