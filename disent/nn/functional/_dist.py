@@ -41,12 +41,14 @@ _POS_INF = float('inf')
 _NEG_INF = float('-inf')
 
 _P_NORM_MAP = {
+    'inf':       _POS_INF,
     'maximum':   _POS_INF,
-    'euclidean':  2,
+    'euclidean': 2,
     'manhattan': 1,
     # p < 1 is not a valid norm! but allow it if we set `unbounded_p = True`
-    'hamming': 0,
+    'hamming':   0,
     'minimum':   _NEG_INF,
+    '-inf':      _NEG_INF,
 }
 
 
@@ -56,7 +58,7 @@ _P_NORM_MAP = {
 # ========================================================================= #
 
 
-def torch_norm_p(xs: torch.Tensor, dim: _DimTypeHint = None, p: Union[int, str] = 1, keepdim: bool = False, unbounded_p: bool = False):
+def torch_norm_p(xs: torch.Tensor, dim: _DimTypeHint = None, p: Union[float, str] = 1, keepdim: bool = False, unbounded_p: bool = False):
     """
     Compute the generalised p-norm over the given dimension of a vector!
         - If `unbounded_p=True` then allow p values that are less than 1
@@ -80,6 +82,9 @@ def torch_norm_p(xs: torch.Tensor, dim: _DimTypeHint = None, p: Union[int, str] 
         return torch.max(xs, dim=dim, keepdim=keepdim).values if (dim is not None) else torch.max(xs, keepdim=keepdim)
     elif p == _NEG_INF:
         return torch.min(xs, dim=dim, keepdim=keepdim).values if (dim is not None) else torch.min(xs, keepdim=keepdim)
+    # get the dimensions
+    if dim is None:
+        dim = list(range(xs.ndim))
     # warn if the type is wrong
     if p != 1:
         if xs.dtype != torch.float64:
@@ -96,7 +101,7 @@ def torch_norm_p(xs: torch.Tensor, dim: _DimTypeHint = None, p: Union[int, str] 
         return torch.sum(xs ** p, dim=dim, keepdim=keepdim) ** (1/p)
 
 
-def torch_norm_p_unbounded(xs: torch.Tensor, dim: _DimTypeHint = None, p: Union[int, str] = 1, keepdim: bool = False):
+def torch_norm_p_unbounded(xs: torch.Tensor, dim: _DimTypeHint = None, p: Union[float, str] = 1, keepdim: bool = False):
     return torch_norm_p(xs=xs, dim=dim, p=p, keepdim=keepdim, unbounded_p=True)
 
 

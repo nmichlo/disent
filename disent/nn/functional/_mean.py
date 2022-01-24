@@ -41,12 +41,14 @@ _POS_INF = float('inf')
 _NEG_INF = float('-inf')
 
 _GENERALIZED_MEAN_MAP = {
+    'inf':       _POS_INF,
     'maximum':   _POS_INF,
     'quadratic':  2,
     'arithmetic': 1,
     'geometric':  0,
     'harmonic':  -1,
     'minimum':   _NEG_INF,
+    '-inf':      _NEG_INF,
 }
 
 
@@ -55,7 +57,7 @@ _GENERALIZED_MEAN_MAP = {
 # ========================================================================= #
 
 
-def torch_mean_generalized(xs: torch.Tensor, dim: _DimTypeHint = None, p: Union[int, str] = 1, keepdim: bool = False):
+def torch_mean_generalized(xs: torch.Tensor, dim: _DimTypeHint = None, p: Union[float, str] = 1, keepdim: bool = False):
     """
     Compute the generalised mean.
     - p is the power

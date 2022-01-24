@@ -41,6 +41,8 @@ from disent.nn.functional import torch_gaussian_kernel_2d
 from disent.nn.functional import torch_idct
 from disent.nn.functional import torch_idct2
 from disent.nn.functional import torch_mean_generalized
+from disent.nn.functional import torch_norm_p
+from disent.nn.functional import torch_norm_p_unbounded
 from disent.dataset.transform import ToImgTensorF32
 from disent.util import to_numpy
 
@@ -89,6 +91,36 @@ def test_generalised_mean():
     assert torch.allclose(torch_mean_generalized(xs, p=np.inf, dim=1), torch.max(xs, dim=1).values)
     assert torch.allclose(torch_mean_generalized(xs, p=-np.inf, dim=1), torch.min(xs, dim=1).values)
 
+
+def test_p_norm():
+    xs = torch.abs(torch.randn(2, 1000, 3, dtype=torch.float64))
+
+    inf = float('inf')
+
+    # torch equivalents
+    assert torch.allclose(torch_norm_p(xs, p=1, dim=-1),         torch.linalg.norm(xs, ord=1, dim=-1))
+    assert torch.allclose(torch_norm_p(xs, p=2, dim=-1),         torch.linalg.norm(xs, ord=2, dim=-1))
+    assert torch.allclose(torch_norm_p(xs, p='maximum', dim=-1), torch.linalg.norm(xs, ord=inf, dim=-1))
+
+    # torch equivalents -- less than zero [FAIL]
+    with pytest.raises(ValueError, match='p-norm cannot have a p value less than 1'):
+        assert torch.allclose(torch_norm_p(xs, p=0,         dim=-1),  torch.linalg.norm(xs, ord=0, dim=-1))
+    with pytest.raises(ValueError, match='p-norm cannot have a p value less than 1'):
+        assert torch.allclose(torch_norm_p(xs, p='minimum', dim=-1), torch.linalg.norm(xs, ord=-inf, dim=-1))
+
+    # torch equivalents -- less than zero
+    assert torch.allclose(torch_norm_p(xs, p=0,         dim=-1, unbounded_p=True), torch.linalg.norm(xs, ord=0, dim=-1))
+    assert torch.allclose(torch_norm_p(xs, p='minimum', dim=-1, unbounded_p=True), torch.linalg.norm(xs, ord=-inf, dim=-1))
+    assert torch.allclose(torch_norm_p_unbounded(xs, p=0,         dim=-1), torch.linalg.norm(xs, ord=0, dim=-1))
+    assert torch.allclose(torch_norm_p_unbounded(xs, p='minimum', dim=-1), torch.linalg.norm(xs, ord=-inf, dim=-1))
+
+    # test other axes
+    ys = torch.flatten(torch.moveaxis(xs, 0, -1), start_dim=1, end_dim=-1)
+    assert torch.allclose(torch_norm_p(xs, p=2, dim=[0, -1]), torch.linalg.norm(ys, ord=2, dim=-1))
+    ys = torch.flatten(xs, start_dim=1, end_dim=-1)
+    assert torch.allclose(torch_norm_p(xs, p=1, dim=[-2, -1]), torch.linalg.norm(ys, ord=1, dim=-1))
+    ys = torch.flatten(torch.moveaxis(xs, -1, 0), start_dim=1, end_dim=-1)
+    assert torch.allclose(torch_norm_p_unbounded(xs, p=0, dim=[0, 1]), torch.linalg.norm(ys, ord=0, dim=-1))
 
 
 def test_dct():

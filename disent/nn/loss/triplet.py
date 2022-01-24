@@ -212,7 +212,7 @@ class TripletLossConfig(object):
     triplet_margin_min: float = 0.1
     triplet_margin_max: float = 10
     triplet_scale: float = 100
-    triplet_p: int = 2
+    triplet_p: float = 2
 
 
 _TRIPLET_LOSSES = {
@@ -281,11 +281,3 @@ def compute_dist_triplet_loss(zs_deltas: Sequence[torch.Tensor], cfg: TripletCon
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-
-
-
-
-
-
-
-
