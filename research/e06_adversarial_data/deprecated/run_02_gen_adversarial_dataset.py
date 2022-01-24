@@ -273,7 +273,7 @@ class AdversarialModel(pl.LightningModule):
                 with TempNumpySeed(777):
                     # get scaling values
                     samples = self.dataset.dataset_sample_batch(num_samples=128, mode='raw').to(torch.float32)
-                    m, M = float(torch.min(samples)), float(torch.max(samples))
+                    m, M = float(torch.amin(samples)), float(torch.amax(samples))
                     # add transform to dataset
                     self.dataset._transform = lambda x: H.to_img((x.to(torch.float32) - m) / (M - m))  # this is hacky, scale values to [0, 1] then to [0, 255]
                     # get images

@@ -88,6 +88,8 @@ class BoundedAdaVae(AdaVae):
 # ========================================================================= #
 
 
+# TODO: rerun experiments that used this because ELEMENTWISE may have been wrong
+#       maximum and minimum, used to be max and min which may have given wrong results?
 def compute_constrained_masks(p_kl_deltas, p_shared_mask, n_kl_deltas, n_shared_mask):
     # number of changed factors
     p_shared_num = torch.sum(p_shared_mask, dim=1, keepdim=True)
@@ -97,13 +99,13 @@ def compute_constrained_masks(p_kl_deltas, p_shared_mask, n_kl_deltas, n_shared_
     # order from smallest to largest
     p_sort_indices = torch.argsort(p_kl_deltas, dim=1)
     # p_shared should be at least n_shared
-    new_p_shared_num = torch.max(p_shared_num, n_shared_num)
+    new_p_shared_num = torch.maximum(p_shared_num, n_shared_num)  # ELEMENTWISE
 
     # NEGATIVE SHARED MASK
     # order from smallest to largest
     n_sort_indices = torch.argsort(n_kl_deltas, dim=1)
     # n_shared should be at most p_shared
-    new_n_shared_num = torch.min(p_shared_num, n_shared_num)
+    new_n_shared_num = torch.minimum(p_shared_num, n_shared_num)  # ELEMENTWISE
 
     # COMPUTE NEW MASKS
     new_p_shared_mask = torch.zeros_like(p_shared_mask)

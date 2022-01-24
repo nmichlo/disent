@@ -196,7 +196,7 @@ def _score_from_sorted(sorted_vars: torch.Tensor, use_max: bool = False, norm: b
     if use_max:
         # use two max values
         n = 2
-        r = sorted_vars[0] / (sorted_vars[0] + torch.max(sorted_vars[1:]))
+        r = sorted_vars[0] / (sorted_vars[0] + torch.amax(sorted_vars[1:]))
     else:
         # sum all values
         n = len(sorted_vars)

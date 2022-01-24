@@ -89,10 +89,10 @@ def test_generalised_mean():
     assert torch.allclose(torch_mean_generalized(xs, p=-1), torch.as_tensor(hmean(xs, axis=None)))  # scipy default axis is 0
 
     # min max
-    assert torch.allclose(torch_mean_generalized(xs, p='maximum', dim=1), torch.max(xs, dim=1).values)
-    assert torch.allclose(torch_mean_generalized(xs, p='minimum', dim=1), torch.min(xs, dim=1).values)
-    assert torch.allclose(torch_mean_generalized(xs, p=np.inf, dim=1), torch.max(xs, dim=1).values)
-    assert torch.allclose(torch_mean_generalized(xs, p=-np.inf, dim=1), torch.min(xs, dim=1).values)
+    assert torch.allclose(torch_mean_generalized(xs, p='maximum', dim=1), torch.amax(xs, dim=1))
+    assert torch.allclose(torch_mean_generalized(xs, p='minimum', dim=1), torch.amin(xs, dim=1))
+    assert torch.allclose(torch_mean_generalized(xs, p=np.inf, dim=1), torch.amax(xs, dim=1))
+    assert torch.allclose(torch_mean_generalized(xs, p=-np.inf, dim=1), torch.amin(xs, dim=1))
 
 
 def test_p_norm():
@@ -206,7 +206,7 @@ def test_fft_conv2d():
         kernel = torch_gaussian_kernel_2d(sigma=i)
         out_cnv = torch_conv2d_channel_wise(signal=batch, kernel=kernel)[0]
         out_fft = torch_conv2d_channel_wise_fft(signal=batch, kernel=kernel)[0]
-        assert torch.max(torch.abs(out_cnv - out_fft)) < 1e-6
+        assert torch.amax(torch.abs(out_cnv - out_fft)) < 1e-6
 
 
 # ========================================================================= #

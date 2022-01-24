@@ -99,7 +99,7 @@ def gen_approx_dataset_mask(dataset: DisentDataset, model_mask_mode: Optional[st
     elif model_mask_mode == 'std':
         batch = _sample_stacked_batch(dataset)
         mask = torch.std(batch, dim=0)
-        m, M = torch.min(mask), torch.max(mask)
+        m, M = torch.amin(mask), torch.amax(mask)
         mask = (mask - m) / (M - m)
     else:
         raise KeyError(f'invalid `model_mask_mode`: {repr(model_mask_mode)}')
@@ -354,7 +354,7 @@ class AdversarialModel(pl.LightningModule):
             if self.hparams.logging_scale_imgs:
                 samples = self.dataset.dataset_sample_batch(num_samples=128, mode='raw').to(torch.float32)
                 samples = self.model(samples.to(self.device)).cpu()
-                m, M = float(torch.min(samples)), float(torch.max(samples))
+                m, M = float(torch.amin(samples)), float(torch.amax(samples))
             else:
                 m, M = 0, 1
             return lambda x: self.batch_to_adversarial_imgs(x[None, ...], m=m, M=M)[0]

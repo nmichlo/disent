@@ -459,8 +459,8 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
 
             # get min and max if auto
             if (self._recon_min is None) or (self._recon_max is None):
-                if self._recon_min is None: self._recon_min = float(torch.min(batch).cpu())
-                if self._recon_max is None: self._recon_max = float(torch.max(batch).cpu())
+                if self._recon_min is None: self._recon_min = float(torch.amin(batch).cpu())
+                if self._recon_max is None: self._recon_max = float(torch.amax(batch).cpu())
                 log.info(f'auto visualisation min: {self._recon_min} and max: {self._recon_max} obtained from {len(batch)} samples')
 
             # produce latent cycle grid animation
