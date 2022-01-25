@@ -132,8 +132,14 @@ def _callback_make_progress(cfg, callback_cfg):
 def _callback_make_latent_cycle(cfg, callback_cfg):
     if cfg.logging.wandb.enabled:
         # checks
-        if not (('vis_min' in cfg.dataset and 'vis_max' in cfg.dataset) or ('vis_mean' in cfg.dataset and 'vis_std' in cfg.dataset)):
-            log.warning('dataset does not have visualisation ranges specified, set `vis_min` & `vis_max` OR `vis_mean` & `vis_std`')
+        if (cfg.dataset.meta.vis_mean is None) or (cfg.dataset.meta.vis_std is None):
+            log.warning(f'Dataset is not being normalized... No mean or std. has been set via the config!')
+            log.warning(f'* dataset.meta.vis_mean: {cfg.dataset.meta.vis_mean}')
+            log.warning(f'* dataset.meta.vis_std:  {cfg.dataset.meta.vis_std}')
+        else:
+            log.info(f'Dataset is being normalized!')
+            log.info(f'* dataset.meta.vis_mean: {cfg.dataset.meta.vis_mean}')
+            log.info(f'* dataset.meta.vis_std:  {cfg.dataset.meta.vis_std}')
         # this currently only supports WANDB logger
         return VaeLatentCycleLoggingCallback(
             seed             = callback_cfg.seed,
