@@ -449,6 +449,9 @@ if __name__ == '__main__':
 
     OmegaConf.register_new_resolver('exit', _error_resolver)
 
+    # Additional search paths can be added/merged into the tree by settings the
+    # `hydra.searchpath` list variable via the command line or the root config.
+    # - eg. hydra.searchpath="['file://experiment/asdf']"
     @hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME)
     def hydra_main(cfg: DictConfig):
         try:
