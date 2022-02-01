@@ -435,6 +435,8 @@ CONFIG_NAME = 'config'
 
 
 if __name__ == '__main__':
+    # manually set log level before hydra initialises!
+    logging.basicConfig(level=logging.INFO)
 
     # register a custom OmegaConf resolver that allows us to put in a ${exit:msg} that exits the program
     # - if we don't register this, the program will still fail because we have an unknown
