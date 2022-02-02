@@ -246,31 +246,36 @@ def aggregate_measure_distances_along_factor(
     measures = []
     for i in range(repeats):
         # ENCODE TRAVERSAL:
-        # generate repeated factors, varying one factor over the entire range
+        # - generate repeated factors, varying one factor over the entire range
+        # - shape: (factor_size, z_size)
         zs_traversal = encode_all_along_factor(ground_truth_dataset, representation_function, f_idx=f_idx, batch_size=batch_size)
 
         # SWAP RATIO:
+        # - generate random triplets making sure to order them by ground truth distance
+        #   ground-truth distance of the anchor-positive should be less than the anchor-negative
         idxs_a, idxs_p_OLD, idxs_n_OLD = torch.randint(0, len(zs_traversal), size=(3, len(zs_traversal)*2))
         idx_mask = torch.abs(idxs_a - idxs_p_OLD) <= torch.abs(idxs_a - idxs_n_OLD)
-        idxs_p = torch.where(idx_mask, idxs_p_OLD, idxs_n_OLD)
-        idxs_n = torch.where(idx_mask, idxs_n_OLD, idxs_p_OLD)
-        # check the number of swapped elements along a factor
+        idxs_p = torch.where(idx_mask, idxs_p_OLD, idxs_n_OLD)  # shape: (factor_size*2,)
+        idxs_n = torch.where(idx_mask, idxs_n_OLD, idxs_p_OLD)  # shape: (factor_size*2,)
+        # - check the number of swapped elements along a factor according to
+        #   l1 and l2 distance as compared to the ground-truth distance. Do
+        #   this for both the  consecutive triples and the random triplets.
+        # - shape: ()
         near_swap_ratio_l1, near_swap_ratio_l2 = compute_swap_ratios(zs_traversal[:-2], zs_traversal[1:-1], zs_traversal[2:])
         factor_swap_ratio_l1, factor_swap_ratio_l2 = compute_swap_ratios(zs_traversal[idxs_a, :], zs_traversal[idxs_p, :], zs_traversal[idxs_n, :])
 
         # AXIS ALIGNMENT & LINEAR SCORES
-        # correlation with standard basis (1, 0, 0, ...), (0, 1, 0, ...), ...
-        axis_values_std = compute_unsorted_axis_values(zs_traversal, use_std=True)
-        axis_values_var = compute_unsorted_axis_values(zs_traversal, use_std=False)
-        # correlation along arbitrary orthogonal basis
-        linear_values_std = compute_unsorted_linear_values(zs_traversal, use_std=True)
-        linear_values_var = compute_unsorted_linear_values(zs_traversal, use_std=False)
-
-        # compute scores
-        axis_ratio_std = score_from_unsorted(axis_values_std, use_max=False, norm=True)
-        axis_ratio_var = score_from_unsorted(axis_values_var, use_max=False, norm=True)
-        linear_ratio_std = score_from_unsorted(linear_values_std, use_max=False, norm=True)
-        linear_ratio_var = score_from_unsorted(linear_values_var, use_max=False, norm=True)
+        # - correlation with standard basis (1, 0, 0, ...), (0, 1, 0, ...), ...
+        axis_values_std = compute_unsorted_axis_values(zs_traversal, use_std=True)       # shape: (z_size,)
+        axis_values_var = compute_unsorted_axis_values(zs_traversal, use_std=False)      # shape: (z_size,)
+        # - correlation along arbitrary orthogonal bases
+        linear_values_std = compute_unsorted_linear_values(zs_traversal, use_std=True)   # shape: (z_size,)
+        linear_values_var = compute_unsorted_linear_values(zs_traversal, use_std=False)  # shape: (z_size,)
+        # - compute scores
+        axis_ratio_std   = score_from_unsorted(axis_values_std, use_max=False, norm=True)    # shape: ()
+        axis_ratio_var   = score_from_unsorted(axis_values_var, use_max=False, norm=True)    # shape: ()
+        linear_ratio_std = score_from_unsorted(linear_values_std, use_max=False, norm=True)  # shape: ()
+        linear_ratio_var = score_from_unsorted(linear_values_var, use_max=False, norm=True)  # shape: ()
 
         # save variables
         measures.append({
@@ -296,16 +301,21 @@ def aggregate_measure_distances_along_factor(
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     # AGGREGATE DATA - For each distance measure
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
-    measures = default_collate(measures)
 
-    # aggregate over first dimension
+    # stack all into tensors: <shape: (repeats, ...)>
+    # - eg. axis_ratio.std   -> (repeats,)
+    # - eg. _axis_values.std -> (repeats, z_size)
+    measures = default_collate(measures)
+    # aggregate over first dimension: <shape: (...)>
+    # - eg: axis_ratio.std   -> ()
+    # - eg: _axis_values.std -> (z_size,)
     results = {k: v.mean(dim=0) for k, v in measures.items()}
 
     # compute average scores & remove keys
-    results['ave_axis_ratio.std']   = score_from_unsorted(results.pop('_axis_values.std'),   use_max=False, norm=True)
-    results['ave_axis_ratio.var']   = score_from_unsorted(results.pop('_axis_values.var'),   use_max=False, norm=True)
-    results['ave_linear_ratio.std'] = score_from_unsorted(results.pop('_linear_values.std'), use_max=False, norm=True)
-    results['ave_linear_ratio.var'] = score_from_unsorted(results.pop('_linear_values.var'), use_max=False, norm=True)
+    results['ave_axis_ratio.std']   = score_from_unsorted(results.pop('_axis_values.std'),   use_max=False, norm=True)  # shape: (z_size,) -> ()
+    results['ave_axis_ratio.var']   = score_from_unsorted(results.pop('_axis_values.var'),   use_max=False, norm=True)  # shape: (z_size,) -> ()
+    results['ave_linear_ratio.std'] = score_from_unsorted(results.pop('_linear_values.std'), use_max=False, norm=True)  # shape: (z_size,) -> ()
+    results['ave_linear_ratio.var'] = score_from_unsorted(results.pop('_linear_values.var'), use_max=False, norm=True)  # shape: (z_size,) -> ()
     # ave normalised axis alignment scores (axis_ratio is bounded by linear_ratio)
     results['ave_axis_alignment.std'] = results['ave_axis_ratio.std'] / (results['ave_linear_ratio.std'] + 1e-20)
     results['ave_axis_alignment.var'] = results['ave_axis_ratio.var'] / (results['ave_linear_ratio.var'] + 1e-20)
