@@ -186,21 +186,22 @@ def compute_unsorted_axis_values(zs_traversal, use_std: bool = True):
 def compute_unsorted_linear_values(zs_traversal, use_std: bool = True):
     # CORRELATIONS -- SORTED IN DESCENDING ORDER:
     # correlation along arbitrary orthogonal basis
-    _, linear_values = torch_pca(zs_traversal, center=True, mode='svd')  # svd: (min(z_size, factor_size),) | eig: (z_size,)
+    # -- note pca_mode='svd' returns the number of values equal to: min(factor_size, z_size)  !!! this may lower scores on average
+    # -- note pca_mode='eig' returns the number of values equal to: z_size
+    _, linear_values = torch_pca(zs_traversal, center=True, mode='eig')
     if use_std:
         linear_values = torch.sqrt(linear_values)
     return linear_values
 
 
-def _score_from_sorted(sorted_vars: torch.Tensor, use_max: bool = False, norm: bool = True) -> torch.Tensor:
-    if use_max:
+def _score_from_sorted(sorted_vars: torch.Tensor, top_2: bool = False, norm: bool = True) -> torch.Tensor:
+    if top_2:
         # use two max values
-        n = 2
-        r = sorted_vars[0] / (sorted_vars[0] + torch.amax(sorted_vars[1:]))
-    else:
-        # sum all values
-        n = len(sorted_vars)
-        r = sorted_vars[0] / torch.sum(sorted_vars)
+        # this is more like mig
+        sorted_vars = sorted_vars[:2]
+    # sum all values
+    n = len(sorted_vars)
+    r = sorted_vars[0] / torch.sum(sorted_vars)
     # get norm if needed
     if norm:
         # for: x/(x+a)
@@ -211,19 +212,20 @@ def _score_from_sorted(sorted_vars: torch.Tensor, use_max: bool = False, norm: b
     return r
 
 
-def score_from_unsorted(unsorted_values: torch.Tensor, use_max: bool = False, norm: bool = True):
+def score_from_unsorted(unsorted_values: torch.Tensor, top_2: bool = False, norm: bool = True):
+    assert unsorted_values.ndim == 1
     # sort in descending order
-    sorted_values = torch.sort(unsorted_values, descending=True).values
+    sorted_values = torch.sort(unsorted_values, dim=-1, descending=True).values
     # compute score
-    return _score_from_sorted(sorted_values, use_max=use_max, norm=norm)
+    return _score_from_sorted(sorted_values, top_2=top_2, norm=norm)
 
 
-def compute_axis_score(zs_traversal: torch.Tensor, use_std: bool = True, use_max: bool = False, norm: bool = True):
-    return score_from_unsorted(compute_unsorted_axis_values(zs_traversal, use_std=use_std), use_max=use_max, norm=norm)
+def compute_axis_score(zs_traversal: torch.Tensor, use_std: bool = True, top_2: bool = False, norm: bool = True):
+    return score_from_unsorted(compute_unsorted_axis_values(zs_traversal, use_std=use_std), top_2=top_2, norm=norm)
 
 
-def compute_linear_score(zs_traversal: torch.Tensor, use_std: bool = True, use_max: bool = False, norm: bool = True):
-    return score_from_unsorted(compute_unsorted_linear_values(zs_traversal, use_std=use_std), use_max=use_max, norm=norm)
+def compute_linear_score(zs_traversal: torch.Tensor, use_std: bool = True, top_2: bool = False, norm: bool = True):
+    return score_from_unsorted(compute_unsorted_linear_values(zs_traversal, use_std=use_std), top_2=top_2, norm=norm)
 
 
 # ========================================================================= #
@@ -260,6 +262,7 @@ def aggregate_measure_distances_along_factor(
         # - check the number of swapped elements along a factor according to
         #   l1 and l2 distance as compared to the ground-truth distance. Do
         #   this for both the  consecutive triples and the random triplets.
+        # TODO: move this into a separate metric where we can also compute the swap ratios between datapoints -- visual distance
         # - shape: ()
         near_swap_ratio_l1, near_swap_ratio_l2 = compute_swap_ratios(zs_traversal[:-2], zs_traversal[1:-1], zs_traversal[2:])
         factor_swap_ratio_l1, factor_swap_ratio_l2 = compute_swap_ratios(zs_traversal[idxs_a, :], zs_traversal[idxs_p, :], zs_traversal[idxs_n, :])
@@ -272,10 +275,10 @@ def aggregate_measure_distances_along_factor(
         linear_values_std = compute_unsorted_linear_values(zs_traversal, use_std=True)   # shape: (z_size,)
         linear_values_var = compute_unsorted_linear_values(zs_traversal, use_std=False)  # shape: (z_size,)
         # - compute scores
-        axis_ratio_std   = score_from_unsorted(axis_values_std, use_max=False, norm=True)    # shape: ()
-        axis_ratio_var   = score_from_unsorted(axis_values_var, use_max=False, norm=True)    # shape: ()
-        linear_ratio_std = score_from_unsorted(linear_values_std, use_max=False, norm=True)  # shape: ()
-        linear_ratio_var = score_from_unsorted(linear_values_var, use_max=False, norm=True)  # shape: ()
+        axis_ratio_std   = score_from_unsorted(axis_values_std, top_2=False, norm=True)    # shape: ()
+        axis_ratio_var   = score_from_unsorted(axis_values_var, top_2=False, norm=True)    # shape: ()
+        linear_ratio_std = score_from_unsorted(linear_values_std, top_2=False, norm=True)  # shape: ()
+        linear_ratio_var = score_from_unsorted(linear_values_var, top_2=False, norm=True)  # shape: ()
 
         # save variables
         measures.append({
@@ -284,13 +287,13 @@ def aggregate_measure_distances_along_factor(
             'factor_swap_ratio.l1': factor_swap_ratio_l1,
             'factor_swap_ratio.l2': factor_swap_ratio_l2,
             # axis ratios
-            '_axis_values.std': axis_values_std,
-            '_axis_values.var': axis_values_var,
+            '_axis_values.std': axis_values_std,        # this makes sense, but does not correspond to below!
+            '_axis_values.var': axis_values_var,        # this makes sense, but does not correspond to below!
             'axis_ratio.std':   axis_ratio_std,
             'axis_ratio.var':   axis_ratio_var,
             # linear ratios
-            '_linear_values.std': linear_values_std,
-            '_linear_values.var': linear_values_var,
+            # '_linear_values.std': linear_values_std,  # this does not make sense because the axis are always sorted by variance, aggregating them means they no longer correspond!
+            # '_linear_values.var': linear_values_var,  # this does not make sense because the axis are always sorted by variance, aggregating them means they no longer correspond!
             'linear_ratio.std':   linear_ratio_std,
             'linear_ratio.var':   linear_ratio_var,
             # normalised axis alignment scores (axis_ratio is bounded by linear_ratio)
@@ -312,13 +315,13 @@ def aggregate_measure_distances_along_factor(
     results = {k: v.mean(dim=0) for k, v in measures.items()}
 
     # compute average scores & remove keys
-    results['ave_axis_ratio.std']   = score_from_unsorted(results.pop('_axis_values.std'),   use_max=False, norm=True)  # shape: (z_size,) -> ()
-    results['ave_axis_ratio.var']   = score_from_unsorted(results.pop('_axis_values.var'),   use_max=False, norm=True)  # shape: (z_size,) -> ()
-    results['ave_linear_ratio.std'] = score_from_unsorted(results.pop('_linear_values.std'), use_max=False, norm=True)  # shape: (z_size,) -> ()
-    results['ave_linear_ratio.var'] = score_from_unsorted(results.pop('_linear_values.var'), use_max=False, norm=True)  # shape: (z_size,) -> ()
+    results['ave_axis_ratio.std'] = score_from_unsorted(results.pop('_axis_values.std'), top_2=False, norm=True)  # shape: (z_size,) -> ()
+    results['ave_axis_ratio.var'] = score_from_unsorted(results.pop('_axis_values.var'), top_2=False, norm=True)  # shape: (z_size,) -> ()
+    # results['ave_linear_ratio.std'] = score_from_unsorted(results.pop('_linear_values.std'), top_2=False, norm=True)  # shape: (z_size,) -> ()  # this does not make sense because the axis are always sorted by variance, aggregating them means they no longer correspond!
+    # results['ave_linear_ratio.var'] = score_from_unsorted(results.pop('_linear_values.var'), top_2=False, norm=True)  # shape: (z_size,) -> ()  # this does not make sense because the axis are always sorted by variance, aggregating them means they no longer correspond!
     # ave normalised axis alignment scores (axis_ratio is bounded by linear_ratio)
-    results['ave_axis_alignment.std'] = results['ave_axis_ratio.std'] / (results['ave_linear_ratio.std'] + 1e-20)
-    results['ave_axis_alignment.var'] = results['ave_axis_ratio.var'] / (results['ave_linear_ratio.var'] + 1e-20)
+    # results['ave_axis_alignment.std'] = results['ave_axis_ratio.std'] / (results['ave_linear_ratio.std'] + 1e-20)  # this does not make sense because the axis are always sorted by variance, aggregating them means they no longer correspond!
+    # results['ave_axis_alignment.var'] = results['ave_axis_ratio.var'] / (results['ave_linear_ratio.var'] + 1e-20)  # this does not make sense because the axis are always sorted by variance, aggregating them means they no longer correspond!
 
     return results
 
