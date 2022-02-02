@@ -30,14 +30,16 @@ import torch
 # ========================================================================= #
 
 
-def torch_pca_eig(X, center=True, scale=False):
+def torch_pca_eig(X, center=True, scale=False, zero_negatives=False):
     """
     perform PCA over X
     - X is of size (num_points, vec_size)
 
     NOTE: unlike PCA_svd, the number of vectors/values returned is always: vec_size
+
+    WARNING: this may be incorrect!
     """
-    n, _ = X.shape
+    n, m = X.shape
     # center points along axes
     if center:
         X = X - X.mean(dim=0)
@@ -47,10 +49,14 @@ def torch_pca_eig(X, center=True, scale=False):
         scaling = torch.sqrt(1 / torch.diagonal(covariance))
         covariance = torch.mm(torch.diagflat(scaling), covariance)
     # compute eigen values and eigen vectors
-    eigenvalues, eigenvectors = torch.eig(covariance, True)
+    eigenvalues, eigenvectors = torch.linalg.eig(covariance)
     # sort components by decreasing variance
-    components = eigenvectors.T
-    explained_variance = eigenvalues[:, 0]
+    components = torch.real(eigenvectors.T)       # TODO: handle imaginary numbers!
+    explained_variance = torch.real(eigenvalues)  # TODO: handle imaginary numbers!
+    # handle n < m -- numerical stability issues return negative values!
+    #                 maybe this should just zero out the negatives instead, they don't contribute!?
+    explained_variance = torch.abs(explained_variance)
+    # return sorted
     idxs = torch.argsort(explained_variance, descending=True)
     return components[idxs], explained_variance[idxs]
 
@@ -75,7 +81,10 @@ def torch_pca_svd(X, center=True):
     return components, explained_variance
 
 
-def torch_pca(X, center=True, mode='svd'):
+def torch_pca(X, center=True, mode='svd') -> (torch.Tensor, torch.Tensor):
+    # number of values returned may differ depending on the method!
+    # -- svd returns: min(num, z_size)
+    # -- eig returns: num
     if mode == 'svd':
         return torch_pca_svd(X, center=center)
     elif mode == 'eig':

@@ -31,6 +31,7 @@ Flatness Metric
 import logging
 import math
 from typing import Iterable
+from typing import Tuple
 from typing import Union
 
 import torch
@@ -217,22 +218,30 @@ def aggregate_measure_distances_along_factor(
 # ========================================================================= #
 
 
-def encode_all_along_factor(dataset: DisentDataset, representation_function, f_idx: int, batch_size: int):
+def encode_all_along_factor(dataset: DisentDataset, representation_function, f_idx: int, batch_size: int, return_batch: bool = False):
     # generate repeated factors, varying one factor over a range (f_size, f_dims)
     factors = dataset.gt_data.sample_random_factor_traversal(f_idx=f_idx)
     # get the representations of all the factors (f_size, z_size)
-    sequential_zs = encode_all_factors(dataset, representation_function, factors=factors, batch_size=batch_size)
-    return sequential_zs
+    # * if return_batch is False: return sequential_zs
+    # * if return_batch is True: return (sequential_zs, sequential_batch)
+    return encode_all_factors(dataset, representation_function, factors=factors, batch_size=batch_size, return_batch=return_batch)
 
 
-def encode_all_factors(dataset: DisentDataset, representation_function, factors, batch_size: int) -> torch.Tensor:
+def encode_all_factors(dataset: DisentDataset, representation_function, factors, batch_size: int, return_batch: bool = False) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
     zs = []
+    xs = []
     with torch.no_grad():
         for batch_factors in iter_chunks(factors, chunk_size=batch_size):
             batch = dataset.dataset_batch_from_factors(batch_factors, mode='input')
             z = representation_function(batch)
             zs.append(z)
-    return torch.cat(zs, dim=0)
+            if return_batch:
+                xs.append(batch)
+    # handle case
+    if return_batch:
+        return torch.cat(zs, dim=0), torch.cat(xs, dim=0)
+    else:
+        return torch.cat(zs, dim=0)
 
 
 def get_device(dataset: DisentDataset, representation_function):
