@@ -102,7 +102,7 @@ ORANGE = '#FE9F0A'
 GREEN = '#2FD157'
 
 
-def plot_incr_overlap_exp(
+def plot_e02_incr_overlap_xysquares(
     rel_path: Optional[str] = None,
     save: bool = True,
     show: bool = True,
@@ -172,7 +172,7 @@ def plot_incr_overlap_exp(
 
 
 
-def plot_e00_hparam_tuning_exp(
+def plot_e01_hparam_tuning(
     rel_path: Optional[str] = None,
     save: bool = True,
     show: bool = True,
@@ -231,7 +231,7 @@ def plot_e00_hparam_tuning_exp(
 
 
 
-def plot_overlap_loss_exp(
+def plot_e03_modified_loss_xysquares(
     rel_path: Optional[str] = None,
     save: bool = True,
     show: bool = True,
@@ -318,9 +318,9 @@ if __name__ == '__main__':
     # clear_cache()
 
     def main():
-        plot_e00_hparam_tuning_exp(rel_path='plots/exp_hparams-exp', show=True)
-        plot_overlap_loss_exp(rel_path='plots/exp_overlap-loss', show=True)
-        plot_incr_overlap_exp(rel_path='plots/exp_incr-overlap', show=True)
+        plot_e01_hparam_tuning(rel_path='plots/p01e01_hparam-tuning', show=True)                      # was: exp_hparams-exp
+        plot_e02_incr_overlap_xysquares(rel_path='plots/p01e02_incr-overlap-xysquares', show=True)    # was: exp_incr-overlap
+        plot_e03_modified_loss_xysquares(rel_path='plots/p01e03_modified-loss-xysquares', show=True)  # was: exp_overlap-loss
 
     main()
 

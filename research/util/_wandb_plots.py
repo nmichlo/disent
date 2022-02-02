@@ -38,8 +38,8 @@ from disent.util.function import wrapped_partial
 # ========================================================================= #
 
 
-# `research/cache`
-CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'cache')
+# `research/.cache`
+CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.cache')
 
 # cachier instance
 CACHIER: _cachier = wrapped_partial(_cachier, cache_dir=CACHE_DIR)
