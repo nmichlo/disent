@@ -269,15 +269,11 @@ def aggregate_measure_distances_along_factor(
 
         # AXIS ALIGNMENT & LINEAR SCORES
         # - correlation with standard basis (1, 0, 0, ...), (0, 1, 0, ...), ...
-        axis_values_std = compute_unsorted_axis_values(zs_traversal, use_std=True)       # shape: (z_size,)
         axis_values_var = compute_unsorted_axis_values(zs_traversal, use_std=False)      # shape: (z_size,)
         # - correlation along arbitrary orthogonal bases
-        linear_values_std = compute_unsorted_linear_values(zs_traversal, use_std=True)   # shape: (z_size,)
         linear_values_var = compute_unsorted_linear_values(zs_traversal, use_std=False)  # shape: (z_size,)
         # - compute scores
-        axis_ratio_std   = score_from_unsorted(axis_values_std, top_2=False, norm=True)    # shape: ()
         axis_ratio_var   = score_from_unsorted(axis_values_var, top_2=False, norm=True)    # shape: ()
-        linear_ratio_std = score_from_unsorted(linear_values_std, top_2=False, norm=True)  # shape: ()
         linear_ratio_var = score_from_unsorted(linear_values_var, top_2=False, norm=True)  # shape: ()
 
         # save variables
@@ -287,17 +283,12 @@ def aggregate_measure_distances_along_factor(
             'factor_swap_ratio.l1': factor_swap_ratio_l1,
             'factor_swap_ratio.l2': factor_swap_ratio_l2,
             # axis ratios
-            '_axis_values.std': axis_values_std,        # this makes sense, but does not correspond to below!
             '_axis_values.var': axis_values_var,        # this makes sense, but does not correspond to below!
-            'axis_ratio.std':   axis_ratio_std,
             'axis_ratio.var':   axis_ratio_var,
             # linear ratios
-            # '_linear_values.std': linear_values_std,  # this does not make sense because the axis are always sorted by variance, aggregating them means they no longer correspond!
             # '_linear_values.var': linear_values_var,  # this does not make sense because the axis are always sorted by variance, aggregating them means they no longer correspond!
-            'linear_ratio.std':   linear_ratio_std,
             'linear_ratio.var':   linear_ratio_var,
             # normalised axis alignment scores (axis_ratio is bounded by linear_ratio)
-            'axis_alignment.std':  axis_ratio_std / (linear_ratio_std + 1e-20),
             'axis_alignment.var':  axis_ratio_var / (linear_ratio_var + 1e-20),
         })
 
@@ -309,19 +300,14 @@ def aggregate_measure_distances_along_factor(
     # - eg. axis_ratio.std   -> (repeats,)
     # - eg. _axis_values.std -> (repeats, z_size)
     measures = default_collate(measures)
+
     # aggregate over first dimension: <shape: (...)>
     # - eg: axis_ratio.std   -> ()
     # - eg: _axis_values.std -> (z_size,)
     results = {k: v.mean(dim=0) for k, v in measures.items()}
 
     # compute average scores & remove keys
-    results['ave_axis_ratio.std'] = score_from_unsorted(results.pop('_axis_values.std'), top_2=False, norm=True)  # shape: (z_size,) -> ()
     results['ave_axis_ratio.var'] = score_from_unsorted(results.pop('_axis_values.var'), top_2=False, norm=True)  # shape: (z_size,) -> ()
-    # results['ave_linear_ratio.std'] = score_from_unsorted(results.pop('_linear_values.std'), top_2=False, norm=True)  # shape: (z_size,) -> ()  # this does not make sense because the axis are always sorted by variance, aggregating them means they no longer correspond!
-    # results['ave_linear_ratio.var'] = score_from_unsorted(results.pop('_linear_values.var'), top_2=False, norm=True)  # shape: (z_size,) -> ()  # this does not make sense because the axis are always sorted by variance, aggregating them means they no longer correspond!
-    # ave normalised axis alignment scores (axis_ratio is bounded by linear_ratio)
-    # results['ave_axis_alignment.std'] = results['ave_axis_ratio.std'] / (results['ave_linear_ratio.std'] + 1e-20)  # this does not make sense because the axis are always sorted by variance, aggregating them means they no longer correspond!
-    # results['ave_axis_alignment.var'] = results['ave_axis_ratio.var'] / (results['ave_linear_ratio.var'] + 1e-20)  # this does not make sense because the axis are always sorted by variance, aggregating them means they no longer correspond!
 
     return results
 
