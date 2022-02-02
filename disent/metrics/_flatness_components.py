@@ -319,22 +319,22 @@ def aggregate_measure_distances_along_factor(
 
 # if __name__ == '__main__':
 #     from disent.metrics import metric_flatness
-#     from sklearn import linear_model
-#     from disent.dataset.groundtruth import GroundTruthDatasetTriples
-#     from disent.dataset.groundtruth import GroundTruthDistDataset
 #     from disent.metrics._flatness import get_device
 #     import pytorch_lightning as pl
 #     from torch.optim import Adam
 #     from torch.utils.data import DataLoader
-#     from disent.data.groundtruth import XYObjectData, XYSquaresData
-#     from disent.dataset.groundtruth import GroundTruthDataset, GroundTruthDatasetPairs
 #     from disent.frameworks.vae import BetaVae
-#     from disent.frameworks.vae import AdaVae
 #     from disent.frameworks.vae import TripletVae
-#     from disent.model.ae import EncoderConv64, DecoderConv64, AutoEncoder
-#     from disent.transform import ToImgTensorF32
-#     from disent.util import colors
-#     from disent.util import Timer
+#     from disent.frameworks.vae import AdaGVaeMinimal
+#     from disent.model import AutoEncoder
+#     from disent.model.ae import EncoderConv64, DecoderConv64
+#     from disent.util.strings import colors
+#     from disent.util.profiling import Timer
+#     from disent.dataset.data import XYObjectData
+#     from disent.dataset.data import XYSquaresData
+#     from disent.dataset.sampling import GroundTruthDistSampler
+#     from disent.dataset.sampling import RandomSampler
+#     from disent.dataset.transform import ToImgTensorF32
 #
 #     def get_str(r):
 #         return ', '.join(f'{k}={v:6.4f}' for k, v in r.items())
@@ -347,7 +347,7 @@ def aggregate_measure_distances_along_factor(
 #         with Timer() as t:
 #             r = {
 #                 **metric_flatness_components(dataset, get_repr, factor_repeats=64, batch_size=64),
-#                 **metric_flatness(dataset, get_repr, factor_repeats=64, batch_size=64),
+#                 # **metric_flatness(dataset, get_repr, factor_repeats=64, batch_size=64),
 #             }
 #         results.append((name, steps, r))
 #         print_r(name, steps, r, colors.lRED, t=t)
@@ -368,38 +368,31 @@ def aggregate_measure_distances_along_factor(
 #
 #     results = []
 #     for data in datasets:
-#
-#         # dataset = GroundTruthDistDataset(data, transform=ToImgTensorF32(), num_samples=2, triplet_sample_mode='manhattan')
-#         # dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True, pin_memory=True)
-#         # module = AdaVae(
-#         #     model=AutoEncoder(
-#         #         encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2),
-#         #         decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
-#         #     ),
-#         #     cfg=AdaVae.cfg(beta=0.001, loss_reduction='mean', optimizer=torch.optim.Adam, optimizer_kwargs=dict(lr=5e-4))
-#         # )
-#
-#         dataset = GroundTruthDistDataset(data, transform=ToImgTensorF32(), num_samples=3, triplet_sample_mode='manhattan')
+#         dataset = DisentDataset(data, sampler=RandomSampler(num_samples=1), transform=ToImgTensorF32())
 #         dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True, pin_memory=True)
-#         module = TripletVae(
+#         module = BetaVae(
 #             model=AutoEncoder(
-#                 encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2),
-#                 decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
+#                 encoder=EncoderConv64(x_shape=data.x_shape, z_size=9, z_multiplier=2),
+#                 decoder=DecoderConv64(x_shape=data.x_shape, z_size=9),
 #             ),
-#             cfg=TripletVae.cfg(beta=0.003, loss_reduction='mean', triplet_p=1, triplet_margin_max=10.0, triplet_scale=10.0, optimizer=torch.optim.Adam, optimizer_kwargs=dict(lr=5e-4))
+#             cfg=BetaVae.cfg(beta=0.001, loss_reduction='mean', optimizer=torch.optim.Adam, optimizer_kwargs=dict(lr=1e-3))
 #         )
+#
+#         gpus = 1 if torch.cuda.is_available() else 0
 #
 #         # we cannot guarantee which device the representation is on
 #         get_repr = lambda x: module.encode(x.to(module.device))
 #         # PHASE 1, UNTRAINED
-#         pl.Trainer(logger=False, checkpoint_callback=False, fast_dev_run=True, gpus=1, weights_summary=None).fit(module, dataloader)
-#         module = module.to('cuda')
+#         pl.Trainer(logger=False, checkpoint_callback=False, fast_dev_run=True, gpus=gpus, weights_summary=None).fit(module, dataloader)
+#         if torch.cuda.is_available(): module = module.to('cuda')
 #         calculate(data.__class__.__name__, 0, dataset, get_repr)
 #         # PHASE 2, LITTLE TRAINING
-#         pl.Trainer(logger=False, checkpoint_callback=False, max_steps=256, gpus=1, weights_summary=None).fit(module, dataloader)
+#         pl.Trainer(logger=False, checkpoint_callback=False, max_steps=256, gpus=gpus, weights_summary=None).fit(module, dataloader)
+#         if torch.cuda.is_available(): module = module.to('cuda')
 #         calculate(data.__class__.__name__, 256, dataset, get_repr)
 #         # PHASE 3, MORE TRAINING
-#         pl.Trainer(logger=False, checkpoint_callback=False, max_steps=2048, gpus=1, weights_summary=None).fit(module, dataloader)
+#         pl.Trainer(logger=False, checkpoint_callback=False, max_steps=2048, gpus=gpus, weights_summary=None).fit(module, dataloader)
+#         if torch.cuda.is_available(): module = module.to('cuda')
 #         calculate(data.__class__.__name__, 256+2048, dataset, get_repr)
 #         results.append(None)
 #
