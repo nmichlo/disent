@@ -26,7 +26,7 @@
 """
 Check the adversarial data generated in previous exerpiments
 - This is old and outdated...
-- Should use `e01_visual_overlap/run_plot_traversal_dists.py` instead!
+- Should use `plot02_data_distances/run_plot_traversal_dists.py` instead!
 """
 
 
