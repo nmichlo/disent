@@ -47,6 +47,8 @@ FAST_METRICS = {
     'factor_vae':          _wrapped_partial(metric_factor_vae,          num_train=700,  num_eval=350, num_variance_estimate=1000),  # may not be accurate, but it just takes waay too long otherwise 20+ seconds
     'flatness':            _wrapped_partial(metric_flatness,            factor_repeats=128),  # pragma: delete-on-release
     'flatness_components': _wrapped_partial(metric_flatness_components, factor_repeats=128),  # pragma: delete-on-release
+    'distances':           _wrapped_partial(metric_flatness_components, factor_repeats=128, compute_distances=True, compute_linearity=False),  # pragma: delete-on-release
+    'linearity':           _wrapped_partial(metric_flatness_components, factor_repeats=128, compute_distances=False, compute_linearity=True),  # pragma: delete-on-release
     'mig':                 _wrapped_partial(metric_mig,                 num_train=2000),
     'sap':                 _wrapped_partial(metric_sap,                 num_train=2000, num_test=1000),
     'unsupervised':        _wrapped_partial(metric_unsupervised,        num_train=2000),
@@ -57,6 +59,8 @@ DEFAULT_METRICS = {
     'factor_vae':          metric_factor_vae,
     'flatness':            metric_flatness,             # pragma: delete-on-release
     'flatness_components': metric_flatness_components,  # pragma: delete-on-release
+    'distances':           _wrapped_partial(metric_flatness_components, compute_distances=True, compute_linearity=False),  # pragma: delete-on-release
+    'linearity':           _wrapped_partial(metric_flatness_components, compute_distances=False, compute_linearity=True),  # pragma: delete-on-release
     'mig':                 metric_mig,
     'sap':                 metric_sap,
     'unsupervised':        metric_unsupervised,
