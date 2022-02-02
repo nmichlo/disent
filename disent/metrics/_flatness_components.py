@@ -35,19 +35,18 @@ from typing import Optional
 import numpy as np
 import torch
 import torch.nn.functional as F
-from torch.utils.data.dataloader import default_collate
 from scipy.stats import spearmanr
+from torch.utils.data.dataloader import default_collate
 
 from disent.dataset import DisentDataset
 from disent.metrics._flatness import encode_all_along_factor
 from disent.metrics._flatness import encode_all_factors
 from disent.metrics._flatness import filter_inactive_factors
-from disent.util.iters import iter_chunks
-from disent.util import to_numpy
 from disent.nn.functional import torch_mean_generalized
 from disent.nn.functional import torch_pca
-from disent.util.seeds import seed
-from research.util import pairwise_loss
+from disent.nn.loss.reduction import batch_loss_reduction
+from disent.util import to_numpy
+from disent.util.iters import iter_chunks
 
 
 log = logging.getLogger(__name__)
@@ -130,8 +129,8 @@ def metric_flatness_components(
 
     # convert values from torch
     return {
-        **factor_scores,
         **global_scores,
+        **factor_scores,
     }
 
 
@@ -298,8 +297,8 @@ def _dists_compute_scores(num_triplets: int, zs_traversal: torch.Tensor, xs_trav
     an_ground_dists = torch.abs(idxs_a - idxs_n) if (factors is None) else torch.norm(factors[idxs_a, :] - factors[idxs_n, :], p=1, dim=-1)
     ap_latent_dists = torch.norm(zs_traversal[idxs_a, :] - zs_traversal[idxs_p, :], dim=-1, p=2)
     an_latent_dists = torch.norm(zs_traversal[idxs_a, :] - zs_traversal[idxs_n, :], dim=-1, p=2)
-    ap_data_dists   = pairwise_loss(xs_traversal[idxs_a, ...], xs_traversal[idxs_p, ...], mode='mse', mean_dtype=torch.float32)
-    an_data_dists   = pairwise_loss(xs_traversal[idxs_a, ...], xs_traversal[idxs_n, ...], mode='mse', mean_dtype=torch.float32)
+    ap_data_dists   = batch_loss_reduction(F.mse_loss(xs_traversal[idxs_a, ...], xs_traversal[idxs_p, ...], reduction='none'), reduction_dtype=torch.float32, reduction='mean')
+    an_data_dists   = batch_loss_reduction(F.mse_loss(xs_traversal[idxs_a, ...], xs_traversal[idxs_n, ...], reduction='none'), reduction_dtype=torch.float32, reduction='mean')
     # compute rsame scores -- shape: ()
     # - check the number of swapped elements along a factor for random triplets.
     rsame_ground_data   = _unswapped_ratio(ap0=ap_ground_dists, an0=an_ground_dists, ap1=ap_data_dists,   an1=an_data_dists)    # simplifies to: (ap_data_dists > an_data_dists).to(torch.float32).mean()
@@ -409,23 +408,24 @@ def _compute_flatness_metric_components_along_factor(
 
 
 # if __name__ == '__main__':
-#     from disent.metrics import metric_flatness
 #     from disent.metrics._flatness import get_device
 #     import pytorch_lightning as pl
 #     from torch.optim import Adam
 #     from torch.utils.data import DataLoader
 #     from disent.frameworks.vae import BetaVae
-#     from disent.frameworks.vae import TripletVae
-#     from disent.frameworks.vae import AdaGVaeMinimal
 #     from disent.model import AutoEncoder
 #     from disent.model.ae import EncoderConv64, DecoderConv64
 #     from disent.util.strings import colors
 #     from disent.util.profiling import Timer
 #     from disent.dataset.data import XYObjectData
 #     from disent.dataset.data import XYSquaresData
-#     from disent.dataset.sampling import GroundTruthDistSampler
 #     from disent.dataset.sampling import RandomSampler
 #     from disent.dataset.transform import ToImgTensorF32
+#     from disent.nn.weights import init_model_weights
+#     from disent.util.seeds import seed
+#     import logging
+#
+#     logging.basicConfig(level=logging.INFO)
 #
 #     def get_str(r):
 #         return ', '.join(f'{k}={v:6.4f}' for k, v in r.items())
@@ -462,13 +462,13 @@ def _compute_flatness_metric_components_along_factor(
 #
 #         dataset = DisentDataset(data, sampler=RandomSampler(num_samples=1), transform=ToImgTensorF32())
 #         dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True, pin_memory=True)
-#         module = BetaVae(
+#         module = init_model_weights(BetaVae(
 #             model=AutoEncoder(
 #                 encoder=EncoderConv64(x_shape=data.x_shape, z_size=9, z_multiplier=2),
 #                 decoder=DecoderConv64(x_shape=data.x_shape, z_size=9),
 #             ),
-#             cfg=BetaVae.cfg(beta=0.001, loss_reduction='mean', optimizer=torch.optim.Adam, optimizer_kwargs=dict(lr=1e-3))
-#         )
+#             cfg=BetaVae.cfg(beta=0.0001, loss_reduction='mean', optimizer=torch.optim.Adam, optimizer_kwargs=dict(lr=1e-3))
+#         ), mode='xavier_normal')
 #
 #         gpus = 1 if torch.cuda.is_available() else 0
 #
