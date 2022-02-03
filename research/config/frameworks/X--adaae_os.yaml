@@ -4,7 +4,7 @@ defaults:
 name: adaae
 
 cfg:
-  _target_: disent.frameworks.ae.experimental.AdaAe.cfg
+  _target_: research.code.frameworks.ae.AdaAe.cfg
   # base ae
   recon_loss: ${settings.framework.recon_loss}
   loss_reduction: ${settings.framework.loss_reduction}

@@ -4,7 +4,7 @@ defaults:
 name: augpos_tvae_os
 
 cfg:
-  _target_: disent.frameworks.vae.experimental.AugPosTripletVae.cfg
+  _target_: research.code.frameworks.vae.AugPosTripletVae.cfg
   # base ae
   recon_loss: ${settings.framework.recon_loss}
   loss_reduction: ${settings.framework.loss_reduction}

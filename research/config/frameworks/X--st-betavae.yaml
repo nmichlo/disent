@@ -4,7 +4,7 @@ defaults:
 name: st-betavae
 
 cfg:
-  _target_: disent.frameworks.vae.experimental.SwappedTargetBetaVae.cfg
+  _target_: research.code.frameworks.vae.SwappedTargetBetaVae.cfg
   # base ae
   recon_loss: ${settings.framework.recon_loss}
   loss_reduction: ${settings.framework.loss_reduction}

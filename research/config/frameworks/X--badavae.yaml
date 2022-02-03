@@ -4,7 +4,7 @@ defaults:
 name: badavae
 
 cfg:
-  _target_: disent.frameworks.vae.experimental.BoundedAdaVae.cfg
+  _target_: research.code.frameworks.vae.BoundedAdaVae.cfg
   # base ae
   recon_loss: ${settings.framework.recon_loss}
   loss_reduction: ${settings.framework.loss_reduction}

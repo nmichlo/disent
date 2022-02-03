@@ -4,7 +4,7 @@ defaults:
 name: adanegtvae
 
 cfg:
-  _target_: disent.frameworks.vae.experimental.AdaNegTripletVae.cfg
+  _target_: research.code.frameworks.vae.AdaNegTripletVae.cfg
   # base ae
   recon_loss: ${settings.framework.recon_loss}
   loss_reduction: ${settings.framework.loss_reduction}
