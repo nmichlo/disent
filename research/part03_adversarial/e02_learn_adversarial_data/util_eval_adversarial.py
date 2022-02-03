@@ -290,7 +290,7 @@ def _check_equal(
     fitness_mode: str = 'std',  # range, std
     n: int = 5,
 ):
-    from research.part01_data_overlap.e00_data_distances.util_compute_traversal_dists import cached_compute_all_factor_dist_matrices
+    from research.part01_data_overlap.plot02_data_distances.util_compute_traversal_dists import cached_compute_all_factor_dist_matrices
     from timeit import timeit
     import research.code.util as H
 

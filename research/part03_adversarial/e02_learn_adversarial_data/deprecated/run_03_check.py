@@ -37,7 +37,9 @@ import torchvision
 import matplotlib.pyplot as plt
 
 from disent.dataset.data import Shapes3dData
-from research.code.util import AdversarialOptimizedData
+
+# TODO: I think this can be replaced with the self contained hdf5 dataset classes?
+from research.code.util._data import AdversarialOptimizedData
 
 
 if __name__ == '__main__':

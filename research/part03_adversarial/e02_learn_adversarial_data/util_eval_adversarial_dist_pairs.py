@@ -242,7 +242,7 @@ def _check_equal(
     fitness_mode: str = 'std',  # range, std
     n: int = 5,
 ):
-    from research.part01_data_overlap.e00_data_distances.util_compute_traversal_dist_pairs import cached_compute_dataset_pair_dists
+    from research.part01_data_overlap.plot02_data_distances.util_compute_traversal_dist_pairs import cached_compute_dataset_pair_dists
     from timeit import timeit
 
     # get distances & individual  # (len(gt_data), pairs_per_obs) & (len(gt_data),)

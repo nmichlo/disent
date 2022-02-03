@@ -47,7 +47,7 @@ from disent.util.lightning.callbacks import BaseCallbackPeriodic
 from disent.util.lightning.logger_util import wb_log_metrics
 from disent.util.seeds import seed
 from disent.util.strings.fmt import make_box_str
-from experiment.run import hydra_append_progress_callback
+from experiment.run import hydra_get_callbacks
 from experiment.run import hydra_get_gpus
 from experiment.run import hydra_make_logger
 from experiment.util.hydra_utils import make_non_strict
@@ -232,8 +232,9 @@ def run_disentangle_dataset_kernel(cfg):
     # CREATE LOGGER
     logger = hydra_make_logger(cfg)
     # TRAINER CALLBACKS
-    callbacks = []
-    hydra_append_progress_callback(callbacks, cfg)
+    callbacks = [
+        *hydra_get_callbacks(cfg),
+    ]
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     seed(disent.util.seeds.seed)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #

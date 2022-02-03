@@ -124,7 +124,8 @@ class DataOverlapMixin(object):
         elif self.cfg.overlap_augment_mode in ('augment', 'augment_each'):
             # recreate augment each time
             if self.cfg.overlap_augment_mode == 'augment_each':
-                self._augment = instantiate_recursive(self.cfg.overlap_augment)
+                import hydra
+                self._augment = hydra.utils.instantiate(self.cfg.overlap_augment)
             # augment on correct device
             aug_x_targ = self._augment(x_targ)
         else:
