@@ -113,6 +113,13 @@ class DynamicRegistry(object):
         # we couldn't find anything
         raise KeyError(f'Invalid dynamic registry name: {repr(name)}. Valid static names include: {sorted(self._registered_static.keys())} and examples of dynamic names include: {[d.example for d in self._registered_dynamic.values()]}')
 
+    def __contains__(self, name: str) -> bool:
+        if name in self._registered_static:
+            return True
+        if name in self._registered_dynamic:
+            return True
+        return False
+
     # --- CHECKS --- #
 
     def _check_name(self, name: str) -> str:

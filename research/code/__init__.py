@@ -56,3 +56,7 @@ def register_to_disent():
     R.FRAMEWORKS.setd['x__augpos_tvae'] = R.LazyImport('research.code.frameworks.vae._weaklysupervised__augpostriplet.AugPosTripletVae')
     R.FRAMEWORKS.setd['x__st_ada_vae']  = R.LazyImport('research.code.frameworks.vae._weaklysupervised__st_adavae.SwappedTargetAdaVae')
     R.FRAMEWORKS.setd['x__st_beta_vae'] = R.LazyImport('research.code.frameworks.vae._weaklysupervised__st_betavae.SwappedTargetBetaVae')
+
+    # register the kernels for the loss functions!
+    # TODO: eg. R.RECON_LOSSES.setd[re.compile('^(x[0-9])_(y[0-9])$')] = R.FactoryValue(...) ???
+    import research.code.dataset.transform._augment as registered_augments
