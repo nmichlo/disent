@@ -24,8 +24,11 @@
 
 import re
 import warnings
+from collections import namedtuple
+from typing import Dict
 from typing import final
 from typing import List
+from typing import NamedTuple
 from typing import Sequence
 from typing import Tuple
 from typing import Union
@@ -44,6 +47,7 @@ from disent.dataset.transform import FftKernel
 # ========================================================================= #
 # Reconstruction Loss Base                                                  #
 # ========================================================================= #
+from disent.registry._dynamic_values import DynamicRegistry
 
 
 class ReconLossHandler(DisentModule):
@@ -273,32 +277,40 @@ class AugmentedReconLossHandler(ReconLossHandler):
 
 # ========================================================================= #
 # Registry & Factory                                                        #
+# TODO: add ability to register parameterized reconstruction losses
 # ========================================================================= #
 
 
-# TODO: add ability to register parameterized reconstruction losses
-_ARG_RECON_LOSSES: List[Tuple[re.Pattern, str, callable]] = [
-    # (REGEX, EXAMPLE, FACTORY_FUNC)
-    # - factory function takes at min one arg: fn(reduction) with one arg after that per regex capture group
-    # - regex expressions are tested in order, expressions should be mutually exclusive or ordered such that more specialized versions occur first.
-    (re.compile(r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_w(\d+\.\d+)$'),             'mse_xy8_r47_w1.0',      lambda reduction, loss, kern, weight:             AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=1-float(weight), aug_weight=float(weight))),
-    (re.compile(r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_l(\d+\.\d+)_k(\d+\.\d+)$'), 'mse_xy8_r47_l1.0_k1.0', lambda reduction, loss, kern, l_weight, k_weight: AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=float(l_weight), aug_weight=float(k_weight))),
-]
+# - factory function takes at min one arg: fn(reduction) with one arg after that per regex capture group
+# - regex expressions are tested in order, expressions should be mutually exclusive or ordered such that more specialized versions occur first.
+DYN_REGISTRY_RECON_LOSSES = DynamicRegistry(
+    'recon_losses',
+    parent_static_values=registry.RECON_LOSSES,
+    allowed_value_types=[ReconLossHandler],
+    make_static_value=lambda value, **kwargs: value(**kwargs),
+    make_dynamic_value=lambda factory_fn, *args, **kwargs: factory_fn(*args, **kwargs),
+)
+
+# augmented recon loss -- weights are ratios: `l=1-w` and `w`
+DYN_REGISTRY_RECON_LOSSES.register_dynamic(
+    name='aug_recon_loss_w',
+    regex=re.compile(r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_w(\d+\.\d+)$'),
+    example='mse_xy8_r47_w1.0',
+    factory_fn=lambda reduction, loss, kern, weight: AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=1 - float(weight), aug_weight=float(weight)),
+)
+
+# augmented recon loss -- control both weights individually: `l` and `w`
+DYN_REGISTRY_RECON_LOSSES.register_dynamic(
+    name='aug_recon_loss_lw',
+    regex=re.compile(r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_l(\d+\.\d+)_k(\d+\.\d+)$'),
+    example='mse_xy8_r47_l1.0_k1.0',
+    factory_fn=lambda reduction, loss, kern, l_weight, k_weight: AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=float(l_weight), aug_weight=float(k_weight)),
+)
 
 
 # NOTE: this function compliments make_kernel in transform/_augment.py
 def make_reconstruction_loss(name: str, reduction: str) -> ReconLossHandler:
-    if name in registry.RECON_LOSSES:
-        # search normal losses!
-        return registry.RECON_LOSSES[name](reduction)
-    else:
-        # regex search losses, and call with args!
-        for r, _, fn in _ARG_RECON_LOSSES:
-            result = r.search(name)
-            if result is not None:
-                return fn(reduction, *result.groups())
-    # we couldn't find anything
-    raise KeyError(f'Invalid vae reconstruction loss: {repr(name)} Valid losses include: {sorted(registry.RECON_LOSSES)}, examples of additional argument based losses include: {[example for _, example, _ in _ARG_RECON_LOSSES]}')
+    return DYN_REGISTRY_RECON_LOSSES.make_value(name, reduction=reduction)
 
 
 # ========================================================================= #

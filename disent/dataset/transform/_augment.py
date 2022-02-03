@@ -25,7 +25,11 @@
 import os
 import re
 from numbers import Number
+from typing import Any
+from typing import Dict
 from typing import List
+from typing import NamedTuple
+from typing import Sequence
 from typing import Tuple
 from typing import Union
 
@@ -42,6 +46,7 @@ from disent.nn.functional import torch_gaussian_kernel_2d
 # ========================================================================= #
 # Transforms                                                                #
 # ========================================================================= #
+from disent.registry._dynamic_values import DynamicRegistry
 
 
 TorLorN = Union[Number, Tuple[Number, Number], List[Number], np.ndarray]
@@ -227,38 +232,29 @@ def _check_kernel(kernel: torch.Tensor) -> torch.Tensor:
     return kernel
 
 
-_KERNELS = {
-    # kernels that do not require arguments, just general factory functions
-    # name: class/fn -- with no required args
-}
+# REGISTRY
+# - factory function takes at min one arg: fn(reduction) with one arg after that per regex capture group
+# - regex expressions are tested in order, expressions should be mutually exclusive or ordered such that more specialized versions occur first.
+DYN_REGISTRY_KERNELS = DynamicRegistry('kernels', allowed_value_types=[torch.Tensor], is_valid_value=_check_kernel)
 
+DYN_REGISTRY_KERNELS.register_dynamic(
+    name='arg_box',
+    regex=re.compile(r'^(box)_r(\d+)$'),
+    example='box_r31',
+    factory_fn=lambda kern, radius: torch_box_kernel_2d(radius=int(radius))[None, ...],
+)
 
-_ARG_KERNELS = [
-    # (REGEX, EXAMPLE, FACTORY_FUNC)
-    # - factory function takes at min one arg: fn(reduction) with one arg after that per regex capture group
-    # - regex expressions are tested in order, expressions should be mutually exclusive or ordered such that more specialized versions occur first.
-    (re.compile(r'^(box)_r(\d+)$'), 'box_r31', lambda kern, radius: torch_box_kernel_2d(radius=int(radius))[None, ...]),
-    (re.compile(r'^(gau)_r(\d+)$'), 'gau_r31', lambda kern, radius: torch_gaussian_kernel_2d(sigma=int(radius) / 4.0, truncate=4.0)[None, None, ...]),
-]
+DYN_REGISTRY_KERNELS.register_dynamic(
+    name='arg_gau',
+    regex=re.compile(r'^(gau)_r(\d+)$'),
+    example='gau_r31',
+    factory_fn=lambda kern, radius: torch_gaussian_kernel_2d(sigma=int(radius) / 4.0, truncate=4.0)[None, None, ...],
+)
 
 
 # NOTE: this function compliments make_reconstruction_loss in frameworks/helper/reconstructions.py
-def _make_kernel(name: str) -> torch.Tensor:
-    if name in _KERNELS:
-        # search normal losses!
-        return _KERNELS[name]()
-    else:
-        # regex search kernels, and call with args!
-        for r, _, fn in _ARG_KERNELS:
-            result = r.search(name)
-            if result is not None:
-                return fn(*result.groups())
-    # we couldn't find anything
-    raise KeyError(f'Invalid kernel name: {repr(name)} Examples of argument based kernels include: {[example for _, example, _ in _ARG_KERNELS]}')
-
-
 def make_kernel(name: str, normalize: bool = False):
-    kernel = _make_kernel(name)
+    kernel = DYN_REGISTRY_KERNELS.make_value(name)
     kernel = _normalise_kernel(kernel, normalize=normalize)
     kernel = _check_kernel(kernel)
     return kernel
@@ -267,7 +263,7 @@ def make_kernel(name: str, normalize: bool = False):
 def _get_kernel(name_or_path: str) -> torch.Tensor:
     if '/' not in name_or_path:
         try:
-            return _make_kernel(name_or_path)
+            return DYN_REGISTRY_KERNELS.make_value(name_or_path)
         except KeyError:
             pass
     if os.path.isfile(name_or_path):
