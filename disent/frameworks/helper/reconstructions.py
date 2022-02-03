@@ -281,8 +281,8 @@ _ARG_RECON_LOSSES: List[Tuple[re.Pattern, str, callable]] = [
     # (REGEX, EXAMPLE, FACTORY_FUNC)
     # - factory function takes at min one arg: fn(reduction) with one arg after that per regex capture group
     # - regex expressions are tested in order, expressions should be mutually exclusive or ordered such that more specialized versions occur first.
-    (re.compile(r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_w(\d+\.\d+)$'),             'mse_xy8_r47_w1.0',      lambda reduction, loss, kern, weight:             AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=1-float(weight), aug_weight=float(weight))),    # pragma: delete-on-release
-    (re.compile(r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_l(\d+\.\d+)_k(\d+\.\d+)$'), 'mse_xy8_r47_l1.0_k1.0', lambda reduction, loss, kern, l_weight, k_weight: AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=float(l_weight), aug_weight=float(k_weight))),  # pragma: delete-on-release
+    (re.compile(r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_w(\d+\.\d+)$'),             'mse_xy8_r47_w1.0',      lambda reduction, loss, kern, weight:             AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=1-float(weight), aug_weight=float(weight))),
+    (re.compile(r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_l(\d+\.\d+)_k(\d+\.\d+)$'), 'mse_xy8_r47_l1.0_k1.0', lambda reduction, loss, kern, l_weight, k_weight: AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=float(l_weight), aug_weight=float(k_weight))),
 ]
 
 

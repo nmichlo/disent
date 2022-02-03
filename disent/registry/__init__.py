@@ -52,11 +52,12 @@ DATASETS['mpi3d']             = _LazyImport('disent.dataset.data._groundtruth__m
 DATASETS['smallnorb']         = _LazyImport('disent.dataset.data._groundtruth__norb')
 DATASETS['shapes3d']          = _LazyImport('disent.dataset.data._groundtruth__shapes3d')
 # groundtruth -- impl synthetic
-DATASETS['xyblocks']          = _LazyImport('disent.dataset.data._groundtruth__xyblocks')   # pragma: delete-on-release
 DATASETS['xyobject']          = _LazyImport('disent.dataset.data._groundtruth__xyobject')
-DATASETS['xysquares']         = _LazyImport('disent.dataset.data._groundtruth__xysquares')  # pragma: delete-on-release
-DATASETS['xysquares_minimal'] = _LazyImport('disent.dataset.data._groundtruth__xysquares')  # pragma: delete-on-release
-DATASETS['xcolumns']          = _LazyImport('disent.dataset.data._groundtruth__xcolumns')   # pragma: delete-on-release
+# TODO: move this into research code                                                               # pragma: delete-on-release
+DATASETS['xyblocks']          = _LazyImport('research.code.dataset.data._groundtruth__xyblocks')   # pragma: delete-on-release
+DATASETS['xysquares']         = _LazyImport('research.code.dataset.data._groundtruth__xysquares')  # pragma: delete-on-release
+DATASETS['xysquares_minimal'] = _LazyImport('research.code.dataset.data._groundtruth__xysquares')  # pragma: delete-on-release
+DATASETS['xcolumns']          = _LazyImport('research.code.dataset.data._groundtruth__xcolumns')   # pragma: delete-on-release
 
 
 # ========================================================================= #
@@ -104,23 +105,24 @@ FRAMEWORKS['dip_vae']       = _LazyImport('disent.frameworks.vae._unsupervised__
 FRAMEWORKS['info_vae']      = _LazyImport('disent.frameworks.vae._unsupervised__infovae.InfoVae')
 FRAMEWORKS['vae']           = _LazyImport('disent.frameworks.vae._unsupervised__vae.Vae')
 FRAMEWORKS['ada_vae']       = _LazyImport('disent.frameworks.vae._weaklysupervised__adavae.AdaVae')
-# [AE - EXPERIMENTAL]                                                                                                                 # pragma: delete-on-release
-FRAMEWORKS['x__adaneg_tae']  = _LazyImport('disent.frameworks.ae.experimental._supervised__adaneg_tae.AdaNegTripletAe')               # pragma: delete-on-release
-FRAMEWORKS['x__dot_ae']      = _LazyImport('disent.frameworks.ae.experimental._unsupervised__dotae.DataOverlapTripletAe')             # pragma: delete-on-release
-FRAMEWORKS['x__ada_ae']      = _LazyImport('disent.frameworks.ae.experimental._weaklysupervised__adaae.AdaAe')                        # pragma: delete-on-release
-# [VAE - EXPERIMENTAL]                                                                                                                # pragma: delete-on-release
-FRAMEWORKS['x__adaave_tvae'] = _LazyImport('disent.frameworks.vae.experimental._supervised__adaave_tvae.AdaAveTripletVae')            # pragma: delete-on-release
-FRAMEWORKS['x__adaneg_tvae'] = _LazyImport('disent.frameworks.vae.experimental._supervised__adaneg_tvae.AdaNegTripletVae')            # pragma: delete-on-release
-FRAMEWORKS['x__ada_tvae']    = _LazyImport('disent.frameworks.vae.experimental._supervised__adatvae.AdaTripletVae')                   # pragma: delete-on-release
-FRAMEWORKS['x__bada_vae']    = _LazyImport('disent.frameworks.vae.experimental._supervised__badavae.BoundedAdaVae')                   # pragma: delete-on-release
-FRAMEWORKS['x__gada_vae']    = _LazyImport('disent.frameworks.vae.experimental._supervised__gadavae.GuidedAdaVae')                    # pragma: delete-on-release
-FRAMEWORKS['x__tbada_vae']   = _LazyImport('disent.frameworks.vae.experimental._supervised__tbadavae.TripletBoundedAdaVae')           # pragma: delete-on-release
-FRAMEWORKS['x__tgada_vae']   = _LazyImport('disent.frameworks.vae.experimental._supervised__tgadavae.TripletGuidedAdaVae')            # pragma: delete-on-release
-FRAMEWORKS['x__dor_vae']     = _LazyImport('disent.frameworks.vae.experimental._unsupervised__dorvae.DataOverlapRankVae')             # pragma: delete-on-release
-FRAMEWORKS['x__dot_vae']     = _LazyImport('disent.frameworks.vae.experimental._unsupervised__dotvae.DataOverlapTripletVae')          # pragma: delete-on-release
-FRAMEWORKS['x__augpos_tvae'] = _LazyImport('disent.frameworks.vae.experimental._weaklysupervised__augpostriplet.AugPosTripletVae')    # pragma: delete-on-release
-FRAMEWORKS['x__st_ada_vae']  = _LazyImport('disent.frameworks.vae.experimental._weaklysupervised__st_adavae.SwappedTargetAdaVae')     # pragma: delete-on-release
-FRAMEWORKS['x__st_beta_vae'] = _LazyImport('disent.frameworks.vae.experimental._weaklysupervised__st_betavae.SwappedTargetBetaVae')   # pragma: delete-on-release
+# TODO: register from research code                                                                                             # pragma: delete-on-release
+# [AE - EXPERIMENTAL]                                                                                                           # pragma: delete-on-release
+FRAMEWORKS['x__adaneg_tae']  = _LazyImport('research.code.frameworks.ae._supervised__adaneg_tae.AdaNegTripletAe')               # pragma: delete-on-release
+FRAMEWORKS['x__dot_ae']      = _LazyImport('research.code.frameworks.ae._unsupervised__dotae.DataOverlapTripletAe')             # pragma: delete-on-release
+FRAMEWORKS['x__ada_ae']      = _LazyImport('research.code.frameworks.ae._weaklysupervised__adaae.AdaAe')                        # pragma: delete-on-release
+# [VAE - EXPERIMENTAL]                                                                                                          # pragma: delete-on-release
+FRAMEWORKS['x__adaave_tvae'] = _LazyImport('research.code.frameworks.vae._supervised__adaave_tvae.AdaAveTripletVae')            # pragma: delete-on-release
+FRAMEWORKS['x__adaneg_tvae'] = _LazyImport('research.code.frameworks.vae._supervised__adaneg_tvae.AdaNegTripletVae')            # pragma: delete-on-release
+FRAMEWORKS['x__ada_tvae']    = _LazyImport('research.code.frameworks.vae._supervised__adatvae.AdaTripletVae')                   # pragma: delete-on-release
+FRAMEWORKS['x__bada_vae']    = _LazyImport('research.code.frameworks.vae._supervised__badavae.BoundedAdaVae')                   # pragma: delete-on-release
+FRAMEWORKS['x__gada_vae']    = _LazyImport('research.code.frameworks.vae._supervised__gadavae.GuidedAdaVae')                    # pragma: delete-on-release
+FRAMEWORKS['x__tbada_vae']   = _LazyImport('research.code.frameworks.vae._supervised__tbadavae.TripletBoundedAdaVae')           # pragma: delete-on-release
+FRAMEWORKS['x__tgada_vae']   = _LazyImport('research.code.frameworks.vae._supervised__tgadavae.TripletGuidedAdaVae')            # pragma: delete-on-release
+FRAMEWORKS['x__dor_vae']     = _LazyImport('research.code.frameworks.vae._unsupervised__dorvae.DataOverlapRankVae')             # pragma: delete-on-release
+FRAMEWORKS['x__dot_vae']     = _LazyImport('research.code.frameworks.vae._unsupervised__dotvae.DataOverlapTripletVae')          # pragma: delete-on-release
+FRAMEWORKS['x__augpos_tvae'] = _LazyImport('research.code.frameworks.vae._weaklysupervised__augpostriplet.AugPosTripletVae')    # pragma: delete-on-release
+FRAMEWORKS['x__st_ada_vae']  = _LazyImport('research.code.frameworks.vae._weaklysupervised__st_adavae.SwappedTargetAdaVae')     # pragma: delete-on-release
+FRAMEWORKS['x__st_beta_vae'] = _LazyImport('research.code.frameworks.vae._weaklysupervised__st_betavae.SwappedTargetBetaVae')   # pragma: delete-on-release
 
 
 # ========================================================================= #
@@ -206,11 +208,12 @@ OPTIMIZERS['yogi']        = _LazyImport(lr=_LR, import_path='torch_optimizer.Yog
 METRICS = _Registry('METRICS')
 METRICS['dci']                 = _LazyImport('disent.metrics._dci.metric_dci')
 METRICS['factor_vae']          = _LazyImport('disent.metrics._factor_vae.metric_factor_vae')
-METRICS['flatness']            = _LazyImport('disent.metrics._flatness.metric_flatness')                        # pragma: delete-on-release
-METRICS['flatness_components'] = _LazyImport('disent.metrics._flatness_components.metric_flatness_components')  # pragma: delete-on-release
 METRICS['mig']                 = _LazyImport('disent.metrics._mig.metric_mig')
 METRICS['sap']                 = _LazyImport('disent.metrics._sap.metric_sap')
 METRICS['unsupervised']        = _LazyImport('disent.metrics._unsupervised.metric_unsupervised')
+# TODO: move this into research code                                                                                   # pragma: delete-on-release
+METRICS['flatness']            = _LazyImport('research.code.metrics._flatness.metric_flatness')                        # pragma: delete-on-release
+METRICS['flatness_components'] = _LazyImport('research.code.metrics._flatness_components.metric_flatness_components')  # pragma: delete-on-release
 
 
 # ========================================================================= #
