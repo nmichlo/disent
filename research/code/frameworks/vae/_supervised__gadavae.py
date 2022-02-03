@@ -31,7 +31,7 @@ from typing import Tuple
 from torch.distributions import Distribution
 
 from disent.frameworks.vae._weaklysupervised__adavae import AdaVae
-from disent.frameworks.vae.experimental._supervised__badavae import compute_constrained_masks
+from research.code.frameworks.vae._supervised__badavae import compute_constrained_masks
 
 
 # ========================================================================= #

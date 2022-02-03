@@ -22,11 +22,30 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-# supervised frameworks
-from disent.frameworks.ae.experimental._supervised__adaneg_tae import AdaNegTripletAe
+from dataclasses import dataclass
 
-# unsupervised frameworks
-from disent.frameworks.ae.experimental._unsupervised__dotae import DataOverlapTripletAe
+from research.code.frameworks.vae._supervised__badavae import BoundedAdaVae
+from disent.nn.loss.triplet import compute_triplet_loss
+from disent.nn.loss.triplet import TripletLossConfig
 
-# weakly supervised frameworks
-from disent.frameworks.ae.experimental._weaklysupervised__adaae import AdaAe
+
+# ========================================================================= #
+# tbadavae                                                                  #
+# ========================================================================= #
+
+
+class TripletBoundedAdaVae(BoundedAdaVae):
+
+    REQUIRED_OBS = 3
+
+    @dataclass
+    class cfg(BoundedAdaVae.cfg, TripletLossConfig):
+        pass
+
+    def hook_compute_ave_aug_loss(self, ds_posterior, ds_prior, zs_sampled, xs_partial_recon, xs_targ):
+        return compute_triplet_loss(zs=[d.mean for d in ds_posterior], cfg=self.cfg)
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #

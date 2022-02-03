@@ -33,8 +33,8 @@ from torch.distributions import Normal
 
 from disent.frameworks.helper.reconstructions import make_reconstruction_loss
 from disent.frameworks.helper.reconstructions import ReconLossHandler
-from disent.frameworks.vae.experimental._supervised__adaneg_tvae import AdaNegTripletVae
 from disent.nn.loss.triplet_mining import configured_idx_mine
+from research.code.frameworks.vae import AdaNegTripletVae
 
 
 log = logging.getLogger(__name__)

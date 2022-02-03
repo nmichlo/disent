@@ -22,53 +22,28 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-import logging
 from dataclasses import dataclass
-from typing import Any
-from typing import Dict
-from typing import Sequence
-from typing import Tuple
 
-import torch
-
-from disent.frameworks.ae.experimental._supervised__adaneg_tae import AdaNegTripletAe
-from disent.frameworks.vae.experimental._supervised__adaneg_tvae import AdaNegTripletVae
-from disent.frameworks.vae.experimental._unsupervised__dotvae import DataOverlapMixin
-
-
-log = logging.getLogger(__name__)
+from disent.nn.loss.triplet import compute_triplet_loss
+from disent.nn.loss.triplet import TripletLossConfig
+from research.code.frameworks.vae._supervised__gadavae import GuidedAdaVae
 
 
 # ========================================================================= #
-# Data Overlap Triplet AE                                                  #
+# tgadavae                                                                  #
 # ========================================================================= #
 
 
-class DataOverlapTripletAe(AdaNegTripletAe, DataOverlapMixin):
+class TripletGuidedAdaVae(GuidedAdaVae):
 
-    REQUIRED_OBS = 1
+    REQUIRED_OBS = 3
 
     @dataclass
-    class cfg(AdaNegTripletAe.cfg, DataOverlapMixin.cfg):
+    class cfg(GuidedAdaVae.cfg, TripletLossConfig):
         pass
 
-    def __init__(self, model: 'AutoEncoder', cfg: cfg = None, batch_augment=None):
-        super().__init__(model=model, cfg=cfg, batch_augment=batch_augment)
-        # initialise mixin
-        self.init_data_overlap_mixin()
-
-    def hook_ae_compute_ave_aug_loss(self, zs: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[torch.Tensor, Dict[str, Any]]:
-        [z], [x_targ_orig] = zs, xs_targ
-        # 1. randomly generate and mine triplets using augmented versions of the inputs
-        a_idxs, p_idxs, n_idxs = self.random_mined_triplets(x_targ_orig=x_targ_orig)
-        # 2. compute triplet loss
-        loss, loss_log = AdaNegTripletVae.estimate_ada_triplet_loss_from_zs(
-            zs=[z[idxs] for idxs in (a_idxs, p_idxs, n_idxs)],
-            cfg=self.cfg,
-        )
-        return loss, {
-            **loss_log,
-        }
+    def hook_compute_ave_aug_loss(self, ds_posterior, ds_prior, zs_sampled, xs_partial_recon, xs_targ):
+        return compute_triplet_loss(zs=[d.mean for d in ds_posterior], cfg=self.cfg)
 
 
 # ========================================================================= #

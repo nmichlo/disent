@@ -34,8 +34,8 @@ from typing import Union
 import torch
 
 from disent.frameworks.ae._supervised__tae import TripletAe
-from disent.frameworks.ae.experimental._weaklysupervised__adaae import AdaAe
-from disent.frameworks.vae.experimental._supervised__adaneg_tvae import AdaNegTripletVae
+from research.code.frameworks.ae._weaklysupervised__adaae import AdaAe
+from research.code.frameworks.vae._supervised__adaneg_tvae import AdaNegTripletVae
 
 
 log = logging.getLogger(__name__)

@@ -32,9 +32,9 @@ from torch.distributions import Normal
 from disent.nn.loss.triplet import configured_dist_triplet
 from disent.nn.loss.triplet import configured_triplet
 from disent.frameworks.vae._supervised__tvae import TripletVae
-from disent.frameworks.vae.experimental._supervised__adatvae import compute_triplet_shared_masks
-from disent.frameworks.vae.experimental._supervised__adatvae import compute_triplet_shared_masks_from_zs
 from disent.frameworks.vae._weaklysupervised__adavae import AdaVae
+from research.code.frameworks.vae._supervised__adatvae import compute_triplet_shared_masks
+from research.code.frameworks.vae._supervised__adatvae import compute_triplet_shared_masks_from_zs
 
 
 log = logging.getLogger(__name__)

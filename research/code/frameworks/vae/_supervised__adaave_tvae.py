@@ -34,9 +34,9 @@ from disent.util.deprecate import deprecated
 from torch.distributions import Distribution
 from torch.distributions import Normal
 
-from disent.frameworks.vae.experimental._supervised__adatvae import AdaTripletVae
-from disent.frameworks.vae.experimental._supervised__adatvae import compute_ave_shared_distributions
-from disent.frameworks.vae.experimental._supervised__adatvae import compute_triplet_shared_masks
+from research.code.frameworks.vae._supervised__adatvae import AdaTripletVae
+from research.code.frameworks.vae._supervised__adatvae import compute_ave_shared_distributions
+from research.code.frameworks.vae._supervised__adatvae import compute_triplet_shared_masks
 
 log = logging.getLogger(__name__)
 
