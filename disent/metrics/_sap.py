@@ -33,6 +33,7 @@ from sklearn import svm
 
 from disent.dataset import DisentDataset
 from disent.metrics import utils
+from disent.metrics.utils import make_metric
 
 
 log = logging.getLogger(__name__)
@@ -43,6 +44,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
+@make_metric('sap', fast_kwargs=dict(num_train=2000, num_test=1000))
 def metric_sap(
         dataset: DisentDataset,
         representation_function,

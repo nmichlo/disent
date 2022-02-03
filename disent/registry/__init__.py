@@ -35,7 +35,7 @@ eg. `DATASET.register(...options...)(your_function_or_class)`
 """
 
 from disent.registry._registry import Registry as _Registry
-from disent.registry._registry import LazyImport as _LazyImport
+from disent.registry._registry import LazyImport
 
 
 # ========================================================================= #
@@ -46,18 +46,13 @@ from disent.registry._registry import LazyImport as _LazyImport
 # TODO: this is not yet used in disent.data or disent.frameworks
 DATASETS = _Registry('DATASETS')
 # groundtruth -- impl
-DATASETS['cars3d']            = _LazyImport('disent.dataset.data._groundtruth__cars3d')
-DATASETS['dsprites']          = _LazyImport('disent.dataset.data._groundtruth__dsprites')
-DATASETS['mpi3d']             = _LazyImport('disent.dataset.data._groundtruth__mpi3d')
-DATASETS['smallnorb']         = _LazyImport('disent.dataset.data._groundtruth__norb')
-DATASETS['shapes3d']          = _LazyImport('disent.dataset.data._groundtruth__shapes3d')
+DATASETS['cars3d']            = LazyImport('disent.dataset.data._groundtruth__cars3d')
+DATASETS['dsprites']          = LazyImport('disent.dataset.data._groundtruth__dsprites')
+DATASETS['mpi3d']             = LazyImport('disent.dataset.data._groundtruth__mpi3d')
+DATASETS['smallnorb']         = LazyImport('disent.dataset.data._groundtruth__norb')
+DATASETS['shapes3d']          = LazyImport('disent.dataset.data._groundtruth__shapes3d')
 # groundtruth -- impl synthetic
-DATASETS['xyobject']          = _LazyImport('disent.dataset.data._groundtruth__xyobject')
-# TODO: move this into research code                                                               # pragma: delete-on-release
-DATASETS['xyblocks']          = _LazyImport('research.code.dataset.data._groundtruth__xyblocks')   # pragma: delete-on-release
-DATASETS['xysquares']         = _LazyImport('research.code.dataset.data._groundtruth__xysquares')  # pragma: delete-on-release
-DATASETS['xysquares_minimal'] = _LazyImport('research.code.dataset.data._groundtruth__xysquares')  # pragma: delete-on-release
-DATASETS['xcolumns']          = _LazyImport('research.code.dataset.data._groundtruth__xcolumns')   # pragma: delete-on-release
+DATASETS['xyobject']          = LazyImport('disent.dataset.data._groundtruth__xyobject')
 
 
 # ========================================================================= #
@@ -70,16 +65,16 @@ DATASETS['xcolumns']          = _LazyImport('research.code.dataset.data._groundt
 # changes here should also update
 SAMPLERS = _Registry('SAMPLERS')
 # [ground truth samplers]
-SAMPLERS['gt_dist']         = _LazyImport('disent.dataset.sampling._groundtruth__dist.GroundTruthDistSampler')
-SAMPLERS['gt_pair']         = _LazyImport('disent.dataset.sampling._groundtruth__pair.GroundTruthPairSampler')
-SAMPLERS['gt_pair_orig']    = _LazyImport('disent.dataset.sampling._groundtruth__pair_orig.GroundTruthPairOrigSampler')
-SAMPLERS['gt_single']       = _LazyImport('disent.dataset.sampling._groundtruth__single.GroundTruthSingleSampler')
-SAMPLERS['gt_triple']       = _LazyImport('disent.dataset.sampling._groundtruth__triplet.GroundTruthTripleSampler')
+SAMPLERS['gt_dist']         = LazyImport('disent.dataset.sampling._groundtruth__dist.GroundTruthDistSampler')
+SAMPLERS['gt_pair']         = LazyImport('disent.dataset.sampling._groundtruth__pair.GroundTruthPairSampler')
+SAMPLERS['gt_pair_orig']    = LazyImport('disent.dataset.sampling._groundtruth__pair_orig.GroundTruthPairOrigSampler')
+SAMPLERS['gt_single']       = LazyImport('disent.dataset.sampling._groundtruth__single.GroundTruthSingleSampler')
+SAMPLERS['gt_triple']       = LazyImport('disent.dataset.sampling._groundtruth__triplet.GroundTruthTripleSampler')
 # [any dataset samplers]
-SAMPLERS['single']          = _LazyImport('disent.dataset.sampling._single.SingleSampler')
-SAMPLERS['random']          = _LazyImport('disent.dataset.sampling._random__any.RandomSampler')
+SAMPLERS['single']          = LazyImport('disent.dataset.sampling._single.SingleSampler')
+SAMPLERS['random']          = LazyImport('disent.dataset.sampling._random__any.RandomSampler')
 # [episode samplers]
-SAMPLERS['random_episode']  = _LazyImport('disent.dataset.sampling._random__episodes.RandomEpisodeSampler')
+SAMPLERS['random_episode']  = LazyImport('disent.dataset.sampling._random__episodes.RandomEpisodeSampler')
 
 
 # ========================================================================= #
@@ -94,35 +89,17 @@ SAMPLERS['random_episode']  = _LazyImport('disent.dataset.sampling._random__epis
 # TODO: this is not yet used in disent.frameworks
 FRAMEWORKS = _Registry('FRAMEWORKS')
 # [AE]
-FRAMEWORKS['tae']           = _LazyImport('disent.frameworks.ae._supervised__tae.TripletAe')
-FRAMEWORKS['ae']            = _LazyImport('disent.frameworks.ae._unsupervised__ae.Ae')
+FRAMEWORKS['tae']           = LazyImport('disent.frameworks.ae._supervised__tae.TripletAe')
+FRAMEWORKS['ae']            = LazyImport('disent.frameworks.ae._unsupervised__ae.Ae')
 # [VAE]
-FRAMEWORKS['tvae']          = _LazyImport('disent.frameworks.vae._supervised__tvae.TripletVae')
-FRAMEWORKS['betatc_vae']    = _LazyImport('disent.frameworks.vae._unsupervised__betatcvae.BetaTcVae')
-FRAMEWORKS['beta_vae']      = _LazyImport('disent.frameworks.vae._unsupervised__betavae.BetaVae')
-FRAMEWORKS['dfc_vae']       = _LazyImport('disent.frameworks.vae._unsupervised__dfcvae.DfcVae')
-FRAMEWORKS['dip_vae']       = _LazyImport('disent.frameworks.vae._unsupervised__dipvae.DipVae')
-FRAMEWORKS['info_vae']      = _LazyImport('disent.frameworks.vae._unsupervised__infovae.InfoVae')
-FRAMEWORKS['vae']           = _LazyImport('disent.frameworks.vae._unsupervised__vae.Vae')
-FRAMEWORKS['ada_vae']       = _LazyImport('disent.frameworks.vae._weaklysupervised__adavae.AdaVae')
-# TODO: register from research code                                                                                             # pragma: delete-on-release
-# [AE - EXPERIMENTAL]                                                                                                           # pragma: delete-on-release
-FRAMEWORKS['x__adaneg_tae']  = _LazyImport('research.code.frameworks.ae._supervised__adaneg_tae.AdaNegTripletAe')               # pragma: delete-on-release
-FRAMEWORKS['x__dot_ae']      = _LazyImport('research.code.frameworks.ae._unsupervised__dotae.DataOverlapTripletAe')             # pragma: delete-on-release
-FRAMEWORKS['x__ada_ae']      = _LazyImport('research.code.frameworks.ae._weaklysupervised__adaae.AdaAe')                        # pragma: delete-on-release
-# [VAE - EXPERIMENTAL]                                                                                                          # pragma: delete-on-release
-FRAMEWORKS['x__adaave_tvae'] = _LazyImport('research.code.frameworks.vae._supervised__adaave_tvae.AdaAveTripletVae')            # pragma: delete-on-release
-FRAMEWORKS['x__adaneg_tvae'] = _LazyImport('research.code.frameworks.vae._supervised__adaneg_tvae.AdaNegTripletVae')            # pragma: delete-on-release
-FRAMEWORKS['x__ada_tvae']    = _LazyImport('research.code.frameworks.vae._supervised__adatvae.AdaTripletVae')                   # pragma: delete-on-release
-FRAMEWORKS['x__bada_vae']    = _LazyImport('research.code.frameworks.vae._supervised__badavae.BoundedAdaVae')                   # pragma: delete-on-release
-FRAMEWORKS['x__gada_vae']    = _LazyImport('research.code.frameworks.vae._supervised__gadavae.GuidedAdaVae')                    # pragma: delete-on-release
-FRAMEWORKS['x__tbada_vae']   = _LazyImport('research.code.frameworks.vae._supervised__tbadavae.TripletBoundedAdaVae')           # pragma: delete-on-release
-FRAMEWORKS['x__tgada_vae']   = _LazyImport('research.code.frameworks.vae._supervised__tgadavae.TripletGuidedAdaVae')            # pragma: delete-on-release
-FRAMEWORKS['x__dor_vae']     = _LazyImport('research.code.frameworks.vae._unsupervised__dorvae.DataOverlapRankVae')             # pragma: delete-on-release
-FRAMEWORKS['x__dot_vae']     = _LazyImport('research.code.frameworks.vae._unsupervised__dotvae.DataOverlapTripletVae')          # pragma: delete-on-release
-FRAMEWORKS['x__augpos_tvae'] = _LazyImport('research.code.frameworks.vae._weaklysupervised__augpostriplet.AugPosTripletVae')    # pragma: delete-on-release
-FRAMEWORKS['x__st_ada_vae']  = _LazyImport('research.code.frameworks.vae._weaklysupervised__st_adavae.SwappedTargetAdaVae')     # pragma: delete-on-release
-FRAMEWORKS['x__st_beta_vae'] = _LazyImport('research.code.frameworks.vae._weaklysupervised__st_betavae.SwappedTargetBetaVae')   # pragma: delete-on-release
+FRAMEWORKS['tvae']          = LazyImport('disent.frameworks.vae._supervised__tvae.TripletVae')
+FRAMEWORKS['betatc_vae']    = LazyImport('disent.frameworks.vae._unsupervised__betatcvae.BetaTcVae')
+FRAMEWORKS['beta_vae']      = LazyImport('disent.frameworks.vae._unsupervised__betavae.BetaVae')
+FRAMEWORKS['dfc_vae']       = LazyImport('disent.frameworks.vae._unsupervised__dfcvae.DfcVae')
+FRAMEWORKS['dip_vae']       = LazyImport('disent.frameworks.vae._unsupervised__dipvae.DipVae')
+FRAMEWORKS['info_vae']      = LazyImport('disent.frameworks.vae._unsupervised__infovae.InfoVae')
+FRAMEWORKS['vae']           = LazyImport('disent.frameworks.vae._unsupervised__vae.Vae')
+FRAMEWORKS['ada_vae']       = LazyImport('disent.frameworks.vae._weaklysupervised__adavae.AdaVae')
 
 
 # ========================================================================= #
@@ -133,13 +110,13 @@ FRAMEWORKS['x__st_beta_vae'] = _LazyImport('research.code.frameworks.vae._weakly
 
 RECON_LOSSES = _Registry('RECON_LOSSES')
 # [STANDARD LOSSES]
-RECON_LOSSES['mse']         = _LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerMse')                  # from the normal distribution - real values in the range [0, 1]
-RECON_LOSSES['mae']         = _LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerMae')                  # mean absolute error
+RECON_LOSSES['mse']         = LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerMse')                  # from the normal distribution - real values in the range [0, 1]
+RECON_LOSSES['mae']         = LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerMae')                  # mean absolute error
 # [STANDARD DISTRIBUTIONS]
-RECON_LOSSES['bce']         = _LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerBce')                  # from the bernoulli distribution - binary values in the set {0, 1}
-RECON_LOSSES['bernoulli']   = _LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerBernoulli')            # reduces to bce - binary values in the set {0, 1}
-RECON_LOSSES['c_bernoulli'] = _LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerContinuousBernoulli')  # bernoulli with a computed offset to handle values in the range [0, 1]
-RECON_LOSSES['normal']      = _LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerNormal')               # handle all real values
+RECON_LOSSES['bce']         = LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerBce')                  # from the bernoulli distribution - binary values in the set {0, 1}
+RECON_LOSSES['bernoulli']   = LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerBernoulli')            # reduces to bce - binary values in the set {0, 1}
+RECON_LOSSES['c_bernoulli'] = LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerContinuousBernoulli')  # bernoulli with a computed offset to handle values in the range [0, 1]
+RECON_LOSSES['normal']      = LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerNormal')               # handle all real values
 
 
 # ========================================================================= #
@@ -150,8 +127,8 @@ RECON_LOSSES['normal']      = _LazyImport('disent.frameworks.helper.reconstructi
 
 # TODO: this is not yet used in disent.frameworks or disent.frameworks.helper.latent_distributions
 LATENT_DISTS = _Registry('LATENT_DISTS')
-LATENT_DISTS['normal']  = _LazyImport('disent.frameworks.helper.latent_distributions.LatentDistsHandlerNormal')
-LATENT_DISTS['laplace'] = _LazyImport('disent.frameworks.helper.latent_distributions.LatentDistsHandlerLaplace')
+LATENT_DISTS['normal']  = LazyImport('disent.frameworks.helper.latent_distributions.LatentDistsHandlerNormal')
+LATENT_DISTS['laplace'] = LazyImport('disent.frameworks.helper.latent_distributions.LatentDistsHandlerLaplace')
 
 
 # ========================================================================= #
@@ -165,38 +142,38 @@ _LR = 1e-3
 
 OPTIMIZERS = _Registry('OPTIMIZERS')
 # [torch]
-OPTIMIZERS['adadelta']    = _LazyImport(lr=_LR, import_path='torch.optim.adadelta.Adadelta')
-OPTIMIZERS['adagrad']     = _LazyImport(lr=_LR, import_path='torch.optim.adagrad.Adagrad')
-OPTIMIZERS['adam']        = _LazyImport(lr=_LR, import_path='torch.optim.adam.Adam')
-OPTIMIZERS['adamax']      = _LazyImport(lr=_LR, import_path='torch.optim.adamax.Adamax')
-OPTIMIZERS['adam_w']      = _LazyImport(lr=_LR, import_path='torch.optim.adamw.AdamW')
-OPTIMIZERS['asgd']        = _LazyImport(lr=_LR, import_path='torch.optim.asgd.ASGD')
-OPTIMIZERS['lbfgs']       = _LazyImport(lr=_LR, import_path='torch.optim.lbfgs.LBFGS')
-OPTIMIZERS['rmsprop']     = _LazyImport(lr=_LR, import_path='torch.optim.rmsprop.RMSprop')
-OPTIMIZERS['rprop']       = _LazyImport(lr=_LR, import_path='torch.optim.rprop.Rprop')
-OPTIMIZERS['sgd']         = _LazyImport(lr=_LR, import_path='torch.optim.sgd.SGD')
-OPTIMIZERS['sparse_adam'] = _LazyImport(lr=_LR, import_path='torch.optim.sparse_adam.SparseAdam')
+OPTIMIZERS['adadelta']    = LazyImport(lr=_LR, import_path='torch.optim.adadelta.Adadelta')
+OPTIMIZERS['adagrad']     = LazyImport(lr=_LR, import_path='torch.optim.adagrad.Adagrad')
+OPTIMIZERS['adam']        = LazyImport(lr=_LR, import_path='torch.optim.adam.Adam')
+OPTIMIZERS['adamax']      = LazyImport(lr=_LR, import_path='torch.optim.adamax.Adamax')
+OPTIMIZERS['adam_w']      = LazyImport(lr=_LR, import_path='torch.optim.adamw.AdamW')
+OPTIMIZERS['asgd']        = LazyImport(lr=_LR, import_path='torch.optim.asgd.ASGD')
+OPTIMIZERS['lbfgs']       = LazyImport(lr=_LR, import_path='torch.optim.lbfgs.LBFGS')
+OPTIMIZERS['rmsprop']     = LazyImport(lr=_LR, import_path='torch.optim.rmsprop.RMSprop')
+OPTIMIZERS['rprop']       = LazyImport(lr=_LR, import_path='torch.optim.rprop.Rprop')
+OPTIMIZERS['sgd']         = LazyImport(lr=_LR, import_path='torch.optim.sgd.SGD')
+OPTIMIZERS['sparse_adam'] = LazyImport(lr=_LR, import_path='torch.optim.sparse_adam.SparseAdam')
 # [torch_optimizer]
-OPTIMIZERS['acc_sgd']     = _LazyImport(lr=_LR, import_path='torch_optimizer.AccSGD')
-OPTIMIZERS['ada_bound']   = _LazyImport(lr=_LR, import_path='torch_optimizer.AdaBound')
-OPTIMIZERS['ada_mod']     = _LazyImport(lr=_LR, import_path='torch_optimizer.AdaMod')
-OPTIMIZERS['adam_p']      = _LazyImport(lr=_LR, import_path='torch_optimizer.AdamP')
-OPTIMIZERS['agg_mo']      = _LazyImport(lr=_LR, import_path='torch_optimizer.AggMo')
-OPTIMIZERS['diff_grad']   = _LazyImport(lr=_LR, import_path='torch_optimizer.DiffGrad')
-OPTIMIZERS['lamb']        = _LazyImport(lr=_LR, import_path='torch_optimizer.Lamb')
+OPTIMIZERS['acc_sgd']     = LazyImport(lr=_LR, import_path='torch_optimizer.AccSGD')
+OPTIMIZERS['ada_bound']   = LazyImport(lr=_LR, import_path='torch_optimizer.AdaBound')
+OPTIMIZERS['ada_mod']     = LazyImport(lr=_LR, import_path='torch_optimizer.AdaMod')
+OPTIMIZERS['adam_p']      = LazyImport(lr=_LR, import_path='torch_optimizer.AdamP')
+OPTIMIZERS['agg_mo']      = LazyImport(lr=_LR, import_path='torch_optimizer.AggMo')
+OPTIMIZERS['diff_grad']   = LazyImport(lr=_LR, import_path='torch_optimizer.DiffGrad')
+OPTIMIZERS['lamb']        = LazyImport(lr=_LR, import_path='torch_optimizer.Lamb')
 # 'torch_optimizer.Lookahead' is skipped because it is wrapped
-OPTIMIZERS['novograd']    = _LazyImport(lr=_LR, import_path='torch_optimizer.NovoGrad')
-OPTIMIZERS['pid']         = _LazyImport(lr=_LR, import_path='torch_optimizer.PID')
-OPTIMIZERS['qh_adam']     = _LazyImport(lr=_LR, import_path='torch_optimizer.QHAdam')
-OPTIMIZERS['qhm']         = _LazyImport(lr=_LR, import_path='torch_optimizer.QHM')
-OPTIMIZERS['radam']       = _LazyImport(lr=_LR, import_path='torch_optimizer.RAdam')
-OPTIMIZERS['ranger']      = _LazyImport(lr=_LR, import_path='torch_optimizer.Ranger')
-OPTIMIZERS['ranger_qh']   = _LazyImport(lr=_LR, import_path='torch_optimizer.RangerQH')
-OPTIMIZERS['ranger_va']   = _LazyImport(lr=_LR, import_path='torch_optimizer.RangerVA')
-OPTIMIZERS['sgd_w']       = _LazyImport(lr=_LR, import_path='torch_optimizer.SGDW')
-OPTIMIZERS['sgd_p']       = _LazyImport(lr=_LR, import_path='torch_optimizer.SGDP')
-OPTIMIZERS['shampoo']     = _LazyImport(lr=_LR, import_path='torch_optimizer.Shampoo')
-OPTIMIZERS['yogi']        = _LazyImport(lr=_LR, import_path='torch_optimizer.Yogi')
+OPTIMIZERS['novograd']    = LazyImport(lr=_LR, import_path='torch_optimizer.NovoGrad')
+OPTIMIZERS['pid']         = LazyImport(lr=_LR, import_path='torch_optimizer.PID')
+OPTIMIZERS['qh_adam']     = LazyImport(lr=_LR, import_path='torch_optimizer.QHAdam')
+OPTIMIZERS['qhm']         = LazyImport(lr=_LR, import_path='torch_optimizer.QHM')
+OPTIMIZERS['radam']       = LazyImport(lr=_LR, import_path='torch_optimizer.RAdam')
+OPTIMIZERS['ranger']      = LazyImport(lr=_LR, import_path='torch_optimizer.Ranger')
+OPTIMIZERS['ranger_qh']   = LazyImport(lr=_LR, import_path='torch_optimizer.RangerQH')
+OPTIMIZERS['ranger_va']   = LazyImport(lr=_LR, import_path='torch_optimizer.RangerVA')
+OPTIMIZERS['sgd_w']       = LazyImport(lr=_LR, import_path='torch_optimizer.SGDW')
+OPTIMIZERS['sgd_p']       = LazyImport(lr=_LR, import_path='torch_optimizer.SGDP')
+OPTIMIZERS['shampoo']     = LazyImport(lr=_LR, import_path='torch_optimizer.Shampoo')
+OPTIMIZERS['yogi']        = LazyImport(lr=_LR, import_path='torch_optimizer.Yogi')
 
 
 # ========================================================================= #
@@ -206,14 +183,11 @@ OPTIMIZERS['yogi']        = _LazyImport(lr=_LR, import_path='torch_optimizer.Yog
 
 # TODO: this is not yet used in disent.util.lightning.callbacks or disent.metrics
 METRICS = _Registry('METRICS')
-METRICS['dci']                 = _LazyImport('disent.metrics._dci.metric_dci')
-METRICS['factor_vae']          = _LazyImport('disent.metrics._factor_vae.metric_factor_vae')
-METRICS['mig']                 = _LazyImport('disent.metrics._mig.metric_mig')
-METRICS['sap']                 = _LazyImport('disent.metrics._sap.metric_sap')
-METRICS['unsupervised']        = _LazyImport('disent.metrics._unsupervised.metric_unsupervised')
-# TODO: move this into research code                                                                                   # pragma: delete-on-release
-METRICS['flatness']            = _LazyImport('research.code.metrics._flatness.metric_flatness')                        # pragma: delete-on-release
-METRICS['flatness_components'] = _LazyImport('research.code.metrics._flatness_components.metric_flatness_components')  # pragma: delete-on-release
+METRICS['dci']                 = LazyImport('disent.metrics._dci.metric_dci')
+METRICS['factor_vae']          = LazyImport('disent.metrics._factor_vae.metric_factor_vae')
+METRICS['mig']                 = LazyImport('disent.metrics._mig.metric_mig')
+METRICS['sap']                 = LazyImport('disent.metrics._sap.metric_sap')
+METRICS['unsupervised']        = LazyImport('disent.metrics._unsupervised.metric_unsupervised')
 
 
 # ========================================================================= #
@@ -223,11 +197,11 @@ METRICS['flatness_components'] = _LazyImport('research.code.metrics._flatness_co
 
 # TODO: this is not yet used in disent.framework or disent.schedule
 SCHEDULES = _Registry('SCHEDULES')
-SCHEDULES['clip']        = _LazyImport('disent.schedule._schedule.ClipSchedule')
-SCHEDULES['cosine_wave'] = _LazyImport('disent.schedule._schedule.CosineWaveSchedule')
-SCHEDULES['cyclic']      = _LazyImport('disent.schedule._schedule.CyclicSchedule')
-SCHEDULES['linear']      = _LazyImport('disent.schedule._schedule.LinearSchedule')
-SCHEDULES['noop']        = _LazyImport('disent.schedule._schedule.NoopSchedule')
+SCHEDULES['clip']        = LazyImport('disent.schedule._schedule.ClipSchedule')
+SCHEDULES['cosine_wave'] = LazyImport('disent.schedule._schedule.CosineWaveSchedule')
+SCHEDULES['cyclic']      = LazyImport('disent.schedule._schedule.CyclicSchedule')
+SCHEDULES['linear']      = LazyImport('disent.schedule._schedule.LinearSchedule')
+SCHEDULES['noop']        = LazyImport('disent.schedule._schedule.NoopSchedule')
 
 
 # ========================================================================= #
@@ -238,15 +212,15 @@ SCHEDULES['noop']        = _LazyImport('disent.schedule._schedule.NoopSchedule')
 # TODO: this is not yet used in disent.framework or disent.model
 MODELS = _Registry('MODELS')
 # [DECODER]
-MODELS['encoder_conv64']     = _LazyImport('disent.model.ae._vae_conv64.EncoderConv64')
-MODELS['encoder_conv64norm'] = _LazyImport('disent.model.ae._norm_conv64.EncoderConv64Norm')
-MODELS['encoder_fc']         = _LazyImport('disent.model.ae._vae_fc.EncoderFC')
-MODELS['encoder_linear']     = _LazyImport('disent.model.ae._linear.EncoderLinear')
+MODELS['encoder_conv64']     = LazyImport('disent.model.ae._vae_conv64.EncoderConv64')
+MODELS['encoder_conv64norm'] = LazyImport('disent.model.ae._norm_conv64.EncoderConv64Norm')
+MODELS['encoder_fc']         = LazyImport('disent.model.ae._vae_fc.EncoderFC')
+MODELS['encoder_linear']     = LazyImport('disent.model.ae._linear.EncoderLinear')
 # [ENCODER]
-MODELS['decoder_conv64']     = _LazyImport('disent.model.ae._vae_conv64.DecoderConv64')
-MODELS['decoder_conv64norm'] = _LazyImport('disent.model.ae._norm_conv64.DecoderConv64Norm')
-MODELS['decoder_fc']         = _LazyImport('disent.model.ae._vae_fc.DecoderFC')
-MODELS['decoder_linear']     = _LazyImport('disent.model.ae._linear.DecoderLinear')
+MODELS['decoder_conv64']     = LazyImport('disent.model.ae._vae_conv64.DecoderConv64')
+MODELS['decoder_conv64norm'] = LazyImport('disent.model.ae._norm_conv64.DecoderConv64Norm')
+MODELS['decoder_fc']         = LazyImport('disent.model.ae._vae_fc.DecoderFC')
+MODELS['decoder_linear']     = LazyImport('disent.model.ae._linear.DecoderLinear')
 
 
 # ========================================================================= #

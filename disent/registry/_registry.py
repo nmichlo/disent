@@ -22,6 +22,7 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import logging
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -30,6 +31,7 @@ from typing import Optional
 from typing import Sequence
 from typing import Tuple
 from typing import TypeVar
+from typing import Union
 
 from disent.util.function import wrapped_partial
 from disent.util.imports import import_obj_partial
@@ -45,6 +47,8 @@ T = TypeVar('T')
 
 
 class LazyValue(object):
+
+    # TODO: improve the docs!
 
     def __init__(self, generate_fn: Callable[[], T]):
         assert callable(generate_fn)
@@ -73,6 +77,9 @@ class LazyValue(object):
 
 
 class LazyImport(LazyValue):
+
+    # TODO: improve the docs!
+
     def __init__(self, import_path: str, *partial_args, **partial_kwargs):
         super().__init__(
             generate_fn=lambda: import_obj_partial(import_path, *partial_args, **partial_kwargs),
@@ -88,6 +95,8 @@ _NONE = object()
 
 
 class Registry(object):
+
+    # TODO: improve the docs!
 
     def __init__(
         self,
@@ -177,10 +186,17 @@ class Registry(object):
             self._keys_to_values[k] = value
         return self
 
-    def __setitem__(self, aliases: str, value: T):
+    def _normalise_aliases(self, aliases: Union[str, Tuple[str]]) -> Tuple[str]:
         if isinstance(aliases, str):
             aliases = (aliases,)
-        assert isinstance(aliases, tuple), f'multiple aliases must be provided as a Tuple[str], got: {repr(aliases)}'
+        if not isinstance(aliases, tuple):
+            raise ValueError(f'multiple aliases must be provided as a Tuple[str], got: {repr(aliases)}')
+        if len(aliases) < 1:
+            raise ValueError(f'At least one alias must be specified, got: {repr(aliases)}')
+        return aliases
+
+    def __setitem__(self, alias: Union[str, Tuple[str]], value: T):
+        aliases = self._normalise_aliases(alias)
         self.register_value(value=value, aliases=aliases)
 
     def __contains__(self, key: str):
@@ -218,6 +234,34 @@ class Registry(object):
 
     def __repr__(self):
         return f'{self.__class__.__name__}({repr(self._name)}, ...)'
+
+    def setdefault(self, alias: Union[str, Tuple[str]], value: T) -> NoReturn:
+        # only modify unset aliases, ignoring the rest!
+        # - filter out names that have already been registered!
+        aliases = self._normalise_aliases(alias)
+        missing = tuple(alias for alias in aliases if (alias not in self))
+        # - register aliases
+        if missing:
+            self.register_value(value=value, aliases=missing)
+        else:
+            logging.debug(f'skipped registering aliases for: {self.name} as the keys already exist: {repr(aliases)}')
+
+    @property
+    def setd(self) -> '_RegistrySetDefault':
+        # instead of checking values manually, at the cost of some efficiency,
+        # this allows us to register values multiple times with hardly modified notation!
+        # -- only modifies unset values
+        # set once:    `REGISTRY['key'] = val`
+        # set default: `REGISTRY.sd['key'] = val`
+        return _RegistrySetDefault(self)
+
+
+class _RegistrySetDefault(object):
+    def __init__(self, registry: Registry):
+        self._registry: Registry = registry
+
+    def __setitem__(self, aliases: str, value: T) -> NoReturn:
+        self._registry.setdefault(aliases, value)
 
 
 # ========================================================================= #

@@ -39,6 +39,7 @@ from scipy.stats import spearmanr
 from torch.utils.data.dataloader import default_collate
 
 from disent.dataset import DisentDataset
+from disent.metrics.utils import make_metric
 from disent.nn.functional import torch_mean_generalized
 from disent.nn.functional import torch_pca
 from disent.nn.loss.reduction import batch_loss_reduction
@@ -66,7 +67,7 @@ _SAMPLES_MULTIPLIER_FACTOR = 2
 # ========================================================================= #
 
 
-def metric_flatness_components(
+def _metric_flatness_components(
         dataset: DisentDataset,
         representation_function: callable,
         factor_repeats: int = 1024,
@@ -115,7 +116,7 @@ def metric_flatness_components(
     """
     # checks
     if not (compute_distances or compute_linearity):
-        raise ValueError(f'{metric_flatness_components.__name__} will not compute any values! At least one of: `compute_distances` or `compute_linearity` must be `True`')
+        raise ValueError(f'Metric will not compute any values! At least one of: `compute_distances` or `compute_linearity` must be `True`')
 
     # compute actual metric values
     factor_scores, global_scores = _compute_flatness_metric_components(
@@ -132,6 +133,31 @@ def metric_flatness_components(
         **global_scores,
         **factor_scores,
     }
+
+
+# EXPORT: metric_flatness_components
+metric_flatness_components = make_metric(
+    'flatness_components',
+    fast_kwargs=dict(factor_repeats=128),
+)(_metric_flatness_components)
+
+# EXPORT: metric_distances
+metric_distances = make_metric(
+    'distances',
+    default_kwargs=dict(compute_distances=True, compute_linearity=False),
+    fast_kwargs=dict(compute_distances=True, compute_linearity=False, factor_repeats=128),
+)(_metric_flatness_components)
+
+# EXPORT: metric_linearity
+metric_linearity = make_metric(
+    'linearity',
+    default_kwargs=dict(compute_distances=False, compute_linearity=True),
+    fast_kwargs=dict(compute_distances=False, compute_linearity=True, factor_repeats=128),
+)(_metric_flatness_components)
+
+# ========================================================================= #
+# flatness                                                                  #
+# ========================================================================= #
 
 
 def _filtered_mean(values, p, factor_sizes):

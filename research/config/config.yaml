@@ -3,29 +3,29 @@ defaults:
   # data
   - sampling: default__bb
   - dataset: xyobject
-  - augment: example
+  - augment: none
   # system
   - framework: betavae
   - model: vae_conv64
   # training
   - optimizer: adam
-  - schedule: beta_cyclic
-  - metrics: test
-  - run_length: test
+  - schedule: none
+  - metrics: all
+  - run_length: long
   # logs
-  - run_callbacks: test
-  - run_logging: none
+  - run_callbacks: vis
+  - run_logging: wandb
   # runtime
-  - run_location: local_cpu
-  - run_launcher: local
+  - run_location: stampede_shr
+  - run_launcher: slurm
   - run_action: train
   # experiment
   - run_plugins: default
 
 settings:
   job:
-    user: 'invalid'
-    project: 'invalid'
+    user: '${oc.env:USER}'
+    project: 'DELETE'
     name: '${framework.name}:${settings.framework.recon_loss}|${dataset.name}:${sampling.name}|${trainer.max_steps}'
     seed: NULL
 
@@ -44,7 +44,7 @@ settings:
     weight_init: 'xavier_normal'  # xavier_normal, default
 
   dataset:
-    batch_size: 5
+    batch_size: 256
 
   optimizer:
     lr: 1e-3

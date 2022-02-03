@@ -25,30 +25,5 @@
 # Nathan Michlo et. al
 from research.code.metrics._flatness import metric_flatness
 from research.code.metrics._flatness_components import metric_flatness_components
-
-
-# ========================================================================= #
-# Fast Metric Settings                                                      #
-# ========================================================================= #
-
-
-# helper imports
-from disent.util.function import wrapped_partial as _wrapped_partial
-
-
-# TODO: register with disent experiments
-FAST_METRICS = {
-    'flatness':            _wrapped_partial(metric_flatness,            factor_repeats=128),
-    'flatness_components': _wrapped_partial(metric_flatness_components, factor_repeats=128),
-    'distances':           _wrapped_partial(metric_flatness_components, factor_repeats=128, compute_distances=True, compute_linearity=False),
-    'linearity':           _wrapped_partial(metric_flatness_components, factor_repeats=128, compute_distances=False, compute_linearity=True),
-}
-
-
-# TODO: register with disent experiments
-DEFAULT_METRICS = {
-    'flatness':            metric_flatness,
-    'flatness_components': metric_flatness_components,
-    'distances':           _wrapped_partial(metric_flatness_components, compute_distances=True, compute_linearity=False),
-    'linearity':           _wrapped_partial(metric_flatness_components, compute_distances=False, compute_linearity=True),
-}
+from research.code.metrics._flatness_components import metric_distances
+from research.code.metrics._flatness_components import metric_linearity
