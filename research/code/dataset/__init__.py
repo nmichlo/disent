@@ -1,7 +1,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 #  MIT License
 #
-#  Copyright (c) 2021 Nathan Juraj Michlo
+#  Copyright (c) 2022 Nathan Juraj Michlo
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to deal
@@ -21,21 +21,3 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-
-# supervised frameworks
-from research.code.frameworks.vae._supervised__adaave_tvae import AdaAveTripletVae
-from research.code.frameworks.vae._supervised__adaneg_tvae import AdaNegTripletVae
-from research.code.frameworks.vae._supervised__adatvae import AdaTripletVae
-from research.code.frameworks.vae._supervised__badavae import BoundedAdaVae
-from research.code.frameworks.vae._supervised__gadavae import GuidedAdaVae
-from research.code.frameworks.vae._supervised__tbadavae import TripletBoundedAdaVae
-from research.code.frameworks.vae._supervised__tgadavae import TripletGuidedAdaVae
-
-# unsupervised frameworks
-from research.code.frameworks.vae._unsupervised__dorvae import DataOverlapRankVae
-from research.code.frameworks.vae._unsupervised__dotvae import DataOverlapTripletVae
-
-# weakly supervised frameworks
-from research.code.frameworks.vae._weaklysupervised__augpostriplet import AugPosTripletVae
-from research.code.frameworks.vae._weaklysupervised__st_adavae import SwappedTargetAdaVae
-from research.code.frameworks.vae._weaklysupervised__st_betavae import SwappedTargetBetaVae
