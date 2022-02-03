@@ -34,31 +34,6 @@ rm requirements-research.txt
 rm requirements-research-freeze.txt
 rm -rf research/
 
-# EXPERIMENT:
-rm experiment/config/config_adversarial_dataset.yaml
-rm experiment/config/config_adversarial_dataset_approx.yaml
-rm experiment/config/config_adversarial_kernel.yaml
-rm experiment/config/run_location/griffin.yaml
-rm experiment/config/run_location/heartofgold.yaml
-rm experiment/config/dataset/X--*.yaml
-rm experiment/config/framework/X--*.yaml
-
-# DISENT:
-# - metrics
-rm disent/metrics/_flatness.py
-rm disent/metrics/_flatness_components.py
-# - frameworks
-rm -rf disent/frameworks/ae/experimental
-rm -rf disent/frameworks/vae/experimental
-# - datasets
-rm disent/dataset/data/_groundtruth__xcolumns.py
-rm disent/dataset/data/_groundtruth__xysquares.py
-rm disent/dataset/data/_groundtruth__xyblocks.py
-
-# DATA:
-# - disent.framework.helper
-rm -rf data/adversarial_kernel
-
 # ===================== #
 # DELETE LINES OF FILES #
 # ===================== #
