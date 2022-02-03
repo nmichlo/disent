@@ -35,7 +35,7 @@ ROOT_DIR="$(realpath -s "$SCRIPT_DIR/../..")"
 cd "$ROOT_DIR" || exit 1
 echo "working directory is: $(pwd)"
 
-# hydra search path and plugins
+# hydra search path and plugins todo: make this configurable?
 _EXP_PLUGIN="hydra.searchpath=['file://${ROOT_DIR}/research/config'] +experiment.plugins=['research.code.register_to_disent']"
 
 function submit_sweep() {
