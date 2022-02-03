@@ -36,7 +36,7 @@ from omegaconf import ListConfig
 from omegaconf import OmegaConf
 from pytorch_lightning.loggers import WandbLogger
 
-from disent import metrics
+import disent.registry as R
 from disent.frameworks import DisentConfigurable
 from disent.frameworks import DisentFramework
 from disent.model import AutoEncoder
@@ -217,8 +217,8 @@ def hydra_get_metric_callbacks(cfg) -> list:
         # check values
         assert isinstance(metric, (dict, DictConfig)), f'settings for entry in metric list is not a dictionary, got type: {type(settings)} or value: {repr(settings)}'
         # make metrics
-        train_metric = [metrics.FAST_METRICS[name]]    if settings.get('on_train', default_on_train) else None
-        final_metric = [metrics.DEFAULT_METRICS[name]] if settings.get('on_final', default_on_final) else None
+        train_metric = [R.METRICS[name].compute_fast] if settings.get('on_train', default_on_train) else None
+        final_metric = [R.METRICS[name].compute]      if settings.get('on_final', default_on_final) else None
         # add the metric callback
         if final_metric or train_metric:
             callbacks.append(VaeMetricLoggingCallback(
