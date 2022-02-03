@@ -1,7 +1,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 #  MIT License
 #
-#  Copyright (c) 2021 Nathan Juraj Michlo
+#  Copyright (c) 2022 Nathan Juraj Michlo
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to deal
@@ -39,14 +39,14 @@ from scipy.stats import spearmanr
 from torch.utils.data.dataloader import default_collate
 
 from disent.dataset import DisentDataset
-from disent.metrics._flatness import encode_all_along_factor
-from disent.metrics._flatness import encode_all_factors
-from disent.metrics._flatness import filter_inactive_factors
 from disent.nn.functional import torch_mean_generalized
 from disent.nn.functional import torch_pca
 from disent.nn.loss.reduction import batch_loss_reduction
 from disent.util import to_numpy
 from disent.util.iters import iter_chunks
+from research.code.metrics._flatness import encode_all_along_factor
+from research.code.metrics._flatness import encode_all_factors
+from research.code.metrics._flatness import filter_inactive_factors
 
 
 log = logging.getLogger(__name__)
