@@ -25,7 +25,7 @@
 import os
 import re
 import torch
-import research.code
+import research
 
 
 # TODO: register these kernels to disent!
@@ -33,6 +33,6 @@ _ARG_KERNELS = [
     # (REGEX, EXAMPLE, FACTORY_FUNC)
     # - factory function takes at min one arg: fn(reduction) with one arg after that per regex capture group
     # - regex expressions are tested in order, expressions should be mutually exclusive or ordered such that more specialized versions occur first.
-    (re.compile(r'^(xy8)_r(47)$'),  'xy8_r47', lambda kern, radius: torch.load(os.path.abspath(os.path.join(research.code.__file__, '../../data/adversarial_kernel', 'r47-1_s28800_adam_lr0.003_wd0.0_xy8x8.pt')))),
-    (re.compile(r'^(xy1)_r(47)$'),  'xy1_r47', lambda kern, radius: torch.load(os.path.abspath(os.path.join(research.code.__file__, '../../data/adversarial_kernel', 'r47-1_s28800_adam_lr0.003_wd0.0_xy1x1.pt')))),
+    (re.compile(r'^(xy8)_r(47)$'),  'xy8_r47', lambda kern, radius: torch.load(os.path.abspath(os.path.join(research.__file__, '../part03_adversarial/e01_learn_to_disentangle/data', 'r47-1_s28800_adam_lr0.003_wd0.0_xy8x8.pt')))),
+    (re.compile(r'^(xy1)_r(47)$'),  'xy1_r47', lambda kern, radius: torch.load(os.path.abspath(os.path.join(research.__file__, '../part03_adversarial/e01_learn_to_disentangle/data', 'r47-1_s28800_adam_lr0.003_wd0.0_xy1x1.pt')))),
 ]

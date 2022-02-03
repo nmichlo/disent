@@ -597,7 +597,7 @@ def main_plotting(plot_all=False, print_mean_std=False):
 
 if __name__ == '__main__':
     # matplotlib style
-    plt.style.use(os.path.join(os.path.dirname(__file__), '../../data/gadfly.mplstyle'))
+    plt.style.use(os.path.join(os.path.dirname(__file__), '../../code/util/gadfly.mplstyle'))
     # run!
     # main_plotting()
     main_compute_dists()

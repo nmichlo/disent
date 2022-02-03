@@ -588,7 +588,7 @@ def main():
 
 if __name__ == '__main__':
     # matplotlib style
-    plt.style.use(os.path.join(os.path.dirname(__file__), '../../../data/gadfly.mplstyle'))
+    plt.style.use(os.path.join(os.path.dirname(__file__), '../../../code/util/gadfly.mplstyle'))
 
     # run
     logging.basicConfig(level=logging.INFO)

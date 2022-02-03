@@ -324,7 +324,7 @@ if __name__ == '__main__':
     assert 'WANDB_USER' in os.environ, 'specify "WANDB_USER" environment variable'
 
     # matplotlib style
-    plt.style.use(os.path.join(os.path.dirname(__file__), '../../data/gadfly.mplstyle'))
+    plt.style.use(os.path.join(os.path.dirname(__file__), '../../code/util/gadfly.mplstyle'))
 
     # clear_cache()
 
