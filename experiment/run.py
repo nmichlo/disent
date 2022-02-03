@@ -64,6 +64,17 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
+def hydra_register_disent_plugins(cfg):
+    # TODO: there should be a plugin mechanism for disent?
+    if ('experiment' in cfg) and ('plugins' in cfg.experiment) and cfg.experiment.plugins:
+        log.info('Found experiment plugins:')
+        for plugin in cfg.experiment.plugins:
+            log.info(f'* registering: {plugin}')
+            hydra.utils.instantiate(dict(_target_=plugin))
+    else:
+        log.info('No experiment plugins were found. Register these under the `experiment.plugins` in the config, which lists targets of functions.')
+
+
 def hydra_get_gpus(cfg) -> int:
     use_cuda = cfg.dsettings.trainer.cuda
     # check cuda values
@@ -293,6 +304,8 @@ def action_prepare_data(cfg: DictConfig):
     # print useful info
     log.info(f"Current working directory : {os.getcwd()}")
     log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
+    # register plugins
+    hydra_register_disent_plugins(cfg)
     # check data preparation
     hydra_check_data_paths(cfg)
     # print the config
@@ -333,6 +346,9 @@ def action_train(cfg: DictConfig):
     # print useful info
     log.info(f"Current working directory : {os.getcwd()}")
     log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
+
+    # register plugins
+    hydra_register_disent_plugins(cfg)
 
     # check CUDA setting
     gpus = hydra_get_gpus(cfg)
