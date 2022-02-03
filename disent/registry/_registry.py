@@ -47,8 +47,12 @@ T = TypeVar('T')
 
 
 class LazyValue(object):
-
-    # TODO: improve the docs!
+    """
+    A lazy value uses a function to generate a value only when this value is retrieved.
+    - The value is only ever generated once
+    - The function is deleted when the value is generated
+    - The value is cached forever
+    """
 
     def __init__(self, generate_fn: Callable[[], T]):
         assert callable(generate_fn)
@@ -96,7 +100,12 @@ _NONE = object()
 
 class Registry(object):
 
-    # TODO: improve the docs!
+    """
+    This is a lazy registry.
+    - Functions and values can be registered to this class under specific keys and aliases.
+    - If the value is an instance of `LazyValue` then it is computed only once when the
+      key is retreived, and the computed value is returned instead!
+    """
 
     def __init__(
         self,
@@ -118,6 +127,7 @@ class Registry(object):
     def name(self) -> str:
         return self._name
 
+    # TODO: split this into subclass
     def _get_aliases(self, name, aliases, auto_alias: bool):
         if auto_alias:
             if name not in self:
@@ -126,6 +136,7 @@ class Registry(object):
                 raise RuntimeError(f'automatic alias: {repr(name)} already exists but no alternative aliases were specified.')
         return aliases
 
+    # TODO: split this into subclass
     def register(
         self,
         fn=_NONE,
@@ -134,6 +145,12 @@ class Registry(object):
         partial_args: Tuple[Any, ...] = None,
         partial_kwargs: Dict[str, Any] = None,
     ) -> Callable[[T], T]:
+        """
+        Register a function or object to this registry.
+        - can be used as a decorator @register(...)
+        - automatically chooses an alias based on the function name
+        - specify defaults for the function with the args and kwargs
+        """
         def _decorator(orig_fn):
             # try add the name of the object
             keys = self._get_aliases(orig_fn.__name__, aliases=aliases, auto_alias=auto_alias)
@@ -154,6 +171,7 @@ class Registry(object):
         else:
             return _decorator(fn)
 
+    # TODO: split this into subclass
     def register_import(
         self,
         import_path: str,
@@ -208,6 +226,7 @@ class Registry(object):
         # get the value
         value = self._keys_to_values[key]
         # replace lazy value
+        # TODO: split this into subclass
         if isinstance(value, LazyValue):
             value = value.generate()
             # check value & run deferred checks
