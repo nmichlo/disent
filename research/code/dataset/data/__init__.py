@@ -1,7 +1,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 #  MIT License
 #
-#  Copyright (c) 2021 Nathan Juraj Michlo
+#  Copyright (c) 2022 Nathan Juraj Michlo
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to deal
@@ -22,32 +22,11 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-# custom episodes -- base
-from disent.dataset.data._episodes import BaseEpisodesData
-from disent.dataset.data._episodes__custom import EpisodesPickledData
-from disent.dataset.data._episodes__custom import EpisodesDownloadZippedPickledData
-
-# raw -- groundtruth
-from disent.dataset.data._groundtruth import ArrayGroundTruthData
-from disent.dataset.data._groundtruth import SelfContainedHdf5GroundTruthData
-
-# raw
-from disent.dataset.data._raw import ArrayDataset
-from disent.dataset.data._raw import Hdf5Dataset
-
-# groundtruth -- base
-from disent.dataset.data._groundtruth import GroundTruthData
-from disent.dataset.data._groundtruth import DiskGroundTruthData
-from disent.dataset.data._groundtruth import NumpyFileGroundTruthData
-from disent.dataset.data._groundtruth import Hdf5GroundTruthData
-
 # groundtruth -- impl
-from disent.dataset.data._groundtruth__cars3d import Cars3dData
-from disent.dataset.data._groundtruth__dsprites import DSpritesData
-from disent.dataset.data._groundtruth__mpi3d import Mpi3dData
-from disent.dataset.data._groundtruth__norb import SmallNorbData
-from disent.dataset.data._groundtruth__shapes3d import Shapes3dData
+from research.code.dataset.data._groundtruth__dsprites_imagenet import DSpritesImagenetData
 
 # groundtruth -- impl synthetic
-from disent.dataset.data._groundtruth__xyobject import XYObjectData
-from disent.dataset.data._groundtruth__xyobject import XYObjectShadedData
+from research.code.dataset.data._groundtruth__xyblocks import XYBlocksData
+from research.code.dataset.data._groundtruth__xysquares import XYSquaresData
+from research.code.dataset.data._groundtruth__xysquares import XYSquaresMinimalData
+from research.code.dataset.data._groundtruth__xcolumns import XColumnsData

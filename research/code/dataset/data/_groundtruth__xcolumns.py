@@ -26,7 +26,7 @@ from typing import Tuple
 
 import numpy as np
 
-from disent.dataset.data._groundtruth__xysquares import XYSquaresData
+from research.code.dataset.data._groundtruth__xysquares import XYSquaresData
 
 
 # ========================================================================= #

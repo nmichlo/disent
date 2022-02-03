@@ -4,7 +4,7 @@ defaults:
 name: dsprites_imagenet_bg_20
 
 data:
-  _target_: disent.dataset.data.DSpritesImagenetData
+  _target_: research.code.dataset.data.DSpritesImagenetData
   visibility: 20
   mode: bg
   data_root: ${dsettings.storage.data_root}

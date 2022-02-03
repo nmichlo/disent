@@ -40,7 +40,7 @@ from disent.dataset import DisentDataset
 from disent.dataset.data import Cars3dData
 from disent.dataset.data import DSpritesData
 from disent.dataset.data import Shapes3dData
-from disent.dataset.data import XYSquaresData
+from research.code.dataset.data import XYSquaresData
 from disent.dataset.transform import ToImgTensorF32
 from disent.util import to_numpy
 from disent.util.function import wrapped_partial

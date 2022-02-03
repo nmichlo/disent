@@ -34,7 +34,7 @@ from disent.dataset.data import DSpritesData
 from disent.dataset.data import GroundTruthData
 from disent.dataset.data import Shapes3dData
 from disent.dataset.data import SmallNorbData
-from disent.dataset.data import XYSquaresData
+from research.code.dataset.data import XYSquaresData
 from disent.util.function import wrapped_partial
 from disent.util.seeds import TempNumpySeed
 

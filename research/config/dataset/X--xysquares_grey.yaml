@@ -4,7 +4,7 @@ defaults:
 name: xysquares_grey
 
 data:
-  _target_: disent.dataset.data.XYSquaresData
+  _target_: research.code.dataset.data.XYSquaresData
   square_size: 8     # AFFECTS: mean and std
   image_size: 64     # usually ok to adjust
   grid_size: 8       # usually ok to adjust

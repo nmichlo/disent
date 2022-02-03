@@ -34,15 +34,15 @@ import research.code.util as H
 from disent.dataset import DisentDataset
 from disent.dataset.data import Cars3dData
 from disent.dataset.data import DSpritesData
-from disent.dataset.data import DSpritesImagenetData
+from research.code.dataset.data import DSpritesImagenetData
 from disent.dataset.data import GroundTruthData
 from disent.dataset.data import SelfContainedHdf5GroundTruthData
 from disent.dataset.data import Shapes3dData
 from disent.dataset.data import SmallNorbData
-from disent.dataset.data import XYBlocksData
+from research.code.dataset.data import XYBlocksData
 from disent.dataset.data import XYObjectData
 from disent.dataset.data import XYObjectShadedData
-from disent.dataset.data import XYSquaresData
+from research.code.dataset.data import XYSquaresData
 from disent.util.seeds import TempNumpySeed
 
 

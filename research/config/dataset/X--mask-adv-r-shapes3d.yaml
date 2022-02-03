@@ -6,7 +6,7 @@ name: mask_adv_r_shapes3d
 data:
   _target_: disent.dataset.wrapper.MaskedDataset
   mask:
-    _target_: research.e06_adversarial_data.util_load_adversarial_mask.get_closest_mask
+    _target_: research.part03_adversarial.e02_learn_adversarial_data.util_load_adversarial_mask.get_closest_mask
     usage_ratio: ${settings.framework_opt.usage_ratio}
     # pickle_file: '${oc.env:HOME}/workspace/research/disent/out/adversarial_mask/2021-10-19--15-20-48_DISTS-SCALED_shapes3d_1000x384_random_256_True_std_False/data.pkl.gz'
     pickle_file: '${oc.env:HOME}/workspace/research/disent/out/adversarial_mask/2021-10-19--19-04-26_DISTS-SCALED_shapes3d_1000x384_random_256_True_range_False/data.pkl.gz'

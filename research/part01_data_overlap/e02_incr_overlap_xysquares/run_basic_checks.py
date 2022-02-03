@@ -24,7 +24,7 @@
 
 
 import numpy as np
-from disent.dataset.data import XYSquaresData
+from research.code.dataset.data import XYSquaresData
 
 
 class XYSquaresSampler(XYSquaresData):

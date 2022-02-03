@@ -4,7 +4,7 @@ defaults:
 name: dsprites_imagenet_fg_80
 
 data:
-  _target_: disent.dataset.data.DSpritesImagenetData
+  _target_: research.code.dataset.data.DSpritesImagenetData
   visibility: 80
   mode: fg
   data_root: ${dsettings.storage.data_root}

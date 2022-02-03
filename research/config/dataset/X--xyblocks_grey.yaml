@@ -4,7 +4,7 @@ defaults:
 name: xyblocks_grey
 
 data:
-  _target_: disent.dataset.data.XYBlocksData
+  _target_: research.code.dataset.data.XYBlocksData
   rgb: FALSE
 
 transform:

@@ -4,7 +4,7 @@ defaults:
 name: xysquares_minimal
 
 data:
-  _target_: disent.dataset.data.XYSquaresMinimalData
+  _target_: research.code.dataset.data.XYSquaresMinimalData
 
 transform:
   _target_: disent.dataset.transform.ToImgTensorF32
