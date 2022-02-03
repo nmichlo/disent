@@ -33,7 +33,3 @@ from ._unsupervised import metric_unsupervised
 # ========================================================================= #
 # Fast Metric Settings                                                      #
 # ========================================================================= #
-
-
-FAST_METRICS = None
-DEFAULT_METRICS = None

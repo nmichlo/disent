@@ -35,18 +35,13 @@ from typing import Union
 import numpy as np
 import pytorch_lightning as pl
 import torch
-
 from pytorch_lightning.trainer.supporters import CombinedLoader
-from torch.utils.data.dataloader import default_collate
-from tqdm import tqdm
 
-import disent.metrics
 import disent.util.strings.colors as c
+import disent.registry as R
 from disent.dataset import DisentDataset
 from disent.dataset.data import GroundTruthData
 from disent.frameworks.ae import Ae
-from disent.frameworks.helper.reconstructions import make_reconstruction_loss
-from disent.frameworks.helper.reconstructions import ReconLossHandler
 from disent.frameworks.vae import Vae
 from disent.util.function import wrapped_partial
 from disent.util.iters import chunked
@@ -524,9 +519,10 @@ class VaeMetricLoggingCallback(BaseCallbackPeriodic):
         if not dataset.is_ground_truth:
             warnings.warn(f'{dataset.__class__.__name__} is not an instance of {GroundTruthData.__name__}. Skipping callback: {self.__class__.__name__}!')
             return
+        # get padding amount
+        pad = max(7+len(k) for k in R.METRICS)  # I know this is a magic variable... im just OCD
         # compute all metrics
         for metric in metrics:
-            pad = max(7+len(k) for k in disent.metrics.DEFAULT_METRICS)  # I know this is a magic variable... im just OCD
             if is_final:
                 log.info(f'| {metric.__name__:<{pad}} - computing...')
             with Timer() as timer:
