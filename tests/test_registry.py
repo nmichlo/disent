@@ -43,7 +43,6 @@ COUNTS = {
     'MODELS': 8,
 }
 
-
 COUNTS = {              # pragma: delete-on-release
     'DATASETS': 10,     # pragma: delete-on-release
     'SAMPLERS': 8,      # pragma: delete-on-release
@@ -51,13 +50,16 @@ COUNTS = {              # pragma: delete-on-release
     'RECON_LOSSES': 6,  # pragma: delete-on-release
     'LATENT_DISTS': 2,  # pragma: delete-on-release
     'OPTIMIZERS': 30,   # pragma: delete-on-release
-    'METRICS': 7,       # pragma: delete-on-release
+    'METRICS': 9,       # pragma: delete-on-release
     'SCHEDULES': 5,     # pragma: delete-on-release
     'MODELS': 8,        # pragma: delete-on-release
 }                       # pragma: delete-on-release
 
 
 def test_registry_loading():
+    from research.code import register_to_disent                  # pragma: delete-on-release
+    register_to_disent()                                          # pragma: delete-on-release
+    register_to_disent()  # must be able to call more than once!  # pragma: delete-on-release
     # load everything and check the counts
     total = 0
     for registry in REGISTRIES:
@@ -66,7 +68,7 @@ def test_registry_loading():
             loaded = REGISTRIES[registry][name]
             count += 1
             total += 1
-        assert COUNTS[registry] == count, f'invalid count for: {registry}'
+        assert count == COUNTS[registry], f'invalid count for: {registry}'
     assert total == sum(COUNTS.values()), f'invalid total'
 
 

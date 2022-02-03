@@ -1,0 +1,29 @@
+defaults:
+  - _data_type_: random
+
+name: mask_adv_f_smallnorb
+
+data:
+  _target_: disent.dataset.wrapper.MaskedDataset
+  mask:
+    _target_: research.part03_adversarial.e02_learn_adversarial_data.util_load_adversarial_mask.get_closest_mask
+    usage_ratio: ${settings.framework_opt.usage_ratio}
+    # pickle_file: '${oc.env:HOME}/workspace/research/disent/out/adversarial_mask/2021-09-27--21-28-42_EXP_smallnorb_1000x256_all_std_mean/data.pkl.gz'
+    pickle_file: '${oc.env:HOME}/workspace/research/disent/out/adversarial_mask/2021-09-27--23-03-51_EXP_smallnorb_1000x256_all_std_gmean/data.pkl.gz'
+  randomize: FALSE
+  data:
+    _target_: disent.dataset.data.SmallNorbData
+    data_root: ${dsettings.storage.data_root}
+    prepare: ${dsettings.dataset.prepare}
+    is_test: False
+
+transform:
+  _target_: disent.dataset.transform.ToImgTensorF32
+  size: 64
+  mean: ${dataset.meta.vis_mean}
+  std: ${data.meta.vis_std}
+
+meta:
+  x_shape: [1, 64, 64]
+  vis_mean: [0.7520918401088603]
+  vis_std: [0.09563879016827262]

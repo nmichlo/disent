@@ -35,13 +35,13 @@ from disent.dataset.sampling import GroundTruthSingleSampler
 from disent.dataset.sampling import GroundTruthPairSampler
 from disent.dataset.sampling import GroundTruthTripleSampler
 from disent.frameworks.ae import *
-from disent.frameworks.ae.experimental import *   # pragma: delete-on-release
 from disent.frameworks.vae import *
-from disent.frameworks.vae.experimental import *  # pragma: delete-on-release
 from disent.model import AutoEncoder
 from disent.model.ae import DecoderLinear
 from disent.model.ae import EncoderLinear
 from disent.dataset.transform import ToImgTensorF32
+from research.code.frameworks.ae import *  # pragma: delete-on-release
+from research.code.frameworks.vae import *  # pragma: delete-on-release
 
 
 # ========================================================================= #
