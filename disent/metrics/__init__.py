@@ -35,22 +35,5 @@ from ._unsupervised import metric_unsupervised
 # ========================================================================= #
 
 
-# helper imports
-from disent.util.function import wrapped_partial as _wrapped_partial
-
-
-FAST_METRICS = {
-    'dci':                 _wrapped_partial(metric_dci,                 num_train=1000, num_test=500, boost_mode='sklearn'),
-    'factor_vae':          _wrapped_partial(metric_factor_vae,          num_train=700,  num_eval=350, num_variance_estimate=1000),  # may not be accurate, but it just takes waay too long otherwise 20+ seconds
-    'mig':                 _wrapped_partial(metric_mig,                 num_train=2000),
-    'sap':                 _wrapped_partial(metric_sap,                 num_train=2000, num_test=1000),
-    'unsupervised':        _wrapped_partial(metric_unsupervised,        num_train=2000),
-}
-
-DEFAULT_METRICS = {
-    'dci':                 metric_dci,
-    'factor_vae':          metric_factor_vae,
-    'mig':                 metric_mig,
-    'sap':                 metric_sap,
-    'unsupervised':        metric_unsupervised,
-}
+FAST_METRICS = None
+DEFAULT_METRICS = None

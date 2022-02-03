@@ -35,6 +35,8 @@ import numpy as np
 import scipy
 import scipy.stats
 
+from disent.metrics.utils import make_metric
+
 
 log = logging.getLogger(__name__)
 
@@ -44,6 +46,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
+@make_metric('dci', fast_kwargs=dict(num_train=1000, num_test=500))
 def metric_dci(
         dataset: DisentDataset,
         representation_function: callable,

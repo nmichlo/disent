@@ -35,6 +35,8 @@ from typing import Tuple
 from typing import Union
 
 import torch
+
+from disent.metrics.utils import make_metric
 from disent.util.deprecate import deprecated
 from torch.utils.data.dataloader import default_collate
 
@@ -50,7 +52,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-@deprecated('flatness metric is deprecated in favour of flatness_components, this metric still gives useful alternative info however.')
+@make_metric('flatness', fast_kwargs=dict(factor_repeats=128))
 def metric_flatness(
         dataset: DisentDataset,
         representation_function: callable,

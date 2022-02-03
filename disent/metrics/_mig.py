@@ -32,6 +32,7 @@ import numpy as np
 
 from disent.dataset import DisentDataset
 from disent.metrics import utils
+from disent.metrics.utils import make_metric
 
 
 log = logging.getLogger(__name__)
@@ -42,6 +43,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
+@make_metric('mig', fast_kwargs=dict(num_train=2000))
 def metric_mig(
         dataset: DisentDataset,
         representation_function,
