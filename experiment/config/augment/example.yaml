@@ -1,0 +1,8 @@
+name: basic
+
+augment_cls:
+  _target_: torchvision.transforms.ColorJitter
+  brightness: 0.1
+  contrast: 0.1
+  saturation: 0.1
+  hue: 0.1
