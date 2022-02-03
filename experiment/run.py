@@ -409,7 +409,6 @@ def action_train(cfg: DictConfig):
     # fit the model
     # -- if an error/signal occurs while pytorch lightning is
     #    initialising the training process we cannot capture it!
-    return
     trainer.fit(framework, datamodule=datamodule)
 
     # -~-~-~-~-~-~-~-~-~-~-~-~- #

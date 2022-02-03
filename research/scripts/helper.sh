@@ -29,18 +29,18 @@ export PY_RUN_FILE
 
 # get the root directory
 SCRIPT_DIR=$(dirname "$(realpath -s "$0")")
-ROOT_DIR="$(realpath -s "$SCRIPT_DIR/../..")"
+ROOT_DIR="$(realpath -s "$SCRIPT_DIR/../../..")"
 
 # cd into the root, exit on failure
 cd "$ROOT_DIR" || exit 1
 echo "working directory is: $(pwd)"
 
 # hydra search path and plugins todo: make this configurable?
-_EXP_PLUGIN="hydra.searchpath=['file://${ROOT_DIR}/research/config'] +experiment.plugins=['research.code.register_to_disent']"
+_SEARCH_PATH="${ROOT_DIR}/research/config"
 
 function submit_sweep() {
     echo "SUBMITTING SWEEP:" "$@"
-    PYTHONPATH="$ROOT_DIR" python3 "$PY_RUN_FILE" "$_EXP_PLUGIN" \
+    PYTHONPATH="$ROOT_DIR" DISENT_CONFIG_ROOTS="$_SEARCH_PATH" python3 "$PY_RUN_FILE" \
         -m \
         run_launcher=slurm \
         dsettings.launcher.partition="$PARTITION" \
@@ -53,7 +53,7 @@ function submit_sweep() {
 
 function local_run() {
     echo "RUNNING:" "$@"
-    PYTHONPATH="$ROOT_DIR" python3 "$PY_RUN_FILE" "$_EXP_PLUGIN" \
+    PYTHONPATH="$ROOT_DIR" DISENT_CONFIG_ROOTS="$_SEARCH_PATH" python3 "$PY_RUN_FILE" \
         run_launcher=local \
         settings.job.project="$PROJECT" \
         settings.job.user="$USERNAME" \
@@ -62,7 +62,7 @@ function local_run() {
 
 function local_sweep() {
     echo "RUNNING SWEEP:" "$@"
-    PYTHONPATH="$ROOT_DIR" python3 "$PY_RUN_FILE" "$_EXP_PLUGIN" \
+    PYTHONPATH="$ROOT_DIR" DISENT_CONFIG_ROOTS="$_SEARCH_PATH" python3 "$PY_RUN_FILE" \
         -m \
         run_launcher=local \
         settings.job.project="$PROJECT" \
