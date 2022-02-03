@@ -22,6 +22,7 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import logging
 import os
 import os.path
 
@@ -29,6 +30,7 @@ import hydra
 import pytest
 
 import experiment.run as experiment_run
+from tests.util import temp_environ
 from tests.util import temp_sys_args
 
 
@@ -40,25 +42,33 @@ from tests.util import temp_sys_args
 RESEARCH_CFG_DIR = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'research/config'))  # pragma: delete-on-release
 
 
-@pytest.mark.parametrize('args', [
+@pytest.mark.parametrize(('env', 'args'), [
     # test the standard configs
-    ['run_action=skip'],
-    ['run_action=prepare_data'],
-    ['run_action=train'],
+    (dict(), ['run_action=skip']),
+    (dict(), ['run_action=prepare_data']),
+    (dict(), ['run_action=train']),
     # test the configs with the research components  # pragma: delete-on-release
     # -- we need to modify the search path           # pragma: delete-on-release
     # -- we need to register all the components      # pragma: delete-on-release
-    ['run_action=train', f'hydra.searchpath=["file://{RESEARCH_CFG_DIR}"]', '+experiment.plugins=["research.code.register_to_disent"]', 'augment=example', 'dataset=X--xysquares', 'metrics=test', 'framework=X--adaae_os', 'schedule=adavae_down_all'],  # pragma: delete-on-release
+    (dict(DISENT_CONFIG_ROOTS=RESEARCH_CFG_DIR), ['run_action=train', 'dataset=X--xysquares', 'metrics=test', 'framework=X--adaae_os', 'schedule=adavae_down_all']),  # pragma: delete-on-release
 ])
-def test_experiment_run(args):
+def test_experiment_run(env, args):
+    # show full errors in hydra
     os.environ['HYDRA_FULL_ERROR'] = '1'
 
-    # TODO: why does this not work when config_path is absolute?
-    #      ie. config_path=os.path.join(os.path.dirname(experiment_run.__file__), 'config')
-    with temp_sys_args([experiment_run.__file__, *args]):
+    logging.basicConfig(level=logging.DEBUG)
+
+    # Patch Hydra and OmegaConf to match run.py
+    # 1. enable specifying the search path with the `DISENT_CONFIG_ROOTS` environment variable
+    # 2. enable the ${exit:<msg>} resolver for omegaconf/hydra
+    experiment_run.patch_hydra()
+
+    # temporarily set the environment and the arguments
+    with temp_environ(env), temp_sys_args([experiment_run.__file__, *args]):
+        # TODO: why does this not work when config_path is absolute?
+        #      ie. config_path=os.path.join(os.path.dirname(experiment_run.__file__), 'config')
         hydra_main = hydra.main(config_path='config', config_name='config_test')(experiment_run.run_action)
         hydra_main()
-
 
 # ========================================================================= #
 # END                                                                       #

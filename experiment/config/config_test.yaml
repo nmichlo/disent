@@ -19,6 +19,8 @@ defaults:
   - run_location: local_cpu
   - run_launcher: local
   - run_action: train
+  # experiment
+  - run_plugins: default
 
 settings:
   job:

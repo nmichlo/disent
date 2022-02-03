@@ -19,6 +19,8 @@ defaults:
   - run_location: stampede_shr
   - run_launcher: slurm
   - run_action: train
+  # experiment
+  - run_plugins: default
 
 settings:
   job:

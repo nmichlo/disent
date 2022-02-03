@@ -67,13 +67,13 @@ log = logging.getLogger(__name__)
 
 def hydra_register_disent_plugins(cfg):
     # TODO: there should be a plugin mechanism for disent?
-    if ('experiment' in cfg) and ('plugins' in cfg.experiment) and cfg.experiment.plugins:
-        log.info('Found experiment plugins:')
+    if cfg.experiment.plugins:
+        log.info('Running experiment plugins:')
         for plugin in cfg.experiment.plugins:
             log.info(f'* registering: {plugin}')
             hydra.utils.instantiate(dict(_target_=plugin))
     else:
-        log.info('No experiment plugins were found. Register these under the `experiment.plugins` in the config, which lists targets of functions.')
+        log.info('No experiment plugins were listed. Register these under the `experiment.plugins` in the config, which lists targets of functions.')
 
 
 def hydra_get_gpus(cfg) -> int:
@@ -442,6 +442,33 @@ def run_action(cfg: DictConfig):
 
 
 # ========================================================================= #
+# UTIL                                                                      #
+# ========================================================================= #
+
+
+def patch_hydra():
+    # This function can safely be called multiple times
+    # -- unless other functions modify these same libs which is unlikely!
+
+    # inject the search path helper into hydra -- THIS IS HACKY! should rather be
+    # replaced by modifying the search path in the config paths themselves!
+    # -- DISENT_CONFIG_ROOTS
+    inject_disent_search_path_finder()
+
+    # register a custom OmegaConf resolver that allows us to put in a ${exit:msg} that exits the program
+    # - if we don't register this, the program will still fail because we have an unknown
+    #   resolver. This just prettifies the output.
+    if not OmegaConf.has_resolver('exit'):
+        class ConfigurationError(Exception):
+            pass
+        # resolver function
+        def _error_resolver(msg: str):
+            raise ConfigurationError(msg)
+        # patch omegaconf for hydra
+        OmegaConf.register_new_resolver('exit', _error_resolver)
+
+
+# ========================================================================= #
 # MAIN                                                                      #
 # ========================================================================= #
 
@@ -456,21 +483,10 @@ if __name__ == '__main__':
     # manually set log level before hydra initialises!
     logging.basicConfig(level=logging.INFO)
 
-    # inject the search path helper into hydra -- THIS IS HACKY! should rather be
-    # replaced by modifying the search path in the config paths themselves!
-    # -- DISENT_CONFIG_ROOTS
-    inject_disent_search_path_finder()
-
-    # register a custom OmegaConf resolver that allows us to put in a ${exit:msg} that exits the program
-    # - if we don't register this, the program will still fail because we have an unknown
-    #   resolver. This just prettifies the output.
-    class ConfigurationError(Exception):
-        pass
-
-    def _error_resolver(msg: str):
-        raise ConfigurationError(msg)
-
-    OmegaConf.register_new_resolver('exit', _error_resolver)
+    # Patch Hydra and OmegaConf:
+    # 1. enable specifying the search path with the `DISENT_CONFIG_ROOTS` environment variable
+    # 2. enable the ${exit:<msg>} resolver for omegaconf/hydra
+    patch_hydra()
 
     # Additional search paths can be added/merged into the tree by settings the
     # `hydra.searchpath` list variable via the command line or the root config.
