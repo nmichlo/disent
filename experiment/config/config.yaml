@@ -1,4 +1,5 @@
 defaults:
+  - _self_  # defaults lists override entries from this file!
   # data
   - sampling: default__bb
   - dataset: xyobject
@@ -18,8 +19,6 @@ defaults:
   - run_location: stampede_shr
   - run_launcher: slurm
   - run_action: train
-  # entries in this file override entries from default lists
-  - _self_
 
 settings:
   job:
