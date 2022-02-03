@@ -49,6 +49,7 @@ from disent.util.lightning.callbacks import VaeMetricLoggingCallback
 from disent.util.lightning.callbacks import VaeLatentCycleLoggingCallback
 from disent.util.lightning.callbacks import VaeGtDistsLoggingCallback
 from experiment.util.hydra_data import HydraDataModule
+from experiment.util.hydra_search_path import inject_disent_search_path_finder
 from experiment.util.run_utils import log_error_and_exit
 from experiment.util.run_utils import safe_unset_debug_logger
 from experiment.util.run_utils import safe_unset_debug_trainer
@@ -408,6 +409,7 @@ def action_train(cfg: DictConfig):
     # fit the model
     # -- if an error/signal occurs while pytorch lightning is
     #    initialising the training process we cannot capture it!
+    return
     trainer.fit(framework, datamodule=datamodule)
 
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -453,6 +455,11 @@ CONFIG_NAME = 'config'
 if __name__ == '__main__':
     # manually set log level before hydra initialises!
     logging.basicConfig(level=logging.INFO)
+
+    # inject the search path helper into hydra -- THIS IS HACKY! should rather be
+    # replaced by modifying the search path in the config paths themselves!
+    # -- DISENT_CONFIG_ROOTS
+    inject_disent_search_path_finder()
 
     # register a custom OmegaConf resolver that allows us to put in a ${exit:msg} that exits the program
     # - if we don't register this, the program will still fail because we have an unknown
