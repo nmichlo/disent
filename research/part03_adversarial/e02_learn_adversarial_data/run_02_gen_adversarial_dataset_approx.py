@@ -45,7 +45,7 @@ import wandb
 from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
 
-import research.util as H
+import research.code.util as H
 from disent import registry
 from disent.dataset import DisentDataset
 from disent.dataset.sampling import BaseDisentSampler

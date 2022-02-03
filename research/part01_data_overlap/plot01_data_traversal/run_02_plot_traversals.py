@@ -30,7 +30,7 @@ from typing import Union
 import numpy as np
 from matplotlib import pyplot as plt
 
-import research.util as H
+import research.code.util as H
 from disent.dataset import DisentDataset
 from disent.dataset.data import Cars3dData
 from disent.dataset.data import DSpritesData
@@ -172,7 +172,7 @@ def plot_incr_overlap(
 if __name__ == '__main__':
 
     # matplotlib style
-    plt.style.use(os.path.join(os.path.dirname(__file__), '../../util/gadfly.mplstyle'))
+    plt.style.use(os.path.join(os.path.dirname(__file__), '../../code/util/gadfly.mplstyle'))
 
     # options
     all_squares = False

@@ -26,7 +26,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
-import research.util as H
+import research.code.util as H
 from disent.nn.loss.softsort import multi_spearman_rank_loss
 from disent.nn.loss.softsort import torch_soft_rank
 

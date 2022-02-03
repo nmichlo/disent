@@ -37,7 +37,7 @@ from typing import Union
 import numpy as np
 import torch
 
-import research.util as H
+import research.code.util as H
 from disent.dataset.data import GroundTruthData
 from disent.dataset.sampling import BaseDisentSampler
 from disent.dataset.sampling import GroundTruthPairSampler

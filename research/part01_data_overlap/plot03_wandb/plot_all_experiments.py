@@ -30,7 +30,7 @@ import seaborn as sns
 from cachier import cachier as _cachier
 from matplotlib import pyplot as plt
 
-import research.util as H
+import research.code.util as H
 from disent.util.function import wrapped_partial
 
 
@@ -43,9 +43,9 @@ cachier = wrapped_partial(_cachier, cache_dir='./cache')
 DF = pd.DataFrame
 
 
-from research.util._wandb_plots import drop_non_unique_cols
-from research.util._wandb_plots import drop_unhashable_cols
-from research.util._wandb_plots import load_runs
+from research.code.util._wandb_plots import drop_non_unique_cols
+from research.code.util._wandb_plots import drop_unhashable_cols
+from research.code.util._wandb_plots import load_runs
 
 
 # ========================================================================= #
@@ -324,7 +324,7 @@ if __name__ == '__main__':
     assert 'WANDB_USER' in os.environ, 'specify "WANDB_USER" environment variable'
 
     # matplotlib style
-    plt.style.use(os.path.join(os.path.dirname(__file__), '../../util/gadfly.mplstyle'))
+    plt.style.use(os.path.join(os.path.dirname(__file__), '../../code/util/gadfly.mplstyle'))
 
     # clear_cache()
 

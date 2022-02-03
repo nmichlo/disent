@@ -37,7 +37,7 @@ import torchvision
 import matplotlib.pyplot as plt
 
 from disent.dataset.data import Shapes3dData
-from research.util._data import AdversarialOptimizedData
+from research.code.util import AdversarialOptimizedData
 
 
 if __name__ == '__main__':

@@ -40,14 +40,13 @@ import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 
-import research.util as H
+import research.code.util as H
 from disent.dataset.data import GroundTruthData
 from disent.dataset.data import SelfContainedHdf5GroundTruthData
 from disent.dataset.util.state_space import NonNormalisedFactors
 from disent.dataset.transform import ToImgTensorF32
 from disent.dataset.util.stats import compute_data_mean_std
 from disent.util.inout.paths import ensure_parent_dir_exists
-from disent.util.profiling import Timer
 from disent.util.seeds import TempNumpySeed
 
 
@@ -598,7 +597,7 @@ def main_plotting(plot_all=False, print_mean_std=False):
 
 if __name__ == '__main__':
     # matplotlib style
-    plt.style.use(os.path.join(os.path.dirname(__file__), '../../util/gadfly.mplstyle'))
+    plt.style.use(os.path.join(os.path.dirname(__file__), '../../code/util/gadfly.mplstyle'))
     # run!
     # main_plotting()
     main_compute_dists()

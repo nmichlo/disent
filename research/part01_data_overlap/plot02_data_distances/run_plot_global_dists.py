@@ -35,7 +35,7 @@ from matplotlib import pyplot as plt
 from matplotlib.ticker import MultipleLocator
 from tqdm import tqdm
 
-import research.util as H
+import research.code.util as H
 from disent.dataset import DisentDataset
 from disent.dataset.data import Cars3dData
 from disent.dataset.data import DSpritesData
@@ -338,7 +338,7 @@ if __name__ == '__main__':
     # TODO: update to use registry
 
     # matplotlib style
-    plt.style.use(os.path.join(os.path.dirname(__file__), '../../util/gadfly.mplstyle'))
+    plt.style.use(os.path.join(os.path.dirname(__file__), '../../code/util/gadfly.mplstyle'))
 
     # common settings
     SHARED_SETTINGS = dict(

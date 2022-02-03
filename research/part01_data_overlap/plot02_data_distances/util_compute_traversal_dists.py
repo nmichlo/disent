@@ -24,7 +24,6 @@
 import warnings
 from typing import Sequence
 
-import psutil
 import ray
 
 import logging
@@ -36,7 +35,7 @@ import torch
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
-import research.util as H
+import research.code.util as H
 from disent.dataset.data import GroundTruthData
 from disent.dataset.util.state_space import StateSpace
 from disent.util.strings.fmt import bytes_to_human

@@ -49,7 +49,7 @@ import psutil
 import torch
 from tqdm import tqdm
 
-import research.util as H
+import research.code.util as H
 from disent.util.deprecate import deprecated
 from disent.util.inout.paths import ensure_parent_dir_exists
 from disent.util.profiling import Timer

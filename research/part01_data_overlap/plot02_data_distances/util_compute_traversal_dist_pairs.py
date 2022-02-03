@@ -33,7 +33,7 @@ import torch
 from ray.util.queue import Queue
 from tqdm import tqdm
 
-import research.util as H
+import research.code.util as H
 from disent.dataset.data import GroundTruthData
 from disent.util.inout.files import AtomicSaveFile
 from disent.util.profiling import Timer

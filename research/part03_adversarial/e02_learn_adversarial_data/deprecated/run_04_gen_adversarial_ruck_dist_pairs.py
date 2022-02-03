@@ -57,7 +57,7 @@ from ruck.external.ray import ray_remote_puts
 from ruck.external.deap import select_nsga2 as select_nsga2_deap
 # from ruck.functional import select_nsga2 as select_nsga2_ruck  # should rather use this!
 
-import research.util as H
+import research.code.util as H
 from disent.dataset.wrapper import MaskedDataset
 from disent.util.function import wrapped_partial
 from disent.util.inout.paths import ensure_parent_dir_exists
@@ -588,7 +588,7 @@ def main():
 
 if __name__ == '__main__':
     # matplotlib style
-    plt.style.use(os.path.join(os.path.dirname(__file__), '../../../util/gadfly.mplstyle'))
+    plt.style.use(os.path.join(os.path.dirname(__file__), '../../../code/util/gadfly.mplstyle'))
 
     # run
     logging.basicConfig(level=logging.INFO)

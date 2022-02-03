@@ -47,7 +47,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data import IterableDataset
 from torch.utils.data.dataset import T_co
 
-import research.util as H
+import research.code.util as H
 from disent.dataset import DisentDataset
 from disent.dataset.sampling import BaseDisentSampler
 from disent.dataset.util.hdf5 import H5Builder

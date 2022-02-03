@@ -34,7 +34,7 @@ from matplotlib import cm
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
-import research.util as H
+import research.code.util as H
 from disent.metrics._flatness_components import compute_axis_score
 from disent.metrics._flatness_components import compute_linear_score
 from disent.util.seeds import seed
@@ -378,7 +378,7 @@ def make_grid_gaussian_score_plot(
 
 if __name__ == '__main__':
     # matplotlib style
-    plt.style.use(os.path.join(os.path.dirname(__file__), '../../util/gadfly.mplstyle'))
+    plt.style.use(os.path.join(os.path.dirname(__file__), '../../code/util/gadfly.mplstyle'))
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 

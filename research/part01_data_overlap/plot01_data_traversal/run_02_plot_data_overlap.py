@@ -28,18 +28,12 @@ from typing import Optional
 import numpy as np
 from matplotlib import pyplot as plt
 
-import research.util as H
-from disent.dataset import DisentDataset
+import research.code.util as H
 from disent.dataset.data import Cars3dData
 from disent.dataset.data import DSpritesData
-from disent.dataset.data import DSpritesImagenetData
 from disent.dataset.data import GroundTruthData
-from disent.dataset.data import SelfContainedHdf5GroundTruthData
 from disent.dataset.data import Shapes3dData
 from disent.dataset.data import SmallNorbData
-from disent.dataset.data import XYBlocksData
-from disent.dataset.data import XYObjectData
-from disent.dataset.data import XYObjectShadedData
 from disent.dataset.data import XYSquaresData
 from disent.util.function import wrapped_partial
 from disent.util.seeds import TempNumpySeed
@@ -155,7 +149,7 @@ def plot_dataset_overlap(
 if __name__ == '__main__':
 
     # matplotlib style
-    plt.style.use(os.path.join(os.path.dirname(__file__), '../../util/gadfly.mplstyle'))
+    plt.style.use(os.path.join(os.path.dirname(__file__), '../../code/util/gadfly.mplstyle'))
 
     # options
     all_squares = True

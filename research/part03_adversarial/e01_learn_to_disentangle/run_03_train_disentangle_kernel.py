@@ -38,7 +38,7 @@ from torch.nn import Parameter
 from torch.utils.data import DataLoader
 
 import disent.util.seeds
-import research.util as H
+import research.code.util as H
 from disent.nn.functional import torch_conv2d_channel_wise_fft
 from disent.nn.loss.softsort import spearman_rank_loss
 from disent.nn.modules import DisentLightningModule

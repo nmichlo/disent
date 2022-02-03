@@ -29,7 +29,7 @@ import torch.nn.functional as F
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
-import research.util as H
+import research.code.util as H
 from disent.nn.functional import torch_box_kernel_2d
 from disent.nn.functional import torch_conv2d_channel_wise_fft
 from disent.nn.functional import torch_gaussian_kernel_2d
