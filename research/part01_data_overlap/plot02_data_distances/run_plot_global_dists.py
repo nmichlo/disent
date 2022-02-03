@@ -338,7 +338,7 @@ if __name__ == '__main__':
     # TODO: update to use registry
 
     # matplotlib style
-    plt.style.use(os.path.join(os.path.dirname(__file__), '../../code/util/gadfly.mplstyle'))
+    plt.style.use(os.path.join(os.path.dirname(__file__), '../../data/gadfly.mplstyle'))
 
     # common settings
     SHARED_SETTINGS = dict(
