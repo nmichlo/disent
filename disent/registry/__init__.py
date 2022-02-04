@@ -34,8 +34,12 @@ You can register your own modules and classes using the provided decorator:
 eg. `DATASET.register(...options...)(your_function_or_class)`
 """
 
-from disent.registry._registry import Registry as _Registry
+from disent.registry._registry import RegistryImports as _RegistryImports
+from disent.registry._registry import RegistryProviders as _RegistryProviders
+from disent.registry._registry import StaticImport
+from disent.registry._registry import StaticValue
 from disent.registry._registry import LazyImport
+from disent.registry._registry import LazyValue
 
 
 # ========================================================================= #
@@ -44,7 +48,7 @@ from disent.registry._registry import LazyImport
 
 
 # TODO: this is not yet used in disent.data or disent.frameworks
-DATASETS = _Registry('DATASETS')
+DATASETS: _RegistryImports['torch.utils.data.Dataset'] = _RegistryImports('DATASETS')
 # groundtruth -- impl
 DATASETS['cars3d']            = LazyImport('disent.dataset.data._groundtruth__cars3d')
 DATASETS['dsprites']          = LazyImport('disent.dataset.data._groundtruth__dsprites')
@@ -63,7 +67,7 @@ DATASETS['xyobject']          = LazyImport('disent.dataset.data._groundtruth__xy
 
 # TODO: this is not yet used in disent.data or disent.frameworks
 # changes here should also update
-SAMPLERS = _Registry('SAMPLERS')
+SAMPLERS: _RegistryImports['disent.dataset.sampling.BaseDisentSampler'] = _RegistryImports('SAMPLERS')
 # [ground truth samplers]
 SAMPLERS['gt_dist']         = LazyImport('disent.dataset.sampling._groundtruth__dist.GroundTruthDistSampler')
 SAMPLERS['gt_pair']         = LazyImport('disent.dataset.sampling._groundtruth__pair.GroundTruthPairSampler')
@@ -87,7 +91,7 @@ SAMPLERS['random_episode']  = LazyImport('disent.dataset.sampling._random__episo
 
 
 # TODO: this is not yet used in disent.frameworks
-FRAMEWORKS = _Registry('FRAMEWORKS')
+FRAMEWORKS: _RegistryImports['disent.frameworks.DisentFramework'] = _RegistryImports('FRAMEWORKS')
 # [AE]
 FRAMEWORKS['tae']           = LazyImport('disent.frameworks.ae._supervised__tae.TripletAe')
 FRAMEWORKS['ae']            = LazyImport('disent.frameworks.ae._unsupervised__ae.Ae')
@@ -108,7 +112,7 @@ FRAMEWORKS['ada_vae']       = LazyImport('disent.frameworks.vae._weaklysupervise
 # ========================================================================= #
 
 
-RECON_LOSSES = _Registry('RECON_LOSSES')
+RECON_LOSSES: _RegistryImports['disent.frameworks.helper.reconstructions.ReconLossHandler'] = _RegistryImports('RECON_LOSSES')
 # [STANDARD LOSSES]
 RECON_LOSSES['mse']         = LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerMse')                  # from the normal distribution - real values in the range [0, 1]
 RECON_LOSSES['mae']         = LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerMae')                  # mean absolute error
@@ -126,7 +130,7 @@ RECON_LOSSES['normal']      = LazyImport('disent.frameworks.helper.reconstructio
 
 
 # TODO: this is not yet used in disent.frameworks or disent.frameworks.helper.latent_distributions
-LATENT_DISTS = _Registry('LATENT_DISTS')
+LATENT_DISTS: _RegistryImports['disent.frameworks.helper.latent_distributions.LatentDistsHandler'] = _RegistryImports('LATENT_DISTS')
 LATENT_DISTS['normal']  = LazyImport('disent.frameworks.helper.latent_distributions.LatentDistsHandlerNormal')
 LATENT_DISTS['laplace'] = LazyImport('disent.frameworks.helper.latent_distributions.LatentDistsHandlerLaplace')
 
@@ -139,8 +143,7 @@ LATENT_DISTS['laplace'] = LazyImport('disent.frameworks.helper.latent_distributi
 # default learning rate for each optimizer
 _LR = 1e-3
 
-
-OPTIMIZERS = _Registry('OPTIMIZERS')
+OPTIMIZERS: _RegistryImports['torch.optim.Optimizer'] = _RegistryImports('OPTIMIZERS')
 # [torch]
 OPTIMIZERS['adadelta']    = LazyImport(lr=_LR, import_path='torch.optim.adadelta.Adadelta')
 OPTIMIZERS['adagrad']     = LazyImport(lr=_LR, import_path='torch.optim.adagrad.Adagrad')
@@ -182,7 +185,7 @@ OPTIMIZERS['yogi']        = LazyImport(lr=_LR, import_path='torch_optimizer.Yogi
 
 
 # TODO: this is not yet used in disent.util.lightning.callbacks or disent.metrics
-METRICS = _Registry('METRICS')
+METRICS: _RegistryImports['disent.metrics.utils._Metric'] = _RegistryImports('METRICS')
 METRICS['dci']                 = LazyImport('disent.metrics._dci.metric_dci')
 METRICS['factor_vae']          = LazyImport('disent.metrics._factor_vae.metric_factor_vae')
 METRICS['mig']                 = LazyImport('disent.metrics._mig.metric_mig')
@@ -196,7 +199,7 @@ METRICS['unsupervised']        = LazyImport('disent.metrics._unsupervised.metric
 
 
 # TODO: this is not yet used in disent.framework or disent.schedule
-SCHEDULES = _Registry('SCHEDULES')
+SCHEDULES: _RegistryImports['disent.schedule.Schedule'] = _RegistryImports('SCHEDULES')
 SCHEDULES['clip']        = LazyImport('disent.schedule._schedule.ClipSchedule')
 SCHEDULES['cosine_wave'] = LazyImport('disent.schedule._schedule.CosineWaveSchedule')
 SCHEDULES['cyclic']      = LazyImport('disent.schedule._schedule.CyclicSchedule')
@@ -210,7 +213,7 @@ SCHEDULES['noop']        = LazyImport('disent.schedule._schedule.NoopSchedule')
 
 
 # TODO: this is not yet used in disent.framework or disent.model
-MODELS = _Registry('MODELS')
+MODELS: _RegistryImports['disent.model._base.DisentLatentsModule'] = _RegistryImports('MODELS')
 # [DECODER]
 MODELS['encoder_conv64']     = LazyImport('disent.model.ae._vae_conv64.EncoderConv64')
 MODELS['encoder_conv64norm'] = LazyImport('disent.model.ae._norm_conv64.EncoderConv64Norm')
@@ -229,16 +232,16 @@ MODELS['decoder_linear']     = LazyImport('disent.model.ae._linear.DecoderLinear
 
 
 # registry of registries
-REGISTRIES = _Registry('REGISTRIES')
-REGISTRIES['DATASETS']      = DATASETS
-REGISTRIES['SAMPLERS']      = SAMPLERS
-REGISTRIES['FRAMEWORKS']    = FRAMEWORKS
-REGISTRIES['RECON_LOSSES']  = RECON_LOSSES
-REGISTRIES['LATENT_DISTS']  = LATENT_DISTS
-REGISTRIES['OPTIMIZERS']    = OPTIMIZERS
-REGISTRIES['METRICS']       = METRICS
-REGISTRIES['SCHEDULES']     = SCHEDULES
-REGISTRIES['MODELS']        = MODELS
+REGISTRIES: _RegistryProviders[_RegistryImports] = _RegistryProviders('REGISTRIES')
+REGISTRIES['DATASETS']      = StaticValue(DATASETS)
+REGISTRIES['SAMPLERS']      = StaticValue(SAMPLERS)
+REGISTRIES['FRAMEWORKS']    = StaticValue(FRAMEWORKS)
+REGISTRIES['RECON_LOSSES']  = StaticValue(RECON_LOSSES)
+REGISTRIES['LATENT_DISTS']  = StaticValue(LATENT_DISTS)
+REGISTRIES['OPTIMIZERS']    = StaticValue(OPTIMIZERS)
+REGISTRIES['METRICS']       = StaticValue(METRICS)
+REGISTRIES['SCHEDULES']     = StaticValue(SCHEDULES)
+REGISTRIES['MODELS']        = StaticValue(MODELS)
 
 
 # ========================================================================= #
