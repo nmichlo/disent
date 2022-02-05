@@ -118,7 +118,7 @@ FRAMEWORKS['ada_vae']       = LazyImport('disent.frameworks.vae._weaklysupervise
 # ========================================================================= #
 
 
-RECON_LOSSES: RegistryImports['disent.frameworks.helper.reconstructions.ReconLossHandler'] = RegistryImports('RECON_LOSSES')
+RECON_LOSSES: RegexRegistry['disent.frameworks.helper.reconstructions.ReconLossHandler'] = RegexRegistry('RECON_LOSSES')  # TODO: we need a regex version of RegistryImports
 # [STANDARD LOSSES]
 RECON_LOSSES['mse']         = LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerMse')                  # from the normal distribution - real values in the range [0, 1]
 RECON_LOSSES['mae']         = LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerMae')                  # mean absolute error
@@ -127,6 +127,9 @@ RECON_LOSSES['bce']         = LazyImport('disent.frameworks.helper.reconstructio
 RECON_LOSSES['bernoulli']   = LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerBernoulli')            # reduces to bce - binary values in the set {0, 1}
 RECON_LOSSES['c_bernoulli'] = LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerContinuousBernoulli')  # bernoulli with a computed offset to handle values in the range [0, 1]
 RECON_LOSSES['normal']      = LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerNormal')               # handle all real values
+# [REGEX LOSSES]
+RECON_LOSSES.register_regex(pattern=r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_w(\d+\.\d+)$',             example='mse_xy8_r47_w1.0',      factory_fn='disent.frameworks.helper.reconstructions._make_aug_recon_loss_w')
+RECON_LOSSES.register_regex(pattern=r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_l(\d+\.\d+)_k(\d+\.\d+)$', example='mse_xy8_r47_l1.0_k1.0', factory_fn='disent.frameworks.helper.reconstructions._make_aug_recon_loss_lw')
 
 
 # ========================================================================= #

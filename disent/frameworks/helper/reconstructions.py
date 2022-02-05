@@ -22,32 +22,25 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-import re
 import warnings
-from collections import namedtuple
-from typing import Dict
 from typing import final
-from typing import List
-from typing import NamedTuple
 from typing import Sequence
-from typing import Tuple
 from typing import Union
 
 import torch
 import torch.nn.functional as F
 
-from disent import registry
+import disent.registry as R
+from disent.dataset.transform import FftKernel
 from disent.frameworks.helper.util import compute_ave_loss
 from disent.nn.loss.reduction import batch_loss_reduction
 from disent.nn.loss.reduction import loss_reduction
 from disent.nn.modules import DisentModule
-from disent.dataset.transform import FftKernel
 
 
 # ========================================================================= #
 # Reconstruction Loss Base                                                  #
 # ========================================================================= #
-from disent.registry._dynamic_values import DynamicRegistry
 
 
 class ReconLossHandler(DisentModule):
@@ -281,36 +274,21 @@ class AugmentedReconLossHandler(ReconLossHandler):
 # ========================================================================= #
 
 
-# - factory function takes at min one arg: fn(reduction) with one arg after that per regex capture group
-# - regex expressions are tested in order, expressions should be mutually exclusive or ordered such that more specialized versions occur first.
-DYN_REGISTRY_RECON_LOSSES = DynamicRegistry(
-    'recon_losses',
-    parent_static_values=registry.RECON_LOSSES,
-    allowed_value_types=[ReconLossHandler],
-    make_static_value=lambda value, **kwargs: value(**kwargs),
-    make_dynamic_value=lambda factory_fn, *args, **kwargs: factory_fn(*args, **kwargs),
-)
+def _make_aug_recon_loss_w(loss: str, kern: str, weight: str):
+    def _loss(reduction: str):
+        return AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=1 - float(weight), aug_weight=float(weight))
+    return loss
 
-# augmented recon loss -- weights are ratios: `l=1-w` and `w`
-DYN_REGISTRY_RECON_LOSSES.register_dynamic(
-    name='aug_recon_loss_w',
-    regex=re.compile(r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_w(\d+\.\d+)$'),
-    example='mse_xy8_r47_w1.0',
-    factory_fn=lambda reduction, loss, kern, weight: AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=1 - float(weight), aug_weight=float(weight)),
-)
 
-# augmented recon loss -- control both weights individually: `l` and `w`
-DYN_REGISTRY_RECON_LOSSES.register_dynamic(
-    name='aug_recon_loss_lw',
-    regex=re.compile(r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_l(\d+\.\d+)_k(\d+\.\d+)$'),
-    example='mse_xy8_r47_l1.0_k1.0',
-    factory_fn=lambda reduction, loss, kern, l_weight, k_weight: AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=float(l_weight), aug_weight=float(k_weight)),
-)
+def _make_aug_recon_loss_lw(loss: str, kern: str, l_weight: str, k_weight: str):
+    def _loss(reduction: str):
+        return AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=float(l_weight), aug_weight=float(k_weight))
+    return loss
 
 
 # NOTE: this function compliments make_kernel in transform/_augment.py
 def make_reconstruction_loss(name: str, reduction: str) -> ReconLossHandler:
-    return DYN_REGISTRY_RECON_LOSSES.make_value(name, reduction=reduction)
+    return R.RECON_LOSSES[name](reduction=reduction)
 
 
 # ========================================================================= #
