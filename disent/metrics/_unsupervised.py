@@ -31,6 +31,8 @@ import scipy
 
 from disent.dataset import DisentDataset
 from disent.metrics import utils
+from disent.metrics.utils import make_metric
+
 
 log = logging.getLogger(__name__)
 
@@ -40,6 +42,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
+@make_metric('unsupervised', fast_kwargs=dict(num_train=2000))
 def metric_unsupervised(
         dataset: DisentDataset,
         representation_function,

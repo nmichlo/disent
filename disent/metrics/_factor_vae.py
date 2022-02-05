@@ -32,6 +32,7 @@ from tqdm import tqdm
 
 from disent.dataset import DisentDataset
 from disent.metrics import utils
+from disent.metrics.utils import make_metric
 from disent.util import to_numpy
 
 
@@ -43,6 +44,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
+@make_metric('factor_vae', fast_kwargs=dict(num_train=700,  num_eval=350, num_variance_estimate=1000))  # may not be accurate, but it just takes waay too long otherwise 20+ seconds
 def metric_factor_vae(
         dataset: DisentDataset,
         representation_function: callable,

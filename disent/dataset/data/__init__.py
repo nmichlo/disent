@@ -44,15 +44,10 @@ from disent.dataset.data._groundtruth import Hdf5GroundTruthData
 # groundtruth -- impl
 from disent.dataset.data._groundtruth__cars3d import Cars3dData
 from disent.dataset.data._groundtruth__dsprites import DSpritesData
-from disent.dataset.data._groundtruth__dsprites_imagenet import DSpritesImagenetData  # pragma: delete-on-release
 from disent.dataset.data._groundtruth__mpi3d import Mpi3dData
 from disent.dataset.data._groundtruth__norb import SmallNorbData
 from disent.dataset.data._groundtruth__shapes3d import Shapes3dData
 
 # groundtruth -- impl synthetic
-from disent.dataset.data._groundtruth__xyblocks import XYBlocksData           # pragma: delete-on-release
 from disent.dataset.data._groundtruth__xyobject import XYObjectData
 from disent.dataset.data._groundtruth__xyobject import XYObjectShadedData
-from disent.dataset.data._groundtruth__xysquares import XYSquaresData         # pragma: delete-on-release
-from disent.dataset.data._groundtruth__xysquares import XYSquaresMinimalData  # pragma: delete-on-release
-from disent.dataset.data._groundtruth__xcolumns import XColumnsData           # pragma: delete-on-release

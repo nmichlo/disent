@@ -23,16 +23,84 @@
 Utility functions that are useful for the different metrics.
 """
 
+from numbers import Number
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import Optional
+
 import numpy as np
 import sklearn
 from tqdm import tqdm
 
 from disent.dataset import DisentDataset
 from disent.util import to_numpy
+from disent.util.function import wrapped_partial
 
 
 # ========================================================================= #
-# utils                                                                   #
+# Metric Wrapper                                                            #
+# ========================================================================= #
+
+
+class _Metric(object):
+
+    def __init__(
+        self,
+        name: str,
+        metric_fn,
+        default_kwargs: Optional[Dict[str, Any]] = None,
+        fast_kwargs: Optional[Dict[str, Any]] = None,
+    ):
+        self._name = name
+        self._orig_fn = metric_fn
+        self._metric_fn_default = wrapped_partial(self._orig_fn, **(default_kwargs if default_kwargs else {}))
+        self._metric_fn_fast = wrapped_partial(self._orig_fn, **(fast_kwargs if fast_kwargs else {}))
+
+    def __call__(self, *args, **kwargs) -> Dict[str, Number]:
+        return self.compute(*args, **kwargs)
+
+    def compute(self, *args, **kwargs) -> Dict[str, Number]:
+        return self._metric_fn_default(*args, **kwargs)
+
+    def compute_fast(self, *args, **kwargs) -> Dict[str, Number]:
+        return self._metric_fn_fast(*args, **kwargs)
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def unwrap(self):
+        return self._orig_fn
+
+    def __str__(self):
+        return f'metric-{self.name}'
+
+
+def make_metric(
+    name: str,
+    default_kwargs: Optional[Dict[str, Any]] = None,
+    fast_kwargs: Optional[Dict[str, Any]] = None,
+) -> Callable[[callable], _Metric]:
+    """
+    Metrics should be decorated using this function to set defaults!
+    Two versions of the metric should exist.
+        1. Recommended settings
+           - This should give reliable results, but may be very slow, multiple minutes to half an
+             hour or more for some metrics depending on the underlying model, data and ground-truth factors.
+        2. Faster settings
+           - This should give a decent results, but should be decently fast, a few seconds/minutes at most.
+             This is not used for testing
+    """
+    def _wrap_fn_as_metric(metric_fn) -> _Metric:
+        return _Metric(name=name, metric_fn=metric_fn, default_kwargs=default_kwargs, fast_kwargs=fast_kwargs)
+    return _wrap_fn_as_metric
+
+
+
+# ========================================================================= #
+# utils                                                                     #
 # ========================================================================= #
 
 

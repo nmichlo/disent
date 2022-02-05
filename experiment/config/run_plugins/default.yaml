@@ -1,0 +1,6 @@
+# @package _global_
+
+# call the listed functions here before the experiment is started
+# - this can be used to register functions or metrics to the disent registry for example!
+experiment:
+  plugins: []

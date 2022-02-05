@@ -36,7 +36,7 @@ from omegaconf import ListConfig
 from omegaconf import OmegaConf
 from pytorch_lightning.loggers import WandbLogger
 
-from disent import metrics
+import disent.registry as R
 from disent.frameworks import DisentConfigurable
 from disent.frameworks import DisentFramework
 from disent.model import AutoEncoder
@@ -49,6 +49,7 @@ from disent.util.lightning.callbacks import VaeMetricLoggingCallback
 from disent.util.lightning.callbacks import VaeLatentCycleLoggingCallback
 from disent.util.lightning.callbacks import VaeGtDistsLoggingCallback
 from experiment.util.hydra_data import HydraDataModule
+from experiment.util.hydra_search_path import inject_disent_search_path_finder
 from experiment.util.run_utils import log_error_and_exit
 from experiment.util.run_utils import safe_unset_debug_logger
 from experiment.util.run_utils import safe_unset_debug_trainer
@@ -62,6 +63,17 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 # HYDRA CONFIG HELPERS                                                      #
 # ========================================================================= #
+
+
+def hydra_register_disent_plugins(cfg):
+    # TODO: there should be a plugin mechanism for disent?
+    if cfg.experiment.plugins:
+        log.info('Running experiment plugins:')
+        for plugin in cfg.experiment.plugins:
+            log.info(f'* registering: {plugin}')
+            hydra.utils.instantiate(dict(_target_=plugin))
+    else:
+        log.info('No experiment plugins were listed. Register these under the `experiment.plugins` in the config, which lists targets of functions.')
 
 
 def hydra_get_gpus(cfg) -> int:
@@ -132,8 +144,14 @@ def _callback_make_progress(cfg, callback_cfg):
 def _callback_make_latent_cycle(cfg, callback_cfg):
     if cfg.logging.wandb.enabled:
         # checks
-        if not (('vis_min' in cfg.dataset and 'vis_max' in cfg.dataset) or ('vis_mean' in cfg.dataset and 'vis_std' in cfg.dataset)):
-            log.warning('dataset does not have visualisation ranges specified, set `vis_min` & `vis_max` OR `vis_mean` & `vis_std`')
+        if (cfg.dataset.meta.vis_mean is None) or (cfg.dataset.meta.vis_std is None):
+            log.warning(f'Dataset is not being normalized... No mean or std. has been set via the config!')
+            log.warning(f'* dataset.meta.vis_mean: {cfg.dataset.meta.vis_mean}')
+            log.warning(f'* dataset.meta.vis_std:  {cfg.dataset.meta.vis_std}')
+        else:
+            log.info(f'Dataset is being normalized!')
+            log.info(f'* dataset.meta.vis_mean: {cfg.dataset.meta.vis_mean}')
+            log.info(f'* dataset.meta.vis_std:  {cfg.dataset.meta.vis_std}')
         # this currently only supports WANDB logger
         return VaeLatentCycleLoggingCallback(
             seed             = callback_cfg.seed,
@@ -211,8 +229,8 @@ def hydra_get_metric_callbacks(cfg) -> list:
         # check values
         assert isinstance(metric, (dict, DictConfig)), f'settings for entry in metric list is not a dictionary, got type: {type(settings)} or value: {repr(settings)}'
         # make metrics
-        train_metric = [metrics.FAST_METRICS[name]]    if settings.get('on_train', default_on_train) else None
-        final_metric = [metrics.DEFAULT_METRICS[name]] if settings.get('on_final', default_on_final) else None
+        train_metric = [R.METRICS[name].compute_fast] if settings.get('on_train', default_on_train) else None
+        final_metric = [R.METRICS[name].compute]      if settings.get('on_final', default_on_final) else None
         # add the metric callback
         if final_metric or train_metric:
             callbacks.append(VaeMetricLoggingCallback(
@@ -287,6 +305,8 @@ def action_prepare_data(cfg: DictConfig):
     # print useful info
     log.info(f"Current working directory : {os.getcwd()}")
     log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
+    # register plugins
+    hydra_register_disent_plugins(cfg)
     # check data preparation
     hydra_check_data_paths(cfg)
     # print the config
@@ -327,6 +347,9 @@ def action_train(cfg: DictConfig):
     # print useful info
     log.info(f"Current working directory : {os.getcwd()}")
     log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
+
+    # register plugins
+    hydra_register_disent_plugins(cfg)
 
     # check CUDA setting
     gpus = hydra_get_gpus(cfg)
@@ -418,6 +441,33 @@ def run_action(cfg: DictConfig):
 
 
 # ========================================================================= #
+# UTIL                                                                      #
+# ========================================================================= #
+
+
+def patch_hydra():
+    # This function can safely be called multiple times
+    # -- unless other functions modify these same libs which is unlikely!
+
+    # inject the search path helper into hydra -- THIS IS HACKY! should rather be
+    # replaced by modifying the search path in the config paths themselves!
+    # -- DISENT_CONFIG_ROOTS
+    inject_disent_search_path_finder()
+
+    # register a custom OmegaConf resolver that allows us to put in a ${exit:msg} that exits the program
+    # - if we don't register this, the program will still fail because we have an unknown
+    #   resolver. This just prettifies the output.
+    if not OmegaConf.has_resolver('exit'):
+        class ConfigurationError(Exception):
+            pass
+        # resolver function
+        def _error_resolver(msg: str):
+            raise ConfigurationError(msg)
+        # patch omegaconf for hydra
+        OmegaConf.register_new_resolver('exit', _error_resolver)
+
+
+# ========================================================================= #
 # MAIN                                                                      #
 # ========================================================================= #
 
@@ -429,18 +479,17 @@ CONFIG_NAME = 'config'
 
 
 if __name__ == '__main__':
+    # manually set log level before hydra initialises!
+    logging.basicConfig(level=logging.INFO)
 
-    # register a custom OmegaConf resolver that allows us to put in a ${exit:msg} that exits the program
-    # - if we don't register this, the program will still fail because we have an unknown
-    #   resolver. This just prettifies the output.
-    class ConfigurationError(Exception):
-        pass
+    # Patch Hydra and OmegaConf:
+    # 1. enable specifying the search path with the `DISENT_CONFIG_ROOTS` environment variable
+    # 2. enable the ${exit:<msg>} resolver for omegaconf/hydra
+    patch_hydra()
 
-    def _error_resolver(msg: str):
-        raise ConfigurationError(msg)
-
-    OmegaConf.register_new_resolver('exit', _error_resolver)
-
+    # Additional search paths can be added/merged into the tree by settings the
+    # `hydra.searchpath` list variable via the command line or the root config.
+    # - eg. hydra.searchpath="['file://experiment/asdf']"
     @hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME)
     def hydra_main(cfg: DictConfig):
         try:
