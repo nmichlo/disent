@@ -507,6 +507,11 @@ class RegexProvidersSearch(object):
             self._cache.popitem()
         return constructor
 
+    def has_pattern(self, pattern: Union[str, re.Pattern]) -> bool:
+        if isinstance(pattern, str):
+            pattern = re.compile(pattern)
+        return pattern in self._patterns
+
     def __len__(self) -> int:
         return len(self._constructors)
 
@@ -531,13 +536,27 @@ class RegexProvidersSearch(object):
 
 class RegexRegistry(Registry[V]):
 
+    """
+    Registry that allows registering of regex expressions that can be used to
+    construct values if there is no static value found!
+    - Regular expressions are checked in the order they are registered.
+    - `name in registry` checks if any of the expression matches, it does not check for an existing regex
+    - `len(registry)` returns the number of examples available, each item & regex factory
+    - `for example in registry` returns the examples available, each item & regex factory should be called if we use these to construct values `registry[example]`
+
+    To check for an already added regex expression, use:
+    - `has_regex(expr)`
+    """
+
     def __init__(self, name: str):
         self._regex_providers = RegexProvidersSearch()
         super().__init__(name)
 
-    # the regex provider is cached so this should be efficient for the same value calls
-    # -- we do not cache the providers value!
+    # --- CORE ... UPDATED WITH LINEAR SEARCH --- #
+
     def __getitem__(self, k: str) -> V:
+        # the regex provider is cached so this should be efficient for the same value calls
+        # -- we do not cache the actual provided value!
         if k in self._providers:
             return self._getitem(k)
         elif self._regex_providers.can_construct(k):
@@ -570,7 +589,13 @@ class RegexRegistry(Registry[V]):
 
     # --- DYNAMIC VALUES --- #
 
+    def has_regex(self, pattern: Union[str, re.Pattern]) -> bool:
+        return self._regex_providers.has_pattern(pattern)
+
     def register_constructor(self, constructor: RegexConstructor) -> 'RegexRegistry':
+        """
+        Register a regex constructor
+        """
         if not isinstance(constructor, RegexConstructor):
             raise TypeError(f'dynamic registry: {repr(self.name)} only accepts dynamic {RegexConstructor.__name__}, got: {repr(constructor)}')
         self._check_regex_constructor(constructor)
@@ -579,16 +604,47 @@ class RegexRegistry(Registry[V]):
 
     def register_regex(self, pattern: Union[str, re.Pattern], example: str, factory_fn: Optional[Union[Callable[[...], V], str]] = None):
         """
-        Register a function
+        Register and create a regex constructor
         """
         def _register_wrapper(fn: T) -> T:
             self.register_constructor(RegexConstructor(pattern=pattern, example=example, factory_fn=fn))
             return fn
-        # handle cases
-        if factory_fn is None:
-            return _register_wrapper  # decorator
-        else:
-            return _register_wrapper(factory_fn)  # call
+        return _register_wrapper if (factory_fn is None) else _register_wrapper(factory_fn)
+
+    def register_missing_constructor(self, constructor: RegexConstructor):
+        """
+        Only register a regex constructor if the pattern does not already exist!
+        """
+        if not self.has_regex(constructor.pattern):
+            return self.register_constructor(constructor)
+
+    def register_missing_regex(self, pattern: Union[str, re.Pattern], example: str, factory_fn: Optional[Union[Callable[[...], V], str]] = None):
+        """
+        Only register and create a regex constructor if the pattern does not already exist!
+        """
+        if not self.has_regex(pattern):
+            return self.register_regex(pattern=pattern, example=example, factory_fn=factory_fn)
+        elif factory_fn is None:
+            return lambda fn: fn  # dummy wrapper
+
+    # --- MISSING VALUES --- #
+
+    # override from the parent class!
+    class _RegistrySetMissing(Registry._RegistrySetMissing):
+
+        _registry: 'RegexRegistry'
+
+        def register_constructor(self, constructor: RegexConstructor):
+            """
+            Only register a regex constructor if the pattern does not already exist!
+            """
+            return self._registry.register_missing_constructor(constructor=constructor)
+
+        def register_regex(self, pattern: Union[str, re.Pattern], example: str, factory_fn: Optional[Union[Callable[[...], V], str]] = None):
+            """
+            Only register and create a regex constructor if the pattern does not already exist!
+            """
+            return self._registry.register_missing_regex(pattern=pattern, example=example, factory_fn=factory_fn, )
 
 
 # ========================================================================= #

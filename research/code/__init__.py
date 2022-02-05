@@ -58,6 +58,5 @@ def register_to_disent():
     R.FRAMEWORKS.setm['x__st_beta_vae'] = R.LazyImport('research.code.frameworks.vae._weaklysupervised__st_betavae.SwappedTargetBetaVae')
 
     # register the kernels for the loss functions!
-    # TODO: check if these are already added based on regex!
-    R.KERNELS.register_regex(pattern=r'^(xy8)_r(47)$', example='xy8_r47', factory_fn='research.code.dataset.transform._augment._make_xy8_r47')
-    R.KERNELS.register_regex(pattern=r'^(xy1)_r(47)$', example='xy1_r47', factory_fn='research.code.dataset.transform._augment._make_xy1_r47')
+    R.KERNELS.setm.register_regex(pattern=r'^(xy8)_r(47)$', example='xy8_r47', factory_fn='research.code.dataset.transform._augment._make_xy8_r47')
+    R.KERNELS.setm.register_regex(pattern=r'^(xy1)_r(47)$', example='xy1_r47', factory_fn='research.code.dataset.transform._augment._make_xy1_r47')
