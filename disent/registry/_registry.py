@@ -41,6 +41,7 @@ from typing import Union
 
 from disent.util.function import wrapped_partial
 from disent.util.imports import _check_and_split_path
+from disent.util.imports import import_obj
 from disent.util.imports import import_obj_partial
 
 
@@ -395,34 +396,42 @@ class RegexConstructor(object):
         example: str,
         factory_fn: Union[Callable[[...], V], str],
     ):
-        self._pattern = pattern
-        self._example = example
-        self._factory_fn = factory_fn
+        self._pattern = self._check_pattern(pattern)
+        self._example = self._check_example(example, self._pattern)
+        # we can delay loading of the function if it is a string!
+        self._factory_fn = factory_fn if isinstance(factory_fn, str) else self._check_factory_fn(factory_fn, self._pattern)
 
+    @classmethod
+    def _check_pattern(cls, pattern: Union[str, re.Pattern]):
         # check the regex type & convert
-        if isinstance(self._pattern, str):
-            self._pattern = re.compile(self._pattern)
-        if not isinstance(self._pattern, re.Pattern):
-            raise TypeError(f'regex pattern must be a regex `str` or `re.Pattern`, got: {repr(self._pattern)}')
-        if self._pattern.groups < 1:
-            raise ValueError(f'regex pattern must contain at least one group, got: {repr(self._pattern)}')
+        if isinstance(pattern, str):
+            pattern = re.compile(pattern)
+        if not isinstance(pattern, re.Pattern):
+            raise TypeError(f'regex pattern must be a regex `str` or `re.Pattern`, got: {repr(pattern)}')
+        if pattern.groups < 1:
+            raise ValueError(f'regex pattern must contain at least one group, got: {repr(pattern)}')
+        return pattern
 
-        # check the factory function
-        # TODO: handle case where function is a reference with a string... like ImportValue
-        if not callable(self._factory_fn):
-            raise TypeError(f'generator function must be callable, got: {self._factory_fn}')
-        signature = inspect.signature(self._factory_fn)
-        if len(signature.parameters) != self._pattern.groups:
-            raise ValueError(f'signature has incorrect number of parameters: {repr(signature)} compared to the number of groups in the regex pattern: {repr(self._pattern)}')
+    @classmethod
+    def _check_factory_fn(cls, factory_fn: Callable[[...], V], pattern: re.Pattern) -> Callable[[...], V]:
+        # we have an actual function, we can check it!
+        if not callable(factory_fn):
+            raise TypeError(f'generator function must be callable, got: {factory_fn}')
+        signature = inspect.signature(factory_fn)
+        if len(signature.parameters) != pattern.groups:
+            raise ValueError(f'signature has incorrect number of parameters: {repr(signature)} compared to the number of groups in the regex pattern: {repr(pattern)}')
+        return factory_fn
 
+    @classmethod
+    def _check_example(cls, example: str, pattern: re.Pattern) -> str:
         # check the example
-        if not isinstance(self._example, str):
-            raise TypeError(f'example must be a `str`, got: {type(self._example)}')
-        if not self._example:
-            raise ValueError(f'example must not be empty, got: {type(self._example)}')
+        if not isinstance(example, str):
+            raise TypeError(f'example must be a `str`, got: {type(example)}')
+        if not example:
+            raise ValueError(f'example must not be empty, got: {type(example)}')
         # check that the regex matches the example!
-        if not self.can_construct(self._example):
-            raise ValueError(f'could not match example: {repr(self._example)} to regex: {repr(self._pattern)}')
+        if pattern.search(example) is None:
+            raise ValueError(f'could not match example: {repr(example)} to regex: {repr(pattern)}')
 
     @property
     def pattern(self) -> re.Pattern:
@@ -433,9 +442,15 @@ class RegexConstructor(object):
         return self._example
 
     def construct(self, name: str) -> V:
+        # get the results
         result = self._pattern.search(name)
         if result is None:
             raise KeyError(f'pattern: {self.pattern} does not match given name: {repr(name)}. The following example would be valid: {repr(self.example)}')
+        # get the function -- load via the path
+        if isinstance(self._factory_fn, str):
+            fn = import_obj(self._factory_fn)
+            self._factory_fn = self._check_factory_fn(fn, self._pattern)
+        # construct
         return self._factory_fn(*result.groups())
 
     def can_construct(self, name: str) -> bool:
@@ -520,6 +535,8 @@ class RegexRegistry(Registry[V]):
         self._regex_providers = RegexProvidersSearch()
         super().__init__(name)
 
+    # the regex provider is cached so this should be efficient for the same value calls
+    # -- we do not cache the providers value!
     def __getitem__(self, k: str) -> V:
         if k in self._providers:
             return self._getitem(k)

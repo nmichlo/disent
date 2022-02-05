@@ -236,9 +236,12 @@ MODELS['decoder_linear']     = LazyImport('disent.model.ae._linear.DecoderLinear
 # HELPER registries                                                         #
 # ========================================================================= #
 
-KERNELS: RegexRegistry['torch.Tensor'] = RegexRegistry('KERNELS')
 
+# TODO: add norm support with regex?
 KERNELS: RegexRegistry['torch.Tensor'] = RegexRegistry('KERNELS')
+KERNELS.register_regex(pattern=r'^box_r(\d+)$', example='box_r31', factory_fn='disent.dataset.transform._augment._make_box_kernel')
+KERNELS.register_regex(pattern=r'^gau_r(\d+)$', example='gau_r31', factory_fn='disent.dataset.transform._augment._make_gaussian_kernel')
+
 
 # ========================================================================= #
 # Registry of all Registries                                                #
