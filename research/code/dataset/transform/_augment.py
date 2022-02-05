@@ -25,10 +25,8 @@
 
 import logging
 import os
-import re
 import torch
 import research
-from disent.dataset.transform._augment import DYN_REGISTRY_KERNELS
 
 
 log = logging.getLogger(__name__)
@@ -40,21 +38,12 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-log.debug('registered kernel with disent: xy8_r47')
-DYN_REGISTRY_KERNELS.register_dynamic(
-    name='xy8_r47',
-    regex=re.compile(r'^(xy8)_r(47)$'),
-    example='xy8_r47',
-    factory_fn=lambda kern, radius: torch.load(os.path.abspath(os.path.join(research.__file__, '../part03_adversarial/e01_learn_to_disentangle/data', 'r47-1_s28800_adam_lr0.003_wd0.0_xy8x8.pt'))),
-)
+def _make_xy8_r47(kern: str, radius: str):
+    return torch.load(os.path.abspath(os.path.join(research.__file__, '../part03_adversarial/e01_learn_to_disentangle/data', 'r47-1_s28800_adam_lr0.003_wd0.0_xy8x8.pt')))
 
-log.debug('registered kernel with disent: xy1_r47')
-DYN_REGISTRY_KERNELS.register_dynamic(
-    name='xy1_r47',
-    regex=re.compile(r'^(xy1)_r(47)$'),
-    example='xy1_r47',
-    factory_fn=lambda kern, radius: torch.load(os.path.abspath(os.path.join(research.__file__, '../part03_adversarial/e01_learn_to_disentangle/data', 'r47-1_s28800_adam_lr0.003_wd0.0_xy1x1.pt')))
-)
+
+def _make_xy1_r47(kern: str, radius: str):
+    return torch.load(os.path.abspath(os.path.join(research.__file__, '../part03_adversarial/e01_learn_to_disentangle/data', 'r47-1_s28800_adam_lr0.003_wd0.0_xy1x1.pt')))
 
 
 # ========================================================================= #
