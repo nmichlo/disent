@@ -24,30 +24,24 @@
 
 import inspect
 import re
-from abc import abstractmethod
-from functools import lru_cache
+from abc import ABC
 from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import Generic
-from typing import Iterable
 from typing import Iterator
 from typing import List
 from typing import MutableMapping
-from typing import MutableSequence
 from typing import NoReturn
 from typing import Optional
-from typing import overload
-from typing import Protocol
-from typing import Sequence
 from typing import Set
 from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
 from disent.util.function import wrapped_partial
-from disent.util.imports import import_obj_partial
 from disent.util.imports import _check_and_split_path
+from disent.util.imports import import_obj_partial
 
 
 # ========================================================================= #
@@ -57,6 +51,7 @@ from disent.util.imports import _check_and_split_path
 
 K = TypeVar('K')
 V = TypeVar('V')
+T = TypeVar('T')
 AliasesHint = Union[str, Tuple[str, ...]]
 
 
@@ -65,16 +60,13 @@ AliasesHint = Union[str, Tuple[str, ...]]
 # ========================================================================= #
 
 
-class ProvidedValue(Generic[V]):
+class ProvidedValue(Generic[V], ABC):
     """
     Base class for providing immutable values using the `get` method.
     - Subclasses should override this
     """
 
-    def get(self, name: str) -> V:
-        raise NotImplementedError
-
-    def matches(self, name: str) -> bool:
+    def get(self) -> V:
         raise NotImplementedError
 
     def __repr__(self):
@@ -90,11 +82,8 @@ class StaticValue(ProvidedValue[V]):
     def __init__(self, value: V):
         self._value = value
 
-    def get(self, name: str) -> V:
+    def get(self) -> V:
         return self._value
-
-    def matches(self, name: str) -> bool:
-        return True
 
     def __repr__(self):
         return f'{self.__class__.__name__}({repr(self._value)})'
@@ -117,15 +106,12 @@ class LazyValue(ProvidedValue[V]):
         self._is_generated = False
         self._value = None
 
-    def get(self, name: str) -> V:
+    def get(self) -> V:
         # cache the value
         if not self._is_generated:
             self._is_generated = True
             self._value = self._generate_fn()
         return self._value
-
-    def matches(self, name: str) -> bool:
-        return True
 
     def clear(self):
         self._is_generated = False
@@ -151,69 +137,9 @@ class LazyImport(LazyValue[V]):
         super().__init__(generate_fn=generate_fn)
 
 
-class RegexValue(ProvidedValue):
-
-    def __init__(
-        self,
-        pattern: Union[str, re.Pattern],
-        example: str,
-        factory_fn: Callable[[...], V],
-    ):
-        self._pattern = pattern
-        self._example = example
-        self._factory_fn = factory_fn
-
-        # check the regex type & convert
-        if isinstance(self._pattern, str):
-            self._pattern = re.compile(self._pattern)
-        if not isinstance(self._pattern, re.Pattern):
-            raise TypeError(f'regex pattern must be a regex `str` or `re.Pattern`, got: {repr(self._pattern)}')
-        if self._pattern.groups < 1:
-            raise ValueError(f'regex pattern must contain at least one group, got: {repr(self._pattern)}')
-
-        # check the factory function
-        if not callable(self._factory_fn):
-            raise TypeError(f'generator function must be callable, got: {self._factory_fn}')
-        signature = inspect.signature(self._factory_fn)
-        if len(signature.parameters) != self._pattern.groups:
-            raise ValueError(f'signature has incorrect number of parameters: {repr(signature)} compared to the number of groups in the regex pattern: {repr(self._pattern)}')
-
-        # check the example
-        if not isinstance(self._example, str):
-            raise TypeError(f'example must be a `str`, got: {type(self._example)}')
-        if not self._example:
-            raise ValueError(f'example must not be empty, got: {type(self._example)}')
-        # check that the regex matches the example!
-        result = self._pattern.search(self._example)
-        if result is None:
-            raise ValueError(f'could not match example: {repr(self._example)} to regex: {repr(self._pattern)}')
-
-    @property
-    def pattern(self) -> re.Pattern:
-        return self._pattern
-
-    @property
-    def example(self) -> str:
-        return self._example
-
-    def get(self, name: str) -> V:
-        result = self._pattern.search(name)
-        if result is None:
-            raise KeyError(f'pattern: {self.pattern} does not match given name: {repr(name)}. The following example would be valid: {repr(self.example)}')
-        return self._factory_fn(*result.groups())
-
-    def matches(self, name: str) -> bool:
-        return self._pattern.search(name) is not None
-
-
 # ========================================================================= #
 # Provided Dict                                                             #
 # ========================================================================= #
-
-
-class _ItemProto(Protocol[K, V]):
-    def _setitem(self, k: K, v: V) -> NoReturn: ...
-    def _getitem(self, k: K) -> V: ...
 
 
 class DictProviders(MutableMapping[K, V]):
@@ -248,36 +174,11 @@ class DictProviders(MutableMapping[K, V]):
 
     def _getitem(self, k: K) -> V:
         provider = self._providers[k]
-        return provider.get(k)
+        return provider.get()
 
     def _setitem(self, k: K, v: ProvidedValue[V]) -> NoReturn:
         if not isinstance(v, ProvidedValue):
             raise TypeError(f'Values stored in {self.__class__.__name__} must be instances of: {ProvidedValue.__name__}, got: {repr(v)}')
-        self._providers[k] = v
-
-
-class DictUnwrapProviders(DictProviders[K, V]):
-    """
-    Unlike ProvidedDict above, the returned values
-    are only obtained from the providers once.
-    - Providers are deleted and replaced with the values they return
-    - Provided values should not be nested
-    """
-
-    # change the type hint
-    __setitem__: Callable[[K, Union[V, ProvidedValue[V]]], NoReturn]
-
-    def _getitem(self, k: K) -> V:
-        item = self._providers[k]
-        # unwrap and delete the provider, storing the value instead
-        if isinstance(item, ProvidedValue):
-            item = item.get(k)
-            assert not isinstance(item, ProvidedValue), 'provided values cannot be nested.'
-            self._providers[k] = item
-        # get the items
-        return item
-
-    def _setitem(self, k: K, v: V) -> NoReturn:
         self._providers[k] = v
 
 
@@ -286,7 +187,7 @@ class DictUnwrapProviders(DictProviders[K, V]):
 # ========================================================================= #
 
 
-class _RegistryMixin(Generic[V]):
+class Registry(DictProviders[str, V]):
 
     def __init__(self, name: str):
         if not str.isidentifier(name):
@@ -304,10 +205,10 @@ class _RegistryMixin(Generic[V]):
 
     # --- CORE --- #
 
-    def __setitem__(self, aliases: AliasesHint, v: Any) -> None:
+    def __setitem__(self, aliases: AliasesHint, v: ProvidedValue[V]) -> NoReturn:
         self._setitems(aliases, v)
 
-    def __getitem__(self: Union[_ItemProto, '_RegistryMixin'], k: str) -> V:
+    def __getitem__(self, k: str) -> V:
         value = self._getitem(k)
         self._check_provided_value(value)
         return value
@@ -317,7 +218,7 @@ class _RegistryMixin(Generic[V]):
 
     # --- HELPER --- #
 
-    def _setitems(self: Union[_ItemProto, '_RegistryMixin'], aliases: AliasesHint, v: Union[V, ProvidedValue[V]]) -> None:
+    def _setitems(self, aliases: AliasesHint, v: Union[V, ProvidedValue[V]]) -> None:
         aliases = self._normalise_aliases(aliases)
         # check all the aliases
         for k in aliases:
@@ -326,9 +227,11 @@ class _RegistryMixin(Generic[V]):
             if k in self:
                 raise RuntimeError(f'Tried to overwrite existing key: {repr(k)} in registry: {repr(self.name)}')
             self._check_key(k)
+        # check the value
+        v = self._check_and_normalise_value(v)
         # set all the aliases
         for k in aliases:
-            self._setitem(k, self._check_and_normalise_value(v))
+            self._setitem(k, v)
 
     def _normalise_aliases(self, aliases: AliasesHint, check_nonempty: bool = True) -> Tuple[str]:
         if isinstance(aliases, str):
@@ -371,36 +274,11 @@ class _RegistryMixin(Generic[V]):
         return self._RegistrySetMissing(self)
 
     class _RegistrySetMissing(object):
-        def __init__(self, registry: '_RegistryMixin'):
-            self._registry: _RegistryMixin = registry
+        def __init__(self, registry: 'Registry'):
+            self._registry = registry
 
         def __setitem__(self, aliases: str, v: ProvidedValue[V]) -> NoReturn:
             self._registry.setmissing(aliases, v)
-
-
-# ========================================================================= #
-# Registry - Mixin                                                          #
-# ========================================================================= #
-
-
-class RegistryProviders(_RegistryMixin[V], DictProviders[str, V]):
-    """
-    A registry is an immutable `DictProviders` that can also take in
-    tuples as keys to set aliases to the same value for all of those keys!
-    """
-
-    # change the type hint
-    __setitem__: Callable[[AliasesHint, ProvidedValue[V]], NoReturn]
-
-
-class RegistryUnwrapProviders(_RegistryMixin[V], DictUnwrapProviders[str, V]):
-    """
-    A registry is an immutable `DictUnwrapProviders` that can also take in
-    tuples as keys to set aliases to the same value for all of those keys!
-    """
-
-    # change the type hint
-    __setitem__: Callable[[AliasesHint, Union[V, ProvidedValue[V]]], NoReturn]
 
 
 # ========================================================================= #
@@ -408,7 +286,7 @@ class RegistryUnwrapProviders(_RegistryMixin[V], DictUnwrapProviders[str, V]):
 # ========================================================================= #
 
 
-class RegistryImports(RegistryProviders):
+class RegistryImports(Registry):
     """
     A registry for arbitrary imports.
     -- supports decorating functions and classes
@@ -498,6 +376,202 @@ class RegistryImports(RegistryProviders):
 
     def _check_key(self, k: str) -> NoReturn:
         pass
+
+
+# ========================================================================= #
+# Dynamic Registry                                                          #
+# ========================================================================= #
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+# Constructor                                                               #
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+
+class RegexConstructor(object):
+
+    def __init__(
+        self,
+        pattern: Union[str, re.Pattern],
+        example: str,
+        factory_fn: Union[Callable[[...], V], str],
+    ):
+        self._pattern = pattern
+        self._example = example
+        self._factory_fn = factory_fn
+
+        # check the regex type & convert
+        if isinstance(self._pattern, str):
+            self._pattern = re.compile(self._pattern)
+        if not isinstance(self._pattern, re.Pattern):
+            raise TypeError(f'regex pattern must be a regex `str` or `re.Pattern`, got: {repr(self._pattern)}')
+        if self._pattern.groups < 1:
+            raise ValueError(f'regex pattern must contain at least one group, got: {repr(self._pattern)}')
+
+        # check the factory function
+        # TODO: handle case where function is a reference with a string... like ImportValue
+        if not callable(self._factory_fn):
+            raise TypeError(f'generator function must be callable, got: {self._factory_fn}')
+        signature = inspect.signature(self._factory_fn)
+        if len(signature.parameters) != self._pattern.groups:
+            raise ValueError(f'signature has incorrect number of parameters: {repr(signature)} compared to the number of groups in the regex pattern: {repr(self._pattern)}')
+
+        # check the example
+        if not isinstance(self._example, str):
+            raise TypeError(f'example must be a `str`, got: {type(self._example)}')
+        if not self._example:
+            raise ValueError(f'example must not be empty, got: {type(self._example)}')
+        # check that the regex matches the example!
+        if not self.can_construct(self._example):
+            raise ValueError(f'could not match example: {repr(self._example)} to regex: {repr(self._pattern)}')
+
+    @property
+    def pattern(self) -> re.Pattern:
+        return self._pattern
+
+    @property
+    def example(self) -> str:
+        return self._example
+
+    def construct(self, name: str) -> V:
+        result = self._pattern.search(name)
+        if result is None:
+            raise KeyError(f'pattern: {self.pattern} does not match given name: {repr(name)}. The following example would be valid: {repr(self.example)}')
+        return self._factory_fn(*result.groups())
+
+    def can_construct(self, name: str) -> bool:
+        return self._pattern.search(name) is not None
+
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+# Cached Linear Search                                                      #
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+
+class RegexProvidersSearch(object):
+
+    def __init__(self):
+        self._patterns: Set[re.Pattern] = set()
+        self._constructors: List[RegexConstructor] = []
+        # caching
+        self._cache = {}
+        self._cache_dirty = False
+
+    def construct(self, arg_str: str):
+        provider = self.get_constructor(arg_str)
+        # build the object
+        if provider is not None:
+            return provider.construct(arg_str)
+        # no result was found!
+        raise KeyError(f'could not construct an item from the given argument string: {repr(arg_str)}, valid patterns include: {[p.pattern for p in self._constructors]}')
+
+    def can_construct(self, arg_str: str) -> bool:
+        return self.get_constructor(arg_str) is not None
+
+    def get_constructor(self, arg_str: str) -> Optional[RegexConstructor]:
+        # TODO: clean up this cache!
+        # check cache -- remove None entries if dirty
+        if self._cache_dirty:
+            self._cache = {k: v for k, v in self._cache.items() if v is not None}
+            self._cache_dirty = False
+        if arg_str in self._cache:
+            return self._cache[arg_str]
+        # check the input string
+        if not isinstance(arg_str, str):
+            raise TypeError(f'regex factory can only construct from `str`, got: {repr(arg_str)}')
+        if not arg_str:
+            raise ValueError(f'regex factory can only construct from non-empty `str`, got: {repr(arg_str)}')
+        # match the values
+        constructor = None
+        for c in self:
+            if c.can_construct(arg_str):
+                constructor = c
+                break
+        # cache the value
+        self._cache[arg_str] = constructor
+        if len(self._cache) > 128:
+            self._cache.popitem()
+        return constructor
+
+    def __len__(self) -> int:
+        return len(self._constructors)
+
+    def __iter__(self) -> Iterator[RegexConstructor]:
+        yield from self._constructors
+
+    def append(self, constructor: RegexConstructor):
+        if not isinstance(constructor, RegexConstructor):
+            raise TypeError(f'regex factory only accepts {RegexConstructor.__name__} providers.')
+        if constructor.pattern in self._patterns:
+            raise RuntimeError(f'regex factory already contains the regex pattern: {repr(constructor.pattern)}')
+        # append value!
+        self._patterns.add(constructor.pattern)
+        self._constructors.append(constructor)
+        self._cache_dirty = True
+
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+# Dynamic Registry                                                          #
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+
+class RegexRegistry(Registry[V]):
+
+    def __init__(self, name: str):
+        self._regex_providers = RegexProvidersSearch()
+        super().__init__(name)
+
+    def __getitem__(self, k: str) -> V:
+        if k in self._providers:
+            return self._getitem(k)
+        elif self._regex_providers.can_construct(k):
+            return self._regex_providers.construct(k)
+        raise KeyError(f'dynamic registry: {repr(self.name)} cannot construct item with key: {repr(k)}. Valid static values: {sorted(self._providers.keys())}. Valid dynamic examples: {[p.example for p in self._regex_providers]}')
+
+    def __setitem__(self, aliases: AliasesHint, v: ProvidedValue[V]) -> NoReturn:
+        if isinstance(aliases, re.Pattern) or isinstance(v, RegexConstructor):
+            raise RuntimeError(f'register dynamic values to the dynamic registry: {repr(self.name)} with the `register_regex` or `register_constructor` methods.')
+        super().__setitem__(aliases, v)
+
+    def __contains__(self, k: K):
+        if k in self._providers:
+            return True
+        if self._regex_providers.can_construct(k):
+            return True
+        return False
+
+    def __len__(self) -> int:
+        return len(self._providers) + len(self._regex_providers)
+
+    def __iter__(self) -> Iterator[K]:
+        yield from self._providers
+        yield from (p.example for p in self._regex_providers)
+
+    # --- OVERRIDABLE --- #
+
+    def _check_regex_constructor(self, constructor: RegexConstructor):
+        pass
+
+    # --- DYNAMIC VALUES --- #
+
+    def register_constructor(self, constructor: RegexConstructor) -> 'RegexRegistry':
+        if not isinstance(constructor, RegexConstructor):
+            raise TypeError(f'dynamic registry: {repr(self.name)} only accepts dynamic {RegexConstructor.__name__}, got: {repr(constructor)}')
+        self._check_regex_constructor(constructor)
+        self._regex_providers.append(constructor)
+        return self
+
+    def register_regex(self, pattern: Union[str, re.Pattern], example: str, factory_fn: Optional[Union[Callable[[...], V], str]] = None):
+        """
+        Register a function
+        """
+        def _register_wrapper(fn: T) -> T:
+            self.register_constructor(RegexConstructor(pattern=pattern, example=example, factory_fn=fn))
+            return fn
+        # handle cases
+        if factory_fn is None:
+            return _register_wrapper  # decorator
+        else:
+            return _register_wrapper(factory_fn)  # call
 
 
 # ========================================================================= #
