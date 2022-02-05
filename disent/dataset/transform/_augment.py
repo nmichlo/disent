@@ -32,11 +32,12 @@ from typing import Union
 import numpy as np
 import torch
 
-import disent
 from disent.nn.modules import DisentModule
 from disent.nn.functional import torch_box_kernel_2d
 from disent.nn.functional import torch_conv2d_channel_wise_fft
 from disent.nn.functional import torch_gaussian_kernel_2d
+
+import disent.registry as R
 
 
 # ========================================================================= #
@@ -227,38 +228,9 @@ def _check_kernel(kernel: torch.Tensor) -> torch.Tensor:
     return kernel
 
 
-_KERNELS = {
-    # kernels that do not require arguments, just general factory functions
-    # name: class/fn -- with no required args
-}
-
-
-_ARG_KERNELS = [
-    # (REGEX, EXAMPLE, FACTORY_FUNC)
-    # - factory function takes at min one arg: fn(reduction) with one arg after that per regex capture group
-    # - regex expressions are tested in order, expressions should be mutually exclusive or ordered such that more specialized versions occur first.
-    (re.compile(r'^(box)_r(\d+)$'), 'box_r31', lambda kern, radius: torch_box_kernel_2d(radius=int(radius))[None, ...]),
-    (re.compile(r'^(gau)_r(\d+)$'), 'gau_r31', lambda kern, radius: torch_gaussian_kernel_2d(sigma=int(radius) / 4.0, truncate=4.0)[None, None, ...]),
-]
-
-
 # NOTE: this function compliments make_reconstruction_loss in frameworks/helper/reconstructions.py
-def _make_kernel(name: str) -> torch.Tensor:
-    if name in _KERNELS:
-        # search normal losses!
-        return _KERNELS[name]()
-    else:
-        # regex search kernels, and call with args!
-        for r, _, fn in _ARG_KERNELS:
-            result = r.search(name)
-            if result is not None:
-                return fn(*result.groups())
-    # we couldn't find anything
-    raise KeyError(f'Invalid kernel name: {repr(name)} Examples of argument based kernels include: {[example for _, example, _ in _ARG_KERNELS]}')
-
-
 def make_kernel(name: str, normalize: bool = False):
-    kernel = _make_kernel(name)
+    kernel = R.KERNELS[name]
     kernel = _normalise_kernel(kernel, normalize=normalize)
     kernel = _check_kernel(kernel)
     return kernel
@@ -267,7 +239,7 @@ def make_kernel(name: str, normalize: bool = False):
 def _get_kernel(name_or_path: str) -> torch.Tensor:
     if '/' not in name_or_path:
         try:
-            return _make_kernel(name_or_path)
+            return R.KERNELS[name_or_path]
         except KeyError:
             pass
     if os.path.isfile(name_or_path):
@@ -280,6 +252,21 @@ def get_kernel(kernel: Union[str, torch.Tensor], normalize: bool = False):
     kernel = _normalise_kernel(kernel, normalize=normalize)
     kernel = _check_kernel(kernel)
     return kernel
+
+
+# ========================================================================= #
+# Registered Kernels                                                        #
+# ========================================================================= #
+
+
+# we register this in disent.registry
+def _make_box_kernel(radius: str):
+    return torch_box_kernel_2d(radius=int(radius))[None, ...]
+
+
+# we register this in disent.registry
+def _make_gaussian_kernel(radius: str):
+    return torch_gaussian_kernel_2d(sigma=int(radius) / 4.0, truncate=4.0)[None, None, ...]
 
 
 # ========================================================================= #

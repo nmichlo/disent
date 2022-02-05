@@ -34,8 +34,18 @@ You can register your own modules and classes using the provided decorator:
 eg. `DATASET.register(...options...)(your_function_or_class)`
 """
 
-from disent.registry._registry import Registry as _Registry
+# from disent.registry._registry import ProvidedValue
+# from disent.registry._registry import StaticImport
+# from disent.registry._registry import DictProviders
+# from disent.registry._registry import RegexProvidersSearch
+
+from disent.registry._registry import StaticValue
+from disent.registry._registry import LazyValue
 from disent.registry._registry import LazyImport
+from disent.registry._registry import Registry
+from disent.registry._registry import RegistryImports
+from disent.registry._registry import RegexConstructor
+from disent.registry._registry import RegexRegistry
 
 
 # ========================================================================= #
@@ -44,7 +54,7 @@ from disent.registry._registry import LazyImport
 
 
 # TODO: this is not yet used in disent.data or disent.frameworks
-DATASETS = _Registry('DATASETS')
+DATASETS: RegistryImports['torch.utils.data.Dataset'] = RegistryImports('DATASETS')
 # groundtruth -- impl
 DATASETS['cars3d']            = LazyImport('disent.dataset.data._groundtruth__cars3d')
 DATASETS['dsprites']          = LazyImport('disent.dataset.data._groundtruth__dsprites')
@@ -63,7 +73,7 @@ DATASETS['xyobject']          = LazyImport('disent.dataset.data._groundtruth__xy
 
 # TODO: this is not yet used in disent.data or disent.frameworks
 # changes here should also update
-SAMPLERS = _Registry('SAMPLERS')
+SAMPLERS: RegistryImports['disent.dataset.sampling.BaseDisentSampler'] = RegistryImports('SAMPLERS')
 # [ground truth samplers]
 SAMPLERS['gt_dist']         = LazyImport('disent.dataset.sampling._groundtruth__dist.GroundTruthDistSampler')
 SAMPLERS['gt_pair']         = LazyImport('disent.dataset.sampling._groundtruth__pair.GroundTruthPairSampler')
@@ -87,7 +97,7 @@ SAMPLERS['random_episode']  = LazyImport('disent.dataset.sampling._random__episo
 
 
 # TODO: this is not yet used in disent.frameworks
-FRAMEWORKS = _Registry('FRAMEWORKS')
+FRAMEWORKS: RegistryImports['disent.frameworks.DisentFramework'] = RegistryImports('FRAMEWORKS')
 # [AE]
 FRAMEWORKS['tae']           = LazyImport('disent.frameworks.ae._supervised__tae.TripletAe')
 FRAMEWORKS['ae']            = LazyImport('disent.frameworks.ae._unsupervised__ae.Ae')
@@ -108,7 +118,7 @@ FRAMEWORKS['ada_vae']       = LazyImport('disent.frameworks.vae._weaklysupervise
 # ========================================================================= #
 
 
-RECON_LOSSES = _Registry('RECON_LOSSES')
+RECON_LOSSES: RegexRegistry['disent.frameworks.helper.reconstructions.ReconLossHandler'] = RegexRegistry('RECON_LOSSES')  # TODO: we need a regex version of RegistryImports
 # [STANDARD LOSSES]
 RECON_LOSSES['mse']         = LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerMse')                  # from the normal distribution - real values in the range [0, 1]
 RECON_LOSSES['mae']         = LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerMae')                  # mean absolute error
@@ -117,18 +127,20 @@ RECON_LOSSES['bce']         = LazyImport('disent.frameworks.helper.reconstructio
 RECON_LOSSES['bernoulli']   = LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerBernoulli')            # reduces to bce - binary values in the set {0, 1}
 RECON_LOSSES['c_bernoulli'] = LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerContinuousBernoulli')  # bernoulli with a computed offset to handle values in the range [0, 1]
 RECON_LOSSES['normal']      = LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerNormal')               # handle all real values
+# [REGEX LOSSES]
+RECON_LOSSES.register_regex(pattern=r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_w(\d+\.\d+)$',             example='mse_xy8_r47_w1.0',      factory_fn='disent.frameworks.helper.reconstructions._make_aug_recon_loss_w')
+RECON_LOSSES.register_regex(pattern=r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_l(\d+\.\d+)_k(\d+\.\d+)$', example='mse_xy8_r47_l1.0_k1.0', factory_fn='disent.frameworks.helper.reconstructions._make_aug_recon_loss_lw')
 
 
 # ========================================================================= #
-# LATENT_DISTS - should be synchronized with:                               #
-#                `disent/frameworks/helper/latent_distributions.py`         #
+# LATENT_HANDLERS - should be synchronized with:                            #
+#                  `disent/frameworks/helper/latent_distributions.py`       #
 # ========================================================================= #
 
 
-# TODO: this is not yet used in disent.frameworks or disent.frameworks.helper.latent_distributions
-LATENT_DISTS = _Registry('LATENT_DISTS')
-LATENT_DISTS['normal']  = LazyImport('disent.frameworks.helper.latent_distributions.LatentDistsHandlerNormal')
-LATENT_DISTS['laplace'] = LazyImport('disent.frameworks.helper.latent_distributions.LatentDistsHandlerLaplace')
+LATENT_HANDLERS: RegistryImports['disent.frameworks.helper.latent_distributions.LatentDistsHandler'] = RegistryImports('LATENT_HANDLERS')
+LATENT_HANDLERS['normal']  = LazyImport('disent.frameworks.helper.latent_distributions.LatentDistsHandlerNormal')
+LATENT_HANDLERS['laplace'] = LazyImport('disent.frameworks.helper.latent_distributions.LatentDistsHandlerLaplace')
 
 
 # ========================================================================= #
@@ -139,8 +151,7 @@ LATENT_DISTS['laplace'] = LazyImport('disent.frameworks.helper.latent_distributi
 # default learning rate for each optimizer
 _LR = 1e-3
 
-
-OPTIMIZERS = _Registry('OPTIMIZERS')
+OPTIMIZERS: RegistryImports['torch.optim.Optimizer'] = RegistryImports('OPTIMIZERS')
 # [torch]
 OPTIMIZERS['adadelta']    = LazyImport(lr=_LR, import_path='torch.optim.adadelta.Adadelta')
 OPTIMIZERS['adagrad']     = LazyImport(lr=_LR, import_path='torch.optim.adagrad.Adagrad')
@@ -182,7 +193,7 @@ OPTIMIZERS['yogi']        = LazyImport(lr=_LR, import_path='torch_optimizer.Yogi
 
 
 # TODO: this is not yet used in disent.util.lightning.callbacks or disent.metrics
-METRICS = _Registry('METRICS')
+METRICS: RegistryImports['disent.metrics.utils._Metric'] = RegistryImports('METRICS')
 METRICS['dci']                 = LazyImport('disent.metrics._dci.metric_dci')
 METRICS['factor_vae']          = LazyImport('disent.metrics._factor_vae.metric_factor_vae')
 METRICS['mig']                 = LazyImport('disent.metrics._mig.metric_mig')
@@ -196,7 +207,7 @@ METRICS['unsupervised']        = LazyImport('disent.metrics._unsupervised.metric
 
 
 # TODO: this is not yet used in disent.framework or disent.schedule
-SCHEDULES = _Registry('SCHEDULES')
+SCHEDULES: RegistryImports['disent.schedule.Schedule'] = RegistryImports('SCHEDULES')
 SCHEDULES['clip']        = LazyImport('disent.schedule._schedule.ClipSchedule')
 SCHEDULES['cosine_wave'] = LazyImport('disent.schedule._schedule.CosineWaveSchedule')
 SCHEDULES['cyclic']      = LazyImport('disent.schedule._schedule.CyclicSchedule')
@@ -210,7 +221,7 @@ SCHEDULES['noop']        = LazyImport('disent.schedule._schedule.NoopSchedule')
 
 
 # TODO: this is not yet used in disent.framework or disent.model
-MODELS = _Registry('MODELS')
+MODELS: RegistryImports['disent.model._base.DisentLatentsModule'] = RegistryImports('MODELS')
 # [DECODER]
 MODELS['encoder_conv64']     = LazyImport('disent.model.ae._vae_conv64.EncoderConv64')
 MODELS['encoder_conv64norm'] = LazyImport('disent.model.ae._norm_conv64.EncoderConv64Norm')
@@ -224,21 +235,33 @@ MODELS['decoder_linear']     = LazyImport('disent.model.ae._linear.DecoderLinear
 
 
 # ========================================================================= #
+# HELPER registries                                                         #
+# ========================================================================= #
+
+
+# TODO: add norm support with regex?
+KERNELS: RegexRegistry['torch.Tensor'] = RegexRegistry('KERNELS')
+KERNELS.register_regex(pattern=r'^box_r(\d+)$', example='box_r31', factory_fn='disent.dataset.transform._augment._make_box_kernel')
+KERNELS.register_regex(pattern=r'^gau_r(\d+)$', example='gau_r31', factory_fn='disent.dataset.transform._augment._make_gaussian_kernel')
+
+
+# ========================================================================= #
 # Registry of all Registries                                                #
 # ========================================================================= #
 
 
 # registry of registries
-REGISTRIES = _Registry('REGISTRIES')
-REGISTRIES['DATASETS']      = DATASETS
-REGISTRIES['SAMPLERS']      = SAMPLERS
-REGISTRIES['FRAMEWORKS']    = FRAMEWORKS
-REGISTRIES['RECON_LOSSES']  = RECON_LOSSES
-REGISTRIES['LATENT_DISTS']  = LATENT_DISTS
-REGISTRIES['OPTIMIZERS']    = OPTIMIZERS
-REGISTRIES['METRICS']       = METRICS
-REGISTRIES['SCHEDULES']     = SCHEDULES
-REGISTRIES['MODELS']        = MODELS
+REGISTRIES: Registry[Registry] = Registry('REGISTRIES')
+REGISTRIES['DATASETS']        = StaticValue(DATASETS)
+REGISTRIES['SAMPLERS']        = StaticValue(SAMPLERS)
+REGISTRIES['FRAMEWORKS']      = StaticValue(FRAMEWORKS)
+REGISTRIES['RECON_LOSSES']    = StaticValue(RECON_LOSSES)
+REGISTRIES['LATENT_HANDLERS'] = StaticValue(LATENT_HANDLERS)
+REGISTRIES['OPTIMIZERS']      = StaticValue(OPTIMIZERS)
+REGISTRIES['METRICS']         = StaticValue(METRICS)
+REGISTRIES['SCHEDULES']       = StaticValue(SCHEDULES)
+REGISTRIES['MODELS']          = StaticValue(MODELS)
+REGISTRIES['KERNELS']         = StaticValue(KERNELS)
 
 
 # ========================================================================= #

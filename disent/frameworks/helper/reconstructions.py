@@ -22,23 +22,20 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-import re
 import warnings
 from typing import final
-from typing import List
 from typing import Sequence
-from typing import Tuple
 from typing import Union
 
 import torch
 import torch.nn.functional as F
 
-from disent import registry
+import disent.registry as R
+from disent.dataset.transform import FftKernel
 from disent.frameworks.helper.util import compute_ave_loss
 from disent.nn.loss.reduction import batch_loss_reduction
 from disent.nn.loss.reduction import loss_reduction
 from disent.nn.modules import DisentModule
-from disent.dataset.transform import FftKernel
 
 
 # ========================================================================= #
@@ -273,32 +270,25 @@ class AugmentedReconLossHandler(ReconLossHandler):
 
 # ========================================================================= #
 # Registry & Factory                                                        #
+# TODO: add ability to register parameterized reconstruction losses
 # ========================================================================= #
 
 
-# TODO: add ability to register parameterized reconstruction losses
-_ARG_RECON_LOSSES: List[Tuple[re.Pattern, str, callable]] = [
-    # (REGEX, EXAMPLE, FACTORY_FUNC)
-    # - factory function takes at min one arg: fn(reduction) with one arg after that per regex capture group
-    # - regex expressions are tested in order, expressions should be mutually exclusive or ordered such that more specialized versions occur first.
-    (re.compile(r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_w(\d+\.\d+)$'),             'mse_xy8_r47_w1.0',      lambda reduction, loss, kern, weight:             AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=1-float(weight), aug_weight=float(weight))),
-    (re.compile(r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_l(\d+\.\d+)_k(\d+\.\d+)$'), 'mse_xy8_r47_l1.0_k1.0', lambda reduction, loss, kern, l_weight, k_weight: AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=float(l_weight), aug_weight=float(k_weight))),
-]
+def _make_aug_recon_loss_w(loss: str, kern: str, weight: str):
+    def _loss(reduction: str):
+        return AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=1 - float(weight), aug_weight=float(weight))
+    return loss
+
+
+def _make_aug_recon_loss_lw(loss: str, kern: str, l_weight: str, k_weight: str):
+    def _loss(reduction: str):
+        return AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=float(l_weight), aug_weight=float(k_weight))
+    return loss
 
 
 # NOTE: this function compliments make_kernel in transform/_augment.py
 def make_reconstruction_loss(name: str, reduction: str) -> ReconLossHandler:
-    if name in registry.RECON_LOSSES:
-        # search normal losses!
-        return registry.RECON_LOSSES[name](reduction)
-    else:
-        # regex search losses, and call with args!
-        for r, _, fn in _ARG_RECON_LOSSES:
-            result = r.search(name)
-            if result is not None:
-                return fn(reduction, *result.groups())
-    # we couldn't find anything
-    raise KeyError(f'Invalid vae reconstruction loss: {repr(name)} Valid losses include: {sorted(registry.RECON_LOSSES)}, examples of additional argument based losses include: {[example for _, example, _ in _ARG_RECON_LOSSES]}')
+    return R.RECON_LOSSES[name](reduction=reduction)
 
 
 # ========================================================================= #
