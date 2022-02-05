@@ -133,15 +133,14 @@ RECON_LOSSES.register_regex(pattern=r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_l(\d+\.\d+
 
 
 # ========================================================================= #
-# LATENT_DISTS - should be synchronized with:                               #
-#                `disent/frameworks/helper/latent_distributions.py`         #
+# LATENT_HANDLERS - should be synchronized with:                            #
+#                  `disent/frameworks/helper/latent_distributions.py`       #
 # ========================================================================= #
 
 
-# TODO: this is not yet used in disent.frameworks or disent.frameworks.helper.latent_distributions
-LATENT_DISTS: RegistryImports['disent.frameworks.helper.latent_distributions.LatentDistsHandler'] = RegistryImports('LATENT_DISTS')
-LATENT_DISTS['normal']  = LazyImport('disent.frameworks.helper.latent_distributions.LatentDistsHandlerNormal')
-LATENT_DISTS['laplace'] = LazyImport('disent.frameworks.helper.latent_distributions.LatentDistsHandlerLaplace')
+LATENT_HANDLERS: RegistryImports['disent.frameworks.helper.latent_distributions.LatentDistsHandler'] = RegistryImports('LATENT_HANDLERS')
+LATENT_HANDLERS['normal']  = LazyImport('disent.frameworks.helper.latent_distributions.LatentDistsHandlerNormal')
+LATENT_HANDLERS['laplace'] = LazyImport('disent.frameworks.helper.latent_distributions.LatentDistsHandlerLaplace')
 
 
 # ========================================================================= #
@@ -252,16 +251,17 @@ KERNELS.register_regex(pattern=r'^gau_r(\d+)$', example='gau_r31', factory_fn='d
 
 
 # registry of registries
-REGISTRIES: Registry[RegistryImports] = Registry('REGISTRIES')
-REGISTRIES['DATASETS']      = StaticValue(DATASETS)
-REGISTRIES['SAMPLERS']      = StaticValue(SAMPLERS)
-REGISTRIES['FRAMEWORKS']    = StaticValue(FRAMEWORKS)
-REGISTRIES['RECON_LOSSES']  = StaticValue(RECON_LOSSES)
-REGISTRIES['LATENT_DISTS']  = StaticValue(LATENT_DISTS)
-REGISTRIES['OPTIMIZERS']    = StaticValue(OPTIMIZERS)
-REGISTRIES['METRICS']       = StaticValue(METRICS)
-REGISTRIES['SCHEDULES']     = StaticValue(SCHEDULES)
-REGISTRIES['MODELS']        = StaticValue(MODELS)
+REGISTRIES: Registry[Registry] = Registry('REGISTRIES')
+REGISTRIES['DATASETS']        = StaticValue(DATASETS)
+REGISTRIES['SAMPLERS']        = StaticValue(SAMPLERS)
+REGISTRIES['FRAMEWORKS']      = StaticValue(FRAMEWORKS)
+REGISTRIES['RECON_LOSSES']    = StaticValue(RECON_LOSSES)
+REGISTRIES['LATENT_HANDLERS'] = StaticValue(LATENT_HANDLERS)
+REGISTRIES['OPTIMIZERS']      = StaticValue(OPTIMIZERS)
+REGISTRIES['METRICS']         = StaticValue(METRICS)
+REGISTRIES['SCHEDULES']       = StaticValue(SCHEDULES)
+REGISTRIES['MODELS']          = StaticValue(MODELS)
+REGISTRIES['KERNELS']         = StaticValue(KERNELS)
 
 
 # ========================================================================= #

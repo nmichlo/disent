@@ -35,25 +35,27 @@ COUNTS = {
     'DATASETS': 6,
     'SAMPLERS': 8,
     'FRAMEWORKS': 10,
-    'RECON_LOSSES': 6,
-    'LATENT_DISTS': 2,
+    'RECON_LOSSES': 8,
+    'LATENT_HANDLERS': 2,
     'OPTIMIZERS': 30,
     'METRICS': 5,
     'SCHEDULES': 5,
     'MODELS': 8,
+    'KERNELS': 2,
 }
 
-COUNTS = {              # pragma: delete-on-release
-    'DATASETS': 10,     # pragma: delete-on-release
-    'SAMPLERS': 8,      # pragma: delete-on-release
-    'FRAMEWORKS': 25,   # pragma: delete-on-release
-    'RECON_LOSSES': 6,  # pragma: delete-on-release
-    'LATENT_DISTS': 2,  # pragma: delete-on-release
-    'OPTIMIZERS': 30,   # pragma: delete-on-release
-    'METRICS': 9,       # pragma: delete-on-release
-    'SCHEDULES': 5,     # pragma: delete-on-release
-    'MODELS': 8,        # pragma: delete-on-release
-}                       # pragma: delete-on-release
+COUNTS = {                 # pragma: delete-on-release
+    'DATASETS': 10,        # pragma: delete-on-release
+    'SAMPLERS': 8,         # pragma: delete-on-release
+    'FRAMEWORKS': 25,      # pragma: delete-on-release
+    'RECON_LOSSES': 8,     # pragma: delete-on-release
+    'LATENT_HANDLERS': 2,  # pragma: delete-on-release
+    'OPTIMIZERS': 30,      # pragma: delete-on-release
+    'METRICS': 9,          # pragma: delete-on-release
+    'SCHEDULES': 5,        # pragma: delete-on-release
+    'MODELS': 8,           # pragma: delete-on-release
+    'KERNELS': 4,          # pragma: delete-on-release
+}                          # pragma: delete-on-release
 
 
 def test_registry_loading():
@@ -64,8 +66,8 @@ def test_registry_loading():
     total = 0
     for registry in REGISTRIES:
         count = 0
-        for name in REGISTRIES[registry]:
-            loaded = REGISTRIES[registry][name]
+        for example in REGISTRIES[registry]:
+            loaded = REGISTRIES[registry][example]
             count += 1
             total += 1
         assert count == COUNTS[registry], f'invalid count for: {registry}'

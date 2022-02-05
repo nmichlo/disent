@@ -432,6 +432,7 @@ class RegexConstructor(object):
         # check that the regex matches the example!
         if pattern.search(example) is None:
             raise ValueError(f'could not match example: {repr(example)} to regex: {repr(pattern)}')
+        return example
 
     @property
     def pattern(self) -> re.Pattern:
@@ -555,6 +556,7 @@ class RegexRegistry(Registry[V]):
     # --- CORE ... UPDATED WITH LINEAR SEARCH --- #
 
     def __getitem__(self, k: str) -> V:
+        assert isinstance(k, str), f'invalid key: {repr(k)}, must be a `str`'
         # the regex provider is cached so this should be efficient for the same value calls
         # -- we do not cache the actual provided value!
         if k in self._providers:
