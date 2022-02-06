@@ -34,6 +34,7 @@ from typing import List
 from typing import MutableMapping
 from typing import NoReturn
 from typing import Optional
+from typing import Protocol
 from typing import Set
 from typing import Tuple
 from typing import TypeVar
@@ -54,6 +55,12 @@ K = TypeVar('K')
 V = TypeVar('V')
 T = TypeVar('T')
 AliasesHint = Union[str, Tuple[str, ...]]
+
+
+class _FactoryFn(Protocol[V]):
+    def __call__(self, *args) -> V: ...
+
+
 
 
 # ========================================================================= #
@@ -287,7 +294,8 @@ class Registry(DictProviders[str, V]):
 # ========================================================================= #
 
 
-class RegistryImports(Registry):
+# TODO: merge this with the dynamic registry below?
+class RegistryImports(Registry[V]):
     """
     A registry for arbitrary imports.
     -- supports decorating functions and classes
@@ -299,7 +307,7 @@ class RegistryImports(Registry):
         auto_alias: bool = True,
         partial_args: Tuple[Any, ...] = None,
         partial_kwargs: Dict[str, Any] = None,
-    ) -> Callable[[V], V]:
+    ) -> Callable[[T], T]:
         """
         Register a function or object to this registry.
         - can be used as a decorator @register(...)
@@ -394,7 +402,7 @@ class RegexConstructor(object):
         self,
         pattern: Union[str, re.Pattern],
         example: str,
-        factory_fn: Union[Callable[[...], V], str],
+        factory_fn: Union[_FactoryFn[V], str],
     ):
         self._pattern = self._check_pattern(pattern)
         self._example = self._check_example(example, self._pattern)
@@ -413,7 +421,7 @@ class RegexConstructor(object):
         return pattern
 
     @classmethod
-    def _check_factory_fn(cls, factory_fn: Callable[[...], V], pattern: re.Pattern) -> Callable[[...], V]:
+    def _check_factory_fn(cls, factory_fn: _FactoryFn[V], pattern: re.Pattern) -> _FactoryFn[V]:
         # we have an actual function, we can check it!
         if not callable(factory_fn):
             raise TypeError(f'generator function must be callable, got: {factory_fn}')
@@ -604,7 +612,7 @@ class RegexRegistry(Registry[V]):
         self._regex_providers.append(constructor)
         return self
 
-    def register_regex(self, pattern: Union[str, re.Pattern], example: str, factory_fn: Optional[Union[Callable[[...], V], str]] = None):
+    def register_regex(self, pattern: Union[str, re.Pattern], example: str, factory_fn: Optional[Union[_FactoryFn[V], str]] = None):
         """
         Register and create a regex constructor
         """
@@ -620,7 +628,7 @@ class RegexRegistry(Registry[V]):
         if not self.has_regex(constructor.pattern):
             return self.register_constructor(constructor)
 
-    def register_missing_regex(self, pattern: Union[str, re.Pattern], example: str, factory_fn: Optional[Union[Callable[[...], V], str]] = None):
+    def register_missing_regex(self, pattern: Union[str, re.Pattern], example: str, factory_fn: Optional[Union[_FactoryFn[V], str]] = None):
         """
         Only register and create a regex constructor if the pattern does not already exist!
         """
@@ -642,7 +650,7 @@ class RegexRegistry(Registry[V]):
             """
             return self._registry.register_missing_constructor(constructor=constructor)
 
-        def register_regex(self, pattern: Union[str, re.Pattern], example: str, factory_fn: Optional[Union[Callable[[...], V], str]] = None):
+        def register_regex(self, pattern: Union[str, re.Pattern], example: str, factory_fn: Optional[Union[_FactoryFn[V], str]] = None):
             """
             Only register and create a regex constructor if the pattern does not already exist!
             """
