@@ -13,10 +13,10 @@ defaults:
   - run_length: long
   # logs
   - run_callbacks: vis
-  - run_logging: wandb
+  - run_logging: none
   # runtime
-  - run_location: stampede_shr
-  - run_launcher: slurm
+  - run_location: local
+  - run_launcher: local
   - run_action: train
   # entries in this file override entries from default lists
   - _self_
