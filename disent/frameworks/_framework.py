@@ -132,24 +132,32 @@ class DisentFramework(DisentConfigurable, DisentLightningModule):
         return optimizer_instance
 
     @final
+    def _compute_loss_step(self, batch, batch_idx, update_schedules: bool):
+        # augment batch with GPU support
+        if self._batch_augment is not None:
+            batch = self._batch_augment(batch)
+        # update the config values based on registered schedules
+        if update_schedules:
+            # TODO: how do we handle this in the case of the validation and test step? I think this
+            #       might still give the wrong results as this is based on the trainer.global_step which
+            #       may be incremented by these steps.
+            self._update_config_from_schedules()
+        # compute loss
+        loss, logs_dict = self.do_training_step(batch, batch_idx)
+        # check returned values
+        assert 'loss' not in logs_dict
+        self._assert_valid_loss(loss)
+        # log returned values
+        logs_dict['loss'] = loss
+        self.log_dict(logs_dict)
+        # return loss
+        return loss
+
+    @final
     def training_step(self, batch, batch_idx):
         """This is a pytorch-lightning function that should return the computed loss"""
         try:
-            # augment batch with GPU support
-            if self._batch_augment is not None:
-                batch = self._batch_augment(batch)
-            # update the config values based on registered schedules
-            self._update_config_from_schedules()
-            # compute loss
-            loss, logs_dict = self.do_training_step(batch, batch_idx)
-            # check returned values
-            assert 'loss' not in logs_dict
-            self._assert_valid_loss(loss)
-            # log returned values
-            logs_dict['loss'] = loss
-            self.log_dict(logs_dict)
-            # return loss
-            return loss
+            return self._compute_loss_step(batch, batch_idx, update_schedules=True)
         except Exception as e:  # pragma: no cover
             # call in all the child processes for the best chance of clearing this...
             # remove callbacks from trainer so we aren't stuck running forever!
@@ -159,6 +167,18 @@ class DisentFramework(DisentConfigurable, DisentLightningModule):
                 self.trainer.callbacks.clear()
             # continue propagating errors
             raise e
+
+    def validation_step(self, batch, batch_idx):
+        """
+        TODO: how do we handle the schedule in this case?
+        """
+        return self._compute_loss_step(batch, batch_idx, update_schedules=False)
+
+    def test_step(self, batch, batch_idx):
+        """
+        TODO: how do we handle the schedule in this case?
+        """
+        return self._compute_loss_step(batch, batch_idx, update_schedules=False)
 
     @final
     def _assert_valid_loss(self, loss):
