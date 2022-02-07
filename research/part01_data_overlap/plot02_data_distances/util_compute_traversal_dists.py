@@ -241,7 +241,7 @@ def cached_compute_all_factor_dist_matrices(
         # generate & save
         with AtomicSaveFile(file=cache_path, overwrite=force) as path:
             all_dist_matrices = compute_all_factor_dist_matrices(gt_data, masked=masked, traversals_per_batch=traversals_per_batch)
-            np.savez(path, **{f_name: f_dists for f_name, f_dists in zip(gt_data.factor_names, all_dist_matrices)})
+            np.savez_compressed(path, **{f_name: f_dists for f_name, f_dists in zip(gt_data.factor_names, all_dist_matrices)})  # TODO: change to savez_compressed is untested!
     # load data
     log.info(f'loading cached distances for: {dataset_name} from: {cache_path}')
     data = np.load(cache_path)
