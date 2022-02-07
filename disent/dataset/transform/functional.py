@@ -88,6 +88,12 @@ def check_tensor(
 # ========================================================================= #
 
 
+def _is_size_different(obs: Obs, size: SizeType):
+    h, w = (size, size) if isinstance(size, int) else size
+    H, W = (obs.height, obs.width) if isinstance(obs, Image) else obs.shape[:2]
+    return (H != h) or (W != w)
+
+
 def to_img_tensor_u8(
     obs: Obs,
     size: Optional[SizeType] = None,
@@ -101,7 +107,7 @@ def to_img_tensor_u8(
     3. move channels to first dim (H, W, C) -> (C, H, W)
     """
     # resize image
-    if size is not None:
+    if (size is not None) and _is_size_different(obs, size):
         if not isinstance(obs, Image):
             obs = F_tv.to_pil_image(obs)
         obs = F_tv.resize(obs, size=size)
@@ -139,7 +145,7 @@ def to_img_tensor_f32(
         5. normalize using mean and std, values might thus be outside of the range [0, 1]
     """
     # resize image
-    if size is not None:
+    if (size is not None) and _is_size_different(obs, size):
         if not isinstance(obs, Image):
             obs = F_tv.to_pil_image(obs)
         obs = F_tv.resize(obs, size=size)
