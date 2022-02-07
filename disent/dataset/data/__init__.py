@@ -43,9 +43,11 @@ from disent.dataset.data._groundtruth import Hdf5GroundTruthData
 
 # groundtruth -- impl
 from disent.dataset.data._groundtruth__cars3d import Cars3dData
+from disent.dataset.data._groundtruth__cars3d import Cars3d64Data  # optimized version of cars3d for 64x64 images
 from disent.dataset.data._groundtruth__dsprites import DSpritesData
 from disent.dataset.data._groundtruth__mpi3d import Mpi3dData
 from disent.dataset.data._groundtruth__norb import SmallNorbData
+from disent.dataset.data._groundtruth__norb import SmallNorb64Data
 from disent.dataset.data._groundtruth__shapes3d import Shapes3dData
 
 # groundtruth -- impl synthetic

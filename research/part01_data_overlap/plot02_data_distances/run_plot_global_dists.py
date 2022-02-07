@@ -37,7 +37,7 @@ from tqdm import tqdm
 
 import research.code.util as H
 from disent.dataset import DisentDataset
-from disent.dataset.data import Cars3dData
+from disent.dataset.data import Cars3d64Data
 from disent.dataset.data import DSpritesData
 from disent.dataset.data import Shapes3dData
 from research.code.dataset.data import XYSquaresData
@@ -387,8 +387,8 @@ if __name__ == '__main__':
             'XYSquares': wrapped_partial(XYSquaresData),
             'DSprites':  wrapped_partial(DSpritesData),
             'Shapes3d':  wrapped_partial(Shapes3dData),
-            'Cars3d':    wrapped_partial(Cars3dData),
-          # 'SmallNorb': wrapped_partial(SmallNorbData),
+            'Cars3d':    wrapped_partial(Cars3d64Data),
+          # 'SmallNorb': wrapped_partial(SmallNorb64Data),
           # 'Mpi3d':     wrapped_partial(Mpi3dData),
         },
         hide_extra_legends=False,

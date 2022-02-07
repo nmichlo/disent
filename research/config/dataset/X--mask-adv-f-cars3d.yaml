@@ -12,13 +12,12 @@ data:
     pickle_file: '${oc.env:HOME}/workspace/research/disent/out/adversarial_mask/2021-09-27--22-58-24_EXP_cars3d_1000x256_all_std_gmean/data.pkl.gz'
   randomize: FALSE
   data:
-    _target_: disent.dataset.data.Cars3dData
+    _target_: disent.dataset.data.Cars3d64Data
     data_root: ${dsettings.storage.data_root}
     prepare: ${dsettings.dataset.prepare}
 
 transform:
   _target_: disent.dataset.transform.ToImgTensorF32
-  size: 64
   mean: ${data.meta.vis_mean}
   std: ${data.meta.vis_std}
 

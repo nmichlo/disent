@@ -37,12 +37,12 @@ import torch
 import torch.utils.data
 
 from disent.dataset import DisentDataset
-from disent.dataset.data import Cars3dData
+from disent.dataset.data import Cars3d64Data
 from disent.dataset.data import DSpritesData
+from disent.dataset.data import SmallNorb64Data
 from research.code.dataset.data import DSpritesImagenetData
 from disent.dataset.data import GroundTruthData
 from disent.dataset.data import Shapes3dData
-from disent.dataset.data import SmallNorbData
 from research.code.dataset.data import XColumnsData
 from research.code.dataset.data import XYBlocksData
 from disent.dataset.data import XYObjectData
@@ -175,8 +175,8 @@ def make_data(
     elif name == 'xyobject':  data = XYObjectData(transform=TransformCls())
     elif name == 'xyblocks':  data = XYBlocksData(transform=TransformCls())
     # NORMAL DATASETS
-    elif name == 'cars3d':         data = Cars3dData(data_root=data_root,    prepare=True, transform=TransformCls(size=64))
-    elif name == 'smallnorb':      data = SmallNorbData(data_root=data_root, prepare=True, transform=TransformCls(size=64))
+    elif name == 'cars3d':         data = Cars3d64Data(data_root=data_root,    prepare=True, transform=TransformCls(size=64))
+    elif name == 'smallnorb':      data = SmallNorb64Data(data_root=data_root, prepare=True, transform=TransformCls(size=64))
     elif name == 'shapes3d':       data = Shapes3dData(data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
     elif name == 'dsprites':       data = DSpritesData(data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
     # CUSTOM DATASETS

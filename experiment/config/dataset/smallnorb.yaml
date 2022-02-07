@@ -4,14 +4,13 @@ defaults:
 name: smallnorb
 
 data:
-  _target_: disent.dataset.data.SmallNorbData
+  _target_: disent.dataset.data.SmallNorb64Data
   data_root: ${dsettings.storage.data_root}
   prepare: ${dsettings.dataset.prepare}
   is_test: False
 
 transform:
   _target_: disent.dataset.transform.ToImgTensorF32
-  size: 64
   mean: ${dataset.meta.vis_mean}
   std: ${dataset.meta.vis_std}
 
