@@ -218,8 +218,9 @@ def _compute_flatness_metric_components(
         factors = dataset.gt_data.sample_factors(size=len(idxs))
         # encode factors
         zs, xs = encode_all_factors(dataset, representation_function, factors, batch_size=batch_size, return_batch=True)
+        zs, xs, factors = zs.cpu(), xs.cpu(), torch.from_numpy(factors).to(torch.float32)
         # [COMPUTE SAME RATIO & CORRELATION]
-        computed_dists = _dists_compute_scores(_SAMPLES_MULTIPLIER_GLOBAL*len(zs), zs_traversal=zs, xs_traversal=xs, factors=torch.from_numpy(factors).to(torch.float32))
+        computed_dists = _dists_compute_scores(_SAMPLES_MULTIPLIER_GLOBAL*len(zs), zs_traversal=zs, xs_traversal=xs, factors=factors)
         # [UPDATE SCORES]
         global_values.append({f'distances.{k}.global': v for k, v in computed_dists.items()})
 
@@ -314,10 +315,13 @@ def _unswapped_ratio(ap0: torch.Tensor, an0: torch.Tensor, ap1: torch.Tensor, an
 def _dists_compute_scores(num_triplets: int, zs_traversal: torch.Tensor, xs_traversal: torch.Tensor, factors: Optional[torch.Tensor] = None) -> Dict[str, float]:
     # checks
     assert (len(zs_traversal) == len(xs_traversal)) and ((factors is None) or (len(factors) == len(zs_traversal)))
+    assert zs_traversal.device == xs_traversal.device
+    if factors is not None:
+        assert factors.device == zs_traversal.device
     # generate random triplets
     # - {p, n} indices do not need to be sorted like triplets, these can be random.
     #   This metric is symmetric for swapped p & n values.
-    idxs_a, idxs_p, idxs_n = torch.randint(0, len(zs_traversal), size=(3, num_triplets))
+    idxs_a, idxs_p, idxs_n = torch.randint(0, len(zs_traversal), size=(3, num_triplets), device=zs_traversal.device)
     # compute distances -- shape: (num,)
     ap_ground_dists = torch.abs(idxs_a - idxs_p) if (factors is None) else torch.norm(factors[idxs_a, :] - factors[idxs_p, :], p=1, dim=-1)
     an_ground_dists = torch.abs(idxs_a - idxs_n) if (factors is None) else torch.norm(factors[idxs_a, :] - factors[idxs_n, :], p=1, dim=-1)
@@ -380,8 +384,10 @@ def _compute_flatness_metric_components_along_factor(
         # - generate repeated factors, varying one factor over the entire range
         # - shape: (factor_size, z_size)
         zs_traversal, xs_traversal = encode_all_along_factor(dataset, representation_function, f_idx=f_idx, batch_size=batch_size, return_batch=True)
+        zs_traversal = zs_traversal.cpu()
 
         if compute_distances:
+            xs_traversal = xs_traversal.cpu()
             # [COMPUTE SAME RATIO & CORRELATION]
             computed_dists = _dists_compute_scores(_SAMPLES_MULTIPLIER_FACTOR*len(zs_traversal), zs_traversal=zs_traversal, xs_traversal=xs_traversal)
             # [UPDATE SCORES]
