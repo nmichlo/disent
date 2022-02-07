@@ -29,11 +29,11 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 import research.code.util as H
-from disent.dataset.data import Cars3dData
+from disent.dataset.data import Cars3d64Data
 from disent.dataset.data import DSpritesData
 from disent.dataset.data import GroundTruthData
 from disent.dataset.data import Shapes3dData
-from disent.dataset.data import SmallNorbData
+from disent.dataset.data import SmallNorb64Data
 from research.code.dataset.data import XYSquaresData
 from disent.util.function import wrapped_partial
 from disent.util.seeds import TempNumpySeed
@@ -168,8 +168,8 @@ if __name__ == '__main__':
     for gt_data_cls, name in [
         (DSpritesData,    f'dsprites'),
         (Shapes3dData,    f'shapes3d'),
-        (Cars3dData,      f'cars3d'),
-        (SmallNorbData,   f'smallnorb'),
+        (Cars3d64Data,    f'cars3d'),
+        (SmallNorb64Data, f'smallnorb'),
     ]:
         gt_data = gt_data_cls()
         for f_idx, f_name in enumerate(gt_data.factor_names):
