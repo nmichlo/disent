@@ -26,13 +26,18 @@ import logging
 import os
 import shutil
 from tempfile import TemporaryDirectory
+from typing import Dict
+from typing import Optional
+from typing import Union
 
 import numpy as np
-from scipy.io import loadmat
+from tqdm import tqdm
 
-from disent.dataset.util.datafile import DataFileHashedDlGen
 from disent.dataset.data._groundtruth import NumpyFileGroundTruthData
+from disent.dataset.util.datafile import DataFileHashed
+from disent.dataset.util.datafile import DataFileHashedDlGen
 from disent.util.inout.files import AtomicSaveFile
+from disent.util.inout.paths import modify_name_keep_ext
 
 
 log = logging.getLogger(__name__)
@@ -52,6 +57,7 @@ def load_cars3d_folder(raw_data_dir):
         2. /data/sprites
         3. /data/shapes48.mat
     """
+    from scipy.io import loadmat
     # load image paths
     with open(os.path.join(raw_data_dir, 'cars/list.txt'), 'r') as img_names:
         img_paths = [os.path.join(raw_data_dir, f'cars/{name.strip()}.mat') for name in img_names.readlines()]
@@ -78,6 +84,27 @@ def resave_cars3d_archive(orig_zipped_file, new_save_file, overwrite=False):
             np.savez(temp_file, images=images)
 
 
+def resave_cars3d_resized(orig_converted_file, new_resized_file, overwrite=False, size: int = 64):
+    import torchvision.transforms.functional as F_tv
+    from disent.dataset.data import ArrayDataset
+    # Get the transform -- copied from: ToImgTensorF32 / ToImgTensorU8
+    def transform(obs):
+        obs = F_tv.to_pil_image(obs)
+        obs = F_tv.resize(obs, size=[size, size])
+        return np.array(obs)
+    # load the converted cars3d data ?x128x128x3
+    cars3d_data = ArrayDataset(np.load(orig_converted_file)['images'], transform=transform)
+    assert cars3d_data.shape == (17568, 128, 128, 3)
+    # save the data
+    with AtomicSaveFile(new_resized_file, overwrite=overwrite) as temp_file:
+        # resize the cars3d data
+        converted = np.zeros([len(cars3d_data), size, size, 3], dtype='uint8')
+        for i in tqdm(range(len(cars3d_data)), desc='converting'):
+            converted[i, ...] = cars3d_data[i]
+        # save the data with the same format as above!
+        np.savez(temp_file, images=converted)
+
+
 # ========================================================================= #
 # cars3d data object                                                        #
 # ========================================================================= #
@@ -89,6 +116,49 @@ class DataFileCars3d(DataFileHashedDlGen):
     """
     def _generate(self, inp_file: str, out_file: str):
         resave_cars3d_archive(orig_zipped_file=inp_file, new_save_file=out_file, overwrite=True)
+
+
+class DataFileCars3dResized(DataFileHashed):
+
+    def __init__(
+        self,
+        # - download & save files
+        uri: str,
+        uri_hash: Optional[Union[str, Dict[str, str]]],
+        file_hash: Optional[Union[str, Dict[str, str]]],
+        out_hash: Optional[Union[str, Dict[str, str]]],
+        # - save paths
+        uri_name: Optional[str] = None,
+        file_name: Optional[str] = None,
+        out_name: Optional[str] = None,
+        # - out settings
+        out_size: int = 64,
+        # - hash settings
+        hash_type: str = 'md5',
+        hash_mode: str = 'fast',
+    ):
+        self._out_size = out_size
+        self._cars3dfile = DataFileCars3d(
+            uri=uri,
+            uri_hash=uri_hash,
+            file_hash=file_hash,
+            uri_name=uri_name,
+            file_name=file_name,
+            hash_type=hash_type,
+            hash_mode=hash_mode,
+        )
+        super().__init__(
+            file_name=modify_name_keep_ext(self._cars3dfile.out_name, suffix=f'_x{out_size}') if (out_name is None) else out_name,
+            file_hash=out_hash,
+            hash_type=hash_type,
+            hash_mode=hash_mode,
+        )
+
+    def _prepare(self, out_dir: str, out_file: str):
+        log.debug('Preparing Orig Cars3d Data:')
+        cars3d_path = self._cars3dfile.prepare(out_dir)
+        log.debug('Generating Resized Cars3d Data:')
+        resave_cars3d_resized(orig_converted_file=cars3d_path, new_resized_file=out_file, overwrite=True, size=self._out_size)
 
 
 # ========================================================================= #
@@ -123,11 +193,50 @@ class Cars3dData(NumpyFileGroundTruthData):
     data_key = 'images'
 
 
+
+class Cars3d64Data(Cars3dData):
+    """
+    Optimized version of cars3d data!
+
+    Cars3d data that has already been re-sized to 64x64
+    - This can improve run times by up to 50%
+    """
+
+    img_shape = (64, 64, 3)
+
+    datafile = DataFileCars3dResized(
+        uri='http://www.scottreed.info/files/nips2015-analogy-data.tar.gz',
+        uri_hash={'fast': 'fe77d39e3fa9d77c31df2262660c2a67', 'full': '4e866a7919c1beedf53964e6f7a23686'},
+        file_name='cars3d.npz',
+        file_hash={'fast': 'ef5d86d1572ddb122b466ec700b3abf2', 'full': 'dc03319a0b9118fbe0e23d13220a745b'},
+        out_name='cars3d_x64.npz',
+        out_hash={'fast': '5507afa797af93c88172fcb93f40d65e', 'full': '83db66ad0963956da33b7c1f1ef26d44'},
+        hash_mode='fast',
+        out_size=64,
+    )
+
+
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
 
 
 if __name__ == '__main__':
+    import torch
+    from disent.dataset.transform import ToImgTensorF32
+
     logging.basicConfig(level=logging.DEBUG)
-    Cars3dData(prepare=True)
+
+    # original dataset
+    data_128 = Cars3dData(prepare=True, transform=ToImgTensorF32(size=64))
+    for i in tqdm(data_128, desc='cars3d_x128 -> 64'):
+        pass
+
+    # resized dataset
+    data_64 = Cars3d64Data(prepare=True, transform=ToImgTensorF32(size=None))
+    for i in tqdm(data_64, desc='cars3d_x64'):
+        pass
+
+    # check equivalence
+    for obs_128, obs_64 in tqdm(zip(data_128, data_64), desc='equivalence'):
+        assert torch.allclose(obs_128, obs_64)
