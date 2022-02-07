@@ -12,14 +12,13 @@ data:
     pickle_file: '${oc.env:HOME}/workspace/research/disent/out/adversarial_mask/2021-09-27--23-03-51_EXP_smallnorb_1000x256_all_std_gmean/data.pkl.gz'
   randomize: TRUE
   data:
-    _target_: disent.dataset.data.SmallNorbData
+    _target_: disent.dataset.data.SmallNorb64Data
     data_root: ${dsettings.storage.data_root}
     prepare: ${dsettings.dataset.prepare}
     is_test: False
 
 transform:
   _target_: disent.dataset.transform.ToImgTensorF32
-  size: 64
   mean: ${dataset.meta.vis_mean}
   std: ${dataset.meta.vis_std}
 
