@@ -50,7 +50,7 @@ RESEARCH_CFG_DIR = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(
     # test the configs with the research components  # pragma: delete-on-release
     # -- we need to modify the search path           # pragma: delete-on-release
     # -- we need to register all the components      # pragma: delete-on-release
-    (dict(DISENT_CONFIG_ROOTS=RESEARCH_CFG_DIR), ['run_action=train', 'dataset=X--xysquares', 'metrics=test', 'framework=X--adaae_os', 'schedule=adavae_down_all']),  # pragma: delete-on-release
+    (dict(DISENT_CONFIGS_PREPEND=RESEARCH_CFG_DIR), ['run_action=train', 'dataset=X--xysquares', 'metrics=test', 'framework=X--adaae_os', 'schedule=adavae_down_all']),  # pragma: delete-on-release
 ])
 def test_experiment_run(env, args):
     # show full errors in hydra
@@ -58,9 +58,11 @@ def test_experiment_run(env, args):
 
     logging.basicConfig(level=logging.DEBUG)
 
-    # Patch Hydra and OmegaConf to match run.py
-    # 1. enable specifying the search path with the `DISENT_CONFIG_ROOTS` environment variable
-    # 2. enable the ${exit:<msg>} resolver for omegaconf/hydra
+    # Patch Hydra and OmegaConf:
+    # 1. sets the default search path to `experiment/config`
+    # 2. add to the search path with the `DISENT_CONFIGS_PREPEND` and `DISENT_CONFIGS_APPEND` environment variables
+    #    NOTE: --config-dir has lower priority than all these, --config-path has higher priority.
+    # 3. enable the ${exit:<msg>} resolver for omegaconf/hydra
     experiment_run.patch_hydra()
 
     # temporarily set the environment and the arguments
