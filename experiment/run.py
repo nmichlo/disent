@@ -24,6 +24,7 @@
 
 import logging
 import os
+import sys
 from datetime import datetime
 
 import hydra
@@ -49,7 +50,6 @@ from disent.util.lightning.callbacks import VaeMetricLoggingCallback
 from disent.util.lightning.callbacks import VaeLatentCycleLoggingCallback
 from disent.util.lightning.callbacks import VaeGtDistsLoggingCallback
 from experiment.util.hydra_data import HydraDataModule
-from experiment.util.hydra_search_path import inject_disent_search_path_finder
 from experiment.util.run_utils import log_error_and_exit
 from experiment.util.run_utils import safe_unset_debug_logger
 from experiment.util.run_utils import safe_unset_debug_trainer
@@ -449,10 +449,15 @@ def patch_hydra():
     # This function can safely be called multiple times
     # -- unless other functions modify these same libs which is unlikely!
 
-    # inject the search path helper into hydra -- THIS IS HACKY! should rather be
-    # replaced by modifying the search path in the config paths themselves!
-    # -- DISENT_CONFIG_ROOTS
-    inject_disent_search_path_finder()
+    # register the experiment's search path plugin with disent, using hydras auto-detection
+    # of folders named `hydra_plugins` contained insided `namespace packages` or rather
+    # packages that are in the `PYTHONPATH` or `sys.path`
+    #   1. sets the default search path to `experiment/config`
+    #   2. add to the search path with the `DISENT_CONFIGS_PREPEND` and `DISENT_CONFIGS_APPEND` environment variables
+    #      NOTE: --config-dir has lower priority than all these, --config-path has higher priority.
+    plugin_namespace = os.path.abspath(os.path.join(__file__, '..', 'util/_hydra_searchpath_plugin_'))
+    if plugin_namespace not in sys.path:
+        sys.path.insert(0, plugin_namespace)
 
     # register a custom OmegaConf resolver that allows us to put in a ${exit:msg} that exits the program
     # - if we don't register this, the program will still fail because we have an unknown
@@ -483,14 +488,13 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
 
     # Patch Hydra and OmegaConf:
-    # 1. enable specifying the search path with the `DISENT_CONFIG_ROOTS` environment variable
-    # 2. enable the ${exit:<msg>} resolver for omegaconf/hydra
+    # 1. sets the default search path to `experiment/config`
+    # 2. add to the search path with the `DISENT_CONFIGS_PREPEND` and `DISENT_CONFIGS_APPEND` environment variables
+    #    NOTE: --config-dir has lower priority than all these, --config-path has higher priority.
+    # 3. enable the ${exit:<msg>} resolver for omegaconf/hydra
     patch_hydra()
 
-    # Additional search paths can be added/merged into the tree by settings the
-    # `hydra.searchpath` list variable via the command line or the root config.
-    # - eg. hydra.searchpath="['file://experiment/asdf']"
-    @hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME)
+    @hydra.main(config_path=None, config_name='config')
     def hydra_main(cfg: DictConfig):
         try:
             run_action(cfg)
