@@ -445,6 +445,9 @@ def run_action(cfg: DictConfig):
 # ========================================================================= #
 
 
+PLUGIN_NAMESPACE = os.path.abspath(os.path.join(__file__, '..', 'util/_hydra_searchpath_plugin_'))
+
+
 def patch_hydra():
     # This function can safely be called multiple times
     # -- unless other functions modify these same libs which is unlikely!
@@ -455,9 +458,8 @@ def patch_hydra():
     #   1. sets the default search path to `experiment/config`
     #   2. add to the search path with the `DISENT_CONFIGS_PREPEND` and `DISENT_CONFIGS_APPEND` environment variables
     #      NOTE: --config-dir has lower priority than all these, --config-path has higher priority.
-    plugin_namespace = os.path.abspath(os.path.join(__file__, '..', 'util/_hydra_searchpath_plugin_'))
-    if plugin_namespace not in sys.path:
-        sys.path.insert(0, plugin_namespace)
+    if PLUGIN_NAMESPACE not in sys.path:
+        sys.path.insert(0, PLUGIN_NAMESPACE)
 
     # register a custom OmegaConf resolver that allows us to put in a ${exit:msg} that exits the program
     # - if we don't register this, the program will still fail because we have an unknown
