@@ -50,6 +50,8 @@ from disent.util.lightning.callbacks import VaeMetricLoggingCallback
 from disent.util.lightning.callbacks import VaeLatentCycleLoggingCallback
 from disent.util.lightning.callbacks import VaeGtDistsLoggingCallback
 from experiment.util.hydra_data import HydraDataModule
+from experiment.util.path_utils import get_current_experiment_number
+from experiment.util.path_utils import make_current_experiment_dir
 from experiment.util.run_utils import log_error_and_exit
 from experiment.util.run_utils import safe_unset_debug_logger
 from experiment.util.run_utils import safe_unset_debug_trainer
@@ -448,9 +450,17 @@ PLUGIN_NAMESPACE = os.path.abspath(os.path.join(__file__, '..', 'util/_hydra_sea
 
 
 def patch_hydra():
-    # This function can safely be called multiple times
-    # -- unless other functions modify these same libs which is unlikely!
+    """
+    Patch Hydra and OmegaConf:
+        1. sets the default search path to `experiment/config`
+        2. add to the search path with the `DISENT_CONFIGS_PREPEND` and `DISENT_CONFIGS_APPEND` environment variables
+           NOTE: --config-dir has lower priority than all these, --config-path has higher priority.
+        3. enable the ${exit:<msg>} resolver for omegaconf/hydra
+        4. enable the ${exp_num:<root_dir>} and ${exp_dir:<root_dir>,<name>} resolvers to detect the experiment number
 
+    This function can safely be called multiple times
+        - unless other functions modify these same libs which is unlikely!
+    """
     # register the experiment's search path plugin with disent, using hydras auto-detection
     # of folders named `hydra_plugins` contained insided `namespace packages` or rather
     # packages that are in the `PYTHONPATH` or `sys.path`
@@ -472,6 +482,14 @@ def patch_hydra():
         # patch omegaconf for hydra
         OmegaConf.register_new_resolver('exit', _error_resolver)
 
+    # register a custom OmegaConf resolver that allows us to get the next experiment number from a directory
+    # - ${run_num:<root_dir>} returns the current experiment number
+    if not OmegaConf.has_resolver('exp_num'):
+        OmegaConf.register_new_resolver('exp_num', get_current_experiment_number)
+    # - ${run_dir:<root_dir>,<name>} returns the current experiment folder with the name appended
+    if not OmegaConf.has_resolver('exp_dir'):
+        OmegaConf.register_new_resolver('exp_dir', make_current_experiment_dir)
+
 
 # ========================================================================= #
 # MAIN                                                                      #
@@ -489,10 +507,6 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
 
     # Patch Hydra and OmegaConf:
-    # 1. sets the default search path to `experiment/config`
-    # 2. add to the search path with the `DISENT_CONFIGS_PREPEND` and `DISENT_CONFIGS_APPEND` environment variables
-    #    NOTE: --config-dir has lower priority than all these, --config-path has higher priority.
-    # 3. enable the ${exit:<msg>} resolver for omegaconf/hydra
     patch_hydra()
 
     @hydra.main(config_path=None, config_name='config')
