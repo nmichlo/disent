@@ -271,7 +271,6 @@ def hydra_create_and_update_framework_config(cfg) -> DisentConfigurable.cfg:
 def hydra_create_framework(framework_cfg: DisentConfigurable.cfg, datamodule, cfg):
     # specific handling for experiment, this is HACKY!
     # - not supported normally, we need to instantiate to get the class (is there hydra support for this?)
-    framework_cfg.optimizer        = hydra.utils.get_class(framework_cfg.optimizer)
     framework_cfg.optimizer_kwargs = dict(framework_cfg.optimizer_kwargs)
     # get framework path
     assert str.endswith(cfg.framework.cfg._target_, '.cfg'), f'`cfg.framework.cfg._target_` does not end with ".cfg", got: {repr(cfg.framework.cfg._target_)}'

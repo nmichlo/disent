@@ -22,6 +22,7 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import logging
 from dataclasses import asdict
 from dataclasses import dataclass
 from dataclasses import fields
@@ -32,15 +33,14 @@ from typing import Dict
 from typing import final
 from typing import Optional
 from typing import Tuple
-from typing import Type
 from typing import Union
 
-import logging
 import torch
 
 from disent import registry
-from disent.schedule import Schedule
 from disent.nn.modules import DisentLightningModule
+from disent.schedule import Schedule
+from disent.util.imports import import_obj
 
 
 log = logging.getLogger(__name__)
@@ -83,7 +83,7 @@ class DisentFramework(DisentConfigurable, DisentLightningModule):
     @dataclass
     class cfg(DisentConfigurable.cfg):
         # optimizer config
-        optimizer: Union[str, Type[torch.optim.Optimizer]] = 'adam'
+        optimizer: Union[str] = 'adam'  # name in the registry, eg. `adam` OR the path to an optimizer eg. `torch.optim.Adam`
         optimizer_kwargs: Optional[Dict[str, Union[str, float, int]]] = None
 
     def __init__(
@@ -94,32 +94,54 @@ class DisentFramework(DisentConfigurable, DisentLightningModule):
     ):
         # save the config values to the class
         super().__init__(cfg=cfg)
-        # get the optimizer
-        if isinstance(self.cfg.optimizer, str):
-            if self.cfg.optimizer not in registry.OPTIMIZERS:
-                raise KeyError(f'invalid optimizer: {repr(self.cfg.optimizer)}, valid optimizers are: {sorted(registry.OPTIMIZER)}, otherwise pass a torch.optim.Optimizer class instead.')
-            self.cfg.optimizer = registry.OPTIMIZERS[self.cfg.optimizer]
-        # check the optimizer values
-        assert callable(self.cfg.optimizer)
-        assert isinstance(self.cfg.optimizer_kwargs, dict) or (self.cfg.optimizer_kwargs is None), f'invalid optimizer_kwargs type, got: {type(self.cfg.optimizer_kwargs)}'
-        # set default values for optimizer
-        if self.cfg.optimizer_kwargs is None:
-            self.cfg.optimizer_kwargs = dict()
-        if 'lr' not in self.cfg.optimizer_kwargs:
-            self.cfg.optimizer_kwargs['lr'] = 1e-3
-            log.info('lr not specified in `optimizer_kwargs`, setting to default value of `1e-3`')
+        # check the optimizer
+        self.cfg.optimizer = self._check_optimizer(self.cfg.optimizer)
+        self.cfg.optimizer_kwargs = self._check_optimizer_kwargs(self.cfg.optimizer_kwargs)
         # batch augmentations may not be implemented as dataset
         # transforms so we can apply these on the GPU instead
-        assert callable(batch_augment) or (batch_augment is None)
+        assert callable(batch_augment) or (batch_augment is None), f'invalid batch_augment: {repr(batch_augment)}, must be callable or `None`'
         self._batch_augment = batch_augment
         # schedules
         # - maybe add support for schedules in the config?
         self._registered_schedules = set()
         self._active_schedules: Dict[str, Tuple[Any, Schedule]] = {}
 
+    @staticmethod
+    def _check_optimizer(optimizer: str):
+        if not isinstance(optimizer, str):
+            raise TypeError(f'invalid optimizer: {repr(optimizer)}, must be a `str`')
+        # check that the optimizer has been registered
+        # otherwise check that the optimizer class can be imported instead
+        if optimizer not in registry.OPTIMIZERS:
+            try:
+                import_obj(optimizer)
+            except ImportError:
+                raise KeyError(f'invalid optimizer: {repr(optimizer)}, valid optimizers are: {sorted(registry.OPTIMIZERS)}, or an import path to an optimizer, eg. `torch.optim.Adam`')
+        # return the updated values!
+        return optimizer
+
+    @staticmethod
+    def _check_optimizer_kwargs(optimizer_kwargs: Optional[dict]):
+        # check the optimizer kwargs
+        assert isinstance(optimizer_kwargs, dict) or (optimizer_kwargs is None), f'invalid optimizer_kwargs type, got: {type(optimizer_kwargs)}'
+        # get default kwargs OR copy
+        optimizer_kwargs = dict() if (optimizer_kwargs is None) else dict(optimizer_kwargs)
+        # set default values
+        if 'lr' not in optimizer_kwargs:
+            optimizer_kwargs['lr'] = 1e-3
+            log.info('lr not specified in `optimizer_kwargs`, setting to default value of `1e-3`')
+        # return the updated values
+        return optimizer_kwargs
+
     @final
     def configure_optimizers(self):
-        optimizer_cls = self.cfg.optimizer
+        # get the optimizer
+        # 1. first check if the name has been registered
+        # 2. then check if the name can be imported
+        if self.cfg.optimizer in registry.OPTIMIZERS:
+            optimizer_cls = registry.OPTIMIZERS[self.cfg.optimizer]
+        else:
+            optimizer_cls = import_obj(self.cfg.optimizer)
         # check that we can call the optimizer
         if not callable(optimizer_cls):
             raise TypeError(f'unsupported optimizer type: {type(optimizer_cls)}')
