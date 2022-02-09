@@ -69,8 +69,9 @@ def test_experiment_run(env, args):
     with temp_environ(env), temp_sys_args([experiment_run.__file__, *args]):
         # TODO: why does this not work when config_path is absolute?
         #      ie. config_path=os.path.join(os.path.dirname(experiment_run.__file__), 'config')
-        hydra_main = hydra.main(config_path='config', config_name='config_test')(experiment_run.run_action)
+        hydra_main = hydra.main(config_path=None, config_name='config_test')(experiment_run.run_action)
         hydra_main()
+
 
 # ========================================================================= #
 # END                                                                       #

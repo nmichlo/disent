@@ -6,7 +6,7 @@ defaults:
   - augment: example
   # system
   - framework: betavae
-  - model: vae_conv64
+  - model: linear
   # training
   - optimizer: adam
   - schedule: beta_cyclic
