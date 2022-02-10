@@ -246,6 +246,17 @@ def hydra_create_framework(framework_cfg: DisentConfigurable.cfg, datamodule, cf
     )
 
 
+def hydra_make_datamodule(cfg):
+    return HydraDataModule(
+        data              = cfg.dataset.data,
+        sampler           = cfg.sampling._sampler_.sampler_cls,
+        augment           = cfg.augment.augment_cls,
+        transform         = cfg.dataset.transform,
+        dataloader_kwargs = cfg.dataloader,
+        augment_on_gpu    = cfg.dsettings.dataset.gpu_augment,
+        using_cuda        = cfg.dsettings.trainer.cuda,
+    )
+
 # ========================================================================= #
 # ACTIONS                                                                   #
 # ========================================================================= #
@@ -268,7 +279,7 @@ def action_prepare_data(cfg: DictConfig):
     # print the config
     log.info(f'Dataset Config Is:\n{make_box_str(OmegaConf.to_yaml({"dataset": cfg.dataset}))}')
     # prepare data
-    datamodule = HydraDataModule(cfg)
+    datamodule = hydra_make_datamodule(cfg)
     datamodule.prepare_data()
 
 
@@ -321,7 +332,7 @@ def action_train(cfg: DictConfig):
     ]
 
     # HYDRA MODULES
-    datamodule = HydraDataModule(cfg)
+    datamodule = hydra_make_datamodule(cfg)
     framework_cfg = hydra_create_and_update_framework_config(cfg)
     framework = hydra_create_framework(framework_cfg, datamodule, cfg)
 
