@@ -308,6 +308,10 @@ class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
 
     @torch.no_grad()
     def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+        # exit early
+        if not (self._plt_show or self._log_wandb):
+            log.warning(f'skipping {self.__class__.__name__} neither `plt_show` or `log_wandb` is `True`!')
+            return
         # get dataset and vae framework from trainer and module
         dataset, vae = _get_dataset_and_vae(trainer, pl_module, unwrap_groundtruth=True)
         # exit early
@@ -399,6 +403,7 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
         begin_first_step: bool = False,
         num_frames: int = 17,
         mode: str = 'fitted_gaussian_cycle',
+        log_wandb: bool = True,
         wandb_mode: str = 'both',
         wandb_fps: int = 4,
         plt_show: bool = False,
@@ -410,15 +415,16 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
         recon_std: Optional[Union[Tuple[float, ...], float]] = None,   # automatically converted to min & max [(0-mean)/std, (1-mean)/std], assuming original range of values is [0, 1]
     ):
         super().__init__(every_n_steps, begin_first_step)
-        self.seed = seed
-        self.mode = mode
-        self.plt_show = plt_show
-        self.plt_block_size = plt_block_size
+        self._seed = seed
+        self._mode = mode
+        self._plt_show = plt_show
+        self._plt_block_size = plt_block_size
+        self._log_wandb = log_wandb
         self._wandb_mode = wandb_mode
         self._num_frames = num_frames
         self._fps = wandb_fps
         # checks
-        assert wandb_mode in {'none', 'img', 'vid', 'both'}, f'invalid wandb_mode={repr(wandb_mode)}, must be one of: ("none", "img", "vid", "both")'
+        assert wandb_mode in {'img', 'vid', 'both'}, f'invalid wandb_mode={repr(wandb_mode)}, must be one of: ("img", "vid", "both")'
         # normalize
         self._recon_min, self._recon_max = _normalize_min_max_mean_std_to_min_max(
             recon_min=recon_min,
@@ -428,54 +434,68 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
         )
 
 
+    @torch.no_grad()
     def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+        # exit early
+        if not (self._plt_show or self._log_wandb):
+            log.warning(f'skipping {self.__class__.__name__} neither `plt_show` or `log_wandb` is `True`!')
+            return
+
         # get dataset and vae framework from trainer and module
         dataset, vae = _get_dataset_and_vae(trainer, pl_module, unwrap_groundtruth=True)
 
+        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+        # generate traversal
+        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+
+        # get random sample of z_means and z_logvars for computing the range of values for the latent_cycle
+        with TempNumpySeed(self._seed):
+            batch = dataset.dataset_sample_batch(64, mode='input').to(vae.device)
+
+        # get representations
+        if isinstance(vae, Vae):
+            # variational auto-encoder
+            ds_posterior, ds_prior = vae.encode_dists(batch)
+            zs_mean, zs_logvar = ds_posterior.mean, torch.log(ds_posterior.variance)
+        elif isinstance(vae, Ae):
+            # auto-encoder
+            zs_mean = vae.encode(batch)
+            zs_logvar = torch.ones_like(zs_mean)
+        else:
+            log.warning(f'cannot run {self.__class__.__name__}, unsupported type: {type(vae)}, must be {Ae.__name__} or {Vae.__name__}')
+            return
+
+        # get min and max if auto
+        if (self._recon_min is None) or (self._recon_max is None):
+            if self._recon_min is None: self._recon_min = float(torch.amin(batch).cpu())
+            if self._recon_max is None: self._recon_max = float(torch.amax(batch).cpu())
+            log.info(f'auto visualisation min: {self._recon_min} and max: {self._recon_max} obtained from {len(batch)} samples')
+
+        # produce latent cycle grid animation
+        # TODO: this needs to be fixed to not use logvar, but rather the representations or distributions themselves
+        animation, stills = latent_cycle_grid_animation(
+            vae.decode, zs_mean, zs_logvar,
+            mode=self._mode, num_frames=self._num_frames, decoder_device=vae.device, tensor_style_channels=False, return_stills=True,
+            to_uint8=True, recon_min=self._recon_min, recon_max=self._recon_max,
+        )
+
         # TODO: should this not use `visualize_dataset_traversal`?
+        image = make_image_grid(stills.reshape(-1, *stills.shape[2:]), num_cols=stills.shape[1], pad=4)
 
-        with torch.no_grad():
-            # get random sample of z_means and z_logvars for computing the range of values for the latent_cycle
-            with TempNumpySeed(self.seed):
-                batch = dataset.dataset_sample_batch(64, mode='input').to(vae.device)
-
-            # get representations
-            if isinstance(vae, Vae):
-                # variational auto-encoder
-                ds_posterior, ds_prior = vae.encode_dists(batch)
-                zs_mean, zs_logvar = ds_posterior.mean, torch.log(ds_posterior.variance)
-            elif isinstance(vae, Ae):
-                # auto-encoder
-                zs_mean = vae.encode(batch)
-                zs_logvar = torch.ones_like(zs_mean)
-            else:
-                log.warning(f'cannot run {self.__class__.__name__}, unsupported type: {type(vae)}, must be {Ae.__name__} or {Vae.__name__}')
-                return
-
-            # get min and max if auto
-            if (self._recon_min is None) or (self._recon_max is None):
-                if self._recon_min is None: self._recon_min = float(torch.amin(batch).cpu())
-                if self._recon_max is None: self._recon_max = float(torch.amax(batch).cpu())
-                log.info(f'auto visualisation min: {self._recon_min} and max: {self._recon_max} obtained from {len(batch)} samples')
-
-            # produce latent cycle grid animation
-            # TODO: this needs to be fixed to not use logvar, but rather the representations or distributions themselves
-            animation, stills = latent_cycle_grid_animation(
-                vae.decode, zs_mean, zs_logvar,
-                mode=self.mode, num_frames=self._num_frames, decoder_device=vae.device, tensor_style_channels=False, return_stills=True,
-                to_uint8=True, recon_min=self._recon_min, recon_max=self._recon_max,
-            )
-            image = make_image_grid(stills.reshape(-1, *stills.shape[2:]), num_cols=stills.shape[1], pad=4)
+        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+        # log traversal
+        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
         # log video -- none, img, vid, both
-        wandb_items = {}
-        if self._wandb_mode in ('img', 'both'): wandb_items[f'{self.mode}_img'] = wandb.Image(image)
-        if self._wandb_mode in ('vid', 'both'): wandb_items[f'{self.mode}_vid'] = wandb.Video(np.transpose(animation, [0, 3, 1, 2]), fps=self._fps, format='mp4'),
-        wb_log_metrics(trainer.logger, wandb_items)
+        if self._log_wandb:
+            wandb_items = {}
+            if self._wandb_mode in ('img', 'both'): wandb_items[f'{self._mode}_img'] = wandb.Image(image)
+            if self._wandb_mode in ('vid', 'both'): wandb_items[f'{self._mode}_vid'] = wandb.Video(np.transpose(animation, [0, 3, 1, 2]), fps=self._fps, format='mp4'),
+            wb_log_metrics(trainer.logger, wandb_items)
 
         # log locally
-        if self.plt_show:
-            fig, ax = plt.subplots(1, 1, figsize=(self.plt_block_size*stills.shape[1], self.plt_block_size*stills.shape[0]))
+        if self._plt_show:
+            fig, ax = plt.subplots(1, 1, figsize=(self._plt_block_size*stills.shape[1], self._plt_block_size*stills.shape[0]))
             ax.imshow(image)
             ax.axis('off')
             fig.tight_layout()

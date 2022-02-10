@@ -119,6 +119,18 @@ def hydra_check_data_paths(cfg):
         raise RuntimeError(f'default_settings.storage.data_root={repr(data_root)} is a relative path!')
 
 
+def hydra_check_data_meta(cfg):
+    # checks
+    if (cfg.dataset.meta.vis_mean is None) or (cfg.dataset.meta.vis_std is None):
+        log.warning(f'Dataset has no normalisation values... Are you sure this is correct?')
+        log.warning(f'* dataset.meta.vis_mean: {cfg.dataset.meta.vis_mean}')
+        log.warning(f'* dataset.meta.vis_std:  {cfg.dataset.meta.vis_std}')
+    else:
+        log.info(f'Dataset has normalisation values!')
+        log.info(f'* dataset.meta.vis_mean: {cfg.dataset.meta.vis_mean}')
+        log.info(f'* dataset.meta.vis_std:  {cfg.dataset.meta.vis_std}')
+
+
 def hydra_make_logger(cfg):
     # make wandb logger
     backend = cfg.logging.wandb
@@ -137,71 +149,13 @@ def hydra_make_logger(cfg):
     return None  # LoggerCollection([...]) OR DummyLogger(...)
 
 
-def _callback_make_progress(cfg, callback_cfg):
-    return LoggerProgressCallback(
-        interval=callback_cfg.interval
-    )
-
-
-def _callback_make_latent_cycle(cfg, callback_cfg):
-    if cfg.logging.wandb.enabled:
-        # checks
-        if (cfg.dataset.meta.vis_mean is None) or (cfg.dataset.meta.vis_std is None):
-            log.warning(f'Dataset is not being normalized... No mean or std. has been set via the config!')
-            log.warning(f'* dataset.meta.vis_mean: {cfg.dataset.meta.vis_mean}')
-            log.warning(f'* dataset.meta.vis_std:  {cfg.dataset.meta.vis_std}')
-        else:
-            log.info(f'Dataset is being normalized!')
-            log.info(f'* dataset.meta.vis_mean: {cfg.dataset.meta.vis_mean}')
-            log.info(f'* dataset.meta.vis_std:  {cfg.dataset.meta.vis_std}')
-        # this currently only supports WANDB logger
-        return VaeLatentCycleLoggingCallback(
-            seed             = callback_cfg.seed,
-            every_n_steps    = callback_cfg.every_n_steps,
-            begin_first_step = callback_cfg.begin_first_step,
-            mode             = callback_cfg.mode,
-            # recon_min        = cfg.data.meta.vis_min,
-            # recon_max        = cfg.data.meta.vis_max,
-            recon_mean       = cfg.dataset.meta.vis_mean,
-            recon_std        = cfg.dataset.meta.vis_std,
-        )
-    else:
-        log.warning('latent_cycle callback is not being used because wandb is not enabled!')
-        return None
-
-
-def _callback_make_gt_dists(cfg, callback_cfg):
-    return VaeGtDistsLoggingCallback(
-        seed                 = callback_cfg.seed,
-        every_n_steps        = callback_cfg.every_n_steps,
-        traversal_repeats    = callback_cfg.traversal_repeats,
-        begin_first_step     = callback_cfg.begin_first_step,
-        plt_block_size       = 1.25,
-        plt_show             = False,
-        plt_transpose        = False,
-        log_wandb            = True,
-        batch_size           = cfg.settings.dataset.batch_size,
-        include_factor_dists = True,
-    )
-
-
-_CALLBACK_MAKERS = {
-    'progress': _callback_make_progress,
-    'latent_cycle': _callback_make_latent_cycle,
-    'gt_dists': _callback_make_gt_dists,
-}
-
-
 def hydra_get_callbacks(cfg) -> list:
     callbacks = []
     # add all callbacks
     for name, item in cfg.callbacks.items():
         # custom callback handling vs instantiation
-        if '_target_' in item:
-            name = f'{name} ({item._target_})'
-            callback = hydra.utils.instantiate(item)
-        else:
-            callback = _CALLBACK_MAKERS[name](cfg, item)
+        name = f'{name} ({item._target_})'
+        callback = hydra.utils.instantiate(item)
         # add to callbacks list
         if callback is not None:
             log.info(f'made callback: {name}')
@@ -310,6 +264,7 @@ def action_prepare_data(cfg: DictConfig):
     hydra_register_disent_plugins(cfg)
     # check data preparation
     hydra_check_data_paths(cfg)
+    hydra_check_data_meta(cfg)
     # print the config
     log.info(f'Dataset Config Is:\n{make_box_str(OmegaConf.to_yaml({"dataset": cfg.dataset}))}')
     # prepare data
@@ -357,6 +312,7 @@ def action_train(cfg: DictConfig):
 
     # check data preparation
     hydra_check_data_paths(cfg)
+    hydra_check_data_meta(cfg)
 
     # TRAINER CALLBACKS
     callbacks = [

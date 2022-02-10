@@ -82,6 +82,18 @@ log = logging.getLogger(__name__)
 class HydraDataModule(pl.LightningDataModule):
 
     def __init__(self, hparams: DictConfig):
+        """
+        # TODO: this should not accept all the hparams, rather just the needed values as arguments
+        Hparams Requires Nested Keys:
+            - augment.augment_cls
+            - dataloader
+            - dataset.meta
+            - dataset.data
+            - dataset.transform
+            - dsettings.dataset.gpu_augment
+            - dsettings.trainer.cuda
+            - sampling._sampler_.sampler_cls
+        """
         super().__init__()
         # support pytorch lightning < 1.4
         if not hasattr(self, 'hparams'):
