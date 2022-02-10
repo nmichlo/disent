@@ -123,8 +123,15 @@ def test_frameworks(Framework, cfg_kwargs, Data):
         cfg=Framework.cfg(**cfg_kwargs)
     )
 
+    # test pickling before training
+    pickle.dumps(framework)
+
+    # train!
     trainer = pl.Trainer(logger=False, checkpoint_callback=False, max_steps=256, fast_dev_run=True)
     trainer.fit(framework, dataloader)
+
+    # test pickling after training, something may have changed!
+    pickle.dumps(framework)
 
 
 @pytest.mark.parametrize(['Framework', 'cfg_kwargs', 'Data'], _TEST_FRAMEWORKS)
@@ -136,8 +143,8 @@ def test_framework_pickling(Framework, cfg_kwargs, Data):
         ),
         cfg=Framework.cfg(**cfg_kwargs)
     )
-    result = pickle.dumps(framework)
-
+    # test pickling!
+    pickle.dumps(framework)
 
 
 def test_framework_config_defaults():

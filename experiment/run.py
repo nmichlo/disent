@@ -490,6 +490,10 @@ def patch_hydra():
     if not OmegaConf.has_resolver('exp_dir'):
         OmegaConf.register_new_resolver('exp_dir', make_current_experiment_dir)
 
+    # register a function that pads an integer to a specified length
+    if not OmegaConf.has_resolver('fmt'):
+        OmegaConf.register_new_resolver('fmt', str.format)
+
 
 # ========================================================================= #
 # MAIN                                                                      #
