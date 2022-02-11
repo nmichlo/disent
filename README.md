@@ -46,6 +46,7 @@
     * [Frameworks](#frameworks)
     * [Metrics](#metrics)
     * [Schedules & Annealing](#schedules--annealing)
+- [Architecture](#architecture)
 - [Examples](#examples)
     * [Python Example](#python-example)
     * [Hydra Config Example](#hydra-config-example)
