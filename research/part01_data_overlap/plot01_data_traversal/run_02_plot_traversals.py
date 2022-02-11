@@ -78,6 +78,7 @@ def plot_dataset_traversals(
     label_size: int = 22,
     title_size: int = 26,
     labels_at_top: bool = False,
+    img_ext: str = '.jpg',
 ):
     if take_cols is not None:
         assert take_cols >= num_cols
@@ -125,7 +126,7 @@ def plot_dataset_traversals(
 
     # save figure
     if save and (rel_path is not None):
-        path = H.make_rel_path_add_ext(rel_path, ext='.png')
+        path = H.make_rel_path_add_ext(rel_path, ext=img_ext)
         plt.savefig(path)
         print(f'saved: {repr(path)}')
     plt.show()
@@ -141,7 +142,8 @@ def plot_incr_overlap(
     traversal_size: int = 8,
     traversal_lim: Optional[int] = None,
     save: bool = True,
-    show: bool = True
+    show: bool = True,
+    img_ext: str = '.jpg',
 ):
     if isinstance(spacings, bool):
         spacings = ([1, 2, 3, 4, 5, 6, 7, 8] if spacings else [1, 4, 8])
@@ -161,7 +163,7 @@ def plot_incr_overlap(
     fig, axs = H.plt_subplots_imshow(grid, row_labels=[f'Space: {s}px' for s in spacings], figsize=(w, h), label_size=24)
     fig.tight_layout()
 
-    H.plt_rel_path_savefig(rel_path=rel_path, save=save, show=show)
+    H.plt_rel_path_savefig(rel_path=rel_path, save=save, ext=img_ext, show=show)
 
 
 # ========================================================================= #
@@ -217,8 +219,29 @@ if __name__ == '__main__':
     plot_dataset_traversals(SmallNorb64Data(),               rel_path=f'plots/{prefix}__smallnorb',                title=TITLE, seed=seed, add_random_traversal=INCLUDE_RANDOM_TRAVERSAL, num_cols=num_cols)
     plot_dataset_traversals(Cars3d64Data(),                  rel_path=f'plots/{prefix}__cars3d',                   title=TITLE, seed=seed, add_random_traversal=INCLUDE_RANDOM_TRAVERSAL, num_cols=num_cols)
 
-    exit(1)
+    exit(0)
 
+    # mini versions
+    plot_dataset_traversals(XYObjectData(),                  rel_path=f'plots/traversal-mini__xy-object',                title=TITLE_MINI, seed=seed, transpose=False, add_random_traversal=False, num_cols=mini_cols)
+    plot_dataset_traversals(XYObjectShadedData(),            rel_path=f'plots/traversal-mini__xy-object-shaded',         title=TITLE_MINI, seed=seed, transpose=False, add_random_traversal=False, num_cols=mini_cols)
+    plot_dataset_traversals(XYBlocksData(),                  rel_path=f'plots/traversal-mini__xy-blocks',                title=TITLE_MINI, seed=seed, transpose=False, add_random_traversal=False, num_cols=mini_cols)
+
+    plot_dataset_traversals(DSpritesImagenetData(100, 'bg'), rel_path=f'plots/traversal-mini__dsprites-imagenet-bg-100', title=TITLE_MINI, seed=seed-6, transpose=False, add_random_traversal=False, num_cols=mini_cols)
+    plot_dataset_traversals(DSpritesImagenetData( 50, 'bg'), rel_path=f'plots/traversal-mini__dsprites-imagenet-bg-50',  title=TITLE_MINI, seed=seed-6, transpose=False, add_random_traversal=False, num_cols=mini_cols)
+    plot_dataset_traversals(DSpritesImagenetData(100, 'fg'), rel_path=f'plots/traversal-mini__dsprites-imagenet-fg-100', title=TITLE_MINI, seed=seed-6, transpose=False, add_random_traversal=False, num_cols=mini_cols)
+    plot_dataset_traversals(DSpritesImagenetData( 50, 'fg'), rel_path=f'plots/traversal-mini__dsprites-imagenet-fg-50',  title=TITLE_MINI, seed=seed-6, transpose=False, add_random_traversal=False, num_cols=mini_cols)
+
+    # transpose versions
+    plot_dataset_traversals(XYObjectData(),                  rel_path=f'plots/traversal-transpose__xy-object',                title=TITLE_TRANSPOSE, offset=0.95, label_size=23, seed=seed, labels_at_top=True, transpose=True, add_random_traversal=False, num_cols=transpose_cols)
+    plot_dataset_traversals(XYObjectShadedData(),            rel_path=f'plots/traversal-transpose__xy-object-shaded',         title=TITLE_TRANSPOSE, offset=0.95, label_size=23, seed=seed, labels_at_top=True, transpose=True, add_random_traversal=False, num_cols=transpose_cols)
+    plot_dataset_traversals(XYBlocksData(),                  rel_path=f'plots/traversal-transpose__xy-blocks',                title=TITLE_TRANSPOSE, offset=0.95, label_size=23, seed=seed, labels_at_top=True, transpose=True, add_random_traversal=False, num_cols=transpose_cols)
+
+    plot_dataset_traversals(DSpritesImagenetData(100, 'bg'), rel_path=f'plots/traversal-transpose__dsprites-imagenet-bg-100', title=TITLE_TRANSPOSE, offset=0.95, label_size=23, seed=seed-6, labels_at_top=True, transpose=True, add_random_traversal=False, num_cols=transpose_cols)
+    plot_dataset_traversals(DSpritesImagenetData( 50, 'bg'), rel_path=f'plots/traversal-transpose__dsprites-imagenet-bg-50',  title=TITLE_TRANSPOSE, offset=0.95, label_size=23, seed=seed-6, labels_at_top=True, transpose=True, add_random_traversal=False, num_cols=transpose_cols)
+    plot_dataset_traversals(DSpritesImagenetData(100, 'fg'), rel_path=f'plots/traversal-transpose__dsprites-imagenet-fg-100', title=TITLE_TRANSPOSE, offset=0.95, label_size=23, seed=seed-6, labels_at_top=True, transpose=True, add_random_traversal=False, num_cols=transpose_cols)
+    plot_dataset_traversals(DSpritesImagenetData( 50, 'fg'), rel_path=f'plots/traversal-transpose__dsprites-imagenet-fg-50',  title=TITLE_TRANSPOSE, offset=0.95, label_size=23, seed=seed-6, labels_at_top=True, transpose=True, add_random_traversal=False, num_cols=transpose_cols)
+
+    # save images
     plot_dataset_traversals(XYObjectData(),                  rel_path=f'plots/{prefix}__xy-object',                title=TITLE, seed=seed, add_random_traversal=INCLUDE_RANDOM_TRAVERSAL, num_cols=num_cols)
     plot_dataset_traversals(XYObjectShadedData(),            rel_path=f'plots/{prefix}__xy-object-shaded',         title=TITLE, seed=seed, add_random_traversal=INCLUDE_RANDOM_TRAVERSAL, num_cols=num_cols)
     plot_dataset_traversals(XYBlocksData(),                  rel_path=f'plots/{prefix}__xy-blocks',                title=TITLE, seed=seed, add_random_traversal=INCLUDE_RANDOM_TRAVERSAL, num_cols=num_cols)
@@ -227,6 +250,8 @@ if __name__ == '__main__':
     plot_dataset_traversals(DSpritesImagenetData( 50, 'bg'), rel_path=f'plots/{prefix}__dsprites-imagenet-bg-50',  title=TITLE, seed=seed-6, add_random_traversal=INCLUDE_RANDOM_TRAVERSAL, num_cols=num_cols)
     plot_dataset_traversals(DSpritesImagenetData(100, 'fg'), rel_path=f'plots/{prefix}__dsprites-imagenet-fg-100', title=TITLE, seed=seed-6, add_random_traversal=INCLUDE_RANDOM_TRAVERSAL, num_cols=num_cols)
     plot_dataset_traversals(DSpritesImagenetData( 50, 'fg'), rel_path=f'plots/{prefix}__dsprites-imagenet-fg-50',  title=TITLE, seed=seed-6, add_random_traversal=INCLUDE_RANDOM_TRAVERSAL, num_cols=num_cols)
+
+    exit(0)
 
     BASE = os.path.abspath(os.path.join(__file__, '../../../out/adversarial_data_approx'))
 
