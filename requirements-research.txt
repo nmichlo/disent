@@ -8,12 +8,15 @@
 # matplotlib
 # psutil
 
-
 ray>=1.6.0
 ruck==0.2.4
+numba>=0.50.0  # required for ruck optimisations, version could be relaxed?
 
 seaborn>=0.11.0
 pandas>=1.3.0
 cachier>=1.5.0
 
 statsmodels>=0.13.0  # required for seaborn, to estimate outliers in regression plots
+
+# plotly>=5.0.0  # required for some wandb plotting?
+tldr>=3.0.0      # just make our lives easier when we are trying to do things from the command line
