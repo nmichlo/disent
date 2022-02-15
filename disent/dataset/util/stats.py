@@ -84,7 +84,7 @@ def compute_data_mean_std(
 
 if __name__ == '__main__':
 
-    def main(progress=False):
+    def main(progress=True, num_workers=0, batch_size=256):  # try changing workers to zero on MacOS
         from disent.dataset import data
         from disent.dataset.transform import ToImgTensorF32
         from research.code.dataset import data as rdat  # pragma: delete-on-release
@@ -92,8 +92,10 @@ if __name__ == '__main__':
         for data_cls in [
             # groundtruth -- impl
             data.Cars3dData,
-            data.DSpritesData,
+            data.Cars3d64Data,
             data.SmallNorbData,
+            data.SmallNorb64Data,
+            data.DSpritesData,
             data.Shapes3dData,
             # groundtruth -- impl synthetic
             data.XYObjectData,
@@ -126,7 +128,7 @@ if __name__ == '__main__':
             # Most common standardized way of computing the mean and std over observations
             # resized to 64px in size of dtype float32 in the range [0, 1].
             data = data_cls(transform=ToImgTensorF32(size=64), **kwargs)
-            mean, std = compute_data_mean_std(data, progress=progress)
+            mean, std = compute_data_mean_std(data, progress=progress, num_workers=num_workers, batch_size=batch_size)
             # results!
             print(f'{data.__class__.__name__} - {data.name} - {kwargs}:\n    mean: {mean.tolist()}\n    std: {std.tolist()}')
 

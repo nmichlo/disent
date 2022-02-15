@@ -241,6 +241,7 @@ def encode_all_factors(dataset: DisentDataset, representation_function, factors,
                 xs.append(batch)
     # handle case
     if return_batch:
+        # might be on different devices
         return torch.cat(zs, dim=0), torch.cat(xs, dim=0)
     else:
         return torch.cat(zs, dim=0)

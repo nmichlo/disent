@@ -56,13 +56,17 @@ from disent.registry._registry import RegexRegistry
 # TODO: this is not yet used in disent.data or disent.frameworks
 DATASETS: RegistryImports['torch.utils.data.Dataset'] = RegistryImports('DATASETS')
 # groundtruth -- impl
-DATASETS['cars3d']            = LazyImport('disent.dataset.data._groundtruth__cars3d')
-DATASETS['dsprites']          = LazyImport('disent.dataset.data._groundtruth__dsprites')
-DATASETS['mpi3d']             = LazyImport('disent.dataset.data._groundtruth__mpi3d')
-DATASETS['smallnorb']         = LazyImport('disent.dataset.data._groundtruth__norb')
-DATASETS['shapes3d']          = LazyImport('disent.dataset.data._groundtruth__shapes3d')
+DATASETS['cars3d_x128']       = LazyImport('disent.dataset.data._groundtruth__cars3d.Cars3dData')
+DATASETS['cars3d']            = LazyImport('disent.dataset.data._groundtruth__cars3d.Cars3d64Data')
+DATASETS['dsprites']          = LazyImport('disent.dataset.data._groundtruth__dsprites.DSpritesData')
+DATASETS['mpi3d_toy']         = LazyImport('disent.dataset.data._groundtruth__mpi3d.Mpi3dData', subset='toy')
+DATASETS['mpi3d_realistic']   = LazyImport('disent.dataset.data._groundtruth__mpi3d.Mpi3dData', subset='realistic')
+DATASETS['mpi3d_real']        = LazyImport('disent.dataset.data._groundtruth__mpi3d.Mpi3dData', subset='real')
+DATASETS['smallnorb_x96']     = LazyImport('disent.dataset.data._groundtruth__norb.SmallNorbData')
+DATASETS['smallnorb']         = LazyImport('disent.dataset.data._groundtruth__norb.SmallNorb64Data')
+DATASETS['shapes3d']          = LazyImport('disent.dataset.data._groundtruth__shapes3d.Shapes3dData')
 # groundtruth -- impl synthetic
-DATASETS['xyobject']          = LazyImport('disent.dataset.data._groundtruth__xyobject')
+DATASETS['xyobject']          = LazyImport('disent.dataset.data._groundtruth__xyobject.XYObjectData')
 
 
 # ========================================================================= #

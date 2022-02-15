@@ -211,7 +211,7 @@ def cached_compute_dataset_pair_dists(
         obs_pair_dists = compute_dists(gt_data, obs_pair_idxs)
         # generate & save
         with AtomicSaveFile(file=cache_path, overwrite=force) as path:
-            np.savez(path, **{
+            np.savez_compressed(path, **{  # TODO: this used to be `savez` might cause problems with change? this is untested?
                 'dataset_name': dataset_name,
                 'seed': seed,
                 'obs_pair_idxs': obs_pair_idxs,

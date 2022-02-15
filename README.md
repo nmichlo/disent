@@ -7,13 +7,13 @@
 </p>
 
 <p align="center">
-    <a href="https://choosealicense.com/licenses/mit/">
+    <a href="https://choosealicense.com/licenses/mit/" target="_blank">
         <img alt="license" src="https://img.shields.io/github/license/nmichlo/disent?style=flat-square&color=lightgrey"/>
     </a>
-    <a href="https://pypi.org/project/disent">
+    <a href="https://pypi.org/project/disent" target="_blank">
         <img alt="python versions" src="https://img.shields.io/pypi/pyversions/disent?style=flat-square"/>
     </a>
-    <a href="https://pypi.org/project/disent">
+    <a href="https://pypi.org/project/disent" target="_blank">
         <img alt="pypi version" src="https://img.shields.io/pypi/v/disent?style=flat-square&color=blue"/>
     </a>
     <a href="https://github.com/nmichlo/disent/actions?query=workflow%3Atest">
@@ -29,7 +29,7 @@
 
 <p align="center">
     <p align="center">
-        Visit the <a href="https://disent.dontpanic.sh/">docs</a> for more info, or browse the  <a href="https://github.com/nmichlo/disent/releases">releases</a>.
+        Visit the <a href="https://disent.dontpanic.sh/" target="_blank">docs</a> for more info, or browse the  <a href="https://github.com/nmichlo/disent/releases">releases</a>.
     </p>
     <p align="center">
         <a href="https://github.com/nmichlo/disent/issues/new/choose">Contributions</a> are welcome!
@@ -42,10 +42,11 @@
 
 - [Overview](#overview)
 - [Features](#features)
+    * [Datasets](#datasets)
     * [Frameworks](#frameworks)
     * [Metrics](#metrics)
-    * [Datasets](#datasets)
     * [Schedules & Annealing](#schedules--annealing)
+- [Architecture](#architecture)
 - [Examples](#examples)
     * [Python Example](#python-example)
     * [Hydra Config Example](#hydra-config-example)
@@ -88,6 +89,132 @@ Please use the following citation if you use Disent in your own research:
 
 ----------------------
 
+## Features
+
+Disent includes implementations of modules, metrics and
+datasets from various papers.
+
+_Note that "🧵" means that the dataset, framework or metric was introduced by disent!_
+
+### Datasets
+
+Various common datasets used in disentanglement research are included, with hash
+verification and automatic chunk-size optimization of underlying hdf5 formats for
+low-memory disk-based access.
+
+Data input and target dataset augmentations and transforms are supported, as well as augmentations
+on the GPU or CPU at different points in the pipeline.
+
+- **Ground Truth**:
+  + <details>
+    <summary>🚗 <a href="https://papers.nips.cc/paper/5845-deep-visual-analogy-making" target="_blank">Cars3D</a></summary>
+    <p align="center"><img height="192" src="docs/img/traversals/traversal-transpose__cars3d.jpg" alt="Cars3D Dataset Factor Traversals"></p>
+  </details>
+
+  + <details>
+    <summary>◻️ <a href="https://github.com/deepmind/dsprites-dataset" target="_blank">dSprites</a></summary>
+    <p align="center"><img height="192" src="docs/img/traversals/traversal-transpose__dsprites.jpg" alt="dSprites Dataset Factor Traversals"></p>
+  </details>
+
+  + <details>
+    <summary>🔺 <a href="https://arxiv.org/abs/1906.03292" target="_blank">MPI3D</a></summary>
+    <p align="center">🏗 Todo</p>
+  </details>
+
+  + <details>
+    <summary>🐘 <a href="https://cs.nyu.edu/~ylclab/data/norb-v1.0-small/" target="_blank">SmallNORB</a></summary>
+    <p align="center"><img height="192" src="docs/img/traversals/traversal-transpose__smallnorb.jpg" alt="Small Norb Dataset Factor Traversals"></p>
+  </details>
+
+  + <details>
+    <summary>🌈 <a href="https://github.com/deepmind/3d-shapes" target="_blank">Shapes3D</a></summary>
+    <p align="center"><img height="192" src="docs/img/traversals/traversal-transpose__shapes3d.jpg" alt="Shapes3D Dataset Factor Traversals"></p>
+  </details>
+
+  + <details open>
+    <summary>
+      🧵 <u>dSpritesImagenet</u>:
+      <i>Version of DSprite with foreground or background deterministically masked out with tiny-imagenet data.</i>
+    </summary>
+    <p align="center"><img height="192" src="docs/img/traversals/traversal-transpose__dsprites-imagenet-bg-100.jpg" alt="dSpritesImagenet Dataset Factor Traversals"></p>
+  </details>
+
+- **Ground Truth Synthetic**:
+  + <details>
+    <summary>
+      🧵 <u>XYObject</u>:
+      <i>A simplistic version of dSprites with a single square.</i>
+    </summary>
+    <p align="center"><img height="192" src="docs/img/traversals/traversal-transpose__xy-object.jpg" alt="XYObject Dataset Factor Traversals"></p>
+  </details>
+
+  + <details open>
+    <summary>
+      🧵 <u>XYObjectShaded</u>:
+      <i>Exact same dataset as XYObject, but ground truth factors have a different representation.</i>
+    </summary>
+    <p align="center"><img height="192" src="docs/img/traversals/traversal-transpose__xy-object-shaded.jpg" alt="XYObjectShaded Dataset Factor Traversals"></p>
+  </details>
+
+### Frameworks
+
+Disent provides the following Auto-Encoders and Variational Auto-Encoders!
+
+- **Unsupervised**:
+  + <u>AE</u>: _Auto-Encoder_
+  + [VAE](https://arxiv.org/abs/1312.6114): Variational Auto-Encoder
+  + [Beta-VAE](https://openreview.net/forum?id=Sy2fzU9gl): VAE with Scaled Loss
+  + [DFC-VAE](https://arxiv.org/abs/1610.00291): Deep Feature Consistent VAE
+  + [DIP-VAE](https://arxiv.org/abs/1711.00848): Disentangled Inferred Prior VAE
+  + [InfoVAE](https://arxiv.org/abs/1706.02262): Information Maximizing VAE
+  + [BetaTCVAE](https://arxiv.org/abs/1802.04942): Total Correlation VAE
+- **Weakly Supervised**:
+  + [Ada-GVAE](https://arxiv.org/abs/2002.02886): Adaptive GVAE, *`AdaVae.cfg(average_mode='gvae')`*, usually better than below!
+  + [Ada-ML-VAE](https://arxiv.org/abs/2002.02886): Adaptive ML-VAE, *`AdaVae.cfg(average_mode='ml-vae')`*
+- **Supervised**:
+  + <u>TAE</u>: _Triplet Auto-Encoder_
+  + [TVAE](https://arxiv.org/abs/1802.04403): Triplet Variational Auto-Encoder
+
+<details><summary><b>🏗 Todo</b>: <i>Many popular disentanglement frameworks still need to be added, please
+submit an issue if you have a request for an additional framework.</i></summary><p>
+
++ FactorVAE
++ GroupVAE
++ MLVAE
+
+</p></details>
+
+### Metrics
+Various metrics are provided by disent that can be used to evaluate the
+learnt representations of models that have been trained on ground-truth data. 
+
+- **Disentanglement**:
+  + [FactorVAE Score](https://arxiv.org/abs/1802.05983)
+  + [DCI](https://openreview.net/forum?id=By-7dz-AZ)
+  + [MIG](https://arxiv.org/abs/1802.04942)
+  + [SAP](https://arxiv.org/abs/1711.00848)
+  + [Unsupervised Scores](https://github.com/google-research/disentanglement_lib)
+
+<details><summary><b>🏗 Todo</b>: <i>Some popular metrics still need to be added, please submit an issue if you wish to
+add your own, or you have a request.</i></summary><p>
+
++ [DCIMIG](https://arxiv.org/abs/1910.05587)
++ [Modularity and Explicitness](https://arxiv.org/abs/1802.05312)
+
+</p></details>
+
+### Schedules & Annealing
+
+Hyper-parameter annealing is supported through the use of schedules.
+The currently implemented schedules include:
+
+- Linear Schedule
+- [Cyclic](https://arxiv.org/abs/1903.10145) Schedule
+- Cosine Wave Schedule
+- *Various other wrapper schedules*
+
+----------------------
+
 ## Architecture
 
 The disent module structure:
@@ -120,94 +247,6 @@ are not available from `pip install`.
 - `experiment/config/config.yaml`: main configuration file, this is probably what you want to edit!
 - `experiment/config`: root folder for [hydra](https://github.com/facebookresearch/hydra) config files
 - `experiment/util`: various helper code for experiments
-
-----------------------
-
-## Features
-
-Disent includes implementations of modules, metrics and
-datasets from various papers. Please note that items marked
-  with a "🧵" are introduced in and are unique to disent!
-
-### Frameworks
-- **Unsupervised**:
-  + [VAE](https://arxiv.org/abs/1312.6114)
-  + [Beta-VAE](https://openreview.net/forum?id=Sy2fzU9gl)
-  + [DFC-VAE](https://arxiv.org/abs/1610.00291)
-  + [DIP-VAE](https://arxiv.org/abs/1711.00848)
-  + [InfoVAE](https://arxiv.org/abs/1706.02262)
-  + [BetaTCVAE](https://arxiv.org/abs/1802.04942)
-- **Weakly Supervised**:
-  + [Ada-GVAE](https://arxiv.org/abs/2002.02886) *`AdaVae(..., average_mode='gvae')`* Usually better than the Ada-ML-VAE
-  + [Ada-ML-VAE](https://arxiv.org/abs/2002.02886) *`AdaVae(..., average_mode='ml-vae')`*
-- **Supervised**:
-  + [TVAE](https://arxiv.org/abs/1802.04403)
-
-Many popular disentanglement frameworks still need to be added, please
-submit an issue if you have a request for an additional framework.
-
-<details><summary><b>todo</b></summary><p>
-
-+ FactorVAE
-+ GroupVAE
-+ MLVAE
-
-</p></details>
-
-### Metrics
-- **Disentanglement**:
-  + [FactorVAE Score](https://arxiv.org/abs/1802.05983)
-  + [DCI](https://openreview.net/forum?id=By-7dz-AZ)
-  + [MIG](https://arxiv.org/abs/1802.04942)
-  + [SAP](https://arxiv.org/abs/1711.00848)
-  + [Unsupervised Scores](https://github.com/google-research/disentanglement_lib)
-
-Some popular metrics still need to be added, please submit an issue if you wish to
-add your own, or you have a request.
-
-<details><summary><b>todo</b></summary><p>
-
-+ [DCIMIG](https://arxiv.org/abs/1910.05587)
-+ [Modularity and Explicitness](https://arxiv.org/abs/1802.05312)
-
-</p></details>
-
-### Datasets
-
-Various common datasets used in disentanglement research are included, with hash
-verification and automatic chunk-size optimization of underlying hdf5 formats for
-low-memory disk-based access.
-
-- **Ground Truth**:
-  + Cars3D
-  + dSprites
-  + MPI3D
-  + SmallNORB
-  + Shapes3D
-
-- **Ground Truth Synthetic**:
-  + 🧵 XYObject: *A simplistic version of dSprites with a single square.*
-  + 🧵 XYObjectShaded: *Exact same dataset as XYObject, but ground truth factors have a different representation*
-  + 🧵 DSpritesImagenet: *Version of DSprite with foreground or background deterministically masked out with tiny-imagenet data*
-
-  <p align="center">
-    <img width="384" src="docs/img/xy-object-traversal.png" alt="XYObject Dataset Factor Traversals">
-  </p>
-
-  #### Input Transforms + Input/Target Augmentations
-  
-  - Input based transforms are supported.
-  - Input and Target CPU and GPU based augmentations are supported.
-
-### Schedules & Annealing
-
-Hyper-parameter annealing is supported through the use of schedules.
-The currently implemented schedules include:
-
-- Linear Schedule
-- [Cyclic](https://arxiv.org/abs/1903.10145) Schedule
-- Cosine Wave Schedule
-- *Various other wrapper schedules*
 
 ----------------------
 

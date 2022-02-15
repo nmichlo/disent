@@ -11,6 +11,7 @@ trainer:
 
 callbacks:
   progress:
+    _target_: disent.util.lightning.callbacks.LoggerProgressCallback
     interval: 30
 
 logging:

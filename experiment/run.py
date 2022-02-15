@@ -24,6 +24,7 @@
 
 import logging
 import os
+import sys
 from datetime import datetime
 
 import hydra
@@ -49,7 +50,8 @@ from disent.util.lightning.callbacks import VaeMetricLoggingCallback
 from disent.util.lightning.callbacks import VaeLatentCycleLoggingCallback
 from disent.util.lightning.callbacks import VaeGtDistsLoggingCallback
 from experiment.util.hydra_data import HydraDataModule
-from experiment.util.hydra_search_path import inject_disent_search_path_finder
+from experiment.util.path_utils import get_current_experiment_number
+from experiment.util.path_utils import make_current_experiment_dir
 from experiment.util.run_utils import log_error_and_exit
 from experiment.util.run_utils import safe_unset_debug_logger
 from experiment.util.run_utils import safe_unset_debug_trainer
@@ -117,6 +119,18 @@ def hydra_check_data_paths(cfg):
         raise RuntimeError(f'default_settings.storage.data_root={repr(data_root)} is a relative path!')
 
 
+def hydra_check_data_meta(cfg):
+    # checks
+    if (cfg.dataset.meta.vis_mean is None) or (cfg.dataset.meta.vis_std is None):
+        log.warning(f'Dataset has no normalisation values... Are you sure this is correct?')
+        log.warning(f'* dataset.meta.vis_mean: {cfg.dataset.meta.vis_mean}')
+        log.warning(f'* dataset.meta.vis_std:  {cfg.dataset.meta.vis_std}')
+    else:
+        log.info(f'Dataset has normalisation values!')
+        log.info(f'* dataset.meta.vis_mean: {cfg.dataset.meta.vis_mean}')
+        log.info(f'* dataset.meta.vis_std:  {cfg.dataset.meta.vis_std}')
+
+
 def hydra_make_logger(cfg):
     # make wandb logger
     backend = cfg.logging.wandb
@@ -135,71 +149,13 @@ def hydra_make_logger(cfg):
     return None  # LoggerCollection([...]) OR DummyLogger(...)
 
 
-def _callback_make_progress(cfg, callback_cfg):
-    return LoggerProgressCallback(
-        interval=callback_cfg.interval
-    )
-
-
-def _callback_make_latent_cycle(cfg, callback_cfg):
-    if cfg.logging.wandb.enabled:
-        # checks
-        if (cfg.dataset.meta.vis_mean is None) or (cfg.dataset.meta.vis_std is None):
-            log.warning(f'Dataset is not being normalized... No mean or std. has been set via the config!')
-            log.warning(f'* dataset.meta.vis_mean: {cfg.dataset.meta.vis_mean}')
-            log.warning(f'* dataset.meta.vis_std:  {cfg.dataset.meta.vis_std}')
-        else:
-            log.info(f'Dataset is being normalized!')
-            log.info(f'* dataset.meta.vis_mean: {cfg.dataset.meta.vis_mean}')
-            log.info(f'* dataset.meta.vis_std:  {cfg.dataset.meta.vis_std}')
-        # this currently only supports WANDB logger
-        return VaeLatentCycleLoggingCallback(
-            seed             = callback_cfg.seed,
-            every_n_steps    = callback_cfg.every_n_steps,
-            begin_first_step = callback_cfg.begin_first_step,
-            mode             = callback_cfg.mode,
-            # recon_min        = cfg.data.meta.vis_min,
-            # recon_max        = cfg.data.meta.vis_max,
-            recon_mean       = cfg.dataset.meta.vis_mean,
-            recon_std        = cfg.dataset.meta.vis_std,
-        )
-    else:
-        log.warning('latent_cycle callback is not being used because wandb is not enabled!')
-        return None
-
-
-def _callback_make_gt_dists(cfg, callback_cfg):
-    return VaeGtDistsLoggingCallback(
-        seed                 = callback_cfg.seed,
-        every_n_steps        = callback_cfg.every_n_steps,
-        traversal_repeats    = callback_cfg.traversal_repeats,
-        begin_first_step     = callback_cfg.begin_first_step,
-        plt_block_size       = 1.25,
-        plt_show             = False,
-        plt_transpose        = False,
-        log_wandb            = True,
-        batch_size           = cfg.settings.dataset.batch_size,
-        include_factor_dists = True,
-    )
-
-
-_CALLBACK_MAKERS = {
-    'progress': _callback_make_progress,
-    'latent_cycle': _callback_make_latent_cycle,
-    'gt_dists': _callback_make_gt_dists,
-}
-
-
 def hydra_get_callbacks(cfg) -> list:
     callbacks = []
     # add all callbacks
     for name, item in cfg.callbacks.items():
         # custom callback handling vs instantiation
-        if '_target_' in item:
-            name = f'{name} ({item._target_})'
-            callback = hydra.utils.instantiate(item)
-        else:
-            callback = _CALLBACK_MAKERS[name](cfg, item)
+        name = f'{name} ({item._target_})'
+        callback = hydra.utils.instantiate(item)
         # add to callbacks list
         if callback is not None:
             log.info(f'made callback: {name}')
@@ -271,7 +227,6 @@ def hydra_create_and_update_framework_config(cfg) -> DisentConfigurable.cfg:
 def hydra_create_framework(framework_cfg: DisentConfigurable.cfg, datamodule, cfg):
     # specific handling for experiment, this is HACKY!
     # - not supported normally, we need to instantiate to get the class (is there hydra support for this?)
-    framework_cfg.optimizer        = hydra.utils.get_class(framework_cfg.optimizer)
     framework_cfg.optimizer_kwargs = dict(framework_cfg.optimizer_kwargs)
     # get framework path
     assert str.endswith(cfg.framework.cfg._target_, '.cfg'), f'`cfg.framework.cfg._target_` does not end with ".cfg", got: {repr(cfg.framework.cfg._target_)}'
@@ -291,6 +246,17 @@ def hydra_create_framework(framework_cfg: DisentConfigurable.cfg, datamodule, cf
     )
 
 
+def hydra_make_datamodule(cfg):
+    return HydraDataModule(
+        data              = cfg.dataset.data,
+        sampler           = cfg.sampling._sampler_.sampler_cls,
+        augment           = cfg.augment.augment_cls,
+        transform         = cfg.dataset.transform,
+        dataloader_kwargs = cfg.dataloader,
+        augment_on_gpu    = cfg.dsettings.dataset.gpu_augment,
+        using_cuda        = cfg.dsettings.trainer.cuda,
+    )
+
 # ========================================================================= #
 # ACTIONS                                                                   #
 # ========================================================================= #
@@ -309,10 +275,11 @@ def action_prepare_data(cfg: DictConfig):
     hydra_register_disent_plugins(cfg)
     # check data preparation
     hydra_check_data_paths(cfg)
+    hydra_check_data_meta(cfg)
     # print the config
     log.info(f'Dataset Config Is:\n{make_box_str(OmegaConf.to_yaml({"dataset": cfg.dataset}))}')
     # prepare data
-    datamodule = HydraDataModule(cfg)
+    datamodule = hydra_make_datamodule(cfg)
     datamodule.prepare_data()
 
 
@@ -356,6 +323,7 @@ def action_train(cfg: DictConfig):
 
     # check data preparation
     hydra_check_data_paths(cfg)
+    hydra_check_data_meta(cfg)
 
     # TRAINER CALLBACKS
     callbacks = [
@@ -364,7 +332,7 @@ def action_train(cfg: DictConfig):
     ]
 
     # HYDRA MODULES
-    datamodule = HydraDataModule(cfg)
+    datamodule = hydra_make_datamodule(cfg)
     framework_cfg = hydra_create_and_update_framework_config(cfg)
     framework = hydra_create_framework(framework_cfg, datamodule, cfg)
 
@@ -445,14 +413,29 @@ def run_action(cfg: DictConfig):
 # ========================================================================= #
 
 
-def patch_hydra():
-    # This function can safely be called multiple times
-    # -- unless other functions modify these same libs which is unlikely!
+PLUGIN_NAMESPACE = os.path.abspath(os.path.join(__file__, '..', 'util/_hydra_searchpath_plugin_'))
 
-    # inject the search path helper into hydra -- THIS IS HACKY! should rather be
-    # replaced by modifying the search path in the config paths themselves!
-    # -- DISENT_CONFIG_ROOTS
-    inject_disent_search_path_finder()
+
+def patch_hydra():
+    """
+    Patch Hydra and OmegaConf:
+        1. sets the default search path to `experiment/config`
+        2. add to the search path with the `DISENT_CONFIGS_PREPEND` and `DISENT_CONFIGS_APPEND` environment variables
+           NOTE: --config-dir has lower priority than all these, --config-path has higher priority.
+        3. enable the ${exit:<msg>} resolver for omegaconf/hydra
+        4. enable the ${exp_num:<root_dir>} and ${exp_dir:<root_dir>,<name>} resolvers to detect the experiment number
+
+    This function can safely be called multiple times
+        - unless other functions modify these same libs which is unlikely!
+    """
+    # register the experiment's search path plugin with disent, using hydras auto-detection
+    # of folders named `hydra_plugins` contained insided `namespace packages` or rather
+    # packages that are in the `PYTHONPATH` or `sys.path`
+    #   1. sets the default search path to `experiment/config`
+    #   2. add to the search path with the `DISENT_CONFIGS_PREPEND` and `DISENT_CONFIGS_APPEND` environment variables
+    #      NOTE: --config-dir has lower priority than all these, --config-path has higher priority.
+    if PLUGIN_NAMESPACE not in sys.path:
+        sys.path.insert(0, PLUGIN_NAMESPACE)
 
     # register a custom OmegaConf resolver that allows us to put in a ${exit:msg} that exits the program
     # - if we don't register this, the program will still fail because we have an unknown
@@ -465,6 +448,18 @@ def patch_hydra():
             raise ConfigurationError(msg)
         # patch omegaconf for hydra
         OmegaConf.register_new_resolver('exit', _error_resolver)
+
+    # register a custom OmegaConf resolver that allows us to get the next experiment number from a directory
+    # - ${run_num:<root_dir>} returns the current experiment number
+    if not OmegaConf.has_resolver('exp_num'):
+        OmegaConf.register_new_resolver('exp_num', get_current_experiment_number)
+    # - ${run_dir:<root_dir>,<name>} returns the current experiment folder with the name appended
+    if not OmegaConf.has_resolver('exp_dir'):
+        OmegaConf.register_new_resolver('exp_dir', make_current_experiment_dir)
+
+    # register a function that pads an integer to a specified length
+    if not OmegaConf.has_resolver('fmt'):
+        OmegaConf.register_new_resolver('fmt', str.format)
 
 
 # ========================================================================= #
@@ -483,14 +478,9 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
 
     # Patch Hydra and OmegaConf:
-    # 1. enable specifying the search path with the `DISENT_CONFIG_ROOTS` environment variable
-    # 2. enable the ${exit:<msg>} resolver for omegaconf/hydra
     patch_hydra()
 
-    # Additional search paths can be added/merged into the tree by settings the
-    # `hydra.searchpath` list variable via the command line or the root config.
-    # - eg. hydra.searchpath="['file://experiment/asdf']"
-    @hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME)
+    @hydra.main(config_path=None, config_name='config')
     def hydra_main(cfg: DictConfig):
         try:
             run_action(cfg)

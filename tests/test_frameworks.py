@@ -22,6 +22,7 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import pickle
 from dataclasses import asdict
 from functools import partial
 
@@ -49,7 +50,7 @@ from research.code.frameworks.vae import *  # pragma: delete-on-release
 # ========================================================================= #
 
 
-@pytest.mark.parametrize(['Framework', 'cfg_kwargs', 'Data'], [
+_TEST_FRAMEWORKS = [
     # AE - unsupervised
     (Ae,                   dict(),                                                                      XYObjectData),
     # AE - unsupervised - EXP                                                                                           # pragma: delete-on-release
@@ -99,7 +100,10 @@ from research.code.frameworks.vae import *  # pragma: delete-on-release
     (AdaAveTripletVae,     dict(adat_share_mask_mode='posterior'),                                      XYObjectData),  # pragma: delete-on-release
     (AdaAveTripletVae,     dict(adat_share_mask_mode='sample'),                                         XYObjectData),  # pragma: delete-on-release
     (AdaAveTripletVae,     dict(adat_share_mask_mode='sample_each'),                                    XYObjectData),  # pragma: delete-on-release
-])
+]
+
+
+@pytest.mark.parametrize(['Framework', 'cfg_kwargs', 'Data'], _TEST_FRAMEWORKS)
 def test_frameworks(Framework, cfg_kwargs, Data):
     DataSampler = {
         1: GroundTruthSingleSampler,
@@ -119,8 +123,28 @@ def test_frameworks(Framework, cfg_kwargs, Data):
         cfg=Framework.cfg(**cfg_kwargs)
     )
 
+    # test pickling before training
+    pickle.dumps(framework)
+
+    # train!
     trainer = pl.Trainer(logger=False, checkpoint_callback=False, max_steps=256, fast_dev_run=True)
     trainer.fit(framework, dataloader)
+
+    # test pickling after training, something may have changed!
+    pickle.dumps(framework)
+
+
+@pytest.mark.parametrize(['Framework', 'cfg_kwargs', 'Data'], _TEST_FRAMEWORKS)
+def test_framework_pickling(Framework, cfg_kwargs, Data):
+    framework = Framework(
+        model=AutoEncoder(
+            encoder=EncoderLinear(x_shape=(64, 64, 3), z_size=6, z_multiplier=2 if issubclass(Framework, Vae) else 1),
+            decoder=DecoderLinear(x_shape=(64, 64, 3), z_size=6),
+        ),
+        cfg=Framework.cfg(**cfg_kwargs)
+    )
+    # test pickling!
+    pickle.dumps(framework)
 
 
 def test_framework_config_defaults():

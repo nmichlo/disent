@@ -39,11 +39,11 @@ log = logging.getLogger(__name__)
 
 
 def _make_xy8_r47(kern: str, radius: str):
-    return torch.load(os.path.abspath(os.path.join(research.__file__, '../part03_adversarial/e01_learn_to_disentangle/data', 'r47-1_s28800_adam_lr0.003_wd0.0_xy8x8.pt')))
+    return torch.load(os.path.abspath(os.path.join(research.__file__, '../part03_learnt_overlap/e01_learn_to_disentangle/data', 'r47-1_s28800_adam_lr0.003_wd0.0_xy8x8.pt')))
 
 
 def _make_xy1_r47(kern: str, radius: str):
-    return torch.load(os.path.abspath(os.path.join(research.__file__, '../part03_adversarial/e01_learn_to_disentangle/data', 'r47-1_s28800_adam_lr0.003_wd0.0_xy1x1.pt')))
+    return torch.load(os.path.abspath(os.path.join(research.__file__, '../part03_learnt_overlap/e01_learn_to_disentangle/data', 'r47-1_s28800_adam_lr0.003_wd0.0_xy1x1.pt')))
 
 
 # ========================================================================= #
