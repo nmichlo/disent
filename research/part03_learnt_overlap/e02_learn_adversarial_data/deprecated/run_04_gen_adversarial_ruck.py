@@ -62,7 +62,7 @@ from disent.util.profiling import Timer
 from disent.util.seeds import seed
 from disent.util.visualize.vis_util import get_idx_traversal
 from research.part01_data_overlap.plot02_data_distances.util_compute_traversal_dists import cached_compute_all_factor_dist_matrices
-from research.part03_adversarial.e02_learn_adversarial_data.util_eval_adversarial import eval_individual
+from research.part03_learnt_overlap.e02_learn_adversarial_data.util_eval_adversarial import eval_individual
 
 
 log = logging.getLogger(__name__)

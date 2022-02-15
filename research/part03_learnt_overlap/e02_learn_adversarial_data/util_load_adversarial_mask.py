@@ -47,7 +47,7 @@ def get_closest_mask(usage_ratio: float, pickle_file: str, print_n_best: int = 3
     - These solutions are found using NSGA2
 
     Usage With Hydra Config:
-        _target_: research.part03_adversarial.e02_learn_adversarial_data.util_load_adversarial_mask.get_closest_mask
+        _target_: research.part03_learnt_overlap.e02_learn_adversarial_data.util_load_adversarial_mask.get_closest_mask
         usage_ratio: 0.5
         pickle_file: data.pkl.gz
     """

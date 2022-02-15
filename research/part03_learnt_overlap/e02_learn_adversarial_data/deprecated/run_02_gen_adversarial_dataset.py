@@ -68,8 +68,8 @@ from experiment.run import hydra_get_gpus
 from experiment.run import hydra_make_logger
 from experiment.util.hydra_utils import make_non_strict
 from experiment.util.run_utils import log_error_and_exit
-from research.part03_adversarial.e02_learn_adversarial_data.util_gen_adversarial_dataset import adversarial_loss
-from research.part03_adversarial.e02_learn_adversarial_data.util_gen_adversarial_dataset import make_adversarial_sampler
+from research.part03_learnt_overlap.e02_learn_adversarial_data.util_gen_adversarial_dataset import adversarial_loss
+from research.part03_learnt_overlap.e02_learn_adversarial_data.util_gen_adversarial_dataset import make_adversarial_sampler
 
 
 log = logging.getLogger(__name__)
