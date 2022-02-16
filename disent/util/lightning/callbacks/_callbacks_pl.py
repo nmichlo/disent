@@ -67,10 +67,10 @@ class LoggerProgressCallback(BaseCallbackTimed):
             step_speed_str = f'{global_step / elapsed_sec:4.2f}it/s'
         else:
             step_speed_str = f'{elapsed_sec / global_step:4.2f}s/it'
-        # info dict
+        # TODO: info dict - This logic is probably out of date!
         info_dict = {
             k: f'{v:.4g}' if isinstance(v, (int, float)) else f'{v}'
-            for k, v in trainer.progress_bar_dict.items()
+            for k, v in trainer.progress_bar_metrics.items()  # TODO: was `progress_bar_dict`
             if k != 'v_num'
         }
         sorted_k = sorted(info_dict.keys(), key=lambda k: ('loss' != k.lower(), 'loss' not in k.lower(), k))

@@ -41,9 +41,8 @@ exp:
   save_name: ${job.name}.pt
   show_every_n_steps: 1000
 
-# OVERRIDE run_logging: wandb -- too fast otherwise
-logging:
-  flush_logs_every_n_steps: 500
+# OVERRIDE run_logging
+logging: {}
 
 # OVERRIDE run_location:
 dataset:

@@ -45,10 +45,7 @@ from disent.nn.weights import init_model_weights
 from disent.util.seeds import seed
 from disent.util.strings.fmt import make_box_str
 from disent.util.strings import colors as c
-from disent.util.lightning.callbacks import LoggerProgressCallback
 from disent.util.lightning.callbacks import VaeMetricLoggingCallback
-from disent.util.lightning.callbacks import VaeLatentCycleLoggingCallback
-from disent.util.lightning.callbacks import VaeGtDistsLoggingCallback
 from experiment.util.hydra_data import HydraDataModule
 from experiment.util.path_utils import get_current_experiment_number
 from experiment.util.path_utils import make_current_experiment_dir
@@ -99,7 +96,7 @@ def hydra_get_gpus(cfg) -> int:
 
 
 def hydra_check_data_paths(cfg):
-    prepare_data_per_node = cfg.trainer.prepare_data_per_node
+    prepare_data_per_node = cfg.datamodule.prepare_data_per_node
     data_root             = cfg.dsettings.storage.data_root
     # check relative paths
     if not os.path.isabs(data_root):
@@ -112,7 +109,7 @@ def hydra_check_data_paths(cfg):
         )
         if prepare_data_per_node:
             log.error(
-                f'trainer.prepare_data_per_node={repr(prepare_data_per_node)} but dsettings.storage.data_root='
+                f'datamodule.prepare_data_per_node={repr(prepare_data_per_node)} but dsettings.storage.data_root='
                 f'{repr(data_root)} is a relative path which may be an error! Try specifying an'
                 f' absolute path that is guaranteed to be unique from each node, eg. default_settings.storage.data_root=/tmp/dataset'
             )
@@ -145,6 +142,10 @@ def hydra_make_logger(cfg):
             tags=backend.tags,        # experiment tags
             save_dir=hydra.utils.to_absolute_path(cfg.dsettings.storage.logs_dir),  # relative to hydra's original cwd
         )
+    # some loggers support the `flush_logs_every_n_steps` variable which should be adjusted!
+    #   - this used to be set on the Trainer(flush_logs_every_n_steps=100, ...) but
+    #     has been deprecated as not all loggers supported this!
+    #   - make sure to set this value in the config for `run_logging`
     # don't return a logger
     return None  # LoggerCollection([...]) OR DummyLogger(...)
 
@@ -248,13 +249,15 @@ def hydra_create_framework(framework_cfg: DisentConfigurable.cfg, datamodule, cf
 
 def hydra_make_datamodule(cfg):
     return HydraDataModule(
-        data              = cfg.dataset.data,
-        sampler           = cfg.sampling._sampler_.sampler_cls,
-        augment           = cfg.augment.augment_cls,
-        transform         = cfg.dataset.transform,
-        dataloader_kwargs = cfg.dataloader,
-        augment_on_gpu    = cfg.dsettings.dataset.gpu_augment,
-        using_cuda        = cfg.dsettings.trainer.cuda,
+        data                  = cfg.dataset.data,                    # from: dataset
+        transform             = cfg.dataset.transform,               # from: dataset
+        augment               = cfg.augment.augment_cls,             # from: augment
+        sampler               = cfg.sampling._sampler_.sampler_cls,  # from: sampling
+        # from: run_location
+        using_cuda            = cfg.dsettings.trainer.cuda,
+        dataloader_kwargs     = cfg.datamodule.dataloader,
+        augment_on_gpu        = cfg.datamodule.gpu_augment,
+        prepare_data_per_node = cfg.datamodule.prepare_data_per_node,
     )
 
 # ========================================================================= #
@@ -339,21 +342,25 @@ def action_train(cfg: DictConfig):
     # register schedules
     hydra_register_schedules(framework, cfg)
 
-    # Setup Trainer
-    trainer = set_debug_trainer(pl.Trainer(
+    # trainer default kwargs
+    default_trainer_kwargs = dict(
         logger=logger,
         callbacks=callbacks,
         gpus=gpus,
         # we do this here too so we don't run the final
         # metrics, even through we check for it manually.
-        terminate_on_nan=True,
+        detect_anomaly=False,  # this should only be enabled for debugging torch and finding NaN values, slows down execution, not by much though?
         # TODO: re-enable this in future... something is not compatible
         #       with saving/checkpointing models + allow enabling from the
         #       config. Seems like something cannot be pickled?
-        checkpoint_callback=False,
-        # additional trainer kwargs
-        **cfg.trainer,
-    ))
+        enable_checkpointing=False,
+    )
+
+    # Setup Trainer
+    trainer = set_debug_trainer(pl.Trainer(**{
+        **default_trainer_kwargs,   # default kwargs
+        **cfg.trainer,              # override defaults
+    }))
 
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
     # BEGIN TRAINING
@@ -362,7 +369,7 @@ def action_train(cfg: DictConfig):
     # get config sections
     print_cfg, boxed_pop = dict(cfg), lambda *keys: make_box_str(OmegaConf.to_yaml({k: print_cfg.pop(k) for k in keys} if keys else print_cfg))
     cfg_str_logging  = boxed_pop('logging', 'callbacks', 'metrics')
-    cfg_str_dataset  = boxed_pop('dataset', 'sampling', 'augment')
+    cfg_str_dataset  = boxed_pop('dataset', 'datamodule', 'sampling', 'augment')
     cfg_str_system   = boxed_pop('framework', 'model', 'schedule')
     cfg_str_settings = boxed_pop('dsettings', 'settings')
     cfg_str_other    = boxed_pop()

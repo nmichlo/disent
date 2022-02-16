@@ -88,13 +88,16 @@ class HydraDataModule(pl.LightningDataModule):
         self,
         data: Dict[str, Any],                                # = dataset.data
         sampler: Dict[str, Any],                             # = sampling._sampler_.sampler_cls
-        augment: Optional[Dict[str, Any]] = None,            # = augment.augment_cls
         transform: Optional[Dict[str, Any]] = None,          # = dataset.transform
+        augment: Optional[Dict[str, Any]] = None,            # = augment.augment_cls
         dataloader_kwargs: Optional[Dict[str, Any]] = None,  # = dataloader
         augment_on_gpu: bool = False,                        # = dsettings.dataset.gpu_augment
         using_cuda: Optional[bool] = False,                  # = self.hparams.dsettings.trainer.cuda
+        prepare_data_per_node: bool = True,                  # DataHooks.prepare_data_per_node
     ):
         super().__init__()
+        # OVERRIDE:
+        self.prepare_data_per_node = prepare_data_per_node
         # save hparams
         self.save_hyperparameters()
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
