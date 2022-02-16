@@ -270,8 +270,9 @@ def run_disentangle_dataset_kernel(cfg):
         max_epochs=cfg.trainer.setdefault('epochs', None),
         max_steps=cfg.trainer.setdefault('steps', 10000),
         progress_bar_refresh_rate=0,  # ptl 0.9
-        terminate_on_nan=True,  # we do this here so we don't run the final metrics
-        checkpoint_callback=False,
+        # we do this here so we don't run the final metrics
+        detect_anomaly=True,
+        enable_checkpointing=False,
     )
     trainer.fit(framework, dataloader)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #

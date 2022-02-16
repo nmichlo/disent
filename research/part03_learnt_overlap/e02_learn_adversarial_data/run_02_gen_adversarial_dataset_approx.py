@@ -537,8 +537,8 @@ def run_gen_adversarial_dataset(cfg):
         progress_bar_refresh_rate=cfg.trainer.progress_bar_refresh_rate,
         prepare_data_per_node=cfg.trainer.prepare_data_per_node,
         # we do this here so we don't run the final metrics
-        terminate_on_nan=True,
-        checkpoint_callback=False,
+        detect_anomaly=True,
+        enable_checkpointing=False,
     )
     trainer.fit(framework)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #

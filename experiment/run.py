@@ -341,21 +341,25 @@ def action_train(cfg: DictConfig):
     # register schedules
     hydra_register_schedules(framework, cfg)
 
-    # Setup Trainer
-    trainer = set_debug_trainer(pl.Trainer(
+    # trainer default kwargs
+    default_trainer_kwargs = dict(
         logger=logger,
         callbacks=callbacks,
         gpus=gpus,
         # we do this here too so we don't run the final
         # metrics, even through we check for it manually.
-        terminate_on_nan=True,
+        detect_anomaly=True,
         # TODO: re-enable this in future... something is not compatible
         #       with saving/checkpointing models + allow enabling from the
         #       config. Seems like something cannot be pickled?
-        checkpoint_callback=False,
-        # additional trainer kwargs
-        **cfg.trainer,
-    ))
+        enable_checkpointing=False,
+    )
+
+    # Setup Trainer
+    trainer = set_debug_trainer(pl.Trainer(**{
+        **default_trainer_kwargs,   # default kwargs
+        **cfg.trainer,              # override defaults
+    }))
 
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
     # BEGIN TRAINING
