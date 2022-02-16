@@ -271,7 +271,7 @@ def run_disentangle_dataset_kernel(cfg):
         max_steps=cfg.trainer.setdefault('steps', 10000),
         progress_bar_refresh_rate=0,  # ptl 0.9
         # we do this here so we don't run the final metrics
-        detect_anomaly=True,
+        detect_anomaly=False,  # this should only be enabled for debugging torch and finding NaN values, slows down execution, not by much though?
         enable_checkpointing=False,
     )
     trainer.fit(framework, dataloader)

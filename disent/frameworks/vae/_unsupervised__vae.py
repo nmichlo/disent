@@ -155,13 +155,13 @@ class Vae(Ae):
             **logs_recon,
             **logs_reg,
             **logs_aug,
-            'recon_loss': recon_loss,
-            'reg_loss': reg_loss,
-            'aug_loss': aug_loss,
+            'recon_loss': float(recon_loss),
+            'reg_loss':   float(reg_loss),
+            'aug_loss':   float(aug_loss),
             # ratios
-            'ratio_reg': (reg_loss   / loss) if (loss != 0) else 0,
-            'ratio_rec': (recon_loss / loss) if (loss != 0) else 0,
-            'ratio_aug': (aug_loss   / loss) if (loss != 0) else 0,
+            'ratio_reg': float(reg_loss   / loss) if (loss != 0) else 0,
+            'ratio_rec': float(recon_loss / loss) if (loss != 0) else 0,
+            'ratio_aug': float(aug_loss   / loss) if (loss != 0) else 0,
         }
 
     # --------------------------------------------------------------------- #

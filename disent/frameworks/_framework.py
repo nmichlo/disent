@@ -204,9 +204,8 @@ class DisentFramework(DisentConfigurable, DisentLightningModule):
 
     @final
     def _assert_valid_loss(self, loss):
-        if self.trainer.terminate_on_nan:
-            if torch.isnan(loss) or torch.isinf(loss):
-                raise ValueError('The returned loss is nan or inf')
+        if torch.isnan(loss) or torch.isinf(loss):
+            raise ValueError('The returned loss is nan or inf')
         if loss > 1e+20:
             raise ValueError(f'The returned loss: {loss:.2e} is out of bounds: > {1e+20:.0e}')
 

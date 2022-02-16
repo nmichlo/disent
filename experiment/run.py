@@ -99,7 +99,7 @@ def hydra_get_gpus(cfg) -> int:
 
 
 def hydra_check_data_paths(cfg):
-    prepare_data_per_node = cfg.trainer.prepare_data_per_node
+    prepare_data_per_node = cfg.datamodule.prepare_data_per_node
     data_root             = cfg.dsettings.storage.data_root
     # check relative paths
     if not os.path.isabs(data_root):
@@ -112,7 +112,7 @@ def hydra_check_data_paths(cfg):
         )
         if prepare_data_per_node:
             log.error(
-                f'trainer.prepare_data_per_node={repr(prepare_data_per_node)} but dsettings.storage.data_root='
+                f'datamodule.prepare_data_per_node={repr(prepare_data_per_node)} but dsettings.storage.data_root='
                 f'{repr(data_root)} is a relative path which may be an error! Try specifying an'
                 f' absolute path that is guaranteed to be unique from each node, eg. default_settings.storage.data_root=/tmp/dataset'
             )
@@ -348,7 +348,7 @@ def action_train(cfg: DictConfig):
         gpus=gpus,
         # we do this here too so we don't run the final
         # metrics, even through we check for it manually.
-        detect_anomaly=True,
+        detect_anomaly=False,  # this should only be enabled for debugging torch and finding NaN values, slows down execution, not by much though?
         # TODO: re-enable this in future... something is not compatible
         #       with saving/checkpointing models + allow enabling from the
         #       config. Seems like something cannot be pickled?
@@ -368,7 +368,7 @@ def action_train(cfg: DictConfig):
     # get config sections
     print_cfg, boxed_pop = dict(cfg), lambda *keys: make_box_str(OmegaConf.to_yaml({k: print_cfg.pop(k) for k in keys} if keys else print_cfg))
     cfg_str_logging  = boxed_pop('logging', 'callbacks', 'metrics')
-    cfg_str_dataset  = boxed_pop('dataset', 'sampling', 'augment')
+    cfg_str_dataset  = boxed_pop('dataset', 'datamodule', 'sampling', 'augment')
     cfg_str_system   = boxed_pop('framework', 'model', 'schedule')
     cfg_str_settings = boxed_pop('dsettings', 'settings')
     cfg_str_other    = boxed_pop()
