@@ -248,13 +248,15 @@ def hydra_create_framework(framework_cfg: DisentConfigurable.cfg, datamodule, cf
 
 def hydra_make_datamodule(cfg):
     return HydraDataModule(
-        data              = cfg.dataset.data,
-        sampler           = cfg.sampling._sampler_.sampler_cls,
-        augment           = cfg.augment.augment_cls,
-        transform         = cfg.dataset.transform,
-        dataloader_kwargs = cfg.dataloader,
-        augment_on_gpu    = cfg.dsettings.dataset.gpu_augment,
-        using_cuda        = cfg.dsettings.trainer.cuda,
+        data                  = cfg.dataset.data,                    # from: dataset
+        transform             = cfg.dataset.transform,               # from: dataset
+        augment               = cfg.augment.augment_cls,             # from: augment
+        sampler               = cfg.sampling._sampler_.sampler_cls,  # from: sampling
+        # from: run_location
+        using_cuda            = cfg.dsettings.trainer.cuda,
+        dataloader_kwargs     = cfg.datamodule.dataloader,
+        augment_on_gpu        = cfg.datamodule.gpu_augment,
+        prepare_data_per_node = cfg.datamodule.prepare_data_per_node,
     )
 
 # ========================================================================= #

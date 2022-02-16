@@ -102,6 +102,8 @@ class DisentDataset(Dataset, LengthIter):
         self._transform = transform
         self._augment = augment
         self._return_indices = return_indices
+        # check sampler
+        assert isinstance(self._sampler, BaseDisentSampler), f'{DisentDataset.__name__} got an invalid {BaseDisentSampler.__name__}: {type(self._sampler)}'
         # initialize sampler
         if not self._sampler.is_init:
             self._sampler.init(dataset)
