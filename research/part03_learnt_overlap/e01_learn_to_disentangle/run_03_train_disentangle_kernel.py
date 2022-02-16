@@ -269,7 +269,7 @@ def run_disentangle_dataset_kernel(cfg):
         gpus=1 if gpus else 0,
         max_epochs=cfg.trainer.setdefault('epochs', None),
         max_steps=cfg.trainer.setdefault('steps', 10000),
-        progress_bar_refresh_rate=0,  # ptl 0.9
+        enable_progress_bar=False,
         # we do this here so we don't run the final metrics
         detect_anomaly=False,  # this should only be enabled for debugging torch and finding NaN values, slows down execution, not by much though?
         enable_checkpointing=False,

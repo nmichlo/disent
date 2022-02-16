@@ -45,10 +45,7 @@ from disent.nn.weights import init_model_weights
 from disent.util.seeds import seed
 from disent.util.strings.fmt import make_box_str
 from disent.util.strings import colors as c
-from disent.util.lightning.callbacks import LoggerProgressCallback
 from disent.util.lightning.callbacks import VaeMetricLoggingCallback
-from disent.util.lightning.callbacks import VaeLatentCycleLoggingCallback
-from disent.util.lightning.callbacks import VaeGtDistsLoggingCallback
 from experiment.util.hydra_data import HydraDataModule
 from experiment.util.path_utils import get_current_experiment_number
 from experiment.util.path_utils import make_current_experiment_dir
