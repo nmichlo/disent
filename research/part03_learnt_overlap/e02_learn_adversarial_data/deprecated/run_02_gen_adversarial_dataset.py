@@ -345,7 +345,6 @@ def run_gen_adversarial_dataset(cfg):
         max_epochs=cfg.trainer.max_epochs,
         max_steps=cfg.trainer.max_steps,
         log_every_n_steps=cfg.trainer.log_every_n_steps,
-        flush_logs_every_n_steps=cfg.trainer.flush_logs_every_n_steps,
         enable_progress_bar=cfg.trainer.enable_progress_bar,
         # prepare_data_per_node=cfg.trainer.prepare_data_per_node,  # TODO: moved into data module / framework !
         # we do this here so we don't run the final metrics

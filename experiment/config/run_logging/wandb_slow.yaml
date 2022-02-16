@@ -6,7 +6,6 @@ defaults:
 
 trainer:
   log_every_n_steps: 200
-  flush_logs_every_n_steps: 400
   enable_progress_bar: FALSE  # disable the builtin progress bar
 
 callbacks:

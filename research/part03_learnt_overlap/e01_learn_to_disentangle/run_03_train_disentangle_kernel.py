@@ -263,7 +263,6 @@ def run_disentangle_dataset_kernel(cfg):
     # train
     trainer = pl.Trainer(
         log_every_n_steps=cfg.log.setdefault('log_every_n_steps', 50),
-        flush_logs_every_n_steps=cfg.log.setdefault('flush_logs_every_n_steps', 100),
         logger=logger,
         callbacks=callbacks,
         gpus=1 if gpus else 0,

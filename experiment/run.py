@@ -142,6 +142,10 @@ def hydra_make_logger(cfg):
             tags=backend.tags,        # experiment tags
             save_dir=hydra.utils.to_absolute_path(cfg.dsettings.storage.logs_dir),  # relative to hydra's original cwd
         )
+    # some loggers support the `flush_logs_every_n_steps` variable which should be adjusted!
+    #   - this used to be set on the Trainer(flush_logs_every_n_steps=100, ...) but
+    #     has been deprecated as not all loggers supported this!
+    #   - make sure to set this value in the config for `run_logging`
     # don't return a logger
     return None  # LoggerCollection([...]) OR DummyLogger(...)
 
