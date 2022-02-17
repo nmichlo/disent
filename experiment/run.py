@@ -39,7 +39,7 @@ from omegaconf import ListConfig
 from omegaconf import OmegaConf
 from pytorch_lightning import Callback
 from pytorch_lightning.callbacks import ModelSummary
-from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.loggers import LightningLoggerBase
 
 import disent.registry as R
 from disent.frameworks import DisentFramework
@@ -47,6 +47,7 @@ from disent.util.lightning.callbacks import VaeMetricLoggingCallback
 from disent.util.seeds import seed
 from disent.util.strings import colors as c
 from disent.util.strings.fmt import make_box_str
+
 from experiment.util.hydra_data import HydraDataModule
 from experiment.util.path_utils import get_current_experiment_number
 from experiment.util.path_utils import make_current_experiment_dir
@@ -129,26 +130,13 @@ def hydra_check_data_meta(cfg):
         log.info(f'* dataset.meta.vis_std:  {cfg.dataset.meta.vis_std}')
 
 
-def hydra_make_logger(cfg):
-    # make wandb logger
-    backend = cfg.logging.wandb
-    if backend.enabled:
-        log.info('Initialising Weights & Biases Logger')
-        return WandbLogger(
-            offline=backend.offline,
-            entity=backend.entity,    # cometml: workspace
-            project=backend.project,  # cometml: project_name
-            name=backend.name,        # cometml: experiment_name
-            group=backend.group,      # experiment group
-            tags=backend.tags,        # experiment tags
-            save_dir=hydra.utils.to_absolute_path(cfg.dsettings.storage.logs_dir),  # relative to hydra's original cwd
-        )
-    # some loggers support the `flush_logs_every_n_steps` variable which should be adjusted!
-    #   - this used to be set on the Trainer(flush_logs_every_n_steps=100, ...) but
-    #     has been deprecated as not all loggers supported this!
-    #   - make sure to set this value in the config for `run_logging`
-    # don't return a logger
-    return None  # LoggerCollection([...]) OR DummyLogger(...)
+def hydra_make_logger(cfg) -> Optional[LightningLoggerBase]:
+    logger = hydra.utils.instantiate(cfg.logging.logger)
+    if logger:
+        log.info(f'Initialised Logger: {logger}')
+    else:
+        log.warning(f'No Logger Utilised!')
+    return logger
 
 
 def hydra_get_callbacks(cfg) -> list:
@@ -437,8 +425,14 @@ def patch_hydra():
         OmegaConf.register_new_resolver('exp_dir', make_current_experiment_dir)
 
     # register a function that pads an integer to a specified length
+    # - ${fmt:"{:04d}",42} -> "0042"
     if not OmegaConf.has_resolver('fmt'):
         OmegaConf.register_new_resolver('fmt', str.format)
+
+    # register hydra helper functions
+    # - ${abspath:<rel_path>} convert a relative path to an abs path using the original hydra working directory, not the changed experiment dir.
+    if not OmegaConf.has_resolver('abspath'):
+        OmegaConf.register_new_resolver('abspath', hydra.utils.to_absolute_path)
 
 
 # ========================================================================= #

@@ -16,3 +16,4 @@ callbacks:
 logging:
   wandb:
     enabled: FALSE
+  logger: NULL
