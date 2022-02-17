@@ -182,7 +182,7 @@ class Vae(_AeAndVaeMixin):
         }
 
     # --------------------------------------------------------------------- #
-    # VAE - Overrides AeMixin                                               #
+    # VAE Model Utility Functions (Visualisation)                           #
     # --------------------------------------------------------------------- #
 
     @final
@@ -193,13 +193,30 @@ class Vae(_AeAndVaeMixin):
         return z
 
     @final
+    def decode(self, z: torch.Tensor) -> torch.Tensor:
+        """Decode latent vector z into reconstruction x_recon (useful for visualisation)"""
+        return self.recon_handler.activate(self._model.decode(z))
+
+    @final
+    def forward(self, batch: torch.Tensor) -> torch.Tensor:
+        """Feed through the full deterministic model (useful for visualisation)"""
+        return self.decode(self.encode(batch))
+
+    # --------------------------------------------------------------------- #
+    # VAE Model Utility Functions (Training)                                #
+    # --------------------------------------------------------------------- #
+
+    @final
     def encode_dists(self, x: torch.Tensor) -> Tuple[Distribution, Distribution]:
         """Get parametrisations of the latent distributions, which are sampled from during training."""
         z_raw = self._model.encode(x, chunk=True)
         z_posterior, z_prior = self.latents_handler.encoding_to_dists(z_raw)
         return z_posterior, z_prior
 
-
+    @final
+    def decode_partial(self, z: torch.Tensor) -> torch.Tensor:
+        """Decode latent vector z into partial reconstructions that exclude the final activation if there is one."""
+        return self._model.decode(z)
 
 
 # ========================================================================= #

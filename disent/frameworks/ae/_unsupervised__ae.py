@@ -138,13 +138,32 @@ class Ae(_AeAndVaeMixin):
         }
 
     # --------------------------------------------------------------------- #
-    # AE - Overrides AeMixin                                                #
+    # AE Model Utility Functions (Visualisation)                            #
     # --------------------------------------------------------------------- #
 
     @final
     def encode(self, x: torch.Tensor) -> torch.Tensor:
         """Get the deterministic latent representation (useful for visualisation)"""
         return self._model.encode(x)
+
+    @final
+    def decode(self, z: torch.Tensor) -> torch.Tensor:
+        """Decode latent vector z into reconstruction x_recon (useful for visualisation)"""
+        return self.recon_handler.activate(self._model.decode(z))
+
+    @final
+    def forward(self, batch: torch.Tensor) -> torch.Tensor:
+        """Feed through the full deterministic model (useful for visualisation)"""
+        return self.decode(self.encode(batch))
+
+    # --------------------------------------------------------------------- #
+    # AE Model Utility Functions (Training)                                 #
+    # --------------------------------------------------------------------- #
+
+    @final
+    def decode_partial(self, z: torch.Tensor) -> torch.Tensor:
+        """Decode latent vector z into partial reconstructions that exclude the final activation if there is one."""
+        return self._model.decode(z)
 
 
 # ========================================================================= #
