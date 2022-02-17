@@ -291,7 +291,7 @@ class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
         plt_block_size: float = 1.25,
         plt_show: bool = False,
         plt_transpose: bool = False,
-        log_wandb: bool = True,
+        log_wandb: bool = True,  # TODO: detect this automatically?
         batch_size: int = 128,
         include_factor_dists: bool = True,
     ):
@@ -403,7 +403,7 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
         begin_first_step: bool = False,
         num_frames: int = 17,
         mode: str = 'fitted_gaussian_cycle',
-        log_wandb: bool = True,
+        log_wandb: bool = True,  # TODO: detect this automatically?
         wandb_mode: str = 'both',
         wandb_fps: int = 4,
         plt_show: bool = False,
