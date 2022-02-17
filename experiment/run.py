@@ -272,8 +272,9 @@ def action_train(cfg: DictConfig):
     log.info(f'Starting run at time: {time_string}')
 
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
-
     # cleanup from old runs:
+    # -~-~-~-~-~-~-~-~-~-~-~-~- #
+
     try:
         safe_unset_debug_trainer()
         safe_unset_debug_logger()
@@ -282,30 +283,26 @@ def action_train(cfg: DictConfig):
         pass
 
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
+    # SETUP
+    # -~-~-~-~-~-~-~-~-~-~-~-~- #
 
     # deterministic seed
     seed(cfg.settings.job.seed)
-
-    # -~-~-~-~-~-~-~-~-~-~-~-~- #
-    # INITIALISE & SETDEFAULT IN CONFIG
-    # -~-~-~-~-~-~-~-~-~-~-~-~- #
-
     # create trainer loggers & callbacks & initialise error messages
     logger = set_debug_logger(hydra_make_logger(cfg))
-
+    # register plugins
+    hydra_register_disent_plugins(cfg)
     # print useful info
     log.info(f"Current working directory : {os.getcwd()}")
     log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
-
-    # register plugins
-    hydra_register_disent_plugins(cfg)
-
-    # check CUDA setting
+    # checks
     gpus = hydra_get_gpus(cfg)
-
-    # check data preparation
     hydra_check_data_paths(cfg)
     hydra_check_data_meta(cfg)
+
+    # -~-~-~-~-~-~-~-~-~-~-~-~- #
+    # INITIALISE
+    # -~-~-~-~-~-~-~-~-~-~-~-~- #
 
     # TRAINER CALLBACKS
     callbacks = [
@@ -318,43 +315,45 @@ def action_train(cfg: DictConfig):
     framework = hydra_create_framework(cfg, gpu_batch_augment=datamodule.gpu_batch_augment)
 
     # trainer default kwargs
-    default_trainer_kwargs = dict(
+    # Setup Trainer
+    trainer = set_debug_trainer(pl.Trainer(
+        # cannot override these
         logger=logger,
         callbacks=callbacks,
         gpus=gpus,
-        # we do this here too so we don't run the final
-        # metrics, even through we check for it manually.
-        detect_anomaly=False,  # this should only be enabled for debugging torch and finding NaN values, slows down execution, not by much though?
-        # TODO: re-enable this in future... something is not compatible
-        #       with saving/checkpointing models + allow enabling from the
-        #       config. Seems like something cannot be pickled?
-        enable_checkpointing=False,
-    )
-
-    # Setup Trainer
-    trainer = set_debug_trainer(pl.Trainer(**{
-        **default_trainer_kwargs,   # default kwargs
-        **cfg.trainer,              # override defaults
-    }))
+        # additional kwargs from the config
+        **{
+            **dict(
+                detect_anomaly=False,  # this should only be enabled for debugging torch and finding NaN values, slows down execution, not by much though?
+                enable_checkpointing=False,  # TODO: re-enable this in future...
+            ),
+            **cfg.trainer,  # overrides
+        }
+    ))
 
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
-    # BEGIN TRAINING
+    # DEBUG
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
 
     # get config sections
     print_cfg, boxed_pop = dict(cfg), lambda *keys: make_box_str(OmegaConf.to_yaml({k: print_cfg.pop(k) for k in keys} if keys else print_cfg))
+    cfg_str_exp      = boxed_pop('action', 'experiment')
     cfg_str_logging  = boxed_pop('logging', 'callbacks', 'metrics')
     cfg_str_dataset  = boxed_pop('dataset', 'datamodule', 'sampling', 'augment')
     cfg_str_system   = boxed_pop('framework', 'model', 'schedule')
     cfg_str_settings = boxed_pop('dsettings', 'settings')
     cfg_str_other    = boxed_pop()
     # print config sections
-    log.info(f'Final Config For Action: {cfg.action}\n\nLOGGING:{cfg_str_logging}\nDATASET:{cfg_str_dataset}\nSYSTEM:{cfg_str_system}\nTRAINER:{cfg_str_other}\nSETTINGS:{cfg_str_settings}')
+    log.info(f'Final Config For Action: {cfg.action}\n\nEXPERIMENT:{cfg_str_exp}\nLOGGING:{cfg_str_logging}\nDATASET:{cfg_str_dataset}\nSYSTEM:{cfg_str_system}\nTRAINER:{cfg_str_other}\nSETTINGS:{cfg_str_settings}')
 
-    # save hparams TODO: is this a pytorch lightning bug? The trainer should automatically save these if hparams is set?
+    # -~-~-~-~-~-~-~-~-~-~-~-~- #
+    # BEGIN TRAINING
+    # -~-~-~-~-~-~-~-~-~-~-~-~- #
+
+    # save hparams
     framework.hparams.update(cfg)
     if trainer.logger:
-        trainer.logger.log_hyperparams(framework.hparams)
+        trainer.logger.log_hyperparams(framework.hparams)  # TODO: is this a pytorch lightning bug? The trainer should automatically save these if hparams is set?
 
     # fit the model
     # -- if an error/signal occurs while pytorch lightning is
@@ -362,14 +361,13 @@ def action_train(cfg: DictConfig):
     trainer.fit(framework, datamodule=datamodule)
 
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
-
     # cleanup this run
+    # -~-~-~-~-~-~-~-~-~-~-~-~- #
+
     try:
         wandb.finish()
     except:
         pass
-
-    # -~-~-~-~-~-~-~-~-~-~-~-~- #
 
 
 # available actions
