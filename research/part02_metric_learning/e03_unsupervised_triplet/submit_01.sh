@@ -39,7 +39,7 @@
 #    framework.cfg.triplet_p=1 \
 #    \
 #    framework.cfg.detach=FALSE \
-#    framework.cfg.disable_decoder=FALSE \
+#    framework.cfg.detach_decoder=FALSE \
 #    framework.cfg.detach_no_kl=FALSE \
 #    framework.cfg.detach_std=NULL \
 #    \

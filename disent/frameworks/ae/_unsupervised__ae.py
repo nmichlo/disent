@@ -23,7 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
-import warnings
 from dataclasses import dataclass
 from numbers import Number
 from typing import Any
@@ -35,15 +34,10 @@ from typing import Union
 
 import torch
 
-from disent.frameworks import DisentFramework
-from disent.frameworks.helper.reconstructions import make_reconstruction_loss
-from disent.frameworks.helper.reconstructions import ReconLossHandler
+from disent.frameworks.ae._ae_mixin import _AeAndVaeMixin
 from disent.frameworks.helper.util import detach_all
 from disent.model import AutoEncoder
 from disent.util.iters import map_all
-
-
-log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
@@ -51,7 +45,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class Ae(DisentFramework):
+class Ae(_AeAndVaeMixin):
     """
     Basic Auto Encoder
     ------------------
@@ -73,55 +67,22 @@ class Ae(DisentFramework):
         * `compute_ave_recon_loss`
     """
 
+    # override
     REQUIRED_Z_MULTIPLIER = 1
     REQUIRED_OBS = 1
 
     @dataclass
-    class cfg(DisentFramework.cfg):
-        recon_loss: str = 'mse'
-        # multiple reduction modes exist for the various loss components.
-        # - 'sum': sum over the entire batch
-        # - 'mean': mean over the entire batch
-        # - 'mean_sum': sum each observation, returning the mean sum over the batch
-        loss_reduction: str = 'mean'
-        # disable various components
-        disable_decoder: bool = False
-        disable_rec_loss: bool = False
-        disable_aug_loss: bool = False
+    class cfg(_AeAndVaeMixin.cfg):
+        pass
 
     def __init__(self, model: AutoEncoder, cfg: cfg = None, batch_augment=None):
         super().__init__(cfg=cfg, batch_augment=batch_augment)
-        # vae model
-        self._model = model
-        # check the model
-        assert isinstance(self._model, AutoEncoder)
-        assert self._model.z_multiplier == self.REQUIRED_Z_MULTIPLIER, f'model z_multiplier is {repr(self._model.z_multiplier)} but {self.__class__.__name__} requires that it is: {repr(self.REQUIRED_Z_MULTIPLIER)}'
-        # recon loss & activation fn
-        self.__recon_handler: ReconLossHandler = make_reconstruction_loss(self.cfg.recon_loss, reduction=self.cfg.loss_reduction)
-
-    @final
-    @property
-    def recon_handler(self) -> ReconLossHandler:
-        return self.__recon_handler
+        # initialise the auto-encoder mixin (recon handler, model, enc, dec, etc.)
+        self._init_ae_mixin(model=model)
 
     # --------------------------------------------------------------------- #
     # AE Training Step -- Overridable                                       #
     # --------------------------------------------------------------------- #
-
-    @final
-    def _get_xs_and_targs(self, batch: Dict[str, Tuple[torch.Tensor, ...]], batch_idx) -> Tuple[Tuple[torch.Tensor, ...], Tuple[torch.Tensor, ...]]:
-        xs_targ = batch['x_targ']
-        if 'x' not in batch:
-            # TODO: re-enable this warning but only ever print once!
-            # warnings.warn('dataset does not have input: x -> x_targ using target as input: x_targ -> x_targ')
-            xs = xs_targ
-        else:
-            xs = batch['x']
-        # check that we have the correct number of inputs
-        if (len(xs) != self.REQUIRED_OBS) or (len(xs_targ) != self.REQUIRED_OBS):
-            log.warning(f'batch len(xs)={len(xs)} and len(xs_targ)={len(xs_targ)} observation count mismatch, requires: {self.REQUIRED_OBS}')
-        # done
-        return xs, xs_targ
 
     @final
     def do_training_step(self, batch, batch_idx):
@@ -131,10 +92,10 @@ class Ae(DisentFramework):
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # latent variables
         zs = map_all(self.encode, xs)
-        # intercept latent variables
+        # [HOOK] intercept latent variables
         zs, logs_intercept_zs = self.hook_ae_intercept_zs(zs)
         # reconstruct without the final activation
-        xs_partial_recon = map_all(self.decode_partial, detach_all(zs, if_=self.cfg.disable_decoder))
+        xs_partial_recon = map_all(self.decode_partial, detach_all(zs, if_=self.cfg.detach_decoder))
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
         # LOSS
@@ -154,8 +115,8 @@ class Ae(DisentFramework):
             **logs_intercept_zs,
             **logs_recon,
             **logs_aug,
-            'recon_loss': recon_loss,
-            'aug_loss': aug_loss,
+            'recon_loss': float(recon_loss),
+            'aug_loss':   float(aug_loss),
         }
 
     # --------------------------------------------------------------------- #
@@ -177,32 +138,13 @@ class Ae(DisentFramework):
         }
 
     # --------------------------------------------------------------------- #
-    # AE Model Utility Functions (Visualisation)                            #
+    # AE - Overrides AeMixin                                                #
     # --------------------------------------------------------------------- #
 
     @final
     def encode(self, x: torch.Tensor) -> torch.Tensor:
         """Get the deterministic latent representation (useful for visualisation)"""
         return self._model.encode(x)
-
-    @final
-    def decode(self, z: torch.Tensor) -> torch.Tensor:
-        """Decode latent vector z into reconstruction x_recon (useful for visualisation)"""
-        return self.recon_handler.activate(self._model.decode(z))
-
-    @final
-    def forward(self, batch: torch.Tensor) -> torch.Tensor:
-        """Feed through the full deterministic model (useful for visualisation)"""
-        return self.decode(self.encode(batch))
-
-    # --------------------------------------------------------------------- #
-    # AE Model Utility Functions (Training)                                 #
-    # --------------------------------------------------------------------- #
-
-    @final
-    def decode_partial(self, z: torch.Tensor) -> torch.Tensor:
-        """Decode latent vector z into partial reconstructions that exclude the final activation if there is one."""
-        return self._model.decode(z)
 
 
 # ========================================================================= #

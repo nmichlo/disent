@@ -38,7 +38,7 @@ from disent.frameworks.ae import Ae
 from disent.frameworks.vae import Vae
 from disent.util.lightning.callbacks._callback_vis_dists import log
 from disent.util.lightning.callbacks._callbacks_base import BaseCallbackPeriodic
-from disent.util.lightning.callbacks._helper import _get_dataset_and_vae
+from disent.util.lightning.callbacks._helper import _get_dataset_and_ae_like
 from disent.util.lightning.logger_util import wb_log_metrics
 from disent.util.seeds import TempNumpySeed
 from disent.util.visualize.vis_model import latent_cycle_grid_animation
@@ -145,7 +145,7 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
             return
 
         # get dataset and vae framework from trainer and module
-        dataset, vae = _get_dataset_and_vae(trainer, pl_module, unwrap_groundtruth=True)
+        dataset, vae = _get_dataset_and_ae_like(trainer, pl_module, unwrap_groundtruth=True)
 
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         # generate traversal

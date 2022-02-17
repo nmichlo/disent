@@ -9,7 +9,7 @@ cfg:
   recon_loss: ${settings.framework.recon_loss}
   loss_reduction: ${settings.framework.loss_reduction}
   # disable various components
-  disable_decoder: FALSE
+  detach_decoder: FALSE
   disable_rec_loss: FALSE
   disable_aug_loss: FALSE
   # tvae: triplet stuffs

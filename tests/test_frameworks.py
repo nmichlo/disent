@@ -89,7 +89,7 @@ _TEST_FRAMEWORKS = [
     (AugPosTripletVae,     dict(),                                                                      XYObjectData),  # pragma: delete-on-release
     # VAE - supervised
     (TripletVae,           dict(),                                                                      XYObjectData),
-    (TripletVae,           dict(disable_decoder=True, disable_reg_loss=True, disable_posterior_scale=0.5), XYObjectData),
+    (TripletVae,           dict(detach_decoder=True, disable_reg_loss=True),                            XYObjectData),
     # VAE - supervised - EXP                                                                                            # pragma: delete-on-release
     (BoundedAdaVae,        dict(),                                                                      XYObjectData),  # pragma: delete-on-release
     (GuidedAdaVae,         dict(),                                                                      XYObjectData),  # pragma: delete-on-release
@@ -155,8 +155,7 @@ def test_framework_config_defaults():
         optimizer_kwargs=None,
         recon_loss='mse',
         disable_aug_loss=False,
-        disable_decoder=False,
-        disable_posterior_scale=None,
+        detach_decoder=False,
         disable_rec_loss=False,
         disable_reg_loss=False,
         loss_reduction='mean',
@@ -169,8 +168,7 @@ def test_framework_config_defaults():
         optimizer_kwargs=None,
         recon_loss='bce',
         disable_aug_loss=False,
-        disable_decoder=False,
-        disable_posterior_scale=None,
+        detach_decoder=False,
         disable_rec_loss=False,
         disable_reg_loss=False,
         loss_reduction='mean',

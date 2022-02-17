@@ -67,7 +67,7 @@ submit_sweep \
 #    framework.cfg.triplet_margin_max=??? \
 #    framework.cfg.triplet_scale=??? \
 #    framework.cfg.triplet_p=1,2 \
-#    framework.cfg.disable_decoder=TRUE,FALSE \
+#    framework.cfg.detach_decoder=TRUE,FALSE \
 #    framework.cfg.triplet_loss=triplet,triplet_sigmoid,triplet_soft \
 #    \
 #    dataset=cars3d,smallnorb,X--xysquares \
@@ -80,7 +80,7 @@ submit_sweep \
 # - max+min: [min_clamped_triplet, split_clamped_triplet]
 
 # TRIPLET OPTIONS:
-# framework.cfg.disable_decoder: FALSE
+# framework.cfg.detach_decoder: FALSE
 # framework.cfg.triplet_loss: triplet
 # framework.cfg.triplet_margin_min: 0.001
 # framework.cfg.triplet_margin_max: 1

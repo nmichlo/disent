@@ -11,11 +11,10 @@ cfg:
   # base vae
   latent_distribution: ${settings.framework_opt.latent_distribution}
   # disable various components
-  disable_decoder: FALSE
+  detach_decoder: FALSE
   disable_reg_loss: FALSE
   disable_rec_loss: FALSE
   disable_aug_loss: FALSE
-  disable_posterior_scale: NULL
   # Beta-VAE
   beta: ${settings.framework.beta}
   # compatibility
