@@ -40,7 +40,6 @@ from pytorch_lightning.loggers import WandbLogger
 import disent.registry as R
 from disent.frameworks import DisentConfigurable
 from disent.frameworks import DisentFramework
-from disent.model import AutoEncoder
 from disent.nn.weights import init_model_weights
 from disent.util.seeds import seed
 from disent.util.strings.fmt import make_box_str
@@ -232,13 +231,10 @@ def hydra_create_framework(framework_cfg: DisentConfigurable.cfg, datamodule, cf
     # get framework path
     assert str.endswith(cfg.framework.cfg._target_, '.cfg'), f'`cfg.framework.cfg._target_` does not end with ".cfg", got: {repr(cfg.framework.cfg._target_)}'
     framework_cls = hydra.utils.get_class(cfg.framework.cfg._target_[:-len(".cfg")])
-    # create model
-    model = AutoEncoder(
-        encoder=hydra.utils.instantiate(cfg.model.encoder_cls),
-        decoder=hydra.utils.instantiate(cfg.model.decoder_cls),
-    )
-    # initialise the model
-    model = init_model_weights(model, mode=cfg.settings.model.weight_init)
+    # create the model
+    # -- if weights need to be initialised, this should be part of the hydra configuration, not a specific setting here!
+    # -- different models may need weights initialised in different ways, and it's not appropriate to use the same initialisation setting for each.
+    model = hydra.utils.instantiate(cfg.model.model_cls)
     # create framework
     return framework_cls(
         model=model,
