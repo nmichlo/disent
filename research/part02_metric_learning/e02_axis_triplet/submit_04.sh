@@ -99,7 +99,7 @@ submit_sweep \
 #    triplet_p=1 \
 #    \
 #    detach=FALSE \
-#    disable_decoder=FALSE \
+#    detach_decoder=FALSE \
 #    detach_no_kl=FALSE \
 #    detach_std=NULL \
 #    \

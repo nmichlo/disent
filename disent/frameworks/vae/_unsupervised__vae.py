@@ -135,7 +135,7 @@ class Vae(Ae):
         # sample from dists
         zs_sampled = tuple(d.rsample() for d in ds_posterior)
         # reconstruct without the final activation
-        xs_partial_recon = map_all(self.decode_partial, detach_all(zs_sampled, if_=self.cfg.disable_decoder))
+        xs_partial_recon = map_all(self.decode_partial, detach_all(zs_sampled, if_=self.cfg.detach_decoder))
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
         # LOSS

@@ -85,7 +85,7 @@ class Ae(DisentFramework):
         # - 'mean_sum': sum each observation, returning the mean sum over the batch
         loss_reduction: str = 'mean'
         # disable various components
-        disable_decoder: bool = False
+        detach_decoder: bool = False
         disable_rec_loss: bool = False
         disable_aug_loss: bool = False
 
@@ -134,7 +134,7 @@ class Ae(DisentFramework):
         # intercept latent variables
         zs, logs_intercept_zs = self.hook_ae_intercept_zs(zs)
         # reconstruct without the final activation
-        xs_partial_recon = map_all(self.decode_partial, detach_all(zs, if_=self.cfg.disable_decoder))
+        xs_partial_recon = map_all(self.decode_partial, detach_all(zs, if_=self.cfg.detach_decoder))
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
         # LOSS
