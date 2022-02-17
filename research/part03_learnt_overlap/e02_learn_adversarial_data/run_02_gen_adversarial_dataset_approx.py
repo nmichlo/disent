@@ -399,7 +399,7 @@ class AdversarialModel(pl.LightningModule):
         # factor distances callback
         class DistsPlotCallback(_BaseDatasetCallback):
             def _do_step(this, trainer: pl.Trainer, system: AdversarialModel):
-                from disent.util.lightning.callbacks._callbacks_vae import compute_factor_distances, plt_factor_distances
+                from disent.util.lightning.callbacks._callback_vis_dists import compute_factor_distances, plt_factor_distances
 
                 # make distances function
                 def dists_fn(xs_a, xs_b):
