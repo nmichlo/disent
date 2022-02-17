@@ -27,21 +27,17 @@ from numbers import Number
 from typing import Any
 from typing import Dict
 from typing import final
-from typing import Optional
 from typing import Sequence
 from typing import Tuple
 from typing import Union
 
 import torch
 from torch.distributions import Distribution
-from torch.distributions import Laplace
-from torch.distributions import Normal
 
-from disent.frameworks.ae._unsupervised__ae import Ae
+from disent.frameworks.ae._ae_mixin import _AeAndVaeMixin
 from disent.frameworks.helper.latent_distributions import LatentDistsHandler
 from disent.frameworks.helper.latent_distributions import make_latent_distribution
 from disent.frameworks.helper.util import detach_all
-
 from disent.util.iters import map_all
 
 
@@ -50,11 +46,7 @@ from disent.util.iters import map_all
 # ========================================================================= #
 
 
-# TODO: VAE should not extend from AE, a common interface might be acceptable, but not the AE framework directly...
-#  - There are fundamental differences between the two.
-#  - If you need an AE but don't want a VAE, you can't just use `isinstance(framework, AE)`
-#    you also need to make sure it is not a VAE `isinstance(framework, AE) and not isinstance(framework, VAE)`
-class Vae(Ae):
+class Vae(_AeAndVaeMixin):
     """
     Variational Auto Encoder
     https://arxiv.org/abs/1312.6114
@@ -92,12 +84,12 @@ class Vae(Ae):
           Vae(hook_compute_ave_aug_loss=TripletLoss(), required_obs=3)
     """
 
-    # override required z from AE
+    # overrides
     REQUIRED_Z_MULTIPLIER = 2
     REQUIRED_OBS = 1
 
     @dataclass
-    class cfg(Ae.cfg):
+    class cfg(_AeAndVaeMixin.cfg):
         # latent distribution settings
         latent_distribution: str = 'normal'
         kl_loss_mode: str = 'direct'
@@ -106,7 +98,9 @@ class Vae(Ae):
 
     def __init__(self, model: 'AutoEncoder', cfg: cfg = None, batch_augment=None):
         # required_z_multiplier
-        super().__init__(model=model, cfg=cfg, batch_augment=batch_augment)
+        super().__init__(cfg=cfg, batch_augment=batch_augment)
+        # initialise the auto-encoder mixin (recon handler, model, enc, dec, etc.)
+        self._init_ae_mixin(model=model)
         # vae distribution
         self.__latents_handler = make_latent_distribution(self.cfg.latent_distribution, kl_mode=self.cfg.kl_loss_mode, reduction=self.cfg.loss_reduction)
 
@@ -159,23 +153,7 @@ class Vae(Ae):
             'recon_loss': float(recon_loss),
             'reg_loss':   float(reg_loss),
             'aug_loss':   float(aug_loss),
-            # ratios
-            'ratio_reg': float(reg_loss   / loss) if (loss != 0) else 0,
-            'ratio_rec': float(recon_loss / loss) if (loss != 0) else 0,
-            'ratio_aug': float(aug_loss   / loss) if (loss != 0) else 0,
         }
-
-    # --------------------------------------------------------------------- #
-    # Delete AE Hooks                                                       #
-    # --------------------------------------------------------------------- #
-
-    @final
-    def hook_ae_intercept_zs(self, zs: Sequence[torch.Tensor]) -> Tuple[Sequence[torch.Tensor], Dict[str, Any]]:
-        raise RuntimeError('This function should never be used or overridden by VAE methods!')  # pragma: no cover
-
-    @final
-    def hook_ae_compute_ave_aug_loss(self, zs: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
-        raise RuntimeError('This function should never be used or overridden by VAE methods!')  # pragma: no cover
 
     # --------------------------------------------------------------------- #
     # Overrideable Hooks                                                    #
@@ -187,6 +165,14 @@ class Vae(Ae):
     def hook_compute_ave_aug_loss(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
         return 0, {}
 
+    def compute_ave_recon_loss(self, xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
+        # compute reconstruction loss
+        pixel_loss = self.recon_handler.compute_ave_loss_from_partial(xs_partial_recon, xs_targ)
+        # return logs
+        return pixel_loss, {
+            'pixel_loss': pixel_loss
+        }
+
     def compute_ave_reg_loss(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
         # compute regularization loss (kl divergence)
         kl_loss = self.latents_handler.compute_ave_kl_loss(ds_posterior, ds_prior, zs_sampled)
@@ -196,7 +182,7 @@ class Vae(Ae):
         }
 
     # --------------------------------------------------------------------- #
-    # VAE - Encoding - Overrides AE                                         #
+    # VAE - Overrides AeMixin                                               #
     # --------------------------------------------------------------------- #
 
     @final
@@ -212,6 +198,8 @@ class Vae(Ae):
         z_raw = self._model.encode(x, chunk=True)
         z_posterior, z_prior = self.latents_handler.encoding_to_dists(z_raw)
         return z_posterior, z_prior
+
+
 
 
 # ========================================================================= #

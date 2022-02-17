@@ -29,6 +29,7 @@ from pytorch_lightning.trainer.supporters import CombinedLoader
 
 from disent.dataset import DisentDataset
 from disent.frameworks.ae import Ae
+from disent.frameworks.vae import Vae
 
 
 # ========================================================================= #
@@ -37,8 +38,7 @@ from disent.frameworks.ae import Ae
 
 
 def _get_dataset_and_vae(trainer: pl.Trainer, pl_module: pl.LightningModule, unwrap_groundtruth: bool = False) -> (DisentDataset, Ae):
-    # TODO: improve handling!
-    assert isinstance(pl_module, Ae), f'{pl_module.__class__} is not an instance of {Ae}'
+    assert isinstance(pl_module, (Ae, Vae)), f'{pl_module.__class__} is not an instance of {Ae} or {Vae}'
     # get dataset
     if hasattr(trainer, 'datamodule') and (trainer.datamodule is not None):
         assert hasattr(trainer.datamodule, 'dataset_train_noaug')  # TODO: this is for experiments, another way of handling this should be added
