@@ -198,34 +198,31 @@ def hydra_get_metric_callbacks(cfg) -> list:
     return callbacks
 
 
-def hydra_register_schedules(module: DisentFramework, cfg):
-    # check the type
-    schedule_items = cfg.schedule.schedule_items
-    assert isinstance(schedule_items, (dict, DictConfig)), f'`schedule.schedule_items` must be a dictionary, got type: {type(schedule_items)} with value: {repr(schedule_items)}'
-    # add items
-    if schedule_items:
-        log.info(f'Registering Schedules:')
-        for target, schedule in schedule_items.items():
-            module.register_schedule(target, hydra.utils.instantiate(schedule), logging=True)
-
-
 def hydra_create_framework(cfg, gpu_batch_augment: Optional[Callable[[torch.Tensor], torch.Tensor]] = None) -> DisentFramework:
-    # make sure the framework path is correct
-    assert str.endswith(cfg.framework.cfg['_target_'], '.cfg'), f'`cfg.framework.cfg._target_` does not end with ".cfg", got: {repr(cfg.framework.cfg["_target_"])}'
     # create framework
+    assert str.endswith(cfg.framework.cfg['_target_'], '.cfg'), f'`cfg.framework.cfg._target_` does not end with ".cfg", got: {repr(cfg.framework.cfg["_target_"])}'
     framework_cls = hydra.utils.get_class(cfg.framework.cfg['_target_'][:-len(".cfg")])
     framework: DisentFramework = framework_cls(
         model=hydra.utils.instantiate(cfg.model.model_cls),
         cfg=hydra.utils.instantiate(cfg.framework.cfg, _convert_='all'),  # DisentConfigurable -- convert all OmegaConf objects to python equivalents, eg. DictConfig -> dict
         batch_augment=gpu_batch_augment,
     )
+
     # check if some cfg variables were not overridden
     missing_keys = sorted(set(framework.cfg.get_keys()) - (set(cfg.framework.cfg.keys())))
     if missing_keys:
         log.warning(f'{c.RED}Framework {repr(cfg.framework.name)} is missing config keys for:{c.RST}')
         for k in missing_keys:
             log.warning(f'{c.RED}{repr(k)}{c.RST}')
-    # done!
+
+    # register schedules to the framework
+    schedule_items = cfg.schedule.schedule_items
+    assert isinstance(schedule_items, (dict, DictConfig)), f'`schedule.schedule_items` must be a dictionary, got type: {type(schedule_items)} with value: {repr(schedule_items)}'
+    if schedule_items:
+        log.info(f'Registering Schedules:')
+        for target, schedule in schedule_items.items():
+            framework.register_schedule(target, hydra.utils.instantiate(schedule), logging=True)
+
     return framework
 
 
@@ -319,9 +316,6 @@ def action_train(cfg: DictConfig):
     # HYDRA MODULES
     datamodule = hydra_make_datamodule(cfg)
     framework = hydra_create_framework(cfg, gpu_batch_augment=datamodule.gpu_batch_augment)
-
-    # register schedules
-    hydra_register_schedules(framework, cfg)
 
     # trainer default kwargs
     default_trainer_kwargs = dict(
