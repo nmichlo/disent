@@ -37,6 +37,8 @@ import wandb
 from omegaconf import DictConfig
 from omegaconf import ListConfig
 from omegaconf import OmegaConf
+from pytorch_lightning import Callback
+from pytorch_lightning.callbacks import ModelSummary
 from pytorch_lightning.loggers import WandbLogger
 
 import disent.registry as R
@@ -154,18 +156,16 @@ def hydra_get_callbacks(cfg) -> list:
     # add all callbacks
     for name, item in cfg.callbacks.items():
         # custom callback handling vs instantiation
-        name = f'{name} ({item._target_})'
         callback = hydra.utils.instantiate(item)
+        assert isinstance(callback, Callback), f'instantiated callback is not an instance of {Callback}, got: {callback}'
         # add to callbacks list
-        if callback is not None:
-            log.info(f'made callback: {name}')
-            callbacks.append(callback)
-        else:
-            log.info(f'skipped callback: {name}')
+        log.info(f'made callback: {name} ({item._target_})')
+        callbacks.append(callback)
     return callbacks
 
 
 def hydra_get_metric_callbacks(cfg) -> list:
+    # TODO: simplify this, make better use of the config!
     callbacks = []
     # set default values used later
     default_every_n_steps    = cfg.metrics.default_every_n_steps
@@ -250,11 +250,11 @@ def action_prepare_data(cfg: DictConfig):
     log.info(f'Starting run at time: {time_string}')
     # deterministic seed
     seed(cfg.settings.job.seed)
+    # register plugins
+    hydra_register_disent_plugins(cfg)
     # print useful info
     log.info(f"Current working directory : {os.getcwd()}")
     log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
-    # register plugins
-    hydra_register_disent_plugins(cfg)
     # check data preparation
     hydra_check_data_paths(cfg)
     hydra_check_data_meta(cfg)
@@ -286,10 +286,11 @@ def action_train(cfg: DictConfig):
     # SETUP
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
 
-    # deterministic seed
-    seed(cfg.settings.job.seed)
     # create trainer loggers & callbacks & initialise error messages
     logger = set_debug_logger(hydra_make_logger(cfg))
+
+    # deterministic seed
+    seed(cfg.settings.job.seed)
     # register plugins
     hydra_register_disent_plugins(cfg)
     # print useful info
@@ -304,12 +305,6 @@ def action_train(cfg: DictConfig):
     # INITIALISE
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
 
-    # TRAINER CALLBACKS
-    callbacks = [
-        *hydra_get_callbacks(cfg),
-        *hydra_get_metric_callbacks(cfg),
-    ]
-
     # HYDRA MODULES
     datamodule = hydra_make_datamodule(cfg)
     framework = hydra_create_framework(cfg, gpu_batch_augment=datamodule.gpu_batch_augment)
@@ -319,13 +314,17 @@ def action_train(cfg: DictConfig):
     trainer = set_debug_trainer(pl.Trainer(
         # cannot override these
         logger=logger,
-        callbacks=callbacks,
         gpus=gpus,
+        callbacks=[
+            *hydra_get_callbacks(cfg),
+            *hydra_get_metric_callbacks(cfg),
+            ModelSummary(max_depth=2),  # override default ModelSummary
+        ],
         # additional kwargs from the config
         **{
             **dict(
-                detect_anomaly=False,  # this should only be enabled for debugging torch and finding NaN values, slows down execution, not by much though?
-                enable_checkpointing=False,  # TODO: re-enable this in future...
+                detect_anomaly=False,        # this should only be enabled for debugging torch and finding NaN values, slows down execution, not by much though?
+                enable_checkpointing=False,  # TODO: enable this in future
             ),
             **cfg.trainer,  # overrides
         }
