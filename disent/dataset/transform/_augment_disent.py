@@ -22,6 +22,10 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+from typing import Callable
+from typing import Optional
+import torch
+
 
 # ========================================================================= #
 # Augment                                                                   #
@@ -34,7 +38,11 @@ class DisentDatasetTransform(object):
     datasets from: disent.dataset.groundtruth
     """
 
-    def __init__(self, transform=None, transform_targ=None):
+    def __init__(
+        self,
+        transform:      Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
+        transform_targ: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
+    ):
         self.transform = transform
         self.transform_targ = transform_targ
 

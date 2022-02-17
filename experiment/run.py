@@ -26,6 +26,8 @@ import logging
 import os
 import sys
 from datetime import datetime
+from typing import Callable
+from typing import Optional
 
 import hydra
 import pytorch_lightning as pl
@@ -38,13 +40,11 @@ from omegaconf import OmegaConf
 from pytorch_lightning.loggers import WandbLogger
 
 import disent.registry as R
-from disent.frameworks import DisentConfigurable
 from disent.frameworks import DisentFramework
-from disent.nn.weights import init_model_weights
-from disent.util.seeds import seed
-from disent.util.strings.fmt import make_box_str
-from disent.util.strings import colors as c
 from disent.util.lightning.callbacks import VaeMetricLoggingCallback
+from disent.util.seeds import seed
+from disent.util.strings import colors as c
+from disent.util.strings.fmt import make_box_str
 from experiment.util.hydra_data import HydraDataModule
 from experiment.util.path_utils import get_current_experiment_number
 from experiment.util.path_utils import make_current_experiment_dir
@@ -209,38 +209,24 @@ def hydra_register_schedules(module: DisentFramework, cfg):
             module.register_schedule(target, hydra.utils.instantiate(schedule), logging=True)
 
 
-def hydra_create_and_update_framework_config(cfg) -> DisentConfigurable.cfg:
-    # create framework config - this is also kinda hacky
-    # - we need instantiate_recursive because of optimizer_kwargs,
-    #   otherwise the dictionary is left as an OmegaConf dict
-    framework_cfg: DisentConfigurable.cfg = hydra.utils.instantiate(cfg.framework.cfg)
-    # warn if some of the cfg variables were not overridden
-    missing_keys = sorted(set(framework_cfg.get_keys()) - (set(cfg.framework.cfg.keys())))
+def hydra_create_framework(cfg, gpu_batch_augment: Optional[Callable[[torch.Tensor], torch.Tensor]] = None) -> DisentFramework:
+    # make sure the framework path is correct
+    assert str.endswith(cfg.framework.cfg['_target_'], '.cfg'), f'`cfg.framework.cfg._target_` does not end with ".cfg", got: {repr(cfg.framework.cfg["_target_"])}'
+    # create framework
+    framework_cls = hydra.utils.get_class(cfg.framework.cfg['_target_'][:-len(".cfg")])
+    framework: DisentFramework = framework_cls(
+        model=hydra.utils.instantiate(cfg.model.model_cls),
+        cfg=hydra.utils.instantiate(cfg.framework.cfg, _convert_='all'),  # DisentConfigurable -- convert all OmegaConf objects to python equivalents, eg. DictConfig -> dict
+        batch_augment=gpu_batch_augment,
+    )
+    # check if some cfg variables were not overridden
+    missing_keys = sorted(set(framework.cfg.get_keys()) - (set(cfg.framework.cfg.keys())))
     if missing_keys:
         log.warning(f'{c.RED}Framework {repr(cfg.framework.name)} is missing config keys for:{c.RST}')
         for k in missing_keys:
             log.warning(f'{c.RED}{repr(k)}{c.RST}')
-    # return config
-    return framework_cfg
-
-
-def hydra_create_framework(framework_cfg: DisentConfigurable.cfg, datamodule, cfg):
-    # specific handling for experiment, this is HACKY!
-    # - not supported normally, we need to instantiate to get the class (is there hydra support for this?)
-    framework_cfg.optimizer_kwargs = dict(framework_cfg.optimizer_kwargs)
-    # get framework path
-    assert str.endswith(cfg.framework.cfg._target_, '.cfg'), f'`cfg.framework.cfg._target_` does not end with ".cfg", got: {repr(cfg.framework.cfg._target_)}'
-    framework_cls = hydra.utils.get_class(cfg.framework.cfg._target_[:-len(".cfg")])
-    # create the model
-    # -- if weights need to be initialised, this should be part of the hydra configuration, not a specific setting here!
-    # -- different models may need weights initialised in different ways, and it's not appropriate to use the same initialisation setting for each.
-    model = hydra.utils.instantiate(cfg.model.model_cls)
-    # create framework
-    return framework_cls(
-        model=model,
-        cfg=framework_cfg,
-        batch_augment=datamodule.batch_augment,  # apply augmentations to batch on GPU which can be faster than via the dataloader
-    )
+    # done!
+    return framework
 
 
 def hydra_make_datamodule(cfg):
@@ -332,8 +318,7 @@ def action_train(cfg: DictConfig):
 
     # HYDRA MODULES
     datamodule = hydra_make_datamodule(cfg)
-    framework_cfg = hydra_create_and_update_framework_config(cfg)
-    framework = hydra_create_framework(framework_cfg, datamodule, cfg)
+    framework = hydra_create_framework(cfg, gpu_batch_augment=datamodule.gpu_batch_augment)
 
     # register schedules
     hydra_register_schedules(framework, cfg)
