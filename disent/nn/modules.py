@@ -43,11 +43,12 @@ class DisentModule(torch.nn.Module):
 
 
 class DisentLightningModule(pl.LightningModule):
-
-    def _forward_unimplemented(self, *args):
-        # Annoying fix applied by torch for Module.forward:
-        # https://github.com/python/mypy/issues/8795
-        raise RuntimeError('This should never run!')
+    # make sure we don't get complaints about the missing methods!
+    # -- we prefer to use LightningDataModule
+    train_dataloader = None
+    test_dataloader = None
+    val_dataloader = None
+    predict_dataloader = None
 
 
 # ========================================================================= #
