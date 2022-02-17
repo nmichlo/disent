@@ -1,12 +1,18 @@
 name: vae_conv64
 
-encoder_cls:
-  _target_: disent.model.ae.EncoderConv64
-  x_shape: ${dataset.meta.x_shape}
-  z_size: ${settings.model.z_size}
-  z_multiplier: ${framework.meta.model_z_multiplier}
-
-decoder_cls:
-  _target_: disent.model.ae.DecoderConv64
-  x_shape: ${dataset.meta.x_shape}
-  z_size: ${settings.model.z_size}
+model_cls:
+  # weight initialisation
+  _target_: disent.nn.weights.init_model_weights
+  mode: ${settings.model.weight_init}
+  model:
+    # auto-encoder
+    _target_: disent.model.AutoEncoder
+    encoder:
+      _target_: disent.model.ae.EncoderConv64
+      x_shape: ${dataset.meta.x_shape}
+      z_size: ${settings.model.z_size}
+      z_multiplier: ${framework.meta.model_z_multiplier}
+    decoder:
+      _target_: disent.model.ae.DecoderConv64
+      x_shape: ${dataset.meta.x_shape}
+      z_size: ${settings.model.z_size}

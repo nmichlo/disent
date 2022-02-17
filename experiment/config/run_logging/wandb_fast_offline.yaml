@@ -16,9 +16,12 @@ callbacks:
 logging:
   wandb:
     enabled: TRUE
+  logger:
+    _target_: pytorch_lightning.loggers.WandbLogger
     offline: TRUE
-    entity: '${settings.job.user}'
-    project: '${settings.job.project}'
-    name: '${settings.job.name}'
-    group: null
+    entity: ${settings.job.user}
+    project: ${settings.job.project}
+    name: ${settings.job.name}
+    group: NULL
     tags: []
+    save_dir: ${abspath:${dsettings.storage.logs_dir}}  # relative to hydra's original cwd
