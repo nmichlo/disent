@@ -15,7 +15,6 @@ cfg:
   disable_reg_loss: FALSE
   disable_rec_loss: FALSE
   disable_aug_loss: FALSE
-  disable_posterior_scale: NULL
   # Info-VAE
   # info vae is not based off beta vae, but with
   # the correct parameter choice this can equal the beta vae

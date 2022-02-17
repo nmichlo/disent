@@ -15,7 +15,6 @@ cfg:
   disable_reg_loss: FALSE
   disable_rec_loss: FALSE
   disable_aug_loss: FALSE
-  disable_posterior_scale: NULL
   # Beta-TcVae
   beta: ${settings.framework.beta}
 

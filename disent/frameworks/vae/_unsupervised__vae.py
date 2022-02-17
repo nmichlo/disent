@@ -103,7 +103,6 @@ class Vae(Ae):
         kl_loss_mode: str = 'direct'
         # disable various components
         disable_reg_loss: bool = False
-        disable_posterior_scale: Optional[float] = None
 
     def __init__(self, model: 'AutoEncoder', cfg: cfg = None, batch_augment=None):
         # required_z_multiplier
@@ -128,8 +127,6 @@ class Vae(Ae):
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
         # latent distribution parameterizations
         ds_posterior, ds_prior = map_all(self.encode_dists, xs, collect_returned=True)
-        # [HOOK] disable learnt scale values
-        ds_posterior, ds_prior = self._hook_intercept_ds_disable_scale(ds_posterior, ds_prior)
         # [HOOK] intercept latent parameterizations
         ds_posterior, ds_prior, logs_intercept_ds = self.hook_intercept_ds(ds_posterior, ds_prior)
         # sample from dists
@@ -179,19 +176,6 @@ class Vae(Ae):
     @final
     def hook_ae_compute_ave_aug_loss(self, zs: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
         raise RuntimeError('This function should never be used or overridden by VAE methods!')  # pragma: no cover
-
-    # --------------------------------------------------------------------- #
-    # Private Hooks                                                         #
-    # --------------------------------------------------------------------- #
-
-    def _hook_intercept_ds_disable_scale(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution]):
-        # disable posterior scales
-        if self.cfg.disable_posterior_scale is not None:
-            for d_posterior in ds_posterior:
-                assert isinstance(d_posterior, (Normal, Laplace))
-                d_posterior.scale = torch.full_like(d_posterior.scale, fill_value=self.cfg.disable_posterior_scale)
-        # return modified values
-        return ds_posterior, ds_prior
 
     # --------------------------------------------------------------------- #
     # Overrideable Hooks                                                    #
