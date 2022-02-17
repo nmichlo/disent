@@ -23,6 +23,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import warnings
+from typing import Union
 
 import pytorch_lightning as pl
 from pytorch_lightning.trainer.supporters import CombinedLoader
@@ -37,7 +38,7 @@ from disent.frameworks.vae import Vae
 # ========================================================================= #
 
 
-def _get_dataset_and_vae(trainer: pl.Trainer, pl_module: pl.LightningModule, unwrap_groundtruth: bool = False) -> (DisentDataset, Ae):
+def _get_dataset_and_ae_like(trainer: pl.Trainer, pl_module: pl.LightningModule, unwrap_groundtruth: bool = False) -> (DisentDataset, Union[Ae, Vae]):
     assert isinstance(pl_module, (Ae, Vae)), f'{pl_module.__class__} is not an instance of {Ae} or {Vae}'
     # get dataset
     if hasattr(trainer, 'datamodule') and (trainer.datamodule is not None):

@@ -32,7 +32,7 @@ import pytorch_lightning as pl
 from disent import registry as R
 from disent.dataset.data import GroundTruthData
 from disent.util.lightning.callbacks._callbacks_base import BaseCallbackPeriodic
-from disent.util.lightning.callbacks._helper import _get_dataset_and_vae
+from disent.util.lightning.callbacks._helper import _get_dataset_and_ae_like
 from disent.util.lightning.logger_util import log_metrics
 from disent.util.lightning.logger_util import wb_log_reduced_summaries
 from disent.util.profiling import Timer
@@ -83,7 +83,7 @@ class VaeMetricLoggingCallback(BaseCallbackPeriodic):
 
     def _compute_metrics_and_log(self, trainer: pl.Trainer, pl_module: pl.LightningModule, metrics: list, is_final=False):
         # get dataset and vae framework from trainer and module
-        dataset, vae = _get_dataset_and_vae(trainer, pl_module, unwrap_groundtruth=True)
+        dataset, vae = _get_dataset_and_ae_like(trainer, pl_module, unwrap_groundtruth=True)
         # check if we need to skip
         # TODO: dataset needs to be able to handle wrapped datasets!
         if not dataset.is_ground_truth:

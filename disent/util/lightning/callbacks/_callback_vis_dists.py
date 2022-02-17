@@ -46,7 +46,7 @@ from disent.frameworks.vae import Vae
 from disent.util.function import wrapped_partial
 from disent.util.iters import chunked
 from disent.util.lightning.callbacks._callbacks_base import BaseCallbackPeriodic
-from disent.util.lightning.callbacks._helper import _get_dataset_and_vae
+from disent.util.lightning.callbacks._helper import _get_dataset_and_ae_like
 from disent.util.lightning.logger_util import wb_log_metrics
 from disent.util.profiling import Timer
 from disent.util.seeds import TempNumpySeed
@@ -282,7 +282,7 @@ class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
             log.warning(f'skipping {self.__class__.__name__} neither `plt_show` or `log_wandb` is `True`!')
             return
         # get dataset and vae framework from trainer and module
-        dataset, vae = _get_dataset_and_vae(trainer, pl_module, unwrap_groundtruth=True)
+        dataset, vae = _get_dataset_and_ae_like(trainer, pl_module, unwrap_groundtruth=True)
         # exit early
         if not dataset.is_ground_truth:
             log.warning(f'cannot run {self.__class__.__name__} over non-ground-truth data, skipping!')
