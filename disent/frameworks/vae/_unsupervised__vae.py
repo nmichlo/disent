@@ -50,6 +50,10 @@ from disent.util.iters import map_all
 # ========================================================================= #
 
 
+# TODO: VAE should not extend from AE, a common interface might be acceptable, but not the AE framework directly...
+#  - There are fundamental differences between the two.
+#  - If you need an AE but don't want a VAE, you can't just use `isinstance(framework, AE)`
+#    you also need to make sure it is not a VAE `isinstance(framework, AE) and not isinstance(framework, VAE)`
 class Vae(Ae):
     """
     Variational Auto Encoder

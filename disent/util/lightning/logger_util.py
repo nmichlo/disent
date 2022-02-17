@@ -34,6 +34,11 @@ from pytorch_lightning.loggers import WandbLogger
 
 log = logging.getLogger(__name__)
 
+# TODO: convert these functions into generalised log_img, log_vid,
+#       log_number, log_text functions that support the different backends.
+#       - wandb
+#       - disk backend
+#       - comet ml
 
 # ========================================================================= #
 # Logger Utils                                                              #
