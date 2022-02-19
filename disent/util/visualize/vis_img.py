@@ -215,9 +215,24 @@ def _torch_to_images_normalise_args(in_tensor_shape: Tuple[int, ...], in_tensor_
     return transpose_indices, in_dtype, out_dtype, out_c_dim
 
 
+def _torch_channel_broadcast_scale_values(
+    in_min: MinMaxHint,
+    in_max: MinMaxHint,
+    in_dtype: torch.dtype,
+    dim: int,
+    ndim: int,
+) -> Tuple[List[Number], List[Number]]:
+    return __torch_channel_broadcast_scale_values(
+        in_min=tuple(np.array(in_min).reshape(-1).tolist()),  # TODO: this is slow?
+        in_max=tuple(np.array(in_max).reshape(-1).tolist()),  # TODO: this is slow?
+        in_dtype=in_dtype,
+        dim=dim,
+        ndim=ndim,
+    )
+
 @lru_cache()
 @torch.no_grad()
-def _torch_channel_broadcast_scale_values(
+def __torch_channel_broadcast_scale_values(
     in_min: MinMaxHint,
     in_max: MinMaxHint,
     in_dtype: torch.dtype,
@@ -258,6 +273,7 @@ def torch_to_images(
     in_dtype: Optional[torch.dtype] = None,
     out_dtype: Optional[torch.dtype] = torch.uint8,
     clamp_mode: str = 'warn',  # clamp, warn, error
+    always_rgb: bool = False,
     in_min: Optional[MinMaxHint] = None,
     in_max: Optional[MinMaxHint] = None,
 ) -> torch.Tensor:
@@ -270,14 +286,18 @@ def torch_to_images(
     1. check input dtype
     2. move axis
     3. normalize
-    4. clamp values then convert to output dtype & scale accordingly
-    5. check output dtype
+    4. clamp values
+    5. auto scale and convert
+    6. convert to rgb
+    7. check output dtype
 
     example:
         Convert a tensor of non-normalised images (..., C, H, W) to a
         tensor of normalised and clipped images (..., H, W, C).
         - integer dtypes are expected to be in the range [0, 255]
         - float dtypes are expected to be in the range [0, 1]
+
+    # TODO: add support for uneven in/out dims, eg. in_dims="HW", out_dims="HWC"
     """
     # 0.a. check tensor
     if not isinstance(tensor, torch.Tensor):
@@ -304,7 +324,11 @@ def torch_to_images(
     tensor = torch_image_clamp(tensor, clamp_mode=clamp_mode)
     # 5. auto scale and convert
     tensor = torch_image_to_dtype(tensor, out_dtype=out_dtype)
-    # 6. check output dtype
+    # 6. convert to rgb
+    if always_rgb:
+        if tensor.shape[out_c_dim] == 1:
+            tensor = np.repeat(tensor, 3, axis=out_c_dim)
+    # 7. check output dtype
     if out_dtype != tensor.dtype:
         raise RuntimeError(f'[THIS IS A BUG!]: After conversion, images tensor dtype: {repr(tensor.dtype)} does not match out_dtype: {repr(in_dtype)}')
     # done
@@ -318,6 +342,7 @@ def numpy_to_images(
     in_dtype:  Optional[Union[str, np.dtype]] = None,
     out_dtype: Optional[Union[str, np.dtype]] = np.dtype('uint8'),
     clamp_mode: str = 'warn',  # clamp, warn, error
+    always_rgb: bool = False,
     in_min: Optional[MinMaxHint] = None,
     in_max: Optional[MinMaxHint] = None,
 ) -> np.ndarray:
@@ -338,6 +363,7 @@ def numpy_to_images(
         in_dtype=in_dtype,
         out_dtype=out_dtype,
         clamp_mode=clamp_mode,
+        always_rgb=always_rgb,
         in_min=in_min,
         in_max=in_max,
     )
@@ -349,6 +375,7 @@ def numpy_to_pil_images(
     ndarray: np.ndarray,
     in_dims: str = 'HWC',  # we always treat numpy by default as HWC, and torch.Tensor as CHW
     clamp_mode: str = 'warn',
+    always_rgb: bool = False,
     in_min: Optional[MinMaxHint] = None,
     in_max: Optional[MinMaxHint] = None,
 ) -> Union[np.ndarray]:
@@ -362,6 +389,7 @@ def numpy_to_pil_images(
         in_dtype=None,
         out_dtype='uint8',
         clamp_mode=clamp_mode,
+        always_rgb=always_rgb,
         in_min=in_min,
         in_max=in_max,
     )
