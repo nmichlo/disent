@@ -42,7 +42,9 @@ from disent.util.lightning.callbacks._callbacks_base import BaseCallbackPeriodic
 from disent.util.lightning.callbacks._helper import _get_dataset_and_ae_like
 from disent.util.lightning.logger_util import wb_log_metrics
 from disent.util.seeds import TempNumpySeed
-from disent.util.visualize.vis_model import latent_cycle_grid_animation
+from disent.util.visualize.vis_img import torch_to_images
+from disent.util.visualize.vis_latents import make_decoded_latent_cycles
+from disent.util.visualize.vis_util import make_animated_image_grid
 from disent.util.visualize.vis_util import make_image_grid
 
 
@@ -115,7 +117,7 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
         every_n_steps: Optional[int] = None,
         begin_first_step: bool = False,
         num_frames: int = 17,
-        mode: str = 'fitted_gaussian_cycle',
+        mode: str = 'minmax_interval_cycle',
         log_wandb: bool = True,  # TODO: detect this automatically?
         wandb_mode: str = 'both',
         wandb_fps: int = 4,
@@ -245,28 +247,22 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
             if recon_max is None: recon_max = float(torch.amax(batch).cpu())
             log.info(f'auto visualisation min: {recon_min} and max: {recon_max} obtained from {len(batch)} samples')
 
-        # produce latent cycle grid animation
-        # TODO: this needs to be fixed to not use logvar, but rather the representations or distributions themselves
-        animation, stills = latent_cycle_grid_animation(
-            vae.decode,
-            zs_mean,
-            zs_logvar,
-            mode=mode,
-            num_frames=num_frames,
-            decoder_device=vae.device,
-            tensor_style_channels=False,
-            return_stills=True,
-            to_uint8=True,
-            recon_min=recon_min,
-            recon_max=recon_max,
-        )
+        # produce latent cycle still images & convert them to images
+        stills = make_decoded_latent_cycles(vae.decode, zs_mean, zs_logvar, mode=mode, num_animations=1, num_frames=num_frames, decoder_device=vae.device)[0]
+        stills = torch_to_images(stills, in_dims='CHW', out_dims='HWC', in_min=recon_min, in_max=recon_max, always_rgb=True).numpy()
 
-        # TODO: should this not use `visualize_dataset_traversal`?
-        image = make_image_grid(stills.reshape(-1, *stills.shape[2:]), num_cols=stills.shape[1], pad=4)
+        # generate the video frames and image grid from the stills
+        # - TODO: this needs to be fixed to not use logvar, but rather the representations or distributions themselves
+        # - TODO: should this not use `visualize_dataset_traversal`?
+        frames = make_animated_image_grid(stills, pad=4, border=True, bg_color=None)
+        image = make_image_grid(stills.reshape(-1, *stills.shape[2:]), num_cols=stills.shape[1], pad=4, border=True, bg_color=None)
 
         if return_input_image:
-            return stills, animation, image, input_image
-        return stills, animation, image
+            input_image = image
+            print('TODO')
+            return stills, frames, image, input_image
+
+        return stills, frames, image
 
 
 

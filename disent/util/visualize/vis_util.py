@@ -24,7 +24,11 @@
 
 import logging
 import warnings
+from functools import lru_cache
 from typing import List
+from typing import Optional
+from typing import Sequence
+from typing import Tuple
 from typing import Union
 
 import numpy as np
@@ -52,7 +56,7 @@ _BG_COLOR_DTYPE_MAP = {
 }
 
 
-def make_image_grid(images, pad=8, border=True, bg_color=None, num_cols=None):
+def make_image_grid(images: Sequence[np.ndarray], pad: int = 8, border: bool = True, bg_color=None, num_cols: Optional[int] = None):
     """
     Convert a list of images into a single image that is a grid of those images.
     :param images: list of input images, all the same size: (I, H, W, C) or (I, H, W)
@@ -65,12 +69,12 @@ def make_image_grid(images, pad=8, border=True, bg_color=None, num_cols=None):
     # first, second, third channels are the (H, W, C)
     # get image sizes
     img_shape, ndim = np.array(images[0].shape), images[0].ndim
-    assert ndim == 2 or ndim == 3, 'images have wrong number of channels'
+    assert ndim == 2 or ndim == 3, f'images have wrong number of channels: {img_shape}'
     assert np.all(img_shape == img.shape for img in images), 'Images are not the same shape!'
     # get image size and channels
     img_size = img_shape[:2]
     if ndim == 3:
-        assert (img_shape[2] == 1) or (img_shape[2] == 3), 'Invalid number of channels for an image.'
+        assert (img_shape[2] == 1) or (img_shape[2] == 3), f'Invalid number of channels for an image: {img_shape}'
     # get bg color
     if bg_color is None:
         bg_color = _BG_COLOR_DTYPE_MAP[images[0].dtype]
@@ -90,7 +94,7 @@ def make_image_grid(images, pad=8, border=True, bg_color=None, num_cols=None):
     return grid
 
 
-def make_animated_image_grid(list_of_animated_images, pad=8, border=True, bg_color=None, num_cols=None):
+def make_animated_image_grid(list_of_animated_images: Sequence[np.ndarray], pad: int = 8, border: bool = True, bg_color=None, num_cols: Optional[int] = None):
     """
     :param list_of_animated_images: list of input images, with the second dimension the number of frames: : (I, F, H, W, C) or (I, F, H, W)
     :param pad: the number of pixels between images
@@ -114,7 +118,7 @@ def make_animated_image_grid(list_of_animated_images, pad=8, border=True, bg_col
 # ========================================================================= #
 
 
-def _get_grid_size(n, num_cols=None):
+def _get_grid_size(n: int, num_cols: Optional[int] = None):
     """
     Determine the number of rows and columns, given the total number of elements n.
     - if num_cols is None:     rows x cols is as square as possible
@@ -210,67 +214,6 @@ def cycle_interval(starting_value, num_frames, min_val, max_val):
     grid -= np.maximum(0, 2 * grid - 2)
     grid += np.maximum(0, -2 * grid)
     return grid * (max_val - min_val) + min_val
-
-
-# ========================================================================= #
-# Conversion/Util                                                           #
-# ========================================================================= #
-
-
-# TODO: this functionality is duplicated elsewhere!
-# TODO: similar functions exist: output_image, to_img, to_imgs, reconstructions_to_images
-def reconstructions_to_images(
-    recon,
-    mode: str = 'float',
-    moveaxis: bool = True,
-    recon_min: Union[float, List[float]] = 0.0,
-    recon_max: Union[float, List[float]] = 1.0,
-    warn_if_clipped: bool = True,
-) -> Union[np.ndarray, Image.Image]:
-    """
-    Convert a batch of reconstructions to images.
-    A batch in this case consists of an arbitrary number of dimensions of an array,
-    with the last 3 dimensions making up the actual image. For example: (..., channels, size, size)
-
-    NOTE: This function might not be efficient for large amounts of
-          data due to assertions and initial recursive conversions to a numpy array.
-
-    NOTE: kornia has a similar function!
-    """
-    img = to_numpy(recon)
-    # checks
-    assert img.ndim >= 3
-    assert img.dtype in (np.float32, np.float64)
-    # move channels axis
-    if moveaxis:
-        img = np.moveaxis(img, -3, -1)
-    # check min and max
-    recon_min = np.array(recon_min)
-    recon_max = np.array(recon_max)
-    assert recon_min.shape == recon_max.shape
-    assert recon_min.ndim in (0, 1)  # supports channels or glbal min . max
-    # scale image
-    img = (img - recon_min) / (recon_max - recon_min)
-    # check image bounds
-    if warn_if_clipped:
-        m, M = np.min(img), np.max(img)
-        if m < 0 or M > 1:
-            log.warning(f'images with range [{m}, {M}] have been clipped to the range [0, 1]')
-    # do clipping
-    img = np.clip(img, 0, 1)
-    # convert
-    if mode == 'float':
-        return img
-    elif mode == 'int':
-        return np.uint8(img * 255)
-    elif mode == 'pil':
-        img = np.uint8(img * 255)
-        # all the cases (even ndim == 3)... bravo numpy, bravo!
-        images = [Image.fromarray(img[idx]) for idx in np.ndindex(img.shape[:-3])]
-        images = np.array(images, dtype=object).reshape(img.shape[:-3])
-        return images
-    else:
-        raise KeyError(f'Invalid mode: {repr(mode)} not in { {"float", "int", "pil"} }')
 
 
 # ========================================================================= #
