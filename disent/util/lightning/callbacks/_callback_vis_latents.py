@@ -34,6 +34,7 @@ import torch
 import wandb
 from matplotlib import pyplot as plt
 
+from disent.dataset import DisentDataset
 from disent.frameworks.ae import Ae
 from disent.frameworks.vae import Vae
 from disent.util.lightning.callbacks._callback_vis_dists import log
@@ -53,7 +54,16 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def _normalize_min_max_mean_std_to_min_max(recon_min, recon_max, recon_mean, recon_std) -> Union[Tuple[None, None], Tuple[np.ndarray, np.ndarray]]:
+MinMaxHint = Optional[Union[int, Literal['auto']]]
+MeanStdHint = Optional[Union[Tuple[float, ...], float]]
+
+
+def _normalize_min_max_mean_std_to_min_max(
+    recon_min: MinMaxHint,
+    recon_max: MinMaxHint,
+    recon_mean: MeanStdHint,
+    recon_std:  MeanStdHint,
+) -> Union[Tuple[None, None], Tuple[np.ndarray, np.ndarray]]:
     # check recon_min and recon_max
     if (recon_min is not None) or (recon_max is not None):
         if (recon_mean is not None) or (recon_std is not None):
@@ -81,14 +91,14 @@ def _normalize_min_max_mean_std_to_min_max(recon_min, recon_max, recon_mean, rec
         recon_max = np.divide(1 - recon_mean, recon_std)
     # set defaults
     if recon_min is None: recon_min = 0.0
-    if recon_max is None: recon_max = 0.0
+    if recon_max is None: recon_max = 1.0
     # change type
     recon_min = np.array(recon_min)
     recon_max = np.array(recon_max)
     assert recon_min.ndim in (0, 1)
     assert recon_max.ndim in (0, 1)
     # checks
-    assert np.all(recon_min < np.all(recon_max)), f'recon_min={recon_min} must be less than recon_max={recon_max}'
+    assert np.all(recon_min < recon_max), f'recon_min={recon_min} must be less than recon_max={recon_max}'
     return recon_min, recon_max
 
 
@@ -112,10 +122,10 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
         plt_show: bool = False,
         plt_block_size: float = 1.0,
         # recon_min & recon_max
-        recon_min: Optional[Union[int, Literal['auto']]] = None,       # scale data in this range [min, max] to [0, 1]
-        recon_max: Optional[Union[int, Literal['auto']]] = None,       # scale data in this range [min, max] to [0, 1]
-        recon_mean: Optional[Union[Tuple[float, ...], float]] = None,  # automatically converted to min & max [(0-mean)/std, (1-mean)/std], assuming original range of values is [0, 1]
-        recon_std: Optional[Union[Tuple[float, ...], float]] = None,   # automatically converted to min & max [(0-mean)/std, (1-mean)/std], assuming original range of values is [0, 1]
+        recon_min: MinMaxHint = None,    # scale data in this range [min, max] to [0, 1]
+        recon_max: MinMaxHint = None,    # scale data in this range [min, max] to [0, 1]
+        recon_mean: MeanStdHint = None,  # automatically converted to min & max [(0-mean)/std, (1-mean)/std], assuming original range of values is [0, 1]
+        recon_std: MeanStdHint = None,   # automatically converted to min & max [(0-mean)/std, (1-mean)/std], assuming original range of values is [0, 1]
     ):
         super().__init__(every_n_steps, begin_first_step)
         self._seed = seed
@@ -136,7 +146,6 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
             recon_std=recon_std,
         )
 
-
     @torch.no_grad()
     def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         # exit early
@@ -144,50 +153,8 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
             log.warning(f'skipping {self.__class__.__name__} neither `plt_show` or `log_wandb` is `True`!')
             return
 
-        # get dataset and vae framework from trainer and module
-        dataset, vae = _get_dataset_and_ae_like(trainer, pl_module, unwrap_groundtruth=True)
-
-        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        # generate traversal
-        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-
-        # get random sample of z_means and z_logvars for computing the range of values for the latent_cycle
-        with TempNumpySeed(self._seed):
-            batch = dataset.dataset_sample_batch(64, mode='input').to(vae.device)
-
-        # get representations
-        if isinstance(vae, Vae):
-            # variational auto-encoder
-            ds_posterior, ds_prior = vae.encode_dists(batch)
-            zs_mean, zs_logvar = ds_posterior.mean, torch.log(ds_posterior.variance)
-        elif isinstance(vae, Ae):
-            # auto-encoder
-            zs_mean = vae.encode(batch)
-            zs_logvar = torch.ones_like(zs_mean)
-        else:
-            log.warning(f'cannot run {self.__class__.__name__}, unsupported type: {type(vae)}, must be {Ae.__name__} or {Vae.__name__}')
-            return
-
-        # get min and max if auto
-        if (self._recon_min is None) or (self._recon_max is None):
-            if self._recon_min is None: self._recon_min = float(torch.amin(batch).cpu())
-            if self._recon_max is None: self._recon_max = float(torch.amax(batch).cpu())
-            log.info(f'auto visualisation min: {self._recon_min} and max: {self._recon_max} obtained from {len(batch)} samples')
-
-        # produce latent cycle grid animation
-        # TODO: this needs to be fixed to not use logvar, but rather the representations or distributions themselves
-        animation, stills = latent_cycle_grid_animation(
-            vae.decode, zs_mean, zs_logvar,
-            mode=self._mode, num_frames=self._num_frames, decoder_device=vae.device, tensor_style_channels=False, return_stills=True,
-            to_uint8=True, recon_min=self._recon_min, recon_max=self._recon_max,
-        )
-
-        # TODO: should this not use `visualize_dataset_traversal`?
-        image = make_image_grid(stills.reshape(-1, *stills.shape[2:]), num_cols=stills.shape[1], pad=4)
-
-        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        # log traversal
-        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+        # feed forward and visualise everything!
+        stills, animation, image = self.get_visualisations(trainer, pl_module)
 
         # log video -- none, img, vid, both
         if self._log_wandb:
@@ -203,6 +170,104 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
             ax.axis('off')
             fig.tight_layout()
             plt.show()
+
+    def get_visualisations(
+        self,
+        trainer_or_dataset: Union[pl.Trainer, DisentDataset],
+        pl_module: pl.LightningModule,
+        return_input_image: bool = False,
+    ) -> Union[Tuple[np.ndarray, np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, np.ndarray, torch.Tensor, torch.Tensor]]:
+        return self.generate_visualisations(
+            trainer_or_dataset,
+            pl_module,
+            seed=self._seed,
+            num_frames=self._num_frames,
+            mode=self._mode,
+            recon_min=self._recon_min,
+            recon_max=self._recon_max,
+            recon_mean=None,
+            recon_std=None,
+            return_input_image=return_input_image,
+        )
+
+    @classmethod
+    def generate_visualisations(
+        cls,
+        trainer_or_dataset: Union[pl.Trainer, DisentDataset],
+        pl_module: pl.LightningModule,
+        seed: Optional[int] = 7777,
+        num_frames: int = 17,
+        mode: str = 'fitted_gaussian_cycle',
+        # recon_min & recon_max
+        recon_min: MinMaxHint = None,
+        recon_max: MinMaxHint = None,
+        recon_mean: MeanStdHint = None,
+        recon_std: MeanStdHint = None,
+        # extra
+        return_input_image: bool = False,
+    ) -> Union[Tuple[np.ndarray, np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, np.ndarray, torch.Tensor, torch.Tensor]]:
+        # normalize
+        recon_min, recon_max = _normalize_min_max_mean_std_to_min_max(
+            recon_min=recon_min,
+            recon_max=recon_max,
+            recon_mean=recon_mean,
+            recon_std=recon_std,
+        )
+
+        # get dataset and vae framework from trainer and module
+        dataset, vae = _get_dataset_and_ae_like(trainer_or_dataset, pl_module, unwrap_groundtruth=True)
+
+        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+        # generate traversal
+        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
+
+        # get random sample of z_means and z_logvars for computing the range of values for the latent_cycle
+        with TempNumpySeed(seed):
+            batch, indices = dataset.dataset_sample_batch(64, mode='input', return_indices=True)
+            batch.to(vae.device)
+
+        # get representations
+        if isinstance(vae, Vae):
+            # variational auto-encoder
+            ds_posterior, ds_prior = vae.encode_dists(batch)
+            zs_mean, zs_logvar = ds_posterior.mean, torch.log(ds_posterior.variance)
+        elif isinstance(vae, Ae):
+            # auto-encoder
+            zs_mean = vae.encode(batch)
+            zs_logvar = torch.ones_like(zs_mean)
+        else:
+            log.warning(f'cannot run {cls.__name__}, unsupported type: {type(vae)}, must be {Ae.__name__} or {Vae.__name__}')
+            return
+
+        # get min and max if auto
+        if (recon_min is None) or (recon_max is None):
+            if recon_min is None: recon_min = float(torch.amin(batch).cpu())
+            if recon_max is None: recon_max = float(torch.amax(batch).cpu())
+            log.info(f'auto visualisation min: {recon_min} and max: {recon_max} obtained from {len(batch)} samples')
+
+        # produce latent cycle grid animation
+        # TODO: this needs to be fixed to not use logvar, but rather the representations or distributions themselves
+        animation, stills = latent_cycle_grid_animation(
+            vae.decode,
+            zs_mean,
+            zs_logvar,
+            mode=mode,
+            num_frames=num_frames,
+            decoder_device=vae.device,
+            tensor_style_channels=False,
+            return_stills=True,
+            to_uint8=True,
+            recon_min=recon_min,
+            recon_max=recon_max,
+        )
+
+        # TODO: should this not use `visualize_dataset_traversal`?
+        image = make_image_grid(stills.reshape(-1, *stills.shape[2:]), num_cols=stills.shape[1], pad=4)
+
+        if return_input_image:
+            return stills, animation, image, input_image
+        return stills, animation, image
+
 
 
 # ========================================================================= #
