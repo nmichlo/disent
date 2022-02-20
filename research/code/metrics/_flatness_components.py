@@ -92,13 +92,13 @@ def _metric_flatness_components(
             - .factor | computed using random values along a ground-truth factor traversal
 
     # Linearity & Axis Alignment
-        axis_ratio:             average (largest std/variance over sum of std/variances)
         linear_ratio:           average (largest singular value over sum of singular values)
+        axis_ratio:             average (largest std/variance over sum of std/variances)
         axis_alignment:         axis ratio is bounded by linear ratio - compute: axis / linear
 
-        ave_axis_ratio:         average (largest std/variance) over average (sum of std/variances)
-        ave_linear_ratio:       [INVALID] average (largest singular value) over average (sum of singular values)
-        ave_axis_alignment:     [INVALID] axis ratio is bounded by linear ratio - compute: axis / linear
+        linear_ratio_ave:       [INVALID] average (largest singular value) over average (sum of singular values)
+        axis_ratio_ave:         average (largest std/variance) over average (sum of std/variances)
+        axis_alignment_ave:     [INVALID] axis ratio is bounded by linear ratio - compute: axis / linear
 
         * modifiers:
             - .var | computed using the variance
@@ -428,7 +428,7 @@ def _compute_flatness_metric_components_along_factor(
 
     # compute average scores & remove keys
     if compute_linearity:
-        measures['linearity.ave_axis_ratio.var'] = _score_from_unsorted(measures.pop('_TEMP_.axis_values.var'), top_2=False, norm=True)  # shape: (z_size,) -> ()
+        measures['linearity.axis_ratio_ave.var'] = _score_from_unsorted(measures.pop('_TEMP_.axis_values.var'), top_2=False, norm=True)  # shape: (z_size,) -> ()
 
     # done!
     return measures
