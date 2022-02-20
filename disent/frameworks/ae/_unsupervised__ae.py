@@ -110,14 +110,21 @@ class Ae(_AeAndVaeMixin):
         if not self.cfg.disable_aug_loss: loss += aug_loss
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
-        # return values
-        return loss, {
+        # log general
+        self.log_dict({
             **logs_intercept_zs,
             **logs_recon,
             **logs_aug,
+        })
+
+        # log progress bar
+        self.log_dict({
             'recon_loss': float(recon_loss),
-            'aug_loss':   float(aug_loss),
-        }
+            'aug_loss': float(aug_loss),
+        }, prog_bar=True)
+
+        # return values
+        return loss
 
     # --------------------------------------------------------------------- #
     # Overrideable                                                          #

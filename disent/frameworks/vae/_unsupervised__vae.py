@@ -144,16 +144,23 @@ class Vae(_AeAndVaeMixin):
         if not self.cfg.disable_reg_loss: loss += reg_loss
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
-        # return values
-        return loss, {
+        # log general
+        self.log_dict({
             **logs_intercept_ds,
             **logs_recon,
             **logs_reg,
             **logs_aug,
+        })
+
+        # log progress bar
+        self.log_dict({
             'recon_loss': float(recon_loss),
-            'reg_loss':   float(reg_loss),
-            'aug_loss':   float(aug_loss),
-        }
+            'reg_loss': float(reg_loss),
+            'aug_loss': float(aug_loss),
+        }, prog_bar=True)
+
+        # return values
+        return loss
 
     # --------------------------------------------------------------------- #
     # Overrideable Hooks                                                    #

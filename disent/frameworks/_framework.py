@@ -167,13 +167,10 @@ class DisentFramework(DisentConfigurable, DisentLightningModule):
                 self._update_config_from_schedules()
             # compute loss
             # TODO: move logging into child frameworks?
-            loss, logs_dict = self.do_training_step(batch, batch_idx)
+            loss = self.do_training_step(batch, batch_idx)
             # check loss values
             self._assert_valid_loss(loss)
-            self.log('loss', loss, prog_bar=True)
-            # log returned values
-            assert 'loss' not in logs_dict
-            self.log_dict(logs_dict)
+            self.log('loss', float(loss), prog_bar=True)
             # return loss
             return loss
         except Exception as e:  # pragma: no cover
@@ -214,7 +211,7 @@ class DisentFramework(DisentConfigurable, DisentLightningModule):
         """this function should return the single final output of the model, including the final activation"""
         raise NotImplementedError
 
-    def do_training_step(self, batch, batch_idx) -> Tuple[torch.Tensor, Dict[str, Union[Number, torch.Tensor]]]:  # pragma: no cover
+    def do_training_step(self, batch, batch_idx) -> torch.Tensor:  # pragma: no cover
         """
         should return a dictionary of items to log with the key 'train_loss'
         as the variable to minimize
