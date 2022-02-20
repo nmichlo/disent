@@ -76,6 +76,15 @@ class _AeAndVaeMixin(DisentFramework):
     def REQUIRED_OBS(self) -> int:
         raise NotImplementedError
 
+    @final
+    @property
+    def recon_handler(self) -> ReconLossHandler:
+        return self.__recon_handler
+
+    # --------------------------------------------------------------------- #
+    # AE/VAE Init                                                           #
+    # --------------------------------------------------------------------- #
+
     # attributes provided by this class and initialised in _init_ae_mixin
     _model: AutoEncoder
     __recon_handler: ReconLossHandler
@@ -88,11 +97,6 @@ class _AeAndVaeMixin(DisentFramework):
         assert self._model.z_multiplier == self.REQUIRED_Z_MULTIPLIER, f'model z_multiplier is {repr(self._model.z_multiplier)} but {self.__class__.__name__} requires that it is: {repr(self.REQUIRED_Z_MULTIPLIER)}'
         # recon loss & activation fn
         self.__recon_handler: ReconLossHandler = make_reconstruction_loss(self.cfg.recon_loss, reduction=self.cfg.loss_reduction)
-
-    @final
-    @property
-    def recon_handler(self) -> ReconLossHandler:
-        return self.__recon_handler
 
     # --------------------------------------------------------------------- #
     # AE/VAE Training Step Helper                                           #
@@ -121,24 +125,21 @@ class _AeAndVaeMixin(DisentFramework):
         """Get the deterministic latent representation (useful for visualisation)"""
         raise NotImplementedError
 
-    @final
     def decode(self, z: torch.Tensor) -> torch.Tensor:
         """Decode latent vector z into reconstruction x_recon (useful for visualisation)"""
-        return self.recon_handler.activate(self._model.decode(z))
+        raise NotImplementedError
 
-    @final
     def forward(self, batch: torch.Tensor) -> torch.Tensor:
         """Feed through the full deterministic model (useful for visualisation)"""
-        return self.decode(self.encode(batch))
+        raise NotImplementedError
 
     # --------------------------------------------------------------------- #
     # AE/VAE Model Utility Functions (Training)                             #
     # --------------------------------------------------------------------- #
 
-    @final
     def decode_partial(self, z: torch.Tensor) -> torch.Tensor:
         """Decode latent vector z into partial reconstructions that exclude the final activation if there is one."""
-        return self._model.decode(z)
+        raise NotImplementedError
 
 
 # ========================================================================= #

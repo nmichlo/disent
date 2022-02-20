@@ -38,7 +38,11 @@ log = logging.getLogger(__name__)
 
 
 class LoggerProgressCallback(BaseCallbackTimed):
-    
+
+    def __init__(self, interval: float = 10, log_level: int = logging.INFO):
+        super().__init__(interval=interval)
+        self._log_level = log_level
+
     def do_interval(self, trainer: pl.Trainer, pl_module: pl.LightningModule, current_time, start_time):
         # get missing vars
         trainer_max_epochs = trainer.max_epochs if (trainer.max_epochs is not None) else float('inf')
@@ -79,12 +83,13 @@ class LoggerProgressCallback(BaseCallbackTimed):
         sorted_k = sorted(info_dict.keys(), key=lambda k: ('loss' != k.lower(), 'loss' not in k.lower(), k))
 
         # log everything
-        log.info(
-            f'[{int(elapsed_sec)}s, {step_speed_str}] '
-            + f'EPOCH: {epoch}/{max_epochs} - {int(global_step):0{len(str(max_steps))}d}/{max_steps} '
-            + f'({int(train_pct * 100):02d}%) [rem. {int(train_remain_time)}s] '
-            + f'STEP: {int(batch):{len(str(max_batches))}d}/{max_batches} ({int(batch / max_batches * 100):02d}%) '
-            + f'| {" ".join(f"{k}={info_dict[k]}" for k in sorted_k)}'
+        log.log(
+            level=self._log_level,
+            msg=f'[{int(elapsed_sec)}s, {step_speed_str}] '
+                + f'EPOCH: {epoch}/{max_epochs} - {int(global_step):0{len(str(max_steps))}d}/{max_steps} '
+                + f'({int(train_pct * 100):02d}%) [rem. {int(train_remain_time)}s] '
+                + f'STEP: {int(batch):{len(str(max_batches))}d}/{max_batches} ({int(batch / max_batches * 100):02d}%) '
+                + f'| {" ".join(f"{k}={info_dict[k]}" for k in sorted_k)}'
         )
 
 

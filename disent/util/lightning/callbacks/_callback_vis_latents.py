@@ -31,17 +31,17 @@ from typing import Union
 import numpy as np
 import pytorch_lightning as pl
 import torch
-import wandb
-from matplotlib import pyplot as plt
 
+from disent.dataset import DisentDataset
 from disent.frameworks.ae import Ae
 from disent.frameworks.vae import Vae
-from disent.util.lightning.callbacks._callback_vis_dists import log
 from disent.util.lightning.callbacks._callbacks_base import BaseCallbackPeriodic
 from disent.util.lightning.callbacks._helper import _get_dataset_and_ae_like
 from disent.util.lightning.logger_util import wb_log_metrics
 from disent.util.seeds import TempNumpySeed
-from disent.util.visualize.vis_model import latent_cycle_grid_animation
+from disent.util.visualize.vis_img import torch_to_images
+from disent.util.visualize.vis_latents import make_decoded_latent_cycles
+from disent.util.visualize.vis_util import make_animated_image_grid
 from disent.util.visualize.vis_util import make_image_grid
 
 
@@ -53,7 +53,16 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def _normalize_min_max_mean_std_to_min_max(recon_min, recon_max, recon_mean, recon_std) -> Union[Tuple[None, None], Tuple[np.ndarray, np.ndarray]]:
+MinMaxHint = Optional[Union[int, Literal['auto']]]
+MeanStdHint = Optional[Union[Tuple[float, ...], float]]
+
+
+def get_vis_min_max(
+    recon_min: MinMaxHint = None,
+    recon_max: MinMaxHint = None,
+    recon_mean: MeanStdHint = None,
+    recon_std:  MeanStdHint = None,
+) -> Union[Tuple[None, None], Tuple[np.ndarray, np.ndarray]]:
     # check recon_min and recon_max
     if (recon_min is not None) or (recon_max is not None):
         if (recon_mean is not None) or (recon_std is not None):
@@ -64,7 +73,7 @@ def _normalize_min_max_mean_std_to_min_max(recon_min, recon_max, recon_mean, rec
         if isinstance(recon_min, str) or isinstance(recon_max, str):
             if not (isinstance(recon_min, str) and isinstance(recon_max, str)):
                 raise ValueError('both recon_min & recon_max must be "auto" if one is "auto"')
-            return None, None
+            return None, None  # "auto" -> None
     # check recon_mean and recon_std
     elif (recon_mean is not None) or (recon_std is not None):
         if (recon_min is not None) or (recon_max is not None):
@@ -81,14 +90,14 @@ def _normalize_min_max_mean_std_to_min_max(recon_min, recon_max, recon_mean, rec
         recon_max = np.divide(1 - recon_mean, recon_std)
     # set defaults
     if recon_min is None: recon_min = 0.0
-    if recon_max is None: recon_max = 0.0
+    if recon_max is None: recon_max = 1.0
     # change type
     recon_min = np.array(recon_min)
     recon_max = np.array(recon_max)
     assert recon_min.ndim in (0, 1)
     assert recon_max.ndim in (0, 1)
     # checks
-    assert np.all(recon_min < np.all(recon_max)), f'recon_min={recon_min} must be less than recon_max={recon_max}'
+    assert np.all(recon_min < recon_max), f'recon_min={recon_min} must be less than recon_max={recon_max}'
     return recon_min, recon_max
 
 
@@ -105,21 +114,23 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
         every_n_steps: Optional[int] = None,
         begin_first_step: bool = False,
         num_frames: int = 17,
-        mode: str = 'fitted_gaussian_cycle',
+        mode: str = 'minmax_interval_cycle',
+        num_stats_samples: int = 64,
         log_wandb: bool = True,  # TODO: detect this automatically?
         wandb_mode: str = 'both',
         wandb_fps: int = 4,
         plt_show: bool = False,
         plt_block_size: float = 1.0,
         # recon_min & recon_max
-        recon_min: Optional[Union[int, Literal['auto']]] = None,       # scale data in this range [min, max] to [0, 1]
-        recon_max: Optional[Union[int, Literal['auto']]] = None,       # scale data in this range [min, max] to [0, 1]
-        recon_mean: Optional[Union[Tuple[float, ...], float]] = None,  # automatically converted to min & max [(0-mean)/std, (1-mean)/std], assuming original range of values is [0, 1]
-        recon_std: Optional[Union[Tuple[float, ...], float]] = None,   # automatically converted to min & max [(0-mean)/std, (1-mean)/std], assuming original range of values is [0, 1]
+        recon_min: MinMaxHint = None,    # scale data in this range [min, max] to [0, 1]
+        recon_max: MinMaxHint = None,    # scale data in this range [min, max] to [0, 1]
+        recon_mean: MeanStdHint = None,  # automatically converted to min & max [(0-mean)/std, (1-mean)/std], assuming original range of values is [0, 1]
+        recon_std: MeanStdHint = None,   # automatically converted to min & max [(0-mean)/std, (1-mean)/std], assuming original range of values is [0, 1]
     ):
         super().__init__(every_n_steps, begin_first_step)
         self._seed = seed
         self._mode = mode
+        self._num_stats_samples = num_stats_samples
         self._plt_show = plt_show
         self._plt_block_size = plt_block_size
         self._log_wandb = log_wandb
@@ -129,13 +140,12 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
         # checks
         assert wandb_mode in {'img', 'vid', 'both'}, f'invalid wandb_mode={repr(wandb_mode)}, must be one of: ("img", "vid", "both")'
         # normalize
-        self._recon_min, self._recon_max = _normalize_min_max_mean_std_to_min_max(
+        self._recon_min, self._recon_max = get_vis_min_max(
             recon_min=recon_min,
             recon_max=recon_max,
             recon_mean=recon_mean,
             recon_std=recon_std,
         )
-
 
     @torch.no_grad()
     def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
@@ -144,16 +154,78 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
             log.warning(f'skipping {self.__class__.__name__} neither `plt_show` or `log_wandb` is `True`!')
             return
 
+        # feed forward and visualise everything!
+        stills, animation, image = self.get_visualisations(trainer, pl_module)
+
+        # log video -- none, img, vid, both
+        if self._log_wandb:
+            import wandb
+            wandb_items = {}
+            if self._wandb_mode in ('img', 'both'): wandb_items[f'{self._mode}_img'] = wandb.Image(image)
+            if self._wandb_mode in ('vid', 'both'): wandb_items[f'{self._mode}_vid'] = wandb.Video(np.transpose(animation, [0, 3, 1, 2]), fps=self._fps, format='mp4'),
+            wb_log_metrics(trainer.logger, wandb_items)
+
+        # log locally
+        if self._plt_show:
+            from matplotlib import pyplot as plt
+            fig, ax = plt.subplots(1, 1, figsize=(self._plt_block_size*stills.shape[1], self._plt_block_size*stills.shape[0]))
+            ax.imshow(image)
+            ax.axis('off')
+            fig.tight_layout()
+            plt.show()
+
+    def get_visualisations(
+        self,
+        trainer_or_dataset: Union[pl.Trainer, DisentDataset],
+        pl_module: pl.LightningModule,
+    ) -> Union[Tuple[np.ndarray, np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, np.ndarray, torch.Tensor, torch.Tensor]]:
+        return self.generate_visualisations(
+            trainer_or_dataset,
+            pl_module,
+            seed=self._seed,
+            num_frames=self._num_frames,
+            mode=self._mode,
+            num_stats_samples=self._num_stats_samples,
+            recon_min=self._recon_min,
+            recon_max=self._recon_max,
+            recon_mean=None,
+            recon_std=None,
+        )
+
+    @classmethod
+    def generate_visualisations(
+        cls,
+        trainer_or_dataset: Union[pl.Trainer, DisentDataset],
+        pl_module: pl.LightningModule,
+        seed: Optional[int] = 7777,
+        num_frames: int = 17,
+        mode: str = 'fitted_gaussian_cycle',
+        num_stats_samples: int = 64,
+        # recon_min & recon_max
+        recon_min: MinMaxHint = None,
+        recon_max: MinMaxHint = None,
+        recon_mean: MeanStdHint = None,
+        recon_std: MeanStdHint = None,
+    ) -> Union[Tuple[np.ndarray, np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, np.ndarray, torch.Tensor, torch.Tensor]]:
+        # normalize
+        recon_min, recon_max = get_vis_min_max(
+            recon_min=recon_min,
+            recon_max=recon_max,
+            recon_mean=recon_mean,
+            recon_std=recon_std,
+        )
+
         # get dataset and vae framework from trainer and module
-        dataset, vae = _get_dataset_and_ae_like(trainer, pl_module, unwrap_groundtruth=True)
+        dataset, vae = _get_dataset_and_ae_like(trainer_or_dataset, pl_module, unwrap_groundtruth=True)
 
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         # generate traversal
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
         # get random sample of z_means and z_logvars for computing the range of values for the latent_cycle
-        with TempNumpySeed(self._seed):
-            batch = dataset.dataset_sample_batch(64, mode='input').to(vae.device)
+        with TempNumpySeed(seed):
+            batch, indices = dataset.dataset_sample_batch(num_stats_samples, mode='input', replace=True, return_indices=True)  # replace just in case the dataset it tiny
+            batch.to(vae.device)
 
         # get representations
         if isinstance(vae, Vae):
@@ -165,44 +237,27 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
             zs_mean = vae.encode(batch)
             zs_logvar = torch.ones_like(zs_mean)
         else:
-            log.warning(f'cannot run {self.__class__.__name__}, unsupported type: {type(vae)}, must be {Ae.__name__} or {Vae.__name__}')
+            log.warning(f'cannot run {cls.__name__}, unsupported type: {type(vae)}, must be {Ae.__name__} or {Vae.__name__}')
             return
 
         # get min and max if auto
-        if (self._recon_min is None) or (self._recon_max is None):
-            if self._recon_min is None: self._recon_min = float(torch.amin(batch).cpu())
-            if self._recon_max is None: self._recon_max = float(torch.amax(batch).cpu())
-            log.info(f'auto visualisation min: {self._recon_min} and max: {self._recon_max} obtained from {len(batch)} samples')
+        if (recon_min is None) or (recon_max is None):
+            if recon_min is None: recon_min = float(torch.amin(batch).cpu())
+            if recon_max is None: recon_max = float(torch.amax(batch).cpu())
+            log.info(f'auto visualisation min: {recon_min} and max: {recon_max} obtained from {len(batch)} samples')
 
-        # produce latent cycle grid animation
-        # TODO: this needs to be fixed to not use logvar, but rather the representations or distributions themselves
-        animation, stills = latent_cycle_grid_animation(
-            vae.decode, zs_mean, zs_logvar,
-            mode=self._mode, num_frames=self._num_frames, decoder_device=vae.device, tensor_style_channels=False, return_stills=True,
-            to_uint8=True, recon_min=self._recon_min, recon_max=self._recon_max,
-        )
+        # produce latent cycle still images & convert them to images
+        stills = make_decoded_latent_cycles(vae.decode, zs_mean, zs_logvar, mode=mode, num_animations=1, num_frames=num_frames, decoder_device=vae.device)[0]
+        stills = torch_to_images(stills, in_dims='CHW', out_dims='HWC', in_min=recon_min, in_max=recon_max, always_rgb=True).numpy()
 
-        # TODO: should this not use `visualize_dataset_traversal`?
-        image = make_image_grid(stills.reshape(-1, *stills.shape[2:]), num_cols=stills.shape[1], pad=4)
+        # generate the video frames and image grid from the stills
+        # - TODO: this needs to be fixed to not use logvar, but rather the representations or distributions themselves
+        # - TODO: should this not use `visualize_dataset_traversal`?
+        frames = make_animated_image_grid(stills, pad=4, border=True, bg_color=None)
+        image = make_image_grid(stills.reshape(-1, *stills.shape[2:]), num_cols=stills.shape[1], pad=4, border=True, bg_color=None)
 
-        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        # log traversal
-        # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-
-        # log video -- none, img, vid, both
-        if self._log_wandb:
-            wandb_items = {}
-            if self._wandb_mode in ('img', 'both'): wandb_items[f'{self._mode}_img'] = wandb.Image(image)
-            if self._wandb_mode in ('vid', 'both'): wandb_items[f'{self._mode}_vid'] = wandb.Video(np.transpose(animation, [0, 3, 1, 2]), fps=self._fps, format='mp4'),
-            wb_log_metrics(trainer.logger, wandb_items)
-
-        # log locally
-        if self._plt_show:
-            fig, ax = plt.subplots(1, 1, figsize=(self._plt_block_size*stills.shape[1], self._plt_block_size*stills.shape[0]))
-            ax.imshow(image)
-            ax.axis('off')
-            fig.tight_layout()
-            plt.show()
+        # done
+        return stills, frames, image
 
 
 # ========================================================================= #
