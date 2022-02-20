@@ -24,6 +24,7 @@
 
 import warnings
 from functools import wraps
+from typing import Iterator
 from typing import Optional
 from typing import Sequence
 from typing import TypeVar
@@ -31,6 +32,7 @@ from typing import Union
 
 import numpy as np
 from torch.utils.data import Dataset
+from torch.utils.data import IterableDataset
 from torch.utils.data.dataloader import default_collate
 
 from disent.dataset.sampling import BaseDisentSampler
@@ -300,7 +302,7 @@ class DisentDataset(Dataset, LengthIter):
     def dataset_sample_batch(self, num_samples: int, mode: str, replace: bool = False, return_indices: bool = False, collate: bool = True, seed: Optional[int] = None):
         """Sample a batch of observations X."""
         # built in np.random.choice cannot handle large values: https://github.com/numpy/numpy/issues/5299#issuecomment-497915672
-        indices = random_choice_prng(len(self), size=num_samples, replace=replace, seed=seed)
+        indices = random_choice_prng(len(self._dataset), size=num_samples, replace=replace, seed=seed)
         # return batch
         batch = self.dataset_batch_from_indices(indices, mode=mode, collate=collate)
         # return values
@@ -329,6 +331,20 @@ class DisentDataset(Dataset, LengthIter):
         factors = self.gt_data.sample_factors(num_samples)
         batch = self.dataset_batch_from_factors(factors, mode=mode, collate=collate)
         return batch, (default_collate(factors) if collate else factors)
+
+
+class DisentIterDataset(IterableDataset, DisentDataset):
+
+    # make sure we cannot obtain the length directly
+    __len__ = None
+
+    def __iter__(self):
+        # this takes priority over __getitem__, otherwise __getitem__ would need to
+        # raise an IndexError if out of bounds to signal the end of iteration
+        while True:
+            # yield the entire dataset
+            # - repeating when it is done!
+            yield from (self[i] for i in range(len(self._dataset)))
 
 
 # ========================================================================= #
