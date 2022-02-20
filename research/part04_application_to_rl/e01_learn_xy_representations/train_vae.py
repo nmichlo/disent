@@ -203,7 +203,7 @@ def run_experiments(
     triplet_sampler_maker_A1 = lambda: GroundTruthDistSampler(num_samples=3, triplet_sample_mode='manhattan_scaled', triplet_swap_chance=0.1)  # actually works quite well if ada_ratio is lower, eg 1.25 instead of 1.5, but might hurt recons? check?
     triplet_sampler_maker_A2 = lambda: GroundTruthDistSampler(num_samples=3, triplet_sample_mode='manhattan_scaled', triplet_swap_chance=0.2)  # actually works quite well if ada_ratio is lower, eg 1.25 instead of 1.5, but might hurt recons? check?
     triplet_sampler_maker_B = lambda: GroundTruthTripleSampler(p_k_range=1,       n_k_range=(0, -1), n_k_sample_mode='bounded_below', n_k_is_shared=True, p_radius_range=1,       n_radius_range=(0, -1), n_radius_sample_mode='bounded_below')   # this one is really bad
-    triplet_sampler_maker_C = lambda: GroundTruthTripleSampler(p_k_range=(0, -1), n_k_range=(0, -1), n_k_sample_mode='bounded_below', n_k_is_shared=True, p_radius_range=(0, -1), n_radius_range=(0, -1), n_radius_sample_mode='bounded_below')   # this is not ideal, but decent
+    triplet_sampler_maker_C = lambda: GroundTruthTripleSampler(p_k_range=(0, -1), n_k_range=(0, -1), n_k_sample_mode='bounded_below', n_k_is_shared=True, p_radius_range=(0, -1), n_radius_range=(0, -1), n_radius_sample_mode='bounded_below')   # pretty much the same as the manhat above, except more strict... actually less real because its bounded below. Real episodes when sampled by time will usually be further away, but not necessarily bounded below like this.
 
     frameworks = [
         ('betavae',   BetaVae,    lambda:        BetaVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.0001), lambda: RandomSampler(num_samples=1),                                lambda: {}),
