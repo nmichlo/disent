@@ -31,13 +31,10 @@ from typing import Union
 import numpy as np
 import pytorch_lightning as pl
 import torch
-import wandb
-from matplotlib import pyplot as plt
 
 from disent.dataset import DisentDataset
 from disent.frameworks.ae import Ae
 from disent.frameworks.vae import Vae
-from disent.util.lightning.callbacks._callback_vis_dists import log
 from disent.util.lightning.callbacks._callbacks_base import BaseCallbackPeriodic
 from disent.util.lightning.callbacks._helper import _get_dataset_and_ae_like
 from disent.util.lightning.logger_util import wb_log_metrics
@@ -60,11 +57,11 @@ MinMaxHint = Optional[Union[int, Literal['auto']]]
 MeanStdHint = Optional[Union[Tuple[float, ...], float]]
 
 
-def _normalize_min_max_mean_std_to_min_max(
-    recon_min: MinMaxHint,
-    recon_max: MinMaxHint,
-    recon_mean: MeanStdHint,
-    recon_std:  MeanStdHint,
+def get_vis_min_max(
+    recon_min: MinMaxHint = None,
+    recon_max: MinMaxHint = None,
+    recon_mean: MeanStdHint = None,
+    recon_std:  MeanStdHint = None,
 ) -> Union[Tuple[None, None], Tuple[np.ndarray, np.ndarray]]:
     # check recon_min and recon_max
     if (recon_min is not None) or (recon_max is not None):
@@ -76,7 +73,7 @@ def _normalize_min_max_mean_std_to_min_max(
         if isinstance(recon_min, str) or isinstance(recon_max, str):
             if not (isinstance(recon_min, str) and isinstance(recon_max, str)):
                 raise ValueError('both recon_min & recon_max must be "auto" if one is "auto"')
-            return None, None
+            return None, None  # "auto" -> None
     # check recon_mean and recon_std
     elif (recon_mean is not None) or (recon_std is not None):
         if (recon_min is not None) or (recon_max is not None):
@@ -118,6 +115,7 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
         begin_first_step: bool = False,
         num_frames: int = 17,
         mode: str = 'minmax_interval_cycle',
+        num_stats_samples: int = 64,
         log_wandb: bool = True,  # TODO: detect this automatically?
         wandb_mode: str = 'both',
         wandb_fps: int = 4,
@@ -132,6 +130,7 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
         super().__init__(every_n_steps, begin_first_step)
         self._seed = seed
         self._mode = mode
+        self._num_stats_samples = num_stats_samples
         self._plt_show = plt_show
         self._plt_block_size = plt_block_size
         self._log_wandb = log_wandb
@@ -141,7 +140,7 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
         # checks
         assert wandb_mode in {'img', 'vid', 'both'}, f'invalid wandb_mode={repr(wandb_mode)}, must be one of: ("img", "vid", "both")'
         # normalize
-        self._recon_min, self._recon_max = _normalize_min_max_mean_std_to_min_max(
+        self._recon_min, self._recon_max = get_vis_min_max(
             recon_min=recon_min,
             recon_max=recon_max,
             recon_mean=recon_mean,
@@ -160,6 +159,7 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
 
         # log video -- none, img, vid, both
         if self._log_wandb:
+            import wandb
             wandb_items = {}
             if self._wandb_mode in ('img', 'both'): wandb_items[f'{self._mode}_img'] = wandb.Image(image)
             if self._wandb_mode in ('vid', 'both'): wandb_items[f'{self._mode}_vid'] = wandb.Video(np.transpose(animation, [0, 3, 1, 2]), fps=self._fps, format='mp4'),
@@ -167,6 +167,7 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
 
         # log locally
         if self._plt_show:
+            from matplotlib import pyplot as plt
             fig, ax = plt.subplots(1, 1, figsize=(self._plt_block_size*stills.shape[1], self._plt_block_size*stills.shape[0]))
             ax.imshow(image)
             ax.axis('off')
@@ -177,7 +178,6 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
         self,
         trainer_or_dataset: Union[pl.Trainer, DisentDataset],
         pl_module: pl.LightningModule,
-        return_input_image: bool = False,
     ) -> Union[Tuple[np.ndarray, np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, np.ndarray, torch.Tensor, torch.Tensor]]:
         return self.generate_visualisations(
             trainer_or_dataset,
@@ -185,11 +185,11 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
             seed=self._seed,
             num_frames=self._num_frames,
             mode=self._mode,
+            num_stats_samples=self._num_stats_samples,
             recon_min=self._recon_min,
             recon_max=self._recon_max,
             recon_mean=None,
             recon_std=None,
-            return_input_image=return_input_image,
         )
 
     @classmethod
@@ -200,16 +200,15 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
         seed: Optional[int] = 7777,
         num_frames: int = 17,
         mode: str = 'fitted_gaussian_cycle',
+        num_stats_samples: int = 64,
         # recon_min & recon_max
         recon_min: MinMaxHint = None,
         recon_max: MinMaxHint = None,
         recon_mean: MeanStdHint = None,
         recon_std: MeanStdHint = None,
-        # extra
-        return_input_image: bool = False,
     ) -> Union[Tuple[np.ndarray, np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, np.ndarray, torch.Tensor, torch.Tensor]]:
         # normalize
-        recon_min, recon_max = _normalize_min_max_mean_std_to_min_max(
+        recon_min, recon_max = get_vis_min_max(
             recon_min=recon_min,
             recon_max=recon_max,
             recon_mean=recon_mean,
@@ -225,7 +224,7 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
 
         # get random sample of z_means and z_logvars for computing the range of values for the latent_cycle
         with TempNumpySeed(seed):
-            batch, indices = dataset.dataset_sample_batch(64, mode='input', return_indices=True)
+            batch, indices = dataset.dataset_sample_batch(num_stats_samples, mode='input', replace=True, return_indices=True)  # replace just in case the dataset it tiny
             batch.to(vae.device)
 
         # get representations
@@ -257,13 +256,8 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
         frames = make_animated_image_grid(stills, pad=4, border=True, bg_color=None)
         image = make_image_grid(stills.reshape(-1, *stills.shape[2:]), num_cols=stills.shape[1], pad=4, border=True, bg_color=None)
 
-        if return_input_image:
-            input_image = image
-            print('TODO')
-            return stills, frames, image, input_image
-
+        # done
         return stills, frames, image
-
 
 
 # ========================================================================= #
