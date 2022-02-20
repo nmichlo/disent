@@ -190,7 +190,7 @@ def run_experiments(
     num_workers: int = psutil.cpu_count(logical=False),
     compute_stats: bool = False,
     profile: bool = False,
-    ada_ratio: float = 1.5
+    ada_ratio: float = 1.25
 ):
     # PERMUTATIONS:
     datasets = [
@@ -200,10 +200,10 @@ def run_experiments(
         # ('xy1', XYSingleSquareData, dict(square_size=8, grid_spacing=1, image_size=64), [0.015625], [0.12403473458920848]),
     ]
     triplet_sampler_maker_A  = lambda: GroundTruthDistSampler(num_samples=3, triplet_sample_mode='manhattan_scaled', triplet_swap_chance=0.0)
-    triplet_sampler_maker_A1 = lambda: GroundTruthDistSampler(num_samples=3, triplet_sample_mode='manhattan_scaled', triplet_swap_chance=0.1)
-    triplet_sampler_maker_A2 = lambda: GroundTruthDistSampler(num_samples=3, triplet_sample_mode='manhattan_scaled', triplet_swap_chance=0.2)
-    triplet_sampler_maker_B = lambda: GroundTruthTripleSampler(p_k_range=1,       n_k_range=(0, -1), n_k_sample_mode='bounded_below', n_k_is_shared=True, p_radius_range=1,       n_radius_range=(0, -1), n_radius_sample_mode='bounded_below')
-    triplet_sampler_maker_C = lambda: GroundTruthTripleSampler(p_k_range=(0, -1), n_k_range=(0, -1), n_k_sample_mode='bounded_below', n_k_is_shared=True, p_radius_range=(0, -1), n_radius_range=(0, -1), n_radius_sample_mode='bounded_below')
+    triplet_sampler_maker_A1 = lambda: GroundTruthDistSampler(num_samples=3, triplet_sample_mode='manhattan_scaled', triplet_swap_chance=0.1)  # actually works quite well if ada_ratio is lower, eg 1.25 instead of 1.5, but might hurt recons? check?
+    triplet_sampler_maker_A2 = lambda: GroundTruthDistSampler(num_samples=3, triplet_sample_mode='manhattan_scaled', triplet_swap_chance=0.2)  # actually works quite well if ada_ratio is lower, eg 1.25 instead of 1.5, but might hurt recons? check?
+    triplet_sampler_maker_B = lambda: GroundTruthTripleSampler(p_k_range=1,       n_k_range=(0, -1), n_k_sample_mode='bounded_below', n_k_is_shared=True, p_radius_range=1,       n_radius_range=(0, -1), n_radius_sample_mode='bounded_below')   # this one is really bad
+    triplet_sampler_maker_C = lambda: GroundTruthTripleSampler(p_k_range=(0, -1), n_k_range=(0, -1), n_k_sample_mode='bounded_below', n_k_is_shared=True, p_radius_range=(0, -1), n_radius_range=(0, -1), n_radius_sample_mode='bounded_below')   # this is not ideal, but decent
 
     frameworks = [
         ('betavae',   BetaVae,    lambda:        BetaVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.0001), lambda: RandomSampler(num_samples=1),                                lambda: {}),
@@ -365,7 +365,10 @@ if __name__ == '__main__':
     # make sure we can see the output!
     logging.basicConfig(level=logging.INFO)
     # run everything!
-    run_experiments()
+    # run_experiments(train_steps=10000, ada_ratio=1.5)  # ada not always strong enough? or is that a metric error
+    run_experiments(train_steps=10000, ada_ratio=1.25)   # seems best?
+    # run_experiments(train_steps=5000, ada_ratio=1.5)
+    # run_experiments(train_steps=5000, ada_ratio=1.25)
 
 
 # ========================================================================= #
