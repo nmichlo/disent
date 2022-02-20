@@ -24,7 +24,8 @@
 
 import json
 import logging
-import sys
+import time
+from datetime import datetime
 from pathlib import Path
 from pprint import pprint
 from typing import Optional
@@ -32,8 +33,10 @@ from typing import Union
 
 import hydra.utils
 import imageio
+import numpy as np
 import psutil
 import torch
+from disent.util.visualize.vis_util import make_image_grid
 from omegaconf import DictConfig
 from omegaconf import OmegaConf
 from pytorch_lightning import Trainer
@@ -43,10 +46,17 @@ from torch.utils.data import DataLoader
 from disent.dataset._base import DisentIterDataset
 from disent.dataset.data import GroundTruthData
 from disent.dataset.sampling import BaseDisentSampler
+from disent.dataset.sampling import GroundTruthDistSampler
+from disent.dataset.sampling import GroundTruthPairOrigSampler
+from disent.dataset.sampling import GroundTruthPairSampler
 from disent.dataset.sampling import GroundTruthTripleSampler
+from disent.dataset.sampling import RandomSampler
 from disent.dataset.transform import ToImgTensorF32
 from disent.dataset.util.stats import compute_data_mean_std
 from disent.frameworks.ae import Ae
+from disent.frameworks.vae import AdaVae
+from disent.frameworks.vae import BetaVae
+from disent.frameworks.vae import TripletVae
 from disent.frameworks.vae import Vae
 from disent.metrics import metric_mig
 from disent.model import AutoEncoder
@@ -57,6 +67,7 @@ from disent.util.lightning.callbacks import LoggerProgressCallback
 from disent.util.lightning.callbacks import VaeLatentCycleLoggingCallback
 from disent.util.lightning.callbacks._callback_vis_latents import get_vis_min_max
 from disent.util.visualize.plot import plt_imshow
+from disent.util.visualize.vis_img import torch_to_images
 from experiment.util.path_utils import make_current_experiment_dir
 from research.code.frameworks.vae import AdaTripletVae
 from research.code.metrics import metric_flatness_components
@@ -76,11 +87,11 @@ def train(
     data: GroundTruthData,
     sampler: BaseDisentSampler,
     framework: Union[Ae, Vae],
-    train_steps: int = 100_000,
+    train_steps: int = 5000,
     batch_size: int = 64,
     num_workers: int = psutil.cpu_count(logical=False),
     save_top_k: int = 5,
-    save_every_n_steps: int = 1000,
+    save_every_n_steps: int = 2500,
     profile: bool = False,
     data_mean=None,
     data_std=None,
@@ -130,13 +141,13 @@ def train(
             writer.append_data(frame)
 
     # visualise data -- generate
-    # data_batch = dataset.dataset_sample_batch(stills.shape[0]*stills.shape[1], mode='input', seed=7777, replace=True)
-    # data_batch = torch_to_images(data_batch, in_min=vis_min, in_max=vis_max, always_rgb=True).numpy()
-    # data_image = make_image_grid(data_batch, num_cols=stills.shape[1], pad=4)
+    data_batch = dataset.dataset_sample_batch(stills.shape[0]*stills.shape[1], mode='input', seed=7777, replace=True)
+    data_batch = torch_to_images(data_batch, in_min=vis_min, in_max=vis_max, always_rgb=True).numpy()
+    data_image = make_image_grid(data_batch, num_cols=stills.shape[1], pad=4)
 
     # visualise data -- plot image, save image
-    # plt_imshow(data_image, show=True)
-    # imageio.imsave(save_dir.joinpath('data_samples.png'), image)
+    plt_imshow(data_image, show=True)
+    imageio.imsave(save_dir.joinpath('data_samples.png'), image)
 
     # compute metrics
     get_repr = lambda x: framework.encode(x.to(framework.device))
@@ -152,7 +163,7 @@ def train(
         json.dump(metrics, fp, indent=2, sort_keys=True)
 
     # done!
-    return save_dir
+    return save_dir, metrics
 
 
 # ========================================================================= #
@@ -174,44 +185,62 @@ def run_experiments(
     lr: float = 1e-4,
     z_size: int = 9,
     exp_dir: Optional[Union[Path, str]] = None,
-    train_steps: int = 5000,
+    train_steps: int = 10_000,
     batch_size: int = 64,
     num_workers: int = psutil.cpu_count(logical=False),
     compute_stats: bool = False,
     profile: bool = False,
+    ada_ratio: float = 1.5
 ):
     # PERMUTATIONS:
     datasets = [
-        # ('xy2', XYSingleSquareData, dict(square_size=8, grid_spacing=2, image_size=64), [0.015625], [0.12403473458920848]),
-        # ('xy4', XYSingleSquareData, dict(square_size=8, grid_spacing=4, image_size=64), [0.015625], [0.12403473458920848]),
         ('xy8', XYSingleSquareData, dict(square_size=8, grid_spacing=8, image_size=64), [0.015625], [0.12403473458920848]),
+        # ('xy4', XYSingleSquareData, dict(square_size=8, grid_spacing=4, image_size=64), [0.015625], [0.12403473458920848]),
+        # ('xy2', XYSingleSquareData, dict(square_size=8, grid_spacing=2, image_size=64), [0.015625], [0.12403473458920848]),
         # ('xy1', XYSingleSquareData, dict(square_size=8, grid_spacing=1, image_size=64), [0.015625], [0.12403473458920848]),
     ]
-    # triplet_sampler_maker = lambda: GroundTruthTripleSampler(p_k_range=1, n_k_range=(0, -1), n_k_sample_mode='bounded_below', n_k_is_shared=True, p_radius_range=1, n_radius_range=(0, -1), n_radius_sample_mode='bounded_below')
-    triplet_sampler_maker = lambda: GroundTruthTripleSampler(p_k_range=(0, -1), n_k_range=(0, -1), n_k_sample_mode='bounded_below', n_k_is_shared=True, p_radius_range=(0, -1), n_radius_range=(0, -1), n_radius_sample_mode='bounded_below')
-    # triplet_sampler_maker = lambda: GroundTruthDistSampler(num_samples=3, triplet_sample_mode='manhattan_scaled', triplet_swap_chance=0.0)
+    triplet_sampler_maker_A  = lambda: GroundTruthDistSampler(num_samples=3, triplet_sample_mode='manhattan_scaled', triplet_swap_chance=0.0)
+    triplet_sampler_maker_A1 = lambda: GroundTruthDistSampler(num_samples=3, triplet_sample_mode='manhattan_scaled', triplet_swap_chance=0.1)
+    triplet_sampler_maker_A2 = lambda: GroundTruthDistSampler(num_samples=3, triplet_sample_mode='manhattan_scaled', triplet_swap_chance=0.2)
+    triplet_sampler_maker_B = lambda: GroundTruthTripleSampler(p_k_range=1,       n_k_range=(0, -1), n_k_sample_mode='bounded_below', n_k_is_shared=True, p_radius_range=1,       n_radius_range=(0, -1), n_radius_sample_mode='bounded_below')
+    triplet_sampler_maker_C = lambda: GroundTruthTripleSampler(p_k_range=(0, -1), n_k_range=(0, -1), n_k_sample_mode='bounded_below', n_k_is_shared=True, p_radius_range=(0, -1), n_radius_range=(0, -1), n_radius_sample_mode='bounded_below')
+
     frameworks = [
-        ('triplet_soft',      TripletVae, lambda:    TripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet_soft',    triplet_scale=1,  triplet_margin_max=10, triplet_p=1),  triplet_sampler_maker, lambda: {}),
+        ('betavae',   BetaVae,    lambda:        BetaVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.0001), lambda: RandomSampler(num_samples=1),                                lambda: {}),
+        ('adavae',    AdaVae,     lambda:         AdaVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.0001), lambda: GroundTruthPairSampler(p_k_range=1, p_radius_range=(1, -1)), lambda: {}),
+        ('adavae_os', AdaVae,     lambda:         AdaVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.0001), lambda: GroundTruthPairOrigSampler(p_k=1),                           lambda: {}),
+
+        ('triplet_soft_A',  TripletVae, lambda: TripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet_soft',    triplet_scale=1,  triplet_margin_max=10, triplet_p=1),  triplet_sampler_maker_A, lambda: {}),
+        ('adatvae_soft_A',   AdaTripletVae, lambda: AdaTripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet_soft',    triplet_scale=1, triplet_margin_max=10, triplet_p=1),  triplet_sampler_maker_A,  lambda: _load_ada_schedules(max_steps=int(train_steps * ada_ratio))),
+
+        ('triplet_soft_A1', TripletVae, lambda: TripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet_soft',    triplet_scale=1,  triplet_margin_max=10, triplet_p=1),  triplet_sampler_maker_A1, lambda: {}),
+        ('triplet_soft_A2', TripletVae, lambda: TripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet_soft',    triplet_scale=1,  triplet_margin_max=10, triplet_p=1),  triplet_sampler_maker_A2, lambda: {}),
+        ('triplet_soft_B',  TripletVae, lambda: TripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet_soft',    triplet_scale=1,  triplet_margin_max=10, triplet_p=1),  triplet_sampler_maker_B, lambda: {}),
+        ('triplet_soft_C',  TripletVae, lambda: TripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet_soft',    triplet_scale=1,  triplet_margin_max=10, triplet_p=1),  triplet_sampler_maker_C, lambda: {}),
+
         # ('triplet_sigmoid10', TripletVae, lambda:    TripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet_sigmoid', triplet_scale=1,  triplet_margin_max=10, triplet_p=1),  triplet_sampler_maker, lambda: {}),
         # ('triplet_sigmoid1',  TripletVae, lambda:    TripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet_sigmoid', triplet_scale=1,  triplet_margin_max=1,  triplet_p=1),  triplet_sampler_maker, lambda: {}),
         # ('triplet10',         TripletVae, lambda:    TripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet',         triplet_scale=1,  triplet_margin_max=10, triplet_p=1),  triplet_sampler_maker, lambda: {}),
         # ('triplet1',          TripletVae, lambda:    TripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet',         triplet_scale=1,  triplet_margin_max=1,  triplet_p=1),  triplet_sampler_maker, lambda: {}),
-        ('adatvae_soft',   AdaTripletVae, lambda: AdaTripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet_soft',    triplet_scale=1, triplet_margin_max=10, triplet_p=1),  triplet_sampler_maker, lambda: _load_ada_schedules(max_steps=int(train_steps*1.25))),
-        # ('adatvae_sig10',  AdaTripletVae, lambda: AdaTripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet_sigmoid', triplet_scale=1, triplet_margin_max=10, triplet_p=1),  triplet_sampler_maker, lambda: _load_ada_schedules(max_steps=int(train_steps*1.25))),
-        # ('adatvae_sig1',   AdaTripletVae, lambda: AdaTripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet_sigmoid', triplet_scale=1, triplet_margin_max=1,  triplet_p=1),  triplet_sampler_maker, lambda: _load_ada_schedules(max_steps=int(train_steps*1.25))),
-        # ('adatvae_trip10', AdaTripletVae, lambda: AdaTripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet',         triplet_scale=1, triplet_margin_max=10, triplet_p=1),  triplet_sampler_maker, lambda: _load_ada_schedules(max_steps=int(train_steps*1.25))),
-        # ('adatvae_trip1',  AdaTripletVae, lambda: AdaTripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet',         triplet_scale=1, triplet_margin_max=1,  triplet_p=1),  triplet_sampler_maker, lambda: _load_ada_schedules(max_steps=int(train_steps*1.25))),
-        ('betavae',   BetaVae,    lambda:        BetaVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.0001), lambda: RandomSampler(num_samples=1),                          lambda: {}),
-        ('adavae',    AdaVae,     lambda:         AdaVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.0001), lambda: GroundTruthPairSampler(p_k_range=1, p_radius_range=1), lambda: {}),
-        ('adavae_os', AdaVae,     lambda:         AdaVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.0001), lambda: GroundTruthPairOrigSampler(p_k=1),                     lambda: {}),
+
+        ('adatvae_soft_A1',  AdaTripletVae, lambda: AdaTripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet_soft',    triplet_scale=1, triplet_margin_max=10, triplet_p=1),  triplet_sampler_maker_A1, lambda: _load_ada_schedules(max_steps=int(train_steps * ada_ratio))),
+        ('adatvae_soft_A2',  AdaTripletVae, lambda: AdaTripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet_soft',    triplet_scale=1, triplet_margin_max=10, triplet_p=1),  triplet_sampler_maker_A2, lambda: _load_ada_schedules(max_steps=int(train_steps * ada_ratio))),
+        ('adatvae_soft_B',   AdaTripletVae, lambda: AdaTripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet_soft',    triplet_scale=1, triplet_margin_max=10, triplet_p=1),  triplet_sampler_maker_B,  lambda: _load_ada_schedules(max_steps=int(train_steps * ada_ratio))),
+        ('adatvae_soft_C',   AdaTripletVae, lambda: AdaTripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet_soft',    triplet_scale=1, triplet_margin_max=10, triplet_p=1),  triplet_sampler_maker_C,  lambda: _load_ada_schedules(max_steps=int(train_steps * ada_ratio))),
+
+        # ('adatvae_soft',   AdaTripletVae, lambda: AdaTripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet_soft',    triplet_scale=1, triplet_margin_max=10, triplet_p=1),  triplet_sampler_maker, lambda: _load_ada_schedules(max_steps=int(train_steps*ADA_RATIO))),
+        # ('adatvae_sig10',  AdaTripletVae, lambda: AdaTripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet_sigmoid', triplet_scale=1, triplet_margin_max=10, triplet_p=1),  triplet_sampler_maker, lambda: _load_ada_schedules(max_steps=int(train_steps*ADA_RATIO))),
+        # ('adatvae_sig1',   AdaTripletVae, lambda: AdaTripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet_sigmoid', triplet_scale=1, triplet_margin_max=1,  triplet_p=1),  triplet_sampler_maker, lambda: _load_ada_schedules(max_steps=int(train_steps*ADA_RATIO))),
+        # ('adatvae_trip10', AdaTripletVae, lambda: AdaTripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet',         triplet_scale=1, triplet_margin_max=10, triplet_p=1),  triplet_sampler_maker, lambda: _load_ada_schedules(max_steps=int(train_steps*ADA_RATIO))),
+        # ('adatvae_trip1',  AdaTripletVae, lambda: AdaTripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet',         triplet_scale=1, triplet_margin_max=1,  triplet_p=1),  triplet_sampler_maker, lambda: _load_ada_schedules(max_steps=int(train_steps*ADA_RATIO))),
     ]
 
     # GET NAME:
-    EXP_NAME = f'1.25_manhat'
+    exp_name = f'xy8_{ada_ratio}_{train_steps}'
 
     # NORMALIZE:
     if exp_dir is None:
-        exp_dir = make_current_experiment_dir(str(Path(__file__).parent.joinpath('exp')), name='xy_collection' if not EXP_NAME else f'xy_collection_{EXP_NAME}')
+        exp_dir = make_current_experiment_dir(str(Path(__file__).parent.joinpath('exp')), name=exp_name)
     exp_dir = Path(exp_dir)
 
 
@@ -225,10 +254,12 @@ def run_experiments(
     # TRAIN DIFFERENT FRAMEWORKS ON DATASETS
     for i, (data_name, data_cls, data_kwargs, data_mean, data_std) in enumerate(datasets):
         # make the dataset
-        data = data_cls(**data_kwargs)
+        data: GroundTruthData = data_cls(**data_kwargs)
 
         # train the framework
         for j, (framework_name, framework_cls, framework_cfg_maker, sampler_maker, schedules_maker) in enumerate(frameworks):
+            start_time = datetime.today().strftime('%Y-%m-%d--%H-%M-%S')
+
             # make the data & framework
             framework: Union[Ae, Vae] = framework_cls(
                 model=AutoEncoder(
@@ -249,9 +280,12 @@ def run_experiments(
                 framework.register_schedule(k, schedule)
             # initialize weights
             init_model_weights(framework, mode='xavier_normal', log_level=logging.DEBUG)
+
             # train the framework
-            results = train(
-                save_dir=exp_dir.joinpath(f'{i}x{j}_{data_name}_{framework_name}'),
+            run_name = f'{i}x{j}_{data_name}_{framework_name}'
+            save_dir = exp_dir.joinpath(run_name)
+            save_dir, metrics = train(
+                save_dir=save_dir,
                 data=data,
                 sampler=sampler,
                 framework=framework,
@@ -259,7 +293,67 @@ def run_experiments(
                 batch_size=batch_size,
                 num_workers=num_workers,
                 profile=profile,
+                save_every_n_steps=train_steps,
             )
+
+            # generate data for rl
+            with torch.no_grad():
+                dataset: GroundTruthData = data_cls(**data_kwargs, transform=ToImgTensorF32(size=64, mean=data_mean, std=data_std))
+                dat = {
+                    # experiment info
+                    'exp_name': save_dir.parent.name,
+                    'run_name': save_dir.name,
+                    'start_time': start_time,
+                    # dataset data
+                    'factor_names': data.factor_names,
+                    'factor_sizes': data.factor_sizes,
+                    # sizes
+                    'num_factors': data.num_factors,
+                    'num_obs':     len(data),
+                    'num_latents': z_size,
+                    # image data
+                    'obs_indices': np.array([i                  for i in range(len(data))]),
+                    'obs_factors': np.array([data.idx_to_pos(i) for i in range(len(data))]),
+                    'obs':         np.array([data[i]            for i in range(len(data))]),
+                    # representations
+                    'obs_encodings': np.array([framework.encode(dataset[i][None, ...].to(framework.device))[0].cpu().numpy() for i in range(len(data))]),
+                    # results
+                    'metrics': metrics,
+                    # descriptions
+                    '_desc_': {
+                        # experiment info
+                        'exp_name':      f'The name of the group of experiments',
+                        'run_name':      f'The name of this individual run that is part of the experiment',
+                        'start_time':    f'The starting time of this individual run',
+                        # dataset data
+                        'factor_names':  f'The names of the ground truth factors in the dataset, eg. ["x", "y"]',
+                        'factor_sizes':  f'The sizes of the ground truth factors in the dataset, eg. [8, 8]',
+                        # sizes
+                        'num_factors':   f'The number of different ground_truth factors in the dataset, eg. 2',
+                        'num_obs':       f'The number of elements in the dataset, equal to the product of all the factor sizes, eg. 8x8 = 64',
+                        'num_latents':   f'The number of latent units of the model or rather the number of encoder outputs, eg. 9',
+                        # image data
+                        'obs_indices':   f'The index of each observation in the dataset, eg. [0, 1, ..., 62, 63]. '
+                                         f'The shape is (num_obs,)',
+                        'obs_factors':   f'The ground truth factor of each observation in the dataset, eg. [[0, 0], [0, 1], ..., [7, 6], [7, 7]]. '
+                                         f'The shape is (num_obs, num_factors)',
+                        'obs':           f'The raw observations from the dataset, eg. [<img0>, ..., <img63>]. '
+                                         f'The shape is (num_obs, H, W, C)',
+                        'obs_encodings': f'The low dimensional encodings of each observations, eg. [<enc1>, ..., <enc63>]. '
+                                         f'The shape is (num_obs, num_latents)',
+                        # results
+                        'metrics':       f'Dict[str, float] of various scores from different disentanglement metrics computed over the model and the data.',
+                    }
+                }
+
+            # save the data for rl
+            # | rl_dat_path = save_dir.joinpath('rl_data.json')
+            # | with open(rl_dat_path, 'w') as fp:
+            # |     json.dump({k: (v.tolist() if isinstance(v, np.ndarray) else v) for k, v in dat.items()}, fp)
+            # | print(f'[SAVED DATA]: {rl_dat_path}')
+            rl_npz_path = save_dir.joinpath('rl_data.npz')
+            np.savez_compressed(rl_npz_path, data=dat)
+            print(f'[SAVED DATA]: {rl_npz_path}')
 
 
 # ========================================================================= #
