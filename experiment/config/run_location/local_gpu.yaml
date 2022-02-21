@@ -2,7 +2,7 @@
 
 dsettings:
   trainer:
-    cuda: NULL  # `NULL` tries to use CUDA if it is available, otherwise defaulting to the CPU
+    cuda: TRUE  # `TRUE` forces cuda to be used. The job fails if cuda is not available!
   storage:
     logs_dir: 'logs'
     data_root: '/tmp/${oc.env:USER}/datasets'

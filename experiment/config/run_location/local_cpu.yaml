@@ -2,7 +2,7 @@
 
 dsettings:
   trainer:
-    cuda: FALSE
+    cuda: FALSE  # The job will only use the CPU
   storage:
     logs_dir: 'logs'
     data_root: '/tmp/${oc.env:USER}/datasets'

@@ -276,7 +276,8 @@ def torch_to_images(
     always_rgb: bool = False,
     in_min: Optional[MinMaxHint] = None,
     in_max: Optional[MinMaxHint] = None,
-) -> torch.Tensor:
+    to_numpy: bool = False,
+) -> Union[torch.Tensor, np.ndarray]:
     """
     Convert a batch of image-like tensors to images.
     A batch in this case consists of an arbitrary number of dimensions of a tensor,
@@ -331,7 +332,9 @@ def torch_to_images(
     # 7. check output dtype
     if out_dtype != tensor.dtype:
         raise RuntimeError(f'[THIS IS A BUG!]: After conversion, images tensor dtype: {repr(tensor.dtype)} does not match out_dtype: {repr(in_dtype)}')
-    # done
+    # convert to numpy
+    if to_numpy:
+        return tensor.detach().cpu().numpy()
     return tensor
 
 
@@ -356,7 +359,7 @@ def numpy_to_images(
     if in_dtype is not None: in_dtype = _NP_TO_TORCH_DTYPE[np.dtype(in_dtype)]
     if out_dtype is not None: out_dtype = _NP_TO_TORCH_DTYPE[np.dtype(out_dtype)]
     # convert back
-    tensor = torch_to_images(
+    array = torch_to_images(
         tensor=torch.from_numpy(ndarray),
         in_dims=in_dims,
         out_dims=out_dims,
@@ -366,9 +369,10 @@ def numpy_to_images(
         always_rgb=always_rgb,
         in_min=in_min,
         in_max=in_max,
+        to_numpy=True,
     )
     # done!
-    return tensor.numpy()
+    return array
 
 
 def numpy_to_pil_images(
