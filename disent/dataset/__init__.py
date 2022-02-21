@@ -24,3 +24,4 @@
 
 # wrapper
 from disent.dataset._base import DisentDataset
+from disent.dataset._base import DisentIterDataset

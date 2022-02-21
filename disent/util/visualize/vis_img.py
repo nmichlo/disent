@@ -328,7 +328,7 @@ def torch_to_images(
     # 6. convert to rgb
     if always_rgb:
         if tensor.shape[out_c_dim] == 1:
-            tensor = np.repeat(tensor, 3, axis=out_c_dim)
+            tensor = torch.repeat_interleave(tensor, 3, dim=out_c_dim)  # torch.repeat is like np.tile, torch.repeat_interleave is like np.repeat
     # 7. check output dtype
     if out_dtype != tensor.dtype:
         raise RuntimeError(f'[THIS IS A BUG!]: After conversion, images tensor dtype: {repr(tensor.dtype)} does not match out_dtype: {repr(in_dtype)}')

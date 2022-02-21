@@ -85,6 +85,15 @@ class GroundTruthData(Dataset, StateSpace):
     def factor_sizes(self) -> Tuple[int, ...]:
         raise NotImplementedError()
 
+    def state_space_copy(self) -> StateSpace:
+        """
+        :return: Copy this ground truth dataset as a StateSpace, discarding everything else!
+        """
+        return StateSpace(
+            factor_sizes=self.factor_sizes,
+            factor_names=self.factor_names,
+        )
+
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Properties                                                            #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #

@@ -22,12 +22,32 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-# groundtruth -- impl
-from research.code.dataset.data._groundtruth__dsprites_imagenet import DSpritesImagenetData
 
-# groundtruth -- impl synthetic
-from research.code.dataset.data._groundtruth__xyblocks import XYBlocksData
-from research.code.dataset.data._groundtruth__xysquares import XYSquaresData
-from research.code.dataset.data._groundtruth__xysquares import XYSquaresMinimalData
-from research.code.dataset.data._groundtruth__xysquares import XYSingleSquareData
-from research.code.dataset.data._groundtruth__xcolumns import XColumnsData
+# ========================================================================= #
+# Numba Is An Optional Dependency                                           #
+# ========================================================================= #
+
+
+def try_njit(*args, **kwargs):
+    """
+    Wrapper around numba.njit
+    - If numba is installed, then we JIT the decorated function
+    - If numba is missing, then we do nothing and leave the function untouched!
+    """
+    try:
+        from numba import njit
+    except ImportError:
+        # dummy njit
+        def njit(*args, **kwargs):
+            def _wrapper(func):
+                import warnings
+                warnings.warn(f'failed to JIT compile: {func}, numba is not installed!')
+                return func
+            return _wrapper
+    # try and JIT compile function!
+    return njit(*args, **kwargs)
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #
