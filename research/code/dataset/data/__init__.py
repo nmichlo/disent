@@ -29,4 +29,5 @@ from research.code.dataset.data._groundtruth__dsprites_imagenet import DSpritesI
 from research.code.dataset.data._groundtruth__xyblocks import XYBlocksData
 from research.code.dataset.data._groundtruth__xysquares import XYSquaresData
 from research.code.dataset.data._groundtruth__xysquares import XYSquaresMinimalData
+from research.code.dataset.data._groundtruth__xysquares import XYSingleSquareData
 from research.code.dataset.data._groundtruth__xcolumns import XColumnsData
