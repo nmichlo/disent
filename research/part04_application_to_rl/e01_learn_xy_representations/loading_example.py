@@ -1,6 +1,5 @@
 import os.path
 from pathlib import Path
-from pprint import pprint
 
 import seaborn as sns
 import numpy as np
