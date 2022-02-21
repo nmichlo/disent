@@ -26,53 +26,38 @@ source "$(dirname "$(dirname "$(dirname "$(realpath -s "$0")")")")/scripts/helpe
 
 clog_cudaless_nodes "$PARTITION" 86400 "C-disent" # 24 hours
 
-# SWEEP FOR GOOD TVAE L2 PARAMS
-# 1 * (3*2*3*3*1*3*1) = 162
+
+# SWEEP FOR GOOD TVAE PARAMS
+#   1 * (1*2*2*2*2*5*2) = 160
+#   * triplet_scale: 0.01 is too low (from provisional experiments)
+#   * triplet_margin_max: 0.1 is too low (from provisional experiments)
+#   * beta: 0.01 (and 0.0316) chosen from previous experiment sweeps
+# results:
+#   - z_size:
+#   - triplet_margin_max:
+#   - triplet_scale:
+#   - triplet_p:
+#   - dataset:
+#   - sampling:
 submit_sweep \
     +DUMMY.repeat=1 \
-    +EXTRA.tags='sweep_tvae_params' \
+    +EXTRA.tags='sweep_tvae_params_basic' \
     hydra.job.name="tvae_params" \
     \
-    run_length=long \
+    run_length=medium \
     metrics=all \
     \
-    settings.framework.beta=0.01,0.0316,0.1 \
+    settings.framework.beta=0.01 \
     framework=tvae \
     schedule=none \
     settings.model.z_size=9,25 \
     \
-    framework.cfg.triplet_margin_max=0.1,1.0,10.0 \
-    framework.cfg.triplet_scale=0.1,1.0,0.01 \
-    framework.cfg.triplet_p=2 \
+    framework.cfg.triplet_margin_max=1.0,10.0 \
+    framework.cfg.triplet_scale=0.1,1.0 \
+    framework.cfg.triplet_p=1,2 \
     \
-    dataset=cars3d,smallnorb,X--xysquares \
-    sampling=gt_dist__manhat
-
-
-# TODO: SWEEP FOR GOOD TVAE PARAMS
-# 1 * (???) = 48
-#submit_sweep \
-#    +DUMMY.repeat=1 \
-#    +EXTRA.tags='sweep_tvae_modes' \
-#    hydra.job.name="tvae_modes" \
-#    \
-#    run_length=long \
-#    metrics=all \
-#    \
-#    settings.framework.beta=??? \
-#    framework=tvae \
-#    schedule=none \
-#    settings.model.z_size=9,25 \
-#    \
-#    framework.cfg.triplet_margin_max=??? \
-#    framework.cfg.triplet_scale=??? \
-#    framework.cfg.triplet_p=1,2 \
-#    framework.cfg.detach_decoder=TRUE,FALSE \
-#    framework.cfg.triplet_loss=triplet,triplet_sigmoid,triplet_soft \
-#    \
-#    dataset=cars3d,smallnorb,X--xysquares \
-#    sampling=gt_dist__manhat,gt_dist__manhat_scaled
-
+    dataset=cars3d,smallnorb,shapes3d,dsprites,X--xysquares \
+    sampling=gt_dist__manhat,gt_dist__manhat_scaled
 
 # TRIPLET TYPES:
 # - N/A:     [triplet_soft]
@@ -86,3 +71,27 @@ submit_sweep \
 # framework.cfg.triplet_margin_max: 1
 # framework.cfg.triplet_scale: 0.1
 # framework.cfg.triplet_p: 1
+
+# SWEEP TRIPLET MODES:
+# 1 * (2*1*2*3*5*2) = 48
+#submit_sweep \
+#    +DUMMY.repeat=1 \
+#    +EXTRA.tags='sweep_tvae_modes_basic' \
+#    hydra.job.name="tvae_modes" \
+#    \
+#    run_length=medium \
+#    metrics=all \
+#    \
+#    settings.framework.beta=0.01 \
+#    framework=tvae \
+#    schedule=none \
+#    settings.model.z_size=25 \
+#    \
+#    framework.cfg.triplet_margin_max=1.0,10.0 \
+#    framework.cfg.triplet_scale=1.0 \
+#    framework.cfg.triplet_p=1 \
+#    framework.cfg.detach_decoder=TRUE,FALSE \
+#    framework.cfg.triplet_loss=triplet,triplet_sigmoid,triplet_soft \
+#    \
+#    dataset=cars3d,smallnorb,shapes3d,dsprites,X--xysquares \
+#    sampling=gt_dist__manhat,gt_dist__manhat_scaled
