@@ -22,10 +22,13 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+from typing import Optional
+
 import numpy as np
 
 from disent.dataset.data import GroundTruthData
 from disent.dataset.sampling._base import BaseDisentSampler
+from disent.dataset.util.state_space import StateSpace
 
 
 class GroundTruthDistSampler(BaseDisentSampler):
@@ -63,11 +66,11 @@ class GroundTruthDistSampler(BaseDisentSampler):
         self._sample_mode = triplet_sample_mode
         self._swap_chance = triplet_swap_chance
         # dataset variable
-        self._data: GroundTruthData
+        self._state_space: Optional[StateSpace] = None
 
     def _init(self, dataset):
         assert isinstance(dataset, GroundTruthData), f'dataset must be an instance of {repr(GroundTruthData.__class__.__name__)}, got: {repr(dataset)}'
-        self._data = dataset
+        self._state_space = dataset.state_space_copy()
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Sampling                                                              #
@@ -75,7 +78,7 @@ class GroundTruthDistSampler(BaseDisentSampler):
 
     def _sample_idx(self, idx):
         # sample indices
-        indices = (idx, *np.random.randint(0, len(self._data), size=self._num_samples-1))
+        indices = (idx, *np.random.randint(0, len(self._state_space), size=self._num_samples-1))
         # sort based on mode
         if self._num_samples == 3:
             a_i, p_i, n_i = self._swap_triple(indices)
@@ -89,14 +92,14 @@ class GroundTruthDistSampler(BaseDisentSampler):
 
     def _swap_triple(self, indices):
         a_i, p_i, n_i = indices
-        a_f, p_f, n_f = self._data.idx_to_pos(indices)
+        a_f, p_f, n_f = self._state_space.idx_to_pos(indices)
         a_d, p_d, n_d = a_f, p_f, n_f
         # dists vars
         if self._scaled:
             # range of positions is [0, f_size - 1], to scale between 0 and 1 we need to
             # divide by (f_size - 1), but if the factor size is 1, we can't divide by zero
             # so we make the minimum 1.0
-            scale = np.maximum(1, np.array(self._data.factor_sizes) - 1)
+            scale = np.maximum(1, np.array(self._state_space.factor_sizes) - 1)
             a_d = a_d / scale
             p_d = p_d / scale
             n_d = n_d / scale

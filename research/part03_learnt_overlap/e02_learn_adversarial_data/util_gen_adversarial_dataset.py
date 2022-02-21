@@ -43,6 +43,7 @@ from disent.dataset.sampling import BaseDisentSampler
 from disent.dataset.sampling import GroundTruthPairSampler
 from disent.dataset.sampling import GroundTruthTripleSampler
 from disent.dataset.sampling import RandomSampler
+from disent.dataset.util.state_space import StateSpace
 from disent.util.strings import colors as c
 
 
@@ -64,21 +65,21 @@ class AdversarialSampler_SwappedRandom(BaseDisentSampler):
         assert swap_metric in {'k', 'manhattan', 'manhattan_norm', 'euclidean', 'euclidean_norm'}
         self._swap_metric = swap_metric
         self._sampler = GroundTruthTripleSampler(swap_metric=swap_metric)
-        self._gt_data: GroundTruthData = None
+        self._state_space: Optional[StateSpace] = None
 
     def _init(self, gt_data: GroundTruthData):
         self._sampler.init(gt_data)
-        self._gt_data = gt_data
+        self._state_space = gt_data.state_space_copy()
 
     def _sample_idx(self, idx: int) -> Tuple[int, ...]:
-        anchor, pos, neg = self._gt_data.idx_to_pos([
+        anchor, pos, neg = self._state_space.idx_to_pos([
             idx,
-            *np.random.randint(0, len(self._gt_data), size=2)
+            *np.random.randint(0, len(self._state_space), size=2)
         ])
         # swap values
         pos, neg = self._sampler._swap_factors(anchor_factors=anchor, positive_factors=pos, negative_factors=neg)
         # return triple
-        return tuple(self._gt_data.pos_to_idx([anchor, pos, neg]))
+        return tuple(self._state_space.pos_to_idx([anchor, pos, neg]))
 
 
 class AdversarialSampler_CloseFar(BaseDisentSampler):
@@ -129,22 +130,22 @@ class AdversarialSampler_SameK(BaseDisentSampler):
 
     def __init__(self, k: Union[Literal['random'], int] = 'random', sample_p_close: bool = False):
         super().__init__(3)
-        self._gt_data: GroundTruthData = None
+        self._state_space: Optional[StateSpace] = None
         self._sample_p_close = sample_p_close
         self._k = k
         assert (isinstance(k, int) and k > 0) or (k == 'random')
 
     def _init(self, gt_data: GroundTruthData):
-        self._gt_data = gt_data
+        self._state_space = gt_data.state_space_copy()
 
     def _sample_idx(self, idx: int) -> Tuple[int, ...]:
-        a_factors = self._gt_data.idx_to_pos(idx)
+        a_factors = self._state_space.idx_to_pos(idx)
         # SAMPLE FACTOR INDICES
         k = self._k
         if k == 'random':
-            k = np.random.randint(1, self._gt_data.num_factors+1)  # end exclusive, ie. [1, num_factors+1)
+            k = np.random.randint(1, self._state_space.num_factors+1)  # end exclusive, ie. [1, num_factors+1)
         # get shared mask
-        shared_indices = np.random.choice(self._gt_data.num_factors, size=self._gt_data.num_factors-k, replace=False)
+        shared_indices = np.random.choice(self._state_space.num_factors, size=self._state_space.num_factors-k, replace=False)
         shared_mask = np.zeros(a_factors.shape, dtype='bool')
         shared_mask[shared_indices] = True
         # generate values
@@ -159,7 +160,7 @@ class AdversarialSampler_SameK(BaseDisentSampler):
         assert np.sum(a_factors != p_factors) == k, 'this should never happen!'
         assert np.sum(a_factors != n_factors) == k, 'this should never happen!'
         # return values
-        return tuple(self._gt_data.pos_to_idx([
+        return tuple(self._state_space.pos_to_idx([
             a_factors,
             p_factors,
             n_factors,
@@ -171,10 +172,10 @@ class AdversarialSampler_SameK(BaseDisentSampler):
         # generate values
         for i in range(tries):
             if sample_close:
-                sampled_values = (base_factors + np.random.randint(-1, 1+1, size=self._gt_data.num_factors))
-                sampled_values = np.clip(sampled_values, 0, np.array(self._gt_data.factor_sizes) - 1)[generate_mask]
+                sampled_values = (base_factors + np.random.randint(-1, 1+1, size=self._state_space.num_factors))
+                sampled_values = np.clip(sampled_values, 0, np.array(self._state_space.factor_sizes) - 1)[generate_mask]
             else:
-                sampled_values = np.random.randint(0, np.array(self._gt_data.factor_sizes)[generate_mask])
+                sampled_values = np.random.randint(0, np.array(self._state_space.factor_sizes)[generate_mask])
             # overwrite values that are not different
             sampled_factors[generate_mask] = sampled_values
             # update mask
