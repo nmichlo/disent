@@ -35,8 +35,12 @@ ROOT_DIR="$(realpath -s "$SCRIPT_DIR/../../..")"
 cd "$ROOT_DIR" || exit 1
 echo "working directory is: $(pwd)"
 
+PY_RUN_FILE="$(realpath "$PY_RUN_FILE")"
+echo "main script is: $PY_RUN_FILE"
+
 # hydra search path and plugins todo: make this configurable?
 _SEARCH_PATH="${ROOT_DIR}/research/config"
+_SCRIPTS_PATH="${ROOT_DIR}/research/scripts"
 
 function submit_sweep() {
     echo "SUBMITTING SWEEP:" "$@"
@@ -64,6 +68,20 @@ function local_sweep() {
     echo "RUNNING SWEEP:" "$@"
     PYTHONPATH="$ROOT_DIR" DISENT_CONFIGS_PREPEND="$_SEARCH_PATH" python3 "$PY_RUN_FILE" \
         -m \
+        run_launcher=local \
+        settings.job.project="$PROJECT" \
+        settings.job.user="$USERNAME" \
+        "$@"
+}
+
+function gen_permutations() {
+    _base="PYTHONPATH=\"$ROOT_DIR\" DISENT_CONFIGS_PREPEND=\"$_SEARCH_PATH\" python3 \"$PY_RUN_FILE\""
+    # generate a single command for all the diferent permutations
+    PYTHONPATH="$ROOT_DIR" python3 "$_SCRIPTS_PATH/permutations.py" \
+        --line-numbers \
+        --no-color \
+        --base="$_base" \
+        --overrides \
         run_launcher=local \
         settings.job.project="$PROJECT" \
         settings.job.user="$USERNAME" \

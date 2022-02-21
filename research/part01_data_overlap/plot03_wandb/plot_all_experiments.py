@@ -94,12 +94,15 @@ def load_general_data(project: str):
 # ========================================================================= #
 
 
-PINK = '#FE375F'
-PURPLE = '#5E5BE5'
-BLUE = '#0A83FE'
+PINK = '#FE375F'     # usually: Beta-VAE
+PURPLE = '#5E5BE5'   # maybe:   Ada-TVAE
+BLUE = '#1A93FE'     # maybe:   TVAE
 LBLUE = '#63D2FE'
-ORANGE = '#FE9F0A'
+ORANGE = '#FE9F0A'   # usually: Ada-VAE
 GREEN = '#2FD157'
+
+LGREEN = '#9FD911'   # usually: MSE
+LBLUE2 = '#36CFC8'   # usually: MSE-Overlap
 
 
 # ========================================================================= #
@@ -248,8 +251,8 @@ def plot_e03_modified_loss_xysquares(
     show: bool = True,
     color_betavae: str = PINK,
     color_adavae: str = ORANGE,
-    color_mse: str = '#9FD911',
-    color_mse_overlap: str = '#36CFC8',
+    color_mse: str = LGREEN,
+    color_mse_overlap: str = LBLUE2,
 ):
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
     df = load_general_data(f'{os.environ["WANDB_USER"]}/CVPR-09__vae_overlap_loss')

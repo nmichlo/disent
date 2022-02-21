@@ -18,7 +18,7 @@ def _iter_value_strings(override: Override) -> str:
 
 
 if __name__ == '__main__':
-    sys.argv.extend(['--line-numbers', '--base', 'PYTHONPATH=. python3 experiment/run.py', '--overrides', 'framework=betavae,adavae_os', 'dataset=X--xysquares,cars3d,shapes3d,dsprites,smallnorb'])
+    # sys.argv.extend(['--line-numbers', '--base', 'PYTHONPATH=. python3 experiment/run.py', '--overrides', 'framework=betavae,adavae_os', 'dataset=X--xysquares,cars3d,shapes3d,dsprites,smallnorb'])
 
     # From: `hydra._internal.utils.get_args_parser`
     parser = argparse.ArgumentParser(add_help=True, description="Hydra Permutations")

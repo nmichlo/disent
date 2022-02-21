@@ -225,7 +225,7 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
         # get random sample of z_means and z_logvars for computing the range of values for the latent_cycle
         with TempNumpySeed(seed):
             batch, indices = dataset.dataset_sample_batch(num_stats_samples, mode='input', replace=True, return_indices=True)  # replace just in case the dataset it tiny
-            batch.to(vae.device)
+            batch = batch.to(vae.device)
 
         # get representations
         if isinstance(vae, Vae):
@@ -248,7 +248,7 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
 
         # produce latent cycle still images & convert them to images
         stills = make_decoded_latent_cycles(vae.decode, zs_mean, zs_logvar, mode=mode, num_animations=1, num_frames=num_frames, decoder_device=vae.device)[0]
-        stills = torch_to_images(stills, in_dims='CHW', out_dims='HWC', in_min=recon_min, in_max=recon_max, always_rgb=True).numpy()
+        stills = torch_to_images(stills, in_dims='CHW', out_dims='HWC', in_min=recon_min, in_max=recon_max, always_rgb=True, to_numpy=True)
 
         # generate the video frames and image grid from the stills
         # - TODO: this needs to be fixed to not use logvar, but rather the representations or distributions themselves
