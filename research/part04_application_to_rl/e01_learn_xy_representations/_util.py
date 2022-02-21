@@ -1,7 +1,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 #  MIT License
 #
-#  Copyright (c) 2021 Nathan Juraj Michlo
+#  Copyright (c) 2022 Nathan Juraj Michlo
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to deal
@@ -22,53 +22,40 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from typing import Callable
+import logging
+import sys
 from typing import Optional
-import torch
+
+import psutil
+
+
+log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
-# Augment                                                                   #
+# Helper                                                                    #
 # ========================================================================= #
 
 
-class DisentDatasetTransform(object):
-    """
-    Applies transforms to batches generated from dataloaders of
-    datasets from: disent.dataset.groundtruth
-    """
-
-    def __init__(
-        self,
-        transform:      Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
-        transform_targ: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
-    ):
-        self.transform = transform
-        self.transform_targ = transform_targ
-
-    def __call__(self, batch):
-        # transform inputs
-        if self.transform is not None:
-            if 'x' not in batch:
-                batch['x'] = batch['x_targ']
-            batch['x'] = _apply_transform_to_batch_dict(batch['x'], self.transform)
-        # transform targets
-        if self.transform_targ is not None:
-            batch['x_targ'] = _apply_transform_to_batch_dict(batch['x_targ'], self.transform_targ)
-        # done!
-        return batch
-
-    def __repr__(self):
-        return f'{self.__class__.__name__}(transform={repr(self.transform)}, transform_targ={repr(self.transform_targ)})'
-
-
-def _apply_transform_to_batch_dict(batch, transform):
-    if isinstance(batch, tuple):
-        return tuple(transform(obs) for obs in batch)
-    if isinstance(batch, list):
-        return list(transform(obs) for obs in batch)
+def get_num_workers(
+    num_workers: Optional[int] = None,
+    default_max: int = 16,
+) -> int:
+    if sys.platform == 'darwin':
+        auto_workers = 0
+        if num_workers is None:
+            log.warning(f'MacOS detected, setting num_workers to {auto_workers} to avoid Dataloader bug.')
+            num_workers = auto_workers
+        elif num_workers > auto_workers:
+            log.warning(f'MacOS detected, but manually set num_workers is greater than zero at {num_workers}, might result in a Dataloader bug!')
     else:
-        return transform(batch)
+        auto_workers = min(psutil.cpu_count(logical=False), default_max)
+        if num_workers is None:
+            num_workers = auto_workers
+            log.warning(f'Automatically set num_workers to {num_workers}, cpu_count is {psutil.cpu_count(logical=False)}, max auto workers is {default_max}')
+        elif num_workers > auto_workers:
+            log.warning(f'manually set num_workers at {num_workers} might be too high, cpu_count is {psutil.cpu_count(logical=False)}, max auto workers is {default_max}')
+    return num_workers
 
 
 # ========================================================================= #

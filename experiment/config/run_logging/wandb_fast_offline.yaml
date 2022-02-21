@@ -6,8 +6,7 @@ defaults:
 
 trainer:
   log_every_n_steps: 50
-  flush_logs_every_n_steps: 100
-  progress_bar_refresh_rate: 0  # disable the builtin progress bar
+  enable_progress_bar: FALSE  # disable the builtin progress bar
 
 callbacks:
   progress:
@@ -17,9 +16,12 @@ callbacks:
 logging:
   wandb:
     enabled: TRUE
+  logger:
+    _target_: pytorch_lightning.loggers.WandbLogger
     offline: TRUE
-    entity: '${settings.job.user}'
-    project: '${settings.job.project}'
-    name: '${settings.job.name}'
-    group: null
+    entity: ${settings.job.user}
+    project: ${settings.job.project}
+    name: ${settings.job.name}
+    group: NULL
     tags: []
+    save_dir: ${abspath:${dsettings.storage.logs_dir}}  # relative to hydra's original cwd

@@ -88,13 +88,16 @@ class HydraDataModule(pl.LightningDataModule):
         self,
         data: Dict[str, Any],                                # = dataset.data
         sampler: Dict[str, Any],                             # = sampling._sampler_.sampler_cls
-        augment: Optional[Dict[str, Any]] = None,            # = augment.augment_cls
         transform: Optional[Dict[str, Any]] = None,          # = dataset.transform
+        augment: Optional[Dict[str, Any]] = None,            # = augment.augment_cls
         dataloader_kwargs: Optional[Dict[str, Any]] = None,  # = dataloader
         augment_on_gpu: bool = False,                        # = dsettings.dataset.gpu_augment
         using_cuda: Optional[bool] = False,                  # = self.hparams.dsettings.trainer.cuda
+        prepare_data_per_node: bool = True,                  # DataHooks.prepare_data_per_node
     ):
         super().__init__()
+        # OVERRIDE:
+        self.prepare_data_per_node = prepare_data_per_node
         # save hparams
         self.save_hyperparameters()
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
@@ -103,20 +106,24 @@ class HydraDataModule(pl.LightningDataModule):
         assert (self.data_transform is None) or callable(self.data_transform)
         # input_transform_aug: augment data for inputs, then apply input_transform
         self.input_transform = hydra.utils.instantiate(augment)
-        assert (self.input_transform is None) or callable(self.input_transform)
+        assert (self.input_transform is None) or callable(self.input_transform)  # should be: `Callable[[torch.Tensor], torch.Tensor]`
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         # batch_augment: augments transformed data for inputs, should be applied across a batch
         # which version of the dataset we need to use if GPU augmentation is enabled or not.
         # - corresponds to below in train_dataloader()
         if augment_on_gpu:
-            self.batch_augment = DisentDatasetTransform(transform=self.input_transform)
+            self._gpu_batch_augment = DisentDatasetTransform(transform=self.input_transform)
             warnings.warn('`augment_on_gpu=True` is outdated and may no longer be equivalent to `augment_on_gpu=False`')
         else:
-            self.batch_augment = None
+            self._gpu_batch_augment = None
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         # datasets initialised in setup()
         self.dataset_train_noaug: DisentDataset = None
         self.dataset_train_aug: DisentDataset = None
+
+    @property
+    def gpu_batch_augment(self) -> Optional[DisentDatasetTransform]:
+        return self._gpu_batch_augment
 
     def prepare_data(self) -> None:
         # *NB* Do not set model parameters here.

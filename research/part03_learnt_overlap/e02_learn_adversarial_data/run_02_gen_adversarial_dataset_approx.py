@@ -399,7 +399,7 @@ class AdversarialModel(pl.LightningModule):
         # factor distances callback
         class DistsPlotCallback(_BaseDatasetCallback):
             def _do_step(this, trainer: pl.Trainer, system: AdversarialModel):
-                from disent.util.lightning.callbacks._callbacks_vae import compute_factor_distances, plt_factor_distances
+                from disent.util.lightning.callbacks._callback_vis_dists import compute_factor_distances, plt_factor_distances
 
                 # make distances function
                 def dists_fn(xs_a, xs_b):
@@ -533,12 +533,11 @@ def run_gen_adversarial_dataset(cfg):
         max_epochs=cfg.trainer.max_epochs,
         max_steps=cfg.trainer.max_steps,
         log_every_n_steps=cfg.trainer.log_every_n_steps,
-        flush_logs_every_n_steps=cfg.trainer.flush_logs_every_n_steps,
-        progress_bar_refresh_rate=cfg.trainer.progress_bar_refresh_rate,
-        prepare_data_per_node=cfg.trainer.prepare_data_per_node,
+        enable_progress_bar=cfg.trainer.enable_progress_bar,
+        # prepare_data_per_node=cfg.trainer.prepare_data_per_node,  # TODO: moved into data module / framework !
         # we do this here so we don't run the final metrics
-        terminate_on_nan=True,
-        checkpoint_callback=False,
+        detect_anomaly=False,  # this should only be enabled for debugging torch and finding NaN values, slows down execution, not by much though?
+        enable_checkpointing=False,
     )
     trainer.fit(framework)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #

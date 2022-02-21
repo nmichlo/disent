@@ -22,7 +22,9 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import warnings
 from functools import wraps
+from typing import Iterator
 from typing import Optional
 from typing import Sequence
 from typing import TypeVar
@@ -30,6 +32,7 @@ from typing import Union
 
 import numpy as np
 from torch.utils.data import Dataset
+from torch.utils.data import IterableDataset
 from torch.utils.data.dataloader import default_collate
 
 from disent.dataset.sampling import BaseDisentSampler
@@ -102,9 +105,15 @@ class DisentDataset(Dataset, LengthIter):
         self._transform = transform
         self._augment = augment
         self._return_indices = return_indices
+        # check sampler
+        assert isinstance(self._sampler, BaseDisentSampler), f'{DisentDataset.__name__} got an invalid {BaseDisentSampler.__name__}: {type(self._sampler)}'
         # initialize sampler
         if not self._sampler.is_init:
             self._sampler.init(dataset)
+        # warn if we are overriding a transform
+        if self._transform is not None:
+            if hasattr(dataset, '_transform') and dataset._transform:
+                warnings.warn(f'{DisentDataset.__name__} has transform specified as well as wrapped dataset: {dataset}, are you sure this is intended?')
 
     def shallow_copy(
         self,
@@ -285,38 +294,57 @@ class DisentDataset(Dataset, LengthIter):
     # TODO: default_collate should be replaced with a function
     #      that can handle tensors and nd.arrays, and return accordingly
 
-    def dataset_batch_from_indices(self, indices: Sequence[int], mode: str):
+    def dataset_batch_from_indices(self, indices: Sequence[int], mode: str, collate: bool = True):
         """Get a batch of observations X from a batch of factors Y."""
-        return default_collate([self.dataset_get(idx, mode=mode) for idx in indices])
+        batch = [self.dataset_get(idx, mode=mode) for idx in indices]
+        return default_collate(batch) if collate else batch
 
-    def dataset_sample_batch(self, num_samples: int, mode: str, replace: bool = False, return_indices: bool = False):
+    def dataset_sample_batch(self, num_samples: int, mode: str, replace: bool = False, return_indices: bool = False, collate: bool = True, seed: Optional[int] = None):
         """Sample a batch of observations X."""
         # built in np.random.choice cannot handle large values: https://github.com/numpy/numpy/issues/5299#issuecomment-497915672
-        indices = random_choice_prng(len(self), size=num_samples, replace=replace)
+        indices = random_choice_prng(len(self._dataset), size=num_samples, replace=replace, seed=seed)
         # return batch
-        batch = self.dataset_batch_from_indices(indices, mode=mode)
+        batch = self.dataset_batch_from_indices(indices, mode=mode, collate=collate)
         # return values
         if return_indices:
-            return batch, default_collate(indices)
+            return batch, (default_collate(indices) if collate else indices)
         else:
             return batch
+
+    def dataset_sample_elems(self, num_samples: int, mode: str, return_indices: bool = False, seed: Optional[int] = None):
+        """Sample uncollated elements with replacement, like `dataset_sample_batch`"""
+        return self.dataset_sample_batch(num_samples=num_samples, mode=mode, replace=True, return_indices=return_indices, collate=False, seed=seed)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Batches -- Ground Truth Only                                          #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     @groundtruth_only
-    def dataset_batch_from_factors(self, factors: np.ndarray, mode: str):
+    def dataset_batch_from_factors(self, factors: np.ndarray, mode: str, collate: bool = True):
         """Get a batch of observations X from a batch of factors Y."""
         indices = self.gt_data.pos_to_idx(factors)
-        return self.dataset_batch_from_indices(indices, mode=mode)
+        return self.dataset_batch_from_indices(indices, mode=mode, collate=collate)
 
     @groundtruth_only
-    def dataset_sample_batch_with_factors(self, num_samples: int, mode: str):
+    def dataset_sample_batch_with_factors(self, num_samples: int, mode: str, collate: bool = True):
         """Sample a batch of observations X and factors Y."""
         factors = self.gt_data.sample_factors(num_samples)
-        batch = self.dataset_batch_from_factors(factors, mode=mode)
-        return batch, default_collate(factors)
+        batch = self.dataset_batch_from_factors(factors, mode=mode, collate=collate)
+        return batch, (default_collate(factors) if collate else factors)
+
+
+class DisentIterDataset(IterableDataset, DisentDataset):
+
+    # make sure we cannot obtain the length directly
+    __len__ = None
+
+    def __iter__(self):
+        # this takes priority over __getitem__, otherwise __getitem__ would need to
+        # raise an IndexError if out of bounds to signal the end of iteration
+        while True:
+            # yield the entire dataset
+            # - repeating when it is done!
+            yield from (self[i] for i in range(len(self._dataset)))
 
 
 # ========================================================================= #

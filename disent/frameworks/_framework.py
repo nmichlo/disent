@@ -155,31 +155,24 @@ class DisentFramework(DisentConfigurable, DisentLightningModule):
 
     @final
     def _compute_loss_step(self, batch, batch_idx, update_schedules: bool):
-        # augment batch with GPU support
-        if self._batch_augment is not None:
-            batch = self._batch_augment(batch)
-        # update the config values based on registered schedules
-        if update_schedules:
-            # TODO: how do we handle this in the case of the validation and test step? I think this
-            #       might still give the wrong results as this is based on the trainer.global_step which
-            #       may be incremented by these steps.
-            self._update_config_from_schedules()
-        # compute loss
-        loss, logs_dict = self.do_training_step(batch, batch_idx)
-        # check returned values
-        assert 'loss' not in logs_dict
-        self._assert_valid_loss(loss)
-        # log returned values
-        logs_dict['loss'] = loss
-        self.log_dict(logs_dict)
-        # return loss
-        return loss
-
-    @final
-    def training_step(self, batch, batch_idx):
-        """This is a pytorch-lightning function that should return the computed loss"""
         try:
-            return self._compute_loss_step(batch, batch_idx, update_schedules=True)
+            # augment batch with GPU support
+            if self._batch_augment is not None:
+                batch = self._batch_augment(batch)
+            # update the config values based on registered schedules
+            if update_schedules:
+                # TODO: how do we handle this in the case of the validation and test step? I think this
+                #       might still give the wrong results as this is based on the trainer.global_step which
+                #       may be incremented by these steps.
+                self._update_config_from_schedules()
+            # compute loss
+            # TODO: move logging into child frameworks?
+            loss = self.do_training_step(batch, batch_idx)
+            # check loss values
+            self._assert_valid_loss(loss)
+            self.log('loss', float(loss), prog_bar=True)
+            # return loss
+            return loss
         except Exception as e:  # pragma: no cover
             # call in all the child processes for the best chance of clearing this...
             # remove callbacks from trainer so we aren't stuck running forever!
@@ -189,6 +182,11 @@ class DisentFramework(DisentConfigurable, DisentLightningModule):
                 self.trainer.callbacks.clear()
             # continue propagating errors
             raise e
+
+    @final
+    def training_step(self, batch, batch_idx):
+        """This is a pytorch-lightning function that should return the computed loss"""
+        return self._compute_loss_step(batch, batch_idx, update_schedules=True)
 
     def validation_step(self, batch, batch_idx):
         """
@@ -204,9 +202,8 @@ class DisentFramework(DisentConfigurable, DisentLightningModule):
 
     @final
     def _assert_valid_loss(self, loss):
-        if self.trainer.terminate_on_nan:
-            if torch.isnan(loss) or torch.isinf(loss):
-                raise ValueError('The returned loss is nan or inf')
+        if torch.isnan(loss) or torch.isinf(loss):
+            raise ValueError('The returned loss is nan or inf')
         if loss > 1e+20:
             raise ValueError(f'The returned loss: {loss:.2e} is out of bounds: > {1e+20:.0e}')
 
@@ -214,7 +211,7 @@ class DisentFramework(DisentConfigurable, DisentLightningModule):
         """this function should return the single final output of the model, including the final activation"""
         raise NotImplementedError
 
-    def do_training_step(self, batch, batch_idx) -> Tuple[torch.Tensor, Dict[str, Union[Number, torch.Tensor]]]:  # pragma: no cover
+    def do_training_step(self, batch, batch_idx) -> torch.Tensor:  # pragma: no cover
         """
         should return a dictionary of items to log with the key 'train_loss'
         as the variable to minimize

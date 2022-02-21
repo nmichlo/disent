@@ -26,6 +26,8 @@ import logging
 import os
 import sys
 from datetime import datetime
+from typing import Callable
+from typing import Optional
 
 import hydra
 import pytorch_lightning as pl
@@ -35,20 +37,17 @@ import wandb
 from omegaconf import DictConfig
 from omegaconf import ListConfig
 from omegaconf import OmegaConf
-from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning import Callback
+from pytorch_lightning.callbacks import ModelSummary
+from pytorch_lightning.loggers import LightningLoggerBase
 
 import disent.registry as R
-from disent.frameworks import DisentConfigurable
 from disent.frameworks import DisentFramework
-from disent.model import AutoEncoder
-from disent.nn.weights import init_model_weights
-from disent.util.seeds import seed
-from disent.util.strings.fmt import make_box_str
-from disent.util.strings import colors as c
-from disent.util.lightning.callbacks import LoggerProgressCallback
 from disent.util.lightning.callbacks import VaeMetricLoggingCallback
-from disent.util.lightning.callbacks import VaeLatentCycleLoggingCallback
-from disent.util.lightning.callbacks import VaeGtDistsLoggingCallback
+from disent.util.seeds import seed
+from disent.util.strings import colors as c
+from disent.util.strings.fmt import make_box_str
+
 from experiment.util.hydra_data import HydraDataModule
 from experiment.util.path_utils import get_current_experiment_number
 from experiment.util.path_utils import make_current_experiment_dir
@@ -99,7 +98,7 @@ def hydra_get_gpus(cfg) -> int:
 
 
 def hydra_check_data_paths(cfg):
-    prepare_data_per_node = cfg.trainer.prepare_data_per_node
+    prepare_data_per_node = cfg.datamodule.prepare_data_per_node
     data_root             = cfg.dsettings.storage.data_root
     # check relative paths
     if not os.path.isabs(data_root):
@@ -112,7 +111,7 @@ def hydra_check_data_paths(cfg):
         )
         if prepare_data_per_node:
             log.error(
-                f'trainer.prepare_data_per_node={repr(prepare_data_per_node)} but dsettings.storage.data_root='
+                f'datamodule.prepare_data_per_node={repr(prepare_data_per_node)} but dsettings.storage.data_root='
                 f'{repr(data_root)} is a relative path which may be an error! Try specifying an'
                 f' absolute path that is guaranteed to be unique from each node, eg. default_settings.storage.data_root=/tmp/dataset'
             )
@@ -131,22 +130,13 @@ def hydra_check_data_meta(cfg):
         log.info(f'* dataset.meta.vis_std:  {cfg.dataset.meta.vis_std}')
 
 
-def hydra_make_logger(cfg):
-    # make wandb logger
-    backend = cfg.logging.wandb
-    if backend.enabled:
-        log.info('Initialising Weights & Biases Logger')
-        return WandbLogger(
-            offline=backend.offline,
-            entity=backend.entity,    # cometml: workspace
-            project=backend.project,  # cometml: project_name
-            name=backend.name,        # cometml: experiment_name
-            group=backend.group,      # experiment group
-            tags=backend.tags,        # experiment tags
-            save_dir=hydra.utils.to_absolute_path(cfg.dsettings.storage.logs_dir),  # relative to hydra's original cwd
-        )
-    # don't return a logger
-    return None  # LoggerCollection([...]) OR DummyLogger(...)
+def hydra_make_logger(cfg) -> Optional[LightningLoggerBase]:
+    logger = hydra.utils.instantiate(cfg.logging.logger)
+    if logger:
+        log.info(f'Initialised Logger: {logger}')
+    else:
+        log.warning(f'No Logger Utilised!')
+    return logger
 
 
 def hydra_get_callbacks(cfg) -> list:
@@ -154,18 +144,16 @@ def hydra_get_callbacks(cfg) -> list:
     # add all callbacks
     for name, item in cfg.callbacks.items():
         # custom callback handling vs instantiation
-        name = f'{name} ({item._target_})'
         callback = hydra.utils.instantiate(item)
+        assert isinstance(callback, Callback), f'instantiated callback is not an instance of {Callback}, got: {callback}'
         # add to callbacks list
-        if callback is not None:
-            log.info(f'made callback: {name}')
-            callbacks.append(callback)
-        else:
-            log.info(f'skipped callback: {name}')
+        log.info(f'made callback: {name} ({item._target_})')
+        callbacks.append(callback)
     return callbacks
 
 
 def hydra_get_metric_callbacks(cfg) -> list:
+    # TODO: simplify this, make better use of the config!
     callbacks = []
     # set default values used later
     default_every_n_steps    = cfg.metrics.default_every_n_steps
@@ -198,63 +186,45 @@ def hydra_get_metric_callbacks(cfg) -> list:
     return callbacks
 
 
-def hydra_register_schedules(module: DisentFramework, cfg):
-    # check the type
-    schedule_items = cfg.schedule.schedule_items
-    assert isinstance(schedule_items, (dict, DictConfig)), f'`schedule.schedule_items` must be a dictionary, got type: {type(schedule_items)} with value: {repr(schedule_items)}'
-    # add items
-    if schedule_items:
-        log.info(f'Registering Schedules:')
-        for target, schedule in schedule_items.items():
-            module.register_schedule(target, hydra.utils.instantiate(schedule), logging=True)
+def hydra_create_framework(cfg, gpu_batch_augment: Optional[Callable[[torch.Tensor], torch.Tensor]] = None) -> DisentFramework:
+    # create framework
+    assert str.endswith(cfg.framework.cfg['_target_'], '.cfg'), f'`cfg.framework.cfg._target_` does not end with ".cfg", got: {repr(cfg.framework.cfg["_target_"])}'
+    framework_cls = hydra.utils.get_class(cfg.framework.cfg['_target_'][:-len(".cfg")])
+    framework: DisentFramework = framework_cls(
+        model=hydra.utils.instantiate(cfg.model.model_cls),
+        cfg=hydra.utils.instantiate(cfg.framework.cfg, _convert_='all'),  # DisentConfigurable -- convert all OmegaConf objects to python equivalents, eg. DictConfig -> dict
+        batch_augment=gpu_batch_augment,
+    )
 
-
-def hydra_create_and_update_framework_config(cfg) -> DisentConfigurable.cfg:
-    # create framework config - this is also kinda hacky
-    # - we need instantiate_recursive because of optimizer_kwargs,
-    #   otherwise the dictionary is left as an OmegaConf dict
-    framework_cfg: DisentConfigurable.cfg = hydra.utils.instantiate(cfg.framework.cfg)
-    # warn if some of the cfg variables were not overridden
-    missing_keys = sorted(set(framework_cfg.get_keys()) - (set(cfg.framework.cfg.keys())))
+    # check if some cfg variables were not overridden
+    missing_keys = sorted(set(framework.cfg.get_keys()) - (set(cfg.framework.cfg.keys())))
     if missing_keys:
         log.warning(f'{c.RED}Framework {repr(cfg.framework.name)} is missing config keys for:{c.RST}')
         for k in missing_keys:
             log.warning(f'{c.RED}{repr(k)}{c.RST}')
-    # return config
-    return framework_cfg
 
+    # register schedules to the framework
+    schedule_items = cfg.schedule.schedule_items
+    assert isinstance(schedule_items, (dict, DictConfig)), f'`schedule.schedule_items` must be a dictionary, got type: {type(schedule_items)} with value: {repr(schedule_items)}'
+    if schedule_items:
+        log.info(f'Registering Schedules:')
+        for target, schedule in schedule_items.items():
+            framework.register_schedule(target, hydra.utils.instantiate(schedule), logging=True)
 
-def hydra_create_framework(framework_cfg: DisentConfigurable.cfg, datamodule, cfg):
-    # specific handling for experiment, this is HACKY!
-    # - not supported normally, we need to instantiate to get the class (is there hydra support for this?)
-    framework_cfg.optimizer_kwargs = dict(framework_cfg.optimizer_kwargs)
-    # get framework path
-    assert str.endswith(cfg.framework.cfg._target_, '.cfg'), f'`cfg.framework.cfg._target_` does not end with ".cfg", got: {repr(cfg.framework.cfg._target_)}'
-    framework_cls = hydra.utils.get_class(cfg.framework.cfg._target_[:-len(".cfg")])
-    # create model
-    model = AutoEncoder(
-        encoder=hydra.utils.instantiate(cfg.model.encoder_cls),
-        decoder=hydra.utils.instantiate(cfg.model.decoder_cls),
-    )
-    # initialise the model
-    model = init_model_weights(model, mode=cfg.settings.model.weight_init)
-    # create framework
-    return framework_cls(
-        model=model,
-        cfg=framework_cfg,
-        batch_augment=datamodule.batch_augment,  # apply augmentations to batch on GPU which can be faster than via the dataloader
-    )
+    return framework
 
 
 def hydra_make_datamodule(cfg):
     return HydraDataModule(
-        data              = cfg.dataset.data,
-        sampler           = cfg.sampling._sampler_.sampler_cls,
-        augment           = cfg.augment.augment_cls,
-        transform         = cfg.dataset.transform,
-        dataloader_kwargs = cfg.dataloader,
-        augment_on_gpu    = cfg.dsettings.dataset.gpu_augment,
-        using_cuda        = cfg.dsettings.trainer.cuda,
+        data                  = cfg.dataset.data,                    # from: dataset
+        transform             = cfg.dataset.transform,               # from: dataset
+        augment               = cfg.augment.augment_cls,             # from: augment
+        sampler               = cfg.sampling._sampler_.sampler_cls,  # from: sampling
+        # from: run_location
+        using_cuda            = cfg.dsettings.trainer.cuda,
+        dataloader_kwargs     = cfg.datamodule.dataloader,
+        augment_on_gpu        = cfg.datamodule.gpu_augment,
+        prepare_data_per_node = cfg.datamodule.prepare_data_per_node,
     )
 
 # ========================================================================= #
@@ -268,11 +238,11 @@ def action_prepare_data(cfg: DictConfig):
     log.info(f'Starting run at time: {time_string}')
     # deterministic seed
     seed(cfg.settings.job.seed)
+    # register plugins
+    hydra_register_disent_plugins(cfg)
     # print useful info
     log.info(f"Current working directory : {os.getcwd()}")
     log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
-    # register plugins
-    hydra_register_disent_plugins(cfg)
     # check data preparation
     hydra_check_data_paths(cfg)
     hydra_check_data_meta(cfg)
@@ -290,8 +260,9 @@ def action_train(cfg: DictConfig):
     log.info(f'Starting run at time: {time_string}')
 
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
-
     # cleanup from old runs:
+    # -~-~-~-~-~-~-~-~-~-~-~-~- #
+
     try:
         safe_unset_debug_trainer()
         safe_unset_debug_logger()
@@ -300,79 +271,76 @@ def action_train(cfg: DictConfig):
         pass
 
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
-
-    # deterministic seed
-    seed(cfg.settings.job.seed)
-
-    # -~-~-~-~-~-~-~-~-~-~-~-~- #
-    # INITIALISE & SETDEFAULT IN CONFIG
+    # SETUP
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
 
     # create trainer loggers & callbacks & initialise error messages
     logger = set_debug_logger(hydra_make_logger(cfg))
 
+    # deterministic seed
+    seed(cfg.settings.job.seed)
+    # register plugins
+    hydra_register_disent_plugins(cfg)
     # print useful info
     log.info(f"Current working directory : {os.getcwd()}")
     log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
-
-    # register plugins
-    hydra_register_disent_plugins(cfg)
-
-    # check CUDA setting
+    # checks
     gpus = hydra_get_gpus(cfg)
-
-    # check data preparation
     hydra_check_data_paths(cfg)
     hydra_check_data_meta(cfg)
 
-    # TRAINER CALLBACKS
-    callbacks = [
-        *hydra_get_callbacks(cfg),
-        *hydra_get_metric_callbacks(cfg),
-    ]
+    # -~-~-~-~-~-~-~-~-~-~-~-~- #
+    # INITIALISE
+    # -~-~-~-~-~-~-~-~-~-~-~-~- #
 
     # HYDRA MODULES
     datamodule = hydra_make_datamodule(cfg)
-    framework_cfg = hydra_create_and_update_framework_config(cfg)
-    framework = hydra_create_framework(framework_cfg, datamodule, cfg)
+    framework = hydra_create_framework(cfg, gpu_batch_augment=datamodule.gpu_batch_augment)
 
-    # register schedules
-    hydra_register_schedules(framework, cfg)
-
+    # trainer default kwargs
     # Setup Trainer
     trainer = set_debug_trainer(pl.Trainer(
+        # cannot override these
         logger=logger,
-        callbacks=callbacks,
         gpus=gpus,
-        # we do this here too so we don't run the final
-        # metrics, even through we check for it manually.
-        terminate_on_nan=True,
-        # TODO: re-enable this in future... something is not compatible
-        #       with saving/checkpointing models + allow enabling from the
-        #       config. Seems like something cannot be pickled?
-        checkpoint_callback=False,
-        # additional trainer kwargs
-        **cfg.trainer,
+        callbacks=[
+            *hydra_get_callbacks(cfg),
+            *hydra_get_metric_callbacks(cfg),
+            ModelSummary(max_depth=2),  # override default ModelSummary
+        ],
+        # additional kwargs from the config
+        **{
+            **dict(
+                detect_anomaly=False,        # this should only be enabled for debugging torch and finding NaN values, slows down execution, not by much though?
+                enable_checkpointing=False,  # TODO: enable this in future
+            ),
+            **cfg.trainer,  # overrides
+        }
     ))
+
+    # -~-~-~-~-~-~-~-~-~-~-~-~- #
+    # DEBUG
+    # -~-~-~-~-~-~-~-~-~-~-~-~- #
+
+    # get config sections
+    print_cfg, boxed_pop = dict(cfg), lambda *keys: make_box_str(OmegaConf.to_yaml({k: print_cfg.pop(k) for k in keys} if keys else print_cfg))
+    cfg_str_exp      = boxed_pop('action', 'experiment')
+    cfg_str_logging  = boxed_pop('logging', 'callbacks', 'metrics')
+    cfg_str_dataset  = boxed_pop('dataset', 'datamodule', 'sampling', 'augment')
+    cfg_str_system   = boxed_pop('framework', 'model', 'schedule')
+    cfg_str_settings = boxed_pop('dsettings', 'settings')
+    cfg_str_other    = boxed_pop()
+    # print config sections
+    log.info(f'Final Config For Action: {cfg.action}\n\nEXPERIMENT:{cfg_str_exp}\nLOGGING:{cfg_str_logging}\nDATASET:{cfg_str_dataset}\nSYSTEM:{cfg_str_system}\nTRAINER:{cfg_str_other}\nSETTINGS:{cfg_str_settings}')
 
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
     # BEGIN TRAINING
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
 
-    # get config sections
-    print_cfg, boxed_pop = dict(cfg), lambda *keys: make_box_str(OmegaConf.to_yaml({k: print_cfg.pop(k) for k in keys} if keys else print_cfg))
-    cfg_str_logging  = boxed_pop('logging', 'callbacks', 'metrics')
-    cfg_str_dataset  = boxed_pop('dataset', 'sampling', 'augment')
-    cfg_str_system   = boxed_pop('framework', 'model', 'schedule')
-    cfg_str_settings = boxed_pop('dsettings', 'settings')
-    cfg_str_other    = boxed_pop()
-    # print config sections
-    log.info(f'Final Config For Action: {cfg.action}\n\nLOGGING:{cfg_str_logging}\nDATASET:{cfg_str_dataset}\nSYSTEM:{cfg_str_system}\nTRAINER:{cfg_str_other}\nSETTINGS:{cfg_str_settings}')
-
-    # save hparams TODO: is this a pytorch lightning bug? The trainer should automatically save these if hparams is set?
+    # save hparams
     framework.hparams.update(cfg)
     if trainer.logger:
-        trainer.logger.log_hyperparams(framework.hparams)
+        trainer.logger.log_hyperparams(framework.hparams)  # TODO: is this a pytorch lightning bug? The trainer should automatically save these if hparams is set?
 
     # fit the model
     # -- if an error/signal occurs while pytorch lightning is
@@ -380,14 +348,13 @@ def action_train(cfg: DictConfig):
     trainer.fit(framework, datamodule=datamodule)
 
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
-
     # cleanup this run
+    # -~-~-~-~-~-~-~-~-~-~-~-~- #
+
     try:
         wandb.finish()
     except:
         pass
-
-    # -~-~-~-~-~-~-~-~-~-~-~-~- #
 
 
 # available actions
@@ -458,8 +425,14 @@ def patch_hydra():
         OmegaConf.register_new_resolver('exp_dir', make_current_experiment_dir)
 
     # register a function that pads an integer to a specified length
+    # - ${fmt:"{:04d}",42} -> "0042"
     if not OmegaConf.has_resolver('fmt'):
         OmegaConf.register_new_resolver('fmt', str.format)
+
+    # register hydra helper functions
+    # - ${abspath:<rel_path>} convert a relative path to an abs path using the original hydra working directory, not the changed experiment dir.
+    if not OmegaConf.has_resolver('abspath'):
+        OmegaConf.register_new_resolver('abspath', hydra.utils.to_absolute_path)
 
 
 # ========================================================================= #
