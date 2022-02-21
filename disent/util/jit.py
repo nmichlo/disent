@@ -1,7 +1,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 #  MIT License
 #
-#  Copyright (c) 2021 Nathan Juraj Michlo
+#  Copyright (c) 2022 Nathan Juraj Michlo
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to deal
@@ -22,20 +22,32 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-# base sampler
-from disent.dataset.sampling._base import BaseDisentSampler
 
-# ground truth samplers
-from disent.dataset.sampling._groundtruth__dist import GroundTruthDistSampler
-from disent.dataset.sampling._groundtruth__pair import GroundTruthPairSampler
-from disent.dataset.sampling._groundtruth__pair_orig import GroundTruthPairOrigSampler
-from disent.dataset.sampling._groundtruth__single import GroundTruthSingleSampler
-from disent.dataset.sampling._groundtruth__triplet import GroundTruthTripleSampler
-from disent.dataset.sampling._groundtruth__walk import GroundTruthRandomWalkSampler
+# ========================================================================= #
+# Numba Is An Optional Dependency                                           #
+# ========================================================================= #
 
-# any dataset samplers
-from disent.dataset.sampling._single import SingleSampler
-from disent.dataset.sampling._random__any import RandomSampler
 
-# episode samplers
-from disent.dataset.sampling._random__episodes import RandomEpisodeSampler
+def try_njit(*args, **kwargs):
+    """
+    Wrapper around numba.njit
+    - If numba is installed, then we JIT the decorated function
+    - If numba is missing, then we do nothing and leave the function untouched!
+    """
+    try:
+        from numba import njit
+    except ImportError:
+        # dummy njit
+        def njit(*args, **kwargs):
+            def _wrapper(func):
+                import warnings
+                warnings.warn(f'failed to JIT compile: {func}, numba is not installed!')
+                return func
+            return _wrapper
+    # try and JIT compile function!
+    return njit(*args, **kwargs)
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #
