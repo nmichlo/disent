@@ -29,9 +29,11 @@ if __name__ == '__main__':
     # iterate through all the experiment roots
     for root in [
         # Path(__file__).parent.joinpath('exp/00001_xy8_1.5_10000'),
-        Path(__file__).parent.joinpath('exp/00002_xy8_1.25_10000'),
+        # Path(__file__).parent.joinpath('exp/00002_xy8_1.25_10000'),
         # Path(__file__).parent.joinpath('exp/00003_xy8_1.5_5000'),
         # Path(__file__).parent.joinpath('exp/00004_xy8_1.25_5000'),
+        # Path(__file__).parent.joinpath('exp/00011_xy8_1.25_10000'),
+        Path(__file__).parent.joinpath('exp/00002_xy8_1.25_10000_MERGE'),
     ]:
         # make table
         table = Table('run', title=root.name)
@@ -70,18 +72,26 @@ if __name__ == '__main__':
         '0x9_xy8_adatvae_soft_A1',  # ok, but A2 is a stronger case!
         '0x11_xy8_adatvae_soft_B',  # bad, sampling is not good
         '0x12_xy8_adatvae_soft_C',  # ok, but manhat (A) sampling is better
-        # '0x4_xy8_adatvae_soft_A',
-        # '0x10_xy8_adatvae_soft_A2',
         # '0x2_xy8_adavae_os',
         # '0x0_xy8_betavae',
+        # '0x4_xy8_adatvae_soft_A',
         # '0x3_xy8_triplet_soft_A',
-        # '0x6_xy8_triplet_soft_A2',
+        '0x10_xy8_adatvae_soft_A2',
+        '0x6_xy8_triplet_soft_A2',
+        # '0x20_xy8_adatvae_soft_D8',  # good! not as good as A2 though.
+        # '0x16_xy8_triplet_soft_D8',  # good! not as good as A2 though.
+        '0x19_xy8_adatvae_soft_D16',  # too random
+        '0x15_xy8_triplet_soft_D16',  # too random
+        '0x18_xy8_adatvae_soft_D32',  # too random
+        '0x14_xy8_triplet_soft_D32',  # too random
+        '0x17_xy8_adatvae_soft_D64',  # too random
+        '0x13_xy8_triplet_soft_D64',  # too random
     ])]
-    df = df[~df['exp'].isin([
-        '00001_xy8_1.5_10000',  # ada not strong enough
-        '00003_xy8_1.5_5000',   # ada not strong enough
-        '00004_xy8_1.25_5000',  # might as well use longer runs
-    ])]
+    # df = df[~df['exp'].isin([
+    #     '00001_xy8_1.5_10000',  # ada not strong enough
+    #     '00003_xy8_1.5_5000',   # ada not strong enough
+    #     '00004_xy8_1.25_5000',  # might as well use longer runs
+    # ])]
 
     # make plots
     # for col in ['rcorr', 'axis', 'linear']:
@@ -98,6 +108,8 @@ if __name__ == '__main__':
     df.loc[df['name'] == '0x0_xy8_betavae',          'name'] = 'Beta-VAE'
     df.loc[df['name'] == '0x3_xy8_triplet_soft_A',   'name'] = 'TVAE'
     df.loc[df['name'] == '0x6_xy8_triplet_soft_A2',  'name'] = 'TVAE (80%)'
+    df.loc[df['name'] == '0x20_xy8_adatvae_soft_D8', 'name'] = 'Ada-TVAE (walk)'
+    df.loc[df['name'] == '0x16_xy8_triplet_soft_D8', 'name'] = 'TVAE (walk)'
 
     # make new df
     df1 = df.rename(columns={'rcorr': 'score'})
