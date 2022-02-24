@@ -148,7 +148,7 @@ def train(
 
     # visualise data -- plot image, save image
     plt_imshow(data_image, show=True)
-    imageio.imsave(save_dir.joinpath('data_samples.png'), image)
+    imageio.imsave(save_dir.joinpath('data_samples.png'), data_image)
 
     # compute metrics
     get_repr = lambda x: framework.encode(x.to(framework.device))
@@ -203,9 +203,12 @@ def run_experiments(
     triplet_sampler_maker_A  = lambda: GroundTruthDistSampler(num_samples=3, triplet_sample_mode='manhattan_scaled', triplet_swap_chance=0.0)
     triplet_sampler_maker_A1 = lambda: GroundTruthDistSampler(num_samples=3, triplet_sample_mode='manhattan_scaled', triplet_swap_chance=0.1)  # actually works quite well if ada_ratio is lower, eg 1.25 instead of 1.5, but might hurt recons? check?
     triplet_sampler_maker_A2 = lambda: GroundTruthDistSampler(num_samples=3, triplet_sample_mode='manhattan_scaled', triplet_swap_chance=0.2)  # actually works quite well if ada_ratio is lower, eg 1.25 instead of 1.5, but might hurt recons? check?
-    triplet_sampler_maker_B = lambda: GroundTruthTripleSampler(p_k_range=1,       n_k_range=(0, -1), n_k_sample_mode='bounded_below', n_k_is_shared=True, p_radius_range=1,       n_radius_range=(0, -1), n_radius_sample_mode='bounded_below')   # this one is really bad
-    triplet_sampler_maker_C = lambda: GroundTruthTripleSampler(p_k_range=(0, -1), n_k_range=(0, -1), n_k_sample_mode='bounded_below', n_k_is_shared=True, p_radius_range=(0, -1), n_radius_range=(0, -1), n_radius_sample_mode='bounded_below')   # pretty much the same as the manhat above, except more strict... actually less real because its bounded below. Real episodes when sampled by time will usually be further away, but not necessarily bounded below like this.
-    triplet_sampler_maker_D = lambda: GroundTruthRandomWalkSampler(num_samples=3, p_dist_max=8, n_dist_max=32)
+    triplet_sampler_maker_B  = lambda: GroundTruthTripleSampler(p_k_range=1,       n_k_range=(0, -1), n_k_sample_mode='bounded_below', n_k_is_shared=True, p_radius_range=1,       n_radius_range=(0, -1), n_radius_sample_mode='bounded_below')   # this one is really bad
+    triplet_sampler_maker_C  = lambda: GroundTruthTripleSampler(p_k_range=(0, -1), n_k_range=(0, -1), n_k_sample_mode='bounded_below', n_k_is_shared=True, p_radius_range=(0, -1), n_radius_range=(0, -1), n_radius_sample_mode='bounded_below')   # pretty much the same as the manhat above, except more strict... actually less real because its bounded below. Real episodes when sampled by time will usually be further away, but not necessarily bounded below like this.
+    triplet_sampler_maker_D64 = lambda: GroundTruthRandomWalkSampler(num_samples=3, p_dist_max=8, n_dist_max=64)
+    triplet_sampler_maker_D32 = lambda: GroundTruthRandomWalkSampler(num_samples=3, p_dist_max=8, n_dist_max=32)
+    triplet_sampler_maker_D16 = lambda: GroundTruthRandomWalkSampler(num_samples=3, p_dist_max=8, n_dist_max=16)
+    triplet_sampler_maker_D8  = lambda: GroundTruthRandomWalkSampler(num_samples=3, p_dist_max=8, n_dist_max=8)
 
     frameworks = [
         ('betavae',   BetaVae,    lambda:        BetaVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.0001), lambda: RandomSampler(num_samples=1),                                lambda: {}),
@@ -236,9 +239,15 @@ def run_experiments(
         # ('adatvae_trip10', AdaTripletVae, lambda: AdaTripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet',         triplet_scale=1, triplet_margin_max=10, triplet_p=1),  triplet_sampler_maker, lambda: _load_ada_schedules(max_steps=int(train_steps*ADA_RATIO))),
         # ('adatvae_trip1',  AdaTripletVae, lambda: AdaTripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet',         triplet_scale=1, triplet_margin_max=1,  triplet_p=1),  triplet_sampler_maker, lambda: _load_ada_schedules(max_steps=int(train_steps*ADA_RATIO))),
 
-        # TODO: include these in results!
-        ('triplet_soft_D',  TripletVae, lambda: TripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet_soft',    triplet_scale=1,  triplet_margin_max=10, triplet_p=1),  triplet_sampler_maker_D, lambda: {}),
-        ('adatvae_soft_D',   AdaTripletVae, lambda: AdaTripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet_soft',    triplet_scale=1, triplet_margin_max=10, triplet_p=1),  triplet_sampler_maker_D,  lambda: _load_ada_schedules(max_steps=int(train_steps * ada_ratio))),
+        ('triplet_soft_D64',  TripletVae, lambda: TripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet_soft',    triplet_scale=1,  triplet_margin_max=10, triplet_p=1),  triplet_sampler_maker_D64, lambda: {}),
+        ('triplet_soft_D32',  TripletVae, lambda: TripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet_soft',    triplet_scale=1,  triplet_margin_max=10, triplet_p=1),  triplet_sampler_maker_D32, lambda: {}),
+        ('triplet_soft_D16',  TripletVae, lambda: TripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet_soft',    triplet_scale=1,  triplet_margin_max=10, triplet_p=1),  triplet_sampler_maker_D16, lambda: {}),
+        ('triplet_soft_D8',  TripletVae, lambda: TripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet_soft',    triplet_scale=1,  triplet_margin_max=10, triplet_p=1),  triplet_sampler_maker_D8, lambda: {}),
+
+        ('adatvae_soft_D64',   AdaTripletVae, lambda: AdaTripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet_soft',    triplet_scale=1, triplet_margin_max=10, triplet_p=1),  triplet_sampler_maker_D64,  lambda: _load_ada_schedules(max_steps=int(train_steps * ada_ratio))),
+        ('adatvae_soft_D32',   AdaTripletVae, lambda: AdaTripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet_soft',    triplet_scale=1, triplet_margin_max=10, triplet_p=1),  triplet_sampler_maker_D32,  lambda: _load_ada_schedules(max_steps=int(train_steps * ada_ratio))),
+        ('adatvae_soft_D16',   AdaTripletVae, lambda: AdaTripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet_soft',    triplet_scale=1, triplet_margin_max=10, triplet_p=1),  triplet_sampler_maker_D16,  lambda: _load_ada_schedules(max_steps=int(train_steps * ada_ratio))),
+        ('adatvae_soft_D8',   AdaTripletVae, lambda: AdaTripletVae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=lr), beta=0.001, triplet_loss='triplet_soft',    triplet_scale=1, triplet_margin_max=10, triplet_p=1),  triplet_sampler_maker_D8,  lambda: _load_ada_schedules(max_steps=int(train_steps * ada_ratio))),
     ]
 
     # GET NAME:

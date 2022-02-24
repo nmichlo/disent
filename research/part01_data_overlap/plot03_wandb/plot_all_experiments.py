@@ -24,11 +24,13 @@
 
 import os
 from typing import Optional
+from typing import Tuple
 
 import pandas as pd
 import seaborn as sns
 from cachier import cachier as _cachier
 from matplotlib import pyplot as plt
+import matplotlib.lines as mlines
 
 import research.code.util as H
 from disent.util.function import wrapped_partial
@@ -118,6 +120,8 @@ def plot_e02_incr_overlap_xysquares(
     color_betavae: str = PINK,
     color_adavae: str = ORANGE,
     titles: bool = False,
+    figsize: Tuple[float, float] = (10, 5),
+    include: Tuple[str] = ('mig', 'dci'),
 ):
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
     df = load_general_data(f'{os.environ["WANDB_USER"]}/CVPR-01__incr_overlap')
@@ -153,22 +157,27 @@ def plot_e02_incr_overlap_xysquares(
     print('BETAVAE', len(orig), '->', len(data_betavae))
 
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
-    fig, axs = plt.subplots(1, 2, figsize=(10, 5))
-    (ax0, ax1) = axs
+    fig, axs = plt.subplots(1, len(include), figsize=figsize, squeeze=False)
+    axs = axs.reshape(-1)
+    # Legend entries
+    marker_ada  = mlines.Line2D([], [], color=color_adavae,  marker='o', markersize=12, label='Ada-GVAE')
+    marker_beta = mlines.Line2D([], [], color=color_betavae, marker='X', markersize=12, label='Beta-VAE')  # why does 'x' not work? only 'X'?
     # PLOT: MIG
-    sns.regplot(ax=ax0, x=K_SPACING, y=K_MIG, data=data_adavae,  seed=777, order=reg_order, robust=False, color=color_adavae,  marker='o')
-    sns.regplot(ax=ax0, x=K_SPACING, y=K_MIG, data=data_betavae, seed=777, order=reg_order, robust=False, color=color_betavae, marker='x', line_kws=dict(linestyle='dashed'))
-    ax0.legend(labels=["Ada-GVAE", "Beta-VAE"], fontsize=14)
-    ax0.set_ylim([-0.1, 1.1])
-    ax0.set_xlim([0.8, 8.2])
-    if titles: ax0.set_title('Framework Mig Scores')
+    if 'mig' in include:
+        sns.regplot(ax=axs[0], x=K_SPACING, y=K_MIG, data=data_adavae,  seed=777, order=reg_order, robust=False, color=color_adavae,  marker='o')
+        sns.regplot(ax=axs[0], x=K_SPACING, y=K_MIG, data=data_betavae, seed=777, order=reg_order, robust=False, color=color_betavae, marker='x', line_kws=dict(linestyle='dashed'))
+        axs[0].legend(handles=[marker_beta, marker_ada], fontsize=14)
+        axs[0].set_ylim([-0.1, 1.1])
+        axs[0].set_xlim([0.8, 8.2])
+        if titles: axs[0].set_title('Framework Mig Scores')
     # PLOT: DCI
-    sns.regplot(ax=ax1, x=K_SPACING, y=K_DCI, data=data_adavae,  seed=777, order=reg_order, robust=False, color=color_adavae,  marker='o')
-    sns.regplot(ax=ax1, x=K_SPACING, y=K_DCI, data=data_betavae, seed=777, order=reg_order, robust=False, color=color_betavae, marker='x', line_kws=dict(linestyle='dashed'))
-    ax1.legend(labels=["Ada-GVAE", "Beta-VAE"], fontsize=14)
-    ax1.set_ylim([-0.1, 1.1])
-    ax1.set_xlim([0.8, 8.2])
-    if titles: ax1.set_title('Framework DCI Scores')
+    if 'dci' in include:
+        sns.regplot(ax=axs[-1], x=K_SPACING, y=K_DCI, data=data_adavae,  seed=777, order=reg_order, robust=False, color=color_adavae,  marker='o')
+        sns.regplot(ax=axs[-1], x=K_SPACING, y=K_DCI, data=data_betavae, seed=777, order=reg_order, robust=False, color=color_betavae, marker='x', line_kws=dict(linestyle='dashed'))
+        axs[-1].legend(handles=[marker_beta, marker_ada], fontsize=14)
+        axs[-1].set_ylim([-0.1, 1.1])
+        axs[-1].set_xlim([0.8, 8.2])
+        if titles: axs[-1].set_title('Framework DCI Scores')
     # PLOT:
     fig.tight_layout()
     H.plt_rel_path_savefig(rel_path, save=save, show=show)
@@ -332,9 +341,11 @@ if __name__ == '__main__':
     # clear_cache()
 
     def main():
-        plot_e01_hparam_tuning(rel_path='plots/p01e01_hparam-tuning', show=True)                      # was: exp_hparams-exp
+        # plot_e01_hparam_tuning(rel_path='plots/p01e01_hparam-tuning', show=True)                      # was: exp_hparams-exp
         plot_e02_incr_overlap_xysquares(rel_path='plots/p01e02_incr-overlap-xysquares', show=True)    # was: exp_incr-overlap
-        plot_e03_modified_loss_xysquares(rel_path='plots/p01e03_modified-loss-xysquares', show=True)  # was: exp_overlap-loss
+        plot_e02_incr_overlap_xysquares(rel_path='plots/p01e02_incr-overlap-xysquares_mig', show=True, include=('mig',), figsize=(6.5, 4))    # was: exp_incr-overlap
+        plot_e02_incr_overlap_xysquares(rel_path='plots/p01e02_incr-overlap-xysquares_dci', show=True, include=('dci',), figsize=(6.5, 4))    # was: exp_incr-overlap
+        # plot_e03_modified_loss_xysquares(rel_path='plots/p01e03_modified-loss-xysquares', show=True)  # was: exp_overlap-loss
 
     main()
 
