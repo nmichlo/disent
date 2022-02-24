@@ -28,6 +28,7 @@ from research.code.frameworks.vae._supervised__adaneg_tvae import AdaNegTripletV
 from research.code.frameworks.vae._supervised__adatvae import AdaTripletVae
 from research.code.frameworks.vae._supervised__badavae import BoundedAdaVae
 from research.code.frameworks.vae._supervised__gadavae import GuidedAdaVae
+from research.code.frameworks.vae._supervised__softadatvae import SoftAdaTripletVae
 from research.code.frameworks.vae._supervised__tbadavae import TripletBoundedAdaVae
 from research.code.frameworks.vae._supervised__tgadavae import TripletGuidedAdaVae
 

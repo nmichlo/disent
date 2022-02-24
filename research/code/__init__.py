@@ -49,6 +49,7 @@ def register_to_disent():
     R.FRAMEWORKS.setm['x__ada_tvae']    = R.LazyImport('research.code.frameworks.vae._supervised__adatvae.AdaTripletVae')
     R.FRAMEWORKS.setm['x__bada_vae']    = R.LazyImport('research.code.frameworks.vae._supervised__badavae.BoundedAdaVae')
     R.FRAMEWORKS.setm['x__gada_vae']    = R.LazyImport('research.code.frameworks.vae._supervised__gadavae.GuidedAdaVae')
+    R.FRAMEWORKS.setm['x__softada_tvae']= R.LazyImport('research.code.frameworks.vae._supervised__softadatvae.SoftAdaTripletVae')
     R.FRAMEWORKS.setm['x__tbada_vae']   = R.LazyImport('research.code.frameworks.vae._supervised__tbadavae.TripletBoundedAdaVae')
     R.FRAMEWORKS.setm['x__tgada_vae']   = R.LazyImport('research.code.frameworks.vae._supervised__tgadavae.TripletGuidedAdaVae')
     R.FRAMEWORKS.setm['x__dor_vae']     = R.LazyImport('research.code.frameworks.vae._unsupervised__dorvae.DataOverlapRankVae')

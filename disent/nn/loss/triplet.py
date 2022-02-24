@@ -300,8 +300,7 @@ def compute_triplet_loss(zs: Sequence[torch.Tensor], cfg: TripletConfigTypeHint)
     }
 
 
-def compute_dist_triplet_loss(zs_deltas: Sequence[torch.Tensor], cfg: TripletConfigTypeHint):
-    pos_delta, neg_delta = zs_deltas
+def compute_dist_triplet_loss(pos_delta: torch.Tensor, neg_delta: torch.Tensor, cfg: TripletConfigTypeHint):
     # loss is scaled and everything
     loss = configured_dist_triplet(pos_delta, neg_delta, cfg=cfg)
     # return loss & log

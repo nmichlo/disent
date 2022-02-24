@@ -47,7 +47,7 @@ COUNTS = {
 COUNTS = {                 # pragma: delete-on-release
     'DATASETS': 14,        # pragma: delete-on-release
     'SAMPLERS': 8,         # pragma: delete-on-release
-    'FRAMEWORKS': 25,      # pragma: delete-on-release
+    'FRAMEWORKS': 26,      # pragma: delete-on-release
     'RECON_LOSSES': 8,     # pragma: delete-on-release
     'LATENT_HANDLERS': 2,  # pragma: delete-on-release
     'OPTIMIZERS': 30,      # pragma: delete-on-release
