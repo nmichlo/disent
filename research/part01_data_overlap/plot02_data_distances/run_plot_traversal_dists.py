@@ -34,6 +34,7 @@ from typing import Sequence
 from typing import Tuple
 from typing import Union
 
+import imageio
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -53,6 +54,7 @@ from disent.util.seeds import TempNumpySeed
 # ========================================================================= #
 # Factor Traversal Stats                                                    #
 # ========================================================================= #
+from disent.util.visualize.vis_util import make_image_grid
 
 
 SampleModeHint = Union[Literal['random'], Literal['near'], Literal['combinations']]
@@ -157,7 +159,7 @@ _COLORS = {
 }
 
 
-def plot_traversal_stats(
+def plot_traversal_stats_OLD(
     dataset_or_name: Union[str, GroundTruthData],
     num_repeats: int = 256,
     f_idxs: Optional[NonNormalisedFactors] = None,
@@ -176,6 +178,7 @@ def plot_traversal_stats(
     y_size_offset: float = 0.0,
     x_size_offset: float = 0.0,
 ):
+    # TODO: this function is actually terrible...
     # - - - - - - - - - - - - - - - - - #
 
     def stats_fn(gt_data, i, f_idx):
@@ -315,6 +318,7 @@ def plot_traversal_stats(
     disable_labels: bool = False,
     bottom_labels: bool = False,
     label_size: int = 23,
+    return_dists: bool = True
 ):
     # - - - - - - - - - - - - - - - - - #
 
@@ -393,6 +397,8 @@ def plot_traversal_stats(
     plt.show()
 
     # - - - - - - - - - - - - - - - - - #
+    if return_dists:
+        return fig, grid_t, grid_titles
     return fig
 
 
@@ -519,6 +525,14 @@ def main_compute_dists(factor_samples: int = 50_000, min_repeats: int = 5000, ra
 # [xy_squares] x_R (8, 50000) - mean:  0.0104  std:  0.0000
 # [xy_squares] RANDOM (262144, 50000) - mean:  0.0308  std:  0.0022
 
+
+
+def _grid_plot_save(path: str, imgs: Sequence[np.ndarray], show: bool = True):
+    img = make_image_grid(imgs, pad=0, border=False, num_cols=-1)
+    H.plt_imshow(img, show=True)
+    imageio.imsave(path, img)
+
+
 # ========================================================================= #
 # MAIN - PLOTTING                                                           #
 # ========================================================================= #
@@ -549,6 +563,10 @@ def main_plotting(plot_all=False, print_mean_std=False):
     for s in [1, 2, 3, 4, 5, 6, 7, 8]:
         plot_traversal_stats(circular_distance=CIRCULAR, plt_scale=8, label_size=26, x_size_offset=0, y_size_offset=0.6, save_path=sp(f'xysquares_8x8_s{s}'), color='blue', dataset_or_name=f'xysquares_8x8_s{s}', f_idxs=[1], col_titles=[f'Space: {s}px'], plot_freq=PLOT_FREQ)
         _print_data_mean_std(f'xysquares_8x8_s{s}', print_mean_std)
+
+    # plot xysquares with increasing overlap -- combined into one image
+    _grid_plot_save(path=sp(f'xysquares_8x8_all'),  imgs=[imageio.imread(sp(f'xysquares_8x8_s{s}'))[:, 2:-2, :3] for s in range(1, 9)])
+    _grid_plot_save(path=sp(f'xysquares_8x8_some'), imgs=[imageio.imread(sp(f'xysquares_8x8_s{s}'))[:, 2:-2, :3] for s in [1, 2, 4, 8]])
 
     # plot standard datasets
     for name in ['dsprites', 'shapes3d', 'cars3d', 'smallnorb']:
