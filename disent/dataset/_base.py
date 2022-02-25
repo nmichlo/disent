@@ -84,19 +84,19 @@ def wrapped_only(func):
 # ========================================================================= #
 
 
-_DO_COPY = object()
+_REF_ = object()
 
 
 class DisentDataset(Dataset, LengthIter):
-
 
     def __init__(
         self,
         dataset: Union[Dataset, GroundTruthData],
         sampler: Optional[BaseDisentSampler] = None,
-        transform=None,
-        augment=None,
-        return_indices: bool = False,
+        transform: Optional[callable] = None,
+        augment: Optional[callable] = None,
+        return_indices: bool = False,  # doesn't really hurt performance, might as well leave enabled by default?
+        return_factors: bool = False,
     ):
         super().__init__()
         # save attributes
@@ -105,6 +105,7 @@ class DisentDataset(Dataset, LengthIter):
         self._transform = transform
         self._augment = augment
         self._return_indices = return_indices
+        self._return_factors = return_factors
         # check sampler
         assert isinstance(self._sampler, BaseDisentSampler), f'{DisentDataset.__name__} got an invalid {BaseDisentSampler.__name__}: {type(self._sampler)}'
         # initialize sampler
@@ -114,19 +115,27 @@ class DisentDataset(Dataset, LengthIter):
         if self._transform is not None:
             if hasattr(dataset, '_transform') and dataset._transform:
                 warnings.warn(f'{DisentDataset.__name__} has transform specified as well as wrapped dataset: {dataset}, are you sure this is intended?')
+        # check the dataset if we are returning the factors
+        if self._return_factors:
+            assert isinstance(self._dataset, GroundTruthData), f'If `return_factors` is `True`, then the dataset must be an instance of: {GroundTruthData.__name__}, got: {type(dataset)}'
 
     def shallow_copy(
         self,
-        transform=_DO_COPY,
-        augment=_DO_COPY,
-        return_indices=_DO_COPY,
+        dataset: Union[Dataset, GroundTruthData] =_REF_,
+        sampler: Optional[BaseDisentSampler] = _REF_,
+        transform: Optional[callable] = _REF_,
+        augment: Optional[callable] = _REF_,
+        return_indices: bool = _REF_,
+        return_factors: bool = _REF_,
     ) -> 'DisentDataset':
+        # instantiate shallow dataset copy, overwriting elements if specified
         return DisentDataset(
-            dataset=self._dataset,
-            sampler=self._sampler,
-            transform=self._transform if (transform is _DO_COPY) else transform,
-            augment=self._augment if (augment is _DO_COPY) else augment,
-            return_indices=self._return_indices if (return_indices is _DO_COPY) else return_indices,
+            dataset        = self._dataset               if (dataset is _REF_)        else dataset,
+            sampler        = self._sampler.uninit_copy() if (sampler is _REF_)        else sampler,
+            transform      = self._transform             if (transform is _REF_)      else transform,
+            augment        = self._augment               if (augment is _REF_)        else augment,
+            return_indices = self._return_indices        if (return_indices is _REF_) else return_indices,
+            return_factors = self._return_factors        if (return_factors is _REF_) else return_factors,
         )
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -185,15 +194,22 @@ class DisentDataset(Dataset, LengthIter):
         return self._dataset.gt_data
 
     @wrapped_only
-    def unwrapped_disent_dataset(self) -> 'DisentDataset':
-        sampler = self._sampler.uninit_copy()
-        assert type(sampler) is type(self._sampler)
-        return DisentDataset(
+    def unwrapped_shallow_copy(
+        self,
+        sampler: Optional[BaseDisentSampler] = _REF_,
+        transform: Optional[callable] = _REF_,
+        augment: Optional[callable] = _REF_,
+        return_indices: bool = _REF_,
+        return_factors: bool = _REF_,
+    ) -> 'DisentDataset':
+        # like shallow_copy, but unwrap the dataset instead!
+        return self.shallow_copy(
             dataset=self.wrapped_data,
             sampler=sampler,
-            transform=self._transform,
-            augment=self._augment,
-            return_indices=self._return_indices,
+            transform=transform,
+            augment=augment,
+            return_indices=return_indices,
+            return_factors=return_factors,
         )
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -284,6 +300,12 @@ class DisentDataset(Dataset, LengthIter):
         # add indices
         if self._return_indices:
             obs['idx'] = idxs
+        # add factors
+        if self._return_factors:
+            # >>> this is about 10% faster than below, because we do not need to do conversions!
+            obs['factors'] = tuple(np.array(np.unravel_index(idxs, self._dataset.factor_sizes)).T)
+            # >>> builtin but slower method, does some magic for more than 2 dims, could replace with faster try_njit method, but then we need numba!
+            # obs['factors1'] = tuple(self.gt_data.idx_to_pos(idxs))
         # done!
         return obs
 

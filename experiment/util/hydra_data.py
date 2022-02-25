@@ -94,6 +94,8 @@ class HydraDataModule(pl.LightningDataModule):
         augment_on_gpu: bool = False,                        # = dsettings.dataset.gpu_augment
         using_cuda: Optional[bool] = False,                  # = self.hparams.dsettings.trainer.cuda
         prepare_data_per_node: bool = True,                  # DataHooks.prepare_data_per_node
+        return_indices: bool = False,                        # = framework.meta.requires_indices
+        return_factors: bool = False,                        # = framework.meta.requires_factors
     ):
         super().__init__()
         # OVERRIDE:
@@ -145,8 +147,8 @@ class HydraDataModule(pl.LightningDataModule):
         data = hydra.utils.instantiate(self.hparams.data)
         # Wrap the data for the framework some datasets need triplets, pairs, etc.
         # Augmentation is done inside the frameworks so that it can be done on the GPU, otherwise things are very slow.
-        self.dataset_train_noaug = DisentDataset(data, hydra.utils.instantiate(self.hparams.sampler), transform=self.data_transform, augment=None)
-        self.dataset_train_aug = DisentDataset(data, hydra.utils.instantiate(self.hparams.sampler), transform=self.data_transform, augment=self.input_transform)
+        self.dataset_train_noaug = DisentDataset(data, hydra.utils.instantiate(self.hparams.sampler), transform=self.data_transform, augment=None,               return_indices=self.hparams.return_indices, return_factors=self.hparams.return_factors)
+        self.dataset_train_aug = DisentDataset(data, hydra.utils.instantiate(self.hparams.sampler), transform=self.data_transform, augment=self.input_transform, return_indices=self.hparams.return_indices, return_factors=self.hparams.return_factors)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Training Dataset:

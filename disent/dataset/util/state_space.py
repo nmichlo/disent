@@ -54,9 +54,12 @@ class StateSpace(LengthIter):
 
     def __init__(self, factor_sizes: Sequence[int], factor_names: Optional[Sequence[str]] = None):
         super().__init__()
-        # dimension
+        # dimension: [read only]
         self.__factor_sizes = np.array(factor_sizes)
         self.__factor_sizes.flags.writeable = False
+        # multipliers: [read only]
+        self.__factor_multipliers = _dims_multipliers(self.__factor_sizes)
+        self.__factor_multipliers.flags.writeable = False
         # total permutations
         self.__size = int(np.prod(factor_sizes))
         # factor names
@@ -95,6 +98,21 @@ class StateSpace(LengthIter):
     def factor_names(self) -> Tuple[str, ...]:
         """A list of names of factors handled by this state space"""
         return self.__factor_names
+
+    @property
+    def factor_multipliers(self) -> np.ndarray:
+        """
+        The cumulative product of the factor_sizes used to convert indices to positions, and positions to indices.
+        - The highest values is at the front, the lowest is at the end always being 1.
+        - The size of this vector is: num_factors + 1
+
+        Formulas:
+            * Use broadcasting to get positions:
+                pos = (idx[..., None] % muls[:-1]) // muls[1:]
+            * Use broadcasting to get indices
+                idx = np.sum(pos * muls[1:], axis=-1)
+        """
+        return self.__factor_multipliers
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Factor Helpers                                                        #
@@ -137,6 +155,8 @@ class StateSpace(LengthIter):
         Convert a position to an index (or convert a list of positions to a list of indices)
         - positions are lists of integers, with each element < their corresponding factor size
         - indices are integers < size
+
+        TODO: can factor_multipliers be used to speed this up?
         """
         positions = np.moveaxis(positions, source=-1, destination=0)
         return np.ravel_multi_index(positions, self.__factor_sizes)
@@ -146,6 +166,8 @@ class StateSpace(LengthIter):
         Convert an index to a position (or convert a list of indices to a list of positions)
         - indices are integers < size
         - positions are lists of integers, with each element < their corresponding factor size
+
+        TODO: can factor_multipliers be used to speed this up?
         """
         positions = np.array(np.unravel_index(indices, self.__factor_sizes))
         return np.moveaxis(positions, source=0, destination=-1)
@@ -267,7 +289,7 @@ class StateSpace(LengthIter):
 
 
 @lru_cache()
-def _get_step_size(factor_sizes, f_idx):
+def _get_step_size(factor_sizes, f_idx: int):
     # check values
     assert f_idx >= 0
     assert f_idx < len(factor_sizes)
@@ -277,6 +299,20 @@ def _get_step_size(factor_sizes, f_idx):
     pos = np.zeros(len(factor_sizes), dtype='uint8')
     pos[f_idx] = 1
     return int(np.ravel_multi_index(pos, factor_sizes))
+
+
+def _dims_multipliers(factor_sizes: np.ndarray) -> np.ndarray:
+    factor_sizes = np.array(factor_sizes)
+    assert factor_sizes.ndim == 1
+    return np.append(np.cumprod(factor_sizes[::-1])[::-1], 1)
+
+
+# @try_njit
+# def _idx_to_pos(idxs, dims_mul):
+#     factors = np.expand_dims(np.array(idxs, dtype='int'), axis=-1)
+#     factors = factors % dims_mul[:-1]
+#     factors //= dims_mul[1:]
+#     return factors
 
 
 # ========================================================================= #

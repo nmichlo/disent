@@ -225,6 +225,9 @@ def hydra_make_datamodule(cfg):
         dataloader_kwargs     = cfg.datamodule.dataloader,
         augment_on_gpu        = cfg.datamodule.gpu_augment,
         prepare_data_per_node = cfg.datamodule.prepare_data_per_node,
+        # from: framework.meta
+        return_indices        = cfg.framework.meta.get('requires_indices', False),
+        return_factors        = cfg.framework.meta.get('requires_factors', False),
     )
 
 # ========================================================================= #

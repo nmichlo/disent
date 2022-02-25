@@ -57,10 +57,10 @@ def _get_dataset_and_ae_like(trainer_or_dataset: pl.Trainer, pl_module: pl.Light
         dataset = trainer_or_dataset
     # check dataset
     assert isinstance(dataset, DisentDataset), f'retrieved dataset is not an {DisentDataset.__name__}'
-    # unwarp dataset
+    # unwrap dataset
     if unwrap_groundtruth:
         if dataset.is_wrapped_gt_data:
-            old_dataset, dataset = dataset, dataset.unwrapped_disent_dataset()
+            old_dataset, dataset = dataset, dataset.unwrapped_shallow_copy()
             warnings.warn(f'Unwrapped ground truth dataset returned! {type(old_dataset.data).__name__} -> {type(dataset.data).__name__}')
     # done checks
     return dataset, pl_module
