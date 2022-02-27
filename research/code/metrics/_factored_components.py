@@ -23,7 +23,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 """
-Flatness Metric Components
+Factored Components Metric
 - Nathan Michlo 2021 (Unpublished)
 - Cite disent
 """
@@ -67,22 +67,24 @@ _SAMPLES_MULTIPLIER_FACTOR = 2
 # ========================================================================= #
 
 
-def _metric_flatness_components(
+def _metric_factored_components(
         dataset: DisentDataset,
         representation_function: callable,
         factor_repeats: int = 1024,
         batch_size: int = 64,
         compute_distances: bool = True,
         compute_linearity: bool = True,
+        compute_swap_ratio: bool = False,
 ):
     """
-    Computes the flatness metric components (ordering, linearity & axis alignment):
+    Computes the factored components metric (ordering, linearity & axis alignment):
 
-    Distances:
+    # Distances:
         rcorr_factor_data:   rank correlation between ground-truth factor dists and MSE distances between data points
         rcorr_latent_data:   rank correlation between l2 latent dists           and MSE distances between data points
         rcorr_factor_latent: rank correlation between ground-truth factor dists and l2 latent dists
 
+        -- only active if `compute_swap_ratio=True`
         rsame_factor_data:   how similar ground-truth factor dists are compared to MSE distances between data points  MEAN: ((a<A)&(b<B)) | ((a==A)&(b==B)) | ((a>A)&(b>B))
         rsame_latent_data:   how similar l2 latent dists           are compared to MSE distances between data points  MEAN: ((a<A)&(b<B)) | ((a==A)&(b==B)) | ((a>A)&(b>B))
         rsame_factor_latent: how similar ground-truth factor dists are compared to l2 latent dists                    MEAN: ((a<A)&(b<B)) | ((a==A)&(b==B)) | ((a>A)&(b>B))
@@ -90,6 +92,8 @@ def _metric_flatness_components(
         * modifiers:
             - .global | computed using random global samples
             - .factor | computed using random values along a ground-truth factor traversal
+            - .l1     | computed using l1 distance
+            - (.l2)   | computed using l2 distance -- if the .l1 tag is missing
 
     # Linearity & Axis Alignment
         linear_ratio:           average (largest singular value over sum of singular values)
@@ -119,13 +123,14 @@ def _metric_flatness_components(
         raise ValueError(f'Metric will not compute any values! At least one of: `compute_distances` or `compute_linearity` must be `True`')
 
     # compute actual metric values
-    factor_scores, global_scores = _compute_flatness_metric_components(
+    factor_scores, global_scores = _compute_factored_metric_components(
         dataset,
         representation_function,
         repeats=factor_repeats,
         batch_size=batch_size,
         compute_distances=compute_distances,
         compute_linearity=compute_linearity,
+        compute_swap_ratio=compute_swap_ratio,
     )
 
     # convert values from torch
@@ -135,25 +140,25 @@ def _metric_flatness_components(
     }
 
 
-# EXPORT: metric_flatness_components
-metric_flatness_components = make_metric(
-    'flatness_components',
+# EXPORT: metric_factored_components
+metric_factored_components = make_metric(
+    'factored_components',
     fast_kwargs=dict(factor_repeats=128),
-)(_metric_flatness_components)
+)(_metric_factored_components)
 
 # EXPORT: metric_distances
 metric_distances = make_metric(
     'distances',
     default_kwargs=dict(compute_distances=True, compute_linearity=False),
     fast_kwargs=dict(compute_distances=True, compute_linearity=False, factor_repeats=128),
-)(_metric_flatness_components)
+)(_metric_factored_components)
 
 # EXPORT: metric_linearity
 metric_linearity = make_metric(
     'linearity',
     default_kwargs=dict(compute_distances=False, compute_linearity=True),
     fast_kwargs=dict(compute_distances=False, compute_linearity=True, factor_repeats=128),
-)(_metric_flatness_components)
+)(_metric_factored_components)
 
 # ========================================================================= #
 # flatness                                                                  #
@@ -175,13 +180,14 @@ def _filtered_mean(values, p, factor_sizes):
 
 
 @torch.no_grad()
-def _compute_flatness_metric_components(
+def _compute_factored_metric_components(
         dataset: DisentDataset,
         representation_function,
         repeats: int,
         batch_size: int,
         compute_distances: bool,
         compute_linearity: bool,
+        compute_swap_ratio: bool,
 ) -> (dict, dict):
 
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -189,14 +195,15 @@ def _compute_flatness_metric_components(
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
     factor_values = default_collate([
-        _compute_flatness_metric_components_along_factor(
+        _compute_factored_metric_components_along_factor(
             dataset,
             representation_function,
             f_idx=f_idx,
             repeats=repeats,
             batch_size=batch_size,
             compute_distances=compute_distances,
-            compute_linearity=compute_linearity
+            compute_linearity=compute_linearity,
+            compute_swap_ratio=compute_swap_ratio,
         )
         for f_idx in range(dataset.gt_data.num_factors)
     ])
@@ -220,7 +227,7 @@ def _compute_flatness_metric_components(
         zs, xs = encode_all_factors(dataset, representation_function, factors, batch_size=batch_size, return_batch=True)
         zs, xs, factors = zs.cpu(), xs.cpu(), torch.from_numpy(factors).to(torch.float32)
         # [COMPUTE SAME RATIO & CORRELATION]
-        computed_dists = _dists_compute_scores(_SAMPLES_MULTIPLIER_GLOBAL*len(zs), zs_traversal=zs, xs_traversal=xs, factors=factors)
+        computed_dists = _dists_compute_scores(_SAMPLES_MULTIPLIER_GLOBAL*len(zs), zs_traversal=zs, xs_traversal=xs, factors=factors, compute_swap_ratio=compute_swap_ratio)
         # [UPDATE SCORES]
         global_values.append({f'distances.{k}.global': v for k, v in computed_dists.items()})
 
@@ -312,7 +319,7 @@ def _unswapped_ratio(ap0: torch.Tensor, an0: torch.Tensor, ap1: torch.Tensor, an
     return same_mask.to(torch.float32).mean()
 
 
-def _dists_compute_scores(num_triplets: int, zs_traversal: torch.Tensor, xs_traversal: torch.Tensor, factors: Optional[torch.Tensor] = None) -> Dict[str, float]:
+def _dists_compute_scores(num_triplets: int, zs_traversal: torch.Tensor, xs_traversal: torch.Tensor, factors: Optional[torch.Tensor], compute_swap_ratio: bool) -> Dict[str, float]:
     # checks
     assert (len(zs_traversal) == len(xs_traversal)) and ((factors is None) or (len(factors) == len(zs_traversal)))
     assert zs_traversal.device == xs_traversal.device
@@ -325,34 +332,51 @@ def _dists_compute_scores(num_triplets: int, zs_traversal: torch.Tensor, xs_trav
     # compute distances -- shape: (num,)
     ap_ground_dists = torch.abs(idxs_a - idxs_p) if (factors is None) else torch.norm(factors[idxs_a, :] - factors[idxs_p, :], p=1, dim=-1)
     an_ground_dists = torch.abs(idxs_a - idxs_n) if (factors is None) else torch.norm(factors[idxs_a, :] - factors[idxs_n, :], p=1, dim=-1)
-    ap_latent_dists = torch.norm(zs_traversal[idxs_a, :] - zs_traversal[idxs_p, :], dim=-1, p=2)
-    an_latent_dists = torch.norm(zs_traversal[idxs_a, :] - zs_traversal[idxs_n, :], dim=-1, p=2)
-    ap_data_dists   = batch_loss_reduction(F.mse_loss(xs_traversal[idxs_a, ...], xs_traversal[idxs_p, ...], reduction='none'), reduction_dtype=torch.float32, reduction='mean')
-    an_data_dists   = batch_loss_reduction(F.mse_loss(xs_traversal[idxs_a, ...], xs_traversal[idxs_n, ...], reduction='none'), reduction_dtype=torch.float32, reduction='mean')
+    ap_latent_dists_l1 = torch.norm(zs_traversal[idxs_a, :] - zs_traversal[idxs_p, :], dim=-1, p=1)
+    an_latent_dists_l1 = torch.norm(zs_traversal[idxs_a, :] - zs_traversal[idxs_n, :], dim=-1, p=1)
+    ap_latent_dists_l2 = torch.norm(zs_traversal[idxs_a, :] - zs_traversal[idxs_p, :], dim=-1, p=2)
+    an_latent_dists_l2 = torch.norm(zs_traversal[idxs_a, :] - zs_traversal[idxs_n, :], dim=-1, p=2)
+    ap_data_dists = batch_loss_reduction(F.mse_loss(xs_traversal[idxs_a, ...], xs_traversal[idxs_p, ...], reduction='none'), reduction_dtype=torch.float32, reduction='mean')
+    an_data_dists = batch_loss_reduction(F.mse_loss(xs_traversal[idxs_a, ...], xs_traversal[idxs_n, ...], reduction='none'), reduction_dtype=torch.float32, reduction='mean')
     # compute rsame scores -- shape: ()
-    # - check the number of swapped elements along a factor for random triplets.
-    rsame_ground_data   = _unswapped_ratio(ap0=ap_ground_dists, an0=an_ground_dists, ap1=ap_data_dists,   an1=an_data_dists)    # simplifies to: (ap_data_dists > an_data_dists).to(torch.float32).mean()
-    rsame_ground_latent = _unswapped_ratio(ap0=ap_ground_dists, an0=an_ground_dists, ap1=ap_latent_dists, an1=an_latent_dists)  # simplifies to: (ap_latent_dists > an_latent_dists).to(torch.float32).mean()
-    rsame_latent_data   = _unswapped_ratio(ap0=ap_latent_dists, an0=an_latent_dists, ap1=ap_data_dists,   an1=an_data_dists)
+    if compute_swap_ratio:
+        # - check the number of swapped elements along a factor for random triplets.
+        rsame_ground_data      = _unswapped_ratio(ap0=ap_ground_dists,    an0=an_ground_dists,    ap1=ap_data_dists,      an1=an_data_dists)       # simplifies to: (ap_data_dists > an_data_dists).to(torch.float32).mean()
+        rsame_ground_latent_l1 = _unswapped_ratio(ap0=ap_ground_dists,    an0=an_ground_dists,    ap1=ap_latent_dists_l1, an1=an_latent_dists_l1)  # simplifies to: (ap_latent_dists > an_latent_dists).to(torch.float32).mean()
+        rsame_ground_latent_l2 = _unswapped_ratio(ap0=ap_ground_dists,    an0=an_ground_dists,    ap1=ap_latent_dists_l2, an1=an_latent_dists_l2)  # simplifies to: (ap_latent_dists > an_latent_dists).to(torch.float32).mean()
+        rsame_latent_data_l1   = _unswapped_ratio(ap0=ap_latent_dists_l1, an0=an_latent_dists_l1, ap1=ap_data_dists,      an1=an_data_dists)
+        rsame_latent_data_l2   = _unswapped_ratio(ap0=ap_latent_dists_l2, an0=an_latent_dists_l2, ap1=ap_data_dists,      an1=an_data_dists)
+        # same ratio
+        rsame_scores = {
+            'rsame_ground_data':      rsame_ground_data,
+            'rsame_ground_latent.l1': rsame_ground_latent_l1,
+            'rsame_ground_latent':    rsame_ground_latent_l2,
+            'rsame_latent_data.l1':   rsame_latent_data_l1,
+            'rsame_latent_data':      rsame_latent_data_l2,
+        }
+    else:
+        rsame_scores = {}
     # concatenate values -- shape: (2 * num,)
-    ground_dists = torch.cat([ap_ground_dists, an_ground_dists], dim=0).numpy()
-    latent_dists = torch.cat([ap_latent_dists, an_latent_dists], dim=0).numpy()
-    data_dists   = torch.cat([ap_data_dists,   an_data_dists],   dim=0).numpy()
+    ground_dists    = torch.cat([ap_ground_dists,    an_ground_dists],    dim=0).numpy()
+    latent_dists_l1 = torch.cat([ap_latent_dists_l1, an_latent_dists_l1], dim=0).numpy()
+    latent_dists_l2 = torch.cat([ap_latent_dists_l2, an_latent_dists_l2], dim=0).numpy()
+    data_dists      = torch.cat([ap_data_dists,      an_data_dists],      dim=0).numpy()
     # compute rcorr scores -- shape: ()
     # - compute the pearson rank correlation coefficient over the concatenated distances
-    rcorr_ground_data, _   = spearmanr(ground_dists, data_dists)
-    rcorr_ground_latent, _ = spearmanr(ground_dists, latent_dists)
-    rcorr_latent_data, _   = spearmanr(latent_dists, data_dists)
+    rcorr_ground_data, _      = spearmanr(ground_dists, data_dists)
+    rcorr_ground_latent_l1, _ = spearmanr(ground_dists, latent_dists_l1)
+    rcorr_ground_latent_l2, _ = spearmanr(ground_dists, latent_dists_l2)
+    rcorr_latent_data_l1, _   = spearmanr(latent_dists_l1, data_dists)
+    rcorr_latent_data_l2, _   = spearmanr(latent_dists_l2, data_dists)
     # return values -- shape: ()
     return {
-        # same ratio
-        'rsame_ground_data':   rsame_ground_data,
-        'rsame_ground_latent': rsame_ground_latent,
-        'rsame_latent_data':   rsame_latent_data,
+        **rsame_scores,
         # correlation
-        'rcorr_ground_data':   rcorr_ground_data,
-        'rcorr_ground_latent': rcorr_ground_latent,
-        'rcorr_latent_data':   rcorr_latent_data,
+        'rcorr_ground_data':      rcorr_ground_data,
+        'rcorr_ground_latent.l1': rcorr_ground_latent_l1,
+        'rcorr_ground_latent':    rcorr_ground_latent_l2,
+        'rcorr_latent_data.l1':   rcorr_latent_data_l1,
+        'rcorr_latent_data':      rcorr_latent_data_l2,
     }
 
 
@@ -361,7 +385,7 @@ def _dists_compute_scores(num_triplets: int, zs_traversal: torch.Tensor, xs_trav
 # ========================================================================= #
 
 
-def _compute_flatness_metric_components_along_factor(
+def _compute_factored_metric_components_along_factor(
         dataset: DisentDataset,
         representation_function,
         f_idx: int,
@@ -369,6 +393,7 @@ def _compute_flatness_metric_components_along_factor(
         batch_size: int,
         compute_distances: bool,
         compute_linearity: bool,
+        compute_swap_ratio: bool,
 ) -> dict:
     # NOTE: what to do if the factor size is too small?
 
@@ -389,7 +414,7 @@ def _compute_flatness_metric_components_along_factor(
         if compute_distances:
             xs_traversal = xs_traversal.cpu()
             # [COMPUTE SAME RATIO & CORRELATION]
-            computed_dists = _dists_compute_scores(_SAMPLES_MULTIPLIER_FACTOR*len(zs_traversal), zs_traversal=zs_traversal, xs_traversal=xs_traversal)
+            computed_dists = _dists_compute_scores(_SAMPLES_MULTIPLIER_FACTOR*len(zs_traversal), zs_traversal=zs_traversal, xs_traversal=xs_traversal, factors=None, compute_swap_ratio=compute_swap_ratio)
             # [UPDATE SCORES]
             scores.update({f'distances.{k}.factor': v for k, v in computed_dists.items()})
 
@@ -440,9 +465,7 @@ def _compute_flatness_metric_components_along_factor(
 
 
 # if __name__ == '__main__':
-#     from disent.metrics._flatness import get_device
 #     import pytorch_lightning as pl
-#     from torch.optim import Adam
 #     from torch.utils.data import DataLoader
 #     from disent.frameworks.vae import BetaVae
 #     from disent.model import AutoEncoder
@@ -450,7 +473,7 @@ def _compute_flatness_metric_components_along_factor(
 #     from disent.util.strings import colors
 #     from disent.util.profiling import Timer
 #     from disent.dataset.data import XYObjectData
-#     from disent.dataset.data import XYSquaresData
+#     from research.code.dataset.data import XYSquaresData
 #     from disent.dataset.sampling import RandomSampler
 #     from disent.dataset.transform import ToImgTensorF32
 #     from disent.nn.weights import init_model_weights
@@ -468,7 +491,7 @@ def _compute_flatness_metric_components_along_factor(
 #     def calculate(name, steps, dataset, get_repr):
 #         with Timer() as t:
 #             r = {
-#                 **metric_flatness_components(dataset, get_repr, factor_repeats=64, batch_size=64),
+#                 **metric_factored_components(dataset, get_repr, factor_repeats=64, batch_size=64),
 #                 # **metric_flatness(dataset, get_repr, factor_repeats=64, batch_size=64),
 #             }
 #         results.append((name, steps, r))
@@ -499,7 +522,7 @@ def _compute_flatness_metric_components_along_factor(
 #                 encoder=EncoderConv64(x_shape=data.x_shape, z_size=9, z_multiplier=2),
 #                 decoder=DecoderConv64(x_shape=data.x_shape, z_size=9),
 #             ),
-#             cfg=BetaVae.cfg(beta=0.0001, loss_reduction='mean', optimizer=torch.optim.Adam, optimizer_kwargs=dict(lr=1e-3))
+#             cfg=BetaVae.cfg(beta=0.0001, loss_reduction='mean', optimizer='adam', optimizer_kwargs=dict(lr=1e-3))
 #         ), mode='xavier_normal')
 #
 #         gpus = 1 if torch.cuda.is_available() else 0

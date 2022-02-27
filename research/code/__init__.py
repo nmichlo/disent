@@ -28,9 +28,9 @@ import disent.registry as R
 def register_to_disent():
     # register metrics
     R.METRICS.setm['flatness']            = R.LazyImport('research.code.metrics._flatness.metric_flatness')
-    R.METRICS.setm['flatness_components'] = R.LazyImport('research.code.metrics._flatness_components.metric_flatness_components')
-    R.METRICS.setm['distances']           = R.LazyImport('research.code.metrics._flatness_components.metric_distances')
-    R.METRICS.setm['linearity']           = R.LazyImport('research.code.metrics._flatness_components.metric_linearity')
+    R.METRICS.setm['factored_components'] = R.LazyImport('research.code.metrics._factored_components.metric_factored_components')
+    R.METRICS.setm['distances']           = R.LazyImport('research.code.metrics._factored_components.metric_distances')
+    R.METRICS.setm['linearity']           = R.LazyImport('research.code.metrics._factored_components.metric_linearity')
 
     # groundtruth -- impl synthetic
     R.DATASETS.setm['xyblocks']          = R.LazyImport('research.code.dataset.data._groundtruth__xyblocks')
