@@ -93,7 +93,7 @@ def _metric_factored_components(
             - .global | computed using random global samples
             - .factor | computed using random values along a ground-truth factor traversal
             - .l1     | computed using l1 distance
-            - (.l2)   | computed using l2 distance -- if the .l1 tag is missing
+            - .l2     | computed using l2 distance -- (if an .l1 or .l2 tag is missing, then it is .l2 by default)
 
     # Linearity & Axis Alignment
         linear_ratio:           average (largest singular value over sum of singular values)
@@ -350,9 +350,9 @@ def _dists_compute_scores(num_triplets: int, zs_traversal: torch.Tensor, xs_trav
         rsame_scores = {
             'rsame_ground_data':      rsame_ground_data,
             'rsame_ground_latent.l1': rsame_ground_latent_l1,
-            'rsame_ground_latent':    rsame_ground_latent_l2,
+            'rsame_ground_latent.l2': rsame_ground_latent_l2,
             'rsame_latent_data.l1':   rsame_latent_data_l1,
-            'rsame_latent_data':      rsame_latent_data_l2,
+            'rsame_latent_data.l2':   rsame_latent_data_l2,
         }
     else:
         rsame_scores = {}
@@ -374,9 +374,9 @@ def _dists_compute_scores(num_triplets: int, zs_traversal: torch.Tensor, xs_trav
         # correlation
         'rcorr_ground_data':      rcorr_ground_data,
         'rcorr_ground_latent.l1': rcorr_ground_latent_l1,
-        'rcorr_ground_latent':    rcorr_ground_latent_l2,
+        'rcorr_ground_latent.l2': rcorr_ground_latent_l2,
         'rcorr_latent_data.l1':   rcorr_latent_data_l1,
-        'rcorr_latent_data':      rcorr_latent_data_l2,
+        'rcorr_latent_data.l2':   rcorr_latent_data_l2,
     }
 
 
