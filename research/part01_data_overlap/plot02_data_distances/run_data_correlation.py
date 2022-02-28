@@ -57,7 +57,7 @@ from research.code.metrics._factored_components import _unswapped_ratio
 from research.code.metrics._factored_components import _unswapped_ratio_numpy
 
 
-def _compute_rcorr_ground_data(num_samples: int, xs_traversal: torch.Tensor, factors: torch.Tensor):
+def _compute_dists(num_samples: int, xs_traversal: torch.Tensor, factors: torch.Tensor):
     # checks
     assert len(factors) == len(xs_traversal)
     assert factors.device == xs_traversal.device
@@ -65,6 +65,7 @@ def _compute_rcorr_ground_data(num_samples: int, xs_traversal: torch.Tensor, fac
     # generate random triplets
     # - {p, n} indices do not need to be sorted like triplets, these can be random.
     #   This metric is symmetric for swapped p & n values.
+    # idxs_A, idxs_p, idxs_B, idxs_n = torch.randint(0, len(xs_traversal), size=(4, num_samples), device=xs_traversal.device)
     idxs_a, idxs_p, idxs_n = torch.randint(0, len(xs_traversal), size=(3, num_samples), device=xs_traversal.device)
     # compute distances -- shape: (num,)
     ap_ground_dists: np.ndarray = torch.norm(factors[idxs_a, :] - factors[idxs_p, :], p=1, dim=-1).numpy()
@@ -72,19 +73,8 @@ def _compute_rcorr_ground_data(num_samples: int, xs_traversal: torch.Tensor, fac
     ap_data_dists: np.ndarray = batch_loss_reduction(F.mse_loss(xs_traversal[idxs_a, ...], xs_traversal[idxs_p, ...], reduction='none'), reduction_dtype=torch.float32, reduction='mean').numpy()
     an_data_dists: np.ndarray = batch_loss_reduction(F.mse_loss(xs_traversal[idxs_a, ...], xs_traversal[idxs_n, ...], reduction='none'), reduction_dtype=torch.float32, reduction='mean').numpy()
     # ------------------------ #
-    # concatenate values -- shape: (2 * num,)
-    # ground_dists = np.concatenate([ap_ground_dists, an_ground_dists], axis=0)
-    # data_dists   = np.concatenate([ap_data_dists,   an_data_dists],   axis=0)
-    # ------------------------ #
-    # compute rcorr scores -- shape: ()
-    # - check the number of swapped elements along a factor for random triplets.
-    rsame_ground_data = _unswapped_ratio_numpy(ap0=ap_ground_dists, an0=an_ground_dists, ap1=ap_data_dists, an1=an_data_dists)
-    # - compute the pearson rank correlation coefficient over the concatenated distances -- TODO: this is wrong! we actually need to compute this over distance batches!
-    linear_corr, _ = pearsonr(np.concatenate([ap_ground_dists, an_ground_dists], axis=0), np.concatenate([ap_data_dists, an_data_dists], axis=0))
-    rank_corr, _ = spearmanr(np.concatenate([ap_ground_dists, an_ground_dists], axis=0), np.concatenate([ap_data_dists, an_data_dists], axis=0))
-    # ------------------------ #
     # return values -- shape: ()
-    return ((ap_ground_dists, an_ground_dists), (ap_data_dists, an_data_dists)), (linear_corr, rank_corr, rsame_ground_data)
+    return (ap_ground_dists, an_ground_dists), (ap_data_dists, an_data_dists)
 
 
 @torch.no_grad()
@@ -102,12 +92,11 @@ def _compute_mean_rcorr_ground_data(dataset: DisentDataset, f_idx: Optional[Unio
     # get defaults
     if random_batch_size is None:
         random_batch_size = int(np.mean(dataset.gt_data.factor_sizes))
-    # compute averages
-    correlations_linear = []
-    correlations_rank = []
-    rsame_ratios = []
-    all_ap_ground_dists, all_an_ground_dists = [], []
-    all_ap_data_dists, all_an_data_dists = [], []
+    # store values to compute averages
+    all_ap_ground_dists = []
+    all_an_ground_dists = []
+    all_ap_data_dists = []
+    all_an_data_dists = []
     # repeat!
     for i in tqdm(range(repeats), desc=f'{dataset.gt_data.name}: {f_name}', disable=not progress):
         # sample random factors
@@ -119,39 +108,38 @@ def _compute_mean_rcorr_ground_data(dataset: DisentDataset, f_idx: Optional[Unio
         xs = dataset.dataset_batch_from_factors(factors, 'input').cpu()
         factors = torch.from_numpy(factors).to(torch.float32).cpu()
         # [COMPUTE SAME RATIO & CORRELATION]
-        ((ap_ground_dists, an_ground_dists), (ap_data_dists, an_data_dists)), (linear_corr, rank_corr, rsame_ground_data) = _compute_rcorr_ground_data(num_samples, xs_traversal=xs, factors=factors)
+        (ap_ground_dists, an_ground_dists), (ap_data_dists, an_data_dists) = _compute_dists(num_samples, xs_traversal=xs, factors=factors)
         # [UPDATE SCORES]
-        correlations_linear.append(linear_corr)
-        correlations_rank.append(rank_corr)
-        rsame_ratios.append(rsame_ground_data)
         all_ap_ground_dists.append(ap_ground_dists)
         all_an_ground_dists.append(an_ground_dists)
         all_ap_data_dists.append(ap_data_dists)
         all_an_data_dists.append(an_data_dists)
-    # combine
-    correlations_linear = np.array(correlations_linear)
-    correlations_rank   = np.array(correlations_rank)
+    # concatenate values
     all_ap_ground_dists = np.concatenate(all_ap_ground_dists, axis=0)
     all_an_ground_dists = np.concatenate(all_an_ground_dists, axis=0)
     all_ap_data_dists   = np.concatenate(all_ap_data_dists, axis=0)
     all_an_data_dists   = np.concatenate(all_an_data_dists, axis=0)
-    # compute the mean scores
-    mean_linear_corr = np.mean(correlations_linear)
-    mean_rank_corr   = np.mean(correlations_rank)
-    mean_rsame_ratio = np.mean(rsame_ratios)
+    all_ground_dists    = np.concatenate([all_ap_ground_dists, all_an_ground_dists], axis=0)
+    all_data_dists      = np.concatenate([all_ap_data_dists,   all_an_data_dists],   axis=0)
     # compute the scores
     rsame_ratio = _unswapped_ratio_numpy(ap0=all_ap_ground_dists, an0=all_an_ground_dists, ap1=all_ap_data_dists, an1=all_an_data_dists)
-    linear_corr, _ = pearsonr(np.concatenate([all_ap_ground_dists, all_an_ground_dists], axis=0), np.concatenate([all_ap_data_dists, all_an_data_dists], axis=0))
-    rank_corr, _ = spearmanr(np.concatenate([all_ap_ground_dists, all_an_ground_dists], axis=0), np.concatenate([all_ap_data_dists, all_an_data_dists], axis=0))
+    linear_corr, _ = pearsonr(all_ground_dists, all_data_dists)
+    rank_corr, _ = spearmanr(all_ground_dists, all_data_dists)
     # done!
     return {
         'linear_corr': linear_corr,
-        'mean_linear_corr': mean_linear_corr,
         'rank_corr': rank_corr,
-        'mean_rank_corr': mean_rank_corr,
         'rsame_ratio': rsame_ratio,
-        'mean_rsame_ratio': mean_rsame_ratio,
     }
+
+
+# [DSprites] f_idx=shape       f_size=3 linear_corr=0.66089 rank_corr=0.71874 rsame_ratio=0.83047
+# [DSprites] f_idx=scale       f_size=6 linear_corr=0.93392 rank_corr=0.95188 rsame_ratio=0.94542
+# [DSprites] f_idx=orientation f_size=40 linear_corr=0.12646 rank_corr=0.16714 rsame_ratio=0.59735
+# [DSprites] f_idx=position_x  f_size=32 linear_corr=0.66337 rank_corr=0.75479 rsame_ratio=0.90353
+# [DSprites] f_idx=position_y  f_size=32 linear_corr=0.65608 rank_corr=0.75075 rsame_ratio=0.90320
+# [DSprites] f_idx=random      f_size=737280 linear_corr=0.37224 rank_corr=0.34243 rsame_ratio=0.62537
+
 
 # ========================================================================= #
 # entrypoint                                                                #
@@ -182,7 +170,7 @@ if __name__ == '__main__':
         }
 
         num_samples = 64
-        repeats = 1024
+        repeats = 8192
         progress = False
 
         for name, data_cls in  gt_data_classes.items():
