@@ -24,6 +24,6 @@
 
 # Nathan Michlo et. al
 from research.code.metrics._flatness import metric_flatness
-from research.code.metrics._flatness_components import metric_flatness_components
-from research.code.metrics._flatness_components import metric_distances
-from research.code.metrics._flatness_components import metric_linearity
+from research.code.metrics._factored_components import metric_factored_components
+from research.code.metrics._factored_components import metric_distances
+from research.code.metrics._factored_components import metric_linearity

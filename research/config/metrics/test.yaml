@@ -1,7 +1,7 @@
 metric_list:
   - flatness:
       every_n_steps: 110
-  - flatness_components:
+  - factored_components:
       every_n_steps: 111
   - mig:
       every_n_steps: 112

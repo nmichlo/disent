@@ -1,6 +1,6 @@
 metric_list:
   - flatness: {}
-  - flatness_components: {}
+  - factored_components: {}
   - mig: {}
   - sap: {}
   - unsupervised: {}

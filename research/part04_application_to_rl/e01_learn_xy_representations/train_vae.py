@@ -72,7 +72,7 @@ from disent.util.visualize.vis_img import torch_to_images
 from experiment.util.path_utils import make_current_experiment_dir
 from research.code.dataset.data import XYSingleSquareData
 from research.code.frameworks.vae import AdaTripletVae
-from research.code.metrics import metric_flatness_components
+from research.code.metrics import metric_factored_components
 
 
 log = logging.getLogger(__name__)
@@ -155,7 +155,7 @@ def train(
     metrics = {
         # **metric_dci.compute_fast(dataset, get_repr),
         **metric_mig.compute_fast(dataset, get_repr),
-        **metric_flatness_components.compute_fast(dataset, get_repr),
+        **metric_factored_components.compute_fast(dataset, get_repr),
     }
 
     # print and save the metrics
