@@ -277,13 +277,13 @@ class AugmentedReconLossHandler(ReconLossHandler):
 def _make_aug_recon_loss_w(loss: str, kern: str, weight: str):
     def _loss(reduction: str):
         return AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=1 - float(weight), aug_weight=float(weight))
-    return loss
+    return _loss
 
 
 def _make_aug_recon_loss_lw(loss: str, kern: str, l_weight: str, k_weight: str):
     def _loss(reduction: str):
         return AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=float(l_weight), aug_weight=float(k_weight))
-    return loss
+    return _loss
 
 
 # NOTE: this function compliments make_kernel in transform/_augment.py
