@@ -22,16 +22,14 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-
+from typing import Dict
+from typing import List
 from typing import Optional
 from typing import Tuple
 from typing import Union
 
 import numpy as np
 import torch
-from scipy.stats import spearmanr, pearsonr
-
-from disent.nn.loss.reduction import batch_loss_reduction
 from tqdm import tqdm
 import torch.nn.functional as F
 
@@ -40,9 +38,13 @@ from disent.dataset.data import Cars3d64Data
 from disent.dataset.data import DSpritesData
 from disent.dataset.data import Shapes3dData
 from disent.dataset.data import SmallNorb64Data
-from research.code.dataset.data import XYSquaresData
 from disent.dataset.transform import ToImgTensorF32
 from disent.util.function import wrapped_partial
+
+from research.code.dataset.data import XYSquaresData
+from research.code.metrics._factored_components import _compute_dists
+from research.code.metrics._factored_components import _compute_scores_from_dists
+from research.code.metrics._factored_components import _numpy_concat_all_dicts
 
 
 # ========================================================================= #
@@ -50,36 +52,23 @@ from disent.util.function import wrapped_partial
 # ========================================================================= #
 
 
-
-# NOTE: this should match _factored_components._dists_compute_scores!
-#       -- this is taken directly from there!
-from research.code.metrics._factored_components import _unswapped_ratio
-from research.code.metrics._factored_components import _unswapped_ratio_numpy
-
-
-def _compute_dists(num_samples: int, xs_traversal: torch.Tensor, factors: torch.Tensor):
-    # checks
-    assert len(factors) == len(xs_traversal)
-    assert factors.device == xs_traversal.device
-    # ------------------------ #
-    # generate random triplets
-    # - {p, n} indices do not need to be sorted like triplets, these can be random.
-    #   This metric is symmetric for swapped p & n values.
-    # idxs_A, idxs_p, idxs_B, idxs_n = torch.randint(0, len(xs_traversal), size=(4, num_samples), device=xs_traversal.device)
-    idxs_a, idxs_p, idxs_n = torch.randint(0, len(xs_traversal), size=(3, num_samples), device=xs_traversal.device)
-    # compute distances -- shape: (num,)
-    ap_ground_dists: np.ndarray = torch.norm(factors[idxs_a, :] - factors[idxs_p, :], p=1, dim=-1).numpy()
-    an_ground_dists: np.ndarray = torch.norm(factors[idxs_a, :] - factors[idxs_n, :], p=1, dim=-1).numpy()
-    ap_data_dists: np.ndarray = batch_loss_reduction(F.mse_loss(xs_traversal[idxs_a, ...], xs_traversal[idxs_p, ...], reduction='none'), reduction_dtype=torch.float32, reduction='mean').numpy()
-    an_data_dists: np.ndarray = batch_loss_reduction(F.mse_loss(xs_traversal[idxs_a, ...], xs_traversal[idxs_n, ...], reduction='none'), reduction_dtype=torch.float32, reduction='mean').numpy()
-    # ------------------------ #
-    # return values -- shape: ()
-    return (ap_ground_dists, an_ground_dists), (ap_data_dists, an_data_dists)
+def _n_digits(num: int):
+    if num > 0:
+        return int(np.log10(num) + 1)
+    if num < 0:
+        return int(np.log10(-num) + 2)  # add an extra 1 for the minus sign
+    else:
+        return 1
 
 
-@torch.no_grad()
-def _compute_mean_rcorr_ground_data(dataset: DisentDataset, f_idx: Optional[Union[str, int]], num_samples: int, repeats: int, progress: bool = True, random_batch_size: Optional[int] = 64):
-    # normalise everything!
+_RENAME_KEYS = {
+    'rsame_ground_data': 'rsame_ratio',
+    'rcorr_ground_data': 'rank_corr',
+    'lcorr_ground_data': 'linear_corr',
+}
+
+
+def _normalise_f_name_and_idx(dataset: DisentDataset, f_idx: Optional[Union[str, int]]) -> Tuple[Optional[int], str]:
     if f_idx in ('random', None):
         f_idx = None
         f_name = 'random'
@@ -89,14 +78,17 @@ def _compute_mean_rcorr_ground_data(dataset: DisentDataset, f_idx: Optional[Unio
     else:
         assert isinstance(f_idx, int)
         f_name = dataset.gt_data.factor_names[f_idx]
-    # get defaults
-    if random_batch_size is None:
-        random_batch_size = int(np.mean(dataset.gt_data.factor_sizes))
-    # store values to compute averages
-    all_ap_ground_dists = []
-    all_an_ground_dists = []
-    all_ap_data_dists = []
-    all_an_data_dists = []
+    return f_idx, f_name
+
+
+
+@torch.no_grad()
+def _compute_mean_rcorr_ground_data(dataset: DisentDataset, f_idx: Optional[Union[str, int]], num_samples: int, repeats: int, progress: bool = True, random_batch_size: int = 16):
+    f_idx, f_name = _normalise_f_name_and_idx(dataset, f_idx)
+
+    # storage!
+    distance_measures: List[Dict[str, np.ndarray]] = []
+
     # repeat!
     for i in tqdm(range(repeats), desc=f'{dataset.gt_data.name}: {f_name}', disable=not progress):
         # sample random factors
@@ -108,29 +100,17 @@ def _compute_mean_rcorr_ground_data(dataset: DisentDataset, f_idx: Optional[Unio
         xs = dataset.dataset_batch_from_factors(factors, 'input').cpu()
         factors = torch.from_numpy(factors).to(torch.float32).cpu()
         # [COMPUTE SAME RATIO & CORRELATION]
-        (ap_ground_dists, an_ground_dists), (ap_data_dists, an_data_dists) = _compute_dists(num_samples, xs_traversal=xs, factors=factors)
+        computed_dists = _compute_dists(num_samples, zs_traversal=None, xs_traversal=xs, factors=factors, recon_loss_fn=F.mse_loss)
         # [UPDATE SCORES]
-        all_ap_ground_dists.append(ap_ground_dists)
-        all_an_ground_dists.append(an_ground_dists)
-        all_ap_data_dists.append(ap_data_dists)
-        all_an_data_dists.append(an_data_dists)
-    # concatenate values
-    all_ap_ground_dists = np.concatenate(all_ap_ground_dists, axis=0)
-    all_an_ground_dists = np.concatenate(all_an_ground_dists, axis=0)
-    all_ap_data_dists   = np.concatenate(all_ap_data_dists, axis=0)
-    all_an_data_dists   = np.concatenate(all_an_data_dists, axis=0)
-    all_ground_dists    = np.concatenate([all_ap_ground_dists, all_an_ground_dists], axis=0)
-    all_data_dists      = np.concatenate([all_ap_data_dists,   all_an_data_dists],   axis=0)
-    # compute the scores
-    rsame_ratio = _unswapped_ratio_numpy(ap0=all_ap_ground_dists, an0=all_an_ground_dists, ap1=all_ap_data_dists, an1=all_an_data_dists)
-    linear_corr, _ = pearsonr(all_ground_dists, all_data_dists)
-    rank_corr, _ = spearmanr(all_ground_dists, all_data_dists)
+        distance_measures.append(computed_dists)
+
+    # concatenate all into arrays: <shape: (repeats*num,)>
+    # then aggregate over first dimension: <shape: (,)>
+    distance_measures: Dict[str, np.ndarray] = _numpy_concat_all_dicts(distance_measures)
+    distance_measures: Dict[str, float]      = _compute_scores_from_dists(distance_measures)
+
     # done!
-    return {
-        'linear_corr': linear_corr,
-        'rank_corr': rank_corr,
-        'rsame_ratio': rsame_ratio,
-    }
+    return {_RENAME_KEYS[k]: v for k, v in distance_measures.items()}
 
 
 # [DSprites] f_idx=shape       f_size=3 linear_corr=0.66089 rank_corr=0.71874 rsame_ratio=0.83047
@@ -170,20 +150,26 @@ if __name__ == '__main__':
         }
 
         num_samples = 64
-        repeats = 8192
+        random_batch_size = 16
+        repeats = 256
         progress = False
 
         for name, data_cls in  gt_data_classes.items():
             dataset = DisentDataset(data_cls(), transform=ToImgTensorF32(size=64))
-            factor_names = (*dataset.gt_data.factor_names, 'random')
+            # factor_names = (*dataset.gt_data.factor_names, 'random')
+            factor_names = ('random',)
             # compute over each factor name
             for f_name in [*dataset.gt_data.factor_names, 'random']:
+                # print variables
                 f_size = dataset.gt_data.factor_sizes[dataset.gt_data.normalise_factor_idx(f_name)] if f_name != 'random' else len(dataset)
+                size_len = _n_digits(len(dataset))
+                name_len = max(len(s) for s in factor_names)
+                # compute scores
                 try:
-                    scores = _compute_mean_rcorr_ground_data(dataset, f_idx=f_name, num_samples=num_samples, repeats=repeats, progress=progress)
-                    print(f'[{name}] f_idx={f_name:{max(len(s) for s in factor_names)}s} f_size={f_size} {" ".join(f"{k}={v:7.5f}" for k, v in scores.items())}')
+                    scores = _compute_mean_rcorr_ground_data(dataset, f_idx=f_name, num_samples=num_samples, repeats=repeats, random_batch_size=random_batch_size, progress=progress)
+                    print(f'[{name}] f_idx={f_name:{name_len}s} f_size={f_size:{size_len}d} {" ".join(f"{k}={v:7.5f}" for k, v in scores.items())}')
                 except Exception as e:
-                    print(f'[{name}] f_idx={f_name:{max(len(s) for s in factor_names)}s} f_size={f_size} SKIPPED!')
+                    print(f'[{name}] f_idx={f_name:{name_len}s} f_size={f_size:{size_len}d} SKIPPED!')
                     raise e
             print()
 
