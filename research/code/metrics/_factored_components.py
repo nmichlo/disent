@@ -368,6 +368,7 @@ def _dists_compute_scores(num_triplets: int, zs_traversal: torch.Tensor, xs_trav
     rcorr_ground_latent_l2, _ = spearmanr(ground_dists, latent_dists_l2)
     rcorr_latent_data_l1, _   = spearmanr(latent_dists_l1, data_dists)
     rcorr_latent_data_l2, _   = spearmanr(latent_dists_l2, data_dists)
+    # TODO: add normal correlation?
     # return values -- shape: ()
     return {
         **rsame_scores,
@@ -465,87 +466,103 @@ def _compute_factored_metric_components_along_factor(
 
 
 # if __name__ == '__main__':
-#     import pytorch_lightning as pl
-#     from torch.utils.data import DataLoader
-#     from disent.frameworks.vae import BetaVae
-#     from disent.model import AutoEncoder
-#     from disent.model.ae import EncoderConv64, DecoderConv64
-#     from disent.util.strings import colors
-#     from disent.util.profiling import Timer
-#     from disent.dataset.data import XYObjectData
-#     from research.code.dataset.data import XYSquaresData
-#     from disent.dataset.sampling import RandomSampler
-#     from disent.dataset.transform import ToImgTensorF32
-#     from disent.nn.weights import init_model_weights
-#     from disent.util.seeds import seed
-#     import logging
 #
-#     logging.basicConfig(level=logging.INFO)
+#     def main():
+#         import pytorch_lightning as pl
+#         from torch.utils.data import DataLoader
+#         from disent.frameworks.vae import BetaVae
+#         from disent.frameworks.vae import TripletVae
+#         from disent.model import AutoEncoder
+#         from disent.model.ae import EncoderConv64, DecoderConv64
+#         from disent.util.strings import colors
+#         from disent.util.profiling import Timer
+#         from disent.dataset.data import XYObjectData
+#         from research.code.dataset.data import XYSquaresData
+#         from disent.dataset.sampling import RandomSampler
+#         from disent.dataset.sampling import GroundTruthDistSampler
+#         from disent.dataset.transform import ToImgTensorF32
+#         from disent.nn.weights import init_model_weights
+#         from disent.util.seeds import seed
+#         import logging
 #
-#     def get_str(r):
-#         return ', '.join(f'{k}={v:6.4f}' for k, v in r.items())
+#         logging.basicConfig(level=logging.INFO)
 #
-#     def print_r(name, steps, result, clr=colors.lYLW, t: Timer = None):
-#         print(f'{clr}{name:<13} ({steps:>04}){f" {colors.GRY}[{t.pretty}]{clr}" if t else ""}: {get_str(result)}{colors.RST}')
+#         def get_str(r):
+#             return ', '.join(f'{k}={v:6.4f}' for k, v in r.items())
 #
-#     def calculate(name, steps, dataset, get_repr):
-#         with Timer() as t:
-#             r = {
-#                 **metric_factored_components(dataset, get_repr, factor_repeats=64, batch_size=64),
-#                 # **metric_flatness(dataset, get_repr, factor_repeats=64, batch_size=64),
-#             }
-#         results.append((name, steps, r))
-#         print_r(name, steps, r, colors.lRED, t=t)
-#         print(colors.GRY, '='*100, colors.RST, sep='')
-#         return r
+#         def print_r(name, steps, result, clr=colors.lYLW, t: Timer = None):
+#             print(f'{clr}{name:<13} ({steps:>04}){f" {colors.GRY}[{t.pretty}]{clr}" if t else ""}: {get_str(result)}{colors.RST}')
 #
-#     class XYOverlapData(XYSquaresData):
-#         def __init__(self, square_size=8, image_size=64, grid_spacing=None, num_squares=3, rgb=True):
-#             if grid_spacing is None:
-#                 grid_spacing = (square_size+1) // 2
-#             super().__init__(square_size=square_size, image_size=image_size, grid_spacing=grid_spacing, num_squares=num_squares, rgb=rgb)
+#         def calculate(name, steps, dataset, get_repr):
+#             with Timer() as t:
+#                 r = {
+#                     **metric_factored_components(dataset, get_repr, factor_repeats=64, batch_size=64),
+#                     # **metric_flatness(dataset, get_repr, factor_repeats=64, batch_size=64),
+#                 }
+#             results.append((name, steps, r))
+#             print_r(name, steps, r, colors.lRED, t=t)
+#             print(colors.GRY, '='*100, colors.RST, sep='')
+#             return r
 #
-#     # datasets = [XYObjectData(rgb=False, palette='white'), XYSquaresData(), XYOverlapData(), XYObjectData()]
-#     datasets = [XYObjectData()]
+#         class XYOverlapData(XYSquaresData):
+#             def __init__(self, square_size=8, image_size=64, grid_spacing=None, num_squares=3, rgb=True):
+#                 if grid_spacing is None:
+#                     grid_spacing = (square_size+1) // 2
+#                 super().__init__(square_size=square_size, image_size=image_size, grid_spacing=grid_spacing, num_squares=num_squares, rgb=rgb)
 #
-#     # TODO: fix for dead dimensions
-#     # datasets = [XYObjectData(rgb=False, palette='white')]
+#         # datasets = [XYObjectData(rgb=False, palette='white'), XYSquaresData(), XYOverlapData(), XYObjectData()]
+#         datasets = [XYObjectData()]
 #
-#     results = []
-#     for data in datasets:
-#         seed(7777)
+#         # TODO: fix for dead dimensions
+#         # datasets = [XYObjectData(rgb=False, palette='white')]
 #
-#         dataset = DisentDataset(data, sampler=RandomSampler(num_samples=1), transform=ToImgTensorF32())
-#         dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True, pin_memory=True)
-#         module = init_model_weights(BetaVae(
-#             model=AutoEncoder(
-#                 encoder=EncoderConv64(x_shape=data.x_shape, z_size=9, z_multiplier=2),
-#                 decoder=DecoderConv64(x_shape=data.x_shape, z_size=9),
-#             ),
-#             cfg=BetaVae.cfg(beta=0.0001, loss_reduction='mean', optimizer='adam', optimizer_kwargs=dict(lr=1e-3))
-#         ), mode='xavier_normal')
+#         results = []
+#         for data in datasets:
+#             seed(7777)
 #
-#         gpus = 1 if torch.cuda.is_available() else 0
+#             # dataset = DisentDataset(data, sampler=RandomSampler(num_samples=1), transform=ToImgTensorF32())
+#             # dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True, pin_memory=True)
+#             # module = init_model_weights(BetaVae(
+#             #     model=AutoEncoder(
+#             #         encoder=EncoderConv64(x_shape=data.x_shape, z_size=9, z_multiplier=2),
+#             #         decoder=DecoderConv64(x_shape=data.x_shape, z_size=9),
+#             #     ),
+#             #     cfg=BetaVae.cfg(beta=0.0001, loss_reduction='mean', optimizer='adam', optimizer_kwargs=dict(lr=1e-3))
+#             # ), mode='xavier_normal')
 #
-#         # we cannot guarantee which device the representation is on
-#         get_repr = lambda x: module.encode(x.to(module.device))
-#         # PHASE 1, UNTRAINED
-#         pl.Trainer(logger=False, checkpoint_callback=False, fast_dev_run=True, gpus=gpus, weights_summary=None).fit(module, dataloader)
-#         if torch.cuda.is_available(): module = module.to('cuda')
-#         calculate(data.__class__.__name__, 0, dataset, get_repr)
-#         # PHASE 2, LITTLE TRAINING
-#         pl.Trainer(logger=False, checkpoint_callback=False, max_steps=256, gpus=gpus, weights_summary=None).fit(module, dataloader)
-#         if torch.cuda.is_available(): module = module.to('cuda')
-#         calculate(data.__class__.__name__, 256, dataset, get_repr)
-#         # PHASE 3, MORE TRAINING
-#         pl.Trainer(logger=False, checkpoint_callback=False, max_steps=2048, gpus=gpus, weights_summary=None).fit(module, dataloader)
-#         if torch.cuda.is_available(): module = module.to('cuda')
-#         calculate(data.__class__.__name__, 256+2048, dataset, get_repr)
-#         results.append(None)
+#             dataset = DisentDataset(data, sampler=GroundTruthDistSampler(num_samples=3), transform=ToImgTensorF32())
+#             dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True, pin_memory=True)
+#             module = init_model_weights(TripletVae(
+#                 model=AutoEncoder(
+#                     encoder=EncoderConv64(x_shape=data.x_shape, z_size=9, z_multiplier=2),
+#                     decoder=DecoderConv64(x_shape=data.x_shape, z_size=9),
+#                 ),
+#                 cfg=TripletVae.cfg(beta=0.0001, loss_reduction='mean', optimizer='adam', optimizer_kwargs=dict(lr=2e-4), triplet_p=1, triplet_loss='triplet_soft', triplet_scale=1)
+#             ), mode='xavier_normal')
 #
-#     for result in results:
-#         if result is None:
-#             print()
-#             continue
-#         (name, steps, result) = result
-#         print_r(name, steps, result, colors.lYLW)
+#             gpus = 1 if torch.cuda.is_available() else 0
+#
+#             # we cannot guarantee which device the representation is on
+#             get_repr = lambda x: module.encode(x.to(module.device))
+#             # PHASE 1, UNTRAINED
+#             pl.Trainer(logger=False, checkpoint_callback=False, fast_dev_run=True, gpus=gpus, weights_summary=None).fit(module, dataloader)
+#             if torch.cuda.is_available(): module = module.to('cuda')
+#             calculate(data.__class__.__name__, 0, dataset, get_repr)
+#             # PHASE 2, LITTLE TRAINING
+#             pl.Trainer(logger=False, checkpoint_callback=False, max_steps=256, gpus=gpus, weights_summary=None).fit(module, dataloader)
+#             if torch.cuda.is_available(): module = module.to('cuda')
+#             calculate(data.__class__.__name__, 256, dataset, get_repr)
+#             # PHASE 3, MORE TRAINING
+#             pl.Trainer(logger=False, checkpoint_callback=False, max_steps=2048, gpus=gpus, weights_summary=None).fit(module, dataloader)
+#             if torch.cuda.is_available(): module = module.to('cuda')
+#             calculate(data.__class__.__name__, 256+2048, dataset, get_repr)
+#             results.append(None)
+#
+#         for result in results:
+#             if result is None:
+#                 print()
+#                 continue
+#             (name, steps, result) = result
+#             print_r(name, steps, result, colors.lYLW)
+#
+#     main()
