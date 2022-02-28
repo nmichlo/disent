@@ -319,6 +319,13 @@ def _unswapped_ratio(ap0: torch.Tensor, an0: torch.Tensor, ap1: torch.Tensor, an
     return same_mask.to(torch.float32).mean()
 
 
+def _unswapped_ratio_numpy(ap0: np.ndarray, an0: np.ndarray, ap1: np.ndarray, an1: np.ndarray):
+    # values must correspond
+    same_mask = ((ap0 < an0) & (ap1 < an1)) | ((ap0 == an0) & (ap1 == an1)) | ((ap0 > an0) & (ap1 > an1))
+    # num values
+    return np.mean(same_mask, dtype='float32')
+
+
 def _dists_compute_scores(num_triplets: int, zs_traversal: torch.Tensor, xs_traversal: torch.Tensor, factors: Optional[torch.Tensor], compute_swap_ratio: bool) -> Dict[str, float]:
     # checks
     assert (len(zs_traversal) == len(xs_traversal)) and ((factors is None) or (len(factors) == len(zs_traversal)))
@@ -363,6 +370,7 @@ def _dists_compute_scores(num_triplets: int, zs_traversal: torch.Tensor, xs_trav
     data_dists      = torch.cat([ap_data_dists,      an_data_dists],      dim=0).numpy()
     # compute rcorr scores -- shape: ()
     # - compute the pearson rank correlation coefficient over the concatenated distances
+    # TODO: these are wrong! we can't aggregate these scores afterwards, it doesnt make sense!
     rcorr_ground_data, _      = spearmanr(ground_dists, data_dists)
     rcorr_ground_latent_l1, _ = spearmanr(ground_dists, latent_dists_l1)
     rcorr_ground_latent_l2, _ = spearmanr(ground_dists, latent_dists_l2)
