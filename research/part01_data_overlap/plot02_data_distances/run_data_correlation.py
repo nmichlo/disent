@@ -61,12 +61,12 @@ _RENAME_KEYS = {
 }
 
 ORDER = [
-    'rsame_ratio (mse)',
-    'rank_corr (mse)',
+    # 'rsame_ratio (mse)',
     'linear_corr (mse)',
-    'rsame_ratio (aug)',
-    'rank_corr (aug)',
+    'rank_corr (mse)',
+    # 'rsame_ratio (aug)',
     'linear_corr (aug)',
+    'rank_corr (aug)',
 ]
 
 
@@ -220,68 +220,135 @@ if __name__ == '__main__':
 # Results                                                                   #
 # ========================================================================= #
 
-# [Cars3d] Factor Name & Factor Size & rsame_ratio & linear_corr & rank_corr
-# [Cars3d] elevation   &     4 & 0.94 & 0.90 & 0.93
-# [Cars3d] azimuth     &    24 & 0.65 & 0.31 & 0.34
-# [Cars3d] object_type &   183 & 0.52 & 0.04 & 0.04
-# [Cars3d] random      & 17568 & 0.56 & 0.15 & 0.13
+# [Cars3d] Factor Name & Factor Size & rsame_ratio (mse) & rank_corr (mse) & linear_corr (mse) & rsame_ratio (aug) & rank_corr (aug) & linear_corr (aug)
+# [Cars3d] elevation   &     4 & 0.94 & 0.93 & 0.90 & 0.93 & 0.88 & 0.69
+# [Cars3d] azimuth     &    24 & 0.65 & 0.34 & 0.30 & 0.62 & 0.25 & 0.08
+# [Cars3d] object_type &   183 & 0.52 & 0.04 & 0.04 & 0.50 & 0.01 & 0.00
+# [Cars3d] random      & 17568 & 0.56 & 0.13 & 0.15 & 0.54 & 0.10 & 0.04
 #
-# [Shapes3d] Factor Name & Factor Size & rsame_ratio & linear_corr & rank_corr
-# [Shapes3d] floor_hue   &     10 & 0.82 & 0.63 & 0.76
-# [Shapes3d] wall_hue    &     10 & 0.82 & 0.60 & 0.74
-# [Shapes3d] object_hue  &     10 & 0.82 & 0.53 & 0.71
-# [Shapes3d] scale       &      8 & 0.95 & 0.81 & 0.88
-# [Shapes3d] shape       &      4 & 0.91 & 0.69 & 0.79
-# [Shapes3d] orientation &     15 & 0.94 & 0.84 & 0.92
-# [Shapes3d] random      & 480000 & 0.66 & 0.52 & 0.45
+# [Shapes3d] Factor Name & Factor Size & rsame_ratio (mse) & rank_corr (mse) & linear_corr (mse) & rsame_ratio (aug) & rank_corr (aug) & linear_corr (aug)
+# [Shapes3d] floor_hue   &     10 & 0.82 & 0.76 & 0.62 & 0.82 & 0.74 & 0.60
+# [Shapes3d] wall_hue    &     10 & 0.82 & 0.74 & 0.60 & 0.82 & 0.72 & 0.55
+# [Shapes3d] object_hue  &     10 & 0.82 & 0.71 & 0.53 & 0.82 & 0.63 & 0.41
+# [Shapes3d] scale       &      8 & 0.95 & 0.88 & 0.81 & 0.95 & 0.87 & 0.71
+# [Shapes3d] shape       &      4 & 0.91 & 0.79 & 0.69 & 0.90 & 0.80 & 0.58
+# [Shapes3d] orientation &     15 & 0.94 & 0.92 & 0.84 & 0.89 & 0.87 & 0.74
+# [Shapes3d] random      & 480000 & 0.66 & 0.45 & 0.53 & 0.60 & 0.29 & 0.29
 #
-# [SmallNorb] Factor Name & Factor Size & rsame_ratio & linear_corr & rank_corr
-# [SmallNorb] category  &     5 & 0.75 & 0.44 & 0.53
-# [SmallNorb] instance  &     5 & 0.73 & 0.37 & 0.52
-# [SmallNorb] elevation &     9 & 0.94 & 0.81 & 0.90
-# [SmallNorb] rotation  &    18 & 0.61 & 0.12 & 0.18
-# [SmallNorb] lighting  &     6 & 0.64 & 0.07 & 0.29
-# [SmallNorb] random    & 24300 & 0.54 & 0.10 & 0.14
+# [SmallNorb] Factor Name & Factor Size & rsame_ratio (mse) & rank_corr (mse) & linear_corr (mse) & rsame_ratio (aug) & rank_corr (aug) & linear_corr (aug)
+# [SmallNorb] category  &     5 & 0.75 & 0.53 & 0.44 & 0.73 & 0.47 & 0.15
+# [SmallNorb] instance  &     5 & 0.73 & 0.52 & 0.37 & 0.73 & 0.51 & 0.10
+# [SmallNorb] elevation &     9 & 0.94 & 0.90 & 0.81 & 0.78 & 0.64 & 0.51
+# [SmallNorb] rotation  &    18 & 0.61 & 0.19 & 0.12 & 0.60 & 0.21 & 0.07
+# [SmallNorb] lighting  &     6 & 0.64 & 0.29 & 0.07 & 0.64 & 0.28 & 0.07
+# [SmallNorb] random    & 24300 & 0.54 & 0.14 & 0.10 & 0.54 & 0.14 & 0.07
 #
-# [DSprites] Factor Name & Factor Size & rsame_ratio & linear_corr & rank_corr
-# [DSprites] shape       &      3 & 0.83 & 0.66 & 0.72
-# [DSprites] scale       &      6 & 0.95 & 0.94 & 0.95
-# [DSprites] orientation &     40 & 0.60 & 0.13 & 0.17
-# [DSprites] position_x  &     32 & 0.90 & 0.66 & 0.75
-# [DSprites] position_y  &     32 & 0.90 & 0.66 & 0.75
-# [DSprites] random      & 737280 & 0.64 & 0.43 & 0.37
+# [DSprites] Factor Name & Factor Size & rsame_ratio (mse) & rank_corr (mse) & linear_corr (mse) & rsame_ratio (aug) & rank_corr (aug) & linear_corr (aug)
+# [DSprites] shape       &      3 & 0.83 & 0.72 & 0.66 & 0.93 & 0.87 & 0.66
+# [DSprites] scale       &      6 & 0.95 & 0.95 & 0.93 & 0.94 & 0.96 & 0.84
+# [DSprites] orientation &     40 & 0.60 & 0.17 & 0.13 & 0.63 & 0.21 & 0.15
+# [DSprites] position_x  &     32 & 0.90 & 0.75 & 0.66 & 0.99 & 0.83 & 0.63
+# [DSprites] position_y  &     32 & 0.90 & 0.75 & 0.65 & 0.99 & 0.83 & 0.63
+# [DSprites] random      & 737280 & 0.64 & 0.38 & 0.43 & 0.66 & 0.36 & 0.29
 #
-# [XYSquares-1-8] Factor Name & Factor Size & rsame_ratio & linear_corr & rank_corr
-# [XYSquares-1-8] x_R    &      8 & 1.00 & 1.00 & 1.00
-# [XYSquares-1-8] random & 262144 & 0.90 & 0.98 & 0.97
+# [XYSquares-1-8] Factor Name & Factor Size & rsame_ratio (mse) & rank_corr (mse) & linear_corr (mse) & rsame_ratio (aug) & rank_corr (aug) & linear_corr (aug)
+# [XYSquares-1-8] x_R    &      8 & 1.00 & 1.00 & 1.00 & 0.97 & 0.99 & 0.98
+# [XYSquares-1-8] random & 262144 & 0.90 & 0.97 & 0.98 & 0.91 & 0.98 & 0.98
 #
-# [XYSquares-2-8] Factor Name & Factor Size & rsame_ratio & linear_corr & rank_corr
-# [XYSquares-2-8] x_R    &      8 & 0.92 & 0.94 & 0.99
-# [XYSquares-2-8] random & 262144 & 0.78 & 0.85 & 0.83
+# [XYSquares-2-8] Factor Name & Factor Size & rsame_ratio (mse) & rank_corr (mse) & linear_corr (mse) & rsame_ratio (aug) & rank_corr (aug) & linear_corr (aug)
+# [XYSquares-2-8] x_R    &      8 & 0.92 & 0.99 & 0.94 & 0.96 & 0.99 & 0.99
+# [XYSquares-2-8] random & 262144 & 0.77 & 0.83 & 0.85 & 0.92 & 0.99 & 0.99
 #
-# [XYSquares-3-8] Factor Name & Factor Size & rsame_ratio & linear_corr & rank_corr
-# [XYSquares-3-8] x_R    &      8 & 0.84 & 0.86 & 0.95
-# [XYSquares-3-8] random & 262144 & 0.68 & 0.75 & 0.73
+# [XYSquares-3-8] Factor Name & Factor Size & rsame_ratio (mse) & rank_corr (mse) & linear_corr (mse) & rsame_ratio (aug) & rank_corr (aug) & linear_corr (aug)
+# [XYSquares-3-8] x_R    &      8 & 0.84 & 0.95 & 0.86 & 0.96 & 0.99 & 0.99
+# [XYSquares-3-8] random & 262144 & 0.68 & 0.73 & 0.75 & 0.92 & 0.99 & 0.99
 #
-# [XYSquares-4-8] Factor Name & Factor Size & rsame_ratio & linear_corr & rank_corr
-# [XYSquares-4-8] x_R    &      8 & 0.67 & 0.75 & 0.85
-# [XYSquares-4-8] random & 262144 & 0.47 & 0.67 & 0.58
+# [XYSquares-4-8] Factor Name & Factor Size & rsame_ratio (mse) & rank_corr (mse) & linear_corr (mse) & rsame_ratio (aug) & rank_corr (aug) & linear_corr (aug)
+# [XYSquares-4-8] x_R    &      8 & 0.67 & 0.85 & 0.75 & 0.96 & 0.99 & 0.99
+# [XYSquares-4-8] random & 262144 & 0.47 & 0.58 & 0.67 & 0.92 & 0.99 & 0.99
 #
-# [XYSquares-5-8] Factor Name & Factor Size & rsame_ratio & linear_corr & rank_corr
-# [XYSquares-5-8] x_R    &      8 & 0.67 & 0.72 & 0.85
-# [XYSquares-5-8] random & 262144 & 0.47 & 0.64 & 0.58
+# [XYSquares-5-8] Factor Name & Factor Size & rsame_ratio (mse) & rank_corr (mse) & linear_corr (mse) & rsame_ratio (aug) & rank_corr (aug) & linear_corr (aug)
+# [XYSquares-5-8] x_R    &      8 & 0.67 & 0.85 & 0.72 & 0.95 & 0.99 & 0.99
+# [XYSquares-5-8] random & 262144 & 0.47 & 0.58 & 0.64 & 0.92 & 0.98 & 0.99
 #
-# [XYSquares-6-8] Factor Name & Factor Size & rsame_ratio & linear_corr & rank_corr
-# [XYSquares-6-8] x_R    &      8 & 0.67 & 0.67 & 0.85
-# [XYSquares-6-8] random & 262144 & 0.47 & 0.61 & 0.58
+# [XYSquares-6-8] Factor Name & Factor Size & rsame_ratio (mse) & rank_corr (mse) & linear_corr (mse) & rsame_ratio (aug) & rank_corr (aug) & linear_corr (aug)
+# [XYSquares-6-8] x_R    &      8 & 0.67 & 0.85 & 0.67 & 0.96 & 0.98 & 0.98
+# [XYSquares-6-8] random & 262144 & 0.47 & 0.58 & 0.61 & 0.90 & 0.97 & 0.98
 #
-# [XYSquares-7-8] Factor Name & Factor Size & rsame_ratio & linear_corr & rank_corr
-# [XYSquares-7-8] x_R    &      8 & 0.67 & 0.60 & 0.85
-# [XYSquares-7-8] random & 262144 & 0.47 & 0.58 & 0.58
+# [XYSquares-7-8] Factor Name & Factor Size & rsame_ratio (mse) & rank_corr (mse) & linear_corr (mse) & rsame_ratio (aug) & rank_corr (aug) & linear_corr (aug)
+# [XYSquares-7-8] x_R    &      8 & 0.67 & 0.85 & 0.60 & 0.96 & 0.98 & 0.97
+# [XYSquares-7-8] random & 262144 & 0.47 & 0.58 & 0.59 & 0.89 & 0.96 & 0.96
 #
-# [XYSquares-8-8] Factor Name & Factor Size & rsame_ratio & linear_corr & rank_corr
-# [XYSquares-8-8] x_R    &      8 & 0.39 & 0.52 & 0.58
-# [XYSquares-8-8] random & 262144 & 0.21 & 0.56 & 0.37
+# [XYSquares-8-8] Factor Name & Factor Size & rsame_ratio (mse) & rank_corr (mse) & linear_corr (mse) & rsame_ratio (aug) & rank_corr (aug) & linear_corr (aug)
+# [XYSquares-8-8] x_R    &      8 & 0.39 & 0.58 & 0.52 & 0.95 & 0.97 & 0.96
+# [XYSquares-8-8] random & 262144 & 0.21 & 0.37 & 0.55 & 0.87 & 0.94 & 0.95
+
+# ========================================================================= #
+# Results - Reformatted                                                     #
+# ========================================================================= #
+
+# [Cars3d] Factor Name & linear_corr (mse) & rank_corr (mse) & linear_corr (aug) & rank_corr (aug)
+# [Cars3d] elevation   & 0.90 & 0.93 & 0.69 & 0.88
+# [Cars3d] azimuth     & 0.30 & 0.34 & 0.08 & 0.25
+# [Cars3d] object_type & 0.04 & 0.04 & 0.00 & 0.01
+# [Cars3d] random      & 0.15 & 0.13 & 0.04 & 0.10
+#
+# [Shapes3d] Factor Name & linear_corr (mse) & rank_corr (mse) & linear_corr (aug) & rank_corr (aug)
+# [Shapes3d] floor_hue   & 0.62 & 0.76 & 0.60 & 0.74
+# [Shapes3d] wall_hue    & 0.60 & 0.74 & 0.55 & 0.72
+# [Shapes3d] object_hue  & 0.53 & 0.71 & 0.41 & 0.63
+# [Shapes3d] scale       & 0.81 & 0.88 & 0.71 & 0.87
+# [Shapes3d] shape       & 0.69 & 0.79 & 0.58 & 0.80
+# [Shapes3d] orientation & 0.84 & 0.92 & 0.74 & 0.87
+# [Shapes3d] random      & 0.53 & 0.45 & 0.29 & 0.29
+#
+# [SmallNorb] Factor Name & linear_corr (mse) & rank_corr (mse) & linear_corr (aug) & rank_corr (aug)
+# [SmallNorb] category  & 0.44 & 0.53 & 0.15 & 0.47
+# [SmallNorb] instance  & 0.37 & 0.52 & 0.10 & 0.51
+# [SmallNorb] elevation & 0.81 & 0.90 & 0.51 & 0.64
+# [SmallNorb] rotation  & 0.12 & 0.19 & 0.07 & 0.21
+# [SmallNorb] lighting  & 0.07 & 0.29 & 0.07 & 0.28
+# [SmallNorb] random    & 0.10 & 0.14 & 0.07 & 0.14
+#
+# [DSprites] Factor Name & linear_corr (mse) & rank_corr (mse) & linear_corr (aug) & rank_corr (aug)
+# [DSprites] shape       & 0.66 & 0.72 & 0.66 & 0.87
+# [DSprites] scale       & 0.93 & 0.95 & 0.84 & 0.96
+# [DSprites] orientation & 0.13 & 0.17 & 0.15 & 0.21
+# [DSprites] position_x  & 0.66 & 0.75 & 0.63 & 0.83
+# [DSprites] position_y  & 0.65 & 0.75 & 0.63 & 0.83
+# [DSprites] random      & 0.43 & 0.38 & 0.29 & 0.36
+#
+# [XYSquares-1-8] Factor Name & linear_corr (mse) & rank_corr (mse) & linear_corr (aug) & rank_corr (aug)
+# [XYSquares-1-8] x_R    & 1.00 & 1.00 & 0.98 & 0.99
+# [XYSquares-1-8] random & 0.98 & 0.97 & 0.98 & 0.98
+#
+# [XYSquares-2-8] Factor Name & linear_corr (mse) & rank_corr (mse) & linear_corr (aug) & rank_corr (aug)
+# [XYSquares-2-8] x_R    & 0.94 & 0.99 & 0.99 & 0.99
+# [XYSquares-2-8] random & 0.85 & 0.83 & 0.99 & 0.99
+#
+# [XYSquares-3-8] Factor Name & linear_corr (mse) & rank_corr (mse) & linear_corr (aug) & rank_corr (aug)
+# [XYSquares-3-8] x_R    & 0.86 & 0.95 & 0.99 & 0.99
+# [XYSquares-3-8] random & 0.75 & 0.73 & 0.99 & 0.99
+#
+# [XYSquares-4-8] Factor Name & linear_corr (mse) & rank_corr (mse) & linear_corr (aug) & rank_corr (aug)
+# [XYSquares-4-8] x_R    & 0.75 & 0.85 & 0.99 & 0.99
+# [XYSquares-4-8] random & 0.67 & 0.58 & 0.99 & 0.99
+#
+# [XYSquares-5-8] Factor Name & linear_corr (mse) & rank_corr (mse) & linear_corr (aug) & rank_corr (aug)
+# [XYSquares-5-8] x_R    & 0.72 & 0.85 & 0.99 & 0.99
+# [XYSquares-5-8] random & 0.64 & 0.58 & 0.99 & 0.98
+#
+# [XYSquares-6-8] Factor Name & linear_corr (mse) & rank_corr (mse) & linear_corr (aug) & rank_corr (aug)
+# [XYSquares-6-8] x_R    & 0.67 & 0.85 & 0.98 & 0.98
+# [XYSquares-6-8] random & 0.61 & 0.58 & 0.98 & 0.97
+#
+# [XYSquares-7-8] Factor Name & linear_corr (mse) & rank_corr (mse) & linear_corr (aug) & rank_corr (aug)
+# [XYSquares-7-8] x_R    & 0.60 & 0.85 & 0.97 & 0.98
+# [XYSquares-7-8] random & 0.59 & 0.58 & 0.96 & 0.96
+#
+# [XYSquares-8-8] Factor Name & linear_corr (mse) & rank_corr (mse) & linear_corr (aug) & rank_corr (aug)
+# [XYSquares-8-8] x_R    & 0.52 & 0.58 & 0.96 & 0.97
+# [XYSquares-8-8] random & 0.55 & 0.37 & 0.95 & 0.94
 
 # ========================================================================= #
 # END                                                                       #
