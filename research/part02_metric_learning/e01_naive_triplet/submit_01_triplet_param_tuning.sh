@@ -106,3 +106,6 @@ submit_sweep \
     framework.cfg.triplet_loss=triplet_soft,triplet \
     \
     dataset=cars3d,smallnorb,shapes3d,dsprites,X--xysquares
+
+
+# TODO: sweep learning rate!
