@@ -39,7 +39,7 @@ submit_sweep \
     run_length=medium \
     metrics=all \
     \
-    settings.optimizer.lr=1e-3,1e-4
+    settings.optimizer.lr=1e-3,1e-4 \
     settings.framework.beta=0.0001,0.000316,0.001,0.00316,0.01,0.0316,0.1,0.316,1.0 \
     framework=betavae,adavae_os \
     schedule=none \
