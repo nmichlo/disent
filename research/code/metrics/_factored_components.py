@@ -38,6 +38,7 @@ from typing import Union
 import numpy as np
 import torch
 import torch.nn.functional as F
+from disent.frameworks.helper.reconstructions import ReconLossHandler
 from scipy.stats import pearsonr
 from scipy.stats import spearmanr
 
@@ -382,28 +383,36 @@ def _unswapped_ratio_numpy(ap0: np.ndarray, an0: np.ndarray, ap1: np.ndarray, an
 
 
 def _compute_dists(num_triplets: int, zs_traversal: Optional[torch.Tensor], xs_traversal: torch.Tensor, factors: Optional[torch.Tensor], recon_loss_fn=F.mse_loss) -> Dict[str, np.ndarray]:
+    assert (factors      is None) or (len(factors)      == len(xs_traversal))
+    assert (zs_traversal is None) or (len(zs_traversal) == len(xs_traversal))
+
+    # get the recon loss function
+    def _unreduced_loss(input, target):
+        if isinstance(recon_loss_fn, ReconLossHandler):
+            return recon_loss_fn.compute_unreduced_loss(input, target)
+        else:
+            return recon_loss_fn(input, target, reduction='none')
+
+    # compute!
     with torch.no_grad():
-        # checks
-        assert (factors      is None) or ((len(factors)      == len(xs_traversal)) and (factors.device      == xs_traversal.device))
-        assert (zs_traversal is None) or ((len(zs_traversal) == len(xs_traversal)) and (zs_traversal.device == xs_traversal.device))
         # generate random triplets
         # - {p, n} indices do not need to be sorted like triplets, these can be random.
         #   This metric is symmetric for swapped p & n values.
         idxs_a, idxs_p, idxs_n = torch.randint(0, len(xs_traversal), size=(3, num_triplets), device=xs_traversal.device)
         # compute distances -- shape: (num,)
         distances = {
-            'ap_ground_dists': (torch.norm(factors[idxs_a, :] - factors[idxs_p, :], p=1, dim=-1) if (factors is not None) else torch.abs(idxs_a - idxs_p)).numpy(),
-            'an_ground_dists': (torch.norm(factors[idxs_a, :] - factors[idxs_n, :], p=1, dim=-1) if (factors is not None) else torch.abs(idxs_a - idxs_n)).numpy(),
-            'ap_data_dists':   batch_loss_reduction(recon_loss_fn(xs_traversal[idxs_a, ...], xs_traversal[idxs_p, ...], reduction='none'), reduction_dtype=torch.float32, reduction='mean').numpy(),
-            'an_data_dists':   batch_loss_reduction(recon_loss_fn(xs_traversal[idxs_a, ...], xs_traversal[idxs_n, ...], reduction='none'), reduction_dtype=torch.float32, reduction='mean').numpy(),
+            'ap_ground_dists': (torch.norm(factors[idxs_a, :] - factors[idxs_p, :], p=1, dim=-1) if (factors is not None) else torch.abs(idxs_a - idxs_p)).cpu().numpy(),
+            'an_ground_dists': (torch.norm(factors[idxs_a, :] - factors[idxs_n, :], p=1, dim=-1) if (factors is not None) else torch.abs(idxs_a - idxs_n)).cpu().numpy(),
+            'ap_data_dists':   batch_loss_reduction(_unreduced_loss(xs_traversal[idxs_a, ...], xs_traversal[idxs_p, ...]), reduction_dtype=torch.float32, reduction='mean').cpu().numpy(),
+            'an_data_dists':   batch_loss_reduction(_unreduced_loss(xs_traversal[idxs_a, ...], xs_traversal[idxs_n, ...]), reduction_dtype=torch.float32, reduction='mean').cpu().numpy(),
         }
         # compute distances -- shape: (num,)
         if zs_traversal is not None:
             distances.update({
-                'ap_latent_dists.l1': torch.norm(zs_traversal[idxs_a, :] - zs_traversal[idxs_p, :], dim=-1, p=1).numpy(),
-                'an_latent_dists.l1': torch.norm(zs_traversal[idxs_a, :] - zs_traversal[idxs_n, :], dim=-1, p=1).numpy(),
-                'ap_latent_dists.l2': torch.norm(zs_traversal[idxs_a, :] - zs_traversal[idxs_p, :], dim=-1, p=2).numpy(),
-                'an_latent_dists.l2': torch.norm(zs_traversal[idxs_a, :] - zs_traversal[idxs_n, :], dim=-1, p=2).numpy(),
+                'ap_latent_dists.l1': torch.norm(zs_traversal[idxs_a, :] - zs_traversal[idxs_p, :], dim=-1, p=1).cpu().numpy(),
+                'an_latent_dists.l1': torch.norm(zs_traversal[idxs_a, :] - zs_traversal[idxs_n, :], dim=-1, p=1).cpu().numpy(),
+                'ap_latent_dists.l2': torch.norm(zs_traversal[idxs_a, :] - zs_traversal[idxs_p, :], dim=-1, p=2).cpu().numpy(),
+                'an_latent_dists.l2': torch.norm(zs_traversal[idxs_a, :] - zs_traversal[idxs_n, :], dim=-1, p=2).cpu().numpy(),
             })
         # return values -- shape: (num,)
         return distances

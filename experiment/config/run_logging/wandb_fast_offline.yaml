@@ -25,3 +25,7 @@ logging:
     group: NULL
     tags: []
     save_dir: ${abspath:${dsettings.storage.logs_dir}}  # relative to hydra's original cwd
+    # https://docs.wandb.ai/guides/track/launch#init-start-error
+    settings:
+      _target_: wandb.Settings
+      start_method: "fork"  # fork: linux/macos, thread: google colab
