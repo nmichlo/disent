@@ -71,10 +71,10 @@ K_LR       = 'Learning Rate'
 
 K_MIG       = 'MIG Score'
 K_DCI       = 'DCI Score'
-K_LCORR_GT_F   = 'Linear Corr. (gt)'
-K_RCORR_GT_F   = 'Rank Corr. (gt)'
-K_LCORR_GT_G   = 'Global Linear Corr. (gt)'
-K_RCORR_GT_G   = 'Global Rank Corr. (gt)'
+K_LCORR_GT_F   = 'Linear Corr. (factors)'
+K_RCORR_GT_F   = 'Rank Corr. (factors)'
+K_LCORR_GT_G   = 'Global Linear Corr. (factors)'
+K_RCORR_GT_G   = 'Global Rank Corr. (factors)'
 K_LCORR_DATA_F = 'Linear Corr. (data)'
 K_RCORR_DATA_F = 'Rank Corr. (data)'
 K_LCORR_DATA_G = 'Global Linear Corr. (data)'
@@ -158,7 +158,8 @@ def plot_e00_beta_metric_correlation(
     # reg_order: int = 4,
     color_betavae: str = PINK,
     color_adavae: str = ORANGE,
-    grid_size: float = 2.5,
+    grid_size_v: float = 2.25,
+    grid_size_h: float = 2.75,
     # titles: bool = False,
     metrics: Sequence[str] = (K_MIG, K_RCORR_GT_F, K_RCORR_DATA_F),  # (K_MIG, K_DCI, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE)
 ):
@@ -196,13 +197,16 @@ def plot_e00_beta_metric_correlation(
     # rename entries
     df.loc[df[K_DATASET] == 'xysquares_minimal', K_DATASET] = 'xysquares'
 
+    # manual remove invalid values
+    df = df[df[K_LINE].notna()]
+    df = df[df[K_AXIS].notna()]
     # make sure we do not have invalid values!
-    # for k in metrics:
-    #     df = df[df[k].notna()]
+    for k in metrics:
+        df = df[df[k].notna()]
     #     df = df[df[k] >= 0]
     #     df = df[df[k] <= 1]
-    for k in metrics:
-        df[k] = df[k].replace(np.nan, 0)
+    # for k in metrics:
+    #     df[k] = df[k].replace(np.nan, 0)
 
     ALL_DATASETS = list(df[K_DATASET].unique())
     num_datasets = len(df[K_DATASET].unique())
@@ -210,7 +214,7 @@ def plot_e00_beta_metric_correlation(
 
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # make plot
-    fig, axs = plt.subplots(num_scores, num_datasets, figsize=(grid_size*num_datasets, num_scores*grid_size))
+    fig, axs = plt.subplots(num_scores, num_datasets, figsize=(grid_size_h*num_datasets, num_scores*grid_size_v))
     # fill plot
     for i, score_key in enumerate(metrics):
         for j, dataset in enumerate(ALL_DATASETS):
@@ -223,7 +227,7 @@ def plot_e00_beta_metric_correlation(
             sns.lineplot(ax=axs[i, j], x=K_BETA, y=score_key, data=ada_df,  ci=None, color=color_adavae)
             sns.lineplot(ax=axs[i, j], x=K_BETA, y=score_key, data=beta_df, ci=None, color=color_betavae, linestyle='dashed')
             sns.scatterplot(ax=axs[i, j], x=K_BETA, y=score_key, data=ada_df, color=color_adavae,  marker='o')
-            sns.scatterplot(ax=axs[i, j], x=K_BETA, y=score_key, data=beta_df, color=color_betavae, marker='x')
+            sns.scatterplot(ax=axs[i, j], x=K_BETA, y=score_key, data=beta_df, color=color_betavae, marker='X')
             # set the axis limits
             axs[i, j].set(xscale='log', ylim=(y_m, y_M), xlim=(x_m, x_M))
             # hide labels
@@ -242,10 +246,14 @@ def plot_e00_beta_metric_correlation(
             axs[i, j].plot([ax_m, ax_M], [ay_M, ay_M], color='#cccccc', linewidth=1)  # top
             # add axis labels
             axs[i, j].set_xticks([10**i for i in [-4, -3, -2, -1, 0]])
+    # add the legend to the top right plot
+    marker_ada = mlines.Line2D([], [], color=color_adavae, marker='o', markersize=12, label='Ada-GVAE')
+    marker_beta = mlines.Line2D([], [], color=color_betavae, marker='X', markersize=12, label='Beta-VAE')  # why does 'x' not work? only 'X'?
+    axs[0, -1].legend(handles=[marker_beta, marker_ada], fontsize=14)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # PLOT:
     fig.tight_layout()
-    H.plt_rel_path_savefig(rel_path, save=save, show=show)
+    H.plt_rel_path_savefig(rel_path, save=save, show=show, dpi=150, ext='.png')
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
 
