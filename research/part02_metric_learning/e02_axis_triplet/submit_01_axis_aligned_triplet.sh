@@ -26,34 +26,41 @@ source "$(dirname "$(dirname "$(dirname "$(realpath -s "$0")")")")/scripts/helpe
 
 clog_cudaless_nodes "$PARTITION" 172800 "C-disent" # 48 hours
 
-# SWEEP FOR GOOD TVAE PARAMS
-#   1 * (3*2*5*2*5) = 135
-submit_sweep \
-    +DUMMY.repeat=1 \
-    +EXTRA.tags='sweep_adanegtvae_params_basic' \
-    hydra.job.name="adanegtvae_params" \
-    \
-    run_length=medium \
-    metrics=all \
-    \
-    settings.framework.beta=0.01 \
-    settings.model.z_size=25 \
-    settings.optimizer.lr=1e-3,3e-4,1e-4 \
-    \
-    framework.cfg.detach_decoder=FALSE \
-    \
-    sampling=gt_dist__manhat,gt_dist__manhat_scaled \
-    schedule=adavae_up_all,adavae_up_all_full,adavae_up_ratio,adavae_up_ratio_full,adavae_up_thresh \
-    \
-    framework=X--adanegtvae \
-    framework.cfg.ada_thresh_mode=symmetric_kl,dist \
-    \
-    framework.cfg.triplet_margin_max=10.0 \
-    framework.cfg.triplet_scale=1.0 \
-    framework.cfg.triplet_p=1 \
-    framework.cfg.triplet_loss=triplet_soft \
-    \
-    dataset=cars3d,smallnorb,shapes3d,dsprites,X--xysquares
+# SWEEP FOR GOOD ADANEG-TVAE PARAMS (OLD)
+#   1 * (2*2*5*2*5) = 200
+# OUTCOME:
+# - this experiment was wrong! The schedules were not set up correctly! we did not define
+#   the correct initial values for `adat_triplet_share_scale` or `ada_thresh_ratio`
+# - HOWEVER: The learning rate less than 1e-3 did not really work well, the batch size of
+#            256 is large enough that we can use this high learning rate.
+# - HOWEVER: On average: ada_thresh_mode="dist" performs FAR better than "symmetric_kl"
+# - HOWEVER: On average, gt_dist__manhat_scaled sometimes performs better, but metrics and distance measurement don't line up properly.
+#submit_sweep \
+#    +DUMMY.repeat=1 \
+#    +EXTRA.tags='sweep_adanegtvae_params_basic' \
+#    hydra.job.name="adanegtvae_params" \
+#    \
+#    run_length=medium \
+#    metrics=all \
+#    \
+#    settings.framework.beta=0.01 \
+#    settings.model.z_size=25 \
+#    settings.optimizer.lr=1e-3,3e-4 \
+#    \
+#    framework.cfg.detach_decoder=FALSE \
+#    \
+#    sampling=gt_dist__manhat,gt_dist__manhat_scaled \
+#    schedule=OLD_adavae_up_all,OLD_adavae_up_all_full,OLD_adavae_up_ratio,OLD_adavae_up_ratio_full,OLD_adavae_up_thresh \
+#    \
+#    framework=X--adanegtvae \
+#    framework.cfg.ada_thresh_mode=symmetric_kl,dist \
+#    \
+#    framework.cfg.triplet_margin_max=10.0 \
+#    framework.cfg.triplet_scale=1.0 \
+#    framework.cfg.triplet_p=1 \
+#    framework.cfg.triplet_loss=triplet_soft \
+#    \
+#    dataset=cars3d,smallnorb,shapes3d,dsprites,X--xysquares
 
 
 # CHECK ADAVAE modes:
@@ -62,3 +69,34 @@ submit_sweep \
 # TODO:
 # - try run length long
 # - try run detach
+
+
+# SWEEP FOR GOOD ADANEG-TVAE PARAMS
+#   1 * (2*5*2*5) = 100
+submit_sweep \
+    +DUMMY.repeat=1 \
+    +EXTRA.tags='sweep_adanegtvae_params_long' \
+    hydra.job.name="adanegtvae_hparams_long" \
+    \
+    run_length=long \
+    metrics=all \
+    \
+    settings.framework.beta=0.01 \
+    settings.model.z_size=25 \
+    \
+    sampling=gt_dist__manhat,gt_dist__manhat_scaled \
+    framework.cfg.ada_thresh_mode=dist,symmetric_kl \
+    \
+    framework=X--adanegtvae \
+    framework.cfg.detach_decoder=FALSE \
+    \
+    schedule=adanegtvae_up_all,adanegtvae_up_all_full,adanegtvae_up_ratio,adanegtvae_up_ratio_full,adanegtvae_up_thresh \
+    framework.cfg.ada_thresh_ratio=0.5 \
+    framework.cfg.adat_triplet_share_scale=0.5 \
+    \
+    framework.cfg.triplet_margin_max=10.0 \
+    framework.cfg.triplet_scale=1.0 \
+    framework.cfg.triplet_p=1 \
+    framework.cfg.triplet_loss=triplet_soft \
+    \
+    dataset=cars3d,smallnorb,shapes3d,dsprites,X--xysquares

@@ -59,6 +59,8 @@ class AdaNegTripletVae(TripletVae):
         # adavae
         ada_thresh_mode: str = 'dist'  # only works for: adat_share_mask_mode == "posterior"
         # ada_tvae - loss
+        # * this should be used with a schedule, slowly decrease from 1.0 down to 0.5 or less
+        # * a similar schedule should also be used on `ada_thresh_ratio`, slowly increasing from 0.0 to 0.5
         adat_triplet_share_scale: float = 0.95
         # ada_tvae - averaging
         adat_share_mask_mode: str = 'posterior'
