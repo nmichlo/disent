@@ -1,4 +1,4 @@
-name: averaging_decrease__thresh
+name: OLD_adavae_down_thresh
 
 schedule_items:
   ada_thresh_ratio:

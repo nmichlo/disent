@@ -1,0 +1,21 @@
+name: adanegtvae_up_thresh
+
+schedule_items:
+  adat_triplet_share_scale:
+    _target_: disent.schedule.FixedValueSchedule
+    value: 0.5
+    schedule: NULL
+      # |
+      # |
+      # |
+      # |
+      # |
+  ada_thresh_ratio:
+    _target_: disent.schedule.FixedValueSchedule
+    value: 0.5
+    schedule:
+      _target_: disent.schedule.LinearSchedule
+      start_step: 0
+      end_step: ${trainer.max_steps}
+      r_start: 0.0  # none averaged
+      r_end: 1.0    # all averaged, should this not be 0.5 the recommended value

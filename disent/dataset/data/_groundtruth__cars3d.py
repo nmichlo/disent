@@ -35,7 +35,6 @@ import numpy as np
 from disent.dataset.data._groundtruth import NumpyFileGroundTruthData
 from disent.dataset.util.datafile import DataFileHashed
 from disent.dataset.util.datafile import DataFileHashedDlGen
-from disent.util.inout.files import AtomicSaveFile
 from disent.util.inout.paths import modify_name_keep_ext
 
 
@@ -167,6 +166,9 @@ class Cars3dData(NumpyFileGroundTruthData):
     data_key = 'images'
 
 
+# TODO: this is very slow compared to other datasets for some reason!
+#       - in memory benchmark are equivalent, eg. against Shapes3D, but when we run the
+#         experiment/run.py with this its about twice as slow? Why is this?
 class Cars3d64Data(Cars3dData):
     """
     Optimized version of Cars3dOrigData, that has already been re-sized to 64x64
@@ -190,20 +192,24 @@ class Cars3d64Data(Cars3dData):
 
 
 if __name__ == '__main__':
-    import torch
-    from tqdm import tqdm
-    from disent.dataset.transform import ToImgTensorF32
 
-    logging.basicConfig(level=logging.DEBUG)
+    def main():
+        import torch
+        from tqdm import tqdm
+        from disent.dataset.transform import ToImgTensorF32
 
-    # original dataset
-    data_128 = Cars3dData(prepare=True, transform=ToImgTensorF32(size=64))
-    for i in tqdm(data_128, desc='cars3d_x128 -> 64'):
-        pass
-    # resized dataset
-    data_64 = Cars3d64Data(prepare=True, transform=ToImgTensorF32(size=64))
-    for i in tqdm(data_64, desc='cars3d_x64'):
-        pass
-    # check equivalence
-    for obs_128, obs_64 in tqdm(zip(data_128, data_64), desc='equivalence'):
-        assert torch.allclose(obs_128, obs_64)
+        logging.basicConfig(level=logging.DEBUG)
+
+        # original dataset
+        data_128 = Cars3dData(prepare=True, transform=ToImgTensorF32(size=64))
+        for i in tqdm(data_128, desc='cars3d_x128 -> 64'):
+            pass
+        # resized dataset
+        data_64 = Cars3d64Data(prepare=True, transform=ToImgTensorF32(size=64))
+        for i in tqdm(data_64, desc='cars3d_x64'):
+            pass
+        # check equivalence
+        for obs_128, obs_64 in tqdm(zip(data_128, data_64), desc='equivalence'):
+            assert torch.allclose(obs_128, obs_64)
+
+    main()

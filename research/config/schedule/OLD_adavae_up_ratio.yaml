@@ -1,4 +1,4 @@
-name: averaging_increase__all
+name: OLD_adavae_up_ratio
 
 schedule_items:
   adat_triplet_ratio:
@@ -19,9 +19,3 @@ schedule_items:
     end_step: ${trainer.max_steps}
     r_start: 1.0  # normal triplet
     r_end: 0.5    # ada weighted triplet
-  ada_thresh_ratio:
-    _target_: disent.schedule.LinearSchedule
-    start_step: 0
-    end_step: ${trainer.max_steps}
-    r_start: 0.0  # none averaged
-    r_end: 1.0    # all averaged, should this not be 0.5 the recommended value

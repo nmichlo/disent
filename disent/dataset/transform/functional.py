@@ -150,6 +150,22 @@ def to_img_tensor_f32(
             obs = F_tv.to_pil_image(obs)
         obs = F_tv.resize(obs, size=size)
     # transform to tensor, add missing dims & move channel dim to front
+    # TODO: this should be replaced with custom logic, this is quite slow...
+    #       - benchmarks show that doing conversions as numpy first, and then using torch.from_numpy is faster!
+    #       - eg. SmallNorb64Data
+    #             `to_tensor(item)                                                          # 27547.81it/s
+    #             `torch.from_numpy(np.transpose(item.astype('float32') / 255, [2, 0, 1]))  # 53987.90it/s
+    #             `torch.from_numpy((item.astype('float32') / 255).transpose([2, 0, 1]))    # 66544.00it/s
+    #             `torch.from_numpy(item.astype('float32').transpose([2, 0, 1]) / 255)      # 66511.62it/s
+    #             `torch.from_numpy(item.transpose([2, 0, 1]).astype('float32') / 255)      # 66133.27it/s
+    #       - eg. Cars3d64Data
+    #             `to_tensor(item)                                                          # 13810.46it/s
+    #             `torch.from_numpy(np.transpose(item.astype('float32') / 255, [2, 0, 1]))  # 32258.03it/s
+    #             `torch.from_numpy((item.astype('float32') / 255).transpose([2, 0, 1]))    # 37861.46it/s
+    #             `torch.from_numpy(item.astype('float32').transpose([2, 0, 1]) / 255)      # 33034.21it/s
+    #             `torch.from_numpy(item.transpose([2, 0, 1]).astype('float32') / 255)      # 32883.32it/s
+    #       - INVESTIGATE: if transpose is used, and then from_numpy is called, that references the original memory? It
+    #            might then be slower to convolve this data? Speed benefits could be negated? A copy might be better?
     obs = F_tv.to_tensor(obs)
     # checks
     assert obs.ndim == 3, f'obs has does not have 3 dimensions, got: {obs.ndim} for shape: {obs.shape}'
