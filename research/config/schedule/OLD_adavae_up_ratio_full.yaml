@@ -1,4 +1,4 @@
-name: averaging_increase__ratio
+name: OLD_adavae_up_ratio_full
 
 schedule_items:
   adat_triplet_ratio:
@@ -18,4 +18,4 @@ schedule_items:
     start_step: 0
     end_step: ${trainer.max_steps}
     r_start: 1.0  # normal triplet
-    r_end: 0.5    # ada weighted triplet
+    r_end: 0.0    # ada weighted triplet
