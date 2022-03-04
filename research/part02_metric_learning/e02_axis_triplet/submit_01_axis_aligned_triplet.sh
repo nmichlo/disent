@@ -75,10 +75,10 @@ clog_cudaless_nodes "$PARTITION" 172800 "C-disent" # 48 hours
 #   1 * (2*5*2*5) = 100
 submit_sweep \
     +DUMMY.repeat=1 \
-    +EXTRA.tags='sweep_adanegtvae_params_long' \
-    hydra.job.name="adanegtvae_hparams_long" \
+    +EXTRA.tags='sweep_adanegtvae_params_longmed' \
+    hydra.job.name="adanegtvae_hparams_longmed" \
     \
-    run_length=long \
+    run_length=longmed \
     metrics=all \
     \
     settings.framework.beta=0.01 \
