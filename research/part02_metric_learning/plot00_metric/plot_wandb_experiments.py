@@ -33,7 +33,9 @@ import pandas as pd
 import seaborn as sns
 from cachier import cachier as _cachier
 from matplotlib import pyplot as plt
+import matplotlib as mpl
 import matplotlib.lines as mlines
+import matplotlib.patches as mpatches
 
 import research.code.util as H
 from disent.util.function import wrapped_partial
@@ -42,6 +44,7 @@ from disent.util.function import wrapped_partial
 # ========================================================================= #
 # Helper                                                                    #
 # ========================================================================= #
+from research.code.util._wandb_plots import clear_runs_cache
 
 
 cachier = wrapped_partial(_cachier, cache_dir='./cache')
@@ -67,7 +70,10 @@ K_LOSS      = 'Recon. Loss'
 K_Z_SIZE    = 'Latent Dims.'
 K_REPEAT    = 'Repeat'
 K_STATE     = 'State'
-K_LR       = 'Learning Rate'
+K_LR        = 'Learning Rate'
+K_SCHEDULE  = 'Schedule'
+K_SAMPLER   = 'Sampler'
+K_ADA_MODE  = 'Threshold Mode'
 
 K_MIG       = 'MIG Score'
 K_DCI       = 'DCI Score'
@@ -127,6 +133,10 @@ def load_general_data(project: str):
         'epoch_metric/distances.rcorr_latent_data.l2.global.max':   K_RCORR_DATA_G,
         'epoch_metric/linearity.axis_ratio.var.max':                K_AXIS,
         'epoch_metric/linearity.linear_ratio.var.max':              K_LINE,
+        # adaptive methods
+        'schedule/name': K_SCHEDULE,
+        'sampling/name': K_SAMPLER,
+        'framework/cfg/ada_thresh_mode': K_ADA_MODE,
     })
 
 
@@ -147,7 +157,7 @@ LBLUE2 = '#36CFC8'   # usually: MSE-Overlap
 
 
 # ========================================================================= #
-# Experiment 2                                                              #
+# Experiment p02e00                                                         #
 # ========================================================================= #
 
 
@@ -155,12 +165,10 @@ def plot_e00_beta_metric_correlation(
     rel_path: Optional[str] = None,
     save: bool = True,
     show: bool = True,
-    # reg_order: int = 4,
     color_betavae: str = PINK,
     color_adavae: str = ORANGE,
     grid_size_v: float = 2.25,
     grid_size_h: float = 2.75,
-    # titles: bool = False,
     metrics: Sequence[str] = (K_MIG, K_RCORR_GT_F, K_RCORR_DATA_F),  # (K_MIG, K_DCI, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE)
 ):
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
@@ -258,6 +266,110 @@ def plot_e00_beta_metric_correlation(
 
 
 # ========================================================================= #
+# Experiment p02e02                                                         #
+# ========================================================================= #
+
+
+def plot_e02_axis_triplet(
+    rel_path: Optional[str] = None,
+    save: bool = True,
+    show: bool = True,
+    grid_size_v: float = 2.00,
+    grid_size_h: float = 2.75,
+    metrics: Sequence[str] = (K_MIG, K_RCORR_GT_F, K_RCORR_DATA_F),  # (K_MIG, K_DCI, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE)
+):
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    df: pd.DataFrame = load_general_data(f'{os.environ["WANDB_USER"]}/MSC-p02e02_axis-aligned-triplet')
+    # select run groups
+    df = df[df[K_GROUP].isin(['sweep_adanegtvae_params_longmed'])]
+    # sort everything
+    df = df.sort_values([K_FRAMEWORK, K_DATASET, K_BETA, K_LR])
+    # print common key values
+    print('K_GROUP:    ',   list(df[K_GROUP].unique()))
+    print('K_FRAMEWORK:',   list(df[K_FRAMEWORK].unique()))
+    print('K_BETA:     ',   list(df[K_BETA].unique()))
+    print('K_REPEAT:   ',   list(df[K_REPEAT].unique()))
+    print('K_STATE:    ',   list(df[K_STATE].unique()))
+    print('K_DATASET:  ',   list(df[K_DATASET].unique()))
+    print('K_LR:       ',   list(df[K_LR].unique()))
+    print('K_SCHEDULE: ',   list(df[K_SCHEDULE].unique()))
+    print('K_SAMPLER:  ',   list(df[K_SAMPLER].unique()))
+    print('K_ADA_MODE: ',   list(df[K_ADA_MODE].unique()))
+    # number of runs
+    print(f'total={len(df)}')
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+
+    # replace values in the df
+    for key, value, new_value in [
+        (K_DATASET,  'xysquares_minimal',        'xysquares'),
+        (K_SCHEDULE, 'adanegtvae_up_all_full',   'Incr. All (full)'),
+        (K_SCHEDULE, 'adanegtvae_up_all',        'Incr. All (semi)'),
+        (K_SCHEDULE, 'adanegtvae_up_ratio_full', 'Incr. Ratio (full)'),
+        (K_SCHEDULE, 'adanegtvae_up_ratio',      'Incr. Ratio (semi)'),
+        (K_SCHEDULE, 'adanegtvae_up_thresh',     'Incr. Thresh (semi)'),
+    ]:
+        df.loc[df[key] == value, key] = new_value
+
+    # col_x = K_SCHEDULE
+    # col_bars = K_DATASET
+    col_x = K_DATASET
+    col_bars = K_SCHEDULE
+
+    # get rows and columns
+    all_bars = list(df[col_bars].unique())
+    all_x = list(df[col_x].unique())
+    all_y = metrics
+    num_bars = len(all_bars)
+    num_x = len(all_x)
+    num_y = len(all_y)
+
+    colors = [
+        PINK,
+        ORANGE,
+        BLUE,
+        LBLUE,
+        # GREEN,
+        # LGREEN,
+        PURPLE,
+    ]
+
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # make plot
+    fig, axs = plt.subplots(num_y, num_x, figsize=(grid_size_h*num_x, num_y*grid_size_v))
+    # fill plot
+    for y, key_y in enumerate(all_y):  # metric
+        for x, key_x in enumerate(all_x):  # schedule
+            ax = axs[y, x]
+            # filter data
+            df_filtered = df[(df[col_x] == key_x)]
+            # plot!
+            sns.barplot(ax=ax, x=col_bars, y=key_y, data=df_filtered)  # hue=K_SAMPLER
+            ax.set(ylim=(0, 1), xlim=(-0.5, num_bars - 0.5))
+            # set colors
+            for bar, color in zip(ax.patches, colors):
+                bar.set_color(color)
+            # remove labels
+            if ax.get_legend():
+                ax.get_legend().remove()
+            if y == 0:
+                ax.set_title(key_x)
+            # if y < num_y-1:
+            ax.set_xlabel(None)
+            ax.set_xticklabels([])
+            if x > 0:
+                ax.set_ylabel(None)
+                ax.set_yticklabels([])
+    # add the legend to the top right plot
+    handles = [mpl.patches.Patch(label=label, color=color) for label, color in zip(all_bars, colors)]
+    axs[0, -1].legend(handles=handles, fontsize=14)
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # PLOT:
+    fig.tight_layout()
+    H.plt_rel_path_savefig(rel_path, save=save, show=show, dpi=150, ext='.png')
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+
+
+# ========================================================================= #
 # Entrypoint                                                                #
 # ========================================================================= #
 
@@ -269,12 +381,13 @@ if __name__ == '__main__':
     # matplotlib style
     plt.style.use(os.path.join(os.path.dirname(__file__), '../../code/util/gadfly.mplstyle'))
 
-    # clear_cache()
+    # clear_runs_cache()
 
     def main():
-        plot_e00_beta_metric_correlation(rel_path='plots/p02e00_metrics_some', show=True, metrics=(K_MIG, K_RCORR_GT_F, K_RCORR_DATA_F))
-        plot_e00_beta_metric_correlation(rel_path='plots/p02e00_metrics_all', show=True, metrics=(K_MIG, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE))
-        plot_e00_beta_metric_correlation(rel_path='plots/p02e00_metrics_alt', show=True, metrics=(K_MIG, K_RCORR_GT_F, K_RCORR_DATA_F, K_LINE))
+        # plot_e00_beta_metric_correlation(rel_path='plots/p02e00_metrics_some', show=True, metrics=(K_MIG, K_RCORR_GT_F, K_RCORR_DATA_F))
+        # plot_e00_beta_metric_correlation(rel_path='plots/p02e00_metrics_all',  show=True, metrics=(K_MIG, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE))
+        # plot_e00_beta_metric_correlation(rel_path='plots/p02e00_metrics_alt',  show=True, metrics=(K_MIG, K_RCORR_GT_F, K_RCORR_DATA_F, K_LINE))
+        plot_e02_axis_triplet(rel_path='plots/p02e02_axis_triplet', show=True)
 
     main()
 
