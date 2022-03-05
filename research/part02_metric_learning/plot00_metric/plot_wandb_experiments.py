@@ -21,7 +21,7 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-
+import itertools
 import os
 from pprint import pprint
 from typing import Optional
@@ -274,16 +274,21 @@ def plot_e02_axis_triplet(
     rel_path: Optional[str] = None,
     save: bool = True,
     show: bool = True,
-    grid_size_v: float = 2.00,
+    grid_size_v: float = 2.10,
     grid_size_h: float = 2.75,
     metrics: Sequence[str] = (K_MIG, K_RCORR_GT_F, K_RCORR_DATA_F),  # (K_MIG, K_DCI, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE)
+    adaptive_modes: Sequence[str] = ('symmetric_kl',),
+    title: str = None,
 ):
+    if (title is None) and len(adaptive_modes) == 1:
+        title = adaptive_modes[0]
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
     df: pd.DataFrame = load_general_data(f'{os.environ["WANDB_USER"]}/MSC-p02e02_axis-aligned-triplet')
     # select run groups
     df = df[df[K_GROUP].isin(['sweep_adanegtvae_params_longmed'])]
+    df = df[df[K_ADA_MODE].isin(adaptive_modes)]
     # sort everything
-    df = df.sort_values([K_FRAMEWORK, K_DATASET, K_BETA, K_LR])
+    df = df.sort_values([K_FRAMEWORK, K_DATASET, K_ADA_MODE, K_SCHEDULE, K_SAMPLER])
     # print common key values
     print('K_GROUP:    ',   list(df[K_GROUP].unique()))
     print('K_FRAMEWORK:',   list(df[K_FRAMEWORK].unique()))
@@ -310,18 +315,24 @@ def plot_e02_axis_triplet(
     ]:
         df.loc[df[key] == value, key] = new_value
 
+    hatches = [None, '..']
+
     # col_x = K_SCHEDULE
     # col_bars = K_DATASET
     col_x = K_DATASET
     col_bars = K_SCHEDULE
+    col_hue = K_SAMPLER
 
     # get rows and columns
     all_bars = list(df[col_bars].unique())
     all_x = list(df[col_x].unique())
     all_y = metrics
+    all_hue = list(df[col_hue].unique())
+
     num_bars = len(all_bars)
     num_x = len(all_x)
     num_y = len(all_y)
+    num_hue = len(all_hue)
 
     colors = [
         PINK,
@@ -336,18 +347,25 @@ def plot_e02_axis_triplet(
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # make plot
     fig, axs = plt.subplots(num_y, num_x, figsize=(grid_size_h*num_x, num_y*grid_size_v))
+    if title:
+        fig.suptitle(title, fontsize=19)
     # fill plot
     for y, key_y in enumerate(all_y):  # metric
         for x, key_x in enumerate(all_x):  # schedule
             ax = axs[y, x]
-            # filter data
+            # filter items
             df_filtered = df[(df[col_x] == key_x)]
             # plot!
-            sns.barplot(ax=ax, x=col_bars, y=key_y, data=df_filtered)  # hue=K_SAMPLER
+            sns.barplot(ax=ax, x=col_bars, y=key_y, hue=col_hue, data=df_filtered)
             ax.set(ylim=(0, 1), xlim=(-0.5, num_bars - 0.5))
             # set colors
-            for bar, color in zip(ax.patches, colors):
-                bar.set_color(color)
+            for i, (bar, color) in enumerate(zip(ax.patches, itertools.cycle(colors))):
+                bar.set_facecolor(color)
+                bar.set_edgecolor('white')
+                bar.set_linewidth(2)
+                if hatches[i // num_bars]:
+                    bar.set_facecolor(color + '65')
+                    bar.set_hatch(hatches[i // num_bars])
             # remove labels
             if ax.get_legend():
                 ax.get_legend().remove()
