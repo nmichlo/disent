@@ -223,7 +223,7 @@ class _DiskDataMixin(object):
         if data_root is None:
             data_root = self.default_data_root
         else:
-            data_root = os.path.abspath(data_root)
+            data_root = os.path.abspath(os.path.expanduser(data_root))
         # get class data folder
         self._data_dir = ensure_dir_exists(os.path.join(data_root, self.name))
         log.info(f'{self.name}: data_dir_share={repr(self._data_dir)}')
