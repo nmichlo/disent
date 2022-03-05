@@ -28,7 +28,7 @@ clog_cudaless_nodes "$PARTITION" 86400 "C-disent" # 24 hours
 
 
 # SWEEP FOR GOOD TVAE PARAMS
-#   1 * (1*2*2*2*2*5*2) = 160
+#   1 * (1*2*2*1*2*5*2) = 160
 #   * triplet_scale: 0.01 is too low (from provisional experiments)
 #   * triplet_margin_max: 0.1 is too low (from provisional experiments)
 #   * beta: 0.01 (and 0.0316) chosen from previous experiment sweeps
@@ -47,9 +47,15 @@ clog_cudaless_nodes "$PARTITION" 86400 "C-disent" # 24 hours
 # MAKE PLOTS:
 # -- use this to figure out if l1 or l2 is better
 # -- use this to hparam tune for later experiments
+# SWEEP FOR GOOD PARAMS - RERUN:
+# changes:
+# - no longer checking z_size=9,25
+# + added detach_decoder=FALSE,TRUE
+# results:
+# - pretty much the same as before, just needed the fixed metrics...
 submit_sweep \
     +DUMMY.repeat=1 \
-    +EXTRA.tags='sweep_tvae_params_basic' \
+    +EXTRA.tags='sweep_tvae_params_basic_RERUN' \
     hydra.job.name="tvae_params" \
     \
     run_length=medium \
@@ -58,12 +64,12 @@ submit_sweep \
     settings.framework.beta=0.01 \
     framework=tvae \
     schedule=none \
-    settings.model.z_size=9,25 \
+    settings.model.z_size=25 \
     \
     framework.cfg.triplet_margin_max=1.0,10.0 \
     framework.cfg.triplet_scale=0.1,1.0 \
     framework.cfg.triplet_p=1,2 \
-    framework.cfg.detach_decoder=FALSE \
+    framework.cfg.detach_decoder=FALSE,TRUE \
     framework.cfg.triplet_loss=triplet \
     \
     dataset=cars3d,smallnorb,shapes3d,dsprites,X--xysquares \
@@ -83,29 +89,29 @@ submit_sweep \
 # framework.cfg.triplet_p: 1
 
 # SWEEP TRIPLET MODES:
+# RERUN NOTES:
+# -- we no longer want this because triplet_soft doesnt seem to work
+#    well with axis-aligned triplet or detached decoders...
 # 1 * (2*2*2*2*5) = 80
-submit_sweep \
-    +DUMMY.repeat=1 \
-    +EXTRA.tags='sweep_tvae_modes_basic' \
-    hydra.job.name="tvae_modes" \
-    \
-    run_length=medium \
-    metrics=all \
-    \
-    settings.framework.beta=0.01 \
-    framework=tvae \
-    schedule=none \
-    settings.model.z_size=25 \
-    \
-    sampling=gt_dist__manhat,gt_dist__manhat_scaled
-    \
-    framework.cfg.detach_decoder=FALSE,TRUE \
-    framework.cfg.triplet_margin_max=10.0 \
-    framework.cfg.triplet_scale=1.0 \
-    framework.cfg.triplet_p=1,2 \
-    framework.cfg.triplet_loss=triplet_soft,triplet \
-    \
-    dataset=cars3d,smallnorb,shapes3d,dsprites,X--xysquares
-
-
-# TODO: sweep learning rate!
+#submit_sweep \
+#    +DUMMY.repeat=1 \
+#    +EXTRA.tags='sweep_tvae_modes_basic' \
+#    hydra.job.name="tvae_modes" \
+#    \
+#    run_length=medium \
+#    metrics=all \
+#    \
+#    settings.framework.beta=0.01 \
+#    framework=tvae \
+#    schedule=none \
+#    settings.model.z_size=25 \
+#    \
+#    sampling=gt_dist__manhat,gt_dist__manhat_scaled
+#    \
+#    framework.cfg.detach_decoder=FALSE,TRUE \
+#    framework.cfg.triplet_margin_max=10.0 \
+#    framework.cfg.triplet_scale=1.0 \
+#    framework.cfg.triplet_p=1,2 \
+#    framework.cfg.triplet_loss=triplet_soft,triplet \
+#    \
+#    dataset=cars3d,smallnorb,shapes3d,dsprites,X--xysquares
