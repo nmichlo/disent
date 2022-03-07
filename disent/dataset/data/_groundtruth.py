@@ -59,21 +59,20 @@ log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
-# ground truth data                                                         #
+# non-ground-truth data                                                     #
 # ========================================================================= #
 
 
-class GroundTruthData(Dataset, StateSpace):
+class _DataInfoMixin(Dataset):
     """
-    Dataset that corresponds to some state space or ground truth factors
-    """
+    Base data that provides various properties for retrieving info about data.
+    - name
+    - x_shape
+    - img_shape
+    - img_channels
 
-    def __init__(self, transform=None):
-        self._transform = transform
-        super().__init__(
-            factor_sizes=self.factor_sizes,
-            factor_names=self.factor_names,
-        )
+    TODO: consider adding dtype so that we can make transforms more efficient?
+    """
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Overridable Defaults                                                  #
@@ -85,27 +84,6 @@ class GroundTruthData(Dataset, StateSpace):
         if name.endswith('Data'):
             name = name[:-len('Data')]
         return name.lower()
-
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # State Space                                                           #
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-
-    @property
-    def factor_names(self) -> Tuple[str, ...]:
-        raise NotImplementedError()
-
-    @property
-    def factor_sizes(self) -> Tuple[int, ...]:
-        raise NotImplementedError()
-
-    def state_space_copy(self) -> StateSpace:
-        """
-        :return: Copy this ground truth dataset as a StateSpace, discarding everything else!
-        """
-        return StateSpace(
-            factor_sizes=self.factor_sizes,
-            factor_names=self.factor_names,
-        )
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Properties                                                            #
@@ -131,7 +109,7 @@ class GroundTruthData(Dataset, StateSpace):
         return channels
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # Overrides                                                             #
+    # Observations                                                          #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     def __getitem__(self, idx):
@@ -142,6 +120,60 @@ class GroundTruthData(Dataset, StateSpace):
 
     def _get_observation(self, idx):
         raise NotImplementedError
+
+
+# ========================================================================= #
+# base data                                                                 #
+# ========================================================================= #
+
+
+class NonGroundTruthData(_DataInfoMixin, metaclass=ABCMeta):
+    """
+    Dataset that is not ground-truth data.
+    - provides basic information about the data.
+
+    TODO: rename this to DisentData?
+    """
+
+
+class GroundTruthData(_DataInfoMixin, StateSpace, metaclass=ABCMeta):
+    """
+    Dataset that corresponds to some state space or ground truth factors
+    - provides basic information about the data.
+
+    NOTE: this does not extend from NonGroundTruthData so that we can easily
+          check if a dataset is an instance of the one or the other.
+
+    TODO: rename this to DisentGtData?
+    """
+
+    def __init__(self, transform=None):
+        self._transform = transform
+        super().__init__(
+            factor_sizes=self.factor_sizes,
+            factor_names=self.factor_names,
+        )
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # State Space                                                           #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    @property
+    def factor_names(self) -> Tuple[str, ...]:
+        raise NotImplementedError()
+
+    @property
+    def factor_sizes(self) -> Tuple[int, ...]:
+        raise NotImplementedError()
+
+    def state_space_copy(self) -> StateSpace:
+        """
+        :return: Copy this ground truth dataset as a StateSpace, discarding everything else!
+        """
+        return StateSpace(
+            factor_sizes=self.factor_sizes,
+            factor_names=self.factor_names,
+        )
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # EXTRAS                                                                #
@@ -221,8 +253,6 @@ class ArrayGroundTruthData(GroundTruthData):
 
 # ========================================================================= #
 # disk ground truth data                                                    #
-# TODO: data & datafile preparation should be split out from                #
-#       GroundTruthData, instead GroundTruthData should be a wrapper        #
 # ========================================================================= #
 
 
@@ -263,11 +293,20 @@ class _DiskDataMixin(object):
         raise NotImplementedError
 
 
-class DiskGroundTruthData(_DiskDataMixin, GroundTruthData, metaclass=ABCMeta):
-
+class DiskNonGroundTruthData(_DiskDataMixin, NonGroundTruthData, metaclass=ABCMeta):
     """
     Dataset that prepares a list DataObjects into some local directory.
-    - This directory can be
+    """
+
+    def __init__(self, data_root: Optional[str] = None, prepare: bool = False, transform=None):
+        super().__init__(transform=transform)
+        # get root data folder
+        self._mixin_disk_init(data_root=data_root, prepare=prepare)
+
+
+class DiskGroundTruthData(_DiskDataMixin, GroundTruthData, metaclass=ABCMeta):
+    """
+    Dataset that prepares a list DataObjects into some local directory.
     """
 
     def __init__(self, data_root: Optional[str] = None, prepare: bool = False, transform=None):
