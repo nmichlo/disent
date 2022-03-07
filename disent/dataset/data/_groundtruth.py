@@ -35,11 +35,24 @@ from typing import Union
 import numpy as np
 from torch.utils.data import Dataset
 
+from disent.dataset.data._raw import NumpyFileDataset
 from disent.dataset.util.datafile import DataFile
 from disent.dataset.util.datafile import DataFileHashedDlH5
 from disent.dataset.data._raw import Hdf5Dataset
 from disent.dataset.util.state_space import StateSpace
 from disent.util.inout.paths import ensure_dir_exists
+
+
+"""
+TODO: these datasets should be re-written to remove the reliance on the StateSpace
+- IE. maybe expose a single .states propery that allows us to check if it is actually a
+      ground-truth dataset or not. This will allow use to re-use these files for
+      both ground-truth and non-ground truth datasets!
+  ** This will also allow us to inject custom state spaces into the datasets. This would
+     allow for better sampling or restriction of states?
+- OR. or we can adopt the approach from the DisentDataset where some methods are disabled
+      if the dataset is ground-truth, has states or not?
+"""
 
 
 log = logging.getLogger(__name__)
@@ -263,6 +276,11 @@ class DiskGroundTruthData(_DiskDataMixin, GroundTruthData, metaclass=ABCMeta):
         self._mixin_disk_init(data_root=data_root, prepare=prepare)
 
 
+# ========================================================================= #
+# Numpy Data                                                                #
+# ========================================================================= #
+
+
 class NumpyFileGroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
     """
     Dataset that loads a numpy file from a DataObject
@@ -271,17 +289,9 @@ class NumpyFileGroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
 
     def __init__(self, data_root: Optional[str] = None, prepare: bool = False, transform=None):
         super().__init__(data_root=data_root, prepare=prepare, transform=transform)
-        # load dataset
-        load_path = os.path.join(self.data_dir, self.datafile.out_name)
-        if load_path.endswith('.gz'):
-            import gzip
-            with gzip.GzipFile(load_path, 'r') as load_file:
-                self._data = np.load(load_file)
-        else:
-            self._data = np.load(load_path)
-        # load from the key if specified
-        if self.data_key is not None:
-            self._data = self._data[self.data_key]
+        # load dataset -- extract array
+        data_path = os.path.join(self.data_dir, self.datafile.out_name)
+        self._data = NumpyFileDataset(path=data_path, data_key=self.data_key).array
 
     def _get_observation(self, idx):
         return self._data[idx]
@@ -298,6 +308,11 @@ class NumpyFileGroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
     def data_key(self) -> Optional[str]:
         # can override this!
         return None
+
+
+# ========================================================================= #
+# HDF5 Data                                                                 #
+# ========================================================================= #
 
 
 class _Hdf5DataMixin(object):

@@ -22,8 +22,8 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-
 import h5py
+import numpy as np
 from torch.utils.data import Dataset
 from disent.util.iters import LengthIter
 
@@ -52,6 +52,48 @@ class ArrayDataset(Dataset, LengthIter):
     @property
     def shape(self):
         return self._array.shape
+
+
+# ========================================================================= #
+# numpy savez dataset                                                       #
+# ========================================================================= #
+
+
+class NumpyFileDataset(Dataset, LengthIter):
+    """
+    Dataset that loads a numpy file
+    - if the dataset is contained in a key, set the `data_key` property
+    """
+
+    def __init__(self, path: str, data_key: str = 'data', transform=None):
+        self._transform = transform
+        # load dataset
+        if path.endswith('.gz'):
+            import gzip
+            with gzip.GzipFile(path, 'r') as load_file:
+                self._data = np.load(load_file)
+        else:
+            self._data = np.load(path)
+        # load from the key if specified
+        if data_key is not None:
+            self._data = self._data[data_key]
+
+    def __len__(self):
+        return len(self._data)
+
+    def __getitem__(self, item):
+        elem = self._data[item]
+        if self._transform is not None:
+            elem = self._transform(elem)
+        return elem
+
+    @property
+    def shape(self):
+        return self._data.shape
+
+    @property
+    def array(self) -> np.ndarray:
+        return self._data
 
 
 # ========================================================================= #
