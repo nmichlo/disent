@@ -78,5 +78,5 @@ def _compute_mig(mus_train, ys_train):
     entropy = utils.discrete_entropy(ys_train)
     sorted_m = np.sort(m, axis=0)[::-1]
     return {
-        "mig.discrete_score": np.mean(np.divide(sorted_m[0, :] - sorted_m[1, :], entropy[:]))
+        "mig.discrete_score": np.mean(np.divide(sorted_m[0, :] - sorted_m[1, :], entropy[:]))  # "modularity: MIG" -- Measuring Disentanglement: A Review of Metrics
     }

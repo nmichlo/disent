@@ -90,10 +90,10 @@ def _compute_dci(mus_train, ys_train, mus_test, ys_test, boost_mode='sklearn', s
     assert importance_matrix.shape[0] == mus_train.shape[0]
     assert importance_matrix.shape[1] == ys_train.shape[0]
     return {
-        "dci.informativeness_train": train_err,
-        "dci.informativeness_test": test_err,
-        "dci.disentanglement": _disentanglement(importance_matrix),
-        "dci.completeness": _completeness(importance_matrix),
+        "dci.informativeness_train": train_err,                      # "dci.explicitness" -- Measuring Disentanglement: A Review of Metrics
+        "dci.informativeness_test": test_err,                        # "dci.explicitness" -- Measuring Disentanglement: A Review of Metrics
+        "dci.disentanglement": _disentanglement(importance_matrix),  # "dci.modularity"   -- Measuring Disentanglement: A Review of Metrics
+        "dci.completeness": _completeness(importance_matrix),        # "dci.compactness"  -- Measuring Disentanglement: A Review of Metrics
     }
 
 

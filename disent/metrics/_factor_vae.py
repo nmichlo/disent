@@ -126,8 +126,8 @@ def metric_factor_vae(
     eval_accuracy = np.sum(eval_votes[classifier, other_index]) * 1. / np.sum(eval_votes)
 
     return {
-        "factor_vae.train_accuracy": train_accuracy,
-        "factor_vae.eval_accuracy": eval_accuracy,
+        "factor_vae.train_accuracy": train_accuracy,    # "z-min variance" -- Measuring Disentanglement: A Review of Metrics
+        "factor_vae.eval_accuracy": eval_accuracy,      # "z-min variance" -- Measuring Disentanglement: A Review of Metrics
         "factor_vae.num_active_dims": len(active_dims),
     }
 

@@ -127,12 +127,17 @@ class Teapots3dData(NumpyFileGroundTruthData):
 
     Manual Download Link:
     - https://www.dropbox.com/s/woeyomxuylqu7tx/edinburgh_teapots.zip?dl=0
+
+    NOTE:
+    - This dataset is generated from ground-truth factors, HOWEVER, each datapoint
+      is randomly sampled. This dataset is NOT a typical grid-search over ground-truth factors
+      which means that we cannot create a StateSpace object over this dataset.
     """
 
     name = 'edinburgh_teapots'
 
     factor_names = ('azimuth', 'elevation', 'red', 'green', 'blue')
-    factor_sizes = (..., ..., ..., ..., ...)  # TOTAL: 200_000  # TODO: these are wrong?
+    factor_sizes = (..., ..., ..., ..., ...)  # TOTAL: 200_000 -- TODO: this is invalid, we cannot actually generate a StateSpace object over this dataset!
     img_shape = (64, 64, 3)
 
     datafile = DataFileTeapots3dUint8(
