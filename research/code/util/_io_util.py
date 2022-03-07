@@ -224,14 +224,14 @@ def make_rel_path_add_ext(*path_segments, ext='.png'):
     return _make_rel_path_add_ext(*path_segments, ext=ext, _calldepth=1)
 
 
-def plt_rel_path_savefig(rel_path: Optional[str], save: bool = True, show: bool = True, ext='.png', dpi: Optional[int] = None):
+def plt_rel_path_savefig(rel_path: Optional[str], save: bool = True, show: bool = True, ext='.png', dpi: Optional[int] = None, **kwargs):
     import matplotlib.pyplot as plt
     if save and (rel_path is not None):
         path = _make_rel_path_add_ext(rel_path, ext=ext, _calldepth=2)
-        plt.savefig(path, dpi=dpi)
+        plt.savefig(path, dpi=dpi, **kwargs)
         print(f'saved: {repr(path)}')
     if show:
-        plt.show()
+        plt.show(**kwargs)
 
 
 # ========================================================================= #

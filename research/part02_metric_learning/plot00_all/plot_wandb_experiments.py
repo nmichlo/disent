@@ -21,12 +21,16 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
+import time
+
 import itertools
+import logging
 import os
 from pprint import pprint
 from typing import Optional
 from typing import Sequence
-from typing import Tuple
+from typing import Union
 
 import numpy as np
 import pandas as pd
@@ -39,22 +43,27 @@ import matplotlib.patches as mpatches
 
 import research.code.util as H
 from disent.util.function import wrapped_partial
+from disent.util.profiling import Timer
+from research.code.util._wandb_plots import drop_non_unique_cols
+from research.code.util._wandb_plots import drop_unhashable_cols
+from research.code.util._wandb_plots import load_runs
 
 
 # ========================================================================= #
 # Helper                                                                    #
 # ========================================================================= #
-from research.code.util._wandb_plots import clear_runs_cache
 
 
-cachier = wrapped_partial(_cachier, cache_dir='./cache')
-DF = pd.DataFrame
+# cachier instance
+_CACHIER: _cachier = wrapped_partial(_cachier, cache_dir=os.path.join(os.path.dirname(__file__), 'plots/.cache'))
 
 
-from research.code.util._wandb_plots import drop_non_unique_cols
-from research.code.util._wandb_plots import drop_unhashable_cols
-from research.code.util._wandb_plots import load_runs
-
+def clear_plots_cache(clear_wandb=False, clear_processed=True):
+    from research.code.util._wandb_plots import clear_runs_cache
+    if clear_wandb:
+        clear_runs_cache.clear_cache()
+    if clear_processed:
+        load_general_data.clear_cache()
 
 # ========================================================================= #
 # Prepare Data                                                              #
@@ -77,16 +86,22 @@ K_ADA_MODE  = 'Threshold Mode'
 
 K_MIG       = 'MIG Score'
 K_DCI       = 'DCI Score'
-K_LCORR_GT_F   = 'Linear Corr. (factors)'
-K_RCORR_GT_F   = 'Rank Corr. (factors)'
-K_LCORR_GT_G   = 'Global Linear Corr. (factors)'
-K_RCORR_GT_G   = 'Global Rank Corr. (factors)'
-K_LCORR_DATA_F = 'Linear Corr. (data)'
-K_RCORR_DATA_F = 'Rank Corr. (data)'
-K_LCORR_DATA_G = 'Global Linear Corr. (data)'
-K_RCORR_DATA_G = 'Global Rank Corr. (data)'
+K_LCORR_GT_F   = 'Linear Corr.\n(factors)'
+K_RCORR_GT_F   = 'Rank Corr.\n(factors)'
+K_LCORR_GT_G   = 'Global Linear Corr.\n(factors)'
+K_RCORR_GT_G   = 'Global Rank Corr.\n(factors)'
+K_LCORR_DATA_F = 'Linear Corr.\n(data)'
+K_RCORR_DATA_F = 'Rank Corr.\n(data)'
+K_LCORR_DATA_G = 'Global Linear Corr.\n(data)'
+K_RCORR_DATA_G = 'Global Rank Corr.\n(data)'
 K_AXIS      = 'Axis Ratio'
 K_LINE      = 'Linear Ratio'
+
+K_TRIPLET_SCALE  = 'Triplet Scale'   # framework.cfg.triplet_margin_max
+K_TRIPLET_MARGIN = 'Triplet Margin'  # framework.cfg.triplet_scale
+K_TRIPLET_P      = 'Triplet P'       # framework.cfg.triplet_p
+K_DETACH         = 'Detached'        # framework.cfg.detach_decoder
+K_TRIPLET_MODE   = 'Triplet Mode'    # framework.cfg.triplet_loss
 
 # ALL_K_SCORES = [
 #     K_MIG,
@@ -103,41 +118,52 @@ K_LINE      = 'Linear Ratio'
 #     # K_AXIS,
 # ]
 
+
+@_CACHIER()
 def load_general_data(project: str):
     # load data
-    df = load_runs(project)
-    # filter out unneeded columns
-    df, dropped_hash = drop_unhashable_cols(df)
-    df, dropped_diverse = drop_non_unique_cols(df)
-    # rename columns
-    return df.rename(columns={
-        'settings/optimizer/lr':                K_LR,
-        'EXTRA/tags':                           K_GROUP,
-        'dataset/name':                         K_DATASET,
-        'framework/name':                       K_FRAMEWORK,
-        'settings/framework/beta':              K_BETA,
-        'settings/framework/recon_loss':        K_LOSS,
-        'settings/model/z_size':                K_Z_SIZE,
-        'DUMMY/repeat':                         K_REPEAT,
-        'state':                                K_STATE,
-        'final_metric/mig.discrete_score.max':  K_MIG,
-        'final_metric/dci.disentanglement.max': K_DCI,
-        # scores
-        'epoch_metric/distances.lcorr_ground_latent.l1.factor.max': K_LCORR_GT_F,
-        'epoch_metric/distances.rcorr_ground_latent.l1.factor.max': K_RCORR_GT_F,
-        'epoch_metric/distances.lcorr_ground_latent.l1.global.max': K_LCORR_GT_G,
-        'epoch_metric/distances.rcorr_ground_latent.l1.global.max': K_RCORR_GT_G,
-        'epoch_metric/distances.lcorr_latent_data.l2.factor.max':   K_LCORR_DATA_F,
-        'epoch_metric/distances.rcorr_latent_data.l2.factor.max':   K_RCORR_DATA_F,
-        'epoch_metric/distances.lcorr_latent_data.l2.global.max':   K_LCORR_DATA_G,
-        'epoch_metric/distances.rcorr_latent_data.l2.global.max':   K_RCORR_DATA_G,
-        'epoch_metric/linearity.axis_ratio.var.max':                K_AXIS,
-        'epoch_metric/linearity.linear_ratio.var.max':              K_LINE,
-        # adaptive methods
-        'schedule/name': K_SCHEDULE,
-        'sampling/name': K_SAMPLER,
-        'framework/cfg/ada_thresh_mode': K_ADA_MODE,
-    })
+    with Timer('loading data'):
+        df = load_runs(project)
+    # process data
+    with Timer('processing data'):
+        # filter out unneeded columns
+        df, dropped_hash = drop_unhashable_cols(df)
+        df, dropped_diverse = drop_non_unique_cols(df)
+        # rename columns
+        return df.rename(columns={
+            'settings/optimizer/lr':                K_LR,
+            'EXTRA/tags':                           K_GROUP,
+            'dataset/name':                         K_DATASET,
+            'framework/name':                       K_FRAMEWORK,
+            'settings/framework/beta':              K_BETA,
+            'settings/framework/recon_loss':        K_LOSS,
+            'settings/model/z_size':                K_Z_SIZE,
+            'DUMMY/repeat':                         K_REPEAT,
+            'state':                                K_STATE,
+            'final_metric/mig.discrete_score.max':  K_MIG,
+            'final_metric/dci.disentanglement.max': K_DCI,
+            # scores
+            'epoch_metric/distances.lcorr_ground_latent.l1.factor.max': K_LCORR_GT_F,
+            'epoch_metric/distances.rcorr_ground_latent.l1.factor.max': K_RCORR_GT_F,
+            'epoch_metric/distances.lcorr_ground_latent.l1.global.max': K_LCORR_GT_G,
+            'epoch_metric/distances.rcorr_ground_latent.l1.global.max': K_RCORR_GT_G,
+            'epoch_metric/distances.lcorr_latent_data.l2.factor.max':   K_LCORR_DATA_F,
+            'epoch_metric/distances.rcorr_latent_data.l2.factor.max':   K_RCORR_DATA_F,
+            'epoch_metric/distances.lcorr_latent_data.l2.global.max':   K_LCORR_DATA_G,
+            'epoch_metric/distances.rcorr_latent_data.l2.global.max':   K_RCORR_DATA_G,
+            'epoch_metric/linearity.axis_ratio.var.max':                K_AXIS,
+            'epoch_metric/linearity.linear_ratio.var.max':              K_LINE,
+            # adaptive methods
+            'schedule/name': K_SCHEDULE,
+            'sampling/name': K_SAMPLER,
+            'framework/cfg/ada_thresh_mode': K_ADA_MODE,
+            # triplet experiments
+            'framework/cfg/triplet_margin_max': K_TRIPLET_MARGIN,
+            'framework/cfg/triplet_scale':      K_TRIPLET_SCALE,
+            'framework/cfg/triplet_p':          K_TRIPLET_P,
+            'framework/cfg/detach_decoder':     K_DETACH,
+            'framework/cfg/triplet_loss':       K_TRIPLET_MODE,
+        })
 
 
 # ========================================================================= #
@@ -147,6 +173,7 @@ def load_general_data(project: str):
 
 PINK = '#FE375F'     # usually: Beta-VAE
 PURPLE = '#5E5BE5'   # maybe:   Ada-TVAE
+LPURPLE = '#b0b6ff'  # maybe:   Ada-TVAE (alt)
 BLUE = '#1A93FE'     # maybe:   TVAE
 LBLUE = '#63D2FE'
 ORANGE = '#FE9F0A'   # usually: Ada-VAE
@@ -259,7 +286,7 @@ def plot_e00_beta_metric_correlation(
     marker_beta = mlines.Line2D([], [], color=color_betavae, marker='X', markersize=12, label='Beta-VAE')  # why does 'x' not work? only 'X'?
     axs[0, -1].legend(handles=[marker_beta, marker_ada], fontsize=14)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
-    # PLOT:
+    # PLOT
     fig.tight_layout()
     H.plt_rel_path_savefig(rel_path, save=save, show=show, dpi=150, ext='.png')
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
@@ -270,7 +297,244 @@ def plot_e00_beta_metric_correlation(
 # ========================================================================= #
 
 
-def plot_e02_axis_triplet(
+def plot_e02_axis__soft_triplet(
+    rel_path: Optional[str] = None,
+    save: bool = True,
+    show: bool = True,
+    grid_size_v: float = 1.4,
+    grid_size_h: float = 2.75,
+    metrics: Sequence[str] = (K_MIG, K_DCI, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE),
+    adaptive_modes: Sequence[str] = ('symmetric_kl',),
+    title: Optional[Union[str, bool]] = True,
+):
+    if (title is True) and len(adaptive_modes) == 1:
+        title = adaptive_modes[0]
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    with Timer('getting data'):
+        df: pd.DataFrame = load_general_data(f'{os.environ["WANDB_USER"]}/MSC-p02e02_axis-aligned-triplet')
+    # select run groups
+    df = df[df[K_GROUP].isin(['sweep_adanegtvae_params_longmed'])]
+    df = df[df[K_ADA_MODE].isin(adaptive_modes)]
+    # sort everything
+    df = df.sort_values([K_FRAMEWORK, K_DATASET, K_SCHEDULE, K_SAMPLER, K_ADA_MODE])
+    # print common key values
+    print('K_GROUP:        ', list(df[K_GROUP].unique()))
+    print('K_FRAMEWORK:    ', list(df[K_FRAMEWORK].unique()))
+    print('K_BETA:         ', list(df[K_BETA].unique()))
+    print('K_REPEAT:       ', list(df[K_REPEAT].unique()))
+    print('K_STATE:        ', list(df[K_STATE].unique()))
+    print('K_DATASET:      ', list(df[K_DATASET].unique()))
+    print('K_LR:           ', list(df[K_LR].unique()))
+    print('K_TRIPLET_MODE: ', list(df[K_TRIPLET_MODE].unique()))
+    print('K_SCHEDULE:     ', list(df[K_SCHEDULE].unique()))
+    print('K_SAMPLER:      ', list(df[K_SAMPLER].unique()))
+    print('K_ADA_MODE:     ', list(df[K_ADA_MODE].unique()))
+    # number of runs
+    print(f'total={len(df)}')
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # replace values in the df
+    for key, value, new_value in [
+        (K_DATASET,  'xysquares_minimal',        'xysquares'),
+        (K_SCHEDULE, 'adanegtvae_up_all_full',   'Schedule: Both (strong)'),
+        (K_SCHEDULE, 'adanegtvae_up_all',        'Schedule: Both (weak)'),
+        (K_SCHEDULE, 'adanegtvae_up_ratio_full', 'Schedule: Weight (strong)'),
+        (K_SCHEDULE, 'adanegtvae_up_ratio',      'Schedule: Weight (weak)'),
+        (K_SCHEDULE, 'adanegtvae_up_thresh',     'Schedule: Threshold'),
+    ]:
+        df.loc[df[key] == value, key] = new_value
+    # axis keys
+    col_x = K_DATASET
+    col_bars = K_SCHEDULE
+    col_hue = K_SAMPLER
+    # get rows and columns
+    all_bars = list(df[col_bars].unique())
+    all_x = list(df[col_x].unique())
+    all_y = metrics
+    all_hue = list(df[col_hue].unique())
+    # num rows and cols
+    num_bars = len(all_bars)
+    num_x = len(all_x)
+    num_y = len(all_y)
+    num_hue = len(all_hue)
+    # palettes
+    colors = [PINK, ORANGE, BLUE, LBLUE, PURPLE]
+    hatches = [None, '..']
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # make plot
+    fig, axs = plt.subplots(num_y, num_x, figsize=(grid_size_h*num_x, num_y*grid_size_v))
+    if isinstance(title, str):
+        fig.suptitle(title, fontsize=19)
+    # fill plot
+    for y, key_y in enumerate(all_y):  # metric
+        for x, key_x in enumerate(all_x):  # schedule
+            ax = axs[y, x]
+            # filter items
+            df_filtered = df[(df[col_x] == key_x)]
+            # plot!
+            sns.barplot(ax=ax, x=col_bars, y=key_y, hue=col_hue, data=df_filtered)
+            ax.set(ylim=(0, 1), xlim=(-0.5, num_bars - 0.5))
+            # set colors
+            for i, (bar, color) in enumerate(zip(ax.patches, itertools.cycle(colors))):
+                bar.set_facecolor(color)
+                bar.set_edgecolor('white')
+                bar.set_linewidth(2)
+                if hatches[i // num_bars]:
+                    bar.set_facecolor(color + '65')
+                    bar.set_hatch(hatches[i // num_bars])
+            # remove labels
+            if ax.get_legend():
+                ax.get_legend().remove()
+            if y == 0:
+                ax.set_title(key_x)
+            # if y < num_y-1:
+            ax.set_xlabel(None)
+            ax.set_xticklabels([])
+            if x > 0:
+                ax.set_ylabel(None)
+                ax.set_yticklabels([])
+    # add the legend to the top right plot
+    handles_a = [mpl.patches.Patch(label=label, color=color) for label, color in zip(all_bars, colors)]
+    fig.legend(handles=handles_a, fontsize=12, bbox_to_anchor=(0.986, 0.03), loc='lower right', ncol=2, labelspacing=0.1)
+    # add the legend to the top right plot
+    assert np.all(df[col_hue].unique() == ['gt_dist__manhat', 'gt_dist__manhat_scaled']), f'{list(np.all(df[col_hue].unique()))}'
+    handles_b = [mpl.patches.Patch(label='Ground-Truth Dist Sampling',          facecolor='#505050ff', edgecolor='white', hatch=hatches[0]),  # gt_dist__manhat
+                 mpl.patches.Patch(label='Ground-Truth Dist Sampling (Scaled)', facecolor='#50505065', edgecolor='white', hatch=hatches[1])]  # gt_dist__manhat_scaled
+    fig.legend(handles=handles_b, fontsize=12, bbox_to_anchor=(0.073, 0.03), loc='lower left',  ncol=1, labelspacing=0.1)
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # plot!
+    fig.tight_layout()
+    H.plt_rel_path_savefig(rel_path, save=save, show=show, dpi=150, ext='.png')
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+
+
+def plot_e02_axis__triplet_compared(
+    rel_path: Optional[str] = None,
+    save: bool = True,
+    show: bool = True,
+    grid_size_v: float = 1.4,
+    grid_size_h: float = 2.75,
+    metrics: Sequence[str] = (K_MIG, K_DCI, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE),
+):
+    # -- we find that triplet scale 1.0 is better than 10.0
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    with Timer('getting data'):
+        df: pd.DataFrame = load_general_data(f'{os.environ["WANDB_USER"]}/MSC-p02e02_axis-aligned-triplet')
+    # select run groups
+    df = df[df[K_GROUP].isin(['sweep_adanegtvae_alt_params_longmed'])]
+    df = df[df[K_DETACH].isin([False])]  # True, False
+    df = df[df[K_TRIPLET_SCALE].isin([1.0])]  # 1.0, 10.0
+    # sort everything
+    df = df.sort_values([K_FRAMEWORK, K_DATASET, K_TRIPLET_MODE, K_SCHEDULE, K_TRIPLET_SCALE])
+    # print common key values
+    print('K_GROUP:         ', list(df[K_GROUP].unique()))
+    print('K_FRAMEWORK:     ', list(df[K_FRAMEWORK].unique()))
+    print('K_BETA:          ', list(df[K_BETA].unique()))
+    print('K_REPEAT:        ', list(df[K_REPEAT].unique()))
+    print('K_STATE:         ', list(df[K_STATE].unique()))
+    print('K_DATASET:       ', list(df[K_DATASET].unique()))
+    print('K_LR:            ', list(df[K_LR].unique()))
+    print('K_TRIPLET_MODE:  ', list(df[K_TRIPLET_MODE].unique()))
+    print('K_TRIPLET_SCALE: ', list(df[K_TRIPLET_SCALE].unique()))
+    print('K_DETACH:        ', list(df[K_DETACH].unique()))
+    print('K_SCHEDULE:      ', list(df[K_SCHEDULE].unique()))
+    print('K_SAMPLER:       ', list(df[K_SAMPLER].unique()))
+    print('K_ADA_MODE:      ', list(df[K_ADA_MODE].unique()))
+    # number of runs
+    print(f'total={len(df)}')
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # replace values in the df
+    for key, value, new_value in [
+        (K_DATASET,  'xysquares_minimal',        'xysquares'),
+        (K_SCHEDULE, 'adanegtvae_up_all_full',   'Both (strong)'),
+        (K_SCHEDULE, 'adanegtvae_up_all',        'Both (weak)'),
+        (K_SCHEDULE, 'adanegtvae_up_ratio_full', 'Weight (strong)'),
+        (K_SCHEDULE, 'adanegtvae_up_ratio',      'Weight (weak)'),
+        (K_SCHEDULE, 'adanegtvae_up_thresh',     'Threshold'),
+        (K_TRIPLET_MODE, 'triplet',      'Triplet Loss (Hard Margin)'),
+        (K_TRIPLET_MODE, 'triplet_soft', 'Triplet Loss (Soft Margin)'),
+    ]:
+        df.loc[df[key] == value, key] = new_value
+    # axis keys
+    col_x = K_DATASET
+    col_bars = K_TRIPLET_MODE
+    col_hue = K_SCHEDULE
+    # get rows and columns
+    all_bars = list(df[col_bars].unique())
+    all_x = list(df[col_x].unique())
+    all_y = metrics
+    all_hue = list(df[col_hue].unique())
+    # num rows and cols
+    num_bars = len(all_bars)
+    num_x = len(all_x)
+    num_y = len(all_y)
+    num_hue = len(all_hue)
+    # palettes
+    colors = [
+        # PINK, ORANGE,
+        # BLUE, LBLUE,
+        PURPLE,
+        # LPURPLE,
+        BLUE,
+        # LBLUE,
+        # GREEN,
+        # GREEN,
+        # PURPLE,
+    ]
+    hatches = [None, '..']
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # make plot
+    fig, axs = plt.subplots(num_y, num_x, figsize=(grid_size_h*num_x, num_y*grid_size_v))
+    # fill plot
+    for y, key_y in enumerate(all_y):  # metric
+        for x, key_x in enumerate(all_x):  # schedule
+            ax = axs[y, x]
+            # filter items
+            df_filtered = df[(df[col_x] == key_x)]
+            # plot!
+            sns.barplot(ax=ax, x=col_bars, y=key_y, hue=col_hue, data=df_filtered)
+            ax.set(ylim=(0, 1), xlim=(-0.5, num_bars - 0.5))
+            # set colors
+            for i, (bar, color) in enumerate(zip(ax.patches, itertools.cycle(colors))):
+                bar.set_facecolor(color)
+                bar.set_edgecolor('white')
+                bar.set_linewidth(2)
+                if hatches[i // num_bars]:
+                    bar.set_facecolor(color + '65')
+                    bar.set_hatch(hatches[i // num_bars])
+            # remove labels
+            if ax.get_legend():
+                ax.get_legend().remove()
+            if y == 0:
+                ax.set_title(key_x)
+            # if y < num_y-1:
+            ax.set_xlabel(None)
+            ax.set_xticklabels([])
+            if x > 0:
+                ax.set_ylabel(None)
+                ax.set_yticklabels([])
+    # add the legend to the top right plot
+    handles_a = [mpl.patches.Patch(label=label, color=color) for label, color in zip(all_bars, colors)]
+    fig.legend(handles=handles_a, fontsize=12, bbox_to_anchor=(0.986, 0.03), loc='lower right', ncol=1, labelspacing=0.1)
+    # add the legend to the top right plot
+    assert np.all(df[col_hue].unique() == ['Both (weak)', 'Weight (weak)']), f'{list(df[col_hue].unique())}'
+    handles_b = [mpl.patches.Patch(label='Schedule: Both (weak)', facecolor='#505050ff', edgecolor='white', hatch=hatches[0]),  # gt_dist__manhat
+                 mpl.patches.Patch(label='Schedule: Weight (weak)', facecolor='#50505065', edgecolor='white', hatch=hatches[1])]  # gt_dist__manhat_scaled
+    fig.legend(handles=handles_b, fontsize=12, bbox_to_anchor=(0.073, 0.03), loc='lower left',  ncol=1, labelspacing=0.1)
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # plot!
+    fig.tight_layout()
+    H.plt_rel_path_savefig(rel_path, save=save, show=show, dpi=150, ext='.png')
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+
+
+
+
+# ========================================================================= #
+# Experiment p02e02                                                         #
+# ========================================================================= #
+
+
+def plot_e01_normal_triplet(
     rel_path: Optional[str] = None,
     save: bool = True,
     show: bool = True,
@@ -283,37 +547,36 @@ def plot_e02_axis_triplet(
     if (title is None) and len(adaptive_modes) == 1:
         title = adaptive_modes[0]
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
-    df: pd.DataFrame = load_general_data(f'{os.environ["WANDB_USER"]}/MSC-p02e02_axis-aligned-triplet')
+    df: pd.DataFrame = load_general_data(f'{os.environ["WANDB_USER"]}/MSC-p02e01_triplet-param-tuning')
     # select run groups
-    df = df[df[K_GROUP].isin(['sweep_adanegtvae_params_longmed'])]
-    df = df[df[K_ADA_MODE].isin(adaptive_modes)]
+    df = df[df[K_GROUP].isin(['sweep_tvae_params_basic_RERUN'])]  # sweep_tvae_params_basic_RERUN_soft
     # sort everything
-    df = df.sort_values([K_FRAMEWORK, K_DATASET, K_ADA_MODE, K_SCHEDULE, K_SAMPLER])
+    df = df.sort_values([K_DATASET, K_SAMPLER, K_TRIPLET_MODE, K_TRIPLET_P, K_TRIPLET_SCALE, K_TRIPLET_MARGIN, K_DETACH])
     # print common key values
-    print('K_GROUP:    ',   list(df[K_GROUP].unique()))
-    print('K_FRAMEWORK:',   list(df[K_FRAMEWORK].unique()))
-    print('K_BETA:     ',   list(df[K_BETA].unique()))
-    print('K_REPEAT:   ',   list(df[K_REPEAT].unique()))
-    print('K_STATE:    ',   list(df[K_STATE].unique()))
-    print('K_DATASET:  ',   list(df[K_DATASET].unique()))
-    print('K_LR:       ',   list(df[K_LR].unique()))
-    print('K_SCHEDULE: ',   list(df[K_SCHEDULE].unique()))
-    print('K_SAMPLER:  ',   list(df[K_SAMPLER].unique()))
-    print('K_ADA_MODE: ',   list(df[K_ADA_MODE].unique()))
+    with Timer('values'):
+        print('K_GROUP:          ', list(df[K_GROUP].unique()))
+        print('K_STATE:          ', list(df[K_STATE].unique()))
+        print('K_DATASET:        ', list(df[K_DATASET].unique()))
+        print('K_SAMPLER:        ', list(df[K_SAMPLER].unique()))
+        print('K_TRIPLET_MODE:   ', list(df[K_TRIPLET_MODE].unique()))
+        print('K_TRIPLET_P:      ', list(df[K_TRIPLET_P].unique()))
+        print('K_TRIPLET_SCALE:  ', list(df[K_TRIPLET_SCALE].unique()))
+        print('K_TRIPLET_MARGIN: ', list(df[K_TRIPLET_MARGIN].unique()))
+        print('K_DETACH:         ', list(df[K_DETACH].unique()))
     # number of runs
     print(f'total={len(df)}')
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
-    # replace values in the df
-    for key, value, new_value in [
-        (K_DATASET,  'xysquares_minimal',        'xysquares'),
-        (K_SCHEDULE, 'adanegtvae_up_all_full',   'Incr. All (full)'),
-        (K_SCHEDULE, 'adanegtvae_up_all',        'Incr. All (semi)'),
-        (K_SCHEDULE, 'adanegtvae_up_ratio_full', 'Incr. Ratio (full)'),
-        (K_SCHEDULE, 'adanegtvae_up_ratio',      'Incr. Ratio (semi)'),
-        (K_SCHEDULE, 'adanegtvae_up_thresh',     'Incr. Thresh (semi)'),
-    ]:
-        df.loc[df[key] == value, key] = new_value
+    # # replace values in the df
+    # for key, value, new_value in [
+    #     (K_DATASET,  'xysquares_minimal',        'xysquares'),
+    #     (K_SCHEDULE, 'adanegtvae_up_all_full',   'Incr. Both (full)'),
+    #     (K_SCHEDULE, 'adanegtvae_up_all',        'Incr. Both (semi)'),
+    #     (K_SCHEDULE, 'adanegtvae_up_ratio_full', 'Incr. Ratio (full)'),
+    #     (K_SCHEDULE, 'adanegtvae_up_ratio',      'Incr. Ratio (semi)'),
+    #     (K_SCHEDULE, 'adanegtvae_up_thresh',     'Incr. Thresh (semi)'),
+    # ]:
+    #     df.loc[df[key] == value, key] = new_value
 
     hatches = [None, '..']
 
@@ -396,16 +659,24 @@ if __name__ == '__main__':
 
     assert 'WANDB_USER' in os.environ, 'specify "WANDB_USER" environment variable'
 
+    logging.basicConfig(level=logging.INFO)
+
     # matplotlib style
     plt.style.use(os.path.join(os.path.dirname(__file__), '../../code/util/gadfly.mplstyle'))
 
-    # clear_runs_cache()
+    # clear_plots_cache(clear_wandb=False, clear_processed=True)
 
     def main():
         # plot_e00_beta_metric_correlation(rel_path='plots/p02e00_metrics_some', show=True, metrics=(K_MIG, K_RCORR_GT_F, K_RCORR_DATA_F))
         # plot_e00_beta_metric_correlation(rel_path='plots/p02e00_metrics_all',  show=True, metrics=(K_MIG, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE))
         # plot_e00_beta_metric_correlation(rel_path='plots/p02e00_metrics_alt',  show=True, metrics=(K_MIG, K_RCORR_GT_F, K_RCORR_DATA_F, K_LINE))
-        plot_e02_axis_triplet(rel_path='plots/p02e02_axis_triplet', show=True)
+
+        plot_e02_axis__triplet_compared(rel_path='plots/p02e02_axis__triplet_compared', show=True)
+        plot_e02_axis__soft_triplet(rel_path='plots/p02e02_axis__soft_triplet__dist', show=True, adaptive_modes=('dist',), title=False)
+        plot_e02_axis__soft_triplet(rel_path='plots/p02e02_axis__soft_triplet__kl', show=True, adaptive_modes=('symmetric_kl',), title=False)
+
+
+        # plot_e01_normal_triplet(rel_path='plots/p02e01_normal_striplet', show=True)
 
     main()
 
