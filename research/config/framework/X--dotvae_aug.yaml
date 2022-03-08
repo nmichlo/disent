@@ -37,7 +37,7 @@ cfg:
   overlap_mine_ratio: 0.1
   overlap_mine_triplet_mode: 'ran:hard_neg+easy_pos'  # none, hard_neg, semi_hard_neg, hard_pos, easy_pos, ran:hard_neg+hard_pos <- etc, dynamically evaluated, can chain multiple "+"s
   # dotvae -- augment
-  overlap_augment_mode: 'augment'
+  overlap_augment_mode: 'augment'  # none, augment, augment_each (if overlap_augment is NULL, then it is the same as setting this to "none")
   overlap_augment:
     _target_: disent.transform.FftKernel
     kernel: xy1_r47

@@ -82,7 +82,7 @@ def _compute_sap(mus, ys, mus_test, ys_test, continuous_factors):
     sap_score = _compute_avg_diff_top_two(score_matrix)
     log.debug("SAP score: %.2g", sap_score)
     return {
-        "sap.score": sap_score
+        "sap.score": sap_score  # "compactness: SAP" -- Measuring Disentanglement: A Review of Metrics
     }
 
 

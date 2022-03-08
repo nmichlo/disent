@@ -157,8 +157,13 @@ def configured_idx_mine(
     cfg: SampledTripletMineCfgProto,
     pairwise_loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],  # should return arrays with ndim == 1
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    # TODO: SIMPLIFY THIS FUNCTION HIERARCHY, THERE ARE A LOT OF UNNECESSARY CALLS!
     # TODO: this function is quite useless, its easier to just use configured_mine_random_mode
+    # skip mining if mode is None!
+    if cfg.overlap_mine_triplet_mode == 'none':
+        return a_idxs, p_idxs, n_idxs
     # compute differences
+    # TODO: this is computationally expensive! sometimes the dist_ap and dist_an may not be used depending on the mode!
     dist_ap = pairwise_loss_fn(x_targ[a_idxs], x_targ[p_idxs])
     dist_an = pairwise_loss_fn(x_targ[a_idxs], x_targ[n_idxs])
     # mine indices

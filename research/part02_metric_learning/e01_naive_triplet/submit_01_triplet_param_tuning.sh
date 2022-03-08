@@ -75,6 +75,28 @@ submit_sweep \
     dataset=cars3d,smallnorb,shapes3d,dsprites,X--xysquares \
     sampling=gt_dist__manhat,gt_dist__manhat_scaled
 
+submit_sweep \
+    +DUMMY.repeat=1 \
+    +EXTRA.tags='sweep_tvae_params_basic_RERUN_soft' \
+    hydra.job.name="tvae_params" \
+    \
+    run_length=medium \
+    metrics=all \
+    \
+    settings.framework.beta=0.01 \
+    framework=tvae \
+    schedule=none \
+    settings.model.z_size=25 \
+    \
+    framework.cfg.triplet_margin_max=1.0,10.0 \
+    framework.cfg.triplet_scale=0.1,1.0 \
+    framework.cfg.triplet_p=1,2 \
+    framework.cfg.detach_decoder=FALSE,TRUE \
+    framework.cfg.triplet_loss=triplet_soft \
+    \
+    dataset=cars3d,smallnorb,shapes3d,dsprites,X--xysquares \
+    sampling=gt_dist__manhat,gt_dist__manhat_scaled
+
 # TRIPLET TYPES:
 # - N/A:     [triplet_soft]
 # - max:     [triplet, triplet_sigmoid]
