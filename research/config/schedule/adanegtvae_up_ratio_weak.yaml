@@ -1,0 +1,16 @@
+name: adanegtvae_up_ratio_weak
+
+schedule_items:
+  adat_triplet_share_scale:
+    _target_: disent.schedule.FixedValueSchedule
+    value: 1.0
+    schedule:
+      _target_: disent.schedule.LinearSchedule
+      start_step: 0
+      end_step: ${trainer.max_steps}
+      r_start: 1.0  # normal triplet
+      r_end: 0.75   # ada weighted triplet
+  ada_thresh_ratio:
+    _target_: disent.schedule.FixedValueSchedule
+    value: 0.5
+    schedule: NULL
