@@ -58,7 +58,7 @@ class DataOverlapMixin(object):
         overlap_mine_ratio: float = 0.1
         overlap_mine_triplet_mode: str = 'none'
         # AUGMENT
-        overlap_augment_mode: str = 'none'
+        overlap_augment_mode: str = 'augment'
         overlap_augment: Optional[dict] = None
 
     # private properties
@@ -73,19 +73,21 @@ class DataOverlapMixin(object):
         if hasattr(self, '_init'):
             raise RuntimeError(f'{DataOverlapMixin.__name__} on {self.__class__.__name__} was initialised more than once!')
         self._init = True
-        # initialise
-        if self.cfg.overlap_augment_mode != 'none':
-            assert self.cfg.overlap_augment is not None, 'if cfg.overlap_augment_mode is not "none", then cfg.overlap_augment must be defined.'
         # set augment and instantiate if needed
-        self._augment = None
-        if isinstance(self._augment, dict):
+        if self.cfg.overlap_augment is not None:
             import hydra
             self._augment = hydra.utils.instantiate(self.cfg.overlap_augment)
-            assert callable(self._augment), f'augment is not callable: {repr(self._augment)}'
+            assert (self._augment is None) or callable(self._augment), f'augment is not None or callable: {repr(self._augment)}, obtained from `overlap_augment={repr(self.cfg.overlap_augment)}`'
+        else:
+            self._augment = None
         # get overlap loss
-        overlap_loss = self.cfg.overlap_loss if (self.cfg.overlap_loss is not None) else self.cfg.recon_loss
-        self._overlap_handler: ReconLossHandler = make_reconstruction_loss(overlap_loss, reduction='mean')
-        # delete this property, we only ever want to be able to call this once!
+        if self.cfg.overlap_loss is None:
+            log.info(f'`overlap_loss` not specified for {repr(self.__class__.__name__)}, using `recon_loss` instead: {repr(self.cfg.recon_loss)}')
+            overlap_loss = self.cfg.recon_loss
+        else:
+            overlap_loss = self.cfg.overlap_loss
+        # construct the overlap handler
+        self._overlap_handler: ReconLossHandler = make_reconstruction_loss(name=overlap_loss, reduction='mean')
 
     @final
     @property
@@ -119,17 +121,21 @@ class DataOverlapMixin(object):
 
     @torch.no_grad()
     def augment_batch(self, x_targ):
-        if self.cfg.overlap_augment_mode == 'none':
-            aug_x_targ = x_targ
-        elif self.cfg.overlap_augment_mode in ('augment', 'augment_each'):
+        # ++++++++++++++++++++++++++++++++++++++++++ #
+        # perform the augments
+        if self.cfg.overlap_augment_mode in ('augment', 'augment_each'):
             # recreate augment each time
             if self.cfg.overlap_augment_mode == 'augment_each':
                 import hydra
                 self._augment = hydra.utils.instantiate(self.cfg.overlap_augment)
-            # augment on correct device
-            aug_x_targ = self._augment(x_targ)
+            # augment on correct device, but skip if not defined!
+            aug_x_targ = x_targ if (self._augment is None) else self._augment(x_targ)
+        elif self.cfg.overlap_augment_mode == 'none':
+            # no augment
+            aug_x_targ = x_targ
         else:
             raise KeyError(f'invalid cfg.overlap_augment_mode={repr(self.cfg.overlap_augment_mode)}')
+        # ++++++++++++++++++++++++++++++++++++++++++ #
         # checks
         assert x_targ.shape == aug_x_targ.shape
         return aug_x_targ
