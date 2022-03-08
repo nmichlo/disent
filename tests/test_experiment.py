@@ -50,7 +50,7 @@ RESEARCH_CFG_DIR = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(
     # test the configs with the research components  # pragma: delete-on-release
     # -- we need to modify the search path           # pragma: delete-on-release
     # -- we need to register all the components      # pragma: delete-on-release
-    (dict(DISENT_CONFIGS_PREPEND=RESEARCH_CFG_DIR), ['run_action=train', 'dataset=X--xysquares', 'metrics=test', 'framework=X--adaae_os', 'schedule=adavae_down_all']),  # pragma: delete-on-release
+    (dict(DISENT_CONFIGS_PREPEND=RESEARCH_CFG_DIR), ['run_action=train', 'dataset=X--xysquares', 'metrics=test', 'framework=X--adaae_os', 'schedule=adanegtvae_up_all']),  # pragma: delete-on-release
 ])
 def test_experiment_run(env, args):
     # show full errors in hydra

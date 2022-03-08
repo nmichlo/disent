@@ -52,11 +52,11 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-@make_metric('flatness', fast_kwargs=dict(factor_repeats=128))
+@make_metric('flatness', fast_kwargs=dict(repeats=128))
 def metric_flatness(
         dataset: DisentDataset,
         representation_function: callable,
-        factor_repeats: int = 1024,
+        repeats: int = 1024,
         batch_size: int = 64,
 ):
     """
@@ -67,7 +67,7 @@ def metric_flatness(
         O(num_factors * ave_factor_size * repeats)
         eg. 9 factors * 64 indices on ave * 128 repeats = 73728 observations loaded from the dataset
 
-    factor_repeats:
+    repeats:
       - can go all the way down to about 64 and still get decent results.
       - 64 is accurate to about +- 0.01
       - 128 is accurate to about +- 0.003
@@ -76,14 +76,14 @@ def metric_flatness(
     Args:
       dataset: DisentDataset to be sampled from.
       representation_function: Function that takes observations as input and outputs a dim_representation sized representation for each observation.
-      factor_repeats: how many times to repeat a traversal along each factors, these are then averaged together.
+      repeats: how many times to repeat a traversal along each factors, these are then averaged together.
       batch_size: Batch size to process at any time while generating representations, should not effect metric results.
       p: how to calculate distances in the latent space, see torch.norm
     Returns:
       Dictionary with average disentanglement score, completeness and
         informativeness (train and test).
     """
-    p_fs_measures = aggregate_measure_distances_along_all_factors(dataset, representation_function, repeats=factor_repeats, batch_size=batch_size, ps=(1, 2))
+    p_fs_measures = aggregate_measure_distances_along_all_factors(dataset, representation_function, repeats=repeats, batch_size=batch_size, ps=(1, 2))
     # get info
     factor_sizes = dataset.gt_data.factor_sizes
     # aggregate data
@@ -311,7 +311,7 @@ def angles_between(a, b, dim=-1, nan_to_angle=None):
 #     def calculate(name, steps, dataset, get_repr):
 #         global aggregate_measure_distances_along_factor
 #         with Timer() as t:
-#             r = metric_flatness(dataset, get_repr, factor_repeats=64, batch_size=64)
+#             r = metric_flatness(dataset, get_repr, repeats=64, batch_size=64)
 #         results.append((name, steps, r))
 #         print_r(name, steps, r, colors.lRED, t=t)
 #         print(colors.GRY, '='*100, colors.RST, sep='')
