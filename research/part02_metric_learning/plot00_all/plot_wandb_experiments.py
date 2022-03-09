@@ -120,17 +120,21 @@ K_TRIPLET_MODE   = 'Triplet Mode'    # framework.cfg.triplet_loss
 
 
 @_CACHIER()
-def load_general_data(project: str):
+def load_general_data(project: str, include_history: bool = False, keep_cols: Sequence[str] = None):
+    # keep columns
+    if keep_cols is None:
+        keep_cols = []
+    keep_cols = list(keep_cols)
     # load data
     with Timer('loading data'):
-        df = load_runs(project)
+        df = load_runs(project, include_history=include_history)
     # process data
     with Timer('processing data'):
         # filter out unneeded columns
-        df, dropped_hash = drop_unhashable_cols(df)
-        df, dropped_diverse = drop_non_unique_cols(df)
+        df, dropped_hash = drop_unhashable_cols(df, skip=['history'] + keep_cols)
+        df, dropped_diverse = drop_non_unique_cols(df, skip=['history'] + keep_cols)
         # rename columns
-        return df.rename(columns={
+        df = df.rename(columns={
             'settings/optimizer/lr':                K_LR,
             'EXTRA/tags':                           K_GROUP,
             'dataset/name':                         K_DATASET,
@@ -164,6 +168,7 @@ def load_general_data(project: str):
             'framework/cfg/detach_decoder':     K_DETACH,
             'framework/cfg/triplet_loss':       K_TRIPLET_MODE,
         })
+    return df
 
 
 def rename_entries(df: pd.DataFrame):
@@ -179,6 +184,8 @@ def rename_entries(df: pd.DataFrame):
         (K_TRIPLET_MODE, 'triplet_soft', 'Triplet Loss (Soft Margin)'),
         (K_TRIPLET_P, 1, 'L1 Distance'),
         (K_TRIPLET_P, 2, 'L2 Distance'),
+        # (K_SAMPLER, 'gt_dist__manhat',        'Ground-Truth Dist Sampling'),
+        # (K_SAMPLER, 'gt_dist__manhat_scaled', 'Ground-Truth Dist Sampling (Scaled)'),
     ]:
         if key in df.columns:
             df.loc[df[key] == value, key] = new_value
@@ -517,8 +524,8 @@ def plot_e02_axis__triplet_compared(
     fig.legend(handles=handles_a, fontsize=12, bbox_to_anchor=(0.986, 0.03), loc='lower right', ncol=1, labelspacing=0.1)
     # add the legend to the top right plot
     assert np.all(df[col_hue].unique() == ['Schedule: Both (weak)', 'Schedule: Weight (weak)']), f'{list(df[col_hue].unique())}'
-    handles_b = [mpl.patches.Patch(label='Schedule: Both (weak)', facecolor='#505050ff', edgecolor='white', hatch=hatches[0]),  # gt_dist__manhat
-                 mpl.patches.Patch(label='Schedule: Weight (weak)', facecolor='#50505065', edgecolor='white', hatch=hatches[1])]  # gt_dist__manhat_scaled
+    handles_b = [mpl.patches.Patch(label='Schedule: Both (weak)', facecolor='#505050ff', edgecolor='white', hatch=hatches[0]),
+                 mpl.patches.Patch(label='Schedule: Weight (weak)', facecolor='#50505065', edgecolor='white', hatch=hatches[1])]
     fig.legend(handles=handles_b, fontsize=12, bbox_to_anchor=(0.073, 0.03), loc='lower left',  ncol=1, labelspacing=0.1)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # plot!

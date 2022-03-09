@@ -24,6 +24,7 @@
 
 import os.path
 from typing import List
+from typing import Sequence
 
 import pandas as pd
 import wandb
@@ -55,12 +56,12 @@ def clear_runs_cache():
 
 
 @CACHIER()
-def _load_runs_data(project: str) -> pd.DataFrame:
+def _load_runs_data(project: str, include_history: bool = False) -> pd.DataFrame:
     api = wandb.Api()
 
     runs = api.runs(project)
 
-    info_list, summary_list, config_list, name_list = [], [], [], []
+    info_list, summary_list, config_list, name_list, history_list = [], [], [], [], []
     for run in tqdm(runs, desc=f'loading: {project}'):
         info_list.append({
             'id': run.id,
@@ -72,18 +73,25 @@ def _load_runs_data(project: str) -> pd.DataFrame:
         summary_list.append(run.summary._json_dict)
         config_list.append({k: v for k, v in run.config.items() if not k.startswith('_')})
         name_list.append(run.name)
+        if include_history:
+            history_list.append(run.history())
 
-    return pd.DataFrame({
+    data = {
         "info": info_list,
         "summary": summary_list,
         "config": config_list,
         "name": name_list
-    })
+    }
+
+    if include_history:
+        data['history'] = history_list
+
+    return pd.DataFrame(data)
 
 
-def load_runs(project: str) -> pd.DataFrame:
+def load_runs(project: str, include_history: bool = False) -> pd.DataFrame:
     # load the data
-    df_runs_data: pd.DataFrame = _load_runs_data(project)
+    df_runs_data: pd.DataFrame = _load_runs_data(project, include_history=include_history)
     # expand the dictionaries
     df_info: pd.DataFrame = df_runs_data['info'].apply(pd.Series)
     df_summary: pd.DataFrame = df_runs_data['summary'].apply(pd.Series)
@@ -91,6 +99,12 @@ def load_runs(project: str) -> pd.DataFrame:
     # merge the data
     df: pd.DataFrame = df_config.join(df_summary).join(df_info)
     assert len(df.columns) == len(df_info.columns) + len(df_summary.columns) + len(df_config.columns)
+    # add history
+    if include_history:
+        assert 'history' not in df.columns
+        df = df.join(df_runs_data['history'])  # history is already a series
+        assert 'history' in df.columns
+        assert len(df.columns) == len(df_info.columns) + len(df_summary.columns) + len(df_config.columns) + 1
     # done!
     return df
 
@@ -100,13 +114,20 @@ def load_runs(project: str) -> pd.DataFrame:
 # ========================================================================= #
 
 
-def drop_unhashable_cols(df: pd.DataFrame, inplace: bool = False) -> (pd.DataFrame, List[str]):
+def drop_unhashable_cols(df: pd.DataFrame, inplace: bool = False, skip: Sequence[str] = None) -> (pd.DataFrame, List[str]):
     """
     Drop all the columns of a dataframe that cannot be hashed
     -- this will remove media or other usually unnecessary content from the wandb api
     """
+    # keep these items
+    if skip is None:
+        skip = []
+    skip = set(skip)
+    # drop columns
     dropped = []
     for col in df.columns:
+        if col in skip:
+            continue
         try:
             df[col].unique()
         except:
@@ -115,12 +136,19 @@ def drop_unhashable_cols(df: pd.DataFrame, inplace: bool = False) -> (pd.DataFra
     return df, dropped
 
 
-def drop_non_unique_cols(df: pd.DataFrame, inplace: bool = False) -> (pd.DataFrame, List[str]):
+def drop_non_unique_cols(df: pd.DataFrame, inplace: bool = False, skip: Sequence[str] = None) -> (pd.DataFrame, List[str]):
     """
     Drop all the columns of a dataframe where all the values are the same!
     """
+    # keep these items
+    if skip is None:
+        skip = []
+    skip = set(skip)
+    # drop columns
     dropped = []
     for col in df.columns:
+        if col in skip:
+            continue
         if len(df[col].unique()) == 1:
             dropped.append(col)
             df = df.drop(col, inplace=inplace, axis=1)
