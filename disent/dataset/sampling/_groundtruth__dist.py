@@ -57,7 +57,7 @@ class GroundTruthDistSampler(BaseDisentSampler):
         super().__init__(num_samples=num_samples)
         # checks
         assert num_samples in {1, 2, 3}, f'num_samples ({repr(num_samples)}) must be 1, 2 or 3'
-        assert triplet_sample_mode in {'random', 'factors', 'manhattan', 'manhattan_scaled', 'manhattan_scaled_INVALID', 'combined', 'combined_scaled', 'combined_scaled_INVALID'}, f'sample_mode ({repr(triplet_sample_mode)}) must be one of {["random", "factors", "manhattan", "combined"]}'
+        assert triplet_sample_mode in {'random', 'factors', 'manhattan', 'manhattan_scaled', 'combined', 'combined_scaled'}, f'sample_mode ({repr(triplet_sample_mode)}) must be one of {["random", "factors", "manhattan", "combined"]}'
         # save hparams
         self._num_samples = num_samples
         self._triplet_sample_mode = triplet_sample_mode
@@ -68,7 +68,7 @@ class GroundTruthDistSampler(BaseDisentSampler):
             triplet_sample_mode = triplet_sample_mode[:-len('_scaled')]
             self._scaled = True
         # checks
-        assert triplet_sample_mode in {'random', 'factors', 'manhattan', 'manhattan_scaled_INVALID', 'combined', 'combined_scaled_INVALID'}, 'It is a bug if this fails!'
+        assert triplet_sample_mode in {'random', 'factors', 'manhattan', 'combined'}, 'It is a bug if this fails!'
         assert 0 <= triplet_swap_chance <= 1, 'triplet_swap_chance must be in range [0, 1]'
         # set vars
         self._sample_mode = triplet_sample_mode
@@ -122,28 +122,7 @@ class GroundTruthDistSampler(BaseDisentSampler):
                 if factor_dist(a_f, p_f, scale=scale) > factor_dist(a_f, n_f, scale=scale):
                     return a_i, n_i, p_i
         # SWAP: random
-        elif self._sample_mode == 'random':
-            pass
-        # SWAP: [OLD INCORRECT VERSIONS] precision errors!
-        # TODO: this should be removed!
-        elif self._sample_mode in ('manhattan_scaled_INVALID', 'combined_scaled_INVALID'):
-            scale = np.maximum(1, self._state_space.factor_sizes - 1)
-            # scale everything -- THIS INTRODUCES PRECISION ERRORS!
-            a_s = a_f / scale
-            p_s = p_f / scale
-            n_s = n_f / scale
-            # compute distances like normal!
-            if self._sample_mode == 'manhattan_scaled_INVALID':
-                if factor_dist_unchecked(a_s, p_s) > factor_dist_unchecked(a_s, n_s):
-                    return a_i, n_i, p_i
-            # compute distances like normal!
-            else:
-                if factor_diff(a_f, p_f) > factor_diff(a_f, n_f):
-                    return a_i, n_i, p_i
-                elif factor_diff(a_f, p_f) == factor_diff(a_f, n_f):
-                    if factor_dist_unchecked(a_s, p_s) > factor_dist_unchecked(a_s, n_s):
-                        return a_i, n_i, p_i
-        else:
+        elif self._sample_mode != 'random':
             raise KeyError('invalid mode')
         # done!
         return indices
@@ -182,14 +161,6 @@ def factor_dist(f0: np.ndarray, f1: np.ndarray, scale: np.ndarray = None) -> Uni
         return total
 
 
-def factor_diff_unchecked(f0: np.ndarray, f1: np.ndarray) -> float:
-    return np.sum(f0 != f1)
-
-
-def factor_dist_unchecked(f0: np.ndarray, f1: np.ndarray) -> float:
-    return np.sum(np.abs(f0 - f1))
-
-
 # ========================================================================= #
 # Investigation:                                                            #
 # ========================================================================= #
@@ -198,48 +169,6 @@ def factor_dist_unchecked(f0: np.ndarray, f1: np.ndarray) -> float:
 if __name__ == '__main__':
 
     def main():
-        from research.code.dataset.data import XYSquaresMinimalData
-        from disent.dataset.data import XYObjectData
-        from disent.dataset.data import XYObjectShadedData
-        from tqdm import tqdm
-        from collections import defaultdict
-        # for multiple datasets
-        for states in [
-            XYObjectData().state_space_copy(),
-            XYObjectShadedData().state_space_copy(),
-            XYSquaresMinimalData().state_space_copy(),
-        ]:
-            # update loop storage
-            def update(name, i, Aap, Aan, Bap, Ban):
-                if (Aap < Aan) != (Bap < Ban):
-                    counts[name] += 1
-                    mismatches[name] = counts[name] / (i+1)
-            # loop storage
-            counts = defaultdict(int)
-            mismatches = defaultdict(float)
-            # constants
-            fscale = states.factor_sizes - 1
-            # loop progress
-            progress = tqdm(range(15_000))
-            for i in progress:
-                A, P, N = states.sample_factors(3)
-                # compute dists
-                ap = factor_dist(A, P)
-                an = factor_dist(A, N)
-                # compute div dists
-                apD = factor_dist_unchecked(A / fscale, P / fscale)
-                anD = factor_dist_unchecked(A / fscale, N / fscale)
-                # compute frac dists
-                apF = factor_dist(A, P, fscale)  # this is the correct one!
-                anF = factor_dist(A, N, fscale)  # this is the correct one!
-                # update progress
-                update('F',   i, ap,   an,   apF,  anF)
-                update('D',   i, ap,   an,   apD,  anD)
-                update('DF',  i, apF,  anF,  apD,  anD)
-                if i % 500 == 0:
-                    progress.set_postfix(mismatches)
-
-    def main2():
         from disent.dataset import DisentDataset
         from disent.dataset.data import XYObjectData
         from disent.dataset.data import XYObjectShadedData
@@ -248,7 +177,7 @@ if __name__ == '__main__':
         from disent.dataset.data import DSpritesData
         from disent.dataset.data import SmallNorb64Data
         from disent.util.seeds import TempNumpySeed
-        from research.code.dataset.data import XYSquaresMinimalData
+        from research.code.dataset.data import XYSquaresMinimalData  # pragma: delete-on-release
         from tqdm import tqdm
 
         repeats = 1000
@@ -276,7 +205,7 @@ if __name__ == '__main__':
                 Shapes3dData,
                 DSpritesData,
                 SmallNorb64Data,
-                XYSquaresMinimalData,
+                XYSquaresMinimalData,  # pragma: delete-on-release
                 XYObjectData,
                 XYObjectShadedData,
             ]:
@@ -305,8 +234,7 @@ if __name__ == '__main__':
                             'orig_vs_frac': f'{np.mean(all_wrong_frac):5.3f}%',
                             'divs_vs_frac': f'{np.mean(all_wrong_diff):5.3f}%',
                         })
-    # main()
-    main2()
+    main()
 
 
 # ========================================================================= #
