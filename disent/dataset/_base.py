@@ -146,6 +146,10 @@ class DisentDataset(Dataset, LengthIter):
     def data(self) -> Dataset:
         return self._dataset
 
+    @property
+    def sampler(self) -> BaseDisentSampler:
+        return self._sampler
+
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Ground Truth Only                                                     #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #

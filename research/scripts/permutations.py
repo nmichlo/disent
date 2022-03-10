@@ -25,7 +25,9 @@ if __name__ == '__main__':
     parser.add_argument("--overrides", nargs="*", default=(),  help="Any key=value arguments parsed using Hydra Config. Values are treated as a sweep and all permutations are generated on the output instead.")
     parser.add_argument("--base", type=str, default='',        help='The base command that will be added to the output.')
     parser.add_argument("--debug", action='store_true',        help='If debug information should be displayed.')
-    parser.add_argument("--line-numbers", action='store_true', help='If line numbers should be prepended as environment variables.')
+    parser.add_argument("--line-number-start",  type=int, default=1,    help='The starting number to use when labeling lines')
+    parser.add_argument("--line-numbers",       action='store_true',    help='If line numbers should be prepended as environment variables.')
+    parser.add_argument("--line-number-format", type=str, default=None, help='The format for prefixing line numbers, default is `CMD_NUM={}`')
     parser.add_argument("--no-color", action='store_true',     help='Disable ANSI colors in the output.')
     parser.add_argument("--no-align", action='store_true',     help='Disable alignment of different arguments in the output')
     args = parser.parse_args()
@@ -91,7 +93,12 @@ if __name__ == '__main__':
         command_parts = []
         # prepend the line numbers
         if args.line_numbers:
-            command_parts.append(f'{c.lGRY}CMD_NUM={i+1:<{num_digits}d}{c.RST}')
+            num = i + args.line_number_start
+            if args.line_number_format is None:
+                line_num = f'CMD_NUM={num:<{num_digits}d}'
+            else:
+                line_num = args.line_number_format.format(num)
+            command_parts.append(f'{c.lGRY}{line_num}{c.RST}')
         # prepend the base command
         if args.base:
             command_parts.append(f'{c.lRED}{args.base}{c.RST}')
