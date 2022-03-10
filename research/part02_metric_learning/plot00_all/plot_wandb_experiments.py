@@ -437,7 +437,7 @@ def plot_e02_axis_triplet_schedules(
     handles_a = [mpl.patches.Patch(label=label, color=color) for label, color in zip(all_bars, colors)]
     fig.legend(handles=handles_a, fontsize=12, bbox_to_anchor=(0.986, 0.03), loc='lower right', ncol=2, labelspacing=0.1)
     # add the legend to the top right plot
-    assert np.all(df[col_hue].unique() == ['gt_dist__manhat', 'gt_dist__manhat_scaled']), f'{list(np.all(df[col_hue].unique()))}'
+    assert np.all(df[col_hue].unique() == ['gt_dist__manhat', 'gt_dist__manhat_scaled']), f'{list(df[col_hue].unique())}'
     handles_b = [mpl.patches.Patch(label='Ground-Truth Dist Sampling',          facecolor='#505050ff', edgecolor='white', hatch=hatches[0]),  # gt_dist__manhat
                  mpl.patches.Patch(label='Ground-Truth Dist Sampling (Scaled)', facecolor='#50505065', edgecolor='white', hatch=hatches[1])]  # gt_dist__manhat_scaled
     fig.legend(handles=handles_b, fontsize=12, bbox_to_anchor=(0.073, 0.03), loc='lower left',  ncol=1, labelspacing=0.1)
@@ -455,43 +455,48 @@ def plot_e02_axis_triplet_kl_vs_dist(
     grid_size_v: float = 1.4,
     grid_size_h: float = 2.75,
     metrics: Sequence[str] = (K_MIG, K_DCI, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE),
+    sampling_modes: Sequence[str] = ('gt_dist__manhat_scaled',),
+    vals_schedules: Optional[Sequence[str]] = ('adanegtvae_up_all', 'adanegtvae_up_ratio', 'adanegtvae_up_thresh',),  # ('adanegtvae_up_all', 'adanegtvae_up_all_full', 'adanegtvae_up_ratio', 'adanegtvae_up_ratio_full', 'adanegtvae_up_thresh')
+    title: Optional[Union[str, bool]] = True,
 ):
-    # -- we find that triplet scale 1.0 is better than 10.0
+    all_schedules = ('adanegtvae_up_all', 'adanegtvae_up_all_full', 'adanegtvae_up_ratio', 'adanegtvae_up_ratio_full', 'adanegtvae_up_thresh')
+    if not vals_schedules:
+        vals_schedules = all_schedules
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    if (title is True) and len(sampling_modes) == 1:
+        title = sampling_modes[0]
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
     with Timer('getting data'):
         df: pd.DataFrame = load_general_data(f'{os.environ["WANDB_USER"]}/MSC-p02e02_axis-aligned-triplet')
     # select run groups
-    df = df[df[K_GROUP].isin(['sweep_adanegtvae_alt_params_longmed'])]
-    df = df[df[K_DETACH].isin([False])]  # True, False
-    df = df[df[K_TRIPLET_SCALE].isin([1.0])]  # 1.0, 10.0
-    df = df[df[K_TRIPLET_MODE].isin(['triplet', 'triplet_soft'])]  # 1.0, 10.0
+    df = df[df[K_GROUP].isin(['sweep_adanegtvae_params_longmed'])]
+    df = df[df[K_SCHEDULE].isin(vals_schedules)]
     # sort everything
-    df = df.sort_values([K_FRAMEWORK, K_DATASET, K_TRIPLET_MODE, K_SCHEDULE, K_TRIPLET_SCALE])
+    df = df.sort_values([K_FRAMEWORK, K_DATASET, K_SCHEDULE, K_SAMPLER, K_ADA_MODE])
     # print common key values
-    print('K_GROUP:         ', list(df[K_GROUP].unique()))
-    print('K_FRAMEWORK:     ', list(df[K_FRAMEWORK].unique()))
-    print('K_BETA:          ', list(df[K_BETA].unique()))
-    print('K_REPEAT:        ', list(df[K_REPEAT].unique()))
-    print('K_STATE:         ', list(df[K_STATE].unique()))
-    print('K_DATASET:       ', list(df[K_DATASET].unique()))
-    print('K_LR:            ', list(df[K_LR].unique()))
-    print('K_TRIPLET_MODE:  ', list(df[K_TRIPLET_MODE].unique()))
-    print('K_TRIPLET_SCALE: ', list(df[K_TRIPLET_SCALE].unique()))
-    print('K_DETACH:        ', list(df[K_DETACH].unique()))
-    print('K_SCHEDULE:      ', list(df[K_SCHEDULE].unique()))
-    print('K_SAMPLER:       ', list(df[K_SAMPLER].unique()))
-    print('K_ADA_MODE:      ', list(df[K_ADA_MODE].unique()))
+    print('K_GROUP:        ', list(df[K_GROUP].unique()))
+    print('K_FRAMEWORK:    ', list(df[K_FRAMEWORK].unique()))
+    print('K_BETA:         ', list(df[K_BETA].unique()))
+    print('K_REPEAT:       ', list(df[K_REPEAT].unique()))
+    print('K_STATE:        ', list(df[K_STATE].unique()))
+    print('K_DATASET:      ', list(df[K_DATASET].unique()))
+    print('K_LR:           ', list(df[K_LR].unique()))
+    print('K_TRIPLET_MODE: ', list(df[K_TRIPLET_MODE].unique()))
+    print('K_SCHEDULE:     ', list(df[K_SCHEDULE].unique()))
+    print('K_ADA_MODE:     ', list(df[K_ADA_MODE].unique()))
     # number of runs
-    print(f'total={len(df)}')
     df = rename_entries(df)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # hack to replace the invalid sampling with the correct sampling!
-    # df = drop_and_copy_old_invalid_xysquares(df)  # TODO: we need to regen this plot with the sampler fixed!
+    df = drop_and_copy_old_invalid_xysquares(df)
+    df = df[df[K_SAMPLER].isin(sampling_modes)]  # we can only filter this after the above!
+    print('K_SAMPLER:      ', list(df[K_SAMPLER].unique()))
+    print(f'total={len(df)}')
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # axis keys
     col_x = K_DATASET
-    col_bars = K_TRIPLET_MODE
-    col_hue = K_SCHEDULE
+    col_bars = K_SCHEDULE
+    col_hue = K_ADA_MODE
     # get rows and columns
     all_bars = list(df[col_bars].unique())
     all_x = list(df[col_x].unique())
@@ -503,21 +508,15 @@ def plot_e02_axis_triplet_kl_vs_dist(
     num_y = len(all_y)
     num_hue = len(all_hue)
     # palettes
-    colors = [
-        # PINK, ORANGE,
-        # BLUE, LBLUE,
-        PURPLE,
-        # LPURPLE,
-        BLUE,
-        # LBLUE,
-        # GREEN,
-        # GREEN,
-        # PURPLE,
-    ]
+    colors = [PINK, ORANGE, BLUE, LBLUE, PURPLE]
     hatches = [None, '..']
+    idxs = [all_schedules.index(v) for v in vals_schedules]
+    colors = [colors[i] for i in idxs]
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # make plot
-    fig, axs = plt.subplots(num_y, num_x, figsize=(grid_size_h*num_x, num_y*grid_size_v))
+    fig, axs = plt.subplots(num_y, num_x, figsize=(grid_size_h * num_x, num_y * grid_size_v))
+    if isinstance(title, str):
+        fig.suptitle(title, fontsize=19)
     # fill plot
     for y, key_y in enumerate(all_y):  # metric
         for x, key_x in enumerate(all_x):  # schedule
@@ -548,17 +547,112 @@ def plot_e02_axis_triplet_kl_vs_dist(
                 ax.set_yticklabels([])
     # add the legend to the top right plot
     handles_a = [mpl.patches.Patch(label=label, color=color) for label, color in zip(all_bars, colors)]
-    fig.legend(handles=handles_a, fontsize=12, bbox_to_anchor=(0.986, 0.03), loc='lower right', ncol=1, labelspacing=0.1)
+    fig.legend(
+        handles=handles_a, fontsize=12, bbox_to_anchor=(0.986, 0.03), loc='lower right', ncol=2, labelspacing=0.1
+    )
     # add the legend to the top right plot
-    assert np.all(df[col_hue].unique() == ['Schedule: Both (weak)', 'Schedule: Weight (weak)']), f'{list(df[col_hue].unique())}'
-    handles_b = [mpl.patches.Patch(label='Schedule: Both (weak)', facecolor='#505050ff', edgecolor='white', hatch=hatches[0]),
-                 mpl.patches.Patch(label='Schedule: Weight (weak)', facecolor='#50505065', edgecolor='white', hatch=hatches[1])]
-    fig.legend(handles=handles_b, fontsize=12, bbox_to_anchor=(0.073, 0.03), loc='lower left',  ncol=1, labelspacing=0.1)
+    assert np.all(df[col_hue].unique() == ['dist', 'symmetric_kl']), f'{list(df[col_hue].unique())}'
+    handles_b = [mpl.patches.Patch(label='Absolute Difference', facecolor='#505050ff', edgecolor='white', hatch=hatches[0]),  # gt_dist__manhat
+                 mpl.patches.Patch(label='KL Divergence',       facecolor='#50505065', edgecolor='white', hatch=hatches[1])]  # gt_dist__manhat_scaled
+    fig.legend(handles=handles_b, fontsize=12, bbox_to_anchor=(0.073, 0.03), loc='lower left', ncol=1, labelspacing=0.1)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # plot!
     fig.tight_layout()
     H.plt_rel_path_savefig(rel_path, save=save, show=show, dpi=150, ext='.png')
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+
+
+def plot_e02_axis_triplet_schedule_recon_loss(
+    rel_path: Optional[str] = None,
+    save: bool = True,
+    show: bool = True,
+    # filtering
+    vals_schedules: Optional[Sequence[str]] = ('adanegtvae_up_all', 'adanegtvae_up_ratio', 'adanegtvae_up_thresh',),  # ('adanegtvae_up_all', 'adanegtvae_up_all_full', 'adanegtvae_up_ratio', 'adanegtvae_up_ratio_full', 'adanegtvae_up_thresh')
+    vals_detach: Sequence[bool] = (True, False),
+    vals_triplet_scale: Sequence[int] = (1.0, 10.0),
+    vals_triplet_mode: Sequence[str] = ('triplet', 'triplet_soft'),
+):
+    all_schedules = ('adanegtvae_up_all', 'adanegtvae_up_all_full', 'adanegtvae_up_ratio', 'adanegtvae_up_ratio_full', 'adanegtvae_up_thresh')
+    if not vals_schedules:
+        vals_schedules = all_schedules
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    df: pd.DataFrame = load_general_data(f'{os.environ["WANDB_USER"]}/MSC-p02e02_axis-aligned-triplet', include_history=True)
+    # select run groups
+    df = df[df[K_GROUP].isin(['sweep_adanegtvae_alt_params_longmed'])]
+    df = df[df[K_SCHEDULE].isin(vals_schedules)]
+    df = df[df[K_TRIPLET_SCALE].isin(vals_triplet_scale)]
+    df = df[df[K_DETACH].isin(vals_detach)]
+    df = df[df[K_TRIPLET_MODE].isin(vals_triplet_mode)]
+    # sort everything
+    df = df.sort_values([K_FRAMEWORK, K_DATASET, K_SCHEDULE, K_TRIPLET_SCALE, K_TRIPLET_MODE, K_DETACH])
+    # print common key values
+    print('K_GROUP:         ', list(df[K_GROUP].unique()))
+    print('K_FRAMEWORK:     ', list(df[K_FRAMEWORK].unique()))
+    print('K_BETA:          ', list(df[K_BETA].unique()))
+    print('K_REPEAT:        ', list(df[K_REPEAT].unique()))
+    print('K_STATE:         ', list(df[K_STATE].unique()))
+    print('K_DATASET:       ', list(df[K_DATASET].unique()))
+    print('K_LR:            ', list(df[K_LR].unique()))
+    print('K_TRIPLET_SCALE: ', list(df[K_TRIPLET_SCALE].unique()))
+    print('K_DETACH:        ', list(df[K_DETACH].unique()))
+    print('K_TRIPLET_MODE:  ', list(df[K_TRIPLET_MODE].unique()))
+    print('K_SCHEDULE:      ', list(df[K_SCHEDULE].unique()))
+    print('K_SAMPLER:       ', list(df[K_SAMPLER].unique()))
+    print('K_ADA_MODE:      ', list(df[K_ADA_MODE].unique()))
+    # number of runs
+    df = rename_entries(df)
+    print(f'total={len(df)}')
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # extract entries from run histories
+    # - we need to get the minimum reconstruction loss over the course of the runs
+    # - or we need to get the point with the reconstruction loss corresponding to the maximum metric?
+    df['recon_loss.min'] = [hist['recon_loss'].min() for hist in df['history']]
+    metric_key = 'recon_loss.min'
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+
+    all_schedules = [
+        ('adanegtvae_up_all',        'Schedule: Both (weak)'),
+        ('adanegtvae_up_all_full',   'Schedule: Both (strong)'),
+        ('adanegtvae_up_ratio',      'Schedule: Weight (weak)'),
+        ('adanegtvae_up_ratio_full', 'Schedule: Weight (strong)'),
+        ('adanegtvae_up_thresh',     'Schedule: Threshold'),
+        # ('dist', 'dist'),
+        # ('symmetric_kl', 'symmetric_kl'),
+    ]
+    colors = [PINK, ORANGE, BLUE, LBLUE, PURPLE]
+    PALLETTE = dict(zip((i[1] for i in all_schedules), colors))
+
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    dataset_vals = df[K_DATASET].unique()
+
+    fig, axs = plt.subplots(1, len(dataset_vals), figsize=(len(dataset_vals)*3.33, 3.33), squeeze=False)
+    axs = axs.reshape(-1)
+
+    # PLOT: MIG
+    for i, (ax, dataset_val) in enumerate(zip(axs, dataset_vals)):
+        # filter items
+        df_filtered = df[df[K_DATASET] == dataset_val]
+        # plot everything
+        sns.violinplot(data=df_filtered, ax=ax, x=K_SCHEDULE, y=metric_key, hue=K_SCHEDULE, palette=PALLETTE, split=True, cut=0, width=0.75, scale='width', inner='quartile')
+        ax.set_ylim([0, None])
+        if i == 0:
+            ax.legend(bbox_to_anchor=(0, 0), fontsize=12, loc='lower left', labelspacing=0.1)
+            ax.set_xlabel(None)
+            ax.set_ylabel('Minimum Recon. Loss')
+        else:
+            ax.get_legend().remove()
+            ax.set_xlabel(None)
+            ax.set_ylabel(None)
+        ax.set_title(dataset_val)
+
+    # PLOT:
+    fig.tight_layout()
+    H.plt_rel_path_savefig(rel_path, save=save, show=show, dpi=300)
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+
+    return fig, axs
+
+
 
 
 # ========================================================================= #
@@ -685,11 +779,6 @@ def plot_e01_normal_triplet(
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
 
-# ========================================================================= #
-# Experiment 1                                                              #
-# ========================================================================= #
-
-
 def plot_e01_normal_triplet_recon_loss(
     rel_path: Optional[str] = None,
     save: bool = True,
@@ -811,17 +900,18 @@ if __name__ == '__main__':
     # clear_plots_cache(clear_wandb=False, clear_processed=True)
 
     def main():
-        plot_e00_beta_metric_correlation(rel_path='plots/p02e00_metrics_some', show=True, metrics=(K_MIG, K_RCORR_GT_F, K_RCORR_DATA_F))
-        plot_e00_beta_metric_correlation(rel_path='plots/p02e00_metrics_all',  show=True, metrics=(K_MIG, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE))
-        plot_e00_beta_metric_correlation(rel_path='plots/p02e00_metrics_alt',  show=True, metrics=(K_MIG, K_RCORR_GT_F, K_RCORR_DATA_F, K_LINE))
+        # plot_e00_beta_metric_correlation(rel_path='plots/p02e00_metrics_some', show=True, metrics=(K_MIG, K_RCORR_GT_F, K_RCORR_DATA_F))
+        # plot_e00_beta_metric_correlation(rel_path='plots/p02e00_metrics_all',  show=True, metrics=(K_MIG, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE))
+        # plot_e00_beta_metric_correlation(rel_path='plots/p02e00_metrics_alt',  show=True, metrics=(K_MIG, K_RCORR_GT_F, K_RCORR_DATA_F, K_LINE))
+        #
+        # plot_e01_normal_triplet(rel_path='plots/p02e01_normal-triplet', show=True)
+        # plot_e01_normal_triplet_recon_loss(rel_path='plots/p02e01_normal-l1-triplet_recon-loss_detached', vals_detach=(True,),  vals_p=(1,), show=True)
+        # plot_e01_normal_triplet_recon_loss(rel_path='plots/p02e01_normal-l1-triplet_recon-loss_attached', vals_detach=(False,), vals_p=(1,), show=True)
 
-        plot_e01_normal_triplet(rel_path='plots/p02e01_normal-triplet', show=True)
-        plot_e01_normal_triplet_recon_loss(rel_path='plots/p02e01_normal-l1-triplet_recon-loss_detached', vals_detach=(True,),  vals_p=(1,), show=True)
-        plot_e01_normal_triplet_recon_loss(rel_path='plots/p02e01_normal-l1-triplet_recon-loss_attached', vals_detach=(False,), vals_p=(1,), show=True)
-
-        plot_e02_axis_triplet_kl_vs_dist(rel_path='plots/p02e02_axis__triplet__kl_vs_dist', show=True)
-        plot_e02_axis_triplet_schedules(rel_path='plots/p02e02_axis__soft_triplet__dist',   show=True, adaptive_modes=('dist',), title=False)
-        plot_e02_axis_triplet_schedules(rel_path='plots/p02e02_axis__soft_triplet__kl',     show=True, adaptive_modes=('symmetric_kl',), title=False)
+        # plot_e02_axis_triplet_kl_vs_dist(rel_path='plots/p02e02_axis__soft-triplet__kl-vs-dist', show=True, title=False)
+        # plot_e02_axis_triplet_schedules(rel_path='plots/p02e02_axis__soft-triplet__dist',   show=True, adaptive_modes=('dist',), title=False)
+        plot_e02_axis_triplet_schedule_recon_loss(rel_path='plots/p02e01_normal-l1-triplet_recon-loss_detached', vals_detach=(True,), show=True)
+        plot_e02_axis_triplet_schedule_recon_loss(rel_path='plots/p02e01_normal-l1-triplet_recon-loss_attached', vals_detach=(False,), show=True)
 
     main()
 
