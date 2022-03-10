@@ -172,6 +172,7 @@ def load_general_data(project: str, include_history: bool = False, keep_cols: Se
 
 
 def rename_entries(df: pd.DataFrame):
+    df = df.copy()
     # replace values in the df
     for key, value, new_value in [
         (K_DATASET,  'xysquares_minimal',        'xysquares'),
@@ -188,7 +189,25 @@ def rename_entries(df: pd.DataFrame):
         # (K_SAMPLER, 'gt_dist__manhat_scaled', 'Ground-Truth Dist Sampling (Scaled)'),
     ]:
         if key in df.columns:
-            df.loc[df[key] == value, key] = new_value
+            df[key].replace(value, new_value, inplace=True)
+            # df.loc[df[key] == value, key] = new_value
+    return df
+
+
+def drop_and_copy_old_invalid_xysquares(df: pd.DataFrame) -> pd.DataFrame:
+    # hack to replace the invalid sampling with the correct sampling!
+    df = df.copy()
+    # drop invalid items
+    sel_drop = (df[K_DATASET] == 'xysquares') & (df[K_SAMPLER] == 'gt_dist__manhat_scaled')
+    df = df.drop(df[sel_drop].index)
+    # copy invalid items & rename entries
+    sel_copy = (df[K_DATASET] == 'xysquares') & (df[K_SAMPLER] == 'gt_dist__manhat')
+    assert np.sum(sel_drop) == np.sum(sel_copy), f'drop: {np.sum(sel_drop)}, copy: {np.sum(sel_copy)}'
+    df_append = df[sel_copy].copy()
+    df_append.loc[df_append[K_SAMPLER] == 'gt_dist__manhat', K_SAMPLER] = 'gt_dist__manhat_scaled'
+    # append the rows!
+    df = df.append(df_append)
+    # done!
     return df
 
 
@@ -324,14 +343,15 @@ def plot_e00_beta_metric_correlation(
 # ========================================================================= #
 
 
-def plot_e02_axis__soft_triplet(
+# TODO: this should be replaced with hard triplet loss experiments!
+def plot_e02_axis_triplet_schedules(
     rel_path: Optional[str] = None,
     save: bool = True,
     show: bool = True,
     grid_size_v: float = 1.4,
     grid_size_h: float = 2.75,
     metrics: Sequence[str] = (K_MIG, K_DCI, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE),
-    adaptive_modes: Sequence[str] = ('symmetric_kl',),
+    adaptive_modes: Sequence[str] = ('dist',),
     title: Optional[Union[str, bool]] = True,
 ):
     if (title is True) and len(adaptive_modes) == 1:
@@ -359,6 +379,9 @@ def plot_e02_axis__soft_triplet(
     # number of runs
     print(f'total={len(df)}')
     df = rename_entries(df)
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # hack to replace the invalid sampling with the correct sampling!
+    df = drop_and_copy_old_invalid_xysquares(df)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # axis keys
     col_x = K_DATASET
@@ -425,7 +448,7 @@ def plot_e02_axis__soft_triplet(
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
 
-def plot_e02_axis__triplet_compared(
+def plot_e02_axis_triplet_kl_vs_dist(
     rel_path: Optional[str] = None,
     save: bool = True,
     show: bool = True,
@@ -441,6 +464,7 @@ def plot_e02_axis__triplet_compared(
     df = df[df[K_GROUP].isin(['sweep_adanegtvae_alt_params_longmed'])]
     df = df[df[K_DETACH].isin([False])]  # True, False
     df = df[df[K_TRIPLET_SCALE].isin([1.0])]  # 1.0, 10.0
+    df = df[df[K_TRIPLET_MODE].isin(['triplet', 'triplet_soft'])]  # 1.0, 10.0
     # sort everything
     df = df.sort_values([K_FRAMEWORK, K_DATASET, K_TRIPLET_MODE, K_SCHEDULE, K_TRIPLET_SCALE])
     # print common key values
@@ -460,6 +484,9 @@ def plot_e02_axis__triplet_compared(
     # number of runs
     print(f'total={len(df)}')
     df = rename_entries(df)
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # hack to replace the invalid sampling with the correct sampling!
+    # df = drop_and_copy_old_invalid_xysquares(df)  # TODO: we need to regen this plot with the sampler fixed!
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # axis keys
     col_x = K_DATASET
@@ -535,7 +562,7 @@ def plot_e02_axis__triplet_compared(
 
 
 # ========================================================================= #
-# Experiment p02e02                                                         #
+# Experiment p02e01                                                         #
 # ========================================================================= #
 
 
@@ -604,6 +631,9 @@ def plot_e01_normal_triplet(
         # LGREEN,
     ]
 
+    # hack to replace the invalid sampling with the correct sampling!
+    df = drop_and_copy_old_invalid_xysquares(df)
+
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # make plot
     fig, axs = plt.subplots(num_y, num_x, figsize=(grid_size_h*num_x, num_y*grid_size_v))
@@ -656,6 +686,114 @@ def plot_e01_normal_triplet(
 
 
 # ========================================================================= #
+# Experiment 1                                                              #
+# ========================================================================= #
+
+
+def plot_e01_normal_triplet_recon_loss(
+    rel_path: Optional[str] = None,
+    save: bool = True,
+    show: bool = True,
+    color_triplet_soft: str = BLUE,
+    color_triplet_hard: str = PURPLE,
+    # filtering
+    vals_detach: Sequence[bool] = (True,),
+    vals_p: Sequence[int] = (1,),
+    vals_scale: Sequence[int] = (0.1, 1.0),
+    vals_margin: Sequence[int] = (1.0, 10.0),
+):
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    df: pd.DataFrame = load_general_data(f'{os.environ["WANDB_USER"]}/MSC-p02e01_triplet-param-tuning', include_history=True)
+    # select run groups
+    df = df[df[K_GROUP].isin(['sweep_tvae_params_basic_RERUN', 'sweep_tvae_params_basic_RERUN_soft'])]
+    df = df[df[K_DETACH].isin(vals_detach)]              # True, False
+    df = df[df[K_TRIPLET_MARGIN].isin(vals_margin)]  # 1.0, 10.0
+    df = df[df[K_TRIPLET_SCALE].isin(vals_scale)]    # 0.1, 1.0
+    df = df[df[K_TRIPLET_P].isin(vals_p)]            # 1, 2
+    df = df[df[K_TRIPLET_MODE].isin(['triplet', 'triplet_soft'])]  # 'triplet', 'triplet_soft'
+    df = df[df[K_SAMPLER].isin(['gt_dist__manhat', 'gt_dist__manhat_scaled'])]  # 'gt_dist__manhat', 'gt_dist__manhat_scaled'
+    # sort everything
+    df = df.sort_values([K_SAMPLER, K_DATASET, K_TRIPLET_MODE, K_TRIPLET_P, K_TRIPLET_SCALE, K_TRIPLET_MARGIN, K_DETACH])
+    # print common key values
+    with Timer('values'):
+        print('K_GROUP:          ', list(df[K_GROUP].unique()))
+        print('K_STATE:          ', list(df[K_STATE].unique()))
+        print('K_DATASET:        ', list(df[K_DATASET].unique()))
+        print('K_SAMPLER:        ', list(df[K_SAMPLER].unique()))
+        print('K_TRIPLET_MODE:   ', list(df[K_TRIPLET_MODE].unique()))
+        print('K_TRIPLET_P:      ', list(df[K_TRIPLET_P].unique()))
+        print('K_TRIPLET_SCALE:  ', list(df[K_TRIPLET_SCALE].unique()))
+        print('K_TRIPLET_MARGIN: ', list(df[K_TRIPLET_MARGIN].unique()))
+        print('K_DETACH:         ', list(df[K_DETACH].unique()))
+    # number of runs
+    print(f'total={len(df)}')
+    df = rename_entries(df)
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+
+    # print a list of columns
+    # pprint(df.iloc[0]['history'].columns)
+
+    # extract entries from run histories
+    # - we need to get the minimum reconstruction loss over the course of the runs
+    # - or we need to get the point with the reconstruction loss corresponding to the maximum metric?
+    df['recon_loss.min'] = [hist['recon_loss'].min() for hist in df['history']]
+
+    metric_key = 'recon_loss.min'
+
+    # hack to replace the invalid sampling with the correct sampling!
+    df = drop_and_copy_old_invalid_xysquares(df)
+
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+
+    # df = df[[K_DATASET, K_FRAMEWORK, K_MIG, K_DCI]]
+    df[K_SAMPLER].replace('gt_dist__manhat',        'Dist. Sampling\n', inplace=True)
+    df[K_SAMPLER].replace('gt_dist__manhat_scaled', 'Dist. Sampling\n(Scaled)', inplace=True)
+
+    # rename columns
+    for key, value, new_value in [
+        (K_TRIPLET_MODE, 'Triplet Loss (Hard Margin)', 'Hard-Margin'),
+        (K_TRIPLET_MODE, 'Triplet Loss (Soft Margin)', 'Soft-Margin'),
+    ]:
+        if key in df.columns:
+            df[key].replace(value, new_value, inplace=True)
+
+    PALLETTE = {
+        'Soft-Margin': color_triplet_soft,
+        'Hard-Margin': color_triplet_hard,
+    }
+
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    dataset_vals = df[K_DATASET].unique()
+
+    fig, axs = plt.subplots(1, len(dataset_vals), figsize=(len(dataset_vals)*3.33, 3.33), squeeze=False)
+    axs = axs.reshape(-1)
+
+    # PLOT: MIG
+    for i, (ax, dataset_val) in enumerate(zip(axs, dataset_vals)):
+        # filter items
+        df_filtered = df[df[K_DATASET] == dataset_val]
+        # plot everything
+        sns.violinplot(data=df_filtered, ax=ax, x=K_SAMPLER, y=metric_key, hue=K_TRIPLET_MODE, palette=PALLETTE, split=True, cut=0, width=0.75, scale='width', inner='quartile')
+        ax.set_ylim([0, None])
+        if i == 0:
+            ax.legend(bbox_to_anchor=(0, 0), fontsize=12, loc='lower left', labelspacing=0.1)
+            ax.set_xlabel(None)
+            ax.set_ylabel('Minimum Recon. Loss')
+        else:
+            ax.get_legend().remove()
+            ax.set_xlabel(None)
+            ax.set_ylabel(None)
+        ax.set_title(dataset_val)
+
+    # PLOT:
+    fig.tight_layout()
+    H.plt_rel_path_savefig(rel_path, save=save, show=show, dpi=300)
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+
+    return fig, axs
+
+
+# ========================================================================= #
 # Entrypoint                                                                #
 # ========================================================================= #
 
@@ -677,11 +815,13 @@ if __name__ == '__main__':
         plot_e00_beta_metric_correlation(rel_path='plots/p02e00_metrics_all',  show=True, metrics=(K_MIG, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE))
         plot_e00_beta_metric_correlation(rel_path='plots/p02e00_metrics_alt',  show=True, metrics=(K_MIG, K_RCORR_GT_F, K_RCORR_DATA_F, K_LINE))
 
-        plot_e01_normal_triplet(rel_path='plots/p02e01_normal_triplet', show=True)
+        plot_e01_normal_triplet(rel_path='plots/p02e01_normal-triplet', show=True)
+        plot_e01_normal_triplet_recon_loss(rel_path='plots/p02e01_normal-l1-triplet_recon-loss_detached', vals_detach=(True,),  vals_p=(1,), show=True)
+        plot_e01_normal_triplet_recon_loss(rel_path='plots/p02e01_normal-l1-triplet_recon-loss_attached', vals_detach=(False,), vals_p=(1,), show=True)
 
-        plot_e02_axis__triplet_compared(rel_path='plots/p02e02_axis__triplet_compared', show=True)
-        plot_e02_axis__soft_triplet(rel_path='plots/p02e02_axis__soft_triplet__dist', show=True, adaptive_modes=('dist',), title=False)
-        plot_e02_axis__soft_triplet(rel_path='plots/p02e02_axis__soft_triplet__kl', show=True, adaptive_modes=('symmetric_kl',), title=False)
+        plot_e02_axis_triplet_kl_vs_dist(rel_path='plots/p02e02_axis__triplet__kl_vs_dist', show=True)
+        plot_e02_axis_triplet_schedules(rel_path='plots/p02e02_axis__soft_triplet__dist',   show=True, adaptive_modes=('dist',), title=False)
+        plot_e02_axis_triplet_schedules(rel_path='plots/p02e02_axis__soft_triplet__kl',     show=True, adaptive_modes=('symmetric_kl',), title=False)
 
     main()
 
