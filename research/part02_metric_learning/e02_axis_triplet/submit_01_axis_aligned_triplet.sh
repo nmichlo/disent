@@ -142,3 +142,35 @@ submit_sweep \
     \
     framework.cfg.triplet_margin_max=10.0 \
     framework.cfg.triplet_p=1
+
+
+# THIS REPLACES THE ABOVE SWEEPS:
+# - we don't want soft-margin triplet anymore!
+# 1 * (5*2*2*5*2) = 200
+#submit_sweep \
+#    +DUMMY.repeat=1 \
+#    +EXTRA.tags='sweep_adanegtvae_hard_triplet_params_longmed' \
+#    hydra.job.name="adanegtvae_hparams_alt" \
+#    \
+#    run_length=longmed \
+#    metrics=all \
+#    \
+#    settings.framework.beta=0.01 \
+#    settings.model.z_size=25 \
+#    \
+#    sampling=gt_dist__manhat_scaled \
+#    framework.cfg.ada_thresh_mode=dist \
+#    \
+#    schedule=adanegtvae_up_all,adanegtvae_up_all_full,adanegtvae_up_ratio,adanegtvae_up_ratio_full,adanegtvae_up_thresh \
+#    framework.cfg.triplet_scale=10.0,1.0 \
+#    framework.cfg.detach_decoder=FALSE,TRUE \
+#    framework.cfg.triplet_loss=triplet \
+#    dataset=cars3d,smallnorb,shapes3d,dsprites,X--xysquares \
+#    \
+#    framework=X--adanegtvae \
+#    \
+#    framework.cfg.ada_thresh_ratio=0.5 \
+#    framework.cfg.adat_triplet_share_scale=0.5 \
+#    \
+#    framework.cfg.triplet_margin_max=1.0,10.0 \
+#    framework.cfg.triplet_p=1

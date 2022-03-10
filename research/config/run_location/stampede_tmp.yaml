@@ -12,7 +12,7 @@ dsettings:
   launcher:
     partition: stampede
     array_parallelism: 16
-    exclude: "mscluster93,mscluster94,mscluster97,mscluster99"
+    exclude: "mscluster92,mscluster94"
 
 datamodule:
   gpu_augment: FALSE

@@ -578,6 +578,19 @@ def plot_e02_axis_triplet_schedule_recon_loss(
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
     df: pd.DataFrame = load_general_data(f'{os.environ["WANDB_USER"]}/MSC-p02e02_axis-aligned-triplet', include_history=True)
     # select run groups
+    # TODO: add sweep_adanegtvae_params_longmed:
+    #     sampling=gt_dist__manhat,gt_dist__manhat_scaled \
+    #     framework.cfg.ada_thresh_mode=dist,symmetric_kl \
+    #     framework.cfg.detach_decoder=FALSE \
+    #     schedule=adanegtvae_up_all,adanegtvae_up_all_full,adanegtvae_up_ratio,adanegtvae_up_ratio_full,adanegtvae_up_thresh \
+    #     framework.cfg.triplet_loss=triplet_soft \
+    #     dataset=cars3d,smallnorb,shapes3d,dsprites,X--xysquares
+    # CURRENT:
+    #     schedule=adanegtvae_up_ratio,adanegtvae_up_all \
+    #     framework.cfg.triplet_scale=10.0,1.0 \
+    #     framework.cfg.detach_decoder=FALSE,TRUE \
+    #     framework.cfg.triplet_loss=triplet,triplet_soft \
+    #     dataset=cars3d,smallnorb,shapes3d,dsprites,X--xysquares \
     df = df[df[K_GROUP].isin(['sweep_adanegtvae_alt_params_longmed'])]
     df = df[df[K_SCHEDULE].isin(vals_schedules)]
     df = df[df[K_TRIPLET_SCALE].isin(vals_triplet_scale)]
