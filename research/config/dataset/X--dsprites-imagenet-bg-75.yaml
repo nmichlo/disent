@@ -1,7 +1,7 @@
 defaults:
   - _data_type_: gt
 
-name: dsprites_imagenet_bg_80
+name: dsprites_imagenet_bg_75
 
 data:
   _target_: research.code.dataset.data.DSpritesImagenetData
@@ -18,5 +18,5 @@ transform:
 
 meta:
   x_shape: [3, 64, 64]
-  vis_mean: [0.40867981393820857, 0.38468564002021527, 0.34611573047508204]
-  vis_std: [0.22048328737091344, 0.22102216869942384, 0.22692977053753483]
+  vis_mean: [0.38577296742807327, 0.3632825822323436, 0.3271231888851156]
+  vis_std: [0.21392191050784257, 0.2146731716558466, 0.2204460568339597]
