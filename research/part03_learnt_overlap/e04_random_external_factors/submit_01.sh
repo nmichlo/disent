@@ -15,7 +15,7 @@
 export USERNAME="n_michlo"
 export PROJECT="MSC-p03e04_random-external-factors"
 export PARTITION="stampede"
-export PARALLELISM=24
+export PARALLELISM=28
 
 # the path to the generated arguments file
 # - this needs to before we source the helper file
