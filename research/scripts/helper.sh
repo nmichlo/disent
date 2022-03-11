@@ -26,7 +26,7 @@ if [ -z "$PY_RUN_FILE" ]; then PY_RUN_FILE='experiment/run.py'; fi
 # ========================================================================= #
 
 # get the calling script dir
-#SCRIPT_DIR=$(dirname "$(realpath -s "$0")")
+#CALL_SCRIPT_DIR=$(dirname "$(realpath -s "$0")")
 # get the current script dir
 SCRIPT_DIR="$(dirname -- "${BASH_SOURCE[0]}")"
 # get the root directory for `disent`
