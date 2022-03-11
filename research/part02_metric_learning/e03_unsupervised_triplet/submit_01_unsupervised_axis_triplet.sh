@@ -17,11 +17,12 @@ export PROJECT="MSC-p02e03_unsupervised-axis-triplet"
 export PARTITION="stampede"
 export PARALLELISM=24
 
+# the path to the generated arguments file
+# - this needs to before we source the helper file
+ARGS_FILE="$(realpath "$(dirname -- "${BASH_SOURCE[0]}")")/array_01_$PROJECT.txt"
+
 # source the helper file
 source "$(dirname "$(dirname "$(dirname "$(realpath -s "$0")")")")/scripts/helper.sh"
-
-# the path to the generated arguments file
-ARGS_FILE="$(realpath "$(dirname -- "${BASH_SOURCE[0]}")")/array_01_$PROJECT.txt"
 
 # ========================================================================= #
 # Generate Experiment                                                       #
@@ -109,7 +110,6 @@ ARGS_FILE="$ARGS_FILE" APPEND_ARGS=1 ARGS_START_NUM=81 gen_sbatch_args_file \
     \
     framework.cfg.overlap_augment_mode=augment \
     framework.cfg.overlap_augment=NULL
-
 
 # ========================================================================= #
 # Run Experiment                                                            #
