@@ -42,6 +42,7 @@ from disent.dataset.transform import ToImgTensorF32
 from disent.dataset.util.datafile import DataFileHashedDlGen
 from disent.dataset.util.hdf5 import H5Builder
 from disent.dataset.util.stats import compute_data_mean_std
+from disent.util.function import wrapped_partial
 from disent.util.inout.files import AtomicSaveFile
 from disent.util.iters import LengthIter
 from disent.util.math.random import random_choice_prng
@@ -259,25 +260,33 @@ if __name__ == '__main__':
     def compute_all_stats():
         from disent.util.visualize.plot import plt_subplots_imshow
 
-        def compute_stats(visibility, mode):
+        def compute_stats(visibility: Optional[int], mode: Optional[str]):
             import psutil
+            # get class
+            is_imgnet = (visibility is not None) and (mode is not None)
+            data_cls = wrapped_partial(DSpritesImagenetData, visibility=visibility, mode=mode) if is_imgnet else DSpritesData
+            data_title = f'{DSpritesImagenetData.name} visibility={repr(visibility)} mode={repr(mode)}' if is_imgnet else f'{DSpritesData.name}'
+            data_name = f'dsprites_{mode}_{visibility}' if is_imgnet else f'dsprites'
             # plot images
-            data = DSpritesImagenetData(prepare=True, visibility=visibility, mode=mode)
+            data = data_cls(prepare=True)
             grid = np.array([data[i*24733] for i in np.arange(16)]).reshape([4, 4, *data.img_shape])
-            plt_subplots_imshow(grid, show=True, title=f'{DSpritesImagenetData.name} visibility={repr(visibility)} mode={repr(mode)}')
+            plt_subplots_imshow(grid, show=True, title=data_title)
             # compute stats
-            name = f'dsprites_{mode}_{visibility}'
-            data = DSpritesImagenetData(prepare=True, visibility=visibility, mode=mode, transform=ToImgTensorF32())
+            data = data_cls(prepare=True, transform=ToImgTensorF32())
             mean, std = compute_data_mean_std(data, batch_size=256, num_workers=min(psutil.cpu_count(logical=False), 64), progress=True)
-            print(f'{name}\n    vis_mean: {mean.tolist()}\n    vis_std: {std.tolist()}')
+            print(f'{data_name}\n    vis_mean: {mean.tolist()}\n    vis_std: {std.tolist()}')
             # return stats
-            return name, mean, std
+            return data_name, mean, std
 
         # compute common stats
         stats = []
         for mode in ['fg', 'bg']:
-            for vis in [100, 80, 60, 40, 20]:
+            # 100, 75, 50, 25, 0
+            # 100, 80, 60, 40, 20, 0
+            for vis in [100, 80, 75, 60, 50, 40, 25, 20, 0]:
                 stats.append(compute_stats(vis, mode))
+            # 0 above should be the same as this:
+            stats.append(compute_stats(None, None))
 
         # print once at end
         for name, mean, std in stats:

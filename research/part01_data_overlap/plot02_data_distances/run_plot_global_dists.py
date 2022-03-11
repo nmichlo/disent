@@ -185,7 +185,7 @@ def all_plot_from_all_generated_data(dfs: dict, ordered=True, save_name: str = N
     # make subplots
     cm = 1 / 2.54
     fig, axs = plt.subplots(1, len(dfs), figsize=((fig_l_pad+len(dfs)*fig_w)*cm, fig_h * cm))
-    axs = np.array(axs, dtype=np.object).reshape((-1,))
+    axs = np.array(axs, dtype=object).reshape((-1,))
     # plot all
     for i, (ax, (data_name, df)) in enumerate(zip(axs, dfs.items())):
         # plot
@@ -394,7 +394,7 @@ if __name__ == '__main__':
           # 'Mpi3d':     wrapped_partial(Mpi3dData),
         },
         hide_extra_legends=False,
-        **SHARED_SETTINGS
+        **{**SHARED_SETTINGS, 'fig_h': 11}
     )
 
     # EXPERIMENT -- p03e03
