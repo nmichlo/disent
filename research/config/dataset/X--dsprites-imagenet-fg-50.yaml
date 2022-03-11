@@ -1,12 +1,12 @@
 defaults:
   - _data_type_: gt
 
-name: dsprites_imagenet_bg_80
+name: dsprites_imagenet_fg_50
 
 data:
   _target_: research.code.dataset.data.DSpritesImagenetData
-  visibility: 80
-  mode: bg
+  visibility: 60
+  mode: fg
   data_root: ${dsettings.storage.data_root}
   prepare: ${dsettings.dataset.prepare}
   in_memory: ${dsettings.dataset.try_in_memory}
@@ -18,5 +18,5 @@ transform:
 
 meta:
   x_shape: [3, 64, 64]
-  vis_mean: [0.40867981393820857, 0.38468564002021527, 0.34611573047508204]
-  vis_std: [0.22048328737091344, 0.22102216869942384, 0.22692977053753483]
+  vis_mean: [0.031541090790578506, 0.030549541980176148, 0.029368756624861398]
+  vis_std: [0.14609029304575144, 0.14150919987547408, 0.13607872227034773]

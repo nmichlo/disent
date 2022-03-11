@@ -40,6 +40,9 @@ from disent.dataset import DisentDataset
 from disent.dataset.data import Cars3d64Data
 from disent.dataset.data import DSpritesData
 from disent.dataset.data import Shapes3dData
+from disent.dataset.data import SmallNorb64Data
+from disent.dataset.data import XYObjectData
+from disent.dataset.data import XYObjectShadedData
 from research.code.dataset.data import XYSquaresData
 from disent.dataset.transform import ToImgTensorF32
 from disent.util import to_numpy
@@ -182,7 +185,7 @@ def all_plot_from_all_generated_data(dfs: dict, ordered=True, save_name: str = N
     # make subplots
     cm = 1 / 2.54
     fig, axs = plt.subplots(1, len(dfs), figsize=((fig_l_pad+len(dfs)*fig_w)*cm, fig_h * cm))
-    axs = np.array(axs, dtype=np.object).reshape((-1,))
+    axs = np.array(axs, dtype=object).reshape((-1,))
     # plot all
     for i, (ax, (data_name, df)) in enumerate(zip(axs, dfs.items())):
         # plot
@@ -382,14 +385,25 @@ if __name__ == '__main__':
     dfs = plot_all(
         exp_name='dataset-overlap',
         gt_data_classes={
-          # 'XYObject':  wrapped_partial(XYObjectData),
           # 'XYBlocks':  wrapped_partial(XYBlocksData),
             'XYSquares': wrapped_partial(XYSquaresData),
             'DSprites':  wrapped_partial(DSpritesData),
             'Shapes3d':  wrapped_partial(Shapes3dData),
             'Cars3d':    wrapped_partial(Cars3d64Data),
-          # 'SmallNorb': wrapped_partial(SmallNorb64Data),
+            'SmallNorb': wrapped_partial(SmallNorb64Data),
           # 'Mpi3d':     wrapped_partial(Mpi3dData),
+        },
+        hide_extra_legends=False,
+        **{**SHARED_SETTINGS, 'fig_h': 11}
+    )
+
+    # EXPERIMENT -- p03e03
+
+    dfs = plot_all(
+        exp_name='differing-gt-factors',
+        gt_data_classes={
+          'XYObject':        wrapped_partial(XYObjectData),
+          'XYObjectShaded':  wrapped_partial(XYObjectShadedData),
         },
         hide_extra_legends=False,
         **SHARED_SETTINGS

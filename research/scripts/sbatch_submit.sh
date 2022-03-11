@@ -67,10 +67,6 @@ NUM_LINES=$(wc -l < "$ARGS_FILE")
 echo "- submitting $NUM_LINES jobs as an array"
 echo
 
-# TODO add variable to exclude nodes from being used!
-# TODO add variable to exclude nodes from being used!
-# TODO add variable to exclude nodes from being used!
-
 # submit an array that reads each line from the file
 # and starts a new job based on it!
 sbatch \
@@ -78,4 +74,5 @@ sbatch \
   --job-name=bdisent \
   --array="1-$NUM_LINES%$PARALLELISM" \
   --time=24:00:00 \
+  --exclude="mscluster92,mscluster94" \
   "$SCRIPT_DIR/sbatch_job.sh"

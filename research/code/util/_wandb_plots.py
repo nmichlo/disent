@@ -23,6 +23,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import os.path
+import warnings
 from typing import List
 from typing import Sequence
 
@@ -123,6 +124,8 @@ def drop_unhashable_cols(df: pd.DataFrame, inplace: bool = False, skip: Sequence
     if skip is None:
         skip = []
     skip = set(skip)
+    if skip - set(df.columns):
+        warnings.warn(f'some skipped column names are not contained in the df: {skip - set(df.columns)}')
     # drop columns
     dropped = []
     for col in df.columns:
@@ -144,6 +147,8 @@ def drop_non_unique_cols(df: pd.DataFrame, inplace: bool = False, skip: Sequence
     if skip is None:
         skip = []
     skip = set(skip)
+    if skip - set(df.columns):
+        warnings.warn(f'some skipped column names are not contained in the df: {skip - set(df.columns)}')
     # drop columns
     dropped = []
     for col in df.columns:

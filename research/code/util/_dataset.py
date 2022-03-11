@@ -40,6 +40,7 @@ from disent.dataset import DisentDataset
 from disent.dataset.data import Cars3d64Data
 from disent.dataset.data import DSpritesData
 from disent.dataset.data import SmallNorb64Data
+from disent.dataset.data import XYObjectShadedData
 from research.code.dataset.data import DSpritesImagenetData
 from disent.dataset.data import GroundTruthData
 from disent.dataset.data import Shapes3dData
@@ -172,8 +173,9 @@ def make_data(
     elif name == 'xysquares_8x8_s7':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=7, transform=TransformCls())  # ?x?x?x?x?x? = ?
     elif name == 'xysquares_8x8_s8':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=8, transform=TransformCls())  # 8x8x8x8x8x8 = 262144  # equivalent: [xysquares, xysquares_8x8, xysquares_8x8_s8]
     # OTHER SYNTHETIC DATASETS
-    elif name == 'xyobject':  data = XYObjectData(transform=TransformCls())
-    elif name == 'xyblocks':  data = XYBlocksData(transform=TransformCls())
+    elif name == 'xyobject':         data = XYObjectData(transform=TransformCls())
+    elif name == 'xyobject_shaded':  data = XYObjectShadedData(transform=TransformCls())
+    elif name == 'xyblocks':         data = XYBlocksData(transform=TransformCls())
     # NORMAL DATASETS
     elif name == 'cars3d':         data = Cars3d64Data(data_root=data_root,    prepare=True, transform=TransformCls(size=64))
     elif name == 'smallnorb':      data = SmallNorb64Data(data_root=data_root, prepare=True, transform=TransformCls(size=64))
@@ -185,12 +187,20 @@ def make_data(
     elif name == 'dsprites_imagenet_bg_60':  data = DSpritesImagenetData(visibility=60, mode='bg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
     elif name == 'dsprites_imagenet_bg_40':  data = DSpritesImagenetData(visibility=40, mode='bg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
     elif name == 'dsprites_imagenet_bg_20':  data = DSpritesImagenetData(visibility=20, mode='bg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    #
+    elif name == 'dsprites_imagenet_bg_75':  data = DSpritesImagenetData(visibility=75, mode='bg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_bg_50':  data = DSpritesImagenetData(visibility=50, mode='bg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_bg_25':  data = DSpritesImagenetData(visibility=25, mode='bg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
     # --- #
     elif name == 'dsprites_imagenet_fg_100': data = DSpritesImagenetData(visibility=100, mode='fg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
     elif name == 'dsprites_imagenet_fg_80':  data = DSpritesImagenetData(visibility=80, mode='fg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
     elif name == 'dsprites_imagenet_fg_60':  data = DSpritesImagenetData(visibility=60, mode='fg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
     elif name == 'dsprites_imagenet_fg_40':  data = DSpritesImagenetData(visibility=40, mode='fg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
     elif name == 'dsprites_imagenet_fg_20':  data = DSpritesImagenetData(visibility=20, mode='fg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    #
+    elif name == 'dsprites_imagenet_fg_75':  data = DSpritesImagenetData(visibility=75, mode='fg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_fg_50':  data = DSpritesImagenetData(visibility=50, mode='fg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_fg_25':  data = DSpritesImagenetData(visibility=25, mode='fg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
     # DONE
     else: raise KeyError(f'invalid data name: {repr(name)}')
     # load into memory

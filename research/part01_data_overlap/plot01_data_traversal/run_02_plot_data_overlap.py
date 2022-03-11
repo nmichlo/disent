@@ -34,6 +34,8 @@ from disent.dataset.data import DSpritesData
 from disent.dataset.data import GroundTruthData
 from disent.dataset.data import Shapes3dData
 from disent.dataset.data import SmallNorb64Data
+from disent.dataset.data import XYObjectData
+from disent.dataset.data import XYObjectShadedData
 from research.code.dataset.data import XYSquaresData
 from disent.util.function import wrapped_partial
 from disent.util.seeds import TempNumpySeed
@@ -166,10 +168,12 @@ if __name__ == '__main__':
         plot_dataset_overlap(gt_data_cls(), rel_path=f'plots/overlap__{name}', obs_max=3, obs_spacing=4, seed=seed-40)
 
     for gt_data_cls, name in [
-        (DSpritesData,    f'dsprites'),
-        (Shapes3dData,    f'shapes3d'),
-        (Cars3d64Data,    f'cars3d'),
-        (SmallNorb64Data, f'smallnorb'),
+        (XYObjectData,       f'xyobject'),
+        (XYObjectShadedData, f'xyobject_shaded'),
+        (DSpritesData,       f'dsprites'),
+        (Shapes3dData,       f'shapes3d'),
+        (Cars3d64Data,       f'cars3d'),
+        (SmallNorb64Data,    f'smallnorb'),
     ]:
         gt_data = gt_data_cls()
         for f_idx, f_name in enumerate(gt_data.factor_names):

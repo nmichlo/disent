@@ -42,6 +42,7 @@ from disent.dataset.transform import ToImgTensorF32
 from disent.dataset.util.datafile import DataFileHashedDlGen
 from disent.dataset.util.hdf5 import H5Builder
 from disent.dataset.util.stats import compute_data_mean_std
+from disent.util.function import wrapped_partial
 from disent.util.inout.files import AtomicSaveFile
 from disent.util.iters import LengthIter
 from disent.util.math.random import random_choice_prng
@@ -219,36 +220,69 @@ class DSpritesImagenetData(GroundTruthData):
 
 
 """
-dsprites_fg_1.0
+dsprites_fg_100
     vis_mean: [0.02067051643494642, 0.018688392816012946, 0.01632900510079384]
     vis_std: [0.10271307751834059, 0.09390213983525653, 0.08377594259970281]
-dsprites_fg_0.8
+dsprites_fg_80
     vis_mean: [0.024956427531012196, 0.02336780403840578, 0.021475119672280243]
     vis_std: [0.11864125016313823, 0.11137998105649799, 0.10281424917834255]
-dsprites_fg_0.6
+dsprites_fg_60
     vis_mean: [0.029335176871153983, 0.028145355435322966, 0.026731731769287146]
     vis_std: [0.13663242436043319, 0.13114320478634894, 0.1246542727733097]
-dsprites_fg_0.4
+dsprites_fg_40
     vis_mean: [0.03369999506331255, 0.03290657349801835, 0.03196482946320608]
     vis_std: [0.155514074438101, 0.1518464537731621, 0.14750944591836743]
-dsprites_fg_0.2
+dsprites_fg_20
     vis_mean: [0.038064750024334834, 0.03766780505193579, 0.03719798677641122]
-    vis_std: [0.17498878664096565, 0.17315570657628318, 0.1709923319496426]
-dsprites_bg_1.0
+    vis_std: [0.17498878664096565, 0.17315570657628315, 0.1709923319496426]
+
+dsprites_bg_100
     vis_mean: [0.5020433619489952, 0.47206398913310593, 0.42380018909780404]
-    vis_std: [0.2505510666843685, 0.25007259803668697, 0.2562415603123114]
-dsprites_bg_0.8
+    vis_std: [0.2505510666843685, 0.2500725980366869, 0.2562415603123114]
+dsprites_bg_80
     vis_mean: [0.40867981393820857, 0.38468564002021527, 0.34611573047508204]
-    vis_std: [0.22048328737091344, 0.22102216869942384, 0.22692977053753477]
-dsprites_bg_0.6
+    vis_std: [0.22048328737091344, 0.22102216869942384, 0.22692977053753483]
+dsprites_bg_60
     vis_mean: [0.31676960943447674, 0.29877166834408025, 0.2698556821388113]
-    vis_std: [0.19745897110349003, 0.1986606891520453, 0.203808842880044]
-dsprites_bg_0.4
+    vis_std: [0.19745897110349, 0.1986606891520453, 0.203808842880044]
+dsprites_bg_40
     vis_mean: [0.2248598986983768, 0.21285772298967615, 0.19359577132944206]
     vis_std: [0.1841631708032332, 0.18554895825833284, 0.1893568926398198]
-dsprites_bg_0.2
+dsprites_bg_20
     vis_mean: [0.13294969414492142, 0.12694375140936273, 0.11733572285575933]
     vis_std: [0.18311250427586276, 0.1840916474752131, 0.18607373519458442]
+
+dsprites_fg_75
+    vis_mean: [0.02606445677382044, 0.024577082627819637, 0.02280587082174753]
+    vis_std: [0.12307153238282868, 0.11624914830767437, 0.1081911967745551]
+dsprites_fg_50
+    vis_mean: [0.031541090790578506, 0.030549541980176148, 0.029368756624861398]
+    vis_std: [0.14609029304575144, 0.14150919987547408, 0.13607872227034773]
+dsprites_fg_25
+    vis_mean: [0.03697718115834816, 0.03648095993826591, 0.03589183623762013]
+    vis_std: [0.17009317531572005, 0.16780075430655303, 0.16508779008691726]
+dsprites_fg_0
+    vis_mean: [0.042494423521889584, 0.042494423521889584, 0.042494423521889584]
+    vis_std: [0.1951664588062605, 0.1951664588062605, 0.1951664588062605]
+dsprites
+    vis_mean: [0.042494423521889584]
+    vis_std: [0.1951664588062605]
+
+dsprites_bg_75
+    vis_mean: [0.38577296742807327, 0.3632825822323436, 0.3271231888851156]
+    vis_std: [0.21392191050784257, 0.2146731716558466, 0.2204460568339597]
+dsprites_bg_50
+    vis_mean: [0.271323621109491, 0.25634066038331416, 0.23223046934400662]
+    vis_std: [0.18930391112143766, 0.19067969524425118, 0.19523218572886117]
+dsprites_bg_25
+    vis_mean: [0.15596283852200074, 0.14847876264131535, 0.13644703866118635]
+    vis_std: [0.18208653250875798, 0.18323109038468802, 0.18569624396763393]
+dsprites_bg_0
+    vis_mean: [0.042494423521889584, 0.042494423521889584, 0.042494423521889584]
+    vis_std: [0.1951664588062605, 0.1951664588062605, 0.1951664588062605]
+dsprites
+    vis_mean: [0.042494423521889584]
+    vis_std: [0.1951664588062605]
 """
 
 
@@ -259,25 +293,36 @@ if __name__ == '__main__':
     def compute_all_stats():
         from disent.util.visualize.plot import plt_subplots_imshow
 
-        def compute_stats(visibility, mode):
+        def compute_stats(visibility: Optional[int], mode: Optional[str]):
             import psutil
+            # get class
+            is_imgnet = (visibility is not None) and (mode is not None)
+            data_cls = wrapped_partial(DSpritesImagenetData, visibility=visibility, mode=mode) if is_imgnet else DSpritesData
+            data_title = f'{DSpritesImagenetData.name} visibility={repr(visibility)} mode={repr(mode)}' if is_imgnet else f'{DSpritesData.name}'
+            data_name = f'dsprites_{mode}_{visibility}' if is_imgnet else f'dsprites'
             # plot images
-            data = DSpritesImagenetData(prepare=True, visibility=visibility, mode=mode)
+            data = data_cls(prepare=True)
             grid = np.array([data[i*24733] for i in np.arange(16)]).reshape([4, 4, *data.img_shape])
-            plt_subplots_imshow(grid, show=True, title=f'{DSpritesImagenetData.name} visibility={repr(visibility)} mode={repr(mode)}')
+            plt_subplots_imshow(grid, show=True, title=data_title)
             # compute stats
-            name = f'dsprites_{mode}_{visibility}'
-            data = DSpritesImagenetData(prepare=True, visibility=visibility, mode=mode, transform=ToImgTensorF32())
+            data = data_cls(prepare=True, transform=ToImgTensorF32())
             mean, std = compute_data_mean_std(data, batch_size=256, num_workers=min(psutil.cpu_count(logical=False), 64), progress=True)
-            print(f'{name}\n    vis_mean: {mean.tolist()}\n    vis_std: {std.tolist()}')
+            print(f'{data_name}\n    vis_mean: {mean.tolist()}\n    vis_std: {std.tolist()}')
             # return stats
-            return name, mean, std
+            return data_name, mean, std
 
         # compute common stats
         stats = []
         for mode in ['fg', 'bg']:
-            for vis in [100, 80, 60, 40, 20]:
+            for vis in [
+                100,
+                80, 60, 40, 20,
+                75, 50, 25,
+                0,
+            ]:
                 stats.append(compute_stats(vis, mode))
+            # 0 above should be the same as this:
+            stats.append(compute_stats(None, None))
 
         # print once at end
         for name, mean, std in stats:
