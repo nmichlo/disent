@@ -481,7 +481,7 @@ def print_ave_factor_stats(gt_data: GroundTruthData, f_idxs=None, min_samples: i
 
 def main_compute_dists(factor_samples: int = 50_000, min_repeats: int = 5000, random_samples: int = 50_000, recon_loss: str = 'mse', sample_mode: str = 'random', seed: int = 777):
     # plot standard datasets
-    for name in ['dsprites', 'shapes3d', 'cars3d', 'smallnorb', 'xysquares_8x8_s8']:
+    for name in ['dsprites', 'shapes3d', 'cars3d', 'smallnorb', 'xysquares_8x8_s8', 'xyobject', 'xyobject_shaded']:
         gt_data = H.make_data(name)
         if factor_samples is not None:
             with TempNumpySeed(seed):
@@ -525,6 +525,18 @@ def main_compute_dists(factor_samples: int = 50_000, min_repeats: int = 5000, ra
 # [xy_squares] x_R (8, 50000) - mean:  0.0104  std:  0.0000
 # [xy_squares] RANDOM (262144, 50000) - mean:  0.0308  std:  0.0022
 
+# [xy_object] y (25, 50000) - mean:  0.0116  std:  0.0139
+# [xy_object] x (25, 50000) - mean:  0.0115  std:  0.0140
+# [xy_object] color (24, 50000) - mean:  0.0088  std:  0.0084
+# [xy_object] scale (5, 50000) - mean:  0.0051  std:  0.0056
+# [xy_object] RANDOM (75000, 50000) - mean:  0.0145  std:  0.0111
+
+# [xy_object] y (25, 50000) - mean:  0.0124  std:  0.0140
+# [xy_object] x (25, 50000) - mean:  0.0122  std:  0.0144
+# [xy_object] color (6, 50000) - mean:  0.0090  std:  0.0101
+# [xy_object] scale (5, 50000) - mean:  0.0050  std:  0.0055
+# [xy_object] intensity (4, 50000) - mean:  0.0033  std:  0.0039
+# [xy_object] RANDOM (75000, 50000) - mean:  0.0145  std:  0.0111
 
 
 def _grid_plot_save(path: str, imgs: Sequence[np.ndarray], show: bool = True):
@@ -569,7 +581,7 @@ def main_plotting(plot_all=False, print_mean_std=False):
     _grid_plot_save(path=sp(f'xysquares_8x8_some'), imgs=[imageio.imread(sp(f'xysquares_8x8_s{s}'))[:, 2:-2, :3] for s in [1, 2, 4, 8]])
 
     # plot standard datasets
-    for name in ['dsprites', 'shapes3d', 'cars3d', 'smallnorb']:
+    for name in ['dsprites', 'shapes3d', 'cars3d', 'smallnorb', 'xyobject', 'xyobject_shaded']:
         plot_traversal_stats(circular_distance=CIRCULAR, x_size_offset=0, y_size_offset=0.6, num_repeats=256, disable_labels=False, save_path=sp(name), color='blue', dataset_or_name=name, plot_freq=PLOT_FREQ)
         _print_data_mean_std(name, print_mean_std)
 
@@ -617,7 +629,7 @@ if __name__ == '__main__':
     # matplotlib style
     plt.style.use(os.path.join(os.path.dirname(__file__), '../../code/util/gadfly.mplstyle'))
     # run!
-    # main_plotting()
+    main_plotting()
     main_compute_dists()
 
 
