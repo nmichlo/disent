@@ -256,7 +256,8 @@ def plot_e03_different_gt_representations(
     }
 
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
-    fig, axs = plt.subplots(1, len(metrics), figsize=(len(metrics)*3, 3.33))
+    fig, axs = plt.subplots(2, len(metrics) // 2, figsize=(len(metrics)//2*3.75, 2*2.7))
+    axs = axs.flatten()
     # PLOT
     for i, (key, ax) in enumerate(zip(metrics, axs)):
         assert key in df.columns, f'{repr(key)} not in {sorted(df.columns)}'

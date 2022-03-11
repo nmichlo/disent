@@ -40,6 +40,8 @@ from disent.dataset import DisentDataset
 from disent.dataset.data import Cars3d64Data
 from disent.dataset.data import DSpritesData
 from disent.dataset.data import Shapes3dData
+from disent.dataset.data import XYObjectData
+from disent.dataset.data import XYObjectShadedData
 from research.code.dataset.data import XYSquaresData
 from disent.dataset.transform import ToImgTensorF32
 from disent.util import to_numpy
@@ -382,7 +384,8 @@ if __name__ == '__main__':
     dfs = plot_all(
         exp_name='dataset-overlap',
         gt_data_classes={
-          # 'XYObject':  wrapped_partial(XYObjectData),
+          'XYObject':        wrapped_partial(XYObjectData),
+          'XYObjectShaded':  wrapped_partial(XYObjectShadedData),
           # 'XYBlocks':  wrapped_partial(XYBlocksData),
             'XYSquares': wrapped_partial(XYSquaresData),
             'DSprites':  wrapped_partial(DSpritesData),
@@ -390,6 +393,18 @@ if __name__ == '__main__':
             'Cars3d':    wrapped_partial(Cars3d64Data),
           # 'SmallNorb': wrapped_partial(SmallNorb64Data),
           # 'Mpi3d':     wrapped_partial(Mpi3dData),
+        },
+        hide_extra_legends=False,
+        **SHARED_SETTINGS
+    )
+
+    # EXPERIMENT -- p03e03
+
+    dfs = plot_all(
+        exp_name='differing-gt-factors',
+        gt_data_classes={
+          'XYObject':        wrapped_partial(XYObjectData),
+          'XYObjectShaded':  wrapped_partial(XYObjectShadedData),
         },
         hide_extra_legends=False,
         **SHARED_SETTINGS
