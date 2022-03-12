@@ -24,13 +24,17 @@
 
 import logging
 import os
+from pprint import pprint
 from typing import Optional
 from typing import Sequence
+from typing import Tuple
 
+import numpy as np
 import pandas as pd
 import seaborn as sns
 from cachier import cachier as _cachier
 from matplotlib import pyplot as plt
+import matplotlib.lines as mlines
 
 import research.code.util as H
 from disent.util.function import wrapped_partial
@@ -280,6 +284,102 @@ def plot_e03_different_gt_representations(
 
     return fig, axs
 
+# ========================================================================= #
+# Experiment 3                                                              #
+# ========================================================================= #
+
+
+def plot_e04_random_external_factors(
+    rel_path: Optional[str] = None,
+    save: bool = True,
+    show: bool = True,
+    mode: str = 'fg',
+    # color_entangled_data: str = LGREEN,
+    # color_disentangled_data: str = LBLUE2,
+    # metrics: Sequence[str] = (K_MIG, K_DCI, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE),
+    reg_order: int = 1,
+    color_betavae: str = PINK,
+    color_adavae: str = ORANGE,
+    titles: bool = False,
+    figsize: Tuple[float, float] = (10, 5),
+    include: Tuple[str] = ('mig', 'dci'),
+):
+    K_IM_VIS = 'dataset/data/visibility'
+    K_IM_MODE = 'dataset/data/mode'
+
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    df = load_general_data(f'{os.environ["WANDB_USER"]}/MSC-p03e04_random-external-factors', keep_cols=(K_GROUP, K_Z_SIZE))
+    # select run groups
+    # df = df[df[K_IM_MODE].isin([mode])]
+    df = df.sort_values([K_DATASET, K_FRAMEWORK, K_IM_MODE, K_IM_VIS])
+    df = df[df[K_FRAMEWORK].isin(['adavae_os', 'betavae'])]
+    df = df[df[K_DATASET].isin(['dsprites', f'dsprites_imagenet_{mode}_25', f'dsprites_imagenet_{mode}_50', f'dsprites_imagenet_{mode}_75', f'dsprites_imagenet_{mode}_100'])]
+    # rename more stuff
+    df = rename_entries(df)
+    # print common key values
+    print('K_GROUP:    ', list(df[K_GROUP].unique()))
+    print('K_DATASET:  ', list(df[K_DATASET].unique()))
+    print('K_FRAMEWORK:', list(df[K_FRAMEWORK].unique()))
+    print('K_BETA:     ', list(df[K_BETA].unique()))
+    print('K_Z_SIZE:   ', list(df[K_Z_SIZE].unique()))
+    print('K_REPEAT:   ', list(df[K_REPEAT].unique()))
+    print('K_STATE:    ', list(df[K_STATE].unique()))
+    print('K_IM_VIS:   ', list(df[K_IM_VIS].unique()))
+    print('K_IM_MODE:  ', list(df[K_IM_MODE].unique()))
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+
+    # df = df[df[K_STATE].isin(['finished', 'running'])]
+
+    # replace unset values
+    df.loc[df[K_DATASET] == 'dsprites', K_IM_VIS] = 0
+    df.loc[df[K_DATASET] == 'dsprites', K_IM_MODE] = mode
+
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    orig = df
+    # select runs
+    # select adavae
+    data_adavae = df[(df[K_FRAMEWORK] == 'adavae_os')]
+    data_betavae = df[(df[K_FRAMEWORK] == 'betavae')]
+    print('ADAGVAE', len(orig), '->', len(data_adavae))
+    print('BETAVAE', len(orig), '->', len(data_betavae))
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+
+    print(data_adavae[K_MIG])
+    print(data_adavae[K_IM_VIS])
+
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    fig, axs = plt.subplots(1, len(include), figsize=figsize, squeeze=False)
+    axs = axs.reshape(-1)
+    # Legend entries
+    # marker_ada  = mlines.Line2D([], [], color=color_adavae,  marker='o', markersize=12, label='Ada-GVAE')
+    # marker_beta = mlines.Line2D([], [], color=color_betavae, marker='X', markersize=12, label='Beta-VAE')  # why does 'x' not work? only 'X'?
+    # PLOT: MIG
+    if 'mig' in include:
+        # sns.scatterplot(ax=axs[0], x=K_IM_VIS, y=K_MIG, data=data_adavae,  color=color_adavae,  marker='o')
+        # sns.scatterplot(ax=axs[0], x=K_IM_VIS, y=K_MIG, data=data_betavae, color=color_betavae, marker='x')
+        sns.regplot(ax=axs[0], x=K_IM_VIS, y=K_MIG, data=data_adavae,  seed=777, order=reg_order, robust=False, color=color_adavae,  marker='o')
+        sns.regplot(ax=axs[0], x=K_IM_VIS, y=K_MIG, data=data_betavae, seed=777, order=reg_order, robust=False, color=color_betavae, marker='x', line_kws=dict(linestyle='dashed'))
+        # axs[0].legend(handles=[marker_beta, marker_ada], fontsize=14)
+        axs[0].set_ylim([-0.1, 1.1])
+        axs[0].set_xlim([-5, 105])
+        if titles: axs[0].set_title('Framework Mig Scores')
+
+    # PLOT: DCI
+    if 'dci' in include:
+        # sns.scatterplot(ax=axs[-1], x=K_IM_VIS, y=K_MIG, data=data_adavae,  color=color_adavae,  marker='o')
+        # sns.scatterplot(ax=axs[-1], x=K_IM_VIS, y=K_MIG, data=data_betavae, color=color_betavae, marker='x')
+        sns.regplot(ax=axs[-1], x=K_IM_VIS, y=K_DCI, data=data_adavae,  seed=777, order=reg_order, robust=False, color=color_adavae,  marker='o')
+        sns.regplot(ax=axs[-1], x=K_IM_VIS, y=K_DCI, data=data_betavae, seed=777, order=reg_order, robust=False, color=color_betavae, marker='x', line_kws=dict(linestyle='dashed'))
+        # axs[-1].legend(handles=[marker_beta, marker_ada], fontsize=14)
+        axs[-1].set_ylim([-0.1, 1.1])
+        axs[-1].set_xlim([-5, 105])
+        if titles: axs[-1].set_title('Framework DCI Scores')
+    # PLOT:
+    fig.tight_layout()
+    H.plt_rel_path_savefig(rel_path, save=save, show=show)
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+
+    return fig, axs
 
 # ========================================================================= #
 # Entrypoint                                                                #
@@ -300,6 +400,9 @@ if __name__ == '__main__':
 
     def main():
         plot_e03_different_gt_representations(rel_path='plots/p03e03_different-gt-representations', show=True)
+
+        plot_e04_random_external_factors(rel_path='plots/p03e04_random-external-factors__fg', mode='fg', show=True)
+        plot_e04_random_external_factors(rel_path='plots/p03e04_random-external-factors__bg', mode='bg', show=True)
 
     main()
 
