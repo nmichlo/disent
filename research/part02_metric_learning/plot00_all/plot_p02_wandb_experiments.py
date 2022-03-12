@@ -570,7 +570,9 @@ def plot_e02_axis_triplet_schedule_recon_loss(
     vals_schedules: Optional[Sequence[str]] = ('adanegtvae_up_all', 'adanegtvae_up_ratio', 'adanegtvae_up_thresh',),  # ('adanegtvae_up_all', 'adanegtvae_up_all_full', 'adanegtvae_up_ratio', 'adanegtvae_up_ratio_full', 'adanegtvae_up_thresh')
     vals_detach: Sequence[bool] = (True, False),
     vals_triplet_scale: Sequence[int] = (1.0, 10.0),
-    vals_triplet_mode: Sequence[str] = ('triplet', 'triplet_soft'),
+    # vals_triplet_mode: Sequence[str] = ('triplet_soft',),]
+    color_triplet_soft: str = BLUE,
+    color_triplet_hard: str = PURPLE,
 ):
     all_schedules = ('adanegtvae_up_all', 'adanegtvae_up_all_full', 'adanegtvae_up_ratio', 'adanegtvae_up_ratio_full', 'adanegtvae_up_thresh')
     if not vals_schedules:
@@ -595,7 +597,7 @@ def plot_e02_axis_triplet_schedule_recon_loss(
     df = df[df[K_SCHEDULE].isin(vals_schedules)]
     df = df[df[K_TRIPLET_SCALE].isin(vals_triplet_scale)]
     df = df[df[K_DETACH].isin(vals_detach)]
-    df = df[df[K_TRIPLET_MODE].isin(vals_triplet_mode)]
+    # df = df[df[K_TRIPLET_MODE].isin(vals_triplet_mode)]
     # sort everything
     df = df.sort_values([K_FRAMEWORK, K_DATASET, K_SCHEDULE, K_TRIPLET_SCALE, K_TRIPLET_MODE, K_DETACH])
     # print common key values
@@ -623,22 +625,25 @@ def plot_e02_axis_triplet_schedule_recon_loss(
     metric_key = 'recon_loss.min'
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
-    all_schedules = [
-        ('adanegtvae_up_all',        'Schedule: Both (weak)'),
-        ('adanegtvae_up_all_full',   'Schedule: Both (strong)'),
-        ('adanegtvae_up_ratio',      'Schedule: Weight (weak)'),
-        ('adanegtvae_up_ratio_full', 'Schedule: Weight (strong)'),
-        ('adanegtvae_up_thresh',     'Schedule: Threshold'),
-        # ('dist', 'dist'),
-        # ('symmetric_kl', 'symmetric_kl'),
+    replace = [
+        ('Schedule: Both (weak)',     'Schedule:\nBoth (weak)'),
+        ('Schedule: Both (strong)',   'Schedule:\nBoth (strong)'),
+        ('Schedule: Weight (weak)',   'Schedule:\nWeight (weak)'),
+        ('Schedule: Weight (strong)', 'Schedule:\nWeight (strong)'),
+        ('Schedule: Threshold',       'Schedule:\nThreshold'),
     ]
-    colors = [PINK, ORANGE, BLUE, LBLUE, PURPLE]
-    PALLETTE = dict(zip((i[1] for i in all_schedules), colors))
+    for k, v in replace:
+        df[K_SCHEDULE].replace(k, v, inplace=True)
+
+    PALLETTE = {
+        'Triplet Loss (Soft Margin)': color_triplet_soft,
+        'Triplet Loss (Hard Margin)': color_triplet_hard,
+    }
 
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
     dataset_vals = df[K_DATASET].unique()
 
-    fig, axs = plt.subplots(1, len(dataset_vals), figsize=(len(dataset_vals)*3.33, 3.33), squeeze=False)
+    fig, axs = plt.subplots(1, len(dataset_vals), figsize=(len(dataset_vals)*3.5, 3.33), squeeze=False)
     axs = axs.reshape(-1)
 
     # PLOT: MIG
@@ -646,14 +651,20 @@ def plot_e02_axis_triplet_schedule_recon_loss(
         # filter items
         df_filtered = df[df[K_DATASET] == dataset_val]
         # plot everything
-        sns.violinplot(data=df_filtered, ax=ax, x=K_SCHEDULE, y=metric_key, hue=K_SCHEDULE, palette=PALLETTE, split=True, cut=0, width=0.75, scale='width', inner='quartile')
+        sns.violinplot(data=df_filtered, ax=ax, x=K_SCHEDULE, y=metric_key, hue=K_TRIPLET_MODE, palette=PALLETTE, split=True, cut=0, width=0.75, scale='width', inner='quartile')
         ax.set_ylim([0, None])
         if i == 0:
-            ax.legend(bbox_to_anchor=(0, 0), fontsize=12, loc='lower left', labelspacing=0.1)
+            if ax.get_legend():
+                ax.get_legend().remove()
             ax.set_xlabel(None)
             ax.set_ylabel('Minimum Recon. Loss')
+        elif i == len(axs) - 1:
+            ax.legend(bbox_to_anchor=(0, 0.1), fontsize=11.5, loc='lower left', labelspacing=0.1)
+            ax.set_xlabel(None)
+            ax.set_ylabel(None)
         else:
-            ax.get_legend().remove()
+            if ax.get_legend():
+                ax.get_legend().remove()
             ax.set_xlabel(None)
             ax.set_ylabel(None)
         ax.set_title(dataset_val)
@@ -664,8 +675,6 @@ def plot_e02_axis_triplet_schedule_recon_loss(
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
     return fig, axs
-
-
 
 
 # ========================================================================= #
@@ -923,8 +932,9 @@ if __name__ == '__main__':
 
         # plot_e02_axis_triplet_kl_vs_dist(rel_path='plots/p02e02_axis__soft-triplet__kl-vs-dist', show=True, title=False)
         # plot_e02_axis_triplet_schedules(rel_path='plots/p02e02_axis__soft-triplet__dist',   show=True, adaptive_modes=('dist',), title=False)
-        plot_e02_axis_triplet_schedule_recon_loss(rel_path='plots/p02e01_normal-l1-triplet_recon-loss_detached', vals_detach=(True,), show=True)
-        plot_e02_axis_triplet_schedule_recon_loss(rel_path='plots/p02e01_normal-l1-triplet_recon-loss_attached', vals_detach=(False,), show=True)
+
+        plot_e02_axis_triplet_schedule_recon_loss(rel_path='plots/p02e02_ada-triplet_recon-loss_detached', vals_detach=(True,), show=True)
+        plot_e02_axis_triplet_schedule_recon_loss(rel_path='plots/p02e02_ada-triplet_recon-loss_attached', vals_detach=(False,), show=True)
 
     main()
 

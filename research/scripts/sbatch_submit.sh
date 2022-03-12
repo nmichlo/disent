@@ -74,5 +74,5 @@ sbatch \
   --job-name=bdisent \
   --array="1-$NUM_LINES%$PARALLELISM" \
   --time=24:00:00 \
-  --exclude="mscluster92,mscluster94" \
+  --exclude="mscluster92,mscluster94,mscluster96" \
   "$SCRIPT_DIR/sbatch_job.sh"
