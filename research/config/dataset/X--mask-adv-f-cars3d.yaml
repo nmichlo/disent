@@ -18,8 +18,8 @@ data:
 
 transform:
   _target_: disent.dataset.transform.ToImgTensorF32
-  mean: ${data.meta.vis_mean}
-  std: ${data.meta.vis_std}
+  mean: ${dataset.meta.vis_mean}
+  std: ${dataset.meta.vis_std}
 
 meta:
   x_shape: [3, 64, 64]

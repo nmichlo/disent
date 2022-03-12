@@ -53,4 +53,4 @@ ARGS_FILE="$ARGS_FILE" gen_sbatch_args_file \
 
 clog_cudaless_nodes "$PARTITION" 43200 "C-disent" # 12 hours
 
-submit_sbatch_args_file
+ARGS_FILE="$ARGS_FILE" submit_sbatch_args_file

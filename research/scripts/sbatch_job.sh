@@ -27,7 +27,7 @@ _run_dir="$_run_pwd/$SLURM_ARRAY_JOB_ID/${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK
 # set the working directory
 mkdir -p "$_run_dir"
 cd "$_run_dir" || exit 1
-echo "- set working directory: $(pwd)"
+echo " - set working directory: $(pwd)"
 echo
 
 # ========================================================================= #
