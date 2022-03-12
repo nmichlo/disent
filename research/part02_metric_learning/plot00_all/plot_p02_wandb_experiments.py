@@ -904,6 +904,114 @@ def plot_e01_normal_triplet_recon_loss(
     return fig, axs
 
 
+
+# ========================================================================= #
+# EXPERIMENT 03 -- unsupervised triplet!                                    #
+# ========================================================================= #
+
+
+def plot_e03_unsupervised_triplet_scores(
+    rel_path: Optional[str] = None,
+    save: bool = True,
+    show: bool = True,
+    grid_size_v: float = 1.4,
+    grid_size_h: float = 2.75,
+    metrics: Sequence[str] = (K_MIG, K_DCI, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE),
+):
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    df: pd.DataFrame = load_general_data(f'{os.environ["WANDB_USER"]}/MSC-p02e03_unsupervised-axis-triplet', include_history=False)
+
+    # SWEEP STANDARD DATASETS
+    #     - framework.cfg.overlap_num=512,1024 \
+    #     - dataset=cars3d,smallnorb,shapes3d,dsprites \
+    #     X settings.framework.recon_loss=mse \
+    #     - framework.cfg.overlap_mine_ratio=0.1,0.2 \
+    #     - framework.cfg.overlap_mine_triplet_mode=none,hard_neg,semi_hard_neg,hard_pos,easy_pos \
+    # SWEEP XYSQUARES DATASET
+    #     - framework.cfg.overlap_num=512,1024 \
+    #     - dataset=X--xysquares \
+    #     X settings.framework.recon_loss='mse_box_r31_l1.0_k3969.0' \
+    #     - framework.cfg.overlap_mine_ratio=0.1,0.2 \
+    #     - framework.cfg.overlap_mine_triplet_mode=none,hard_neg,semi_hard_neg,hard_pos,easy_pos \
+
+    # select run groups
+    df = df[df[K_GROUP].isin(['sweep_dotvae_hard_params_longmed', 'sweep_dotvae_hard_params_longmed_xy'])]
+
+    K_MINE_NUM   = 'framework/cfg/overlap_num'
+    K_MINE_RATIO = 'framework/cfg/overlap_mine_ratio'
+    K_MINE_MODE  = 'framework/cfg/overlap_mine_triplet_mode'
+
+    # sort everything
+    df = df.sort_values([K_DATASET, K_MINE_MODE, K_MINE_RATIO, K_MINE_NUM])
+    # print common key values
+    with Timer('values'):
+        print('K_GROUP:          ', list(df[K_GROUP].unique()))
+        print('K_STATE:          ', list(df[K_STATE].unique()))
+        print('K_DATASET:        ', list(df[K_DATASET].unique()))
+        print('K_SAMPLER:        ', list(df[K_SAMPLER].unique()))
+        print('K_TRIPLET_MODE:   ', list(df[K_TRIPLET_MODE].unique()))
+        print('K_TRIPLET_P:      ', list(df[K_TRIPLET_P].unique()))
+        print('K_TRIPLET_SCALE:  ', list(df[K_TRIPLET_SCALE].unique()))
+        print('K_TRIPLET_MARGIN: ', list(df[K_TRIPLET_MARGIN].unique()))
+        print('K_DETACH:         ', list(df[K_DETACH].unique()))
+    # number of runs
+    print(f'total={len(df)}')
+    df = rename_entries(df)
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # axis keys
+    col_x = K_DATASET
+    col_bars = K_MINE_MODE
+    # get rows and columns
+    all_bars = list(df[col_bars].unique())
+    all_x = list(df[col_x].unique())
+    all_y = metrics
+    # num rows and cols
+    num_bars = len(all_bars)
+    num_x = len(all_x)
+    num_y = len(all_y)
+    # palettes
+    colors = [PINK, ORANGE, BLUE, '#889299', LBLUE]
+    # hatches = [None, '..']
+    # idxs = [all_schedules.index(v) for v in vals_schedules]
+    # colors = [colors[i] for i in idxs]
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # make plot
+    fig, axs = plt.subplots(num_y, num_x, figsize=(grid_size_h * num_x, num_y * grid_size_v))
+    # fill plot
+    for y, key_y in enumerate(all_y):  # metric
+        for x, key_x in enumerate(all_x):  # schedule
+            ax = axs[y, x]
+            # filter items
+            df_filtered = df[(df[col_x] == key_x)]
+            # plot!
+            sns.barplot(ax=ax, x=col_bars, y=key_y, data=df_filtered)
+            ax.set(ylim=(0, 1), xlim=(-0.5, num_bars - 0.5))
+            # set colors
+            for i, (bar, color) in enumerate(zip(ax.patches, itertools.cycle(colors))):
+                bar.set_facecolor(color)
+                bar.set_edgecolor('white')
+                bar.set_linewidth(2)
+            # remove labels
+            if ax.get_legend():
+                ax.get_legend().remove()
+            if y == 0:
+                ax.set_title(key_x)
+            # if y < num_y-1:
+            ax.set_xlabel(None)
+            ax.set_xticklabels([])
+            if x > 0:
+                ax.set_ylabel(None)
+                ax.set_yticklabels([])
+    # add the legend to the top right plot
+    handles_a = [mpl.patches.Patch(label=label, color=color) for label, color in zip(all_bars, colors)]
+    fig.legend(handles=handles_a, fontsize=12, bbox_to_anchor=(0.986, 0.03), loc='lower right', ncol=2, labelspacing=0.1)
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # plot!
+    fig.tight_layout()
+    H.plt_rel_path_savefig(rel_path, save=save, show=show, dpi=150, ext='.png')
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+
+
 # ========================================================================= #
 # Entrypoint                                                                #
 # ========================================================================= #
@@ -922,19 +1030,22 @@ if __name__ == '__main__':
     # clear_plots_cache(clear_wandb=False, clear_processed=True)
 
     def main():
-        # plot_e00_beta_metric_correlation(rel_path='plots/p02e00_metrics_some', show=True, metrics=(K_MIG, K_RCORR_GT_F, K_RCORR_DATA_F))
-        # plot_e00_beta_metric_correlation(rel_path='plots/p02e00_metrics_all',  show=True, metrics=(K_MIG, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE))
-        # plot_e00_beta_metric_correlation(rel_path='plots/p02e00_metrics_alt',  show=True, metrics=(K_MIG, K_RCORR_GT_F, K_RCORR_DATA_F, K_LINE))
-        #
-        # plot_e01_normal_triplet(rel_path='plots/p02e01_normal-triplet', show=True)
-        # plot_e01_normal_triplet_recon_loss(rel_path='plots/p02e01_normal-l1-triplet_recon-loss_detached', vals_detach=(True,),  vals_p=(1,), show=True)
-        # plot_e01_normal_triplet_recon_loss(rel_path='plots/p02e01_normal-l1-triplet_recon-loss_attached', vals_detach=(False,), vals_p=(1,), show=True)
+        plot_e00_beta_metric_correlation(rel_path='plots/p02e00_metrics_some', show=True, metrics=(K_MIG, K_RCORR_GT_F, K_RCORR_DATA_F))
+        plot_e00_beta_metric_correlation(rel_path='plots/p02e00_metrics_all',  show=True, metrics=(K_MIG, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE))
+        plot_e00_beta_metric_correlation(rel_path='plots/p02e00_metrics_alt',  show=True, metrics=(K_MIG, K_RCORR_GT_F, K_RCORR_DATA_F, K_LINE))
 
-        # plot_e02_axis_triplet_kl_vs_dist(rel_path='plots/p02e02_axis__soft-triplet__kl-vs-dist', show=True, title=False)
-        # plot_e02_axis_triplet_schedules(rel_path='plots/p02e02_axis__soft-triplet__dist',   show=True, adaptive_modes=('dist',), title=False)
+        plot_e01_normal_triplet(rel_path='plots/p02e01_normal-triplet', show=True)
+        plot_e01_normal_triplet_recon_loss(rel_path='plots/p02e01_normal-l1-triplet_recon-loss_detached', vals_detach=(True,),  vals_p=(1,), show=True)
+        plot_e01_normal_triplet_recon_loss(rel_path='plots/p02e01_normal-l1-triplet_recon-loss_attached', vals_detach=(False,), vals_p=(1,), show=True)
+
+        plot_e02_axis_triplet_kl_vs_dist(rel_path='plots/p02e02_axis__soft-triplet__kl-vs-dist', show=True, title=False)
+        plot_e02_axis_triplet_schedules(rel_path='plots/p02e02_axis__soft-triplet__dist',   show=True, adaptive_modes=('dist',), title=False)
 
         plot_e02_axis_triplet_schedule_recon_loss(rel_path='plots/p02e02_ada-triplet_recon-loss_detached', vals_detach=(True,), show=True)
         plot_e02_axis_triplet_schedule_recon_loss(rel_path='plots/p02e02_ada-triplet_recon-loss_attached', vals_detach=(False,), show=True)
+
+        # TODO: these results are not great!
+        plot_e03_unsupervised_triplet_scores(rel_path='plots/p02e03_unsupervised-triplet')
 
     main()
 
