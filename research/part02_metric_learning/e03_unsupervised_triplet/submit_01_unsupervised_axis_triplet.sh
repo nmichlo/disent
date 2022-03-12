@@ -117,4 +117,4 @@ ARGS_FILE="$ARGS_FILE" APPEND_ARGS=1 ARGS_START_NUM=81 gen_sbatch_args_file \
 
 clog_cudaless_nodes "$PARTITION" 86400 "C-disent" # 24 hours
 
-submit_sbatch_args_file
+ARGS_FILE="$ARGS_FILE" submit_sbatch_args_file

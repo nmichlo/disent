@@ -31,14 +31,14 @@ if [ -z "$PY_RUN_FILE" ]; then PY_RUN_FILE='experiment/run.py'; fi
 SCRIPT_DIR="$(dirname -- "${BASH_SOURCE[0]}")"
 # get the root directory for `disent`
 ROOT_DIR="$(realpath -s "$SCRIPT_DIR/../..")"
-
-# cd into the root, exit on failure
+# cd into the root or exit on failure, then get relative paths
 cd "$ROOT_DIR" || exit 1
-echo "working directory is: $(pwd)"
-
 PY_RUN_FILE="$(realpath "$PY_RUN_FILE")"
+
+# update the user
+echo "working directory is: $(pwd)"
 echo "main script is: $PY_RUN_FILE"
-export PY_RUN_FILE
+echo
 
 # hydra search path and plugins todo: make this configurable?
 _SEARCH_PATH="${ROOT_DIR}/research/config"
@@ -80,7 +80,7 @@ function local_sweep() {
 function gen_sbatch_args_file() {
     # make sure we have a unique filename specified to store the args
     if [ -z "$ARGS_START_NUM" ]; then ARGS_START_NUM=1 ; fi
-    if [ -z "$ARGS_FILE" ]; then ARGS_FILE="$(realpath "array_$PROJECT.txt")" ; fi
+    if [ -z "$ARGS_FILE" ]; then echo "ARGS_FILE not specified!" ; exit 1 ; fi
     # make sure the args file is absolute
     case "$ARGS_FILE" in
       /*) true ;;
@@ -110,12 +110,17 @@ function gen_sbatch_args_file() {
 
 function submit_sbatch_args_file() {
     # make sure we have a unique filename specified to store the args
-    if [ -z "$ARGS_FILE" ]; then ARGS_FILE="$(realpath "array_$PROJECT.txt")" ; fi
+    if [ -z "$ARGS_FILE" ]; then echo "ARGS_FILE not specified!" ; exit 1 ; fi
     # make sure the args file is absolute
     case "$ARGS_FILE" in
       /*) true ;;
       *) echo "ARGS_FILE is not absolute, got: $ARGS_FILE" ; exit 1 ;;
     esac
+    # check
+    echo "[RUNNING]:"
+    echo " - submit script: '$SCRIPT_DIR/sbatch_submit.sh'"
+    echo " - ARGS_FILE='$ARGS_FILE'"
+    echo
     # submit everything
     ARGS_FILE="$ARGS_FILE" bash "$SCRIPT_DIR/sbatch_submit.sh"
 }
@@ -127,6 +132,7 @@ function submit_sbatch() {
 
 # export
 export ROOT_DIR
+export PY_RUN_FILE
 export submit_sweep
 export local_run
 

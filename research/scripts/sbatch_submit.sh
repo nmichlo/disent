@@ -59,12 +59,12 @@ echo "[LAUNCHING JOBS]:"
 # change the working directory, so that logs arent written randomly everywhere
 mkdir -p "$RUN_DIR"
 cd "$RUN_DIR" || exit 1
-echo "- working directory: $(pwd)"
+echo " - working directory: $(pwd)"
 
 # get number of lines in a file
 # - the file should end with a new line
 NUM_LINES=$(wc -l < "$ARGS_FILE")
-echo "- submitting $NUM_LINES jobs as an array"
+echo " - submitting $NUM_LINES jobs as an array"
 echo
 
 # submit an array that reads each line from the file
