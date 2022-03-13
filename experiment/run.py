@@ -26,6 +26,7 @@ import logging
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
 from typing import Callable
 from typing import Optional
 
@@ -436,6 +437,25 @@ def patch_hydra():
     # - ${abspath:<rel_path>} convert a relative path to an abs path using the original hydra working directory, not the changed experiment dir.
     if not OmegaConf.has_resolver('abspath'):
         OmegaConf.register_new_resolver('abspath', hydra.utils.to_absolute_path)
+
+    # registry copy directory function
+    # - useful if datasets are already prepared on a shared drive and need to be copied to a temp drive for example!
+    if not OmegaConf.has_resolver('rsync_dir'):
+        def rsync_dir(src: str, dst: str) -> str:
+            src, dst = Path(src), Path(dst)
+            # checks
+            assert src.name and src.is_absolute(), f'src path must be absolute and not the root: {repr(str(src))}'
+            assert dst.name and dst.is_absolute(), f'dst path must be absolute and not the root: {repr(str(dst))}'
+            assert src.name == dst.name, f'src and dst paths must point to dirs with the same names: src.name={repr(src.name)}, dst.name={repr(dst.name)}'
+            # synchronize dirs
+            logging.info(f'rsync files:\n- src={repr(str(src))}\n- dst={repr(str(dst))}')
+            # create the dir and copy files
+            dst.mkdir(parents=True, exist_ok=True)
+            os.system(f'rsync -avh "{src}" "{dst}"')
+            # return the destination dir
+            return str(dst)
+        # REGISTER
+        OmegaConf.register_new_resolver('rsync_dir', rsync_dir)
 
 
 # ========================================================================= #

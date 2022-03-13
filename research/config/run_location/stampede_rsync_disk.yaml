@@ -2,19 +2,23 @@
 
 dsettings:
   trainer:
-    cuda: FALSE  # The job will only use the CPU
+    cuda: NULL  # auto-detect cuda, some nodes are not configured correctly
   storage:
     logs_dir: 'logs'
-    data_root: '/tmp/${oc.env:USER}/datasets'
+    data_root: ${rsync_dir:'${oc.env:HOME}/downloads/datasets','/tmp/${oc.env:USER}/datasets'}
   dataset:
-    prepare: TRUE
-    try_in_memory: TRUE
+    prepare: FALSE
+    try_in_memory: FALSE
+  launcher:
+    partition: stampede
+    array_parallelism: 16
+    exclude: "mscluster92,mscluster94,mscluster96"
 
 datamodule:
   gpu_augment: FALSE
   prepare_data_per_node: TRUE
   dataloader:
-    num_workers: 8
+    num_workers: 16
     pin_memory: ${dsettings.trainer.cuda}  # uses more memory, but faster!
     batch_size: ${settings.dataset.batch_size}
 
