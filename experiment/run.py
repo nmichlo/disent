@@ -24,6 +24,7 @@
 
 import logging
 import os
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -449,9 +450,11 @@ def patch_hydra():
             assert src.name == dst.name, f'src and dst paths must point to dirs with the same names: src.name={repr(src.name)}, dst.name={repr(dst.name)}'
             # synchronize dirs
             logging.info(f'rsync files:\n- src={repr(str(src))}\n- dst={repr(str(dst))}')
-            # create the dir and copy files
-            dst.mkdir(parents=True, exist_ok=True)
-            os.system(f'rsync -avh "{src}" "{dst}"')
+            # create the parent dir and copy files into the parent
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            returncode = subprocess.Popen(['rsync', '-avh', str(src), str(dst.parent)]).wait()
+            if returncode != 0:
+                raise RuntimeError('Failed to rsync files!')
             # return the destination dir
             return str(dst)
         # REGISTER
