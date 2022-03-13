@@ -24,20 +24,15 @@
 
 import logging
 import os
-from pprint import pprint
 from typing import Optional
 from typing import Sequence
-from typing import Tuple
 
-import numpy as np
 import pandas as pd
 import seaborn as sns
-from cachier import cachier as _cachier
 from matplotlib import pyplot as plt
 import matplotlib.lines as mlines
 
 import research.code.util as H
-from disent.util.function import wrapped_partial
 from disent.util.profiling import Timer
 from research.code.util._wandb_plots import drop_non_unique_cols
 from research.code.util._wandb_plots import drop_unhashable_cols
@@ -49,16 +44,9 @@ from research.code.util._wandb_plots import load_runs
 # ========================================================================= #
 
 
-# cachier instance
-_CACHIER: _cachier = wrapped_partial(_cachier, cache_dir=os.path.join(os.path.dirname(__file__), 'plots/.cache'))
-
-
-def clear_plots_cache(clear_wandb=False, clear_processed=True):
+def clear_wandb_cache():
     from research.code.util._wandb_plots import clear_runs_cache
-    if clear_wandb:
-        clear_runs_cache()
-    if clear_processed:
-        load_general_data.clear_cache()
+    clear_runs_cache()
 
 
 # ========================================================================= #
@@ -80,8 +68,10 @@ K_SCHEDULE  = 'Schedule'
 K_SAMPLER   = 'Sampler'
 K_ADA_MODE  = 'Threshold Mode'
 
-K_MIG       = 'MIG Score'
-K_DCI       = 'DCI Score'
+K_MIG_END = 'MIG Score\n(End)'
+K_DCI_END = 'DCI Score\n(End)'
+K_MIG_MAX = 'MIG Score'
+K_DCI_MAX = 'DCI Score'
 K_LCORR_GT_F   = 'Linear Corr.\n(factors)'
 K_RCORR_GT_F   = 'Rank Corr.\n(factors)'
 K_LCORR_GT_G   = 'Global Linear Corr.\n(factors)'
@@ -99,7 +89,7 @@ K_TRIPLET_P      = 'Triplet P'       # framework.cfg.triplet_p
 K_DETACH         = 'Detached'        # framework.cfg.detach_decoder
 K_TRIPLET_MODE   = 'Triplet Mode'    # framework.cfg.triplet_loss
 
-@_CACHIER()
+
 def load_general_data(
     project: str,
     include_history: bool = False,
@@ -128,8 +118,10 @@ def load_general_data(
             'settings/model/z_size':                K_Z_SIZE,
             'DUMMY/repeat':                         K_REPEAT,
             'state':                                K_STATE,
-            'final_metric/mig.discrete_score.max':  K_MIG,
-            'final_metric/dci.disentanglement.max': K_DCI,
+            'final_metric/mig.discrete_score.max':  K_MIG_END,
+            'final_metric/dci.disentanglement.max': K_DCI_END,
+            'epoch_metric/mig.discrete_score.max':  K_MIG_MAX,
+            'epoch_metric/dci.disentanglement.max': K_DCI_MAX,
             # scores
             'epoch_metric/distances.lcorr_ground_latent.l1.factor.max': K_LCORR_GT_F,
             'epoch_metric/distances.rcorr_ground_latent.l1.factor.max': K_RCORR_GT_F,
@@ -211,7 +203,7 @@ def plot_e03_different_gt_representations(
     show: bool = True,
     color_entangled_data: str = LGREEN,
     color_disentangled_data: str = LBLUE2,
-    metrics: Sequence[str] = (K_MIG, K_DCI, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE),
+    metrics: Sequence[str] = (K_MIG_MAX, K_DCI_MAX, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE),
 ):
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
     df = load_general_data(f'{os.environ["WANDB_USER"]}/MSC-p03e03_different-gt-representations', keep_cols=(K_GROUP, K_Z_SIZE))
@@ -268,8 +260,8 @@ def plot_e03_different_gt_representations(
         sns.violinplot(data=df, ax=ax, x=K_FRAMEWORK, y=key, hue=K_DATASET, palette=PALLETTE, split=True, cut=0, width=0.75, scale='width', inner='quartile')
         ax.set_ylim([-0.1, 1.1])
         ax.set_ylim([0, None])
-        if i == 0:
-            ax.legend(bbox_to_anchor=(0, 1.0), fontsize=12, loc='upper left', labelspacing=0.1)
+        if i == len(axs)-1:
+            ax.legend(bbox_to_anchor=(0.05, 0.175), fontsize=12, loc='lower left', labelspacing=0.1)
             ax.set_xlabel(None)
             # ax.set_ylabel('Minimum Recon. Loss')
         else:
@@ -296,21 +288,22 @@ def plot_e04_random_external_factors(
     mode: str = 'fg',
     # color_entangled_data: str = LGREEN,
     # color_disentangled_data: str = LBLUE2,
-    # metrics: Sequence[str] = (K_MIG, K_DCI, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE),
     reg_order: int = 1,
     color_betavae: str = PINK,
     color_adavae: str = ORANGE,
-    titles: bool = False,
-    figsize: Tuple[float, float] = (10, 5),
-    include: Tuple[str] = ('mig', 'dci'),
+    metrics: Sequence[str] = (K_MIG_MAX, K_DCI_MAX, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE),
 ):
-    K_IM_VIS = 'dataset/data/visibility'
     K_IM_MODE = 'dataset/data/mode'
+    K_IM_VIS = 'Visibility %'
 
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
     df = load_general_data(f'{os.environ["WANDB_USER"]}/MSC-p03e04_random-external-factors', keep_cols=(K_GROUP, K_Z_SIZE))
+    df = df.rename(columns={'dataset/data/visibility': K_IM_VIS})
+    # filter the groups
+    # -- FIX_ADA_RSYNC: adavae_os
+    # -- FIX:           betavae
+    df = df[df[K_GROUP].isin(['sweep_imagenet_dsprites_FIX_ADA_RSYNC', 'sweep_imagenet_dsprites_FIX'])]
     # select run groups
-    # df = df[df[K_IM_MODE].isin([mode])]
     df = df.sort_values([K_DATASET, K_FRAMEWORK, K_IM_MODE, K_IM_VIS])
     df = df[df[K_FRAMEWORK].isin(['adavae_os', 'betavae'])]
     df = df[df[K_DATASET].isin(['dsprites', f'dsprites_imagenet_{mode}_25', f'dsprites_imagenet_{mode}_50', f'dsprites_imagenet_{mode}_75', f'dsprites_imagenet_{mode}_100'])]
@@ -330,9 +323,6 @@ def plot_e04_random_external_factors(
 
     # df = df[df[K_STATE].isin(['finished', 'running'])]
 
-    pprint(set(range(108)) - set(df['EXTRA/sweep_num']))
-    # exit(1)
-
     # replace unset values
     df.loc[df[K_DATASET] == 'dsprites', K_IM_VIS] = 0
     df.loc[df[K_DATASET] == 'dsprites', K_IM_MODE] = mode
@@ -347,36 +337,25 @@ def plot_e04_random_external_factors(
     print('BETAVAE', len(orig), '->', len(data_betavae))
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
-    print(data_adavae[K_MIG])
+    print(data_adavae[K_MIG_MAX])
     print(data_adavae[K_IM_VIS])
 
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
-    fig, axs = plt.subplots(1, len(include), figsize=figsize, squeeze=False)
-    axs = axs.reshape(-1)
+    fig, axs = plt.subplots(1, len(metrics), figsize=(len(metrics) * 3.0, 3.33), squeeze=False)
+    # fig, axs = plt.subplots(2, len(metrics) // 2, figsize=(len(metrics)//2*3.75, 2*2.7))
+    axs = axs.flatten()
     # Legend entries
-    # marker_ada  = mlines.Line2D([], [], color=color_adavae,  marker='o', markersize=12, label='Ada-GVAE')
-    # marker_beta = mlines.Line2D([], [], color=color_betavae, marker='X', markersize=12, label='Beta-VAE')  # why does 'x' not work? only 'X'?
+    marker_ada  = mlines.Line2D([], [], color=color_adavae,  marker='o', markersize=12, label='Ada-GVAE')
+    marker_beta = mlines.Line2D([], [], color=color_betavae, marker='X', markersize=12, label='Beta-VAE')  # why does 'x' not work? only 'X'?
     # PLOT: MIG
-    if 'mig' in include:
-        # sns.scatterplot(ax=axs[0], x=K_IM_VIS, y=K_MIG, data=data_adavae,  color=color_adavae,  marker='o')
-        # sns.scatterplot(ax=axs[0], x=K_IM_VIS, y=K_MIG, data=data_betavae, color=color_betavae, marker='x')
-        sns.regplot(ax=axs[0], x=K_IM_VIS, y=K_MIG, data=data_adavae,  seed=777, order=reg_order, robust=False, color=color_adavae,  marker='o')
-        sns.regplot(ax=axs[0], x=K_IM_VIS, y=K_MIG, data=data_betavae, seed=777, order=reg_order, robust=False, color=color_betavae, marker='x', line_kws=dict(linestyle='dashed'))
-        # axs[0].legend(handles=[marker_beta, marker_ada], fontsize=14)
-        axs[0].set_ylim([-0.1, 1.1])
-        axs[0].set_xlim([-5, 105])
-        if titles: axs[0].set_title('Framework Mig Scores')
-
-    # PLOT: DCI
-    if 'dci' in include:
-        # sns.scatterplot(ax=axs[-1], x=K_IM_VIS, y=K_MIG, data=data_adavae,  color=color_adavae,  marker='o')
-        # sns.scatterplot(ax=axs[-1], x=K_IM_VIS, y=K_MIG, data=data_betavae, color=color_betavae, marker='x')
-        sns.regplot(ax=axs[-1], x=K_IM_VIS, y=K_DCI, data=data_adavae,  seed=777, order=reg_order, robust=False, color=color_adavae,  marker='o')
-        sns.regplot(ax=axs[-1], x=K_IM_VIS, y=K_DCI, data=data_betavae, seed=777, order=reg_order, robust=False, color=color_betavae, marker='x', line_kws=dict(linestyle='dashed'))
-        # axs[-1].legend(handles=[marker_beta, marker_ada], fontsize=14)
-        axs[-1].set_ylim([-0.1, 1.1])
-        axs[-1].set_xlim([-5, 105])
-        if titles: axs[-1].set_title('Framework DCI Scores')
+    for x, metric_key in enumerate(metrics):
+        ax = axs[x]
+        sns.regplot(ax=ax, x=K_IM_VIS, y=metric_key, data=data_adavae,  seed=777, order=reg_order, robust=False, color=color_adavae,  marker='o')
+        sns.regplot(ax=ax, x=K_IM_VIS, y=metric_key, data=data_betavae, seed=777, order=reg_order, robust=False, color=color_betavae, marker='x', line_kws=dict(linestyle='dashed'))
+        if x == 0:
+            ax.legend(handles=[marker_beta, marker_ada], fontsize=14)
+        ax.set_ylim([-0.1, 1.1])
+        ax.set_xlim([-5, 105])
     # PLOT:
     fig.tight_layout()
     H.plt_rel_path_savefig(rel_path, save=save, show=show)
@@ -398,11 +377,10 @@ if __name__ == '__main__':
     # matplotlib style
     plt.style.use(os.path.join(os.path.dirname(__file__), '../../code/util/gadfly.mplstyle'))
 
-    # clear_plots_cache(clear_wandb=True, clear_processed=True)
-    # clear_plots_cache(clear_wandb=False, clear_processed=True)
+    # clear_wandb_cache()
 
     def main():
-        # plot_e03_different_gt_representations(rel_path='plots/p03e03_different-gt-representations', show=True)
+        plot_e03_different_gt_representations(rel_path='plots/p03e03_different-gt-representations', show=True)
 
         plot_e04_random_external_factors(rel_path='plots/p03e04_random-external-factors__fg', mode='fg', show=True)
         plot_e04_random_external_factors(rel_path='plots/p03e04_random-external-factors__bg', mode='bg', show=True)

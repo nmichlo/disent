@@ -22,8 +22,6 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-import time
-
 import itertools
 import logging
 import os
@@ -35,14 +33,12 @@ from typing import Union
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from cachier import cachier as _cachier
 from matplotlib import pyplot as plt
 import matplotlib as mpl
 import matplotlib.lines as mlines
 import matplotlib.patches as mpatches
 
 import research.code.util as H
-from disent.util.function import wrapped_partial
 from disent.util.profiling import Timer
 from research.code.util._wandb_plots import drop_non_unique_cols
 from research.code.util._wandb_plots import drop_unhashable_cols
@@ -54,16 +50,9 @@ from research.code.util._wandb_plots import load_runs
 # ========================================================================= #
 
 
-# cachier instance
-_CACHIER: _cachier = wrapped_partial(_cachier, cache_dir=os.path.join(os.path.dirname(__file__), 'plots/.cache'))
-
-
-def clear_plots_cache(clear_wandb=False, clear_processed=True):
+def clear_wandb_cache():
     from research.code.util._wandb_plots import clear_runs_cache
-    if clear_wandb:
-        clear_runs_cache()
-    if clear_processed:
-        load_general_data.clear_cache()
+    clear_runs_cache()
 
 # ========================================================================= #
 # Prepare Data                                                              #
@@ -84,8 +73,10 @@ K_SCHEDULE  = 'Schedule'
 K_SAMPLER   = 'Sampler'
 K_ADA_MODE  = 'Threshold Mode'
 
-K_MIG       = 'MIG Score'
-K_DCI       = 'DCI Score'
+K_MIG_END = 'MIG Score\n(End)'
+K_DCI_END = 'DCI Score\n(End)'
+K_MIG_MAX = 'MIG Score'
+K_DCI_MAX = 'DCI Score'
 K_LCORR_GT_F   = 'Linear Corr.\n(factors)'
 K_RCORR_GT_F   = 'Rank Corr.\n(factors)'
 K_LCORR_GT_G   = 'Global Linear Corr.\n(factors)'
@@ -119,7 +110,6 @@ K_TRIPLET_MODE   = 'Triplet Mode'    # framework.cfg.triplet_loss
 # ]
 
 
-@_CACHIER()
 def load_general_data(project: str, include_history: bool = False, keep_cols: Sequence[str] = None):
     # keep columns
     if keep_cols is None:
@@ -144,8 +134,10 @@ def load_general_data(project: str, include_history: bool = False, keep_cols: Se
             'settings/model/z_size':                K_Z_SIZE,
             'DUMMY/repeat':                         K_REPEAT,
             'state':                                K_STATE,
-            'final_metric/mig.discrete_score.max':  K_MIG,
-            'final_metric/dci.disentanglement.max': K_DCI,
+            'epoch_metric/mig.discrete_score.max':  K_MIG_MAX,
+            'epoch_metric/dci.disentanglement.max': K_DCI_MAX,
+            'final_metric/mig.discrete_score.max':  K_MIG_END,
+            'final_metric/dci.disentanglement.max': K_DCI_END,
             # scores
             'epoch_metric/distances.lcorr_ground_latent.l1.factor.max': K_LCORR_GT_F,
             'epoch_metric/distances.rcorr_ground_latent.l1.factor.max': K_RCORR_GT_F,
@@ -232,7 +224,6 @@ LBLUE2 = '#36CFC8'   # usually: MSE-Overlap
 # Experiment p02e00                                                         #
 # ========================================================================= #
 
-
 def plot_e00_beta_metric_correlation(
     rel_path: Optional[str] = None,
     save: bool = True,
@@ -241,7 +232,7 @@ def plot_e00_beta_metric_correlation(
     color_adavae: str = ORANGE,
     grid_size_v: float = 2.25,
     grid_size_h: float = 2.75,
-    metrics: Sequence[str] = (K_MIG, K_RCORR_GT_F, K_RCORR_DATA_F),  # (K_MIG, K_DCI, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE)
+    metrics: Sequence[str] = (K_MIG_MAX, K_RCORR_GT_F, K_RCORR_DATA_F),  # (K_MIG, K_DCI, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE)
 ):
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
     df: pd.DataFrame = load_general_data(f'{os.environ["WANDB_USER"]}/MSC-p02e00_beta-data-latent-corr')
@@ -350,7 +341,7 @@ def plot_e02_axis_triplet_schedules(
     show: bool = True,
     grid_size_v: float = 1.4,
     grid_size_h: float = 2.75,
-    metrics: Sequence[str] = (K_MIG, K_DCI, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE),
+    metrics: Sequence[str] = (K_MIG_END, K_DCI_END, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE),
     adaptive_modes: Sequence[str] = ('dist',),
     title: Optional[Union[str, bool]] = True,
 ):
@@ -454,7 +445,7 @@ def plot_e02_axis_triplet_kl_vs_dist(
     show: bool = True,
     grid_size_v: float = 1.4,
     grid_size_h: float = 2.75,
-    metrics: Sequence[str] = (K_MIG, K_DCI, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE),
+    metrics: Sequence[str] = (K_MIG_END, K_DCI_END, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE),
     sampling_modes: Sequence[str] = ('gt_dist__manhat_scaled',),
     vals_schedules: Optional[Sequence[str]] = ('adanegtvae_up_all', 'adanegtvae_up_ratio', 'adanegtvae_up_thresh',),  # ('adanegtvae_up_all', 'adanegtvae_up_all_full', 'adanegtvae_up_ratio', 'adanegtvae_up_ratio_full', 'adanegtvae_up_thresh')
     title: Optional[Union[str, bool]] = True,
@@ -693,7 +684,7 @@ def plot_e01_normal_triplet(
     show: bool = True,
     grid_size_v: float = 1.4,
     grid_size_h: float = 2.75,
-    metrics: Sequence[str] = (K_MIG, K_DCI, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE),
+    metrics: Sequence[str] = (K_MIG_MAX, K_DCI_MAX, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE),
     title: str = None,
     violin: bool = False,
 ):
@@ -909,7 +900,6 @@ def plot_e01_normal_triplet_recon_loss(
     return fig, axs
 
 
-
 # ========================================================================= #
 # EXPERIMENT 03 -- unsupervised triplet!                                    #
 # ========================================================================= #
@@ -921,7 +911,7 @@ def plot_e03_unsupervised_triplet_scores(
     show: bool = True,
     grid_size_v: float = 3.33,
     grid_size_h: float = 3.33,
-    metrics: Sequence[str] = (K_MIG, K_DCI, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE),
+    metrics: Sequence[str] = (K_MIG_MAX, K_DCI_MAX, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE),
 ):
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
     df: pd.DataFrame = load_general_data(f'{os.environ["WANDB_USER"]}/MSC-p02e03_unsupervised-axis-triplet', include_history=False)
@@ -973,7 +963,7 @@ def plot_e03_unsupervised_triplet_scores(
     num_bars = len(all_bars)
     num_x = len(all_x)
     # palettes
-    colors = [PINK, ORANGE, BLUE, '#889299', LBLUE]
+    colors = [PURPLE, BLUE, LBLUE, LGREEN, '#889299']
     # hatches = [None, '..']
     # idxs = [all_schedules.index(v) for v in vals_schedules]
     # colors = [colors[i] for i in idxs]
@@ -992,18 +982,18 @@ def plot_e03_unsupervised_triplet_scores(
             bar.set_edgecolor('white')
             bar.set_linewidth(2)
         # remove labels
-        ax.set_title(key_x)
+        # ax.set_title(key_x)
         if ax.get_legend():
             ax.get_legend().remove()
         # if y < num_y-1:
         ax.set_xlabel(None)
         ax.set_xticklabels([])
-        if x > 0:
-            ax.set_ylabel(None)
-            ax.set_yticklabels([])
+        # if x > 0:
+        #     ax.set_ylabel(None)
+        #     ax.set_yticklabels([])
     # add the legend to the top right plot
     handles_a = [mpl.patches.Patch(label=label, color=color) for label, color in zip(all_bars, colors)]
-    fig.legend(handles=handles_a, fontsize=11.5, bbox_to_anchor=(0.995, 0.1), loc='lower right', ncol=2, labelspacing=0.1)
+    fig.legend(handles=handles_a, fontsize=12, bbox_to_anchor=(0.99, 0.1), loc='lower right', ncol=1, labelspacing=0.1)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # plot!
     fig.tight_layout()
@@ -1025,25 +1015,23 @@ if __name__ == '__main__':
     # matplotlib style
     plt.style.use(os.path.join(os.path.dirname(__file__), '../../code/util/gadfly.mplstyle'))
 
-    # clear_plots_cache(clear_wandb=True, clear_processed=True)
-    # clear_plots_cache(clear_wandb=False, clear_processed=True)
+    # clear_wandb_cache()
 
     def main():
-        # plot_e00_beta_metric_correlation(rel_path='plots/p02e00_metrics_some', show=True, metrics=(K_MIG, K_RCORR_GT_F, K_RCORR_DATA_F))
-        # plot_e00_beta_metric_correlation(rel_path='plots/p02e00_metrics_all',  show=True, metrics=(K_MIG, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE))
-        # plot_e00_beta_metric_correlation(rel_path='plots/p02e00_metrics_alt',  show=True, metrics=(K_MIG, K_RCORR_GT_F, K_RCORR_DATA_F, K_LINE))
-        #
-        # plot_e01_normal_triplet(rel_path='plots/p02e01_normal-triplet', show=True)
-        # plot_e01_normal_triplet_recon_loss(rel_path='plots/p02e01_normal-l1-triplet_recon-loss_detached', vals_detach=(True,),  vals_p=(1,), show=True)
-        # plot_e01_normal_triplet_recon_loss(rel_path='plots/p02e01_normal-l1-triplet_recon-loss_attached', vals_detach=(False,), vals_p=(1,), show=True)
-        #
-        # plot_e02_axis_triplet_kl_vs_dist(rel_path='plots/p02e02_axis__soft-triplet__kl-vs-dist', show=True, title=False)
-        # plot_e02_axis_triplet_schedules(rel_path='plots/p02e02_axis__soft-triplet__dist',   show=True, adaptive_modes=('dist',), title=False)
+        plot_e00_beta_metric_correlation(rel_path='plots/p02e00_metrics_some', show=True, metrics=(K_MIG_MAX, K_RCORR_GT_F, K_RCORR_DATA_F))
+        plot_e00_beta_metric_correlation(rel_path='plots/p02e00_metrics_all',  show=True, metrics=(K_MIG_MAX, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE))
+        plot_e00_beta_metric_correlation(rel_path='plots/p02e00_metrics_alt',  show=True, metrics=(K_MIG_MAX, K_RCORR_GT_F, K_RCORR_DATA_F, K_LINE))
 
-        # plot_e02_axis_triplet_schedule_recon_loss(rel_path='plots/p02e02_ada-triplet_recon-loss_detached', vals_detach=(True,), show=True)
-        # plot_e02_axis_triplet_schedule_recon_loss(rel_path='plots/p02e02_ada-triplet_recon-loss_attached', vals_detach=(False,), show=True)
+        plot_e01_normal_triplet(rel_path='plots/p02e01_normal-triplet', show=True)
+        plot_e01_normal_triplet_recon_loss(rel_path='plots/p02e01_normal-l1-triplet_recon-loss_detached', vals_detach=(True,),  vals_p=(1,), show=True)
+        plot_e01_normal_triplet_recon_loss(rel_path='plots/p02e01_normal-l1-triplet_recon-loss_attached', vals_detach=(False,), vals_p=(1,), show=True)
 
-        # TODO: these results are not great!
+        plot_e02_axis_triplet_kl_vs_dist(rel_path='plots/p02e02_axis__soft-triplet__kl-vs-dist', show=True, title=False)
+        plot_e02_axis_triplet_schedules(rel_path='plots/p02e02_axis__soft-triplet__dist',   show=True, adaptive_modes=('dist',), title=False)
+
+        plot_e02_axis_triplet_schedule_recon_loss(rel_path='plots/p02e02_ada-triplet_recon-loss_detached', vals_detach=(True,), show=True)
+        plot_e02_axis_triplet_schedule_recon_loss(rel_path='plots/p02e02_ada-triplet_recon-loss_attached', vals_detach=(False,), show=True)
+
         plot_e03_unsupervised_triplet_scores(rel_path='plots/p02e03_unsupervised-triplet')
 
     main()

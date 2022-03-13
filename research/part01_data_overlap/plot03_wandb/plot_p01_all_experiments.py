@@ -65,8 +65,10 @@ K_LOSS      = 'Recon. Loss'
 K_Z_SIZE    = 'Latent Dims.'
 K_REPEAT    = 'Repeat'
 K_STATE     = 'State'
-K_MIG       = 'MIG Score'
-K_DCI       = 'DCI Score'
+K_MIG_END   = 'MIG Score\n(End)'
+K_DCI_END   = 'DCI Score\n(End)'
+K_MIG_MAX   = 'MIG Score'
+K_DCI_MAX   = 'DCI Score'
 
 
 def load_general_data(project: str):
@@ -86,8 +88,10 @@ def load_general_data(project: str):
         'settings/model/z_size':                K_Z_SIZE,
         'DUMMY/repeat':                         K_REPEAT,
         'state':                                K_STATE,
-        'final_metric/mig.discrete_score.max':  K_MIG,
-        'final_metric/dci.disentanglement.max': K_DCI,
+        'final_metric/mig.discrete_score.max':  K_MIG_END,
+        'final_metric/dci.disentanglement.max': K_DCI_END,
+        'epoch_metric/mig.discrete_score.max':  K_MIG_MAX,
+        'epoch_metric/dci.disentanglement.max': K_DCI_MAX,
     })
 
 
@@ -164,16 +168,16 @@ def plot_e02_incr_overlap_xysquares(
     marker_beta = mlines.Line2D([], [], color=color_betavae, marker='X', markersize=12, label='Beta-VAE')  # why does 'x' not work? only 'X'?
     # PLOT: MIG
     if 'mig' in include:
-        sns.regplot(ax=axs[0], x=K_SPACING, y=K_MIG, data=data_adavae,  seed=777, order=reg_order, robust=False, color=color_adavae,  marker='o')
-        sns.regplot(ax=axs[0], x=K_SPACING, y=K_MIG, data=data_betavae, seed=777, order=reg_order, robust=False, color=color_betavae, marker='x', line_kws=dict(linestyle='dashed'))
+        sns.regplot(ax=axs[0], x=K_SPACING, y=K_MIG_END, data=data_adavae,  seed=777, order=reg_order, robust=False, color=color_adavae,  marker='o')
+        sns.regplot(ax=axs[0], x=K_SPACING, y=K_MIG_END, data=data_betavae, seed=777, order=reg_order, robust=False, color=color_betavae, marker='x', line_kws=dict(linestyle='dashed'))
         axs[0].legend(handles=[marker_beta, marker_ada], fontsize=14)
         axs[0].set_ylim([-0.1, 1.1])
         axs[0].set_xlim([0.8, 8.2])
         if titles: axs[0].set_title('Framework Mig Scores')
     # PLOT: DCI
     if 'dci' in include:
-        sns.regplot(ax=axs[-1], x=K_SPACING, y=K_DCI, data=data_adavae,  seed=777, order=reg_order, robust=False, color=color_adavae,  marker='o')
-        sns.regplot(ax=axs[-1], x=K_SPACING, y=K_DCI, data=data_betavae, seed=777, order=reg_order, robust=False, color=color_betavae, marker='x', line_kws=dict(linestyle='dashed'))
+        sns.regplot(ax=axs[-1], x=K_SPACING, y=K_DCI_END, data=data_adavae,  seed=777, order=reg_order, robust=False, color=color_adavae,  marker='o')
+        sns.regplot(ax=axs[-1], x=K_SPACING, y=K_DCI_END, data=data_betavae, seed=777, order=reg_order, robust=False, color=color_betavae, marker='x', line_kws=dict(linestyle='dashed'))
         axs[-1].legend(handles=[marker_beta, marker_ada], fontsize=14)
         axs[-1].set_ylim([-0.1, 1.1])
         axs[-1].set_xlim([0.8, 8.2])
@@ -221,7 +225,7 @@ def plot_e01_hparam_tuning(
     print('NUM', len(orig), '->', len(df))
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
-    df = df[[K_DATASET, K_FRAMEWORK, K_MIG, K_DCI]]
+    df = df[[K_DATASET, K_FRAMEWORK, K_MIG_END, K_DCI_END]]
     df[K_DATASET].replace('xysquares_minimal', 'XYSquares', inplace=True)
     df[K_DATASET].replace('smallnorb', 'NORB', inplace=True)
     df[K_DATASET].replace('cars3d', 'Cars3D', inplace=True)
@@ -235,10 +239,10 @@ def plot_e01_hparam_tuning(
     fig, axs = plt.subplots(1, 2, figsize=(10, 4))
     (ax0, ax1) = axs
     # PLOT: MIG
-    sns.violinplot(x=K_DATASET, y=K_MIG, hue=K_FRAMEWORK, palette=PALLETTE, split=True, cut=0, width=0.75, data=df, ax=ax0, scale='width', inner='quartile')
+    sns.violinplot(x=K_DATASET, y=K_MIG_END, hue=K_FRAMEWORK, palette=PALLETTE, split=True, cut=0, width=0.75, data=df, ax=ax0, scale='width', inner='quartile')
     ax0.set_ylim([-0.1, 1.1])
     ax0.legend(bbox_to_anchor=(0.425, 0.9), fontsize=13)
-    sns.violinplot(x=K_DATASET, y=K_DCI, hue=K_FRAMEWORK, palette=PALLETTE, split=True, cut=0, width=0.75, data=df, ax=ax1, scale='width', inner='quartile')
+    sns.violinplot(x=K_DATASET, y=K_DCI_END, hue=K_FRAMEWORK, palette=PALLETTE, split=True, cut=0, width=0.75, data=df, ax=ax1, scale='width', inner='quartile')
     ax1.set_ylim([-0.1, 1.1])
     ax1.get_legend().remove()
     # PLOT:
@@ -299,7 +303,7 @@ def plot_e03_modified_loss_xysquares(
 
     print('NUM', len(orig), '->', len(df))
 
-    df = df[[K_DATASET, K_FRAMEWORK, K_LOSS, K_BETA, K_MIG, K_DCI]]
+    df = df[[K_DATASET, K_FRAMEWORK, K_LOSS, K_BETA, K_MIG_END, K_DCI_END]]
     df[K_DATASET].replace('xysquares_minimal', 'XYSquares', inplace=True)
     df[K_FRAMEWORK].replace('adavae_os', 'Ada-GVAE', inplace=True)
     df[K_FRAMEWORK].replace('betavae', 'Beta-VAE', inplace=True)
@@ -313,11 +317,11 @@ def plot_e03_modified_loss_xysquares(
     fig, axs = plt.subplots(1, 2, figsize=(10, 4))
     (ax0, ax1) = axs
     # PLOT: MIG
-    sns.violinplot(x=K_FRAMEWORK, y=K_MIG, hue=K_LOSS, palette=PALLETTE, split=True, cut=0, width=0.5, data=df, ax=ax0, scale='width', inner='quartile')
+    sns.violinplot(x=K_FRAMEWORK, y=K_MIG_END, hue=K_LOSS, palette=PALLETTE, split=True, cut=0, width=0.5, data=df, ax=ax0, scale='width', inner='quartile')
     ax0.set_ylim([-0.1, 1.1])
     ax0.legend(fontsize=13)
     # ax0.legend(bbox_to_anchor=(0.425, 0.9), fontsize=13)
-    sns.violinplot(x=K_FRAMEWORK, y=K_DCI, hue=K_LOSS, palette=PALLETTE, split=True, cut=0, width=0.5, data=df, ax=ax1, scale='width', inner='quartile')
+    sns.violinplot(x=K_FRAMEWORK, y=K_DCI_END, hue=K_LOSS, palette=PALLETTE, split=True, cut=0, width=0.5, data=df, ax=ax1, scale='width', inner='quartile')
     ax1.set_ylim([-0.1, 1.1])
     ax1.get_legend().remove()
     # PLOT:
@@ -341,11 +345,11 @@ if __name__ == '__main__':
     # clear_cache()
 
     def main():
-        # plot_e01_hparam_tuning(rel_path='plots/p01e01_hparam-tuning', show=True)                      # was: exp_hparams-exp
+        plot_e01_hparam_tuning(rel_path='plots/p01e01_hparam-tuning', show=True)                      # was: exp_hparams-exp
         plot_e02_incr_overlap_xysquares(rel_path='plots/p01e02_incr-overlap-xysquares', show=True)    # was: exp_incr-overlap
         plot_e02_incr_overlap_xysquares(rel_path='plots/p01e02_incr-overlap-xysquares_mig', show=True, include=('mig',), figsize=(6.5, 4))    # was: exp_incr-overlap
         plot_e02_incr_overlap_xysquares(rel_path='plots/p01e02_incr-overlap-xysquares_dci', show=True, include=('dci',), figsize=(6.5, 4))    # was: exp_incr-overlap
-        # plot_e03_modified_loss_xysquares(rel_path='plots/p01e03_modified-loss-xysquares', show=True)  # was: exp_overlap-loss
+        plot_e03_modified_loss_xysquares(rel_path='plots/p01e03_modified-loss-xysquares', show=True)  # was: exp_overlap-loss
 
     main()
 
