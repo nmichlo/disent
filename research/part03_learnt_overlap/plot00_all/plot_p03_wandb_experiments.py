@@ -328,9 +328,9 @@ def plot_e04_random_external_factors(
     print('K_IM_MODE:  ', list(df[K_IM_MODE].unique()))
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
-    df = df[df[K_STATE].isin(['finished'])]
+    # df = df[df[K_STATE].isin(['finished', 'running'])]
 
-    # pprint(set(range(108)) - set(df['EXTRA/sweep_num']))
+    pprint(set(range(108)) - set(df['EXTRA/sweep_num']))
     # exit(1)
 
     # replace unset values
@@ -402,7 +402,7 @@ if __name__ == '__main__':
     # clear_plots_cache(clear_wandb=False, clear_processed=True)
 
     def main():
-        plot_e03_different_gt_representations(rel_path='plots/p03e03_different-gt-representations', show=True)
+        # plot_e03_different_gt_representations(rel_path='plots/p03e03_different-gt-representations', show=True)
 
         plot_e04_random_external_factors(rel_path='plots/p03e04_random-external-factors__fg', mode='fg', show=True)
         plot_e04_random_external_factors(rel_path='plots/p03e04_random-external-factors__bg', mode='bg', show=True)

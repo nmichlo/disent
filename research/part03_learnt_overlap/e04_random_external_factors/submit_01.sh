@@ -19,8 +19,7 @@ export PARALLELISM=28
 
 # the path to the generated arguments file
 # - this needs to before we source the helper file
-ARGS_FILE="$(realpath "$(dirname -- "${BASH_SOURCE[0]}")")/array_01_${PROJECT}.txt"
-ARGS_FILE_RERUN="$(realpath "$(dirname -- "${BASH_SOURCE[0]}")")/array_01_${PROJECT}_RERUN.txt"
+ARGS_FILE="$(realpath "$(dirname -- "${BASH_SOURCE[0]}")")/array_01_${PROJECT}_FIX.txt"
 
 # source the helper file
 source "$(dirname "$(dirname "$(dirname "$(realpath -s "$0")")")")/scripts/helper.sh"
@@ -32,14 +31,14 @@ source "$(dirname "$(dirname "$(dirname "$(realpath -s "$0")")")")/scripts/helpe
 # SWEEP FOR GOOD PARAMS
 #   1 * (2*3*2*9) = 108
 ARGS_FILE="$ARGS_FILE" gen_sbatch_args_file \
-    +DUMMY.repeat=1,2 \
-    +EXTRA.tags='sweep_imagenet_dsprites' \
+    +DUMMY.repeat=1 \
+    +EXTRA.tags='sweep_imagenet_dsprites_FIX' \
     hydra.job.name="imnet-dsprites" \
     \
     run_length=medium \
     metrics=all \
     \
-    settings.framework.beta=0.00316,0.01,0.0316 \
+    settings.framework.beta=0.01,0.00316,0.0316 \
     framework=betavae,adavae_os \
     schedule=none \
     settings.model.z_size=9 \
