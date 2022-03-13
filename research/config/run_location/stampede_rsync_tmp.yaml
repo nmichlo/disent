@@ -7,7 +7,7 @@ dsettings:
     logs_dir: 'logs'
     data_root: ${rsync_dir:'${oc.env:HOME}/downloads/datasets','/tmp/${oc.env:USER}/datasets'}
   dataset:
-    prepare: FALSE
+    prepare: TRUE
     try_in_memory: FALSE
   launcher:
     partition: stampede

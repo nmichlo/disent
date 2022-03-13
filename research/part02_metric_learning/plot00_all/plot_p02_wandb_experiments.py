@@ -37,12 +37,14 @@ from matplotlib import pyplot as plt
 import matplotlib as mpl
 import matplotlib.lines as mlines
 import matplotlib.patches as mpatches
+from cachier import cachier as _cachier
 
 import research.code.util as H
+from disent.util.function import wrapped_partial
 from disent.util.profiling import Timer
 from research.code.util._wandb_plots import drop_non_unique_cols
 from research.code.util._wandb_plots import drop_unhashable_cols
-from research.code.util._wandb_plots import load_runs
+from research.code.util._wandb_plots import load_runs as _load_runs
 
 
 # ========================================================================= #
@@ -50,9 +52,22 @@ from research.code.util._wandb_plots import load_runs
 # ========================================================================= #
 
 
-def clear_wandb_cache():
+# cachier instance
+CACHIER: _cachier = wrapped_partial(_cachier, cache_dir=os.path.join(os.path.dirname(__file__), 'plots/.cache'))
+
+
+@CACHIER()
+def load_runs(project: str, include_history: bool = False):
+    return _load_runs(project=project, include_history=include_history)
+
+
+def clear_cache(clear_data=True, clear_wandb=False):
     from research.code.util._wandb_plots import clear_runs_cache
-    clear_runs_cache()
+    if clear_wandb:
+        clear_runs_cache()
+    if clear_data:
+        load_runs.clear_cache()
+
 
 # ========================================================================= #
 # Prepare Data                                                              #
@@ -1015,7 +1030,8 @@ if __name__ == '__main__':
     # matplotlib style
     plt.style.use(os.path.join(os.path.dirname(__file__), '../../code/util/gadfly.mplstyle'))
 
-    # clear_wandb_cache()
+    # clear_cache(clear_data=True, clear_wandb=True)
+    # clear_cache(clear_data=True, clear_wandb=False)
 
     def main():
         plot_e00_beta_metric_correlation(rel_path='plots/p02e00_metrics_some', show=True, metrics=(K_MIG_MAX, K_RCORR_GT_F, K_RCORR_DATA_F))

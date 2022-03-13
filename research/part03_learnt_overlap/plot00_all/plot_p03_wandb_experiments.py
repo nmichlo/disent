@@ -29,14 +29,16 @@ from typing import Sequence
 
 import pandas as pd
 import seaborn as sns
+from cachier import cachier as _cachier
 from matplotlib import pyplot as plt
 import matplotlib.lines as mlines
 
 import research.code.util as H
+from disent.util.function import wrapped_partial
 from disent.util.profiling import Timer
 from research.code.util._wandb_plots import drop_non_unique_cols
 from research.code.util._wandb_plots import drop_unhashable_cols
-from research.code.util._wandb_plots import load_runs
+from research.code.util._wandb_plots import load_runs as _load_runs
 
 
 # ========================================================================= #
@@ -44,9 +46,23 @@ from research.code.util._wandb_plots import load_runs
 # ========================================================================= #
 
 
-def clear_wandb_cache():
+DF = pd.DataFrame
+
+# cachier instance
+CACHIER: _cachier = wrapped_partial(_cachier, cache_dir=os.path.join(os.path.dirname(__file__), 'plots/.cache'))
+
+
+@CACHIER()
+def load_runs(project: str, include_history: bool = False):
+    return _load_runs(project=project, include_history=include_history)
+
+
+def clear_cache(clear_data=True, clear_wandb=False):
     from research.code.util._wandb_plots import clear_runs_cache
-    clear_runs_cache()
+    if clear_wandb:
+        clear_runs_cache()
+    if clear_data:
+        load_runs.clear_cache()
 
 
 # ========================================================================= #
@@ -321,6 +337,7 @@ def plot_e04_random_external_factors(
     print('K_IM_MODE:  ', list(df[K_IM_MODE].unique()))
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
+    # df = df[df[K_STATE].isin(['finished'])]
     # df = df[df[K_STATE].isin(['finished', 'running'])]
 
     # replace unset values
@@ -377,11 +394,11 @@ if __name__ == '__main__':
     # matplotlib style
     plt.style.use(os.path.join(os.path.dirname(__file__), '../../code/util/gadfly.mplstyle'))
 
-    # clear_wandb_cache()
+    # clear_cache(clear_data=True, clear_wandb=True)
+    # clear_cache(clear_data=True, clear_wandb=False)
 
     def main():
         plot_e03_different_gt_representations(rel_path='plots/p03e03_different-gt-representations', show=True)
-
         plot_e04_random_external_factors(rel_path='plots/p03e04_random-external-factors__fg', mode='fg', show=True)
         plot_e04_random_external_factors(rel_path='plots/p03e04_random-external-factors__bg', mode='bg', show=True)
 
