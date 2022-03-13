@@ -19,7 +19,8 @@ export PARALLELISM=28
 
 # the path to the generated arguments file
 # - this needs to before we source the helper file
-ARGS_FILE="$(realpath "$(dirname -- "${BASH_SOURCE[0]}")")/array_01_$PROJECT.txt"
+ARGS_FILE="$(realpath "$(dirname -- "${BASH_SOURCE[0]}")")/array_01_${PROJECT}.txt"
+ARGS_FILE_RERUN="$(realpath "$(dirname -- "${BASH_SOURCE[0]}")")/array_01_${PROJECT}_RERUN.txt"
 
 # source the helper file
 source "$(dirname "$(dirname "$(dirname "$(realpath -s "$0")")")")/scripts/helper.sh"

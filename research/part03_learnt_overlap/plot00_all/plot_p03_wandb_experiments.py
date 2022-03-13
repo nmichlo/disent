@@ -328,7 +328,10 @@ def plot_e04_random_external_factors(
     print('K_IM_MODE:  ', list(df[K_IM_MODE].unique()))
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
-    # df = df[df[K_STATE].isin(['finished', 'running'])]
+    df = df[df[K_STATE].isin(['finished'])]
+
+    # pprint(set(range(108)) - set(df['EXTRA/sweep_num']))
+    # exit(1)
 
     # replace unset values
     df.loc[df[K_DATASET] == 'dsprites', K_IM_VIS] = 0
