@@ -191,6 +191,7 @@ def make_data(
     elif name == 'dsprites_imagenet_bg_75':  data = DSpritesImagenetData(visibility=75, mode='bg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
     elif name == 'dsprites_imagenet_bg_50':  data = DSpritesImagenetData(visibility=50, mode='bg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
     elif name == 'dsprites_imagenet_bg_25':  data = DSpritesImagenetData(visibility=25, mode='bg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_bg_0':   data = DSpritesImagenetData(visibility=0,  mode='bg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)  # same as normal dsprites, but with 3 channels
     # --- #
     elif name == 'dsprites_imagenet_fg_100': data = DSpritesImagenetData(visibility=100, mode='fg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
     elif name == 'dsprites_imagenet_fg_80':  data = DSpritesImagenetData(visibility=80, mode='fg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
@@ -201,6 +202,7 @@ def make_data(
     elif name == 'dsprites_imagenet_fg_75':  data = DSpritesImagenetData(visibility=75, mode='fg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
     elif name == 'dsprites_imagenet_fg_50':  data = DSpritesImagenetData(visibility=50, mode='fg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
     elif name == 'dsprites_imagenet_fg_25':  data = DSpritesImagenetData(visibility=25, mode='fg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_fg_0':   data = DSpritesImagenetData(visibility=0,  mode='fg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)  # same as normal dsprites, but with 3 channels
     # DONE
     else: raise KeyError(f'invalid data name: {repr(name)}')
     # load into memory

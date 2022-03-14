@@ -358,12 +358,12 @@ def plot_e04_random_external_factors(
     print(data_adavae[K_IM_VIS])
 
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
-    fig, axs = plt.subplots(1, len(metrics), figsize=(len(metrics) * 3.0, 3.33), squeeze=False)
-    # fig, axs = plt.subplots(2, len(metrics) // 2, figsize=(len(metrics)//2*3.75, 2*2.7))
+    # fig, axs = plt.subplots(1, len(metrics), figsize=(len(metrics) * 2.7*1.1, 3.33*1.1), squeeze=False)
+    fig, axs = plt.subplots(2, len(metrics) // 2, figsize=(len(metrics)//2 * 2.9, 2*3.3))
     axs = axs.flatten()
     # Legend entries
-    marker_ada  = mlines.Line2D([], [], color=color_adavae,  marker='o', markersize=12, label='Ada-GVAE')
-    marker_beta = mlines.Line2D([], [], color=color_betavae, marker='X', markersize=12, label='Beta-VAE')  # why does 'x' not work? only 'X'?
+    marker_ada  = mlines.Line2D([], [], color=color_adavae,  marker='o', markersize=11.5, label='Ada-GVAE')
+    marker_beta = mlines.Line2D([], [], color=color_betavae, marker='X', markersize=11.5, label='Beta-VAE')  # why does 'x' not work? only 'X'?
     # PLOT: MIG
     for x, metric_key in enumerate(metrics):
         ax = axs[x]
