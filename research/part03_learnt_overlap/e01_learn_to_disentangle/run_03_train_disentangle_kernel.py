@@ -28,7 +28,6 @@ from typing import List
 from typing import Optional
 from typing import Sequence
 
-import hydra
 import numpy as np
 import pytorch_lightning as pl
 import torch
@@ -37,7 +36,6 @@ from omegaconf import OmegaConf
 from torch.nn import Parameter
 from torch.utils.data import DataLoader
 
-import disent.util.seeds
 import research.code.util as H
 from disent.nn.functional import torch_conv2d_channel_wise_fft
 from disent.nn.loss.softsort import spearman_rank_loss
@@ -97,11 +95,11 @@ class DisentangleModule(DisentLightningModule):
     ):
         super().__init__()
         self.model = model
-        self.hparams = hparams
+        self.hparams.update(hparams)
         self._disentangle_factors = None if (disentangle_factor_idxs is None) else np.array(disentangle_factor_idxs)
 
     def configure_optimizers(self):
-        return H.make_optimizer(self, name=self.hparams.optimizer.name, lr=self.hparams.optimizer.lr, weight_decay=self.hparams.optimizer.weight_decay)
+        return H.make_optimizer(self, name=self.hparams.exp.optimizer.name, lr=self.hparams.exp.optimizer.lr, weight_decay=self.hparams.exp.optimizer.weight_decay)
 
     def training_step(self, batch, batch_idx):
         (batch,), (factors,) = batch['x_targ'], batch['factors']
@@ -111,9 +109,9 @@ class DisentangleModule(DisentLightningModule):
         loss = disentangle_loss(
             batch=aug_batch,
             factors=factors,
-            num_pairs=int(len(batch) * self.hparams.train.pairs_ratio),
+            num_pairs=int(len(batch) * self.hparams.exp.train.pairs_ratio),
             f_idxs=self._disentangle_factors,
-            loss_fn=self.hparams.train.loss,
+            loss_fn=self.hparams.exp.train.loss,
             mean_dtype=torch.float64,
         )
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
@@ -167,15 +165,15 @@ class Kernel(DisentModule):
                     return H.to_imgs(pl_module.forward(batch.to(pl_module.device)), scale=True)
                 # get augmented traversals
                 with torch.no_grad():
-                    orig_wandb_image, orig_wandb_animation = H.visualize_dataset_traversal(dataset)
-                    augm_wandb_image, augm_wandb_animation = H.visualize_dataset_traversal(dataset, augment_fn=augment_fn, data_mode='input')
+                    orig_wandb_image, orig_wandb_animation = H.visualize_dataset_traversal(dataset, augment_fn=None,       data_mode='raw',   output_wandb=True)  # dataset returns (numpy?) HWC batches
+                    augm_wandb_image, augm_wandb_animation = H.visualize_dataset_traversal(dataset, augment_fn=augment_fn, data_mode='input', output_wandb=True)  # dataset returns (tensor) CHW batches
                 # log images to WANDB
                 wb_log_metrics(trainer.logger, {
                     'kernel': wandb.Image(kernel),
                     'traversal_img_orig': orig_wandb_image, 'traversal_animation_orig': orig_wandb_animation,
                     'traversal_img_augm': augm_wandb_image, 'traversal_animation_augm': augm_wandb_animation,
                 })
-        return ImShowCallback(every_n_steps=cfg.exp.show_every_n_steps, begin_first_step=True)
+        return ImShowCallback(every_n_steps=cfg.exp.out.show_every_n_steps, begin_first_step=True)
 
     def augment_loss(self, framework: DisentLightningModule):
         augment_loss = 0
@@ -229,29 +227,27 @@ def run_disentangle_dataset_kernel(cfg):
     # CREATE LOGGER
     logger = hydra_make_logger(cfg)
     # TRAINER CALLBACKS
-    callbacks = [
-        *hydra_get_callbacks(cfg),
-    ]
+    callbacks = hydra_get_callbacks(cfg)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-    seed(disent.util.seeds.seed)
+    seed(cfg.settings.job.seed)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # initialise dataset and get factor names to disentangle
-    dataset = H.make_dataset(cfg.data.name, factors=True, data_root=cfg.default_settings.storage.data_root)
-    disentangle_factor_idxs = dataset.gt_data.normalise_factor_idxs(cfg.kernel.disentangle_factors)
-    cfg.kernel.disentangle_factors = tuple(dataset.gt_data.factor_names[i] for i in disentangle_factor_idxs)
+    dataset = H.make_dataset(cfg.exp.data.name, factors=True, data_root=cfg.dsettings.storage.data_root)
+    disentangle_factor_idxs = dataset.gt_data.normalise_factor_idxs(cfg.exp.kernel.disentangle_factors)
+    cfg.exp.kernel.disentangle_factors = tuple(dataset.gt_data.factor_names[i] for i in disentangle_factor_idxs)
     log.info(f'Dataset has ground-truth factors: {dataset.gt_data.factor_names}')
-    log.info(f'Chosen ground-truth factors are: {tuple(cfg.kernel.disentangle_factors)}')
+    log.info(f'Chosen ground-truth factors are: {tuple(cfg.exp.kernel.disentangle_factors)}')
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # print everything
     log.info('Final Config' + make_box_str(OmegaConf.to_yaml(cfg)))
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     dataloader = DataLoader(
         dataset,
-        batch_sampler=H.StochasticBatchSampler(dataset, batch_size=cfg.dataset.batch_size),
-        num_workers=cfg.dataset.num_workers,
-        pin_memory=cfg.dataset.pin_memory,
+        batch_sampler=H.StochasticBatchSampler(dataset, batch_size=cfg.datamodule.dataloader.batch_size),
+        num_workers=cfg.datamodule.dataloader.num_workers,
+        pin_memory=cfg.datamodule.dataloader.pin_memory,
     )
-    model = Kernel(radius=cfg.kernel.radius, channels=cfg.kernel.channels, offset=0.002, scale=0.01, train_symmetric_regularise=cfg.kernel.regularize_symmetric, train_norm_regularise=cfg.kernel.regularize_norm, train_nonneg_regularise=cfg.kernel.regularize_nonneg)
+    model = Kernel(radius=cfg.exp.kernel.radius, channels=cfg.exp.kernel.channels, offset=0.002, scale=0.01, train_symmetric_regularise=cfg.exp.kernel.regularize_symmetric, train_norm_regularise=cfg.exp.kernel.regularize_norm, train_nonneg_regularise=cfg.exp.kernel.regularize_nonneg)
     callbacks.append(model.make_train_periodic_callback(cfg, dataset=dataset))
     framework = DisentangleModule(model, cfg, disentangle_factor_idxs=disentangle_factor_idxs)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
@@ -259,12 +255,12 @@ def run_disentangle_dataset_kernel(cfg):
         framework.logger.log_hyperparams(framework.hparams)
     # train
     trainer = pl.Trainer(
-        log_every_n_steps=cfg.log.setdefault('log_every_n_steps', 50),
+        log_every_n_steps=cfg.trainer.log_every_n_steps,
         logger=logger,
         callbacks=callbacks,
         gpus=1 if gpus else 0,
-        max_epochs=cfg.trainer.setdefault('epochs', None),
-        max_steps=cfg.trainer.setdefault('steps', 10000),
+        max_epochs=cfg.trainer.max_epochs,
+        max_steps=cfg.trainer.max_steps,
         enable_progress_bar=False,
         # we do this here so we don't run the final metrics
         detect_anomaly=False,  # this should only be enabled for debugging torch and finding NaN values, slows down execution, not by much though?
@@ -273,12 +269,12 @@ def run_disentangle_dataset_kernel(cfg):
     trainer.fit(framework, dataloader)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # save kernel
-    if cfg.exp.rel_save_dir is not None:
-        assert not os.path.isabs(cfg.exp.rel_save_dir), f'rel_save_dir must be relative: {repr(cfg.exp.rel_save_dir)}'
-        save_dir = os.path.join(ROOT_DIR, cfg.exp.rel_save_dir)
+    if cfg.exp.out.rel_save_dir is not None:
+        assert not os.path.isabs(cfg.exp.out.rel_save_dir), f'rel_save_dir must be relative: {repr(cfg.exp.out.rel_save_dir)}'
+        save_dir = os.path.join(ROOT_DIR, cfg.exp.out.rel_save_dir)
         assert os.path.isabs(save_dir), f'save_dir must be absolute: {repr(save_dir)}'
         # save kernel
-        H.torch_write(os.path.join(save_dir, cfg.exp.save_name), framework.model._kernel)
+        H.torch_write(os.path.join(save_dir, cfg.exp.out.save_name), framework.model._kernel)
 
 
 # ========================================================================= #

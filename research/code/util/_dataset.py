@@ -122,7 +122,18 @@ def load_dataset_into_memory(gt_data: GroundTruthData, x_shape: Optional[Tuple[i
 # ========================================================================= #
 
 
-TransformTypeHint = Union[Literal['uint8'], Literal['float'], Literal['float32'], Literal['none']]
+TransformTypeHint = Union[Literal['uint8'], Literal['float32'], Literal['none']]
+
+
+def make_transform(mode: Optional[str]) -> Optional[callable]:
+    if mode == 'uint8':
+        return ToImgTensorU8()
+    elif mode == 'float32':
+        return ToImgTensorF32()
+    elif mode in ('none', None):
+        return None
+    else:
+        raise KeyError(f'invalid transform mode: {repr(mode)}')
 
 
 def make_data(
@@ -138,71 +149,67 @@ def make_data(
     if load_into_memory and try_in_memory:
         warnings.warn('`load_into_memory==True` is incompatible with `try_in_memory==True`, setting `try_in_memory=False`!')
         try_in_memory = False
-    # transform object
-    TransformCls = {
-        'uint8': ToImgTensorU8,
-        'float32': ToImgTensorF32,
-        'none': Noop,
-    }[transform_mode]
+    # make the transform
+    transform = make_transform(mode=transform_mode)
     # make data
-    if   name == 'xysquares':      data = XYSquaresData(transform=TransformCls())  # equivalent: [xysquares, xysquares_8x8, xysquares_8x8_s8]
-    elif name == 'xysquares_1x1':  data = XYSquaresData(square_size=1, transform=TransformCls())
-    elif name == 'xysquares_2x2':  data = XYSquaresData(square_size=2, transform=TransformCls())
-    elif name == 'xysquares_4x4':  data = XYSquaresData(square_size=4, transform=TransformCls())
-    elif name == 'xysquares_8x8':  data = XYSquaresData(square_size=8, transform=TransformCls())  # 8x8x8x8x8x8 = 262144  # equivalent: [xysquares, xysquares_8x8, xysquares_8x8_s8]
-    elif name == 'xysquares_8x8_mini':  data = XYSquaresData(square_size=8, grid_spacing=14, transform=TransformCls())  # 5x5x5x5x5x5 = 15625
+    if   name == 'xysquares':      data = XYSquaresData(transform=transform)  # equivalent: [xysquares, xysquares_8x8, xysquares_8x8_s8]
+    elif name == 'xysquares_1x1':  data = XYSquaresData(square_size=1, transform=transform)
+    elif name == 'xysquares_2x2':  data = XYSquaresData(square_size=2, transform=transform)
+    elif name == 'xysquares_4x4':  data = XYSquaresData(square_size=4, transform=transform)
+    elif name == 'xysquares_8x8':  data = XYSquaresData(square_size=8, transform=transform)  # 8x8x8x8x8x8 = 262144  # equivalent: [xysquares, xysquares_8x8, xysquares_8x8_s8]
+    elif name == 'xysquares_8x8_mini':  data = XYSquaresData(square_size=8, grid_spacing=14, transform=transform)  # 5x5x5x5x5x5 = 15625
     # TOY DATASETS
-    elif name == 'xysquares_8x8_toy':     data = XYSquaresData(square_size=8, grid_spacing=8, rgb=False, num_squares=1, transform=TransformCls())  # 8x8 = ?
-    elif name == 'xysquares_8x8_toy_s1':  data = XYSquaresData(square_size=8, grid_spacing=1, rgb=False, num_squares=1, transform=TransformCls())  # ?x? = ?
-    elif name == 'xysquares_8x8_toy_s2':  data = XYSquaresData(square_size=8, grid_spacing=2, rgb=False, num_squares=1, transform=TransformCls())  # ?x? = ?
-    elif name == 'xysquares_8x8_toy_s4':  data = XYSquaresData(square_size=8, grid_spacing=4, rgb=False, num_squares=1, transform=TransformCls())  # ?x? = ?
-    elif name == 'xysquares_8x8_toy_s8':  data = XYSquaresData(square_size=8, grid_spacing=8, rgb=False, num_squares=1, transform=TransformCls())  # 8x8 = ?
+    elif name == 'xysquares_8x8_toy':     data = XYSquaresData(square_size=8, grid_spacing=8, rgb=False, num_squares=1, transform=transform)  # 8x8 = ?
+    elif name == 'xysquares_8x8_toy_s1':  data = XYSquaresData(square_size=8, grid_spacing=1, rgb=False, num_squares=1, transform=transform)  # ?x? = ?
+    elif name == 'xysquares_8x8_toy_s2':  data = XYSquaresData(square_size=8, grid_spacing=2, rgb=False, num_squares=1, transform=transform)  # ?x? = ?
+    elif name == 'xysquares_8x8_toy_s4':  data = XYSquaresData(square_size=8, grid_spacing=4, rgb=False, num_squares=1, transform=transform)  # ?x? = ?
+    elif name == 'xysquares_8x8_toy_s8':  data = XYSquaresData(square_size=8, grid_spacing=8, rgb=False, num_squares=1, transform=transform)  # 8x8 = ?
     # TOY DATASETS ALT
-    elif name == 'xcolumns_8x_toy':     data = XColumnsData(square_size=8, grid_spacing=8, rgb=False, num_squares=1, transform=TransformCls())  # 8 = ?
-    elif name == 'xcolumns_8x_toy_s1':  data = XColumnsData(square_size=8, grid_spacing=1, rgb=False, num_squares=1, transform=TransformCls())  # ? = ?
-    elif name == 'xcolumns_8x_toy_s2':  data = XColumnsData(square_size=8, grid_spacing=2, rgb=False, num_squares=1, transform=TransformCls())  # ? = ?
-    elif name == 'xcolumns_8x_toy_s4':  data = XColumnsData(square_size=8, grid_spacing=4, rgb=False, num_squares=1, transform=TransformCls())  # ? = ?
-    elif name == 'xcolumns_8x_toy_s8':  data = XColumnsData(square_size=8, grid_spacing=8, rgb=False, num_squares=1, transform=TransformCls())  # 8 = ?
+    elif name == 'xcolumns_8x_toy':     data = XColumnsData(square_size=8, grid_spacing=8, rgb=False, num_squares=1, transform=transform)  # 8 = ?
+    elif name == 'xcolumns_8x_toy_s1':  data = XColumnsData(square_size=8, grid_spacing=1, rgb=False, num_squares=1, transform=transform)  # ? = ?
+    elif name == 'xcolumns_8x_toy_s2':  data = XColumnsData(square_size=8, grid_spacing=2, rgb=False, num_squares=1, transform=transform)  # ? = ?
+    elif name == 'xcolumns_8x_toy_s4':  data = XColumnsData(square_size=8, grid_spacing=4, rgb=False, num_squares=1, transform=transform)  # ? = ?
+    elif name == 'xcolumns_8x_toy_s8':  data = XColumnsData(square_size=8, grid_spacing=8, rgb=False, num_squares=1, transform=transform)  # 8 = ?
     # OVERLAPPING DATASETS
-    elif name == 'xysquares_8x8_s1':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=1, transform=TransformCls())  # ?x?x?x?x?x? = ?
-    elif name == 'xysquares_8x8_s2':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=2, transform=TransformCls())  # ?x?x?x?x?x? = ?
-    elif name == 'xysquares_8x8_s3':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=3, transform=TransformCls())  # ?x?x?x?x?x? = ?
-    elif name == 'xysquares_8x8_s4':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=4, transform=TransformCls())  # ?x?x?x?x?x? = ?
-    elif name == 'xysquares_8x8_s5':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=5, transform=TransformCls())  # ?x?x?x?x?x? = ?
-    elif name == 'xysquares_8x8_s6':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=6, transform=TransformCls())  # ?x?x?x?x?x? = ?
-    elif name == 'xysquares_8x8_s7':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=7, transform=TransformCls())  # ?x?x?x?x?x? = ?
-    elif name == 'xysquares_8x8_s8':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=8, transform=TransformCls())  # 8x8x8x8x8x8 = 262144  # equivalent: [xysquares, xysquares_8x8, xysquares_8x8_s8]
+    elif name == 'xysquares_8x8_s1':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=1, transform=transform)  # ?x?x?x?x?x? = ?
+    elif name == 'xysquares_8x8_s2':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=2, transform=transform)  # ?x?x?x?x?x? = ?
+    elif name == 'xysquares_8x8_s3':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=3, transform=transform)  # ?x?x?x?x?x? = ?
+    elif name == 'xysquares_8x8_s4':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=4, transform=transform)  # ?x?x?x?x?x? = ?
+    elif name == 'xysquares_8x8_s5':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=5, transform=transform)  # ?x?x?x?x?x? = ?
+    elif name == 'xysquares_8x8_s6':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=6, transform=transform)  # ?x?x?x?x?x? = ?
+    elif name == 'xysquares_8x8_s7':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=7, transform=transform)  # ?x?x?x?x?x? = ?
+    elif name == 'xysquares_8x8_s8':  data = XYSquaresData(square_size=8, grid_size=8, grid_spacing=8, transform=transform)  # 8x8x8x8x8x8 = 262144  # equivalent: [xysquares, xysquares_8x8, xysquares_8x8_s8]
     # OTHER SYNTHETIC DATASETS
-    elif name == 'xyobject':         data = XYObjectData(transform=TransformCls())
-    elif name == 'xyobject_shaded':  data = XYObjectShadedData(transform=TransformCls())
-    elif name == 'xyblocks':         data = XYBlocksData(transform=TransformCls())
+    elif name == 'xyobject':         data = XYObjectData(transform=transform)
+    elif name == 'xyobject_shaded':  data = XYObjectShadedData(transform=transform)
+    elif name == 'xyblocks':         data = XYBlocksData(transform=transform)
     # NORMAL DATASETS
-    elif name == 'cars3d':         data = Cars3d64Data(data_root=data_root,    prepare=True, transform=TransformCls(size=64))
-    elif name == 'smallnorb':      data = SmallNorb64Data(data_root=data_root, prepare=True, transform=TransformCls(size=64))
-    elif name == 'shapes3d':       data = Shapes3dData(data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
-    elif name == 'dsprites':       data = DSpritesData(data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'cars3d':         data = Cars3d64Data(data_root=data_root,    prepare=True, transform=transform)
+    elif name == 'smallnorb':      data = SmallNorb64Data(data_root=data_root, prepare=True, transform=transform)
+    elif name == 'shapes3d':       data = Shapes3dData(data_root=data_root,  prepare=True, transform=transform, in_memory=try_in_memory)
+    elif name == 'dsprites':       data = DSpritesData(data_root=data_root,  prepare=True, transform=transform, in_memory=try_in_memory)
     # CUSTOM DATASETS
-    elif name == 'dsprites_imagenet_bg_100': data = DSpritesImagenetData(visibility=100, mode='bg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
-    elif name == 'dsprites_imagenet_bg_80':  data = DSpritesImagenetData(visibility=80, mode='bg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
-    elif name == 'dsprites_imagenet_bg_60':  data = DSpritesImagenetData(visibility=60, mode='bg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
-    elif name == 'dsprites_imagenet_bg_40':  data = DSpritesImagenetData(visibility=40, mode='bg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
-    elif name == 'dsprites_imagenet_bg_20':  data = DSpritesImagenetData(visibility=20, mode='bg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_bg_100': data = DSpritesImagenetData(visibility=100, mode='bg', data_root=data_root,  prepare=True, transform=transform, in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_bg_80':  data = DSpritesImagenetData(visibility=80, mode='bg', data_root=data_root,  prepare=True, transform=transform, in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_bg_60':  data = DSpritesImagenetData(visibility=60, mode='bg', data_root=data_root,  prepare=True, transform=transform, in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_bg_40':  data = DSpritesImagenetData(visibility=40, mode='bg', data_root=data_root,  prepare=True, transform=transform, in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_bg_20':  data = DSpritesImagenetData(visibility=20, mode='bg', data_root=data_root,  prepare=True, transform=transform, in_memory=try_in_memory)
     #
-    elif name == 'dsprites_imagenet_bg_75':  data = DSpritesImagenetData(visibility=75, mode='bg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
-    elif name == 'dsprites_imagenet_bg_50':  data = DSpritesImagenetData(visibility=50, mode='bg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
-    elif name == 'dsprites_imagenet_bg_25':  data = DSpritesImagenetData(visibility=25, mode='bg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
-    elif name == 'dsprites_imagenet_bg_0':   data = DSpritesImagenetData(visibility=0,  mode='bg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)  # same as normal dsprites, but with 3 channels
+    elif name == 'dsprites_imagenet_bg_75':  data = DSpritesImagenetData(visibility=75, mode='bg', data_root=data_root,  prepare=True, transform=transform, in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_bg_50':  data = DSpritesImagenetData(visibility=50, mode='bg', data_root=data_root,  prepare=True, transform=transform, in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_bg_25':  data = DSpritesImagenetData(visibility=25, mode='bg', data_root=data_root,  prepare=True, transform=transform, in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_bg_0':   data = DSpritesImagenetData(visibility=0,  mode='bg', data_root=data_root,  prepare=True, transform=transform, in_memory=try_in_memory)  # same as normal dsprites, but with 3 channels
     # --- #
-    elif name == 'dsprites_imagenet_fg_100': data = DSpritesImagenetData(visibility=100, mode='fg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
-    elif name == 'dsprites_imagenet_fg_80':  data = DSpritesImagenetData(visibility=80, mode='fg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
-    elif name == 'dsprites_imagenet_fg_60':  data = DSpritesImagenetData(visibility=60, mode='fg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
-    elif name == 'dsprites_imagenet_fg_40':  data = DSpritesImagenetData(visibility=40, mode='fg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
-    elif name == 'dsprites_imagenet_fg_20':  data = DSpritesImagenetData(visibility=20, mode='fg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_fg_100': data = DSpritesImagenetData(visibility=100, mode='fg', data_root=data_root,  prepare=True, transform=transform, in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_fg_80':  data = DSpritesImagenetData(visibility=80, mode='fg', data_root=data_root,  prepare=True, transform=transform, in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_fg_60':  data = DSpritesImagenetData(visibility=60, mode='fg', data_root=data_root,  prepare=True, transform=transform, in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_fg_40':  data = DSpritesImagenetData(visibility=40, mode='fg', data_root=data_root,  prepare=True, transform=transform, in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_fg_20':  data = DSpritesImagenetData(visibility=20, mode='fg', data_root=data_root,  prepare=True, transform=transform, in_memory=try_in_memory)
     #
-    elif name == 'dsprites_imagenet_fg_75':  data = DSpritesImagenetData(visibility=75, mode='fg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
-    elif name == 'dsprites_imagenet_fg_50':  data = DSpritesImagenetData(visibility=50, mode='fg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
-    elif name == 'dsprites_imagenet_fg_25':  data = DSpritesImagenetData(visibility=25, mode='fg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)
-    elif name == 'dsprites_imagenet_fg_0':   data = DSpritesImagenetData(visibility=0,  mode='fg', data_root=data_root,  prepare=True, transform=TransformCls(), in_memory=try_in_memory)  # same as normal dsprites, but with 3 channels
+    elif name == 'dsprites_imagenet_fg_75':  data = DSpritesImagenetData(visibility=75, mode='fg', data_root=data_root,  prepare=True, transform=transform, in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_fg_50':  data = DSpritesImagenetData(visibility=50, mode='fg', data_root=data_root,  prepare=True, transform=transform, in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_fg_25':  data = DSpritesImagenetData(visibility=25, mode='fg', data_root=data_root,  prepare=True, transform=transform, in_memory=try_in_memory)
+    elif name == 'dsprites_imagenet_fg_0':   data = DSpritesImagenetData(visibility=0,  mode='fg', data_root=data_root,  prepare=True, transform=transform, in_memory=try_in_memory)  # same as normal dsprites, but with 3 channels
     # DONE
     else: raise KeyError(f'invalid data name: {repr(name)}')
     # load into memory
@@ -224,19 +231,21 @@ def make_dataset(
     transform_mode: TransformTypeHint = 'float32',
     sampler: BaseDisentSampler = None,
 ) -> DisentDataset:
+    # make data
     data = make_data(
         name=name,
-        factors=factors,
         data_root=data_root,
         try_in_memory=try_in_memory,
         load_into_memory=load_into_memory,
         load_memory_dtype=load_memory_dtype,
-        transform_mode=transform_mode,
+        transform_mode='none',  # we move the transform over to the DisentDataset instead!
     )
     return DisentDataset(
         data,
         sampler=GroundTruthSingleSampler() if (sampler is None) else sampler,
-        return_indices=True
+        return_indices=True,
+        return_factors=factors,
+        transform=make_transform(mode=transform_mode),
     )
 
 

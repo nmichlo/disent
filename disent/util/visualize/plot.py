@@ -310,11 +310,10 @@ def visualize_dataset_traversal(
     # TODO: this is kinda hacky, maybe rather add a check?
     # TODO: can this be moved into the `output_wandb` if statement?
     # - animations glitch out if they do not have 3 channels
+    assert grid.ndim == 5, f'invalid number of dimensions, must be 5, got: {grid.ndim}'
     if grid.shape[-1] == 1:
         grid = grid.repeat(3, axis=-1)
-
-    assert grid.ndim == 5
-    assert grid.shape[-1] in (1, 3)
+    assert grid.shape[-1] in (1, 3), f'invalid number of channels, must be 1 or 3, got shape: {grid.shape}. Note that the dataset or augment if specified should output HWC images, not CHW images!'
 
     # generate visuals
     image = make_image_grid(np.concatenate(grid, axis=0), pad=pad, border=border, bg_color=bg_color, num_cols=num_frames)
