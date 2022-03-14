@@ -37,7 +37,6 @@ from typing import List
 from typing import Optional
 from typing import Sequence
 
-import hydra
 import numpy as np
 import pytorch_lightning as pl
 import torch
@@ -66,8 +65,8 @@ from disent.util.visualize.vis_util import make_image_grid
 from experiment.run import hydra_get_callbacks
 from experiment.run import hydra_get_gpus
 from experiment.run import hydra_make_logger
+from experiment.util.hydra_main import hydra_main
 from experiment.util.hydra_utils import make_non_strict
-from experiment.util.run_utils import log_error_and_exit
 from research.part03_learnt_overlap.e02_learn_adversarial_data.util_gen_adversarial_dataset import adversarial_loss
 from research.part03_learnt_overlap.e02_learn_adversarial_data.util_gen_adversarial_dataset import make_adversarial_sampler
 
@@ -414,22 +413,13 @@ if __name__ == '__main__':
     # - batch_optimizer=True,  gpu=True,  fp16=True   : [2510MiB/5932MiB, 4.10/11.7G, 4.75it/s, 20% gpu util] (to(device).to(dtype))
     # - batch_optimizer=True,  gpu=True,  fp16=True   : [2492MiB/5932MiB, 4.10/11.7G, 4.12it/s, 19% gpu util] (to(device, dtype))
 
-    @hydra.main(config_path=os.path.join(ROOT_DIR, 'experiment/config'), config_name="config_adversarial_dataset")
-    def main(cfg):
-        try:
-            run_gen_adversarial_dataset(cfg)
-        except Exception as e:
-            # truncate error
-            err_msg = str(e)
-            err_msg = err_msg[:244] + ' <TRUNCATED>' if len(err_msg) > 244 else err_msg
-            # log something at least
-            log.error(f'exiting: experiment error | {err_msg}', exc_info=True)
+    CONFIGS_THIS_EXP = os.path.abspath(os.path.join(__file__, '../..', 'config'))
+    CONFIGS_RESEARCH = os.path.abspath(os.path.join(__file__, '../../../..', 'config'))
 
-    # EXP ARGS:
-    # $ ... -m dataset=smallnorb,shapes3d
-    try:
-        main()
-    except KeyboardInterrupt as e:
-        log_error_and_exit(err_type='interrupted', err_msg=str(e), exc_info=False)
-    except Exception as e:
-        log_error_and_exit(err_type='hydra error', err_msg=str(e))
+    # launch the action
+    hydra_main(
+        callback=run_gen_adversarial_dataset,
+        config_name='config_adversarial_dataset',
+        search_dirs_prepend=[CONFIGS_THIS_EXP, CONFIGS_RESEARCH],
+        log_level=logging.INFO,
+    )

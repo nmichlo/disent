@@ -590,7 +590,7 @@ def main_plotting(plot_all=False, print_mean_std=False):
 
     # plot adversarial dsprites datasets
     for fg in [True, False]:
-        for vis in [100, 80, 60, 40, 20]:
+        for vis in [100, 75, 50, 25, 0]:
             name = f'dsprites_imagenet_{"fg" if fg else "bg"}_{vis}'
             plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(name), color='orange', dataset_or_name=name, plot_freq=PLOT_FREQ, x_size_offset=0.4)
             _print_data_mean_std(name, print_mean_std)

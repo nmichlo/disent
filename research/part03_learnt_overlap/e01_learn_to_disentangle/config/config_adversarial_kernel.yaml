@@ -1,0 +1,38 @@
+defaults:
+  - _self_  # this overrides defaults list
+  - run_length: short
+  - run_logging: wandb
+  - run_location: stampede_tmp
+  - run_launcher: local
+
+settings:
+  job:
+    user: '${oc.env:WANDB_USER}'
+    project: 'exp-disentangle-kernel'
+    name: temp  # r${exp.kernel.radius}-${exp.kernel.channels}_s${trainer.max_steps}_${framework.cfg.optimizer_kwargs.optimizer}_lr${settings.optimizer.lr}_wd${framework.cfg.optimizer_kwargs.weight_decay}_${settings.data.name}
+    seed: 777
+  dataset:
+    batch_size: 128
+
+exp:
+  optimizer:
+    name: adam
+    lr: 3e-3
+    weight_decay: 0.0
+  data:
+    name: 'xysquares_8x8'
+  kernel:
+    radius: 63
+    channels: 1
+    disentangle_factors: NULL
+    # training
+    regularize_symmetric: TRUE
+    regularize_norm: FALSE    # these don't work
+    regularize_nonneg: FALSE  # these don't work
+  train:
+    pairs_ratio: 8.0
+    loss: mse
+  out:
+    rel_save_dir: data/adversarial_kernel
+    save_name: ${settings.job.name}.pt
+    show_every_n_steps: 100

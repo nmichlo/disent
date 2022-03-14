@@ -24,7 +24,6 @@
 
 import logging
 import os
-import sys
 from datetime import datetime
 from typing import Callable
 from typing import Optional
@@ -49,9 +48,7 @@ from disent.util.strings import colors as c
 from disent.util.strings.fmt import make_box_str
 
 from experiment.util.hydra_data import HydraDataModule
-from experiment.util.path_utils import get_current_experiment_number
-from experiment.util.path_utils import make_current_experiment_dir
-from experiment.util.run_utils import log_error_and_exit
+from experiment.util.hydra_main import hydra_main
 from experiment.util.run_utils import safe_unset_debug_logger
 from experiment.util.run_utils import safe_unset_debug_trainer
 from experiment.util.run_utils import set_debug_logger
@@ -379,100 +376,17 @@ def run_action(cfg: DictConfig):
 
 
 # ========================================================================= #
-# UTIL                                                                      #
-# ========================================================================= #
-
-
-PLUGIN_NAMESPACE = os.path.abspath(os.path.join(__file__, '..', 'util/_hydra_searchpath_plugin_'))
-
-
-def patch_hydra():
-    """
-    Patch Hydra and OmegaConf:
-        1. sets the default search path to `experiment/config`
-        2. add to the search path with the `DISENT_CONFIGS_PREPEND` and `DISENT_CONFIGS_APPEND` environment variables
-           NOTE: --config-dir has lower priority than all these, --config-path has higher priority.
-        3. enable the ${exit:<msg>} resolver for omegaconf/hydra
-        4. enable the ${exp_num:<root_dir>} and ${exp_dir:<root_dir>,<name>} resolvers to detect the experiment number
-
-    This function can safely be called multiple times
-        - unless other functions modify these same libs which is unlikely!
-    """
-    # register the experiment's search path plugin with disent, using hydras auto-detection
-    # of folders named `hydra_plugins` contained insided `namespace packages` or rather
-    # packages that are in the `PYTHONPATH` or `sys.path`
-    #   1. sets the default search path to `experiment/config`
-    #   2. add to the search path with the `DISENT_CONFIGS_PREPEND` and `DISENT_CONFIGS_APPEND` environment variables
-    #      NOTE: --config-dir has lower priority than all these, --config-path has higher priority.
-    if PLUGIN_NAMESPACE not in sys.path:
-        sys.path.insert(0, PLUGIN_NAMESPACE)
-
-    # register a custom OmegaConf resolver that allows us to put in a ${exit:msg} that exits the program
-    # - if we don't register this, the program will still fail because we have an unknown
-    #   resolver. This just prettifies the output.
-    if not OmegaConf.has_resolver('exit'):
-        class ConfigurationError(Exception):
-            pass
-        # resolver function
-        def _error_resolver(msg: str):
-            raise ConfigurationError(msg)
-        # patch omegaconf for hydra
-        OmegaConf.register_new_resolver('exit', _error_resolver)
-
-    # register a custom OmegaConf resolver that allows us to get the next experiment number from a directory
-    # - ${run_num:<root_dir>} returns the current experiment number
-    if not OmegaConf.has_resolver('exp_num'):
-        OmegaConf.register_new_resolver('exp_num', get_current_experiment_number)
-    # - ${run_dir:<root_dir>,<name>} returns the current experiment folder with the name appended
-    if not OmegaConf.has_resolver('exp_dir'):
-        OmegaConf.register_new_resolver('exp_dir', make_current_experiment_dir)
-
-    # register a function that pads an integer to a specified length
-    # - ${fmt:"{:04d}",42} -> "0042"
-    if not OmegaConf.has_resolver('fmt'):
-        OmegaConf.register_new_resolver('fmt', str.format)
-
-    # register hydra helper functions
-    # - ${abspath:<rel_path>} convert a relative path to an abs path using the original hydra working directory, not the changed experiment dir.
-    if not OmegaConf.has_resolver('abspath'):
-        OmegaConf.register_new_resolver('abspath', hydra.utils.to_absolute_path)
-
-
-# ========================================================================= #
 # MAIN                                                                      #
 # ========================================================================= #
 
 
-# path to root directory containing configs
-CONFIG_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), 'config'))
-# root config existing inside `CONFIG_ROOT`, with '.yaml' appended.
-CONFIG_NAME = 'config'
-
-
 if __name__ == '__main__':
-    # manually set log level before hydra initialises!
-    logging.basicConfig(level=logging.INFO)
-
-    # Patch Hydra and OmegaConf:
-    patch_hydra()
-
-    @hydra.main(config_path=None, config_name='config')
-    def hydra_main(cfg: DictConfig):
-        try:
-            run_action(cfg)
-        except Exception as e:
-            log_error_and_exit(err_type='experiment error', err_msg=str(e), exc_info=True)
-        except:
-            log_error_and_exit(err_type='experiment error', err_msg='<UNKNOWN>', exc_info=True)
-
-    try:
-        hydra_main()
-    except KeyboardInterrupt as e:
-        log_error_and_exit(err_type='interrupted', err_msg=str(e), exc_info=False)
-    except Exception as e:
-        log_error_and_exit(err_type='hydra error', err_msg=str(e), exc_info=True)
-    except:
-        log_error_and_exit(err_type='hydra error', err_msg='<UNKNOWN>', exc_info=True)
+    # launch the action
+    hydra_main(
+        callback=run_action,
+        config_name='config',
+        log_level=logging.INFO,
+    )
 
 
 # ========================================================================= #

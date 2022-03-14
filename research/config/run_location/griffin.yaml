@@ -15,7 +15,7 @@ datamodule:
   prepare_data_per_node: TRUE
   dataloader:
     num_workers: 32  # max 128, more than 16 doesn't really seem to help (tested on batch size 256*3)?
-    pin_memory: ${dsettings.trainer.cuda}
+    pin_memory: ${dsettings.trainer.cuda}  # uses more memory, but faster!
     batch_size: ${settings.dataset.batch_size}
 
 hydra:

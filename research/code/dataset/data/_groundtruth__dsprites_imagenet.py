@@ -38,11 +38,8 @@ from disent.dataset.data import GroundTruthData
 from disent.dataset.data._groundtruth import _DiskDataMixin
 from disent.dataset.data._groundtruth import _Hdf5DataMixin
 from disent.dataset.data._groundtruth__dsprites import DSpritesData
-from disent.dataset.transform import ToImgTensorF32
 from disent.dataset.util.datafile import DataFileHashedDlGen
 from disent.dataset.util.hdf5 import H5Builder
-from disent.dataset.util.stats import compute_data_mean_std
-from disent.util.function import wrapped_partial
 from disent.util.inout.files import AtomicSaveFile
 from disent.util.iters import LengthIter
 from disent.util.math.random import random_choice_prng
@@ -289,8 +286,10 @@ dsprites
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
 
-
     def compute_all_stats():
+        from disent.dataset.transform import ToImgTensorF32
+        from disent.dataset.util.stats import compute_data_mean_std
+        from disent.util.function import wrapped_partial
         from disent.util.visualize.plot import plt_subplots_imshow
 
         def compute_stats(visibility: Optional[int], mode: Optional[str]):
@@ -329,6 +328,36 @@ if __name__ == '__main__':
             print(f'{name}\n    vis_mean: {mean.tolist()}\n    vis_std: {std.tolist()}')
 
     compute_all_stats()
+
+    # DEBUG MEMORY USAGE:
+
+    # def debug_mem():
+    #     import matplotlib.pyplot as plt
+    #     from disent.dataset import DisentDataset
+    #     from disent.dataset.sampling import GroundTruthDistSampler
+    #     from disent.util.profiling import get_memory_usage
+    #
+    #     data = DSpritesImagenetData(visibility=50, in_memory=True)
+    #     dataset = DisentDataset(data, sampler=GroundTruthDistSampler(num_samples=3))
+    #
+    #     dataloader_makers = [
+    #         lambda dataset: DataLoader(dataset, batch_size=256, shuffle=True, num_workers=os.cpu_count(), pin_memory=True),
+    #         lambda dataset: DataLoader(dataset, batch_size=256, shuffle=True, num_workers=os.cpu_count(), pin_memory=False),
+    #     ]
+    #
+    #     for i, dataloader_maker in enumerate(dataloader_makers):
+    #         dataloader = dataloader_maker(dataset)
+    #         memory = []
+    #         for j in range(1):
+    #             for k, batch in enumerate(tqdm(dataloader, desc=f'{i}:{j}')):
+    #                 [x.cuda() for x in batch['x_targ']]  # memory leak isnt here either...
+    #                 if k % 10 == 0: memory.append(get_memory_usage())
+    #                 if k % 100 == 0: tqdm.write(f'{get_memory_usage(pretty=True)}')
+    #         plt.plot(range(len(memory)), memory)
+    #         plt.show()
+    #
+    # # entry
+    # debug_mem()
 
 
 # ========================================================================= #

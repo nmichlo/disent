@@ -19,7 +19,7 @@ datamodule:
   prepare_data_per_node: TRUE
   dataloader:
     num_workers: 16
-    pin_memory: ${dsettings.trainer.cuda}
+    pin_memory: ${dsettings.trainer.cuda}  # uses more memory, but faster!
     batch_size: ${settings.dataset.batch_size}
 
 hydra:

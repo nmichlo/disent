@@ -5,7 +5,7 @@ name: dsprites_imagenet_fg_50
 
 data:
   _target_: research.code.dataset.data.DSpritesImagenetData
-  visibility: 60
+  visibility: 50
   mode: fg
   data_root: ${dsettings.storage.data_root}
   prepare: ${dsettings.dataset.prepare}
