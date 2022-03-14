@@ -50,6 +50,7 @@ from disent.util.strings.fmt import make_box_str
 from experiment.run import hydra_get_callbacks
 from experiment.run import hydra_get_gpus
 from experiment.run import hydra_make_logger
+from experiment.util.hydra_main import hydra_main
 from experiment.util.hydra_utils import make_non_strict
 
 
@@ -218,10 +219,6 @@ class Kernel(DisentModule):
 # ========================================================================= #
 
 
-ROOT_DIR = os.path.abspath(__file__ + '/../../../..')
-
-
-@hydra.main(config_path=os.path.join(ROOT_DIR, 'experiment/config'), config_name="config_adversarial_kernel")
 def run_disentangle_dataset_kernel(cfg):
     cfg = make_non_strict(cfg)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
@@ -295,4 +292,15 @@ if __name__ == '__main__':
     # but speeds up as kernel size decreases, so might be shorter
     # EXP ARGS:
     # $ ... -m optimizer.weight_decay=1e-4,0.0 kernel.radius=63,55,47,39,31,23,15,7 dataset.spacing=8,4,2,1
-    run_disentangle_dataset_kernel()
+
+    ROOT_DIR = os.path.abspath(__file__ + '/../../../..')
+    CONFIGS_THIS_EXP = os.path.abspath(os.path.join(__file__, '..', 'config'))
+    CONFIGS_RESEARCH = os.path.abspath(os.path.join(__file__, '../../..', 'config'))
+
+    # launch the action
+    hydra_main(
+        callback=run_disentangle_dataset_kernel,
+        config_name='config_adversarial_kernel',
+        search_dirs_prepend=[CONFIGS_THIS_EXP, CONFIGS_RESEARCH],
+        log_level=logging.INFO,
+    )
