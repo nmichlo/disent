@@ -24,6 +24,7 @@
 
 import warnings
 from functools import wraps
+from typing import Callable
 from typing import Iterator
 from typing import Optional
 from typing import Sequence
@@ -91,7 +92,7 @@ class DisentDataset(Dataset, LengthIter):
 
     def __init__(
         self,
-        dataset: Union[Dataset, GroundTruthData],
+        dataset: Union[Dataset, GroundTruthData],  # TODO: this should be renamed to data
         sampler: Optional[BaseDisentSampler] = None,
         transform: Optional[callable] = None,
         augment: Optional[callable] = None,
@@ -121,7 +122,7 @@ class DisentDataset(Dataset, LengthIter):
 
     def shallow_copy(
         self,
-        dataset: Union[Dataset, GroundTruthData] =_REF_,
+        dataset: Union[Dataset, GroundTruthData] =_REF_,  # TODO: this should be renamed to data
         sampler: Optional[BaseDisentSampler] = _REF_,
         transform: Optional[callable] = _REF_,
         augment: Optional[callable] = _REF_,
@@ -149,6 +150,14 @@ class DisentDataset(Dataset, LengthIter):
     @property
     def sampler(self) -> BaseDisentSampler:
         return self._sampler
+
+    @property
+    def transform(self) -> Optional[Callable[[object], object]]:
+        return self._transform
+
+    @property
+    def augment(self) -> Optional[Callable[[object], object]]:
+        return self._augment
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Ground Truth Only                                                     #

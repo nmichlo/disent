@@ -348,7 +348,7 @@ class AdversarialModel(pl.LightningModule):
         # dataset transform helper
         @TempNumpySeed(42)
         @torch.no_grad()
-        def make_scale_uint8_transform():
+        def make_scale_uint8_transform(transform):
             # get scaling values
             if self.hparams.logging_scale_imgs:
                 samples = self.dataset.dataset_sample_batch(num_samples=128, mode='raw').to(torch.float32)
@@ -356,7 +356,14 @@ class AdversarialModel(pl.LightningModule):
                 m, M = float(torch.amin(samples)), float(torch.amax(samples))
             else:
                 m, M = 0, 1
-            return lambda x: self.batch_to_adversarial_imgs(x[None, ...], m=m, M=M)[0]
+            # make transform
+            def _transform(x):
+                if transform is not None:
+                    x = transform(x)
+                x = self.batch_to_adversarial_imgs(x[None, ...], m=m, M=M)[0]
+                return x
+            # done!
+            return _transform
 
         # show image callback
         class _BaseDatasetCallback(BaseCallbackPeriodic):
@@ -384,7 +391,7 @@ class AdversarialModel(pl.LightningModule):
             def _do_step(this, trainer: pl.Trainer, system: AdversarialModel):
                 # make dataset with required transform
                 # -- this is inefficient for multiple subclasses of this class, we need to recompute the transform each time
-                dataset = system.dataset.shallow_copy(transform=make_scale_uint8_transform())
+                dataset = system.dataset.shallow_copy(transform=make_scale_uint8_transform(system.dataset.transform))
                 # get images & traversal
                 image = make_image_grid(dataset.dataset_sample_batch(num_samples=16, mode='input'))
                 wandb_image, wandb_animation = H.visualize_dataset_traversal(dataset, data_mode='input', output_wandb=True)
@@ -448,7 +455,7 @@ class AdversarialModel(pl.LightningModule):
             def _do_step(this, trainer: pl.Trainer, system: AdversarialModel):
                 # make dataset with required transform
                 # -- this is inefficient for multiple subclasses of this class, we need to recompute the transform each time
-                dataset = system.dataset.shallow_copy(transform=make_scale_uint8_transform())
+                dataset = system.dataset.shallow_copy(transform=make_scale_uint8_transform(system.dataset.transform))
                 # get batches
                 batch, factors = dataset.dataset_sample_batch_with_factors(num_samples=512, mode='input')
                 batch = batch.to(torch.float32)

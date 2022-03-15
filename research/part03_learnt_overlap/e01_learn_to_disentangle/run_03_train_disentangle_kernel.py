@@ -69,6 +69,8 @@ def disentangle_loss(
     loss_fn: str = 'mse',
     mean_dtype=None,
     corr_mode: str = 'improve',
+    regularization_strength: float = 1.0,
+    factor_sizes: Optional[torch.Tensor] = None,  # scale the distances | Must be the same approach as `GroundTruthDistSampler`
 ) -> torch.Tensor:
     assert len(batch) == len(factors)
     assert batch.ndim == 4
@@ -77,16 +79,24 @@ def disentangle_loss(
     ia, ib = torch.randint(0, len(batch), size=(2, num_pairs), device=batch.device)
     # get pairwise distances
     b_dists = H.pairwise_loss(batch[ia], batch[ib], mode=loss_fn, mean_dtype=mean_dtype)  # avoid precision errors
-    # compute factor distances
+    # compute factor differences
     if f_idxs is not None:
-        f_dists = torch.abs(factors[ia][:, f_idxs] - factors[ib][:, f_idxs]).sum(dim=-1)
+        f_diffs = factors[ia][:, f_idxs] - factors[ib][:, f_idxs]
     else:
-        f_dists = torch.abs(factors[ia] - factors[ib]).sum(dim=-1)
+        f_diffs = factors[ia] - factors[ib]
+    # scale the factor distances
+    if factor_sizes is not None:
+        assert factor_sizes.ndim == 1
+        assert factor_sizes.shape == factors.shape[1:]
+        scale = torch.maximum(torch.ones_like(factor_sizes), factor_sizes - 1)
+        f_diffs = f_diffs / scale.detach()
+    # compute factor distances
+    f_dists = torch.abs(f_diffs).sum(dim=-1)
     # optimise metric
-    if corr_mode == 'improve':  loss = spearman_rank_loss(b_dists, -f_dists)  # default one to use!
-    elif corr_mode == 'invert': loss = spearman_rank_loss(b_dists, +f_dists)
-    elif corr_mode == 'none':   loss = +torch.abs(spearman_rank_loss(b_dists, -f_dists))
-    elif corr_mode == 'any':    loss = -torch.abs(spearman_rank_loss(b_dists, -f_dists))
+    if corr_mode == 'improve':  loss = spearman_rank_loss(b_dists, -f_dists, regularization_strength=regularization_strength)  # default one to use!
+    elif corr_mode == 'invert': loss = spearman_rank_loss(b_dists, +f_dists, regularization_strength=regularization_strength)
+    elif corr_mode == 'none':   loss = +torch.abs(spearman_rank_loss(b_dists, -f_dists, regularization_strength=regularization_strength))
+    elif corr_mode == 'any':    loss = -torch.abs(spearman_rank_loss(b_dists, -f_dists, regularization_strength=regularization_strength))
     else: raise KeyError(f'invalid correlation mode: {repr(corr_mode)}')
     # done!
     return loss
@@ -120,6 +130,7 @@ class DisentangleModule(DisentLightningModule):
             f_idxs=self._disentangle_factors,
             loss_fn=self.hparams.exp.train.loss,
             mean_dtype=torch.float64,
+            regularization_strength=self.hparams.exp.train.reg_strength,
         )
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         if hasattr(self.model, 'augment_loss'):

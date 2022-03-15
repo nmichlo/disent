@@ -135,6 +135,7 @@ def factor_diff(f0: np.ndarray, f1: np.ndarray) -> int:
     return np.sum(f0 != f1)
 
 
+# NOTE: scaling here should always be the same as `disentangle_loss`
 def factor_dist(f0: np.ndarray, f1: np.ndarray, scale: np.ndarray = None) -> Union[Fraction, int]:
     # compute distances!
     if scale is None:

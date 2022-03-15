@@ -397,5 +397,21 @@ if __name__ == '__main__':
 # [XYSquares-8-8] random & 0.55 & 0.37 & 0.95 & 0.94
 
 # ========================================================================= #
+# COMPARE KERNELS                                                           #
+# ========================================================================= #
+
+# [XYSquares-8-8] Factor Name & Factor Size & linear_corr (mse) & rank_corr (mse) & linear_corr (gau) & rank_corr (gau) & linear_corr (box) & rank_corr (box) & linear_corr (xy1,r47) & rank_corr (xy1,r47)
+# [XYSquares-8-8] x_R    &      8 & 0.52 & 0.58 & 0.84 & 0.88 & 0.96 & 0.97 & 1.00 & 0.99
+# [XYSquares-8-8] random & 262144 & 0.55 & 0.36 & 0.72 & 0.61 & 0.95 & 0.94 & 1.00 & 1.00
+
+# MANUAL EDIT
+
+# Loss Name        & Linear Corr. (factor) & Rank Corr. (factor) & Linear Corr. (random) & Rank Corr. (random)
+# MSE              &                  0.52 &                0.58 &                  0.55 &                0.36
+# MSE (Gau-Kernel) &                  0.84 &                0.88 &                  0.72 &                0.61
+# MSE (Box-Kernel) &                  0.96 &                0.97 &                  0.95 &                0.94
+# MSE (XY8-Kernel) &                  1.00 &                0.99 &                  1.00 &                1.00
+
+# ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
