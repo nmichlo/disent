@@ -167,8 +167,16 @@ def torch_image_normalize_channels(
     tensor = tensor.to(out_dtype)
     in_min = torch.as_tensor(in_min, dtype=tensor.dtype, device=tensor.device)
     in_max = torch.as_tensor(in_max, dtype=tensor.dtype, device=tensor.device)
+    # warn if the values are the same
+    if torch.any(in_min == in_max):
+        m = in_min.cpu().detach().numpy()
+        M = in_min.cpu().detach().numpy()
+        warnings.warn(f'minimum: {m} and maximum: {M} values are the same, scaling values to zero.')
+    # handle equal values
+    divisor = in_max - in_min
+    divisor[divisor == 0] = 1
     # normalize
-    return (tensor - in_min) / (in_max - in_min)
+    return (tensor - in_min) / divisor
 
 
 # ========================================================================= #
@@ -248,7 +256,7 @@ def __torch_channel_broadcast_scale_values(
     # checks
     assert in_min.ndim == 1
     assert in_max.ndim == 1
-    assert np.all(in_min < in_max)
+    assert np.all(in_min <= in_max), f'min values are not <= the max values: {in_min} !<= {in_max}'
     # normalize dim
     dim = normalize_axis_index(dim, ndim=ndim)
     # pad dim
@@ -332,6 +340,8 @@ def torch_to_images(
     # 7. check output dtype
     if out_dtype != tensor.dtype:
         raise RuntimeError(f'[THIS IS A BUG!]: After conversion, images tensor dtype: {repr(tensor.dtype)} does not match out_dtype: {repr(in_dtype)}')
+    if torch.any(torch.isnan(tensor)):
+        raise RuntimeError('[THIS IS A BUG!]: After conversion, images contain NaN values!')
     # convert to numpy
     if to_numpy:
         return tensor.detach().cpu().numpy()

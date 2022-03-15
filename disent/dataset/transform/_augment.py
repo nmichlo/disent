@@ -244,7 +244,7 @@ def _get_kernel(name_or_path: str) -> torch.Tensor:
             pass
     if os.path.isfile(name_or_path):
         return torch.load(name_or_path)
-    raise KeyError(f'Invalid kernel path or name: {repr(name_or_path)} Examples of argument based kernels include: {[example for _, example, _ in _ARG_KERNELS]}, otherwise specify a valid path to a kernel file save with torch.')
+    raise KeyError(f'Invalid kernel path or name: {repr(name_or_path)} Examples of argument based kernels include: {R.KERNELS.regex_examples}, otherwise specify a valid path to a kernel file save with torch.')
 
 
 def get_kernel(kernel: Union[str, torch.Tensor], normalize: bool = False):

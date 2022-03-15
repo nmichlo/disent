@@ -8,8 +8,8 @@ defaults:
 settings:
   job:
     user: '${oc.env:WANDB_USER}'
-    project: 'exp-disentangle-kernel'
-    name: temp  # r${exp.kernel.radius}-${exp.kernel.channels}_s${trainer.max_steps}_${framework.cfg.optimizer_kwargs.optimizer}_lr${settings.optimizer.lr}_wd${framework.cfg.optimizer_kwargs.weight_decay}_${settings.data.name}
+    project: 'exp-disentangle-kernel-xy'
+    name: r${exp.kernel.radius}-${exp.kernel.channels}_s${trainer.max_steps}_${exp.optimizer.name}_lr${exp.optimizer.lr}_wd${exp.optimizer.weight_decay}_${exp.data.name}
     seed: 777
   dataset:
     batch_size: 128
@@ -20,19 +20,20 @@ exp:
     lr: 3e-3
     weight_decay: 0.0
   data:
-    name: 'xysquares_8x8'
+    name: 'xysquares_8x8'  # xysquares_8x8, xyobject, xyobject_shaded
   kernel:
     radius: 63
-    channels: 1
+    channels: 3
     disentangle_factors: NULL
     # training
-    regularize_symmetric: TRUE
+    regularize_symmetric: FALSE
     regularize_norm: FALSE    # these don't work
     regularize_nonneg: FALSE  # these don't work
   train:
     pairs_ratio: 8.0
     loss: mse
+    reg_strength: 1.0  # TODO: try reducing this!
   out:
     rel_save_dir: data/adversarial_kernel
     save_name: ${settings.job.name}.pt
-    show_every_n_steps: 100
+    show_every_n_steps: 2400

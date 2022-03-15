@@ -205,6 +205,14 @@ class Registry(DictProviders[str, V]):
         super().__init__()
 
     @property
+    def static_examples(self) -> List[str]:
+        return list(self._providers.keys())
+
+    @property
+    def examples(self) -> List[str]:
+        return self.static_examples
+
+    @property
     def name(self) -> str:
         return self._name
 
@@ -480,6 +488,10 @@ class RegexProvidersSearch(object):
         self._cache = {}
         self._cache_dirty = False
 
+    @property
+    def regex_constructors(self) -> List[RegexConstructor]:
+        return list(self._constructors)
+
     def construct(self, arg_str: str):
         provider = self.get_constructor(arg_str)
         # build the object
@@ -562,6 +574,18 @@ class RegexRegistry(Registry[V]):
         super().__init__(name)
 
     # --- CORE ... UPDATED WITH LINEAR SEARCH --- #
+
+    @property
+    def regex_constructors(self) -> List[RegexConstructor]:
+        return self._regex_providers.regex_constructors
+
+    @property
+    def regex_examples(self) -> List[str]:
+        return [constructor.example for constructor in self._regex_providers.regex_constructors]
+
+    @property
+    def examples(self) -> List[str]:
+        return [*self.static_examples, *self.regex_examples]
 
     def __getitem__(self, k: str) -> V:
         assert isinstance(k, str), f'invalid key: {repr(k)}, must be a `str`'

@@ -22,9 +22,11 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+from collections import defaultdict
 from typing import Dict
 from typing import List
 from typing import Optional
+from typing import Sequence
 from typing import Tuple
 from typing import Union
 
@@ -51,23 +53,38 @@ from research.code.metrics._factored_components import _numpy_concat_all_dicts
 
 
 _RENAME_KEYS = {
-    'mse.rsame_ground_data': 'rsame_ratio (mse)',
-    'mse.rcorr_ground_data': 'rank_corr (mse)',
-    'mse.lcorr_ground_data': 'linear_corr (mse)',
+    'mse/rsame_ground_data': 'rsame_ratio (mse)',
+    'mse/rcorr_ground_data': 'rank_corr (mse)',
+    'mse/lcorr_ground_data': 'linear_corr (mse)',
 
-    'aug.rsame_ground_data': 'rsame_ratio (aug)',
-    'aug.rcorr_ground_data': 'rank_corr (aug)',
-    'aug.lcorr_ground_data': 'linear_corr (aug)',
+    'mse_box_r31_l1.0_k3969.0/rsame_ground_data': 'rsame_ratio (box)',
+    'mse_box_r31_l1.0_k3969.0/rcorr_ground_data': 'rank_corr (box)',
+    'mse_box_r31_l1.0_k3969.0/lcorr_ground_data': 'linear_corr (box)',
+    'mse_box_r47_l1.0_k3969.0/rsame_ground_data': 'rsame_ratio (box,r47)',
+    'mse_box_r47_l1.0_k3969.0/rcorr_ground_data': 'rank_corr (box,r47)',
+    'mse_box_r47_l1.0_k3969.0/lcorr_ground_data': 'linear_corr (box,r47)',
+
+    'mse_gau_r31_l1.0_k3969.0/rsame_ground_data': 'rsame_ratio (gau)',
+    'mse_gau_r31_l1.0_k3969.0/rcorr_ground_data': 'rank_corr (gau)',
+    'mse_gau_r31_l1.0_k3969.0/lcorr_ground_data': 'linear_corr (gau)',
+    'mse_gau_r47_l1.0_k3969.0/rsame_ground_data': 'rsame_ratio (gau,r47)',
+    'mse_gau_r47_l1.0_k3969.0/rcorr_ground_data': 'rank_corr (gau,r47)',
+    'mse_gau_r47_l1.0_k3969.0/lcorr_ground_data': 'linear_corr (gau,r47)',
+
+    'mse_xy8_r31_l1.0_k3969.0/rsame_ground_data': 'rsame_ratio (xy1)',
+    'mse_xy8_r31_l1.0_k3969.0/rcorr_ground_data': 'rank_corr (xy1)',
+    'mse_xy8_r31_l1.0_k3969.0/lcorr_ground_data': 'linear_corr (xy1)',
+    'mse_xy8_r47_l1.0_k3969.0/rsame_ground_data': 'rsame_ratio (xy1,r47)',
+    'mse_xy8_r47_l1.0_k3969.0/rcorr_ground_data': 'rank_corr (xy1,r47)',
+    'mse_xy8_r47_l1.0_k3969.0/lcorr_ground_data': 'linear_corr (xy1,r47)',
+
+    'mse_xy1_r31_l1.0_k3969.0/rsame_ground_data': 'rsame_ratio (xy8)',
+    'mse_xy1_r31_l1.0_k3969.0/rcorr_ground_data': 'rank_corr (xy8)',
+    'mse_xy1_r31_l1.0_k3969.0/lcorr_ground_data': 'linear_corr (xy8)',
+    'mse_xy1_r47_l1.0_k3969.0/rsame_ground_data': 'rsame_ratio (xy8,r47)',
+    'mse_xy1_r47_l1.0_k3969.0/rcorr_ground_data': 'rank_corr (xy8,r47)',
+    'mse_xy1_r47_l1.0_k3969.0/lcorr_ground_data': 'linear_corr (xy8,r47)',
 }
-
-ORDER = [
-    # 'rsame_ratio (mse)',
-    'linear_corr (mse)',
-    'rank_corr (mse)',
-    # 'rsame_ratio (aug)',
-    'linear_corr (aug)',
-    'rank_corr (aug)',
-]
 
 
 # ========================================================================= #
@@ -98,16 +115,20 @@ def _normalise_f_name_and_idx(dataset: DisentDataset, f_idx: Optional[Union[str,
 
 
 @torch.no_grad()
-def _compute_mean_rcorr_ground_data(dataset: DisentDataset, f_idx: Optional[Union[str, int]], num_samples: int, repeats: int, progress: bool = True, random_batch_size: int = 16, enable_aug_loss: bool = True):
+def _compute_mean_rcorr_ground_data(
+    dataset: DisentDataset,
+    f_idx: Optional[Union[str, int]],
+    num_samples: int,
+    repeats: int,
+    progress: bool = True,
+    random_batch_size: int = 16,
+    losses: Sequence[str] = ('mse', 'mse_box_r31_l1.0_k3969.0')
+):
     f_idx, f_name = _normalise_f_name_and_idx(dataset, f_idx)
-
-    # storage!
-    distance_measures_mse: List[Dict[str, np.ndarray]] = []
-    distance_measures_aug: List[Dict[str, np.ndarray]] = []
-
     # recon loss handlers
-    mse: ReconLossHandler = R.RECON_LOSSES['mse'](reduction='mean').cuda()
-    aug: ReconLossHandler = R.RECON_LOSSES['mse_box_r31_l1.0_k3969.0'](reduction='mean').cuda()
+    recon_handlers = {loss: R.RECON_LOSSES[loss](reduction='mean').cuda() for loss in losses}
+    # storage for each loss
+    distance_measures: Dict[str, List[Dict[str, np.ndarray]]] = defaultdict(list)
 
     # repeat!
     for i in tqdm(range(repeats), desc=f'{dataset.gt_data.name}: {f_name}', disable=not progress):
@@ -120,20 +141,21 @@ def _compute_mean_rcorr_ground_data(dataset: DisentDataset, f_idx: Optional[Unio
         xs = dataset.dataset_batch_from_factors(factors, 'input').cuda()
         factors = torch.from_numpy(factors).to(torch.float32).cpu()
         # [COMPUTE SAME RATIO & CORRELATION]
-        computed_dists_mse = _compute_dists(num_samples, zs_traversal=None, xs_traversal=xs, factors=factors, recon_loss_fn=mse)
-        distance_measures_mse.append(computed_dists_mse)
-        # [COMPUTE SAME RATIO & CORRELATION] -- box blur
-        if enable_aug_loss:
-            computed_dists_aug = _compute_dists(num_samples, zs_traversal=None, xs_traversal=xs, factors=factors, recon_loss_fn=aug)
-            distance_measures_aug.append(computed_dists_aug)
+        for loss in losses:
+            recon_loss = recon_handlers[loss]
+            computed_dists = _compute_dists(num_samples, zs_traversal=None, xs_traversal=xs, factors=factors, recon_loss_fn=recon_loss)
+            distance_measures[loss].append(computed_dists)
 
     # concatenate all into arrays: <shape: (repeats*num,)>
     # then aggregate over first dimension: <shape: (,)>
-    distance_measures_mse: Dict[str, float] = {f'mse.{k}': v for k, v in _compute_scores_from_dists(_numpy_concat_all_dicts(distance_measures_mse)).items()}
-    distance_measures_aug: Dict[str, float] = {f'aug.{k}': v for k, v in _compute_scores_from_dists(_numpy_concat_all_dicts(distance_measures_aug)).items()} if enable_aug_loss else {}
+    distance_measures: Dict[str, float] = {
+        f'{loss}/{k}': v
+        for loss in losses
+        for k, v in _compute_scores_from_dists(_numpy_concat_all_dicts(distance_measures[loss])).items()
+    }
 
     # done!
-    return {_RENAME_KEYS[k]: v for k, v in {**distance_measures_mse, **distance_measures_aug}.items()}
+    return {_RENAME_KEYS.get(k, k): v for k, v in distance_measures.items()}
 
 
 # ========================================================================= #
@@ -143,11 +165,11 @@ def _compute_mean_rcorr_ground_data(dataset: DisentDataset, f_idx: Optional[Unio
 
 if __name__ == '__main__':
 
-    def main():
+    def main(compare_kernels=False):
         gt_data_classes = {
           # 'XYObject':  wrapped_partial(XYObjectData),
           # 'XYBlocks':  wrapped_partial(XYBlocksData),
-          #   'XYSquares': wrapped_partial(XYSquaresData),
+            'XYSquares': wrapped_partial(XYSquaresData),
             'Cars3d':    wrapped_partial(Cars3d64Data),
             'Shapes3d':  wrapped_partial(Shapes3dData),
             'SmallNorb': wrapped_partial(SmallNorb64Data),
@@ -181,7 +203,28 @@ if __name__ == '__main__':
         repeats = 16384
         progress = True
         digits = 4
-        enable_aug_loss = True
+
+        if not compare_kernels:
+            ORDER = [
+                'linear_corr (mse)',
+                'rank_corr (mse)',
+                'linear_corr (box)',
+                'rank_corr (box)',
+            ]
+            losses = ('mse', 'mse_box_r31_l1.0_k3969.0')
+        else:
+            gt_data_classes = {'XYSquares-8-8': wrapped_partial(XYSquaresData, square_size=8, grid_spacing=8, grid_size=8, no_warnings=True)}
+            ORDER = [
+                'linear_corr (mse)',
+                'rank_corr (mse)',
+                'linear_corr (gau)',
+                'rank_corr (gau)',
+                'linear_corr (box)',
+                'rank_corr (box)',
+                'linear_corr (xy1,r47)',
+                'rank_corr (xy1,r47)',
+            ]
+            losses = ('mse', 'mse_gau_r31_l1.0_k3969.0', 'mse_box_r31_l1.0_k3969.0', 'mse_xy8_r47_l1.0_k3969.0')
 
         for name, data_cls in  gt_data_classes.items():
             dataset = DisentDataset(data_cls(), transform=ToImgTensorF32(size=64))
@@ -195,14 +238,16 @@ if __name__ == '__main__':
                 name_len = max(len(s) for s in factor_names)
                 # compute scores
                 try:
-                    scores = _compute_mean_rcorr_ground_data(dataset, f_idx=f_name, num_samples=num_samples, repeats=repeats, random_batch_size=random_batch_size, progress=progress, enable_aug_loss=enable_aug_loss)
+                    scores = _compute_mean_rcorr_ground_data(dataset, f_idx=f_name, num_samples=num_samples, repeats=repeats, random_batch_size=random_batch_size, progress=progress,  losses=losses)
+                    scores = {k: v for k, v in scores.items() if ('rsame_' not in k)}
+                    order = (ORDER if ORDER else scores.keys())
                     # NORMAL
                     # print(f'[{name}] f_idx={f_name:{name_len}s} f_size={f_size:{size_len}d} {" ".join(f"{k}={v:7.5f}" for k, v in scores.items())}')
                     # LATEX HEADINGS:
                     if i == 0:
-                        print(f'[{name}] Factor Name & Factor Size & {" & ".join(f"{k:{digits}s}" for k in ORDER if k in scores)}')
+                        print(f'[{name}] Factor Name & Factor Size & {" & ".join(f"{k:{digits}s}" for k in order if k in scores)}')
                     # LATEX
-                    print(f'[{name}] {f_name:{name_len}s} & {f_size:{size_len}d} & {" & ".join(f"{scores[k]:{digits}.{digits-2}f}" for k in ORDER if k in scores)}')
+                    print(f'[{name}] {f_name:{name_len}s} & {f_size:{size_len}d} & {" & ".join(f"{scores[k]:{digits}.{digits-2}f}" for k in order if k in scores)}')
                 except Exception as e:
                     # NORMAL
                     # print(f'[{name}] f_idx={f_name:{name_len}s} f_size={f_size:{size_len}d} SKIPPED!')
@@ -213,7 +258,8 @@ if __name__ == '__main__':
 
     # RUN
     register_to_disent()
-    main()
+    main(compare_kernels=False)
+    main(compare_kernels=True)
 
 
 # ========================================================================= #
@@ -349,6 +395,22 @@ if __name__ == '__main__':
 # [XYSquares-8-8] Factor Name & linear_corr (mse) & rank_corr (mse) & linear_corr (aug) & rank_corr (aug)
 # [XYSquares-8-8] x_R    & 0.52 & 0.58 & 0.96 & 0.97
 # [XYSquares-8-8] random & 0.55 & 0.37 & 0.95 & 0.94
+
+# ========================================================================= #
+# COMPARE KERNELS                                                           #
+# ========================================================================= #
+
+# [XYSquares-8-8] Factor Name & Factor Size & linear_corr (mse) & rank_corr (mse) & linear_corr (gau) & rank_corr (gau) & linear_corr (box) & rank_corr (box) & linear_corr (xy1,r47) & rank_corr (xy1,r47)
+# [XYSquares-8-8] x_R    &      8 & 0.52 & 0.58 & 0.84 & 0.88 & 0.96 & 0.97 & 1.00 & 0.99
+# [XYSquares-8-8] random & 262144 & 0.55 & 0.36 & 0.72 & 0.61 & 0.95 & 0.94 & 1.00 & 1.00
+
+# MANUAL EDIT
+
+# Loss Name        & Linear Corr. (factor) & Rank Corr. (factor) & Linear Corr. (random) & Rank Corr. (random)
+# MSE              &                  0.52 &                0.58 &                  0.55 &                0.36
+# MSE (Gau-Kernel) &                  0.84 &                0.88 &                  0.72 &                0.61
+# MSE (Box-Kernel) &                  0.96 &                0.97 &                  0.95 &                0.94
+# MSE (XY8-Kernel) &                  1.00 &                0.99 &                  1.00 &                1.00
 
 # ========================================================================= #
 # END                                                                       #

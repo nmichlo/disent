@@ -385,6 +385,7 @@ class H5Builder(object):
         from disent.dataset import DisentDataset
         from disent.dataset.data import GroundTruthData
         # get dataset
+        # TODO: we should not automatically handle this extraction... The transform could be missing on the dataset?
         if isinstance(data, DisentDataset): gt_data = data.gt_data
         elif isinstance(data, GroundTruthData): gt_data = data
         else: raise TypeError(f'invalid data type: {type(data)}, must be {DisentDataset} or {GroundTruthData}')
