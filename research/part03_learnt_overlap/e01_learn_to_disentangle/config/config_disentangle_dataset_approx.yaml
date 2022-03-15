@@ -4,7 +4,7 @@
 # ========================================================================= #
 
 defaults:
-  - run_logging: wandb_fast # wandb_fast
+  - run_logging: wandb_fast  # wandb_fast
   - run_location: local_gpu
   - run_launcher: local
   # entries in this file override entries from default lists
@@ -13,17 +13,16 @@ defaults:
 settings:
   job:
     user: 'n_michlo'
-    project: 'DELETE'
-    name_prefix: 'B32'
-    name: '${settings.job.name_prefix}-${dis_system.dataset_name}_${dis_system.disentangle_mode}_aw${dis_system.loss_disentangle_weight}_s${trainer.max_steps}_${dis_system.optimizer_name}_lr${dis_system.optimizer_lr}_wd${dis_system.optimizer_kwargs.weight_decay}_b${settings.dataset.batch_size}_${settings.exp.save_dtype}'
+    project: 'MSC-p03e02_disentangle-data'
+    name: '${dis_system.dataset_name}_${dis_system.disentangle_mode}_aw${dis_system.loss_disentangle_weight}_s${trainer.max_steps}_${dis_system.optimizer_name}_lr${dis_system.optimizer_lr}_wd${dis_system.optimizer_kwargs.weight_decay}_b${settings.dataset.batch_size}_${settings.exp.save_dtype}'
     seed: 424242
   exp:
-    show_every_n_steps: 1000
+    show_every_n_steps: 2500
     # saving
-    rel_save_dir: 'out/adversarial_data_approx/'
-    save_prefix: 'PREFIX'
-    save_model: FALSE
-    save_data: FALSE
+    rel_save_dir: 'out/disentangle_data/'
+    save_prefix: 'MSC_${dis_system.disentangle_mode}_'
+    save_model: TRUE
+    save_data: TRUE
     save_dtype: float16
   dataset:
     batch_size: 256
@@ -32,8 +31,8 @@ trainer:
   # same as defaults: - run_length: ...
   # - 15000 takes 40 mins with batch size 512 (heartofgold, 12 workers)
   # - 50000 takes 33 mins with batch size 256 (griffin, 16 workers)
-  max_steps: 15000
-  max_epochs: 15000
+  max_steps: 25000
+  max_epochs: 25000
 
 dis_system:
   # optimizer options
@@ -48,17 +47,18 @@ dis_system:
   data_root: ${dsettings.storage.data_root}
   data_load_into_memory: FALSE  # I don't think this is truly multi-threaded, possible lock on array access?
   # disentangle loss options
-  disentangle_mode: improve   # improve, invert, none, any
+  disentangle_mode: invert   # improve, invert, none, any
   disentangle_pairs_ratio: 8.0
   disentangle_factors: NULL
   disentangle_loss: mse
   disentangle_reg_strength: 0.01
   disentangle_scale_dists: TRUE
   # loss extras
-  loss_disentangle_weight:   1.0
-  loss_out_of_bounds_weight: 1.0   # not really needed -- if this is too high it struggles to "invert"
-  loss_same_stats_weight:    1.0   # not really needed
-  loss_similarity_weight:    NULL  # important
+  loss_disentangle_weight:    1.0
+  loss_out_of_bounds_weight:  1.0  # not really needed -- if this is too high it struggles to "invert"
+  loss_stats_mean_weight:    NULL  # not really needed
+  loss_stats_var_weight:      1.0  # not really needed -- produces nicer results, but we have to explain this then...
+  loss_similarity_weight:     1.0  # important | smoother than using the stats_mean above!
   # model settings
   model_type: 'ae_conv64'  # ae_conv64, ae_linear, ae_conv64norm
   model_mask_mode: 'none'  # std, diff, none

@@ -96,7 +96,8 @@ class DisentangleModel(AdversarialModel):
             disentangle_scale_dists: bool = True,
         # loss extras
             loss_disentangle_weight: Optional[float] = 1.0,
-            loss_same_stats_weight: Optional[float] = 0.0,
+            loss_stats_mean_weight: Optional[float] = 0.0,
+            loss_stats_var_weight: Optional[float] = 0.0,
             loss_similarity_weight: Optional[float] = 0.0,
             loss_out_of_bounds_weight: Optional[float] = 0.0,
         # model settings
@@ -180,10 +181,12 @@ class DisentangleModel(AdversarialModel):
         # additional loss components
         # - keep stats the same
         loss_stats = 0
-        if (self.hparams.loss_same_stats_weight is not None) and (self.hparams.loss_same_stats_weight > 0):
+        if (self.hparams.loss_stats_mean_weight is not None) and (self.hparams.loss_stats_mean_weight > 0):
             img_mean_loss = F.mse_loss(y.mean(dim=0), x.mean(dim=0), reduction='mean')
+            loss_stats += self.hparams.loss_stats_mean_weight * img_mean_loss
+        if (self.hparams.loss_stats_var_weight is not None) and (self.hparams.loss_stats_var_weight > 0):
             img_std_loss = F.mse_loss(y.std(dim=0), x.std(dim=0), reduction='mean')
-            loss_stats += self.hparams.loss_same_stats_weight * (img_mean_loss + img_std_loss)
+            loss_stats += self.hparams.loss_stats_var_weight * img_std_loss
         # - try keep similar to inputs
         loss_sim = 0
         if (self.hparams.loss_similarity_weight is not None) and (self.hparams.loss_similarity_weight > 0):
@@ -294,9 +297,12 @@ def run_gen_dataset(cfg):
             framework = framework.cuda()
         # create new h5py file -- TODO: use this in other places!
         with H5Builder(path=save_path_data, mode='atomic_w') as builder:
+            # set the transform -- TODO: we should not need to do this!
+            assert framework.dataset.gt_data._transform is None
+            framework.dataset.gt_data._transform = framework.dataset.transform
             # this dataset is self-contained and can be loaded by SelfContainedHdf5GroundTruthData
             builder.add_dataset_from_gt_data(
-                data=framework.dataset,  # produces tensors
+                data=framework.dataset.gt_data,  # produces raw
                 mutator=wrapped_partial(framework.batch_to_adversarial_imgs, mode=cfg.settings.exp.save_dtype),  # consumes tensors -> np.ndarrays
                 img_shape=(64, 64, None),
                 compression_lvl=4,

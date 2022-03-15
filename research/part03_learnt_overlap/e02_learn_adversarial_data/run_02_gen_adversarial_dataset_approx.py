@@ -393,8 +393,8 @@ class AdversarialModel(pl.LightningModule):
                 # -- this is inefficient for multiple subclasses of this class, we need to recompute the transform each time
                 dataset = system.dataset.shallow_copy(transform=make_scale_uint8_transform(system.dataset.transform))
                 # get images & traversal
-                image = make_image_grid(dataset.dataset_sample_batch(num_samples=16, mode='input'))
-                wandb_image, wandb_animation = H.visualize_dataset_traversal(dataset, data_mode='input', output_wandb=True)
+                image = make_image_grid(dataset.dataset_sample_batch(num_samples=16, mode='input'), pad=4)
+                wandb_image, wandb_animation = H.visualize_dataset_traversal(dataset, data_mode='input', output_wandb=True, pad=4)
                 # log images to WANDB
                 wb_log_metrics(trainer.logger, {
                     'random_images': wandb.Image(image),
