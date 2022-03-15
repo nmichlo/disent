@@ -53,6 +53,7 @@ dis_system:
   disentangle_loss: mse
   disentangle_reg_strength: 0.01
   disentangle_scale_dists: TRUE
+  disentangle_combined_loss: TRUE  # choice of loss:   >>> [F]: L(h(x), h(y))   >>> [T]: L(x, y) + L(h(x), h(y))
   # loss extras
   loss_disentangle_weight:    1.0
   loss_out_of_bounds_weight:  1.0  # not really needed -- if this is too high it struggles to "invert"

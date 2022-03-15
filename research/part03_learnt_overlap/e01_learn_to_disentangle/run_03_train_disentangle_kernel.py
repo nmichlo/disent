@@ -63,6 +63,7 @@ log = logging.getLogger(__name__)
 
 def disentangle_loss(
     batch: torch.Tensor,
+    aug_batch: Optional[torch.Tensor],
     factors: torch.Tensor,
     num_pairs: int,
     f_idxs: Optional[List[int]] = None,
@@ -79,6 +80,9 @@ def disentangle_loss(
     ia, ib = torch.randint(0, len(batch), size=(2, num_pairs), device=batch.device)
     # get pairwise distances
     b_dists = H.pairwise_loss(batch[ia], batch[ib], mode=loss_fn, mean_dtype=mean_dtype)  # avoid precision errors
+    if aug_batch is not None:
+        assert aug_batch.shape == batch.shape
+        b_dists += H.pairwise_loss(aug_batch[ia], aug_batch[ib], mode=loss_fn, mean_dtype=mean_dtype)
     # compute factor differences
     if f_idxs is not None:
         f_diffs = factors[ia][:, f_idxs] - factors[ib][:, f_idxs]
@@ -119,13 +123,14 @@ class DisentangleModule(DisentLightningModule):
         return H.make_optimizer(self, name=self.hparams.exp.optimizer.name, lr=self.hparams.exp.optimizer.lr, weight_decay=self.hparams.exp.optimizer.weight_decay)
 
     def training_step(self, batch, batch_idx):
-        (batch,), (factors,) = batch['x_targ'], batch['factors']
+        (x,), (f,) = batch['x_targ'], batch['factors']
         # feed forward batch
-        aug_batch = self.model(batch)
+        y = self.model(batch)
         # compute pairwise distances of factors and batch, and optimize to correspond
         loss_rank = disentangle_loss(
-            batch=aug_batch,
-            factors=factors,
+            batch     = x if self.hparams.exp.train.combined_loss else y,
+            aug_batch = y if self.hparams.exp.train.combined_loss else None,
+            factors=f,
             num_pairs=int(len(batch) * self.hparams.exp.train.pairs_ratio),
             f_idxs=self._disentangle_factors,
             loss_fn=self.hparams.exp.train.loss,

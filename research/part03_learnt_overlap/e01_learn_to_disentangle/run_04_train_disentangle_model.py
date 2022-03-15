@@ -94,6 +94,7 @@ class DisentangleModel(AdversarialModel):
             disentangle_loss: str = 'mse',
             disentangle_reg_strength: float = 1.0,
             disentangle_scale_dists: bool = True,
+            disentangle_combined_loss: bool = True,
         # loss extras
             loss_disentangle_weight: Optional[float] = 1.0,
             loss_stats_mean_weight: Optional[float] = 0.0,
@@ -169,7 +170,8 @@ class DisentangleModel(AdversarialModel):
         loss_dis = 0
         if (self.hparams.loss_adversarial_weight is not None) and (self.hparams.loss_adversarial_weight > 0):
             loss_dis = self.hparams.loss_disentangle_weight * disentangle_loss(
-                batch=y,
+                batch     = x if self.hparams.disentangle_combined_loss else y,
+                aug_batch = y if self.hparams.disentangle_combined_loss else None,
                 factors=f,
                 num_pairs=int(len(y) * self.hparams.disentangle_pairs_ratio),
                 f_idxs=self._disentangle_idxs,
