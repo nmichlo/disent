@@ -184,6 +184,8 @@ def hydra_main(
     search_dirs_append:  Optional[List[str]] = None,
     # logging
     log_level: Optional[int] = logging.INFO,
+    log_exc_info_callback: bool = True,
+    log_exc_info_hydra: bool = False,
 ):
     # manually set log level before hydra initialises!
     if log_level is not None:
@@ -198,18 +200,18 @@ def hydra_main(
         try:
             callback(cfg)
         except Exception as e:
-            log_error_and_exit(err_type='experiment error', err_msg=str(e), exc_info=True)
+            log_error_and_exit(err_type='experiment error', err_msg=str(e), exc_info=log_exc_info_callback)
         except:
-            log_error_and_exit(err_type='experiment error', err_msg='<UNKNOWN>', exc_info=True)
+            log_error_and_exit(err_type='experiment error', err_msg='<UNKNOWN>', exc_info=log_exc_info_callback)
 
     try:
         _hydra_main()
     except KeyboardInterrupt as e:
         log_error_and_exit(err_type='interrupted', err_msg=str(e), exc_info=False)
     except Exception as e:
-        log_error_and_exit(err_type='hydra error', err_msg=str(e), exc_info=True)
+        log_error_and_exit(err_type='hydra error', err_msg=str(e), exc_info=log_exc_info_hydra)
     except:
-        log_error_and_exit(err_type='hydra error', err_msg='<UNKNOWN>', exc_info=True)
+        log_error_and_exit(err_type='hydra error', err_msg='<UNKNOWN>', exc_info=log_exc_info_hydra)
 
 
 # ========================================================================= #

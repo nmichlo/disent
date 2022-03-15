@@ -35,4 +35,4 @@ exp:
   out:
     rel_save_dir: data/adversarial_kernel
     save_name: ${settings.job.name}.pt
-    show_every_n_steps: 100
+    show_every_n_steps: 2400

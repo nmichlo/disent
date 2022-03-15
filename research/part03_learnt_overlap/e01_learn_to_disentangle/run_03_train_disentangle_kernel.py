@@ -33,6 +33,7 @@ import pytorch_lightning as pl
 import torch
 import wandb
 from omegaconf import OmegaConf
+from pytorch_lightning.loggers import WandbLogger
 from torch.nn import Parameter
 from torch.utils.data import DataLoader
 
@@ -81,8 +82,8 @@ def disentangle_loss(
     else:
         f_dists = torch.abs(factors[ia] - factors[ib]).sum(dim=-1)
     # optimise metric
-    loss = spearman_rank_loss(b_dists, -f_dists)  # decreasing overlap should mean increasing factor dist
-    return loss
+    loss = spearman_rank_loss(b_dists.cpu(), -f_dists.cpu())  # decreasing overlap should mean increasing factor dist
+    return loss.to(batch.device)
 
 
 class DisentangleModule(DisentLightningModule):
@@ -226,6 +227,8 @@ def run_disentangle_dataset_kernel(cfg):
     gpus = hydra_get_gpus(cfg)
     # CREATE LOGGER
     logger = hydra_make_logger(cfg)
+    if isinstance(logger.experiment, WandbLogger):
+        _ = logger.experiment  # initialize
     # TRAINER CALLBACKS
     callbacks = hydra_get_callbacks(cfg)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
