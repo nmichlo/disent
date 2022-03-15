@@ -68,6 +68,7 @@ def disentangle_loss(
     f_idxs: Optional[List[int]] = None,
     loss_fn: str = 'mse',
     mean_dtype=None,
+    corr_mode: str = 'improve',
 ) -> torch.Tensor:
     assert len(batch) == len(factors)
     assert batch.ndim == 4
@@ -82,8 +83,13 @@ def disentangle_loss(
     else:
         f_dists = torch.abs(factors[ia] - factors[ib]).sum(dim=-1)
     # optimise metric
-    loss = spearman_rank_loss(b_dists.cpu(), -f_dists.cpu())  # decreasing overlap should mean increasing factor dist
-    return loss.to(batch.device)
+    if corr_mode == 'improve':  loss = spearman_rank_loss(b_dists, -f_dists)  # default one to use!
+    elif corr_mode == 'invert': loss = spearman_rank_loss(b_dists, +f_dists)
+    elif corr_mode == 'none':   loss = +torch.abs(spearman_rank_loss(b_dists, -f_dists))
+    elif corr_mode == 'any':    loss = -torch.abs(spearman_rank_loss(b_dists, -f_dists))
+    else: raise KeyError(f'invalid correlation mode: {repr(corr_mode)}')
+    # done!
+    return loss
 
 
 class DisentangleModule(DisentLightningModule):
@@ -107,7 +113,7 @@ class DisentangleModule(DisentLightningModule):
         # feed forward batch
         aug_batch = self.model(batch)
         # compute pairwise distances of factors and batch, and optimize to correspond
-        loss = disentangle_loss(
+        loss_rank = disentangle_loss(
             batch=aug_batch,
             factors=factors,
             num_pairs=int(len(batch) * self.hparams.exp.train.pairs_ratio),
@@ -120,9 +126,10 @@ class DisentangleModule(DisentLightningModule):
             loss_aug = self.model.augment_loss(self)
         else:
             loss_aug = 0
-        loss += loss_aug
+        loss = loss_rank + loss_aug
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
-        self.log('loss', loss)
+        self.log('loss_rank', float(loss_rank), prog_bar=True)
+        self.log('loss',      float(loss),      prog_bar=True)
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         return loss
 
@@ -136,7 +143,16 @@ class DisentangleModule(DisentLightningModule):
 
 
 class Kernel(DisentModule):
-    def __init__(self, radius: int = 33, channels: int = 1, offset: float = 0.0, scale: float = 0.001, train_symmetric_regularise: bool = True, train_norm_regularise: bool = True, train_nonneg_regularise: bool = True):
+    def __init__(
+        self,
+        radius: int = 33,
+        channels: int = 1,
+        offset: float = 0.0,
+        scale: float = 0.001,
+        train_symmetric_regularise: bool = True,
+        train_norm_regularise: bool = True,
+        train_nonneg_regularise: bool = True,
+    ):
         super().__init__()
         assert channels in (1, 3)
         kernel = torch.randn(1, channels, 2*radius+1, 2*radius+1, dtype=torch.float32)
@@ -187,7 +203,7 @@ class Kernel(DisentModule):
             loss_symmetric += H.unreduced_loss(torch.flip(k, dims=[-1]), kt, mode='mae').mean()
             loss_symmetric += H.unreduced_loss(torch.flip(k, dims=[-2]), kt, mode='mae').mean()
             # log loss
-            framework.log('loss_symmetric', loss_symmetric)
+            framework.log('loss_sym', float(loss_symmetric), prog_bar=True)
             # final loss
             augment_loss += loss_symmetric
         # sum of 1 loss, per channel
@@ -198,7 +214,7 @@ class Kernel(DisentModule):
             channel_loss = H.unreduced_loss(channel_sums, torch.ones_like(channel_sums), mode='mae')
             norm_loss = channel_loss.mean()
             # log loss
-            framework.log('loss_norm', norm_loss)
+            framework.log('loss_norm', float(norm_loss), prog_bar=True)
             # final loss
             augment_loss += norm_loss
         # no negatives regulariser
@@ -206,7 +222,7 @@ class Kernel(DisentModule):
             k = self._kernel[0]
             nonneg_loss = torch.abs(k[k < 0].sum())
             # log loss
-            framework.log('loss_non_negative', nonneg_loss)
+            framework.log('loss_nonneg', float(nonneg_loss), prog_bar=True)
             # regularise negatives
             augment_loss += nonneg_loss
         # return!
