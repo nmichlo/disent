@@ -23,13 +23,35 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 
-import logging
 import os
+
 import torch
 import research
+from disent.util.deprecate import deprecated
 
 
-log = logging.getLogger(__name__)
+# ========================================================================= #
+# HELPER                                                                    #
+# ========================================================================= #
+
+
+@torch.no_grad()
+def _scale_kernel(kernel: torch.Tensor, mode: str = 'abs_sum'):
+    if mode == 'sum':
+        return kernel / kernel.sum()
+    elif mode == 'abs_sum':
+        return kernel / torch.abs(kernel).sum()
+    elif mode == 'pos_sum':
+        return kernel / torch.abs(kernel)[kernel > 0].sum()
+    elif mode == 'neg_sum':
+        return kernel / torch.abs(kernel)[kernel < 0].sum()
+    elif mode == 'max_sign_sum':
+        return kernel / torch.maximum(
+            torch.abs(kernel)[kernel > 0].sum(),
+            torch.abs(kernel)[kernel < 0].sum(),
+        )
+    else:
+        raise KeyError(f'invalid scale mode: {repr(mode)}')
 
 
 # ========================================================================= #
@@ -38,12 +60,40 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def _make_xy8_r47(kern: str, radius: str):
-    return torch.load(os.path.abspath(os.path.join(research.__file__, '../part03_learnt_overlap/e01_learn_to_disentangle/data', 'r47-1_s28800_adam_lr0.003_wd0.0_xy8x8.pt')))
+@torch.no_grad()
+def _load_xy8_r47():
+    return torch.load(os.path.abspath(os.path.join(research.__file__, '../part03_learnt_overlap/e01_learn_to_disentangle/data', 'r47-1_s28800_adam_lr0.003_wd0.0_xy8x8.pt'))).detach()
 
 
-def _make_xy1_r47(kern: str, radius: str):
-    return torch.load(os.path.abspath(os.path.join(research.__file__, '../part03_learnt_overlap/e01_learn_to_disentangle/data', 'r47-1_s28800_adam_lr0.003_wd0.0_xy1x1.pt')))
+@torch.no_grad()
+def _load_xy1_r47():
+    return torch.load(os.path.abspath(os.path.join(research.__file__, '../part03_learnt_overlap/e01_learn_to_disentangle/data', 'r47-1_s28800_adam_lr0.003_wd0.0_xy1x1.pt'))).detach()
+
+
+@deprecated('kernel `xy8_r47` has been deprecated! It is not correctly scaled, please use `xy8s_r47` instead!')
+def _make_xy8_r47(kern: str = None, radius: str = None):
+    return _load_xy8_r47()
+
+
+@deprecated('kernel `xy1_r47` has been deprecated! It is not correctly scaled, please use `xy1s_r47` instead!')
+def _make_xy1_r47(kern: str = None, radius: str = None):
+    return _load_xy1_r47()
+
+
+def _make_xy8s_r47(kern: str = None, radius: str = None):
+    return _scale_kernel(_load_xy8_r47(), 'sum')
+
+
+def _make_xy1s_r47(kern: str = None, radius: str = None):
+    return _scale_kernel(_load_xy1_r47(), 'sum')
+
+
+def _make_xy8m_r47(kern: str = None, radius: str = None):
+    return _scale_kernel(_load_xy8_r47(), 'max_sign_sum')
+
+
+def _make_xy1m_r47(kern: str = None, radius: str = None):
+    return _scale_kernel(_load_xy1_r47(), 'max_sign_sum')
 
 
 # ========================================================================= #
