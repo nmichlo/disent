@@ -455,6 +455,22 @@ class StochasticSampler(torch.utils.data.Sampler):
             yield from np.random.randint(0, self._len, size=self._batch_size)
 
 
+class ProgressiveStochasticSampler(StochasticSampler):
+
+    def __init__(self, data_source: Union[Sized, int], batch_size: int = 128, progression_rate: float = 0.05):
+        super().__init__(data_source=data_source, batch_size=batch_size)
+        self._available = 0
+        self._progression_rate = progression_rate
+
+    def __iter__(self):
+        while True:
+            self._available += self._batch_size
+            M = int(self._available * self._progression_rate)
+            M = min(self._len, max(M, self._batch_size))
+            yield from np.random.randint(0, M, size=self._batch_size)
+
+
+
 def yield_dataloader(dataloader: torch.utils.data.DataLoader, steps: int):
     i = 0
     while True:
@@ -468,6 +484,14 @@ def yield_dataloader(dataloader: torch.utils.data.DataLoader, steps: int):
 def StochasticBatchSampler(data_source: Union[Sized, int], batch_size: int):
     return torch.utils.data.BatchSampler(
         sampler=StochasticSampler(data_source=data_source, batch_size=batch_size),
+        batch_size=batch_size,
+        drop_last=True
+    )
+
+
+def ProgressiveStochasticBatchSampler(data_source: Union[Sized, int], batch_size: int, progression_rate: float = 0.05):
+    return torch.utils.data.BatchSampler(
+        sampler=ProgressiveStochasticSampler(data_source=data_source, batch_size=batch_size, progression_rate=progression_rate),
         batch_size=batch_size,
         drop_last=True
     )

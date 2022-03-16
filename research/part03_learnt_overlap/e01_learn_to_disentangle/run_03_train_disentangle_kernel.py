@@ -125,13 +125,13 @@ class DisentangleModule(DisentLightningModule):
     def training_step(self, batch, batch_idx):
         (x,), (f,) = batch['x_targ'], batch['factors']
         # feed forward batch
-        y = self.model(batch)
+        y = self.model(x)
         # compute pairwise distances of factors and batch, and optimize to correspond
         loss_rank = disentangle_loss(
             batch     = x if self.hparams.exp.train.combined_loss else y,
             aug_batch = y if self.hparams.exp.train.combined_loss else None,
             factors=f,
-            num_pairs=int(len(batch) * self.hparams.exp.train.pairs_ratio),
+            num_pairs=int(len(x) * self.hparams.exp.train.pairs_ratio),
             f_idxs=self._disentangle_factors,
             loss_fn=self.hparams.exp.train.loss,
             mean_dtype=torch.float64,
@@ -149,8 +149,8 @@ class DisentangleModule(DisentLightningModule):
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         return loss
 
-    def forward(self, batch):
-        return self.model(batch)
+    def forward(self, x):
+        return self.model(x)
 
 
 # ========================================================================= #
