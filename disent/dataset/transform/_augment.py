@@ -24,6 +24,7 @@
 
 import os
 import re
+import warnings
 from numbers import Number
 from typing import List
 from typing import Tuple
@@ -179,16 +180,22 @@ class FftBoxBlur(_BaseFftBlur):
 # ========================================================================= #
 
 
+_NO_ARG = object()
+
+
 class FftKernel(DisentModule):
     """
     2D Convolve an image
     """
 
-    def __init__(self, kernel: Union[torch.Tensor, str], normalize: bool = True):
+    def __init__(self, kernel: Union[torch.Tensor, str], normalize_mode: str = _NO_ARG):
         super().__init__()
+        # deprecation error
+        if normalize_mode is _NO_ARG:
+            raise ValueError(f'default argument for normalize_mode was "sum", this has been deprecated and will change to "none" in future. Please manually override this value!')
         # load & save the kernel -- no gradients allowed
         self._kernel: torch.Tensor
-        self.register_buffer('_kernel', get_kernel(kernel, normalize=normalize), persistent=True)
+        self.register_buffer('_kernel', get_kernel(kernel, normalize_mode=normalize_mode), persistent=True)
         self._kernel.requires_grad = False
 
     def forward(self, obs):
@@ -210,11 +217,30 @@ class FftKernel(DisentModule):
 # ========================================================================= #
 
 
-def _normalise_kernel(kernel: torch.Tensor, normalize: bool) -> torch.Tensor:
-    if normalize:
-        with torch.no_grad():
-            return kernel / kernel.sum()
-    return kernel
+
+@torch.no_grad()
+def _scale_kernel(kernel: torch.Tensor, mode: Union[bool, str] = 'abssum'):
+    # old normalize mode
+    if isinstance(mode, bool):
+        raise ValueError(f'boolean arguments to `scale_kernel` are deprecated, convert True to "sum" and False to "none", got: {repr(mode)}')
+    # handle the normalize mode
+    if mode == 'sum':
+        return kernel / kernel.sum()
+    elif mode == 'abssum':
+        return kernel / torch.abs(kernel).sum()
+    elif mode == 'possum':
+        return kernel / torch.abs(kernel)[kernel > 0].sum()
+    elif mode == 'negsum':
+        return kernel / torch.abs(kernel)[kernel < 0].sum()
+    elif mode == 'maxsum':
+        return kernel / torch.maximum(
+            torch.abs(kernel)[kernel > 0].sum(),
+            torch.abs(kernel)[kernel < 0].sum(),
+        )
+    elif mode == 'none':
+        return kernel
+    else:
+        raise KeyError(f'invalid scale mode: {repr(mode)}')
 
 
 def _check_kernel(kernel: torch.Tensor) -> torch.Tensor:
@@ -229,9 +255,9 @@ def _check_kernel(kernel: torch.Tensor) -> torch.Tensor:
 
 
 # NOTE: this function compliments make_reconstruction_loss in frameworks/helper/reconstructions.py
-def make_kernel(name: str, normalize: bool = False):
+def make_kernel(name: str, normalize_mode: str = 'none'):
     kernel = R.KERNELS[name]
-    kernel = _normalise_kernel(kernel, normalize=normalize)
+    kernel = _scale_kernel(kernel, mode=normalize_mode)
     kernel = _check_kernel(kernel)
     return kernel
 
@@ -247,9 +273,9 @@ def _get_kernel(name_or_path: str) -> torch.Tensor:
     raise KeyError(f'Invalid kernel path or name: {repr(name_or_path)} Examples of argument based kernels include: {R.KERNELS.regex_examples}, otherwise specify a valid path to a kernel file save with torch.')
 
 
-def get_kernel(kernel: Union[str, torch.Tensor], normalize: bool = False):
+def get_kernel(kernel: Union[str, torch.Tensor], normalize_mode: str = 'none'):
     kernel = _get_kernel(kernel) if isinstance(kernel, str) else torch.clone(kernel)
-    kernel = _normalise_kernel(kernel, normalize=normalize)
+    kernel = _scale_kernel(kernel, mode=normalize_mode)
     kernel = _check_kernel(kernel)
     return kernel
 

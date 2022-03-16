@@ -27,31 +27,8 @@ import os
 
 import torch
 import research
+from disent.dataset.transform._augment import _scale_kernel
 from disent.util.deprecate import deprecated
-
-
-# ========================================================================= #
-# HELPER                                                                    #
-# ========================================================================= #
-
-
-@torch.no_grad()
-def _scale_kernel(kernel: torch.Tensor, mode: str = 'abs_sum'):
-    if mode == 'sum':
-        return kernel / kernel.sum()
-    elif mode == 'abs_sum':
-        return kernel / torch.abs(kernel).sum()
-    elif mode == 'pos_sum':
-        return kernel / torch.abs(kernel)[kernel > 0].sum()
-    elif mode == 'neg_sum':
-        return kernel / torch.abs(kernel)[kernel < 0].sum()
-    elif mode == 'max_sign_sum':
-        return kernel / torch.maximum(
-            torch.abs(kernel)[kernel > 0].sum(),
-            torch.abs(kernel)[kernel < 0].sum(),
-        )
-    else:
-        raise KeyError(f'invalid scale mode: {repr(mode)}')
 
 
 # ========================================================================= #
@@ -89,11 +66,11 @@ def _make_xy1s_r47(kern: str = None, radius: str = None):
 
 
 def _make_xy8m_r47(kern: str = None, radius: str = None):
-    return _scale_kernel(_load_xy8_r47(), 'max_sign_sum')
+    return _scale_kernel(_load_xy8_r47(), 'maxsum')
 
 
 def _make_xy1m_r47(kern: str = None, radius: str = None):
-    return _scale_kernel(_load_xy1_r47(), 'max_sign_sum')
+    return _scale_kernel(_load_xy1_r47(), 'maxsum')
 
 
 # ========================================================================= #

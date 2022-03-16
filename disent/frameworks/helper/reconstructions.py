@@ -36,6 +36,7 @@ from disent.frameworks.helper.util import compute_ave_loss
 from disent.nn.loss.reduction import batch_loss_reduction
 from disent.nn.loss.reduction import loss_reduction
 from disent.nn.modules import DisentModule
+from disent.util.deprecate import deprecated
 
 
 # ========================================================================= #
@@ -236,17 +237,30 @@ class ReconLossHandlerNormal(ReconLossHandlerMse):
 # ========================================================================= #
 
 
+_NO_ARG = object()
+
+
 class AugmentedReconLossHandler(ReconLossHandler):
 
-    def __init__(self, recon_loss_handler: ReconLossHandler, kernel: Union[str, torch.Tensor], wrap_weight=1.0, aug_weight=1.0):
+    def __init__(
+        self,
+        recon_loss_handler: ReconLossHandler,
+        kernel: Union[str, torch.Tensor],
+        wrap_weight: float = 1.0,
+        aug_weight: float = 1.0,
+        normalize_mode: str = _NO_ARG
+    ):
         super().__init__(reduction=recon_loss_handler._reduction)
         # save variables
         self._recon_loss_handler = recon_loss_handler
         # must be a recon loss handler, but cannot nest augmented handlers
         assert isinstance(recon_loss_handler, ReconLossHandler)
         assert not isinstance(recon_loss_handler, AugmentedReconLossHandler)
+        # deprecation error
+        if normalize_mode is _NO_ARG:
+            raise ValueError(f'default argument for normalize_mode was "sum", this has been deprecated and will change to "none" in future. Please manually override this value!')
         # load the kernel
-        self._kernel = FftKernel(kernel=kernel, normalize=True)
+        self._kernel = FftKernel(kernel=kernel, normalize_mode=normalize_mode)
         # kernel weighting
         assert 0 <= wrap_weight, f'loss_weight must be in the range [0, inf) but received: {repr(wrap_weight)}'
         assert 0 <= aug_weight, f'kern_weight must be in the range [0, inf) but received: {repr(aug_weight)}'
@@ -274,16 +288,36 @@ class AugmentedReconLossHandler(ReconLossHandler):
 # ========================================================================= #
 
 
+@deprecated('augmented recon loss with `weight` parameter has been deprecated! please use the augmented recon loss with `loss_weight`, `kernel_weight` and `norm` parameters instead!')
 def _make_aug_recon_loss_w(loss: str, kern: str, weight: str):
     def _loss(reduction: str):
-        return AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=1 - float(weight), aug_weight=float(weight))
+        return AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=1 - float(weight), aug_weight=float(weight), normalize_mode='sum')
     return _loss
 
 
-def _make_aug_recon_loss_lw(loss: str, kern: str, l_weight: str, k_weight: str):
+@deprecated('augmented recon loss with `loss_weight` and `kernel_weight` parameters has been deprecated! please use the augmented recon loss with `loss_weight`, `kernel_weight` and `norm` parameters instead!')
+def _make_aug_recon_loss_lw(loss: str, kern: str, loss_weight: str, kernel_weight: str):
     def _loss(reduction: str):
-        return AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=float(l_weight), aug_weight=float(k_weight))
+        return AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=float(loss_weight), aug_weight=float(kernel_weight), normalize_mode='sum')
     return _loss
+
+
+def _make_aug_recon_loss_lw_norm(loss: str, kern: str, loss_weight: str, kernel_weight: str, normalize_mode: str):
+    def _loss(reduction: str):
+        return AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=float(loss_weight), aug_weight=float(kernel_weight), normalize_mode=normalize_mode)
+    return _loss
+
+
+def _make_aug_recon_loss_norm(loss: str, kern: str, normalize_mode: str):
+    def _loss(reduction: str):
+        return AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=1.0, aug_weight=1.0, normalize_mode=normalize_mode)
+    return _loss
+
+
+# def _make_aug_recon_loss(loss: str, kern: str):
+#     def _loss(reduction: str):
+#         return AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=1.0, aug_weight=1.0, normalize_mode='none')
+#     return _loss
 
 
 # NOTE: this function compliments make_kernel in transform/_augment.py
