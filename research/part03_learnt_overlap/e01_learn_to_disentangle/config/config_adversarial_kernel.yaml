@@ -9,7 +9,7 @@ settings:
   job:
     user: '${oc.env:WANDB_USER}'
     project: 'exp-disentangle-kernel'
-    name: 'EXP_${exp.kernel.represent_mode}_r${exp.kernel.radius}-${exp.kernel.channels}_s${trainer.max_steps}_b${settings.dataset.batch_size}_${exp.optimizer.name}_lr${exp.optimizer.lr}_wd${exp.optimizer.weight_decay}_${exp.data.name}'
+    name: 'MSC_${exp.kernel.represent_mode}_r${exp.kernel.radius}-${exp.kernel.channels}_s${trainer.max_steps}_b${settings.dataset.batch_size}_${exp.optimizer.name}_lr${exp.optimizer.lr}_wd${exp.optimizer.weight_decay}_${exp.data.name}'
     seed: 777
   dataset:
     batch_size: 512
@@ -43,4 +43,4 @@ exp:
   out:
     rel_save_dir: data/adversarial_kernel
     save_name: ${settings.job.name}.pt
-    show_every_n_steps: 1200
+    show_every_n_steps: 2400

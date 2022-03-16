@@ -23,19 +23,22 @@ source "$(dirname "$(dirname "$(dirname "$(realpath -s "$0")")")")/scripts/helpe
 # Experiment                                                                #
 # ========================================================================= #
 
-# 1 * (2*8*4) == 64
+# 1 * (4*2*4*4) == 128
 ARGS_FILE="$ARGS_FILE" gen_sbatch_args_file \
     +EXTRA.tags='sweep' \
+    hydra.job.name="kernel" \
     \
-    run_length=tiny \
+    run_length=short \
     \
     settings.dataset.batch_size=512 \
+    exp.kernel.represent_mode=abs,square,exp,none \
     exp.optimizer.lr=1e-3,5e-4 \
     exp.optimizer.weight_decay=0.0 \
     \
-    exp.data.name=xysquares_8x8,xysquares_4x4,xysquares_2x2,xysquares_1x1
-    exp.kernel.radius=63,55,47,39,31,23,15,7 \
+    exp.data.name=xysquares_8x8,xysquares_4x4,xysquares_2x2,xysquares_1x1 \
+    exp.kernel.radius=63,47,31,15 \
 
+# 63,55,47,39,31,23,15,7
 
 # ========================================================================= #
 # Run Experiment                                                            #
