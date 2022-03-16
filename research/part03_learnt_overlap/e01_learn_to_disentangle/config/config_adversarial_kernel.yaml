@@ -1,6 +1,6 @@
 defaults:
   - _self_  # this overrides defaults list
-  - run_length: short
+  - run_length: tiny
   - run_logging: wandb
   - run_location: stampede_tmp
   - run_launcher: local
@@ -9,15 +9,15 @@ settings:
   job:
     user: '${oc.env:WANDB_USER}'
     project: 'exp-disentangle-kernel'
-    name: r${exp.kernel.radius}-${exp.kernel.channels}_s${trainer.max_steps}_${exp.optimizer.name}_lr${exp.optimizer.lr}_wd${exp.optimizer.weight_decay}_${exp.data.name}
+    name: 'EXP_${exp.kernel.represent_mode}_r${exp.kernel.radius}-${exp.kernel.channels}_s${trainer.max_steps}_b${settings.dataset.batch_size}_${exp.optimizer.name}_lr${exp.optimizer.lr}_wd${exp.optimizer.weight_decay}_${exp.data.name}'
     seed: 777
   dataset:
-    batch_size: 128
+    batch_size: 512
 
 exp:
   optimizer:
     name: adam
-    lr: 3e-3
+    lr: 1e-3
     weight_decay: 0.0
   data:
     name: 'xysquares_8x8'  # xysquares_8x8, xyobject, xyobject_shaded
@@ -29,12 +29,18 @@ exp:
     regularize_symmetric: TRUE
     regularize_norm: FALSE    # these don't work
     regularize_nonneg: FALSE  # these don't work
+    represent_mode: abs       # none, exp, square, abs | eg. if `exp` then kernel is stored as `params := log(kernel)`, and we obtain the kernel as `kernel := exp(params)`
+    regularize_l2_weight: 1e-3
+    # initialize weights
+    init_sums_to_one: TRUE
+    init_offset: 1.0
+    init_scale: 0.001
   train:
     pairs_ratio: 8.0
     loss: mse
-    reg_strength: 1.0  # TODO: try reducing this!
+    reg_strength: 0.01  # TODO: try reducing this!
     combined_loss: TRUE  # choice of loss:   >>> [F]: L(h(x), h(y))   >>> [T]: L(x, y) + L(h(x), h(y))
   out:
     rel_save_dir: data/adversarial_kernel
     save_name: ${settings.job.name}.pt
-    show_every_n_steps: 2400
+    show_every_n_steps: 1200
