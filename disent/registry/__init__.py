@@ -131,9 +131,12 @@ RECON_LOSSES['bce']         = LazyImport('disent.frameworks.helper.reconstructio
 RECON_LOSSES['bernoulli']   = LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerBernoulli')            # reduces to bce - binary values in the set {0, 1}
 RECON_LOSSES['c_bernoulli'] = LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerContinuousBernoulli')  # bernoulli with a computed offset to handle values in the range [0, 1]
 RECON_LOSSES['normal']      = LazyImport('disent.frameworks.helper.reconstructions.ReconLossHandlerNormal')               # handle all real values
+# [REGEX LOSSES] - DEPRECATED
+RECON_LOSSES.register_regex(pattern=r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_w(\d+\.\d+)$',                           example='mse_xy8_r47_w1.0',                  factory_fn='disent.frameworks.helper.reconstructions._make_aug_recon_loss_w')   # DEPRECATED
+RECON_LOSSES.register_regex(pattern=r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_l(\d+\.\d+)_k(\d+\.\d+)$',               example='mse_xy8_r47_l1.0_k1.0',             factory_fn='disent.frameworks.helper.reconstructions._make_aug_recon_loss_lw')  # DEPRECATED
 # [REGEX LOSSES]
-RECON_LOSSES.register_regex(pattern=r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_w(\d+\.\d+)$',             example='mse_xy8_r47_w1.0',      factory_fn='disent.frameworks.helper.reconstructions._make_aug_recon_loss_w')
-RECON_LOSSES.register_regex(pattern=r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_l(\d+\.\d+)_k(\d+\.\d+)$', example='mse_xy8_r47_l1.0_k1.0', factory_fn='disent.frameworks.helper.reconstructions._make_aug_recon_loss_lw')
+RECON_LOSSES.register_regex(pattern=r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_l(\d+\.\d+)_k(\d+\.\d+)_norm_([a-z]+)$', example='mse_xy8_r47_l1.0_k1.0_norm_abssum', factory_fn='disent.frameworks.helper.reconstructions._make_aug_recon_loss_lw_norm')
+RECON_LOSSES.register_regex(pattern=r'^([a-z\d]+)_([a-z\d]+_[a-z\d]+)_norm_([a-z]+)$',                         example='mse_xy8_r47_norm_abssum',           factory_fn='disent.frameworks.helper.reconstructions._make_aug_recon_loss_norm')
 
 
 # ========================================================================= #

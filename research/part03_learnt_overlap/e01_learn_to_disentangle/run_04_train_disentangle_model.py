@@ -40,6 +40,9 @@ import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
 import wandb
+from torch.utils.data import DataLoader
+
+from disent.util.seeds import TempNumpySeed
 from omegaconf import OmegaConf
 
 import research.code.util as H
@@ -94,6 +97,13 @@ class DisentangleModel(AdversarialModel):
             disentangle_loss: str = 'mse',
             disentangle_reg_strength: float = 1.0,
             disentangle_scale_dists: bool = True,
+            disentangle_combined_loss: bool = True,
+            disentangle_randomize_factors: bool = False,
+            disentangle_randomize_factors_seed: int = 777,
+            # progressively increase the size of the dataset, releasing more information to the model.
+            # If `disentangle_randomize_factors==True`, then this can help learning!
+            # 0.01 seems like a good place to start tuning? maybe 0.001? I think 0.1 is too high?
+            disentangle_progressive_release_data: Optional[float] = None,
         # loss extras
             loss_disentangle_weight: Optional[float] = 1.0,
             loss_stats_mean_weight: Optional[float] = 0.0,
@@ -118,7 +128,11 @@ class DisentangleModel(AdversarialModel):
         # variables
         self.dataset: DisentDataset = None
         self.model: DisentModule = None
-        self._disentangle_idxs: np.array = None
+        self._disentangle_idxs: np.ndarray = None
+
+    # disentangle_randomize_factors == True
+    _random_indices: torch.Tensor
+    _random_factors: torch.Tensor
 
     # ================================== #
     # setup                              #
@@ -155,6 +169,34 @@ class DisentangleModel(AdversarialModel):
         )
         # initialize model
         self.model = init_model_weights(self.model, mode=self.hparams.model_weight_init)
+        # get random factors
+        if self.hparams.disentangle_randomize_factors:
+            with TempNumpySeed(self.hparams.disentangle_randomize_factors_seed):
+                random_indices = np.arange(len(self.dataset))
+                np.random.shuffle(random_indices)
+                random_factors = self.dataset.gt_data.idx_to_pos(random_indices)
+            # register the items, so that they are transferred between devices with the model
+            self.register_buffer('_random_indices', torch.from_numpy(random_indices), persistent=False)
+            self.register_buffer('_random_factors', torch.from_numpy(random_factors), persistent=False)
+
+    def train_dataloader(self):
+        if self.hparams.disentangle_progressive_release_data is None:
+            return DataLoader(
+                self.dataset,
+                batch_size=self.hparams.dataset_batch_size,
+                num_workers=self.hparams.dataset_num_workers,
+                shuffle=True,
+            )
+        else:
+            return DataLoader(
+                self.dataset,
+                batch_sampler=H.ProgressiveStochasticBatchSampler(
+                    data_source=self.dataset,
+                    batch_size=self.hparams.dataset_batch_size,
+                    progression_rate=self.hparams.disentangle_progressive_release_data,
+                ),
+                num_workers=self.hparams.dataset_num_workers,
+            )
 
     # ================================== #
     # train step                         #
@@ -163,13 +205,18 @@ class DisentangleModel(AdversarialModel):
     def training_step(self, batch, batch_idx):
         (x,) = batch['x_targ']
         (f,) = batch['factors']
+        # replace with random factors if needed
+        if self.hparams.disentangle_randomize_factors:
+            (i,) = batch['idx']
+            f = self._random_factors[i]
         # feed forward
         y = self.model(x)
         # compute loss
         loss_dis = 0
         if (self.hparams.loss_adversarial_weight is not None) and (self.hparams.loss_adversarial_weight > 0):
             loss_dis = self.hparams.loss_disentangle_weight * disentangle_loss(
-                batch=y,
+                batch     = x if self.hparams.disentangle_combined_loss else y,
+                aug_batch = y if self.hparams.disentangle_combined_loss else None,
                 factors=f,
                 num_pairs=int(len(y) * self.hparams.disentangle_pairs_ratio),
                 f_idxs=self._disentangle_idxs,

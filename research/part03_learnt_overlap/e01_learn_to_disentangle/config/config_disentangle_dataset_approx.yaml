@@ -14,7 +14,7 @@ settings:
   job:
     user: 'n_michlo'
     project: 'MSC-p03e02_disentangle-data'
-    name: '${dis_system.dataset_name}_${dis_system.disentangle_mode}_aw${dis_system.loss_disentangle_weight}_s${trainer.max_steps}_${dis_system.optimizer_name}_lr${dis_system.optimizer_lr}_wd${dis_system.optimizer_kwargs.weight_decay}_b${settings.dataset.batch_size}_${settings.exp.save_dtype}'
+    name: '${dis_system.dataset_name}_${dis_system.disentangle_mode}_dw${dis_system.loss_disentangle_weight}_r${dis_system.disentangle_randomize_factors}_c${dis_system.disentangle_combined_loss}_s${dis_system.disentangle_scale_dists}_s${trainer.max_steps}_${dis_system.optimizer_name}_lr${dis_system.optimizer_lr}_b${settings.dataset.batch_size}_${settings.exp.save_dtype}'
     seed: 424242
   exp:
     show_every_n_steps: 2500
@@ -37,7 +37,7 @@ trainer:
 dis_system:
   # optimizer options
   optimizer_name: 'adam'
-  optimizer_lr: 5e-4
+  optimizer_lr: 1e-4
   optimizer_kwargs:
      weight_decay: 0
   # dataset config options
@@ -47,12 +47,16 @@ dis_system:
   data_root: ${dsettings.storage.data_root}
   data_load_into_memory: FALSE  # I don't think this is truly multi-threaded, possible lock on array access?
   # disentangle loss options
-  disentangle_mode: invert   # improve, invert, none, any
+  disentangle_mode: improve   # improve, invert, none, any
   disentangle_pairs_ratio: 8.0
   disentangle_factors: NULL
   disentangle_loss: mse
   disentangle_reg_strength: 0.01
   disentangle_scale_dists: TRUE
+  disentangle_combined_loss: FALSE  # choice of loss:   >>> [F]: L(h(x), h(y))   >>> [T]: L(x, y) + L(h(x), h(y))
+  disentangle_randomize_factors: FALSE  # achieve true entanglement, use this instead of setting disentangle_mode to invert?
+  disentangle_randomize_factors_seed: 777
+  disentangle_progressive_release_data: NULL  # 0.1 is probs too high, 0.01 seems okay, but might fail later on, 0.001 might be too low?
   # loss extras
   loss_disentangle_weight:    1.0
   loss_out_of_bounds_weight:  1.0  # not really needed -- if this is too high it struggles to "invert"

@@ -7,7 +7,7 @@
 export USERNAME="n_michlo"
 export PROJECT="MSC-p03e01_kernel-disentangle-xy"
 export PARTITION="stampede"
-export PARALLELISM=32
+export PARALLELISM=24
 
 # override the default run file!
 export PY_RUN_FILE='research/part03_learnt_overlap/e01_learn_to_disentangle/run_03_train_disentangle_kernel.py'
@@ -23,11 +23,22 @@ source "$(dirname "$(dirname "$(dirname "$(realpath -s "$0")")")")/scripts/helpe
 # Experiment                                                                #
 # ========================================================================= #
 
-# 1 * (2*8*4) == 64
+# 1 * (4*2*4*4) == 128
 ARGS_FILE="$ARGS_FILE" gen_sbatch_args_file \
-    exp.optimizer.weight_decay=0.0,1e-4 \
-    exp.kernel.radius=63,55,47,39,31,23,15,7 \
-    exp.data.name=xysquares_8x8,xysquares_4x4,xysquares_2x2,xysquares_1x1
+    +EXTRA.tags='sweep' \
+    hydra.job.name="kernel" \
+    \
+    run_length=short \
+    \
+    settings.dataset.batch_size=512 \
+    exp.kernel.represent_mode=abs,square,exp,none \
+    exp.optimizer.lr=1e-3,5e-4 \
+    exp.optimizer.weight_decay=0.0 \
+    \
+    exp.data.name=xysquares_8x8,xysquares_4x4,xysquares_2x2,xysquares_1x1 \
+    exp.kernel.radius=63,47,31,15 \
+
+# 63,55,47,39,31,23,15,7
 
 # ========================================================================= #
 # Run Experiment                                                            #
@@ -35,4 +46,4 @@ ARGS_FILE="$ARGS_FILE" gen_sbatch_args_file \
 
 #clog_cudaless_nodes "$PARTITION" 14400 "C-disent" # 4 hours
 
-#ARGS_FILE="$ARGS_FILE" submit_sbatch_args_file
+ARGS_FILE="$ARGS_FILE" submit_sbatch_args_file
