@@ -288,36 +288,22 @@ class AugmentedReconLossHandler(ReconLossHandler):
 # ========================================================================= #
 
 
-@deprecated('augmented recon loss with `weight` parameter has been deprecated! please use the augmented recon loss with `loss_weight`, `kernel_weight` and `norm` parameters instead!')
-def _make_aug_recon_loss_w(loss: str, kern: str, weight: str):
-    def _loss(reduction: str):
-        return AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=1 - float(weight), aug_weight=float(weight), normalize_mode='sum')
-    return _loss
-
-
-@deprecated('augmented recon loss with `loss_weight` and `kernel_weight` parameters has been deprecated! please use the augmented recon loss with `loss_weight`, `kernel_weight` and `norm` parameters instead!')
-def _make_aug_recon_loss_lw(loss: str, kern: str, loss_weight: str, kernel_weight: str):
-    def _loss(reduction: str):
-        return AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=float(loss_weight), aug_weight=float(kernel_weight), normalize_mode='sum')
-    return _loss
-
-
-def _make_aug_recon_loss_lw_norm(loss: str, kern: str, loss_weight: str, kernel_weight: str, normalize_mode: str):
+def _make_aug_recon_loss_l_w_n(loss: str, kern: str, loss_weight: str, kernel_weight: str, normalize_mode: str):
     def _loss(reduction: str):
         return AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=float(loss_weight), aug_weight=float(kernel_weight), normalize_mode=normalize_mode)
     return _loss
 
 
-def _make_aug_recon_loss_norm(loss: str, kern: str, normalize_mode: str):
+def _make_aug_recon_loss_l1_w1_n(loss: str, kern: str, normalize_mode: str):
     def _loss(reduction: str):
         return AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=1.0, aug_weight=1.0, normalize_mode=normalize_mode)
     return _loss
 
 
-# def _make_aug_recon_loss(loss: str, kern: str):
-#     def _loss(reduction: str):
-#         return AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=1.0, aug_weight=1.0, normalize_mode='none')
-#     return _loss
+def _make_aug_recon_loss_l1_w1_nnone(loss: str, kern: str):
+    def _loss(reduction: str):
+        return AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=1.0, aug_weight=1.0, normalize_mode='none')
+    return _loss
 
 
 # NOTE: this function compliments make_kernel in transform/_augment.py

@@ -60,18 +60,19 @@ def _get_make_kernel_fn(file_name: str, *, normalize_mode: str, root_dir: str = 
 # ========================================================================= #
 
 
+# old kernels, with negative values -- these should be removed
 _make_xy1_r47  = deprecated(fn=_get_make_kernel_fn('OLD_r47-1_s28800_adam_lr0.003_wd0.0_xy1x1.pt', normalize_mode='none'),   msg='kernel `xy1_r47` has been deprecated! It is not correctly scaled, please use `xy1_abs63` instead!')
 _make_xy8_r47  = deprecated(fn=_get_make_kernel_fn('OLD_r47-1_s28800_adam_lr0.003_wd0.0_xy8x8.pt', normalize_mode='none'),   msg='kernel `xy8_r47` has been deprecated! It is not correctly scaled, please use `xy8_abs63` instead!')
-_make_xy1s_r47 = deprecated(fn=_get_make_kernel_fn('OLD_r47-1_s28800_adam_lr0.003_wd0.0_xy1x1.pt', normalize_mode='sum'),    msg='kernel `xy1s_r47` has been deprecated! It is not correctly scaled, please use `xy1_abs63` instead!')
-_make_xy8s_r47 = deprecated(fn=_get_make_kernel_fn('OLD_r47-1_s28800_adam_lr0.003_wd0.0_xy8x8.pt', normalize_mode='sum'),    msg='kernel `xy8s_r47` has been deprecated! It is not correctly scaled, please use `xy8_abs63` instead!')
-_make_xy1m_r47 = deprecated(fn=_get_make_kernel_fn('OLD_r47-1_s28800_adam_lr0.003_wd0.0_xy1x1.pt', normalize_mode='maxsum'), msg='kernel `xy1m_r47` has been deprecated! It is not correctly scaled, please use `xy1_abs63` instead!')
-_make_xy8m_r47 = deprecated(fn=_get_make_kernel_fn('OLD_r47-1_s28800_adam_lr0.003_wd0.0_xy8x8.pt', normalize_mode='maxsum'), msg='kernel `xy8m_r47` has been deprecated! It is not correctly scaled, please use `xy8_abs63` instead!')
 
-
+# kernels learnt with `kernel = abs(params)` parameterization
+# - no negative values
 _make_xy1_abs63  = _get_make_kernel_fn('MSC_abs_r63-1_s28800_b512_adam_lr0.001_wd0.0_xysquares_1x1.pt',  normalize_mode='none')
 _make_xy2_abs63  = _get_make_kernel_fn('MSC_abs_r63-1_s28800_b512_adam_lr0.001_wd0.0_xysquares_2x2.pt',  normalize_mode='none')
 _make_xy4_abs63  = _get_make_kernel_fn('MSC_abs_r63-1_s28800_b512_adam_lr0.001_wd0.0_xysquares_4x4.pt',  normalize_mode='none')
 _make_xy8_abs63  = _get_make_kernel_fn('MSC_abs_r63-1_s28800_b512_adam_lr0.001_wd0.0_xysquares_8x8.pt',  normalize_mode='none')
+
+# kernels learnt with `kernel = params` parameterization
+# - has negative values
 _make_xy1_none63 = _get_make_kernel_fn('MSC_none_r63-1_s28800_b512_adam_lr0.001_wd0.0_xysquares_1x1.pt', normalize_mode='none')
 _make_xy2_none63 = _get_make_kernel_fn('MSC_none_r63-1_s28800_b512_adam_lr0.001_wd0.0_xysquares_2x2.pt', normalize_mode='none')
 _make_xy4_none63 = _get_make_kernel_fn('MSC_none_r63-1_s28800_b512_adam_lr0.001_wd0.0_xysquares_4x4.pt', normalize_mode='none')
