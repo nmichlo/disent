@@ -35,7 +35,7 @@ COUNTS = {
     'DATASETS': 10,
     'SAMPLERS': 8,
     'FRAMEWORKS': 10,
-    'RECON_LOSSES': 8,
+    'RECON_LOSSES': 10,
     'LATENT_HANDLERS': 2,
     'OPTIMIZERS': 30,
     'METRICS': 5,
@@ -48,13 +48,13 @@ COUNTS = {                 # pragma: delete-on-release
     'DATASETS': 14,        # pragma: delete-on-release
     'SAMPLERS': 8,         # pragma: delete-on-release
     'FRAMEWORKS': 25,      # pragma: delete-on-release
-    'RECON_LOSSES': 8,     # pragma: delete-on-release
+    'RECON_LOSSES': 10,     # pragma: delete-on-release
     'LATENT_HANDLERS': 2,  # pragma: delete-on-release
     'OPTIMIZERS': 30,      # pragma: delete-on-release
     'METRICS': 9,          # pragma: delete-on-release
     'SCHEDULES': 5,        # pragma: delete-on-release
     'MODELS': 8,           # pragma: delete-on-release
-    'KERNELS': 4,          # pragma: delete-on-release
+    'KERNELS': 16,         # pragma: delete-on-release
 }                          # pragma: delete-on-release
 
 
