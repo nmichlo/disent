@@ -50,7 +50,7 @@ clog_cudaless_nodes "$PARTITION" 86400 "C-disent" # 24 hours
 #    framework=betavae,adavae_os \
 #    settings.framework.beta=0.0316,0.316,0.1,0.01 \
 #    settings.model.z_size=25,9 \
-#    settings.framework.recon_loss='mse_box_r${VAR.kernel_radius}_l${VAR.recon_loss_weight}_k${VAR.kernel_loss_weight}' \
+#    settings.framework.recon_loss='mse_box_r${VAR.kernel_radius}_l${VAR.recon_loss_weight}_k${VAR.kernel_loss_weight}_norm_sum' \
 #    \
 #    sampling=default__bb
 
@@ -75,7 +75,7 @@ submit_sweep \
     framework=betavae,adavae_os \
     settings.framework.beta=0.0316,0.0001 \
     settings.model.z_size=25 \
-    settings.framework.recon_loss=mse,'mse_box_r${VAR.kernel_radius}_l${VAR.recon_loss_weight}_k${VAR.kernel_loss_weight}' \
+    settings.framework.recon_loss=mse,'mse_box_r${VAR.kernel_radius}_l${VAR.recon_loss_weight}_k${VAR.kernel_loss_weight}_norm_sum' \
     \
     sampling=default__bb
 
@@ -100,7 +100,7 @@ submit_sweep \
     framework=ae \
     settings.framework.beta=0.0001 \
     settings.model.z_size=25 \
-    settings.framework.recon_loss=mse,'mse_box_r${VAR.kernel_radius}_l${VAR.recon_loss_weight}_k${VAR.kernel_loss_weight}' \
+    settings.framework.recon_loss=mse,'mse_box_r${VAR.kernel_radius}_l${VAR.recon_loss_weight}_k${VAR.kernel_loss_weight}_norm_sum' \
     \
     sampling=default__bb
 
