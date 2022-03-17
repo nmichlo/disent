@@ -16,6 +16,7 @@ export PARALLELISM=24
 # the path to the generated arguments file
 # - this needs to before we source the helper file
 ARGS_FILE="$(realpath "$(dirname -- "${BASH_SOURCE[0]}")")/array_overlap_learnt_${PROJECT}.txt"
+ARGS_FILE_RETRY="$(realpath "$(dirname -- "${BASH_SOURCE[0]}")")/array_overlap_learnt_${PROJECT}_RETRY-2.txt"
 
 # source the helper file
 source "$(dirname "$(dirname "$(dirname "$(realpath -s "$0")")")")/scripts/helper.sh"
@@ -26,16 +27,43 @@ source "$(dirname "$(dirname "$(dirname "$(realpath -s "$0")")")")/scripts/helpe
 # ========================================================================= #
 
 
-# DIFFERENT OVERLAP LOSSES
-# -- changing the reconstruction loss enables disentanglement
-# -- we found the optimal losses first using the metrics from
-#    `part01_data_overlap/plot02_data_distances/run_data_correlation.py`
-# SETUP:
-# -- we mimic the run file from `part01_data_overlap/e03_modified_loss_xysquares/submit_overlap_loss.sh`
-#    this experiment pretty much is a continuation
-# 5 * (2*2*4 = 8) = 80
-ARGS_FILE="$ARGS_FILE" gen_sbatch_args_file \
+## DIFFERENT OVERLAP LOSSES
+## -- changing the reconstruction loss enables disentanglement
+## -- we found the optimal losses first using the metrics from
+##    `part01_data_overlap/plot02_data_distances/run_data_correlation.py`
+## SETUP:
+## -- we mimic the run file from `part01_data_overlap/e03_modified_loss_xysquares/submit_overlap_loss.sh`
+##    this experiment pretty much is a continuation
+## 5 * (2*2*4 = 8) = 80
+#ARGS_FILE="$ARGS_FILE" gen_sbatch_args_file \
+#    +DUMMY.repeat=1,2,3,4,5 \
+#    +EXTRA.tags='MSC_sweep_losses' \
+#    hydra.job.name="ovlp_loss" \
+#    \
+#    run_length=medium \
+#    metrics=all \
+#    \
+#    dataset=X--xysquares \
+#    \
+#    framework=betavae,adavae_os \
+#    settings.framework.beta=0.0316,0.0001 \
+#    settings.model.z_size=25 \
+#    settings.framework.recon_loss='mse','mse_gau_r31_l1.0_k3969.0_norm_sum','mse_box_r31_l1.0_k3969.0_norm_sum','mse_xy8_abs63_l1.0_k1.0_norm_none' \
+#    \
+#    sampling=default__bb
+#
+#
+## RUN THE EXPERIMENT:
+##clog_cudaless_nodes "$PARTITION" 86400 "C-disent" # 24 hours
+#ARGS_FILE="$ARGS_FILE" submit_sbatch_args_file
+
+
+# -- continuation of above!
+# -- frameworks crash when settings.framework.beta==0.0001, this value is too low! Try everything inbetween
+#    standard MSE for some reason is fine with this value... but kernels fail...
+ARGS_FILE="$ARGS_FILE_RETRY" gen_sbatch_args_file \
     +DUMMY.repeat=1,2,3,4,5 \
+    +DUMMY.retry=2 \
     +EXTRA.tags='MSC_sweep_losses' \
     hydra.job.name="ovlp_loss" \
     \
@@ -45,7 +73,7 @@ ARGS_FILE="$ARGS_FILE" gen_sbatch_args_file \
     dataset=X--xysquares \
     \
     framework=betavae,adavae_os \
-    settings.framework.beta=0.0316,0.0001 \
+    settings.framework.beta=0.01,0.00316,0.001,0.000316 \
     settings.model.z_size=25 \
     settings.framework.recon_loss='mse','mse_gau_r31_l1.0_k3969.0_norm_sum','mse_box_r31_l1.0_k3969.0_norm_sum','mse_xy8_abs63_l1.0_k1.0_norm_none' \
     \
@@ -54,7 +82,7 @@ ARGS_FILE="$ARGS_FILE" gen_sbatch_args_file \
 
 # RUN THE EXPERIMENT:
 #clog_cudaless_nodes "$PARTITION" 86400 "C-disent" # 24 hours
-ARGS_FILE="$ARGS_FILE" submit_sbatch_args_file
+ARGS_FILE="$ARGS_FILE_RETRY" submit_sbatch_args_file
 
 
 # ========================================================================= #

@@ -385,6 +385,120 @@ def plot_e04_random_external_factors(
 # ========================================================================= #
 
 
+def plot_e01_learnt_loss_with_vaes(
+    rel_path: Optional[str] = None,
+    save: bool = True,
+    show: bool = True,
+    color_betavae: str = PINK,
+    color_adavae: str = ORANGE,
+    # color_mse_xy8: str = GREEN,
+    # color_mse_box: str = BLUE,
+    # color_mse_gau: str = PURPLE,
+    # color_mse: str = PINK,
+    # color_entangled_data: str = LGREEN,
+    # color_disentangled_data: str = LBLUE2,
+    metrics: Sequence[str] = (K_MIG_MAX, K_DCI_MAX, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE),
+):
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    df = load_general_data(f'{os.environ["WANDB_USER"]}/MSC-p03e02_learnt-loss-with-vaes', keep_cols=(K_GROUP, K_Z_SIZE))
+    # select run groups
+    #     +DUMMY.repeat=1,2,3,4,5 \
+    #     framework=betavae,adavae_os \
+    #     settings.framework.beta=0.0316,0.0001 \
+    #     settings.framework.recon_loss='mse','mse_gau_r31_l1.0_k3969.0_norm_sum','mse_box_r31_l1.0_k3969.0_norm_sum','mse_xy8_abs63_l1.0_k1.0_norm_none' \
+    df = df[df[K_GROUP].isin(['MSC_sweep_losses'])]
+    df = df.sort_values([K_LOSS, K_FRAMEWORK, K_BETA, K_REPEAT])
+    # print common key values
+    print('K_GROUP:    ', list(df[K_GROUP].unique()))
+    print('K_DATASET:  ', list(df[K_DATASET].unique()))
+    print('K_FRAMEWORK:', list(df[K_FRAMEWORK].unique()))
+    print('K_LOSS:     ', list(df[K_LOSS].unique()))
+    print('K_BETA:     ', list(df[K_BETA].unique()))
+    print('K_Z_SIZE:   ', list(df[K_Z_SIZE].unique()))
+    print('K_REPEAT:   ', list(df[K_REPEAT].unique()))
+    print('K_STATE:    ', list(df[K_STATE].unique()))
+    # rename more stuff
+    df = rename_entries(df)
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    orig = df
+    # select runs
+    df = df[df[K_STATE].isin(['finished', 'running'])].copy()
+    print('NUM', len(orig), '->', len(df))
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+
+    df[K_DATASET].replace('xysquares_minimal', 'XYSquares', inplace=True)
+    df[K_DATASET].replace('smallnorb', 'NORB', inplace=True)
+    df[K_DATASET].replace('cars3d', 'Cars3D', inplace=True)
+    df[K_DATASET].replace('3dshapes', 'Shapes3D', inplace=True)
+    df[K_DATASET].replace('dsprites', 'dSprites', inplace=True)
+    df[K_DATASET].replace('xyobject', 'XYObject', inplace=True)
+    df[K_DATASET].replace('xyobject_shaded', 'XYObject (Shades)', inplace=True)
+    df[K_FRAMEWORK].replace('adavae_os', 'Ada-GVAE', inplace=True)
+    df[K_FRAMEWORK].replace('betavae', 'Beta-VAE', inplace=True)
+    df[K_LOSS].replace('mse_xy8_abs63_l1.0_k1.0_norm_none', 'xy8',  inplace=True)
+    df[K_LOSS].replace('mse_box_r31_l1.0_k3969.0_norm_sum', 'box',  inplace=True)
+    df[K_LOSS].replace('mse_gau_r31_l1.0_k3969.0_norm_sum', 'gau',  inplace=True)
+    df[K_LOSS].replace('mse',                               'none', inplace=True)
+
+    df['_sort_'] = list(df[K_LOSS])
+    df['_sort_'].replace('none', 1, inplace=True)
+    df['_sort_'].replace('gau',  2, inplace=True)
+    df['_sort_'].replace('box',  3, inplace=True)
+    df['_sort_'].replace('xy8',  4, inplace=True)
+
+    df = df[df[K_LOSS].isin(['none', 'box', 'xy8'])]
+
+    df = df.sort_values(['_sort_', K_LOSS, K_FRAMEWORK, K_BETA])
+
+    # df = df[
+    #     ((df[K_LOSS] == 'none') & (df[K_BETA] == 0.0001))
+    #   | ((df[K_LOSS] == 'box')  & (df[K_BETA] == 0.0316))
+    #   | ((df[K_LOSS] == 'xy8')  & (df[K_BETA] == 0.0001))
+    # ]
+
+    PALLETTE = {
+        # 'MSE (learnt)': color_mse_xy8,
+        # 'MSE (box)': color_mse_box,
+        # 'MSE (gaussian)': color_mse_gau,
+        # 'MSE': color_mse,
+        'Beta-VAE': color_betavae,
+        'Ada-GVAE': color_adavae,
+    }
+
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    fig, axs = plt.subplots(2, len(metrics) // 2, figsize=(len(metrics) // 2 * 3.75, 2 * 2.7))
+    axs = axs.flatten()
+    # PLOT
+    for i, (key, ax) in enumerate(zip(metrics, axs)):
+        assert key in df.columns, f'{repr(key)} not in {sorted(df.columns)}'
+        sns.violinplot(data=df, ax=ax, x=K_LOSS, y=key, hue=K_FRAMEWORK, palette=PALLETTE, split=True, cut=0, width=0.75, scale='width', inner='quartile')
+        ax.set_ylim([-0.1, 1.1])
+        ax.set_ylim([0, None])
+        if i == len(axs) - 1:
+            # ax.legend(bbox_to_anchor=(0.05, 0.175), fontsize=12, loc='lower left', labelspacing=0.1)
+            ax.legend(fontsize=12, loc='lower left', labelspacing=0.1)
+            ax.set_xlabel(None)
+            # ax.set_ylabel('Minimum Recon. Loss')
+        else:
+            if ax.get_legend():
+                ax.get_legend().remove()
+            ax.set_xlabel(None)
+            # ax.set_ylabel(None)
+    # PLOT:
+    fig.tight_layout()
+    H.plt_rel_path_savefig(rel_path, save=save, show=show, dpi=300)
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+
+    return fig, axs
+
+
+# ========================================================================= #
+# Entrypoint                                                                #
+# ========================================================================= #
+
+
 if __name__ == '__main__':
 
     assert 'WANDB_USER' in os.environ, 'specify "WANDB_USER" environment variable'
@@ -398,9 +512,12 @@ if __name__ == '__main__':
     # clear_cache(clear_data=True, clear_wandb=False)
 
     def main():
-        plot_e03_different_gt_representations(rel_path='plots/p03e03_different-gt-representations', show=True)
-        plot_e04_random_external_factors(rel_path='plots/p03e04_random-external-factors__fg', mode='fg', show=True)
-        plot_e04_random_external_factors(rel_path='plots/p03e04_random-external-factors__bg', mode='bg', show=True)
+        # plot_e03_different_gt_representations(rel_path='plots/p03e03_different-gt-representations', show=True)
+
+        # plot_e04_random_external_factors(rel_path='plots/p03e04_random-external-factors__fg', mode='fg', show=True)
+        # plot_e04_random_external_factors(rel_path='plots/p03e04_random-external-factors__bg', mode='bg', show=True)
+
+        plot_e01_learnt_loss_with_vaes(rel_path='plots/p03e01_learnt-loss-with-vaes', show=True)
 
     main()
 
