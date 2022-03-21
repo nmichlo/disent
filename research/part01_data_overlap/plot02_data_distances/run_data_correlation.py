@@ -66,9 +66,13 @@ _RENAME_KEYS = {
     'mse_box_r31_l1.0_k3969.0_norm_sum/rcorr_ground_data': 'rank_corr (box)',
     'mse_box_r31_l1.0_k3969.0_norm_sum/lcorr_ground_data': 'linear_corr (box)',
 
-    'mse_xy8_abs63_l1.0_k1.0_norm_none/rsame_ground_data': 'rsame_ratio (xy8)',
-    'mse_xy8_abs63_l1.0_k1.0_norm_none/rcorr_ground_data': 'rank_corr (xy8)',
-    'mse_xy8_abs63_l1.0_k1.0_norm_none/lcorr_ground_data': 'linear_corr (xy8)',
+    'mse_xy8_abs31_l1.0_k1.0_norm_none/rsame_ground_data': 'rsame_ratio (xy8)',
+    'mse_xy8_abs31_l1.0_k1.0_norm_none/rcorr_ground_data': 'rank_corr (xy8)',
+    'mse_xy8_abs31_l1.0_k1.0_norm_none/lcorr_ground_data': 'linear_corr (xy8)',
+
+    'mse_xy8_abs63_l1.0_k1.0_norm_none/rsame_ground_data': 'rsame_ratio (xy8,r63)',
+    'mse_xy8_abs63_l1.0_k1.0_norm_none/rcorr_ground_data': 'rank_corr (xy8,r63)',
+    'mse_xy8_abs63_l1.0_k1.0_norm_none/lcorr_ground_data': 'linear_corr (xy8,r63)',
 
     'mse_xy8_r47_l1.0_k3969.0_norm_sum/rsame_ground_data': 'rsame_ratio (xy8,r47,OLD)',
     'mse_xy8_r47_l1.0_k3969.0_norm_sum/rcorr_ground_data': 'rank_corr (xy8,r47,OLD)',
@@ -222,6 +226,29 @@ if __name__ == '__main__':
                 # 'mse_xy8_r47_l1.0_k3969.0_norm_sum',   # learnt: OLD -- (DO NOT USE)
                 'mse_xy8_abs63_l1.0_k1.0_norm_none',     # learnt: NEW  (SAME AS: 'mse_xy8_abs63_l1.0_k1.0_norm_none','mse_xy8_abs63_norm_none','mse_xy8_abs63')
             )
+        elif mode == 'compare_kernels_small':
+            gt_data_classes = {'XYSquares-8-8': wrapped_partial(XYSquaresData, square_size=8, grid_spacing=8, grid_size=8, no_warnings=True)}
+            ORDER = {
+                'rank_corr (mse)',
+                'linear_corr (mse)',
+                'rank_corr (gau)',
+                'linear_corr (gau)',
+                'rank_corr (box)',
+                'linear_corr (box)',
+                'rank_corr (xy8)',
+                'linear_corr (xy8)',
+                # 'rank_corr (xy8,r47,OLD)',
+                # 'linear_corr (xy8,r47,OLD)',
+            }
+            # best hparams:
+            losses = (
+                'mse',                                   # orig!
+                'mse_gau_r31_l1.0_k3969.0_norm_sum',     # gau: ORIG
+                # 'mse_gau_r63_l1.0_k3969.0_norm_sum',   # gau: NEW  (much better than r31)
+                'mse_box_r31_l1.0_k3969.0_norm_sum',     # box: ORIG
+                # 'mse_xy8_r47_l1.0_k3969.0_norm_sum',   # learnt: OLD -- (DO NOT USE)
+                'mse_xy8_abs31_l1.0_k1.0_norm_none',     # learnt: NEW  (SAME AS: 'mse_xy8_abs31_l1.0_k1.0_norm_none','mse_xy8_abs31_norm_none','mse_xy8_abs31')
+            )
         elif mode == 'box_hparams':
             ORDER, gt_data_classes = [], {'XYSquares-8-8': wrapped_partial(XYSquaresData, square_size=8, grid_spacing=8, grid_size=8, no_warnings=True)}
             losses = tuple(f'mse_box_r{r}_l1.0_k{k}_norm_sum' for k in ['100.0', '396.9', '1000.0', '3969.0', '10000.0'] for r in ['15', '31', '47', '63'])
@@ -244,6 +271,17 @@ if __name__ == '__main__':
                 'mse_xy8_abs63_l1.0_k100.0_norm_sum',
                 'mse_xy8_abs63_l1.0_k1000.0_norm_sum',
                 'mse_xy8_abs63_l1.0_k10000.0_norm_sum',
+            )
+        elif mode == 'xy8_hparams_small':
+            ORDER, gt_data_classes = [], {'XYSquares-8-8': wrapped_partial(XYSquaresData, square_size=8, grid_spacing=8, grid_size=8, no_warnings=True)}
+            losses = (
+                'mse_xy8_abs31',                        # this should be the same as mse_xy8_abs31_l1.0_k1.0_norm_none -- USE THIS ONE!
+                'mse_xy8_abs31_norm_none',              # this should be the same as mse_xy8_abs31_l1.0_k1.0_norm_none
+                'mse_xy8_abs31_l1.0_k1.0_norm_none',    # this should be the same as mse_xy8_abs31_l1.0_k1.0_norm_none
+                'mse_xy8_abs31_l1.0_k10.0_norm_none',
+                'mse_xy8_abs31_l1.0_k100.0_norm_none',
+                'mse_xy8_abs31_l1.0_k1000.0_norm_none',
+                'mse_xy8_abs31_l1.0_k10000.0_norm_none',
             )
         else:
             raise KeyError('invalid mode')
@@ -283,7 +321,9 @@ if __name__ == '__main__':
     # RUN
     register_to_disent()
 
-    main(mode='compare_kernels', repeats=8192)
+    # main(mode='compare_kernels', repeats=8192)
+    main(mode='compare_kernels_small', repeats=8192)
+    # main(mode='xy8_hparams_small', repeats=128)
     # main(mode='all_datasets', repeats=1024)
     # main(mode='box_hparams', repeats=128)
     # main(mode='gau_hparams', repeats=128)
@@ -698,6 +738,77 @@ if __name__ == '__main__':
 #  'mse_xy8_abs63_l1.0_k10000.0_norm_sum/rcorr_ground_data': 0.9807396889725206,
 #  'mse_xy8_abs63_norm_none/lcorr_ground_data': 0.9993412106533186,                # SHOULD USE THIS!  (SAME)
 #  'mse_xy8_abs63_norm_none/rcorr_ground_data': 0.9981519882968966}                # SHOULD USE THIS!  (SAME)
+
+# ========================================================================= #
+# xy8_abs31                                                                 #
+# ========================================================================= #
+
+# xy_squares: x_R
+# {'linear_corr (xy8)': 0.9678735771797711,
+#  'mse_xy8_abs31/lcorr_ground_data': 0.9687208658219576,
+#  'mse_xy8_abs31/rcorr_ground_data': 0.9783804430856882,
+#  'mse_xy8_abs31_l1.0_k10.0_norm_none/lcorr_ground_data': 0.9682637635856579,
+#  'mse_xy8_abs31_l1.0_k10.0_norm_none/rcorr_ground_data': 0.9783654952815923,
+#  'mse_xy8_abs31_l1.0_k100.0_norm_none/lcorr_ground_data': 0.968611081840099,
+#  'mse_xy8_abs31_l1.0_k100.0_norm_none/rcorr_ground_data': 0.9785962279455712,
+#  'mse_xy8_abs31_l1.0_k1000.0_norm_none/lcorr_ground_data': 0.9692789956253065,
+#  'mse_xy8_abs31_l1.0_k1000.0_norm_none/rcorr_ground_data': 0.978977519791299,
+#  'mse_xy8_abs31_l1.0_k10000.0_norm_none/lcorr_ground_data': 0.9689240381154687,
+#  'mse_xy8_abs31_l1.0_k10000.0_norm_none/rcorr_ground_data': 0.9788376129373869,
+#  'mse_xy8_abs31_norm_none/lcorr_ground_data': 0.9685526867870904,
+#  'mse_xy8_abs31_norm_none/rcorr_ground_data': 0.9783801251042628,
+#  'rank_corr (xy8)': 0.9781558343577775}
+
+# xy_squares: random
+# {'linear_corr (xy8)': 0.9642915959954084,
+#  'mse_xy8_abs31/lcorr_ground_data': 0.9643131940713038,
+#  'mse_xy8_abs31/rcorr_ground_data': 0.9589865502353624,
+#  'mse_xy8_abs31_l1.0_k10.0_norm_none/lcorr_ground_data': 0.9632682760808084,
+#  'mse_xy8_abs31_l1.0_k10.0_norm_none/rcorr_ground_data': 0.9569984619564749,
+#  'mse_xy8_abs31_l1.0_k100.0_norm_none/lcorr_ground_data': 0.9656460246275431,
+#  'mse_xy8_abs31_l1.0_k100.0_norm_none/rcorr_ground_data': 0.9596193126172062,
+#  'mse_xy8_abs31_l1.0_k1000.0_norm_none/lcorr_ground_data': 0.9646238691347586,
+#  'mse_xy8_abs31_l1.0_k1000.0_norm_none/rcorr_ground_data': 0.9590847767760894,
+#  'mse_xy8_abs31_l1.0_k10000.0_norm_none/lcorr_ground_data': 0.9652572250944952,
+#  'mse_xy8_abs31_l1.0_k10000.0_norm_none/rcorr_ground_data': 0.9591961345585253,
+#  'mse_xy8_abs31_norm_none/lcorr_ground_data': 0.9641075187530113,
+#  'mse_xy8_abs31_norm_none/rcorr_ground_data': 0.9590779695430883,
+#  'rank_corr (xy8)': 0.9593545150637656}
+
+
+# xy_squares: x_R
+# {'linear_corr (box)': 0.9566902061341364,
+#  'linear_corr (gau)': 0.8421729148631358,
+#  'linear_corr (mse)': 0.5229777048796336,
+#  'linear_corr (xy8)': 0.9668309669291733,
+#  'rank_corr (box)': 0.9724203612164438,
+#  'rank_corr (gau)': 0.8791057586183358,
+#  'rank_corr (mse)': 0.5812948243581433,
+#  'rank_corr (xy8)': 0.9776622360136354}
+# xy_squares: random
+# {'linear_corr (box)': 0.9450759442133024,
+#  'linear_corr (gau)': 0.7248028528773823,
+#  'linear_corr (mse)': 0.55513621759871,
+#  'linear_corr (xy8)': 0.9648509660103067,
+#  'rank_corr (box)': 0.9352893421589664,
+#  'rank_corr (gau)': 0.6144250118933472,
+#  'rank_corr (mse)': 0.36447057769668934,
+#  'rank_corr (xy8)': 0.9595310090244852}
+
+
+# [XYSquares-8-8] Factor Name & Factor Size & rank_corr (gau) & rank_corr (mse) & linear_corr (mse) & linear_corr (box) & linear_corr (gau) & rank_corr (xy8) & linear_corr (xy8) & rank_corr (box)
+# [XYSquares-8-8] x_R    &      8 & 0.88 & 0.58 & 0.52 & 0.96 & 0.84 & 0.98 & 0.97 & 0.97
+# [XYSquares-8-8] random & 262144 & 0.61 & 0.36 & 0.56 & 0.95 & 0.72 & 0.96 & 0.96 & 0.94
+
+
+# MANUAL EDIT -- COMBINED WITH "COMPARE KERNELS -- NEW" ABOVE!
+
+# Loss Name        & Linear Corr. (factor) & Rank Corr. (factor) & Linear Corr. (random) & Rank Corr. (random)
+# MSE              &                  0.52 &                0.58 &                  0.55 &                0.36
+# MSE (Gau-Kernel) &                  0.84 &                0.88 &                  0.73 &                0.61
+# MSE (Box-Kernel) &                  0.96 &                0.97 &                  0.95 &                0.94
+# MSE (XY8-Kernel) &                  0.97 &                0.98 &                  0.96 &                0.96
+
 
 # ========================================================================= #
 # END                                                                       #
