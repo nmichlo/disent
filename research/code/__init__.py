@@ -66,7 +66,16 @@ def register_to_disent():
     R.KERNELS.setm.register_regex(pattern=r'^(xy2)_abs(63)$',  example='xy2_abs63',  factory_fn='research.code.dataset.transform._augment._make_xy2_abs63')
     R.KERNELS.setm.register_regex(pattern=r'^(xy4)_abs(63)$',  example='xy4_abs63',  factory_fn='research.code.dataset.transform._augment._make_xy4_abs63')
     R.KERNELS.setm.register_regex(pattern=r'^(xy8)_abs(63)$',  example='xy8_abs63',  factory_fn='research.code.dataset.transform._augment._make_xy8_abs63')
+
+    R.KERNELS.setm.register_regex(pattern=r'^(xy8)_abs(15)$', example='xy8_abs15', factory_fn='research.code.dataset.transform._augment._make_xy8_abs15')
+    R.KERNELS.setm.register_regex(pattern=r'^(xy8)_abs(31)$', example='xy8_abs31', factory_fn='research.code.dataset.transform._augment._make_xy8_abs31')
+    R.KERNELS.setm.register_regex(pattern=r'^(xy8)_abs(47)$', example='xy8_abs47', factory_fn='research.code.dataset.transform._augment._make_xy8_abs47')
+
     R.KERNELS.setm.register_regex(pattern=r'^(xy1)_none(63)$', example='xy1_none63', factory_fn='research.code.dataset.transform._augment._make_xy1_none63')
     R.KERNELS.setm.register_regex(pattern=r'^(xy2)_none(63)$', example='xy2_none63', factory_fn='research.code.dataset.transform._augment._make_xy2_none63')
     R.KERNELS.setm.register_regex(pattern=r'^(xy4)_none(63)$', example='xy4_none63', factory_fn='research.code.dataset.transform._augment._make_xy4_none63')
     R.KERNELS.setm.register_regex(pattern=r'^(xy8)_none(63)$', example='xy8_none63', factory_fn='research.code.dataset.transform._augment._make_xy8_none63')
+
+    R.KERNELS.setm.register_regex(pattern=r'^(xy8)_none(15)$', example='xy8_none15', factory_fn='research.code.dataset.transform._augment._make_xy8_none15')
+    R.KERNELS.setm.register_regex(pattern=r'^(xy8)_none(31)$', example='xy8_none31', factory_fn='research.code.dataset.transform._augment._make_xy8_none31')
+    R.KERNELS.setm.register_regex(pattern=r'^(xy8)_none(47)$', example='xy8_none47', factory_fn='research.code.dataset.transform._augment._make_xy8_none47')

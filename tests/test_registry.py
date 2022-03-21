@@ -54,7 +54,7 @@ COUNTS = {                 # pragma: delete-on-release
     'METRICS': 9,          # pragma: delete-on-release
     'SCHEDULES': 5,        # pragma: delete-on-release
     'MODELS': 8,           # pragma: delete-on-release
-    'KERNELS': 12,         # pragma: delete-on-release
+    'KERNELS': 18,         # pragma: delete-on-release
 }                          # pragma: delete-on-release
 
 

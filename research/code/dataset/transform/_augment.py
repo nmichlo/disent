@@ -71,6 +71,10 @@ _make_xy2_abs63  = _get_make_kernel_fn('MSC_abs_r63-1_s28800_b512_adam_lr0.001_w
 _make_xy4_abs63  = _get_make_kernel_fn('MSC_abs_r63-1_s28800_b512_adam_lr0.001_wd0.0_xysquares_4x4.pt',  normalize_mode='none')
 _make_xy8_abs63  = _get_make_kernel_fn('MSC_abs_r63-1_s28800_b512_adam_lr0.001_wd0.0_xysquares_8x8.pt',  normalize_mode='none')
 
+_make_xy8_abs15 = _get_make_kernel_fn('MSC_abs_r15-1_s28800_b512_adam_lr0.001_wd0.0_xysquares_8x8.pt', normalize_mode='none')
+_make_xy8_abs31 = _get_make_kernel_fn('MSC_abs_r31-1_s28800_b512_adam_lr0.001_wd0.0_xysquares_8x8.pt', normalize_mode='none')
+_make_xy8_abs47 = _get_make_kernel_fn('MSC_abs_r47-1_s28800_b512_adam_lr0.001_wd0.0_xysquares_8x8.pt', normalize_mode='none')
+
 # kernels learnt with `kernel = params` parameterization
 # - has negative values
 _make_xy1_none63 = _get_make_kernel_fn('MSC_none_r63-1_s28800_b512_adam_lr0.001_wd0.0_xysquares_1x1.pt', normalize_mode='none')
@@ -78,6 +82,9 @@ _make_xy2_none63 = _get_make_kernel_fn('MSC_none_r63-1_s28800_b512_adam_lr0.001_
 _make_xy4_none63 = _get_make_kernel_fn('MSC_none_r63-1_s28800_b512_adam_lr0.001_wd0.0_xysquares_4x4.pt', normalize_mode='none')
 _make_xy8_none63 = _get_make_kernel_fn('MSC_none_r63-1_s28800_b512_adam_lr0.001_wd0.0_xysquares_8x8.pt', normalize_mode='none')
 
+_make_xy8_none15 = _get_make_kernel_fn('MSC_none_r15-1_s28800_b512_adam_lr0.001_wd0.0_xysquares_8x8.pt', normalize_mode='none')
+_make_xy8_none31 = _get_make_kernel_fn('MSC_none_r31-1_s28800_b512_adam_lr0.001_wd0.0_xysquares_8x8.pt', normalize_mode='none')
+_make_xy8_none47 = _get_make_kernel_fn('MSC_none_r47-1_s28800_b512_adam_lr0.001_wd0.0_xysquares_8x8.pt', normalize_mode='none')
 
 # ========================================================================= #
 # END                                                                       #
