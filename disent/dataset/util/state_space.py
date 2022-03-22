@@ -271,14 +271,14 @@ class StateSpace(LengthIter):
         # return everything
         return f_idx, base_factors, num
 
-    def sample_random_factor_traversal(self, f_idx: int = None, base_factors=None, num: int = None, mode='interval') -> np.ndarray:
+    def sample_random_factor_traversal(self, f_idx: int = None, base_factors=None, num: int = None, mode: str = 'interval', start_index: int = 0) -> np.ndarray:
         """
         Sample a single random factor traversal along the
         given factor index, starting from some random base sample.
         """
         f_idx, base_factors, num = self._get_f_idx_and_factors_and_size(f_idx=f_idx, base_factors=base_factors, num=num)
         # generate traversal
-        base_factors[:, f_idx] = get_idx_traversal(self.factor_sizes[f_idx], num_frames=num, mode=mode)
+        base_factors[:, f_idx] = get_idx_traversal(self.factor_sizes[f_idx], num_frames=num, mode=mode, start_index=start_index)
         # return factors (num_frames, num_factors)
         return base_factors
 

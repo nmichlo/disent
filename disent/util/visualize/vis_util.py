@@ -139,7 +139,7 @@ def _get_grid_size(n: int, num_cols: Optional[int] = None):
 # ========================================================================= #
 
 
-def _get_interval_factor_traversal(factor_size, num_frames, start_index=0):
+def _get_interval_factor_traversal(factor_size: int, num_frames: int, start_index: int = 0):
     """
     Cycles through the state space in a single cycle.
     eg. num_indices=5, num_frames=7 returns: [0,1,1,2,3,3,4]
@@ -151,29 +151,51 @@ def _get_interval_factor_traversal(factor_size, num_frames, start_index=0):
     return grid
 
 
-def _get_cycle_factor_traversal(factor_size, num_frames):
+def _get_cycle_factor_traversal(factor_size: int, num_frames: int, start_index: int = 0):
     """
     Cycles through the state space in a single cycle.
     eg. num_indices=5, num_frames=7 returns: [0,1,3,4,3,2,1]
     eg. num_indices=4, num_frames=7 returns: [0,1,2,3,2,2,0]
     """
-    grid = _get_interval_factor_traversal(factor_size=factor_size, num_frames=num_frames)
+    assert start_index == 0, f'cycle factor traversal mode only supports start_index==0, got: {repr(start_index)}'
+    grid = _get_interval_factor_traversal(factor_size=factor_size, num_frames=num_frames, start_index=0)
     grid = np.concatenate([grid[0::2], grid[1::2][::-1]])
     return grid
+
+
+def _get_cycle_factor_traversal_from_start(factor_size: int, num_frames: int, start_index: int = 0, ends: bool = False):
+    all_idxs = np.array([
+        *range(start_index, factor_size - (1 if ends else 0)),
+        *reversed(range(0, factor_size)),
+        *range(1 if ends else 0, start_index),
+    ])
+    selected_idxs = _get_interval_factor_traversal(factor_size=len(all_idxs), num_frames=num_frames, start_index=0)
+    grid = all_idxs[selected_idxs]
+    # checks
+    assert all_idxs[0] == start_index, 'Please report this bug!'
+    assert grid[0] == start_index, 'Please report this bug!'
+    return grid
+
+
+def _get_cycle_factor_traversal_from_start_ends(factor_size: int, num_frames: int, start_index: int = 0, ends: bool = True):
+    return _get_cycle_factor_traversal_from_start(factor_size=factor_size, num_frames=num_frames, start_index=start_index, ends=ends)
+
 
 
 _FACTOR_TRAVERSALS = {
     'interval': _get_interval_factor_traversal,
     'cycle': _get_cycle_factor_traversal,
+    'cycle_from_start': _get_cycle_factor_traversal_from_start,
+    'cycle_from_start_ends': _get_cycle_factor_traversal_from_start_ends,
 }
 
 
-def get_idx_traversal(factor_size, num_frames, mode='interval'):
+def get_idx_traversal(factor_size: int, num_frames: int, mode: str = 'interval', start_index: int = 0):
     try:
         traversal_fn = _FACTOR_TRAVERSALS[mode]
     except KeyError:
         raise KeyError(f'Invalid factor traversal mode: {repr(mode)}')
-    return traversal_fn(factor_size=factor_size, num_frames=num_frames)
+    return traversal_fn(factor_size=factor_size, num_frames=num_frames, start_index=start_index)
 
 
 # ========================================================================= #
