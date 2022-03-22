@@ -406,7 +406,7 @@ def plot_e01_learnt_loss_with_vaes(
     #     framework=betavae,adavae_os \
     #     settings.framework.beta=0.0316,0.0001 \
     #     settings.framework.recon_loss='mse','mse_gau_r31_l1.0_k3969.0_norm_sum','mse_box_r31_l1.0_k3969.0_norm_sum','mse_xy8_abs63_l1.0_k1.0_norm_none' \
-    df = df[df[K_GROUP].isin(['MSC_sweep_losses'])]
+    df = df[df[K_GROUP].isin(['MSC_sweep_losses', 'MSC_sweep_losses_ALT', 'MSC_sweep_losses_XY8R31'])]  # 'MSC_sweep_losses', 'MSC_sweep_losses_XY8R31', 'MSC_sweep_losses_ALT'
     df = df.sort_values([K_LOSS, K_FRAMEWORK, K_BETA, K_REPEAT])
     # print common key values
     print('K_GROUP:    ', list(df[K_GROUP].unique()))
@@ -417,6 +417,7 @@ def plot_e01_learnt_loss_with_vaes(
     print('K_Z_SIZE:   ', list(df[K_Z_SIZE].unique()))
     print('K_REPEAT:   ', list(df[K_REPEAT].unique()))
     print('K_STATE:    ', list(df[K_STATE].unique()))
+    print('K_LOSS:     ', list(df[K_LOSS].unique()))
     # rename more stuff
     df = rename_entries(df)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
@@ -424,7 +425,7 @@ def plot_e01_learnt_loss_with_vaes(
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
     orig = df
     # select runs
-    df = df[df[K_STATE].isin(['finished', 'running'])].copy()
+    df = df[df[K_STATE].isin(['finished'])].copy()
     print('NUM', len(orig), '->', len(df))
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
@@ -437,26 +438,54 @@ def plot_e01_learnt_loss_with_vaes(
     df[K_DATASET].replace('xyobject_shaded', 'XYObject (Shades)', inplace=True)
     df[K_FRAMEWORK].replace('adavae_os', 'Ada-GVAE', inplace=True)
     df[K_FRAMEWORK].replace('betavae', 'Beta-VAE', inplace=True)
-    df[K_LOSS].replace('mse_xy8_abs63_l1.0_k1.0_norm_none', 'xy8',  inplace=True)
-    df[K_LOSS].replace('mse_box_r31_l1.0_k3969.0_norm_sum', 'box',  inplace=True)
-    df[K_LOSS].replace('mse_gau_r31_l1.0_k3969.0_norm_sum', 'gau',  inplace=True)
-    df[K_LOSS].replace('mse',                               'none', inplace=True)
+
+    N_mse = 'none'
+    N_gau = 'gau'
+    N_box = 'box'
+    N_xy8r31 = 'xy8'
+    N_xy8r63 = 'xy8_r63'
+
+    N_mse = 'MSE'
+    N_gau = 'MSE\n(gau)'
+    N_box = 'MSE\n(box)'
+    N_xy8r31 = 'MSE\n(xy8)'
+    N_xy8r63 = 'MSE\n(xy8,r63)'
+
+    df[K_LOSS].replace('mse_xy8_abs31_l1.0_k1.0_norm_none', N_xy8r31, inplace=True)
+    df[K_LOSS].replace('mse_xy8_abs63_l1.0_k1.0_norm_none', N_xy8r63, inplace=True)
+    df[K_LOSS].replace('mse_box_r31_l1.0_k3969.0_norm_sum', N_box,  inplace=True)
+    df[K_LOSS].replace('mse_gau_r31_l1.0_k3969.0_norm_sum', N_gau,  inplace=True)
+    df[K_LOSS].replace('mse',                               N_mse, inplace=True)
 
     df['_sort_'] = list(df[K_LOSS])
-    df['_sort_'].replace('none', 1, inplace=True)
-    df['_sort_'].replace('gau',  2, inplace=True)
-    df['_sort_'].replace('box',  3, inplace=True)
-    df['_sort_'].replace('xy8',  4, inplace=True)
+    df['_sort_'].replace(N_mse, 1, inplace=True)
+    df['_sort_'].replace(N_gau, 2, inplace=True)
+    df['_sort_'].replace(N_box, 3, inplace=True)
+    df['_sort_'].replace(N_xy8r31, 4, inplace=True)
+    df['_sort_'].replace(N_xy8r63, 5, inplace=True)
 
-    df = df[df[K_LOSS].isin(['none', 'box', 'xy8'])]
+    df = df[df[K_LOSS].isin([N_mse, N_gau, N_box, N_xy8r31])]
+
+    # df = df[df[K_BETA].isin([
+    #     0.0001,
+    #     0.000316,
+    #     0.001,
+    #     0.00316,
+    #     0.01,
+    #     0.0316
+    # ])]
 
     df = df.sort_values(['_sort_', K_LOSS, K_FRAMEWORK, K_BETA])
 
-    # df = df[
-    #     ((df[K_LOSS] == 'none') & (df[K_BETA] == 0.0001))
-    #   | ((df[K_LOSS] == 'box')  & (df[K_BETA] == 0.0316))
-    #   | ((df[K_LOSS] == 'xy8')  & (df[K_BETA] == 0.0001))
-    # ]
+    print('NUM?', len(df))
+    df = df[
+        ((df[K_LOSS] == N_mse)  & ( df[K_BETA].isin([0.0001, 0.000316])))
+      # ((df[K_LOSS] == N_gau)  & (~df[K_BETA].isin([0.0001, 0.000316, 0.001, 0.00316, 0.01, 0.0316])))
+      | ((df[K_LOSS] == N_gau)  & (~df[K_BETA].isin([0.0001, 0.000316,                 0.01, 0.0316])))
+      | ((df[K_LOSS] == N_box)  & (~df[K_BETA].isin([0.0001, 0.000316, 0.001, 0.00316])))
+      | ((df[K_LOSS] == N_xy8r31)  & (~df[K_BETA].isin([0.0001, 0.000316, 0.001, 0.00316])))
+    ]
+    print('NUM?', len(df))
 
     PALLETTE = {
         # 'MSE (learnt)': color_mse_xy8,
@@ -468,7 +497,7 @@ def plot_e01_learnt_loss_with_vaes(
     }
 
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
-    fig, axs = plt.subplots(2, len(metrics) // 2, figsize=(len(metrics) // 2 * 3.75, 2 * 2.7))
+    fig, axs = plt.subplots(2, len(metrics) // 2, figsize=(len(metrics) // 2 * 3.75, 2 * 3.0))
     axs = axs.flatten()
     # PLOT
     for i, (key, ax) in enumerate(zip(metrics, axs)):
@@ -478,7 +507,7 @@ def plot_e01_learnt_loss_with_vaes(
         ax.set_ylim([0, None])
         if i == len(axs) - 1:
             # ax.legend(bbox_to_anchor=(0.05, 0.175), fontsize=12, loc='lower left', labelspacing=0.1)
-            ax.legend(fontsize=12, loc='lower left', labelspacing=0.1)
+            ax.legend(fontsize=12, bbox_to_anchor=(1.0, 0.05), loc='lower right', labelspacing=0.1)
             ax.set_xlabel(None)
             # ax.set_ylabel('Minimum Recon. Loss')
         else:
