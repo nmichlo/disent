@@ -57,10 +57,25 @@ def register_to_disent():
     R.FRAMEWORKS.setm['x__st_ada_vae']  = R.LazyImport('research.code.frameworks.vae._weaklysupervised__st_adavae.SwappedTargetAdaVae')
     R.FRAMEWORKS.setm['x__st_beta_vae'] = R.LazyImport('research.code.frameworks.vae._weaklysupervised__st_betavae.SwappedTargetBetaVae')
 
-    # register the kernels for the loss functions!
-    R.KERNELS.setm.register_regex(pattern=r'^(xy8)_r(47)$',  example='xy8_r47',  factory_fn='research.code.dataset.transform._augment._make_xy8_r47')  # DEPRECATED
-    R.KERNELS.setm.register_regex(pattern=r'^(xy1)_r(47)$',  example='xy1_r47',  factory_fn='research.code.dataset.transform._augment._make_xy1_r47')  # DEPRECATED
-    R.KERNELS.setm.register_regex(pattern=r'^(xy8s)_r(47)$', example='xy8s_r47', factory_fn='research.code.dataset.transform._augment._make_xy8s_r47')  # scaled by the sum
-    R.KERNELS.setm.register_regex(pattern=r'^(xy1s)_r(47)$', example='xy1s_r47', factory_fn='research.code.dataset.transform._augment._make_xy1s_r47')  # scaled by the sum
-    R.KERNELS.setm.register_regex(pattern=r'^(xy8m)_r(47)$', example='xy8m_r47', factory_fn='research.code.dataset.transform._augment._make_xy8m_r47')  # scaled by the max neg or pos sum
-    R.KERNELS.setm.register_regex(pattern=r'^(xy1m)_r(47)$', example='xy1m_r47', factory_fn='research.code.dataset.transform._augment._make_xy1m_r47')  # scaled by the max neg or pos sum
+    # DEPRECATED -- register the kernels for the loss functions
+    R.KERNELS.setm.register_regex(pattern=r'^(xy8)_r(47)$',  example='xy8_r47',  factory_fn='research.code.dataset.transform._augment._make_xy8_r47')   # DEPRECATED
+    R.KERNELS.setm.register_regex(pattern=r'^(xy1)_r(47)$',  example='xy1_r47',  factory_fn='research.code.dataset.transform._augment._make_xy1_r47')   # DEPRECATED
+
+    # register kernels for loss functions
+    R.KERNELS.setm.register_regex(pattern=r'^(xy1)_abs(63)$',  example='xy1_abs63',  factory_fn='research.code.dataset.transform._augment._make_xy1_abs63')
+    R.KERNELS.setm.register_regex(pattern=r'^(xy2)_abs(63)$',  example='xy2_abs63',  factory_fn='research.code.dataset.transform._augment._make_xy2_abs63')
+    R.KERNELS.setm.register_regex(pattern=r'^(xy4)_abs(63)$',  example='xy4_abs63',  factory_fn='research.code.dataset.transform._augment._make_xy4_abs63')
+    R.KERNELS.setm.register_regex(pattern=r'^(xy8)_abs(63)$',  example='xy8_abs63',  factory_fn='research.code.dataset.transform._augment._make_xy8_abs63')
+
+    R.KERNELS.setm.register_regex(pattern=r'^(xy8)_abs(15)$', example='xy8_abs15', factory_fn='research.code.dataset.transform._augment._make_xy8_abs15')
+    R.KERNELS.setm.register_regex(pattern=r'^(xy8)_abs(31)$', example='xy8_abs31', factory_fn='research.code.dataset.transform._augment._make_xy8_abs31')
+    R.KERNELS.setm.register_regex(pattern=r'^(xy8)_abs(47)$', example='xy8_abs47', factory_fn='research.code.dataset.transform._augment._make_xy8_abs47')
+
+    R.KERNELS.setm.register_regex(pattern=r'^(xy1)_none(63)$', example='xy1_none63', factory_fn='research.code.dataset.transform._augment._make_xy1_none63')
+    R.KERNELS.setm.register_regex(pattern=r'^(xy2)_none(63)$', example='xy2_none63', factory_fn='research.code.dataset.transform._augment._make_xy2_none63')
+    R.KERNELS.setm.register_regex(pattern=r'^(xy4)_none(63)$', example='xy4_none63', factory_fn='research.code.dataset.transform._augment._make_xy4_none63')
+    R.KERNELS.setm.register_regex(pattern=r'^(xy8)_none(63)$', example='xy8_none63', factory_fn='research.code.dataset.transform._augment._make_xy8_none63')
+
+    R.KERNELS.setm.register_regex(pattern=r'^(xy8)_none(15)$', example='xy8_none15', factory_fn='research.code.dataset.transform._augment._make_xy8_none15')
+    R.KERNELS.setm.register_regex(pattern=r'^(xy8)_none(31)$', example='xy8_none31', factory_fn='research.code.dataset.transform._augment._make_xy8_none31')
+    R.KERNELS.setm.register_regex(pattern=r'^(xy8)_none(47)$', example='xy8_none47', factory_fn='research.code.dataset.transform._augment._make_xy8_none47')

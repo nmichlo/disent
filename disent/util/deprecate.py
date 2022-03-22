@@ -69,7 +69,7 @@ _TRACEBACK_MODES = {'none', 'first', 'mini', 'traceback'}
 DEFAULT_TRACEBACK_MODE = 'first'
 
 
-def deprecated(msg: str, traceback_mode: Optional[str] = None):
+def deprecated(msg: str, traceback_mode: Optional[str] = None, fn=None):
     """
     Mark a function or class as deprecated, and print a warning the
     first time it is used.
@@ -114,7 +114,12 @@ def deprecated(msg: str, traceback_mode: Optional[str] = None):
         else:
             fn = _caller
         return fn
-    return _decorator
+
+    # handle function used as decorator, or called directly
+    if fn is not None:
+        return _decorator(fn)
+    else:
+        return _decorator
 
 
 # ========================================================================= #

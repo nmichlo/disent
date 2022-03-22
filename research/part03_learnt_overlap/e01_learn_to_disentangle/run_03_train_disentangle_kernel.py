@@ -136,6 +136,7 @@ class DisentangleModule(DisentLightningModule):
             loss_fn=self.hparams.exp.train.loss,
             mean_dtype=torch.float64,
             regularization_strength=self.hparams.exp.train.reg_strength,
+            factor_sizes=None,
         )
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         if hasattr(self.model, 'augment_loss'):
