@@ -454,16 +454,98 @@ def plot_e02_axis_triplet_schedules(
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
 
 
+def lighten_color(color, amount=0.5):
+    """
+    darkens the color if amount > 1
+    otherwise lightens the color
+
+    FROM: https://stackoverflow.com/questions/37765197/darken-or-lighten-a-color-in-matplotlib
+    """
+    import matplotlib.colors as mc
+    import colorsys
+    try:
+        c = mc.cnames[color]
+    except:
+        c = color
+    c = colorsys.rgb_to_hls(*mc.to_rgb(c))
+    return colorsys.hls_to_rgb(c[0], 1 - amount * (1 - c[1]), c[2])
+
+
+def _load_e01_hparam_tuning(
+    # show: bool = False,
+) -> pd.DataFrame:
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    df = load_general_data(f'{os.environ["WANDB_USER"]}/CVPR-00__basic-hparam-tuning')
+    # select run groups
+    df = df[df[K_GROUP].isin(['sweep_beta'])]
+    # print common key values
+    print('K_GROUP:    ', list(df[K_GROUP].unique()))
+    print('K_DATASET:  ', list(df[K_DATASET].unique()))
+    print('K_FRAMEWORK:', list(df[K_FRAMEWORK].unique()))
+    print('K_BETA:     ', list(df[K_BETA].unique()))
+    print('K_Z_SIZE:   ', list(df[K_Z_SIZE].unique()))
+    print('K_REPEAT:   ', list(df[K_REPEAT].unique()))
+    print('K_STATE:    ', list(df[K_STATE].unique()))
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    orig = df
+    # select runs
+    df = df[df[K_STATE] == 'finished']
+    # [1.0, 0.316, 0.1, 0.0316, 0.01, 0.00316, 0.001, 0.000316]
+    # df = df[(0.000316 < df[K_BETA]) & (df[K_BETA] < 1.0)]
+    print('NUM', len(orig), '->', len(df))
+    df = rename_entries(df)
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    df[K_FRAMEWORK].replace('adavae_os', 'Ada-GVAE', inplace=True)
+    df[K_FRAMEWORK].replace('betavae', 'Beta-VAE', inplace=True)
+    return df
+
+def _load_e00_beta_metric_correlation(
+    # metrics: Sequence[str] = (K_MIG_MAX, K_RCORR_GT_F, K_RCORR_DATA_F),
+):
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    df: pd.DataFrame = load_general_data(f'{os.environ["WANDB_USER"]}/MSC-p02e00_beta-data-latent-corr')
+    # select run groups
+    df = df[df[K_GROUP].isin(['sweep_beta_corr'])]
+    df = df[~df[K_DATASET].isin(['xyobject'])]
+    df = df[df[K_STATE].isin(['finished', 'running'])]
+    # df = df[df[K_LR].isin([0.0001])]  # 0.0001, 0.001
+    # sort everything
+    df = df.sort_values([K_FRAMEWORK, K_DATASET, K_BETA, K_LR])
+    # print common key values
+    print('K_GROUP:    ', list(df[K_GROUP].unique()))
+    print('K_FRAMEWORK:', list(df[K_FRAMEWORK].unique()))
+    print('K_BETA:     ', list(df[K_BETA].unique()))
+    print('K_REPEAT:   ', list(df[K_REPEAT].unique()))
+    print('K_STATE:    ', list(df[K_STATE].unique()))
+    print('K_DATASET:  ', list(df[K_DATASET].unique()))
+    print('K_LR:       ', list(df[K_LR].unique()))
+    # number of runs
+    print(f'total={len(df)}')
+    df = rename_entries(df)
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+    # rename entries
+    df[K_FRAMEWORK].replace('adavae_os', 'Ada-GVAE', inplace=True)
+    df[K_FRAMEWORK].replace('betavae', 'Beta-VAE', inplace=True)
+    # manual remove invalid values
+    df = df[df[K_LINE].notna()]
+    df = df[df[K_AXIS].notna()]
+
+    return df
+
+
 def plot_e02_axis_triplet_kl_vs_dist(
     rel_path: Optional[str] = None,
     save: bool = True,
     show: bool = True,
     grid_size_v: float = 1.4,
     grid_size_h: float = 2.75,
-    metrics: Sequence[str] = (K_MIG_END, K_DCI_END, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE),
+    metrics: Sequence[str] = (K_MIG_MAX, K_DCI_MAX, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE),
     sampling_modes: Sequence[str] = ('gt_dist__manhat_scaled',),
     vals_schedules: Optional[Sequence[str]] = ('adanegtvae_up_all', 'adanegtvae_up_ratio', 'adanegtvae_up_thresh',),  # ('adanegtvae_up_all', 'adanegtvae_up_all_full', 'adanegtvae_up_ratio', 'adanegtvae_up_ratio_full', 'adanegtvae_up_thresh')
     title: Optional[Union[str, bool]] = True,
+    plot_vae_results: bool = True,
+    color_betavae: str = lighten_color(PINK, amount=1.33),  # darken the color
+    color_adavae: str = ORANGE,
 ):
     all_schedules = ('adanegtvae_up_all', 'adanegtvae_up_all_full', 'adanegtvae_up_ratio', 'adanegtvae_up_ratio_full', 'adanegtvae_up_thresh')
     if not vals_schedules:
@@ -499,6 +581,24 @@ def plot_e02_axis_triplet_kl_vs_dist(
     print('K_SAMPLER:      ', list(df[K_SAMPLER].unique()))
     print(f'total={len(df)}')
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+
+    # \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ #
+    if plot_vae_results:
+        vae_keys = [K_DATASET, K_FRAMEWORK, *metrics]
+
+        # load the hparams from the original vae hparam tuning -- we don't have the new metrics in these runs!
+        # vae_df_tuning = _load_e01_hparam_tuning()
+        # vae_df_tuning = vae_df_tuning[[k for k in vae_keys if k in vae_df_tuning.columns]]
+        # vae_scores_tuning = vae_df_tuning.groupby([K_DATASET, K_FRAMEWORK]).mean().reset_index()
+        # print(vae_scores_tuning)
+
+        # load the hparams from the section on metrics, comparing disentanglement to different beta values
+        vae_df_metrics = _load_e00_beta_metric_correlation()
+        vae_df_metrics = vae_df_metrics[[k for k in vae_keys if k in vae_df_metrics.columns]]
+        vae_scores_metrics = vae_df_metrics.groupby([K_DATASET, K_FRAMEWORK]).mean().reset_index()
+        print(vae_scores_metrics)
+    # /\ /\ /\ /\ /\ /\ /\ /\ /\ /\ /\ /\ #
+
     # axis keys
     col_x = K_DATASET
     col_bars = K_SCHEDULE
@@ -525,7 +625,7 @@ def plot_e02_axis_triplet_kl_vs_dist(
         fig.suptitle(title, fontsize=19)
     # fill plot
     for y, key_y in enumerate(all_y):  # metric
-        for x, key_x in enumerate(all_x):  # schedule
+        for x, key_x in enumerate(all_x):  # dataset
             ax = axs[y, x]
             # filter items
             df_filtered = df[(df[col_x] == key_x)]
@@ -540,6 +640,20 @@ def plot_e02_axis_triplet_kl_vs_dist(
                 if hatches[i // num_bars]:
                     bar.set_facecolor(color + '65')
                     bar.set_hatch(hatches[i // num_bars])
+            # \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ #
+            if plot_vae_results:
+                # draw VAE results!
+                # -- extract single results
+                scores_betavae = vae_scores_metrics[(vae_scores_metrics[K_DATASET] == key_x) & (vae_scores_metrics[K_FRAMEWORK] == 'Beta-VAE')]
+                scores_adavae = vae_scores_metrics[(vae_scores_metrics[K_DATASET] == key_x) & (vae_scores_metrics[K_FRAMEWORK] == 'Ada-GVAE')]
+                assert len(scores_betavae) == 1
+                assert len(scores_adavae) == 1
+                scores_betavae = scores_betavae.to_dict('records')[0]
+                scores_adavae = scores_adavae.to_dict('records')[0]
+                # -- draw single results
+                ax.plot([-0.5, 2.5], [scores_betavae[key_y], scores_betavae[key_y]], color=color_betavae, linewidth=2.25, linestyle='--')
+                ax.plot([-0.5, 2.5], [scores_adavae[key_y], scores_adavae[key_y]], color=color_adavae, linewidth=2.25, linestyle='-')
+            # /\ /\ /\ /\ /\ /\ /\ /\ /\ /\ /\ /\ #
             # remove labels
             if ax.get_legend():
                 ax.get_legend().remove()
@@ -551,16 +665,21 @@ def plot_e02_axis_triplet_kl_vs_dist(
             if x > 0:
                 ax.set_ylabel(None)
                 ax.set_yticklabels([])
-    # add the legend to the top right plot
+    # add the legend
     handles_a = [mpl.patches.Patch(label=label, color=color) for label, color in zip(all_bars, colors)]
-    fig.legend(
-        handles=handles_a, fontsize=12, bbox_to_anchor=(0.986, 0.03), loc='lower right', ncol=2, labelspacing=0.1
-    )
-    # add the legend to the top right plot
+    fig.legend(handles=handles_a, fontsize=12, bbox_to_anchor=(0.975, 0.03), loc='lower right', ncol=2, labelspacing=0.1)
+    # add the legend
     assert np.all(df[col_hue].unique() == ['dist', 'symmetric_kl']), f'{list(df[col_hue].unique())}'
     handles_b = [mpl.patches.Patch(label='Absolute Difference', facecolor='#505050ff', edgecolor='white', hatch=hatches[0]),  # gt_dist__manhat
                  mpl.patches.Patch(label='KL Divergence',       facecolor='#50505065', edgecolor='white', hatch=hatches[1])]  # gt_dist__manhat_scaled
     fig.legend(handles=handles_b, fontsize=12, bbox_to_anchor=(0.073, 0.03), loc='lower left', ncol=1, labelspacing=0.1)
+    # add the legend
+    if plot_vae_results:
+        handles_vae = [
+            mpl.lines.Line2D([0], [0], color=color_betavae, label='Beta-GVAE', linewidth=2.75, linestyle='--'),
+            mpl.lines.Line2D([0], [0], color=color_adavae,  label='Ada-GVAE',  linewidth=2.75, linestyle='-'),
+        ]
+        fig.legend(handles=handles_vae, fontsize=12, bbox_to_anchor=(0.44, 0.03), loc='lower left', ncol=1, labelspacing=0.1)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # plot!
     fig.tight_layout()
@@ -701,7 +820,9 @@ def plot_e01_normal_triplet(
     grid_size_h: float = 2.75,
     metrics: Sequence[str] = (K_MIG_MAX, K_DCI_MAX, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE),
     title: str = None,
-    violin: bool = False,
+    plot_vae_results: bool = True,
+    color_betavae: str = lighten_color(PINK, amount=1.33),  # darken the color
+    color_adavae: str = ORANGE,
 ):
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
     df: pd.DataFrame = load_general_data(f'{os.environ["WANDB_USER"]}/MSC-p02e01_triplet-param-tuning')
@@ -730,6 +851,16 @@ def plot_e01_normal_triplet(
     print(f'total={len(df)}')
     df = rename_entries(df)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+
+    # \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ #
+    if plot_vae_results:
+        vae_keys = [K_DATASET, K_FRAMEWORK, *metrics]
+        # load the hparams from the section on metrics, comparing disentanglement to different beta values
+        vae_df_metrics = _load_e00_beta_metric_correlation()
+        vae_df_metrics = vae_df_metrics[[k for k in vae_keys if k in vae_df_metrics.columns]]
+        vae_scores_metrics = vae_df_metrics.groupby([K_DATASET, K_FRAMEWORK]).mean().reset_index()
+        print(vae_scores_metrics)
+    # /\ /\ /\ /\ /\ /\ /\ /\ /\ /\ /\ /\ #
 
     hatches = [None, '..']
 
@@ -768,16 +899,12 @@ def plot_e01_normal_triplet(
         fig.suptitle(title, fontsize=19)
     # fill plot
     for y, key_y in enumerate(all_y):  # metric
-        for x, key_x in enumerate(all_x):  # schedule
+        for x, key_x in enumerate(all_x):  # dataset
             ax = axs[y, x]
             # filter items
             df_filtered = df[(df[col_x] == key_x)]
             # plot!
-            if violin:
-                raise NotImplementedError
-                # sns.violinplot(ax=ax, x=col_bars, y=key_y, hue=col_hue, data=df_filtered)
-            else:
-                sns.barplot(ax=ax, x=col_bars, y=key_y, hue=col_hue, data=df_filtered)
+            sns.barplot(ax=ax, x=col_bars, y=key_y, hue=col_hue, data=df_filtered)
             ax.set(ylim=(0, 1), xlim=(-0.5, num_bars - 0.5))
             # set colors
             for i, (bar, color) in enumerate(zip(ax.patches, itertools.cycle(colors))):
@@ -787,6 +914,20 @@ def plot_e01_normal_triplet(
                 if hatches[i // num_bars]:
                     bar.set_facecolor(color + '65')
                     bar.set_hatch(hatches[i // num_bars])
+            # \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ #
+            if plot_vae_results:
+                # draw VAE results!
+                # -- extract single results
+                scores_betavae = vae_scores_metrics[(vae_scores_metrics[K_DATASET] == key_x) & (vae_scores_metrics[K_FRAMEWORK] == 'Beta-VAE')]
+                scores_adavae = vae_scores_metrics[(vae_scores_metrics[K_DATASET] == key_x) & (vae_scores_metrics[K_FRAMEWORK] == 'Ada-GVAE')]
+                assert len(scores_betavae) == 1
+                assert len(scores_adavae) == 1
+                scores_betavae = scores_betavae.to_dict('records')[0]
+                scores_adavae = scores_adavae.to_dict('records')[0]
+                # -- draw single results
+                ax.plot([-0.5, 2.5], [scores_betavae[key_y], scores_betavae[key_y]], color=color_betavae, linewidth=2.25, linestyle='--')
+                ax.plot([-0.5, 2.5], [scores_adavae[key_y], scores_adavae[key_y]], color=color_adavae, linewidth=2.25, linestyle='-')
+            # /\ /\ /\ /\ /\ /\ /\ /\ /\ /\ /\ /\ #
             # remove labels
             if ax.get_legend():
                 ax.get_legend().remove()
@@ -805,6 +946,13 @@ def plot_e01_normal_triplet(
     handles_b = [mpl.patches.Patch(label=all_hue[0], facecolor='#505050ff', edgecolor='white', hatch=hatches[0]),
                mpl.patches.Patch(label=all_hue[1], facecolor='#50505065', edgecolor='white', hatch=hatches[1])]
     fig.legend(handles=handles_b, fontsize=12, bbox_to_anchor=(0.077, 0.03), loc='lower left',  ncol=1, labelspacing=0.1)
+    # add the legend
+    if plot_vae_results:
+        handles_vae = [
+            mpl.lines.Line2D([0], [0], color=color_betavae, label='Beta-GVAE', linewidth=2.75, linestyle='--'),
+            mpl.lines.Line2D([0], [0], color=color_adavae,  label='Ada-GVAE',  linewidth=2.75, linestyle='-'),
+        ]
+        fig.legend(handles=handles_vae, fontsize=12, bbox_to_anchor=(0.47, 0.03), loc='lower left', ncol=1, labelspacing=0.1)
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # PLOT:
     fig.tight_layout()
@@ -927,6 +1075,9 @@ def plot_e03_unsupervised_triplet_scores(
     grid_size_v: float = 3.33,
     grid_size_h: float = 3.33,
     metrics: Sequence[str] = (K_MIG_MAX, K_DCI_MAX, K_RCORR_GT_F, K_RCORR_DATA_F, K_AXIS, K_LINE),
+    plot_vae_results: bool = False,
+    color_betavae: str = lighten_color(PINK, amount=1.33),  # darken the color
+    color_adavae: str = ORANGE,
 ):
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
     df: pd.DataFrame = load_general_data(f'{os.environ["WANDB_USER"]}/MSC-p02e03_unsupervised-axis-triplet', include_history=False)
@@ -949,8 +1100,9 @@ def plot_e03_unsupervised_triplet_scores(
     K_MINE_MODE  = 'framework/cfg/overlap_mine_triplet_mode'
 
     # select run groups
-    df = df[df[K_GROUP].isin(['sweep_dotvae_hard_params_longmed', 'sweep_dotvae_hard_params_longmed_xy', 'sweep_dotvae_hard_params_9_long'])]
+    df = df[df[K_GROUP].isin(['sweep_dotvae_hard_params_longmed', 'sweep_dotvae_hard_params_longmed_xy'])]
     df = df[df[K_MINE_MODE].isin(['none'])]
+    df = df[df[K_Z_SIZE].isin([25])]
 
     # sort everything
     df = df.sort_values([K_DATASET, K_MINE_MODE, K_MINE_RATIO, K_MINE_NUM])
@@ -965,6 +1117,7 @@ def plot_e03_unsupervised_triplet_scores(
         print('K_TRIPLET_SCALE:  ', list(df[K_TRIPLET_SCALE].unique()))
         print('K_TRIPLET_MARGIN: ', list(df[K_TRIPLET_MARGIN].unique()))
         print('K_DETACH:         ', list(df[K_DETACH].unique()))
+        print('K_Z_SIZE:         ', list(df[K_Z_SIZE].unique()))
     # number of runs
     print(f'total={len(df)}')
     df = rename_entries(df)
@@ -983,10 +1136,22 @@ def plot_e03_unsupervised_triplet_scores(
     # idxs = [all_schedules.index(v) for v in vals_schedules]
     # colors = [colors[i] for i in idxs]
     # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
+
+    # \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ #
+    if plot_vae_results:
+        vae_keys = [K_DATASET, K_FRAMEWORK, *metrics]
+        # load the hparams from the section on metrics, comparing disentanglement to different beta values
+        vae_df_metrics = _load_e00_beta_metric_correlation()
+        vae_df_metrics = vae_df_metrics[[k for k in vae_keys if k in vae_df_metrics.columns]]
+        vae_scores_metrics = vae_df_metrics.groupby([K_DATASET, K_FRAMEWORK]).mean().reset_index()
+        print(vae_scores_metrics)
+    # /\ /\ /\ /\ /\ /\ /\ /\ /\ /\ /\ /\ #
+
+    # ~=~=~=~=~=~=~=~=~=~=~=~=~ #
     # make plot
     fig, axs = plt.subplots(1, num_x, figsize=(grid_size_h * num_x, 1 * grid_size_v))
     # fill plot
-    for x, key_x in enumerate(all_x):  # schedule
+    for x, key_x in enumerate(all_x):  # metric
         ax = axs[x]
         # plot!
         sns.barplot(ax=ax, x=col_bars, y=key_x, data=df)
@@ -996,6 +1161,23 @@ def plot_e03_unsupervised_triplet_scores(
             bar.set_facecolor(color)
             bar.set_edgecolor('white')
             bar.set_linewidth(2)
+
+        # \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ #
+        if plot_vae_results:
+            for i, k_dataset in enumerate(all_bars):
+                # draw VAE results!
+                # -- extract single results
+                scores_betavae = vae_scores_metrics[(vae_scores_metrics[K_DATASET] == k_dataset) & (vae_scores_metrics[K_FRAMEWORK] == 'Beta-VAE')]
+                scores_adavae = vae_scores_metrics[(vae_scores_metrics[K_DATASET] == k_dataset) & (vae_scores_metrics[K_FRAMEWORK] == 'Ada-GVAE')]
+                assert len(scores_betavae) == 1
+                assert len(scores_adavae) == 1
+                scores_betavae = scores_betavae.to_dict('records')[0]
+                scores_adavae = scores_adavae.to_dict('records')[0]
+                # -- draw single results
+                ax.plot([i-0.4, i+0.4], [scores_betavae[key_x], scores_betavae[key_x]], color=color_betavae, linewidth=2.25, linestyle='--')
+                ax.plot([i-0.4, i+0.4], [scores_adavae[key_x], scores_adavae[key_x]], color=color_adavae, linewidth=2.25, linestyle='-')
+        # /\ /\ /\ /\ /\ /\ /\ /\ /\ /\ /\ /\ #
+
         # remove labels
         # ax.set_title(key_x)
         if ax.get_legend():
@@ -1042,8 +1224,8 @@ if __name__ == '__main__':
         plot_e01_normal_triplet_recon_loss(rel_path='plots/p02e01_normal-l1-triplet_recon-loss_detached', vals_detach=(True,),  vals_p=(1,), show=True)
         plot_e01_normal_triplet_recon_loss(rel_path='plots/p02e01_normal-l1-triplet_recon-loss_attached', vals_detach=(False,), vals_p=(1,), show=True)
 
-        plot_e02_axis_triplet_kl_vs_dist(rel_path='plots/p02e02_axis__soft-triplet__kl-vs-dist', show=True, title=False)
         plot_e02_axis_triplet_schedules(rel_path='plots/p02e02_axis__soft-triplet__dist',   show=True, adaptive_modes=('dist',), title=False)
+        plot_e02_axis_triplet_kl_vs_dist(rel_path='plots/p02e02_axis__soft-triplet__kl-vs-dist', show=True, title=False)
 
         plot_e02_axis_triplet_schedule_recon_loss(rel_path='plots/p02e02_ada-triplet_recon-loss_detached', vals_detach=(True,), show=True)
         plot_e02_axis_triplet_schedule_recon_loss(rel_path='plots/p02e02_ada-triplet_recon-loss_attached', vals_detach=(False,), show=True)

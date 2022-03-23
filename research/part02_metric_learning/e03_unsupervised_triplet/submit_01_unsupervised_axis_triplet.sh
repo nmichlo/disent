@@ -60,6 +60,9 @@ ARGS_FILE="$ARGS_FILE" gen_sbatch_args_file \
     \
     dataset=cars3d,smallnorb,shapes3d,dsprites \
     \
+    \
+    \
+    \
     settings.framework.recon_loss=mse \
     \
     framework.cfg.overlap_loss=NULL \
