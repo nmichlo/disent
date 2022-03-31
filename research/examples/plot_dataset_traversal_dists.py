@@ -1,7 +1,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 #  MIT License
 #
-#  Copyright (c) 2021 Nathan Juraj Michlo
+#  Copyright (c) 2022 Nathan Juraj Michlo
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to deal
@@ -41,7 +41,7 @@ import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 
-import research.code.util as H
+import research.examples.util as H
 from disent.dataset.data import GroundTruthData
 from disent.dataset.data import SelfContainedHdf5GroundTruthData
 from disent.dataset.util.state_space import NonNormalisedFactors
@@ -49,12 +49,12 @@ from disent.dataset.transform import ToImgTensorF32
 from disent.dataset.util.stats import compute_data_mean_std
 from disent.util.inout.paths import ensure_parent_dir_exists
 from disent.util.seeds import TempNumpySeed
+from disent.util.visualize.vis_util import make_image_grid
 
 
 # ========================================================================= #
 # Factor Traversal Stats                                                    #
 # ========================================================================= #
-from disent.util.visualize.vis_util import make_image_grid
 
 
 SampleModeHint = Union[Literal['random'], Literal['near'], Literal['combinations']]
@@ -595,31 +595,6 @@ def main_plotting(plot_all=False, print_mean_std=False):
             plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(name), color='orange', dataset_or_name=name, plot_freq=PLOT_FREQ, x_size_offset=0.4)
             _print_data_mean_std(name, print_mean_std)
 
-    BASE = os.path.abspath(os.path.join(__file__, '../../../out/adversarial_data_approx'))
-
-    # plot adversarial datasets
-    for color, folder in [
-        # 'const' datasets
-        ('purple', '2021-08-18--00-58-22_FINAL-dsprites_self_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06'),
-        ('purple', '2021-08-18--01-33-47_FINAL-shapes3d_self_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06'),
-        ('purple', '2021-08-18--02-20-13_FINAL-cars3d_self_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06'),
-        ('purple', '2021-08-18--03-10-53_FINAL-smallnorb_self_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06'),
-        # 'invert' datasets
-        ('orange', '2021-08-18--03-52-31_FINAL-dsprites_invert_margin_0.005_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06'),
-        ('orange', '2021-08-18--04-29-25_FINAL-shapes3d_invert_margin_0.005_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06'),
-        ('orange', '2021-08-18--05-13-15_FINAL-cars3d_invert_margin_0.005_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06'),
-        ('orange', '2021-08-18--06-03-32_FINAL-smallnorb_invert_margin_0.005_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06'),
-        # stronger 'invert' datasets
-        ('red', '2021-09-06--00-29-23_INVERT-VSTRONG-shapes3d_invert_margin_0.05_aw10.0_same_k1_close_s200001_Adam_lr0.0005_wd1e-06'),
-        ('red', '2021-09-06--03-17-28_INVERT-VSTRONG-dsprites_invert_margin_0.05_aw10.0_same_k1_close_s200001_Adam_lr0.0005_wd1e-06'),
-        ('red', '2021-09-06--05-42-06_INVERT-VSTRONG-cars3d_invert_margin_0.05_aw10.0_same_k1_close_s200001_Adam_lr0.0005_wd1e-06'),
-        ('red', '2021-09-06--09-10-59_INVERT-VSTRONG-smallnorb_invert_margin_0.05_aw10.0_same_k1_close_s200001_Adam_lr0.0005_wd1e-06'),
-    ]:
-        data = _make_self_contained_dataset(f'{BASE}/{folder}/data.h5')
-        plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(folder), color=color, dataset_or_name=data, plot_freq=PLOT_FREQ, x_size_offset=0.4)
-        _print_data_mean_std(data, print_mean_std)
-
-
 # ========================================================================= #
 # STATS                                                                     #
 # ========================================================================= #
@@ -627,7 +602,7 @@ def main_plotting(plot_all=False, print_mean_std=False):
 
 if __name__ == '__main__':
     # matplotlib style
-    plt.style.use(os.path.join(os.path.dirname(__file__), '../../code/util/gadfly.mplstyle'))
+    plt.style.use(os.path.join(os.path.dirname(__file__), 'util/gadfly.mplstyle'))
     # run!
     main_plotting()
     main_compute_dists()

@@ -59,45 +59,6 @@ else:
 
 
 # ========================================================================= #
-# images                                                                    #
-# ========================================================================= #
-
-
-# TODO: similar functions exist: output_image, to_img, to_imgs, reconstructions_to_images
-def to_img(x: torch.Tensor, scale=False, to_cpu=True, move_channels=True) -> torch.Tensor:
-    assert x.ndim == 3, 'image must have 3 dimensions: (C, H, W)'
-    return to_imgs(x, scale=scale, to_cpu=to_cpu, move_channels=move_channels)
-
-
-# TODO: similar functions exist: output_image, to_img, to_imgs, reconstructions_to_images
-def to_imgs(x: torch.Tensor, scale=False, to_cpu=True, move_channels=True) -> torch.Tensor:
-    # (..., C, H, W)
-    assert x.ndim >= 3, 'image must have 3 or more dimensions: (..., C, H, W)'
-    assert (x.dtype in _TORCH_NORMAL_TYPES) or (x.dtype in _TORCH_COMPLEX_TYPES), f'unsupported dtype: {x.dtype}'
-    # no gradient
-    with torch.no_grad():
-        # imaginary to real
-        if x.dtype in _TORCH_COMPLEX_TYPES:
-            x = torch.abs(x)
-        # scale images
-        if scale:
-            m = x.min(dim=-3, keepdim=True).values.min(dim=-2, keepdim=True).values.min(dim=-1, keepdim=True).values
-            M = x.max(dim=-3, keepdim=True).values.max(dim=-2, keepdim=True).values.max(dim=-1, keepdim=True).values
-            x = (x - m) / (M - m)
-        # move axis
-        if move_channels:
-            x = torch.moveaxis(x, -3, -1)
-        # to uint8
-        x = torch.clamp(x, 0, 1)
-        x = (x * 255).to(torch.uint8)
-    # done!
-    x = x.detach()  # is this needeed?
-    if to_cpu:
-        x = x.cpu()
-    return x
-
-
-# ========================================================================= #
 # Matplotlib Helper                                                         #
 # ========================================================================= #
 

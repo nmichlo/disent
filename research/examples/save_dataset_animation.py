@@ -27,9 +27,10 @@ import os
 import numpy as np
 
 from disent.util.inout.paths import ensure_parent_dir_exists
-from disent.util.seeds import TempNumpySeed
-import research.code.util as H
+import research.examples.util as H
 import imageio
+
+from disent.util.seeds import TempNumpySeed
 
 
 if __name__ == '__main__':
@@ -38,39 +39,32 @@ if __name__ == '__main__':
     FRAMES_PER_TRAVERSAL = 18
     FRAMES_PER_SECOND = 8
 
-    for data_name, data_seed in [
+    for data_name, base_factors in [
         ('xysquares_8x8', [5, 5, 1, 5, 5, 1]),        # ('x_R', 'y_R', 'x_G', 'y_G', 'x_B', 'y_B')
-        ('dsprites',      [2,  3,  4, 16, 20]),      # ('shape', 'scale', 'orientation', 'position_x', 'position_y')
-        ('cars3d',        [2, 2, 79]),               # ('elevation', 'azimuth', 'object_type')
+        ('dsprites',      [2,  3,  4, 16, 20]),       # ('shape', 'scale', 'orientation', 'position_x', 'position_y')
+        ('cars3d',        [2, 2, 79]),                # ('elevation', 'azimuth', 'object_type')
         ('shapes3d',      [1, 6, 9, 4, 3, 2]),        # ('floor_hue', 'wall_hue', 'object_hue', 'scale', 'shape', 'orientation')
         ('smallnorb',     [2, 4, 1, 2, 3]),           # ('category', 'instance', 'elevation', 'rotation', 'lighting')
+        # ('mpi3d_toy',       [3, 3, 1, 2, 1, 11, 10]),  # ('object_color', 'object_shape', 'object_size', 'camera_height', 'background_color', 'first_dof', 'second_dof') (4, 4, 2, 3, 3, 40, 40)
+        # ('mpi3d_realistic', [3, 3, 1, 2, 1, 11, 10]),  # ('object_color', 'object_shape', 'object_size', 'camera_height', 'background_color', 'first_dof', 'second_dof') (4, 4, 2, 3, 3, 40, 40)
+        # ('mpi3d_real',      [3, 3, 1, 2, 1, 11, 10]),  # ('object_color', 'object_shape', 'object_size', 'camera_height', 'background_color', 'first_dof', 'second_dof') (4, 4, 2, 3, 3, 40, 40)
     ]:
         data = H.make_data(data_name, transform_mode='none')
 
-        for mode in [
-            'cycle_from_start',
-            # 'cycle_from_start_ends',
-        ]:
-            frames = []
-            # get starting point
-            if isinstance(data_seed, int):
-                with TempNumpySeed(data_seed):
-                    base_factors = data.sample_factors()
-            else:
-                base_factors = np.array(data_seed)
-            print(f'{data_name}:', base_factors.tolist(), data.factor_names, data.factor_sizes)
-            # append factor traversals
-            for f_idx in range(data.num_factors):
-                traversal = data.sample_random_factor_traversal(
-                    f_idx=f_idx,
-                    base_factors=base_factors,
-                    num=FRAMES_PER_TRAVERSAL,
-                    mode=mode,
-                    start_index=base_factors[f_idx],
-                )
-                # append the frames
-                frames.extend(data[i] for i in data.pos_to_idx(traversal))
-            # save the animation
-            path = ensure_parent_dir_exists(OUTPUT_DIR, f'animation__{data_name}__{mode}.gif')
-            imageio.mimsave(path, frames, fps=FRAMES_PER_SECOND)
-            print(f'saved: {path}')
+        # get starting point
+        if isinstance(base_factors, int):
+            with TempNumpySeed(base_factors):
+                base_factors = data.sample_factors()
+        base_factors = np.array(base_factors)
+        print(f'{data_name}:', base_factors.tolist(), data.factor_names, data.factor_sizes)
+
+        # generate and append the factor traversals
+        frames = []
+        for f_idx in range(data.num_factors):
+            traversal = data.sample_random_factor_traversal(f_idx=f_idx, base_factors=base_factors, start_index=base_factors[f_idx], num=FRAMES_PER_TRAVERSAL, mode='cycle_from_start')
+            frames.extend(data[i] for i in data.pos_to_idx(traversal))
+
+        # save the animation
+        path = ensure_parent_dir_exists(OUTPUT_DIR, f'animation__{data_name}.gif')
+        imageio.mimsave(path, frames, fps=FRAMES_PER_SECOND)
+        print(f'saved: {path}')

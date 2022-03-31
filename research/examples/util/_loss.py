@@ -35,43 +35,6 @@ from disent import registry
 from disent.nn.loss.reduction import batch_loss_reduction
 
 
-# ========================================================================= #
-# optimizer                                                                 #
-# ========================================================================= #
-
-
-_SPECIALIZATIONS = {'sgd_m': ('sgd', dict(momentum=0.1))}
-
-
-def make_optimizer(model: torch.nn.Module, name: str = 'sgd', lr=1e-3, weight_decay: Optional[float] = None):
-    if isinstance(model, torch.nn.Module):
-        params = model.parameters()
-    elif isinstance(model, torch.Tensor):
-        assert model.requires_grad
-        params = [model]
-    else:
-        raise TypeError(f'cannot optimize type: {type(model)}')
-    # get specializations
-    kwargs = {}
-    if name in _SPECIALIZATIONS:
-        name, kwargs = _SPECIALIZATIONS[name]
-    # get optimizer class
-    optimizer_cls = registry.OPTIMIZERS[name]
-    optimizer_params = set(inspect.signature(optimizer_cls).parameters.keys())
-    # add optional arguments
-    if weight_decay is not None:
-        if 'weight_decay' in optimizer_params:
-            kwargs['weight_decay'] = weight_decay
-        else:
-            warnings.warn(f'{name}: weight decay cannot be set, optimizer does not have `weight_decay` parameter')
-    # instantiate
-    return optimizer_cls(params, lr=lr, **kwargs)
-
-
-def step_optimizer(optimizer, loss):
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
 
 
 # ========================================================================= #

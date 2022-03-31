@@ -1,7 +1,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 #  MIT License
 #
-#  Copyright (c) 2021 Nathan Juraj Michlo
+#  Copyright (c) 2022 Nathan Juraj Michlo
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to deal
@@ -28,7 +28,7 @@ from typing import Optional
 import numpy as np
 from matplotlib import pyplot as plt
 
-import research.code.util as H
+import research.examples.util as H
 from disent.dataset.data import Cars3d64Data
 from disent.dataset.data import DSpritesData
 from disent.dataset.data import GroundTruthData
@@ -36,7 +36,7 @@ from disent.dataset.data import Shapes3dData
 from disent.dataset.data import SmallNorb64Data
 from disent.dataset.data import XYObjectData
 from disent.dataset.data import XYObjectShadedData
-from research.code.dataset.data import XYSquaresData
+from disent.dataset.data import XYSquaresData
 from disent.util.function import wrapped_partial
 from disent.util.seeds import TempNumpySeed
 
@@ -151,7 +151,7 @@ def plot_dataset_overlap(
 if __name__ == '__main__':
 
     # matplotlib style
-    plt.style.use(os.path.join(os.path.dirname(__file__), '../../code/util/gadfly.mplstyle'))
+    plt.style.use(os.path.join(os.path.dirname(__file__), 'util/gadfly.mplstyle'))
 
     # options
     all_squares = True

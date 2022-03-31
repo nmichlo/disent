@@ -1,7 +1,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 #  MIT License
 #
-#  Copyright (c) 2021 Nathan Juraj Michlo
+#  Copyright (c) 2022 Nathan Juraj Michlo
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to deal
@@ -34,7 +34,7 @@ from matplotlib import cm
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
-import research.code.util as H
+import research.examples.util as H
 from disent.metrics._factored_components import compute_axis_score
 from disent.metrics._factored_components import compute_linear_score
 from disent.util.seeds import seed
@@ -193,7 +193,7 @@ def score_grid(
     num_points: int = 1000,
     num_dims: int = 2,
     use_std: bool = True,
-    use_max: bool = False,
+    top_2: bool = False,
     norm: bool = True,
     return_points: bool = False,
 ):
@@ -207,8 +207,8 @@ def score_grid(
     for i, y_std_ratio in enumerate(y_std_ratios):
         for j, deg in enumerate(deg_rotations):
             points = make_line_points(n=num_points, dims=num_dims, deg=deg, std_x=x_std, std_y=x_std * y_std_ratio)
-            axis_scores[i, j] = compute_axis_score(points, use_std=use_std, use_max=use_max, norm=norm)
-            linear_scores[i, j] = compute_linear_score(points, use_std=use_std, use_max=use_max, norm=norm)
+            axis_scores[i, j] = compute_axis_score(points, use_std=use_std, top_2=top_2, norm=norm)
+            linear_scores[i, j] = compute_linear_score(points, use_std=use_std, top_2=top_2, norm=norm)
             if return_points:
                 all_points[i, j] = points
     # results
@@ -224,14 +224,14 @@ def ave_score_grid(
     num_points: int = 1000,
     num_dims: int = 2,
     use_std: bool = True,
-    use_max: bool = False,
+    top_2: bool = False,
     norm: bool = True,
     repeats: int = 10,
 ):
     results = []
     # repeat
     for i in tqdm(range(repeats)):
-        results.append(score_grid(deg_rotations=deg_rotations, y_std_ratios=y_std_ratios, x_std=x_std, num_points=num_points, num_dims=num_dims, use_std=use_std, use_max=use_max, norm=norm))
+        results.append(score_grid(deg_rotations=deg_rotations, y_std_ratios=y_std_ratios, x_std=x_std, num_points=num_points, num_dims=num_dims, use_std=use_std, top_2=top_2, norm=norm))
     # average results
     all_axis_scores, all_linear_scores = zip(*results)
     axis_scores   = torch.mean(torch.stack(all_axis_scores,   dim=0), dim=0)
@@ -249,7 +249,7 @@ def make_ave_scores_plot(
     repeats: int = 25,
     x_std: float = 1.0,
     use_std: bool = True,
-    use_max: bool = False,
+    top_2: bool = False,
     norm: bool = True,
     # cmap
     cmap_axis: str = 'GnBu_r',  # 'RdPu_r', 'GnBu_r', 'Blues_r', 'viridis', 'plasma', 'magma'
@@ -268,7 +268,7 @@ def make_ave_scores_plot(
         num_points=num_points,
         num_dims=2 if (ndim is None) else ndim,
         use_std=use_std,
-        use_max=use_max,
+        top_2=top_2,
         norm=norm,
         repeats=repeats,
     )
@@ -328,7 +328,7 @@ def make_grid_gaussian_score_plot(
     num_points: int = 10000,
     repeats: int = 100,
     use_std: bool = True,
-    use_max: bool = False,
+    top_2: bool = False,
     norm: bool = True,
     # grid options
     subplot_size: float = 2.125,
@@ -358,8 +358,8 @@ def make_grid_gaussian_score_plot(
         axis_score, linear_score = [], []
         for k in range(repeats):
             points = make_2d_line_points(n=num_points, deg=deg, std_x=1.0, std_y=std_y)
-            axis_score.append(compute_axis_score(points, use_std=use_std, use_max=use_max, norm=norm))
-            linear_score.append(compute_linear_score(points, use_std=use_std, use_max=use_max, norm=norm))
+            axis_score.append(compute_axis_score(points, use_std=use_std, top_2=top_2, norm=norm))
+            linear_score.append(compute_linear_score(points, use_std=use_std, top_2=top_2, norm=norm))
         axis_score, linear_score = np.mean(axis_score), np.mean(linear_score)
         # generate subplots
         plot_gaussian(ax=axs[y, x], deg=deg, std_x=1.0, std_y=std_y, dots_num=dots_num, contour_trunc_sigma=2.05, contour_kwargs=subplot_contour_kwargs, dots_kwargs=subplot_dots_kwargs)
@@ -378,7 +378,7 @@ def make_grid_gaussian_score_plot(
 
 if __name__ == '__main__':
     # matplotlib style
-    plt.style.use(os.path.join(os.path.dirname(__file__), '../../code/util/gadfly.mplstyle'))
+    plt.style.use(os.path.join(os.path.dirname(__file__), 'util/gadfly.mplstyle'))
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
@@ -429,7 +429,7 @@ if __name__ == '__main__':
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     seed(777)
-    make_ave_scores_plot(repeats=250, num_points=10000, use_max=False)
+    make_ave_scores_plot(repeats=250, num_points=10000, top_2=False)
     plt.savefig(H.make_rel_path_add_ext('plots/metric_scores', ext='.png'))
     plt.show()
 

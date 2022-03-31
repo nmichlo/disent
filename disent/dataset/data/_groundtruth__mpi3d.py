@@ -65,7 +65,7 @@ class Mpi3dData(NumpyFileGroundTruthData):
         if in_memory:
             log.warning('[WARNING]: mpi3d files are extremely large (over 11GB), you are trying to load these into memory.')
         else:
-            raise NotImplementedError('TODO: add support for converting to h5py for fast disk access')  # TODO!
+            raise NotImplementedError('`in_memory=False` is not supported! TODO: add support for converting to h5py for fast disk access')  # TODO!
         # initialise
         super().__init__(data_root=data_root, prepare=prepare, transform=transform)
 
