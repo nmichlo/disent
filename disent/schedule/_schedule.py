@@ -58,6 +58,52 @@ class NoopSchedule(Schedule):
         return value
 
 
+class MultiplySchedule(Schedule):
+    """
+    A schedule that always applies a constant multiplier/ratio to the input value
+    """
+
+    # This schedule will always return a constant value!
+
+    def __init__(self, r: float = 1.0):
+        """
+        :param r: The constant ratio of the original value that the schedule will use
+        """
+        self.r = r
+
+    def compute_value(self, step: int, value):
+        # we always return a constant value!
+        return value * self.r
+
+
+class FixedValueSchedule(Schedule):
+    """
+    Set a new constant value, instead of using the value passed to `compute_value`.
+    - We can override config values using this class
+    """
+
+    def __init__(
+        self,
+        value: float,
+        schedule: Optional[Schedule] = None,
+    ):
+        """
+        :param schedule: The wrapped schedule that is passed the new constant value
+        :param value: The value that should be used to replace the original values from the config.
+                      If `compute_value` is called, the value passed to the function is replaced with this one!
+        """
+        assert (schedule is None) or isinstance(schedule, Schedule)
+        self.schedule = schedule
+        self.value = value
+
+    def compute_value(self, step: int, value):
+        del value
+        # we override the passed value, and pass in a constant value instead!
+        if self.schedule is None:
+            return self.value
+        else:
+            return self.schedule(step, self.value)
+
 # ========================================================================= #
 # Value Schedules                                                           #
 # ========================================================================= #

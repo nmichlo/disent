@@ -23,16 +23,94 @@
 Utility functions that are useful for the different metrics.
 """
 
+from numbers import Number
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import Generic
+from typing import Optional
+from typing import Protocol
+from typing import TypeVar
+from typing import Union
+
 import numpy as np
 import sklearn
 from tqdm import tqdm
 
 from disent.dataset import DisentDataset
 from disent.util import to_numpy
+from disent.util.function import wrapped_partial
 
 
 # ========================================================================= #
-# utils                                                                   #
+# Metric Wrapper                                                            #
+# ========================================================================= #
+
+
+T = TypeVar('T')
+
+
+class Metric(Generic[T]):
+
+    def __init__(
+        self,
+        name: str,
+        metric_fn: T,  # Callable[[...], Dict[str, Number]]
+        default_kwargs: Optional[Dict[str, Any]] = None,
+        fast_kwargs: Optional[Dict[str, Any]] = None,
+    ):
+        self._name = name
+        self._orig_fn           = metric_fn
+        self._metric_fn_default = wrapped_partial(self._orig_fn, **(default_kwargs if default_kwargs else {}))
+        self._metric_fn_fast    = wrapped_partial(self._orig_fn, **(fast_kwargs    if fast_kwargs    else {}))
+
+    # How do we get a type hint for `__call__` so that its signature matches `T`?
+    def __call__(self, *args, **kwargs) -> Dict[str, Number]:
+        return self._metric_fn_default(*args, **kwargs)
+
+    @property
+    def compute(self) -> T:
+        return self._metric_fn_default
+
+    @property
+    def compute_fast(self) -> T:
+        return self._metric_fn_fast
+
+    @property
+    def unwrap(self) -> T:
+        return self._orig_fn
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    def __str__(self):
+        return f'metric-{self.name}'
+
+
+def make_metric(
+    name: str,
+    default_kwargs: Optional[Dict[str, Any]] = None,
+    fast_kwargs: Optional[Dict[str, Any]] = None,
+) -> Callable[[T], Union[Metric[T], T]]:
+    """
+    Metrics should be decorated using this function to set defaults!
+    Two versions of the metric should exist.
+        1. Recommended settings
+           - This should give reliable results, but may be very slow, multiple minutes to half an
+             hour or more for some metrics depending on the underlying model, data and ground-truth factors.
+        2. Faster settings
+           - This should give a decent results, but should be decently fast, a few seconds/minutes at most.
+             This is not used for testing
+    """
+    # `Union[Metric[T], T]` is hack to get type hint on `__call__`
+    def _wrap_fn_as_metric(metric_fn: T) -> Union[Metric[T], T]:
+        return Metric(name=name, metric_fn=metric_fn, default_kwargs=default_kwargs, fast_kwargs=fast_kwargs)
+    return _wrap_fn_as_metric
+
+
+# ========================================================================= #
+# utils                                                                     #
 # ========================================================================= #
 
 

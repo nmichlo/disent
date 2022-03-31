@@ -67,7 +67,7 @@ class BaseDisentSampler(object):
     def _sample_idx(self, idx: int) -> Tuple[int, ...]:
         raise NotImplementedError
 
-    def __call__(self, idx: int) -> Tuple[int, ...]:
+    def sample(self, idx: int) -> Tuple[int, ...]:
         # check that we have been initialized!
         if not self.is_init:
             raise RuntimeError(f'{self.__class__.__name__} has not been initialized! call `sampler.init(gt_data)`')
@@ -78,6 +78,9 @@ class BaseDisentSampler(object):
             raise RuntimeError(f'{self.__class__.__name__} returned incorrect number of samples, required: {self.num_samples}, got: {len(idxs)}')
         # return values
         return idxs
+
+    def __call__(self, idx: int) -> Tuple[int, ...]:
+        return self.sample(idx)
 
 
 # ========================================================================= #

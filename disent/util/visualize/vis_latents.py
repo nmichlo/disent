@@ -23,13 +23,13 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
+from typing import Callable
+
 import numpy as np
 import torch
 
 from disent.util import to_numpy
 from disent.util.visualize import vis_util
-from disent.util.visualize.vis_util import make_animated_image_grid
-from disent.util.visualize.vis_util import reconstructions_to_images
 
 
 log = logging.getLogger(__name__)
@@ -46,6 +46,7 @@ log = logging.getLogger(__name__)
 # CHANGES:                                                                  #
 # - extracted from original code                                            #
 # - was not split into functions in this was                                #
+# - TODO: convert these functions to torch.Tensors                          #
 # ========================================================================= #
 
 
@@ -98,56 +99,56 @@ _LATENT_CYCLE_MODES_MAP = {
 }
 
 
+def make_latent_zs_cycle(
+    base_z: torch.Tensor,
+    z_means: torch.Tensor,
+    z_logvars: torch.Tensor,
+    z_idx: int,
+    num_frames: int,
+    mode: str = 'minmax_interval_cycle',
+) -> torch.Tensor:
+    # get mode
+    if mode not in _LATENT_CYCLE_MODES_MAP:
+        raise KeyError(f'Unsupported mode: {repr(mode)} not in {set(_LATENT_CYCLE_MODES_MAP)}')
+    z_gen_func = _LATENT_CYCLE_MODES_MAP[mode]
+    # checks
+    assert base_z.ndim == 1
+    assert base_z.shape == z_means.shape[1:]
+    assert z_means.ndim == z_logvars.ndim == 2
+    assert z_means.shape == z_logvars.shape
+    assert len(z_means) > 1, f'not enough representations to average, number of z_means should be greater than 1, got: {z_means.shape}'
+    # make cycle
+    z_cycle = z_gen_func(to_numpy(base_z), to_numpy(z_means), to_numpy(z_logvars), z_idx, num_frames)
+    return torch.from_numpy(z_cycle)
+
+
 # ========================================================================= #
 # Visualise Latent Cycles                                                   #
 # ========================================================================= #
 
 
-# TODO: this function should not convert output to images, it should just be
-#       left as is. That way we don't need to pass in the recon_min and recon_max
-def latent_cycle(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', num_animations=4, num_frames=20, decoder_device=None, recon_min=0., recon_max=1.) -> np.ndarray:
-    assert len(z_means) > 1 and len(z_logvars) > 1, 'not enough samples to average'
-    # convert
-    z_means, z_logvars = to_numpy(z_means), to_numpy(z_logvars)
-    # get mode
-    if mode not in _LATENT_CYCLE_MODES_MAP:
-        raise KeyError(f'Unsupported mode: {repr(mode)} not in {set(_LATENT_CYCLE_MODES_MAP)}')
-    z_gen_func = _LATENT_CYCLE_MODES_MAP[mode]
+# TODO: this should be moved into the VAE and AE classes
+def make_decoded_latent_cycles(
+    decoder_func: Callable[[torch.Tensor], torch.Tensor],
+    z_means: torch.Tensor,
+    z_logvars: torch.Tensor,
+    mode: str = 'minmax_interval_cycle',
+    num_animations: int = 4,
+    num_frames: int = 20,
+    decoder_device=None,
+) -> torch.Tensor:
+    # generate multiple latent traversal visualisations
     animations = []
-    for i, base_z in enumerate(z_means[:num_animations]):
+    for i in range(num_animations):
         frames = []
-        for j in range(z_means.shape[1]):
-            z = z_gen_func(base_z, z_means, z_logvars, j, num_frames)
+        for z_idx in range(z_means.shape[1]):
+            z = make_latent_zs_cycle(z_means[i], z_means, z_logvars, z_idx, num_frames, mode=mode)
             z = torch.as_tensor(z, device=decoder_device)
             frames.append(decoder_func(z))
-        animations.append(frames)
-    return reconstructions_to_images(animations, recon_min=recon_min, recon_max=recon_max)
-
-
-def latent_cycle_grid_animation(decoder_func, z_means, z_logvars, mode='fixed_interval_cycle', num_frames=21, pad=4, border=True, bg_color=0.5, decoder_device=None, tensor_style_channels=True, always_rgb=True, return_stills=False, to_uint8=False, recon_min=0., recon_max=1.) -> np.ndarray:
-    # produce latent cycle animation & merge frames
-    stills = latent_cycle(decoder_func, z_means, z_logvars, mode=mode, num_animations=1, num_frames=num_frames, decoder_device=decoder_device, recon_min=recon_min, recon_max=recon_max)[0]
-    # check and add missing channel if needed (convert greyscale to rgb images)
-    if always_rgb:
-        assert stills.shape[-1] in {1, 3}, f'Invalid number of image channels: {stills.shape} ({stills.shape[-1]})'
-        if stills.shape[-1] == 1:
-            stills = np.repeat(stills, 3, axis=-1)
-    # create animation
-    frames = make_animated_image_grid(stills, pad=pad, border=border, bg_color=bg_color)
-    # move channels to end
-    if tensor_style_channels:
-        if return_stills:
-            stills = np.transpose(stills, [0, 1, 4, 2, 3])
-        frames = np.transpose(frames, [0, 3, 1, 2])
-    # convert to uint8
-    if to_uint8:
-        if return_stills:
-            stills = np.clip(stills*255, 0, 255).astype('uint8')
-        frames = np.clip(frames*255, 0, 255).astype('uint8')
-    # done!
-    if return_stills:
-        return frames, stills
-    return frames
+        animations.append(torch.stack(frames, dim=0))
+    animations = torch.stack(animations, dim=0)
+    # return everything
+    return animations  # (num_animations, z_size, num_frames, C, H, W)
 
 
 # ========================================================================= #

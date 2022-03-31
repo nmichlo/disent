@@ -1,23 +1,29 @@
 name: norm_conv64
 
-encoder_cls:
-  _target_: disent.model.ae.EncoderConv64Norm
-  x_shape: ${data.meta.x_shape}
-  z_size: ${settings.model.z_size}
-  z_multiplier: ${framework.meta.model_z_multiplier}
-  activation: ${model.activation}
-  norm: ${model.norm}
-  norm_pre_act: ${model.norm_pre_act}
+model_cls:
+  # weight initialisation
+  _target_: disent.nn.weights.init_model_weights
+  mode: ${settings.model.weight_init}
+  model:
+    # auto-encoder
+    _target_: disent.model.AutoEncoder
+    encoder:
+      _target_: disent.model.ae.EncoderConv64Norm
+      x_shape: ${data.meta.x_shape}
+      z_size: ${settings.model.z_size}
+      z_multiplier: ${framework.meta.model_z_multiplier}
+      activation: ${model.meta.activation}
+      norm: ${model.meta.norm}
+      norm_pre_act: ${model.meta.norm_pre_act}
+    decoder:
+      _target_: disent.model.ae.DecoderConv64Norm
+      x_shape: ${data.meta.x_shape}
+      z_size: ${settings.model.z_size}
+      activation: ${model.meta.activation}
+      norm: ${model.meta.norm}
+      norm_pre_act: ${model.meta.norm_pre_act}
 
-decoder_cls:
-  _target_: disent.model.ae.DecoderConv64Norm
-  x_shape: ${data.meta.x_shape}
-  z_size: ${settings.model.z_size}
-  activation: ${model.activation}
-  norm: ${model.norm}
-  norm_pre_act: ${model.norm_pre_act}
-
-# vars
-activation: swish  # leaky_relu, relu
-norm: layer  # batch, instance, layer, layer_chn, none
-norm_pre_act: TRUE
+meta:
+  activation: swish  # leaky_relu, relu
+  norm: layer  # batch, instance, layer, layer_chn, none
+  norm_pre_act: TRUE

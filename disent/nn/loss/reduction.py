@@ -78,6 +78,7 @@ _REDUCTION_FNS = {
 }
 
 
+# TODO: this is duplicated in research ... pairwise_loss
 # applying this function and then taking the
 # mean should give the same result as loss_reduction
 def batch_loss_reduction(tensor: torch.Tensor, reduction_dtype=None, reduction='mean') -> torch.Tensor:

@@ -22,6 +22,7 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import logging
 from dataclasses import asdict
 from dataclasses import dataclass
 from dataclasses import fields
@@ -32,15 +33,14 @@ from typing import Dict
 from typing import final
 from typing import Optional
 from typing import Tuple
-from typing import Type
 from typing import Union
 
-import logging
 import torch
 
 from disent import registry
-from disent.schedule import Schedule
 from disent.nn.modules import DisentLightningModule
+from disent.schedule import Schedule
+from disent.util.imports import import_obj
 
 
 log = logging.getLogger(__name__)
@@ -83,7 +83,7 @@ class DisentFramework(DisentConfigurable, DisentLightningModule):
     @dataclass
     class cfg(DisentConfigurable.cfg):
         # optimizer config
-        optimizer: Union[str, Type[torch.optim.Optimizer]] = 'adam'
+        optimizer: Union[str] = 'adam'  # name in the registry, eg. `adam` OR the path to an optimizer eg. `torch.optim.Adam`
         optimizer_kwargs: Optional[Dict[str, Union[str, float, int]]] = None
 
     def __init__(
@@ -94,32 +94,54 @@ class DisentFramework(DisentConfigurable, DisentLightningModule):
     ):
         # save the config values to the class
         super().__init__(cfg=cfg)
-        # get the optimizer
-        if isinstance(self.cfg.optimizer, str):
-            if self.cfg.optimizer not in registry.OPTIMIZERS:
-                raise KeyError(f'invalid optimizer: {repr(self.cfg.optimizer)}, valid optimizers are: {sorted(registry.OPTIMIZER)}, otherwise pass a torch.optim.Optimizer class instead.')
-            self.cfg.optimizer = registry.OPTIMIZERS[self.cfg.optimizer]
-        # check the optimizer values
-        assert callable(self.cfg.optimizer)
-        assert isinstance(self.cfg.optimizer_kwargs, dict) or (self.cfg.optimizer_kwargs is None), f'invalid optimizer_kwargs type, got: {type(self.cfg.optimizer_kwargs)}'
-        # set default values for optimizer
-        if self.cfg.optimizer_kwargs is None:
-            self.cfg.optimizer_kwargs = dict()
-        if 'lr' not in self.cfg.optimizer_kwargs:
-            self.cfg.optimizer_kwargs['lr'] = 1e-3
-            log.info('lr not specified in `optimizer_kwargs`, setting to default value of `1e-3`')
+        # check the optimizer
+        self.cfg.optimizer = self._check_optimizer(self.cfg.optimizer)
+        self.cfg.optimizer_kwargs = self._check_optimizer_kwargs(self.cfg.optimizer_kwargs)
         # batch augmentations may not be implemented as dataset
         # transforms so we can apply these on the GPU instead
-        assert callable(batch_augment) or (batch_augment is None)
+        assert callable(batch_augment) or (batch_augment is None), f'invalid batch_augment: {repr(batch_augment)}, must be callable or `None`'
         self._batch_augment = batch_augment
         # schedules
         # - maybe add support for schedules in the config?
         self._registered_schedules = set()
         self._active_schedules: Dict[str, Tuple[Any, Schedule]] = {}
 
+    @staticmethod
+    def _check_optimizer(optimizer: str):
+        if not isinstance(optimizer, str):
+            raise TypeError(f'invalid optimizer: {repr(optimizer)}, must be a `str`')
+        # check that the optimizer has been registered
+        # otherwise check that the optimizer class can be imported instead
+        if optimizer not in registry.OPTIMIZERS:
+            try:
+                import_obj(optimizer)
+            except ImportError:
+                raise KeyError(f'invalid optimizer: {repr(optimizer)}, valid optimizers are: {sorted(registry.OPTIMIZERS)}, or an import path to an optimizer, eg. `torch.optim.Adam`')
+        # return the updated values!
+        return optimizer
+
+    @staticmethod
+    def _check_optimizer_kwargs(optimizer_kwargs: Optional[dict]):
+        # check the optimizer kwargs
+        assert isinstance(optimizer_kwargs, dict) or (optimizer_kwargs is None), f'invalid optimizer_kwargs type, got: {type(optimizer_kwargs)}'
+        # get default kwargs OR copy
+        optimizer_kwargs = dict() if (optimizer_kwargs is None) else dict(optimizer_kwargs)
+        # set default values
+        if 'lr' not in optimizer_kwargs:
+            optimizer_kwargs['lr'] = 1e-3
+            log.info('lr not specified in `optimizer_kwargs`, setting to default value of `1e-3`')
+        # return the updated values
+        return optimizer_kwargs
+
     @final
     def configure_optimizers(self):
-        optimizer_cls = self.cfg.optimizer
+        # get the optimizer
+        # 1. first check if the name has been registered
+        # 2. then check if the name can be imported
+        if self.cfg.optimizer in registry.OPTIMIZERS:
+            optimizer_cls = registry.OPTIMIZERS[self.cfg.optimizer]
+        else:
+            optimizer_cls = import_obj(self.cfg.optimizer)
         # check that we can call the optimizer
         if not callable(optimizer_cls):
             raise TypeError(f'unsupported optimizer type: {type(optimizer_cls)}')
@@ -133,31 +155,24 @@ class DisentFramework(DisentConfigurable, DisentLightningModule):
 
     @final
     def _compute_loss_step(self, batch, batch_idx, update_schedules: bool):
-        # augment batch with GPU support
-        if self._batch_augment is not None:
-            batch = self._batch_augment(batch)
-        # update the config values based on registered schedules
-        if update_schedules:
-            # TODO: how do we handle this in the case of the validation and test step? I think this
-            #       might still give the wrong results as this is based on the trainer.global_step which
-            #       may be incremented by these steps.
-            self._update_config_from_schedules()
-        # compute loss
-        loss, logs_dict = self.do_training_step(batch, batch_idx)
-        # check returned values
-        assert 'loss' not in logs_dict
-        self._assert_valid_loss(loss)
-        # log returned values
-        logs_dict['loss'] = loss
-        self.log_dict(logs_dict)
-        # return loss
-        return loss
-
-    @final
-    def training_step(self, batch, batch_idx):
-        """This is a pytorch-lightning function that should return the computed loss"""
         try:
-            return self._compute_loss_step(batch, batch_idx, update_schedules=True)
+            # augment batch with GPU support
+            if self._batch_augment is not None:
+                batch = self._batch_augment(batch)
+            # update the config values based on registered schedules
+            if update_schedules:
+                # TODO: how do we handle this in the case of the validation and test step? I think this
+                #       might still give the wrong results as this is based on the trainer.global_step which
+                #       may be incremented by these steps.
+                self._update_config_from_schedules()
+            # compute loss
+            # TODO: move logging into child frameworks?
+            loss = self.do_training_step(batch, batch_idx)
+            # check loss values
+            self._assert_valid_loss(loss)
+            self.log('loss', float(loss), prog_bar=True)
+            # return loss
+            return loss
         except Exception as e:  # pragma: no cover
             # call in all the child processes for the best chance of clearing this...
             # remove callbacks from trainer so we aren't stuck running forever!
@@ -181,10 +196,26 @@ class DisentFramework(DisentConfigurable, DisentLightningModule):
         return self._compute_loss_step(batch, batch_idx, update_schedules=False)
 
     @final
+    def training_step(self, batch, batch_idx):
+        """This is a pytorch-lightning function that should return the computed loss"""
+        return self._compute_loss_step(batch, batch_idx, update_schedules=True)
+
+    def validation_step(self, batch, batch_idx):
+        """
+        TODO: how do we handle the schedule in this case?
+        """
+        return self._compute_loss_step(batch, batch_idx, update_schedules=False)
+
+    def test_step(self, batch, batch_idx):
+        """
+        TODO: how do we handle the schedule in this case?
+        """
+        return self._compute_loss_step(batch, batch_idx, update_schedules=False)
+
+    @final
     def _assert_valid_loss(self, loss):
-        if self.trainer.terminate_on_nan:
-            if torch.isnan(loss) or torch.isinf(loss):
-                raise ValueError('The returned loss is nan or inf')
+        if torch.isnan(loss) or torch.isinf(loss):
+            raise ValueError('The returned loss is nan or inf')
         if loss > 1e+20:
             raise ValueError(f'The returned loss: {loss:.2e} is out of bounds: > {1e+20:.0e}')
 
@@ -192,7 +223,7 @@ class DisentFramework(DisentConfigurable, DisentLightningModule):
         """this function should return the single final output of the model, including the final activation"""
         raise NotImplementedError
 
-    def do_training_step(self, batch, batch_idx) -> Tuple[torch.Tensor, Dict[str, Union[Number, torch.Tensor]]]:  # pragma: no cover
+    def do_training_step(self, batch, batch_idx) -> torch.Tensor:  # pragma: no cover
         """
         should return a dictionary of items to log with the key 'train_loss'
         as the variable to minimize

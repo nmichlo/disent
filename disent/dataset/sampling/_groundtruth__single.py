@@ -23,8 +23,11 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
+from typing import Optional
+
 from disent.dataset.data import GroundTruthData
 from disent.dataset.sampling._base import BaseDisentSampler
+from disent.dataset.util.state_space import StateSpace
 
 
 log = logging.getLogger(__name__)
@@ -42,10 +45,11 @@ class GroundTruthSingleSampler(BaseDisentSampler):
 
     def __init__(self):
         super().__init__(num_samples=1)
+        self._state_space: Optional[StateSpace] = None  # TODO: not actually needed
 
     def _init(self, dataset):
         assert isinstance(dataset, GroundTruthData), f'dataset must be an instance of {repr(GroundTruthData.__class__.__name__)}, got: {repr(dataset)}'
-        self._data = dataset
+        self._state_space = dataset.state_space_copy()
 
     def _sample_idx(self, idx):
         return (idx,)

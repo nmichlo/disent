@@ -32,6 +32,7 @@ from torch.distributions import Distribution
 from torch.distributions import Laplace
 from torch.distributions import Normal
 
+import disent.registry as R
 from disent.frameworks.helper.util import compute_ave_loss
 from disent.nn.loss.kl import kl_loss
 from disent.nn.loss.reduction import loss_reduction
@@ -161,17 +162,8 @@ class LatentDistsHandlerLaplace(LatentDistsHandler):
 # ========================================================================= #
 
 
-_LATENT_HANDLERS = {
-    'normal': LatentDistsHandlerNormal,
-    'laplace': LatentDistsHandlerLaplace,
-}
-
-
 def make_latent_distribution(name: str, kl_mode: str, reduction: str) -> LatentDistsHandler:
-    try:
-        cls = _LATENT_HANDLERS[name]
-    except KeyError:
-        raise KeyError(f'unknown vae distribution name: {repr(name)}, must be one of: {sorted(_LATENT_HANDLERS.keys())}')
+    cls = R.LATENT_HANDLERS[name]
     # make instance
     return cls(kl_mode=kl_mode, reduction=reduction)
 

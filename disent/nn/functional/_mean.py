@@ -41,12 +41,14 @@ _POS_INF = float('inf')
 _NEG_INF = float('-inf')
 
 _GENERALIZED_MEAN_MAP = {
+    'inf':       _POS_INF,
     'maximum':   _POS_INF,
     'quadratic':  2,
     'arithmetic': 1,
     'geometric':  0,
     'harmonic':  -1,
     'minimum':   _NEG_INF,
+    '-inf':      _NEG_INF,
 }
 
 
@@ -55,7 +57,7 @@ _GENERALIZED_MEAN_MAP = {
 # ========================================================================= #
 
 
-def torch_mean_generalized(xs: torch.Tensor, dim: _DimTypeHint = None, p: Union[int, str] = 1, keepdim: bool = False):
+def torch_mean_generalized(xs: torch.Tensor, dim: _DimTypeHint = None, p: Union[float, str] = 1, keepdim: bool = False):
     """
     Compute the generalised mean.
     - p is the power
@@ -69,9 +71,9 @@ def torch_mean_generalized(xs: torch.Tensor, dim: _DimTypeHint = None, p: Union[
         p = _GENERALIZED_MEAN_MAP[p]
     # compute the specific extreme cases
     if p == _POS_INF:
-        return torch.max(xs, dim=dim, keepdim=keepdim).values if (dim is not None) else torch.max(xs, keepdim=keepdim)
+        return torch.amax(xs, dim=dim, keepdim=keepdim)
     elif p == _NEG_INF:
-        return torch.min(xs, dim=dim, keepdim=keepdim).values if (dim is not None) else torch.min(xs, keepdim=keepdim)
+        return torch.amin(xs, dim=dim, keepdim=keepdim)
     # compute the number of elements being averaged
     if dim is None:
         dim = list(range(xs.ndim))

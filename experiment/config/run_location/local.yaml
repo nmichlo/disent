@@ -2,22 +2,21 @@
 
 dsettings:
   trainer:
-    cuda: NULL  # `NULL` tries to use CUDA if it is available. `TRUE` forces cuda to be used!
+    cuda: NULL  # `NULL` tries to use CUDA if it is available, otherwise defaulting to the CPU
   storage:
     logs_dir: 'logs'
     data_root: '/tmp/${oc.env:USER}/datasets'
   dataset:
-    gpu_augment: FALSE
     prepare: TRUE
     try_in_memory: TRUE
 
-trainer:
+datamodule:
+  gpu_augment: FALSE
   prepare_data_per_node: TRUE
-
-dataloader:
-  num_workers: 8
-  pin_memory: ${dsettings.trainer.cuda}
-  batch_size: ${settings.dataset.batch_size}
+  dataloader:
+    num_workers: 8
+    pin_memory: ${dsettings.trainer.cuda}  # uses more memory, but faster!
+    batch_size: ${settings.dataset.batch_size}
 
 hydra:
   job:

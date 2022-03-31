@@ -24,6 +24,8 @@
 
 import logging
 import time
+from typing import Optional
+
 import pytorch_lightning as pl
 
 
@@ -37,7 +39,8 @@ log = logging.getLogger(__name__)
 
 class BaseCallbackPeriodic(pl.Callback):
     
-    def __init__(self, every_n_steps=None, begin_first_step=False):
+    def __init__(self, every_n_steps: Optional[int] = None, begin_first_step: bool = False):
+        assert (every_n_steps is None) or (isinstance(every_n_steps, int) and every_n_steps > 0), f'`every_n_steps` must be None or an integer greater than zero, got: {repr(every_n_steps)}'
         self.every_n_steps = every_n_steps
         self.begin_first_step = begin_first_step
 
@@ -59,7 +62,8 @@ class BaseCallbackPeriodic(pl.Callback):
 
 class BaseCallbackTimed(pl.Callback):
     
-    def __init__(self, interval=10):
+    def __init__(self, interval: float = 10):
+        assert interval > 0, f'The interval must be greater than zero, got: {repr(interval)}'
         self._last_time = 0
         self._interval = interval
         self._start_time = time.time()

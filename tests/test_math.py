@@ -37,11 +37,16 @@ from disent.nn.functional import torch_corr_matrix
 from disent.nn.functional import torch_cov_matrix
 from disent.nn.functional import torch_dct
 from disent.nn.functional import torch_dct2
+from disent.nn.functional import torch_dist_hamming
 from disent.nn.functional import torch_gaussian_kernel_2d
 from disent.nn.functional import torch_idct
 from disent.nn.functional import torch_idct2
 from disent.nn.functional import torch_mean_generalized
+from disent.nn.functional import torch_norm
+from disent.nn.functional import torch_dist
 from disent.dataset.transform import ToImgTensorF32
+from disent.nn.functional import torch_norm_euclidean
+from disent.nn.functional import torch_norm_manhattan
 from disent.util import to_numpy
 
 
@@ -84,11 +89,71 @@ def test_generalised_mean():
     assert torch.allclose(torch_mean_generalized(xs, p=-1), torch.as_tensor(hmean(xs, axis=None)))  # scipy default axis is 0
 
     # min max
-    assert torch.allclose(torch_mean_generalized(xs, p='maximum', dim=1), torch.max(xs, dim=1).values)
-    assert torch.allclose(torch_mean_generalized(xs, p='minimum', dim=1), torch.min(xs, dim=1).values)
-    assert torch.allclose(torch_mean_generalized(xs, p=np.inf, dim=1), torch.max(xs, dim=1).values)
-    assert torch.allclose(torch_mean_generalized(xs, p=-np.inf, dim=1), torch.min(xs, dim=1).values)
+    assert torch.allclose(torch_mean_generalized(xs, p='maximum', dim=1), torch.amax(xs, dim=1))
+    assert torch.allclose(torch_mean_generalized(xs, p='minimum', dim=1), torch.amin(xs, dim=1))
+    assert torch.allclose(torch_mean_generalized(xs, p=np.inf, dim=1), torch.amax(xs, dim=1))
+    assert torch.allclose(torch_mean_generalized(xs, p=-np.inf, dim=1), torch.amin(xs, dim=1))
 
+
+def test_p_norm():
+    xs = torch.abs(torch.randn(2, 1000, 3, dtype=torch.float64))
+
+    inf = float('inf')
+
+    # torch equivalents
+    assert torch.allclose(torch_norm(xs, p=1, dim=-1),         torch.linalg.norm(xs, ord=1, dim=-1))
+    assert torch.allclose(torch_norm(xs, p=2, dim=-1),         torch.linalg.norm(xs, ord=2, dim=-1))
+    assert torch.allclose(torch_norm(xs, p='maximum', dim=-1), torch.linalg.norm(xs, ord=inf, dim=-1))
+
+    # torch equivalents -- less than zero [FAIL]
+    with pytest.raises(ValueError, match='p-norm cannot have a p value less than 1'):
+        assert torch.allclose(torch_norm(xs, p=0,         dim=-1),  torch.linalg.norm(xs, ord=0, dim=-1))
+    with pytest.raises(ValueError, match='p-norm cannot have a p value less than 1'):
+        assert torch.allclose(torch_norm(xs, p='minimum', dim=-1), torch.linalg.norm(xs, ord=-inf, dim=-1))
+
+    # torch equivalents -- less than zero
+    assert torch.allclose(torch_dist(xs, p=0,         dim=-1), torch.linalg.norm(xs, ord=0, dim=-1))
+    assert torch.allclose(torch_dist(xs, p='minimum', dim=-1), torch.linalg.norm(xs, ord=-inf, dim=-1))
+    assert torch.allclose(torch_dist(xs, p=0,         dim=-1), torch.linalg.norm(xs, ord=0, dim=-1))
+    assert torch.allclose(torch_dist(xs, p='minimum', dim=-1), torch.linalg.norm(xs, ord=-inf, dim=-1))
+
+    # test other axes
+    ys = torch.flatten(torch.moveaxis(xs, 0, -1), start_dim=1, end_dim=-1)
+    assert torch.allclose(torch_norm(xs, p=2, dim=[0, -1]), torch.linalg.norm(ys, ord=2, dim=-1))
+    ys = torch.flatten(xs, start_dim=1, end_dim=-1)
+    assert torch.allclose(torch_norm(xs, p=1, dim=[-2, -1]), torch.linalg.norm(ys, ord=1, dim=-1))
+    ys = torch.flatten(torch.moveaxis(xs, -1, 0), start_dim=1, end_dim=-1)
+    assert torch.allclose(torch_dist(xs, p=0, dim=[0, 1]), torch.linalg.norm(ys, ord=0, dim=-1))
+
+    # check equal names
+    assert torch.allclose(torch_dist(xs, dim=1, p='euclidean'), torch_norm_euclidean(xs, dim=1))
+    assert torch.allclose(torch_dist(xs, dim=1, p=2),           torch_norm_euclidean(xs, dim=1))
+    assert torch.allclose(torch_dist(xs, dim=1, p='manhattan'), torch_norm_manhattan(xs, dim=1))
+    assert torch.allclose(torch_dist(xs, dim=1, p=1),           torch_norm_manhattan(xs, dim=1))
+    assert torch.allclose(torch_dist(xs, dim=1, p='hamming'),   torch_dist_hamming(xs, dim=1))
+    assert torch.allclose(torch_dist(xs, dim=1, p=0),           torch_dist_hamming(xs, dim=1))
+
+    # check axes
+    assert torch_dist(xs, dim=1, p=2, keepdim=False).shape == (2, 3)
+    assert torch_dist(xs, dim=1, p=2, keepdim=True).shape == (2, 1, 3)
+    assert torch_dist(xs, dim=-1, p=1, keepdim=False).shape == (2, 1000)
+    assert torch_dist(xs, dim=-1, p=1, keepdim=True).shape == (2, 1000, 1)
+    assert torch_dist(xs, dim=0, p=0, keepdim=False).shape == (1000, 3)
+    assert torch_dist(xs, dim=0, p=0, keepdim=True).shape == (1, 1000, 3)
+    assert torch_dist(xs, dim=[0, -1], p=-inf, keepdim=False).shape == (1000,)
+    assert torch_dist(xs, dim=[0, -1], p=-inf, keepdim=True).shape == (1, 1000, 1)
+    assert torch_dist(xs, dim=[0, 1], p=inf, keepdim=False).shape == (3,)
+    assert torch_dist(xs, dim=[0, 1], p=inf, keepdim=True).shape == (1, 1, 3)
+
+    # check norm over all
+    assert torch_dist(xs, dim=None, p=0, keepdim=False).shape == ()
+    assert torch_dist(xs, dim=None, p=0, keepdim=True).shape == (1, 1, 1)
+    assert torch_dist(xs, dim=None, p=1, keepdim=False).shape == ()
+    assert torch_dist(xs, dim=None, p=1, keepdim=True).shape == (1, 1, 1)
+    assert torch_dist(xs, dim=None, p=2, keepdim=False).shape == ()
+    assert torch_dist(xs, dim=None, p=2, keepdim=True).shape == (1, 1, 1)
+    assert torch_dist(xs, dim=None, p=inf, keepdim=False).shape == ()
+    assert torch_dist(xs, dim=None, p=inf, keepdim=True).shape == (1, 1, 1)
 
 
 def test_dct():
@@ -141,7 +206,7 @@ def test_fft_conv2d():
         kernel = torch_gaussian_kernel_2d(sigma=i)
         out_cnv = torch_conv2d_channel_wise(signal=batch, kernel=kernel)[0]
         out_fft = torch_conv2d_channel_wise_fft(signal=batch, kernel=kernel)[0]
-        assert torch.max(torch.abs(out_cnv - out_fft)) < 1e-6
+        assert torch.amax(torch.abs(out_cnv - out_fft)) < 1e-6
 
 
 # ========================================================================= #

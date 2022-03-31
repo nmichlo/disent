@@ -176,6 +176,7 @@ def _is_power_2(num: int):
 @functools.lru_cache()
 def _normalize_axis(ndim: int, axis: Optional[Sequence[int]]) -> np.ndarray:
     # TODO: this functionality may be duplicated
+    #       -- similar to np.normalize_axis_tuple(...)
     # defaults
     if axis is None:
         axis = np.arange(ndim)
