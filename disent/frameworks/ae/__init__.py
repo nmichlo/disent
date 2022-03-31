@@ -24,9 +24,11 @@
 
 # supervised frameworks
 from disent.frameworks.ae._supervised__tae import TripletAe
+from disent.frameworks.ae._supervised__adaneg_tae import AdaNegTripletAe
 
 # unsupervised frameworks
 from disent.frameworks.ae._unsupervised__ae import Ae
+from disent.frameworks.ae._unsupervised__dotae import DataOverlapTripletAe
 
 # weakly supervised frameworks
-# <ADD>
+from disent.frameworks.ae._weaklysupervised__adaae import AdaAe

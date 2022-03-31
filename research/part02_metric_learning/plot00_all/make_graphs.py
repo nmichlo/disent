@@ -35,8 +35,8 @@ from matplotlib import pyplot as plt
 from tqdm import tqdm
 
 import research.code.util as H
-from research.code.metrics._factored_components import compute_axis_score
-from research.code.metrics._factored_components import compute_linear_score
+from disent.metrics._factored_components import compute_axis_score
+from disent.metrics._factored_components import compute_linear_score
 from disent.util.seeds import seed
 
 

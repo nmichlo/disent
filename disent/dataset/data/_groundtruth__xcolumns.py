@@ -22,53 +22,51 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-import pytest
-import disent.registry as R
+from typing import Tuple
+
+import numpy as np
+
+from disent.dataset.data._groundtruth__xysquares import XYSquaresData
 
 
 # ========================================================================= #
-# TESTS                                                                     #
+# xy multi grid data                                                        #
 # ========================================================================= #
 
 
-COUNTS = {
-    'DATASETS': 15,
-    'SAMPLERS': 8,
-    'FRAMEWORKS': 15,
-    'RECON_LOSSES': 9,
-    'LATENT_HANDLERS': 2,
-    'OPTIMIZERS': 30,
-    'METRICS': 9,
-    'SCHEDULES': 5,
-    'MODELS': 8,
-    'KERNELS': 2,
-}
+class XColumnsData(XYSquaresData):
 
-COUNTS = {                 # pragma: delete-on-release
-    'DATASETS': 16,        # pragma: delete-on-release
-    'SAMPLERS': 8,         # pragma: delete-on-release
-    'FRAMEWORKS': 25,      # pragma: delete-on-release
-    'RECON_LOSSES': 9,     # pragma: delete-on-release
-    'LATENT_HANDLERS': 2,  # pragma: delete-on-release
-    'OPTIMIZERS': 30,      # pragma: delete-on-release
-    'METRICS': 9,          # pragma: delete-on-release
-    'SCHEDULES': 5,        # pragma: delete-on-release
-    'MODELS': 8,           # pragma: delete-on-release
-    'KERNELS': 18,         # pragma: delete-on-release
-}                          # pragma: delete-on-release
+    """
+    Michlo et al.
+    https://github.com/nmichlo/msc-research
 
+    Like XYSquares, but has a single column that moves left and right, instead of across a grid.
+    - This dataset is also adversarial!
+    """
 
-@pytest.mark.parametrize('registry_key', COUNTS.keys())
-def test_registry_loading(registry_key):
-    from research.code import register_to_disent                  # pragma: delete-on-release
-    register_to_disent()                                          # pragma: delete-on-release
-    register_to_disent()  # must be able to call more than once!  # pragma: delete-on-release
-    # load everything and check the counts
-    count = 0
-    for example in R.REGISTRIES[registry_key]:
-        loaded = R.REGISTRIES[registry_key][example]
-        count += 1
-    assert count == COUNTS[registry_key], f'invalid count for: {registry_key}'
+    name = 'x_columns'
+
+    @property
+    def factor_names(self) -> Tuple[str, ...]:
+        return ('x_R', 'x_G', 'x_B')[:self._num_squares]
+
+    @property
+    def factor_sizes(self) -> Tuple[int, ...]:
+        return (self._placements,) * self._num_squares
+
+    def _get_observation(self, idx):
+        # get factors
+        factors = self.idx_to_pos(idx)
+        offset, space, size = self._offset, self._spacing, self._square_size
+        # GENERATE
+        obs = np.zeros(self.img_shape, dtype=self._dtype)
+        for i, fx in enumerate(factors):
+            x = offset + space * fx
+            if self._rgb:
+                obs[:, x:x+size, i] = self._fill_value
+            else:
+                obs[:, x:x+size, :] = self._fill_value
+        return obs
 
 
 # ========================================================================= #

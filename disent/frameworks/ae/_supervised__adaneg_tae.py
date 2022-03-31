@@ -22,53 +22,52 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-import pytest
-import disent.registry as R
+import logging
+from dataclasses import dataclass
+from numbers import Number
+from typing import Any
+from typing import Dict
+from typing import Sequence
+from typing import Tuple
+from typing import Union
+
+import torch
+
+from disent.frameworks.ae._supervised__tae import TripletAe
+from disent.frameworks.ae._weaklysupervised__adaae import AdaAe
+from disent.frameworks.vae._supervised__adaneg_tvae import AdaNegTripletVae
+
+
+log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
-# TESTS                                                                     #
+# Guided Ada Vae                                                            #
 # ========================================================================= #
 
 
-COUNTS = {
-    'DATASETS': 15,
-    'SAMPLERS': 8,
-    'FRAMEWORKS': 15,
-    'RECON_LOSSES': 9,
-    'LATENT_HANDLERS': 2,
-    'OPTIMIZERS': 30,
-    'METRICS': 9,
-    'SCHEDULES': 5,
-    'MODELS': 8,
-    'KERNELS': 2,
-}
+class AdaNegTripletAe(TripletAe):
+    """
+    Michlo et al.
+    https://github.com/nmichlo/msc-research
 
-COUNTS = {                 # pragma: delete-on-release
-    'DATASETS': 16,        # pragma: delete-on-release
-    'SAMPLERS': 8,         # pragma: delete-on-release
-    'FRAMEWORKS': 25,      # pragma: delete-on-release
-    'RECON_LOSSES': 9,     # pragma: delete-on-release
-    'LATENT_HANDLERS': 2,  # pragma: delete-on-release
-    'OPTIMIZERS': 30,      # pragma: delete-on-release
-    'METRICS': 9,          # pragma: delete-on-release
-    'SCHEDULES': 5,        # pragma: delete-on-release
-    'MODELS': 8,           # pragma: delete-on-release
-    'KERNELS': 18,         # pragma: delete-on-release
-}                          # pragma: delete-on-release
+    This is the supervised version of the Adaptive Triplet Loss for Auto-Encoders not VAEs
+    - Triplets are usually ordered using the ground-truth distances over observations
+    - Adaptive Triplet Loss is used to guide distance learning and encourage disentanglement
+    """
 
+    REQUIRED_OBS = 3
 
-@pytest.mark.parametrize('registry_key', COUNTS.keys())
-def test_registry_loading(registry_key):
-    from research.code import register_to_disent                  # pragma: delete-on-release
-    register_to_disent()                                          # pragma: delete-on-release
-    register_to_disent()  # must be able to call more than once!  # pragma: delete-on-release
-    # load everything and check the counts
-    count = 0
-    for example in R.REGISTRIES[registry_key]:
-        loaded = R.REGISTRIES[registry_key][example]
-        count += 1
-    assert count == COUNTS[registry_key], f'invalid count for: {registry_key}'
+    @dataclass
+    class cfg(TripletAe.cfg, AdaAe.cfg):
+        # ada_tvae - loss
+        adat_triplet_share_scale: float = 0.95
+
+    def hook_ae_compute_ave_aug_loss(self, zs: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
+        return AdaNegTripletVae.estimate_ada_triplet_loss_from_zs(
+            zs=zs,
+            cfg=self.cfg,
+        )
 
 
 # ========================================================================= #

@@ -38,7 +38,6 @@ from disent.dataset.data import Cars3d64Data
 from disent.dataset.data import DSpritesData
 from disent.dataset.data import Shapes3dData
 from disent.dataset.data import SmallNorb64Data
-from disent.frameworks.helper.reconstructions import ReconLossHandler
 from tqdm import tqdm
 
 import disent.registry as R
@@ -48,9 +47,9 @@ from disent.util.function import wrapped_partial
 
 from research.code import register_to_disent
 from research.code.dataset.data import XYSquaresData
-from research.code.metrics._factored_components import _compute_dists
-from research.code.metrics._factored_components import _compute_scores_from_dists
-from research.code.metrics._factored_components import _numpy_concat_all_dicts
+from disent.metrics._factored_components import _compute_dists
+from disent.metrics._factored_components import _compute_scores_from_dists
+from disent.metrics._factored_components import _numpy_concat_all_dicts
 
 
 _RENAME_KEYS = {
