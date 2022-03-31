@@ -1,0 +1,17 @@
+defaults:
+  - _data_type_: gt
+
+name: xysquares_minimal
+
+data:
+  _target_: disent.dataset.data.XYSquaresMinimalData
+
+transform:
+  _target_: disent.dataset.transform.ToImgTensorF32
+  mean: ${dataset.meta.vis_mean}
+  std: ${dataset.meta.vis_std}
+
+meta:
+  x_shape: [3, 64, 64]
+  vis_mean: [0.015625, 0.015625, 0.015625]
+  vis_std: [0.12403473458920855, 0.12403473458920854, 0.12403473458920854]

@@ -1,0 +1,7 @@
+# @package _global_
+
+# call the listed functions here before the experiment is started
+# - make sure we register the research code to disent so that it can be used!
+experiment:
+  plugins:
+    - docs.examples.extend_experiment.code.register_to_disent

@@ -66,7 +66,12 @@ DATASETS['smallnorb_x96']     = LazyImport('disent.dataset.data._groundtruth__no
 DATASETS['smallnorb']         = LazyImport('disent.dataset.data._groundtruth__norb.SmallNorb64Data')
 DATASETS['shapes3d']          = LazyImport('disent.dataset.data._groundtruth__shapes3d.Shapes3dData')
 # groundtruth -- impl synthetic
+DATASETS['xcolumns']          = LazyImport('disent.dataset.data._groundtruth__xcolumns.XColumnsData')
 DATASETS['xyobject']          = LazyImport('disent.dataset.data._groundtruth__xyobject.XYObjectData')
+DATASETS['xyobject_shaded']   = LazyImport('disent.dataset.data._groundtruth__xyobject.XYObjectShadedData')
+DATASETS['xysquares']         = LazyImport('disent.dataset.data._groundtruth__xysquares.XYSquaresData')
+DATASETS['xysquares_minimal'] = LazyImport('disent.dataset.data._groundtruth__xysquares.XYSquaresMinimalData')
+DATASETS['xysinglesquare']    = LazyImport('disent.dataset.data._groundtruth__xysquares.XYSingleSquareData')
 
 
 # ========================================================================= #
@@ -105,6 +110,9 @@ FRAMEWORKS: RegistryImports['disent.frameworks.DisentFramework'] = RegistryImpor
 # [AE]
 FRAMEWORKS['tae']           = LazyImport('disent.frameworks.ae._supervised__tae.TripletAe')
 FRAMEWORKS['ae']            = LazyImport('disent.frameworks.ae._unsupervised__ae.Ae')
+FRAMEWORKS['ada_ae']        = LazyImport('disent.frameworks.ae._weaklysupervised__adaae.AdaAe')             # ae version of ada_vae
+FRAMEWORKS['adaneg_tae']    = LazyImport('disent.frameworks.ae._supervised__adaneg_tae.AdaNegTripletAe')    # ae version of adaneg_tvae
+FRAMEWORKS['adaneg_tae_d']  = LazyImport('disent.frameworks.ae._unsupervised__dotae.DataOverlapTripletAe')  # ae version of adaneg_tvae_d
 # [VAE]
 FRAMEWORKS['tvae']          = LazyImport('disent.frameworks.vae._supervised__tvae.TripletVae')
 FRAMEWORKS['betatc_vae']    = LazyImport('disent.frameworks.vae._unsupervised__betatcvae.BetaTcVae')
@@ -114,6 +122,8 @@ FRAMEWORKS['dip_vae']       = LazyImport('disent.frameworks.vae._unsupervised__d
 FRAMEWORKS['info_vae']      = LazyImport('disent.frameworks.vae._unsupervised__infovae.InfoVae')
 FRAMEWORKS['vae']           = LazyImport('disent.frameworks.vae._unsupervised__vae.Vae')
 FRAMEWORKS['ada_vae']       = LazyImport('disent.frameworks.vae._weaklysupervised__adavae.AdaVae')
+FRAMEWORKS['adaneg_tvae']   = LazyImport('disent.frameworks.vae._supervised__adaneg_tvae.AdaNegTripletVae')
+FRAMEWORKS['adaneg_tvae_d'] = LazyImport('disent.frameworks.vae._unsupervised__dotvae.DataOverlapTripletVae')
 
 
 # ========================================================================= #
@@ -204,6 +214,11 @@ METRICS['factor_vae']          = LazyImport('disent.metrics._factor_vae.metric_f
 METRICS['mig']                 = LazyImport('disent.metrics._mig.metric_mig')
 METRICS['sap']                 = LazyImport('disent.metrics._sap.metric_sap')
 METRICS['unsupervised']        = LazyImport('disent.metrics._unsupervised.metric_unsupervised')
+# register metrics
+METRICS['flatness']            = LazyImport('disent.metrics._flatness.metric_flatness')
+METRICS['factored_components'] = LazyImport('disent.metrics._factored_components.metric_factored_components')
+METRICS['distances']           = LazyImport('disent.metrics._factored_components.metric_distances')
+METRICS['linearity']           = LazyImport('disent.metrics._factored_components.metric_linearity')
 
 
 # ========================================================================= #

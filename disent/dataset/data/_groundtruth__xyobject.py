@@ -55,8 +55,10 @@ def _shades(num: int, shades):
 
 
 class XYObjectData(GroundTruthData):
-
     """
+    Michlo et al.
+    https://github.com/nmichlo/msc-research
+
     Dataset that generates all possible permutations of a square placed on a square grid,
     with varying scale and colour
 
@@ -150,23 +152,6 @@ class XYObjectData(GroundTruthData):
         return obs
 
 
-class XYOldObjectData(XYObjectData):
-
-    name = 'xy_object_shaded'
-
-    def __init__(self, grid_size=64, grid_spacing=1, min_square_size=3, max_square_size=9, square_size_spacing=2, rgb=True, palette='colors', transform=None):
-        super().__init__(
-            grid_size=grid_size,
-            grid_spacing=grid_spacing,
-            min_square_size=min_square_size,
-            max_square_size=max_square_size,
-            square_size_spacing=square_size_spacing,
-            rgb=rgb,
-            palette=palette,
-            transform=transform,
-        )
-
-
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
@@ -174,10 +159,16 @@ class XYOldObjectData(XYObjectData):
 
 class XYObjectShadedData(XYObjectData):
     """
+    Michlo et al.
+    https://github.com/nmichlo/msc-research
+
     Dataset that generates all possible permutations of a square placed on a square grid,
     with varying scale and colour
-
     - This is like `XYObjectData` but has an extra factor that represents the shade.
+
+    *NB* Changing the representation of the ground-truth factor can hurt or improve disentanglement performance.
+         If distances in the data space along factors correlates better with ground-truth distances,
+         then disentanglement performance is improved!
     """
 
     factor_names = ('x', 'y', 'scale', 'intensity', 'color')

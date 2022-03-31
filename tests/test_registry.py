@@ -32,20 +32,20 @@ import disent.registry as R
 
 
 COUNTS = {
-    'DATASETS': 10,
+    'DATASETS': 15,
     'SAMPLERS': 8,
-    'FRAMEWORKS': 10,
+    'FRAMEWORKS': 15,
     'RECON_LOSSES': 9,
     'LATENT_HANDLERS': 2,
     'OPTIMIZERS': 30,
-    'METRICS': 5,
+    'METRICS': 9,
     'SCHEDULES': 5,
     'MODELS': 8,
     'KERNELS': 2,
 }
 
 COUNTS = {                 # pragma: delete-on-release
-    'DATASETS': 14,        # pragma: delete-on-release
+    'DATASETS': 16,        # pragma: delete-on-release
     'SAMPLERS': 8,         # pragma: delete-on-release
     'FRAMEWORKS': 25,      # pragma: delete-on-release
     'RECON_LOSSES': 9,     # pragma: delete-on-release

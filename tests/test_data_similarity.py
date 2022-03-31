@@ -26,8 +26,8 @@ import numpy as np
 
 from disent.dataset.data import XYObjectData
 from disent.dataset.data import XYObjectShadedData
-from research.code.dataset.data import XYSquaresData         # pragma: delete-on-release
-from research.code.dataset.data import XYSquaresMinimalData  # pragma: delete-on-release
+from disent.dataset.data import XYSquaresData         # pragma: delete-on-release
+from disent.dataset.data import XYSquaresMinimalData  # pragma: delete-on-release
 
 
 # ========================================================================= #

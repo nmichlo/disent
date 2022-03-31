@@ -1,0 +1,35 @@
+defaults:
+  - _input_mode_: single
+
+name: adanegtae_d
+
+cfg:
+  _target_: disent.frameworks.ae.DataOverlapTripletAe.cfg
+  # base ae
+  recon_loss: ${settings.framework.recon_loss}
+  loss_reduction: ${settings.framework.loss_reduction}
+  # disable various components
+  detach_decoder: FALSE
+  disable_rec_loss: FALSE
+  disable_aug_loss: FALSE
+  # tvae: triplet stuffs
+  triplet_loss: triplet
+  triplet_margin_min: 0.001
+  triplet_margin_max: 1
+  triplet_scale: 0.1
+  triplet_p: 1
+  # adavae
+  ada_thresh_ratio: 0.5          # >> USE WITH A SCHEDULE <<
+  # ada_tvae - loss
+  adat_triplet_share_scale: 0.95  # >> USE WITH A SCHEDULE << only works for: adat_triplet_loss == "triplet_hard_neg_ave_scaled"
+  # dotvae
+  overlap_loss: ${settings.framework_opt.overlap_loss}  # any of the recon_loss values, or NULL to use the recon_loss value
+  overlap_num: 512
+  overlap_mine_ratio: 0.1
+  overlap_mine_triplet_mode: 'none'  # none, hard_neg, semi_hard_neg, hard_pos, easy_pos, ran:hard_neg+hard_pos <- etc, dynamically evaluated, can chain multiple "+"s
+  # dotvae -- augment
+  overlap_augment_mode: 'none'
+  overlap_augment: NULL
+
+meta:
+  model_z_multiplier: 2

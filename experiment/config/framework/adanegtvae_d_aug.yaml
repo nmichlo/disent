@@ -1,0 +1,69 @@
+defaults:
+  - _input_mode_: single
+
+name: adanegtvae_d
+
+cfg:
+  _target_: disent.frameworks.vae.DataOverlapTripletVae.cfg
+  # base ae
+  recon_loss: ${settings.framework.recon_loss}
+  loss_reduction: ${settings.framework.loss_reduction}
+  # base vae
+  latent_distribution: ${settings.framework_opt.latent_distribution}
+  # disable various components
+  detach_decoder: FALSE
+  disable_reg_loss: FALSE
+  disable_rec_loss: FALSE
+  disable_aug_loss: FALSE
+  # Beta-VAE
+  beta: ${settings.framework.beta}
+  # tvae: triplet stuffs
+  triplet_loss: triplet
+  triplet_margin_min: 0.001
+  triplet_margin_max: 1
+  triplet_scale: 0.1
+  triplet_p: 1
+  # adavae
+  ada_average_mode: gvae
+  ada_thresh_mode: dist          # Only works for: adat_share_mask_mode == "posterior" --- kl, symmetric_kl, dist, sampled_dist
+  ada_thresh_ratio: 0.5          # >> USE WITH A SCHEDULE <<
+  # ada_tvae - loss
+  adat_triplet_share_scale: 0.95 # >> USE WITH A SCHEDULE << only works for: adat_triplet_loss == "triplet_hard_neg_ave_scaled"
+  # ada_tvae - averaging
+  adat_share_mask_mode: posterior
+  # dotvae
+  overlap_loss: ${settings.framework_opt.overlap_loss}  # any of the recon_loss values, or NULL to use the recon_loss value
+  overlap_num: 512
+  overlap_mine_ratio: 0.1
+  overlap_mine_triplet_mode: 'ran:hard_neg+easy_pos'  # none, hard_neg, semi_hard_neg, hard_pos, easy_pos, ran:hard_neg+hard_pos <- etc, dynamically evaluated, can chain multiple "+"s
+  # dotvae -- augment
+  overlap_augment_mode: 'augment'  # none, augment, augment_each (if overlap_augment is NULL, then it is the same as setting this to "none")
+  overlap_augment:
+    _target_: disent.transform.FftKernel
+    kernel: box_r31
+
+#  overlap_augment:
+#    _target_: disent.transform.FftBoxBlur
+#    p: 1.0
+#    radius: [16, 16]
+#    random_mode: "batch"
+#    random_same_xy: TRUE
+#      - _target_: disent.transform.FftGaussianBlur
+#        p: 1.0
+#        sigma: [0.1, 10.0]
+#        truncate: 3.0
+#        random_mode: "batch"
+#        random_same_xy: FALSE
+#      - _target_: kornia.augmentation.RandomCrop
+#        p: 1.0
+#        size: [64, 64]
+#        padding: 7
+#      - _target_: kornia.augmentation.RandomPerspective
+#        p: 0.5
+#        distortion_scale: 0.15
+#      - _target_: kornia.augmentation.RandomRotation
+#        p: 0.5
+#        degrees: 9
+
+meta:
+  model_z_multiplier: 2

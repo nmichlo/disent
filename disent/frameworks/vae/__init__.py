@@ -24,6 +24,7 @@
 
 # supervised frameworks
 from disent.frameworks.vae._supervised__tvae import TripletVae
+from disent.frameworks.vae._supervised__adaneg_tvae import AdaNegTripletVae
 
 # unsupervised frameworks
 from disent.frameworks.vae._unsupervised__betatcvae import BetaTcVae
@@ -32,6 +33,7 @@ from disent.frameworks.vae._unsupervised__dfcvae import DfcVae
 from disent.frameworks.vae._unsupervised__dipvae import DipVae
 from disent.frameworks.vae._unsupervised__infovae import InfoVae
 from disent.frameworks.vae._unsupervised__vae import Vae
+from disent.frameworks.vae._unsupervised__dotvae import DataOverlapTripletVae
 
 # weakly supervised frameworks
 from disent.frameworks.vae._weaklysupervised__adavae import AdaVae

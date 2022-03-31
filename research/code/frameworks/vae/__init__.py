@@ -24,7 +24,6 @@
 
 # supervised frameworks
 from research.code.frameworks.vae._supervised__adaave_tvae import AdaAveTripletVae
-from research.code.frameworks.vae._supervised__adaneg_tvae import AdaNegTripletVae
 from research.code.frameworks.vae._supervised__adatvae import AdaTripletVae
 from research.code.frameworks.vae._supervised__badavae import BoundedAdaVae
 from research.code.frameworks.vae._supervised__gadavae import GuidedAdaVae
@@ -33,7 +32,6 @@ from research.code.frameworks.vae._supervised__tgadavae import TripletGuidedAdaV
 
 # unsupervised frameworks
 from research.code.frameworks.vae._unsupervised__dorvae import DataOverlapRankVae
-from research.code.frameworks.vae._unsupervised__dotvae import DataOverlapTripletVae
 
 # weakly supervised frameworks
 from research.code.frameworks.vae._weaklysupervised__augpostriplet import AugPosTripletVae
