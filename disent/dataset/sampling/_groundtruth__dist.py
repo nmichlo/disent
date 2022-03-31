@@ -178,7 +178,6 @@ if __name__ == '__main__':
         from disent.dataset.data import DSpritesData
         from disent.dataset.data import SmallNorb64Data
         from disent.util.seeds import TempNumpySeed
-        from research.code.dataset.data import XYSquaresMinimalData  # pragma: delete-on-release
         from tqdm import tqdm
 
         repeats = 1000
@@ -206,7 +205,6 @@ if __name__ == '__main__':
                 Shapes3dData,
                 DSpritesData,
                 SmallNorb64Data,
-                XYSquaresMinimalData,  # pragma: delete-on-release
                 XYObjectData,
                 XYObjectShadedData,
             ]:
