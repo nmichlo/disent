@@ -26,10 +26,10 @@ import logging
 import os
 import os.path
 
-import hydra
 import pytest
 
 import experiment.run as experiment_run
+from experiment.util.hydra_main import hydra_main
 from tests.util import temp_environ
 from tests.util import temp_sys_args
 
@@ -56,21 +56,18 @@ def test_experiment_run(env, args):
     # show full errors in hydra
     os.environ['HYDRA_FULL_ERROR'] = '1'
 
-    logging.basicConfig(level=logging.DEBUG)
-
-    # Patch Hydra and OmegaConf:
-    # 1. sets the default search path to `experiment/config`
-    # 2. add to the search path with the `DISENT_CONFIGS_PREPEND` and `DISENT_CONFIGS_APPEND` environment variables
-    #    NOTE: --config-dir has lower priority than all these, --config-path has higher priority.
-    # 3. enable the ${exit:<msg>} resolver for omegaconf/hydra
-    experiment_run.patch_hydra()
-
     # temporarily set the environment and the arguments
     with temp_environ(env), temp_sys_args([experiment_run.__file__, *args]):
-        # TODO: why does this not work when config_path is absolute?
-        #      ie. config_path=os.path.join(os.path.dirname(experiment_run.__file__), 'config')
-        hydra_main = hydra.main(config_path=None, config_name='config_test')(experiment_run.run_action)
-        hydra_main()
+        # run the hydra experiment
+        # 1. sets the default search path to `experiment/config`
+        # 2. add to the search path with the `DISENT_CONFIGS_PREPEND` and `DISENT_CONFIGS_APPEND` environment variables
+        # 3. enable the ${exit:<msg>} and various other resolvers for omegaconf/hydra
+        hydra_main(
+            callback=experiment_run.run_action,
+            config_name='config_test',
+            log_level=logging.DEBUG,
+        )
+
 
 
 # ========================================================================= #

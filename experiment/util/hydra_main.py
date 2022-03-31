@@ -175,6 +175,17 @@ def register_hydra_resolvers():
 # ========================================================================= #
 
 
+def patch_hydra(
+    # config search path
+    search_dir_main: str = EXP_CONFIG_DIR,
+    search_dirs_prepend: Optional[List[str]] = None,
+    search_dirs_append: Optional[List[str]] = None,
+):
+    # Patch Hydra and OmegaConf:
+    register_searchpath_plugin(search_dir_main=search_dir_main, search_dirs_prepend=search_dirs_prepend, search_dirs_append=search_dirs_append)
+    register_hydra_resolvers()
+
+
 def hydra_main(
     callback: Callable[[DictConfig], NoReturn],
     config_name: str = 'config',
@@ -192,8 +203,7 @@ def hydra_main(
         logging.basicConfig(level=log_level)
 
     # Patch Hydra and OmegaConf:
-    register_searchpath_plugin(search_dir_main=search_dir_main, search_dirs_prepend=search_dirs_prepend, search_dirs_append=search_dirs_append)
-    register_hydra_resolvers()
+    patch_hydra(search_dir_main=search_dir_main, search_dirs_prepend=search_dirs_prepend, search_dirs_append=search_dirs_append)
 
     @hydra.main(config_path=None, config_name=config_name)
     def _hydra_main(cfg: DictConfig):
