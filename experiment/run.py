@@ -26,7 +26,10 @@ import logging
 import os
 from datetime import datetime
 from typing import Callable
+from typing import List
+from typing import NoReturn
 from typing import Optional
+from typing import Union
 
 import hydra
 import pytorch_lightning as pl
@@ -48,6 +51,7 @@ from disent.util.strings import colors as c
 from disent.util.strings.fmt import make_box_str
 
 from experiment.util.hydra_data import HydraDataModule
+from experiment.util.hydra_main import EXP_CONFIG_DIR
 from experiment.util.hydra_main import hydra_main
 from experiment.util.run_utils import safe_unset_debug_logger
 from experiment.util.run_utils import safe_unset_debug_trainer
@@ -380,13 +384,37 @@ def run_action(cfg: DictConfig):
 # ========================================================================= #
 
 
-if __name__ == '__main__':
-    # launch the action
+def hydra_experiment(
+    callback: Callable[[DictConfig], NoReturn] = run_action,
+    config_name: str = 'config',
+    # config search path
+    search_dir_main: str = EXP_CONFIG_DIR,
+    search_dirs_prepend: Optional[Union[str, List[str]]] = None,
+    search_dirs_append:  Optional[Union[str, List[str]]] = None,
+    # logging
+    log_level: Optional[int] = logging.INFO,
+    log_exc_info_callback: bool = True,
+    log_exc_info_hydra: bool = False,
+):
+    """
+    Same as `hydra_main`, but with defaults to use
+    with this experiment directory!
+    """
     hydra_main(
-        callback=run_action,
-        config_name='config',
-        log_level=logging.INFO,
+        callback=callback,
+        config_name=config_name,
+        search_dir_main=search_dir_main,
+        search_dirs_prepend=search_dirs_prepend,
+        search_dirs_append=search_dirs_append,
+        log_level=log_level,
+        log_exc_info_callback=log_exc_info_callback,
+        log_exc_info_hydra=log_exc_info_hydra,
     )
+
+
+# launch the action
+if __name__ == '__main__':
+    hydra_experiment()
 
 
 # ========================================================================= #
