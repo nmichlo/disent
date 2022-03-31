@@ -36,6 +36,16 @@
     </p>
 </p>
 
+<p align="center">
+    ────────────────
+    <br/>
+    <i><b> NOTE:</b> My MSc. research has moved <a href="https://github.com/nmichlo/msc-research">here</a></i>
+    <br/>
+    <i>Some of the contributions have been incorporated directly into disent</i>
+    <br/>
+    ────────────────
+</p>
+
 ----------------------
 
 ## Table Of Contents
