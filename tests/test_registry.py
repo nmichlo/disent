@@ -22,8 +22,8 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-
-from disent.registry import REGISTRIES
+import pytest
+import disent.registry as R
 
 
 # ========================================================================= #
@@ -32,31 +32,28 @@ from disent.registry import REGISTRIES
 
 
 COUNTS = {
-    'DATASETS': 6,
+    'DATASETS': 10,
     'SAMPLERS': 8,
     'FRAMEWORKS': 10,
-    'RECON_LOSSES': 6,
-    'LATENT_DISTS': 2,
+    'RECON_LOSSES': 9,
+    'LATENT_HANDLERS': 2,
     'OPTIMIZERS': 30,
     'METRICS': 5,
     'SCHEDULES': 5,
     'MODELS': 8,
+    'KERNELS': 2,
 }
 
 
 
-
-def test_registry_loading():
+@pytest.mark.parametrize('registry_key', COUNTS.keys())
+def test_registry_loading(registry_key):
     # load everything and check the counts
-    total = 0
-    for registry in REGISTRIES:
-        count = 0
-        for name in REGISTRIES[registry]:
-            loaded = REGISTRIES[registry][name]
-            count += 1
-            total += 1
-        assert COUNTS[registry] == count, f'invalid count for: {registry}'
-    assert total == sum(COUNTS.values()), f'invalid total'
+    count = 0
+    for example in R.REGISTRIES[registry_key]:
+        loaded = R.REGISTRIES[registry_key][example]
+        count += 1
+    assert count == COUNTS[registry_key], f'invalid count for: {registry_key}'
 
 
 # ========================================================================= #

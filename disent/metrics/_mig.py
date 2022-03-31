@@ -32,6 +32,7 @@ import numpy as np
 
 from disent.dataset import DisentDataset
 from disent.metrics import utils
+from disent.metrics.utils import make_metric
 
 
 log = logging.getLogger(__name__)
@@ -42,6 +43,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
+@make_metric('mig', fast_kwargs=dict(num_train=2000))
 def metric_mig(
         dataset: DisentDataset,
         representation_function,
@@ -76,5 +78,5 @@ def _compute_mig(mus_train, ys_train):
     entropy = utils.discrete_entropy(ys_train)
     sorted_m = np.sort(m, axis=0)[::-1]
     return {
-        "mig.discrete_score": np.mean(np.divide(sorted_m[0, :] - sorted_m[1, :], entropy[:]))
+        "mig.discrete_score": np.mean(np.divide(sorted_m[0, :] - sorted_m[1, :], entropy[:]))  # "modularity: MIG" -- Measuring Disentanglement: A Review of Metrics
     }

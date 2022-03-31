@@ -22,10 +22,13 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+from typing import Optional
+
 import numpy as np
 from disent.dataset.data import GroundTruthData
 from disent.dataset.sampling._base import BaseDisentSampler
 from disent.dataset.sampling._groundtruth__triplet import normalise_range_pair, FactorSizeError
+from disent.dataset.util.state_space import StateSpace
 from disent.util.math.random import sample_radius
 
 
@@ -60,15 +63,15 @@ class GroundTruthPairSampler(BaseDisentSampler):
         self.p_k_range = p_k_range
         self.p_radius_range = p_radius_range
         # dataset variable
-        self._data: GroundTruthData
+        self._state_space: Optional[StateSpace]
 
     def _init(self, dataset):
         assert isinstance(dataset, GroundTruthData), f'dataset must be an instance of {repr(GroundTruthData.__class__.__name__)}, got: {repr(dataset)}'
-        self._data = dataset
+        self._state_space = dataset.state_space_copy()
         # DIFFERING FACTORS
-        self.p_k_min, self.p_k_max = self._min_max_from_range(p_range=self.p_k_range, max_values=self._data.num_factors)
+        self.p_k_min, self.p_k_max = self._min_max_from_range(p_range=self.p_k_range, max_values=self._state_space.num_factors)
         # RADIUS SAMPLING
-        self.p_radius_min, self.p_radius_max = self._min_max_from_range(p_range=self.p_radius_range, max_values=self._data.factor_sizes)
+        self.p_radius_min, self.p_radius_max = self._min_max_from_range(p_range=self.p_radius_range, max_values=self._state_space.factor_sizes)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # CORE                                                                  #
@@ -77,8 +80,8 @@ class GroundTruthPairSampler(BaseDisentSampler):
     def _sample_idx(self, idx):
         f0, f1 = self.datapoint_sample_factors_pair(idx)
         return (
-            self._data.pos_to_idx(f0),
-            self._data.pos_to_idx(f1),
+            self._state_space.pos_to_idx(f0),
+            self._state_space.pos_to_idx(f1),
         )
 
     def datapoint_sample_factors_pair(self, idx):
@@ -102,7 +105,7 @@ class GroundTruthPairSampler(BaseDisentSampler):
         p_k = self._sample_num_factors()
         p_shared_indices = self._sample_shared_indices(p_k)
         # SAMPLE FACTORS - sample, resample and replace shared factors with originals
-        anchor_factors = self._data.idx_to_pos(idx)
+        anchor_factors = self._state_space.idx_to_pos(idx)
         positive_factors = self._resample_factors(anchor_factors)
         positive_factors[p_shared_indices] = anchor_factors[p_shared_indices]
         return anchor_factors, positive_factors
@@ -125,11 +128,11 @@ class GroundTruthPairSampler(BaseDisentSampler):
         return p_k
 
     def _sample_shared_indices(self, p_k):
-        p_shared_indices = np.random.choice(self._data.num_factors, size=self._data.num_factors-p_k, replace=False)
+        p_shared_indices = np.random.choice(self._state_space.num_factors, size=self._state_space.num_factors-p_k, replace=False)
         return p_shared_indices
 
     def _resample_factors(self, anchor_factors):
-        positive_factors = sample_radius(anchor_factors, low=0, high=self._data.factor_sizes, r_low=self.p_radius_min, r_high=self.p_radius_max + 1)
+        positive_factors = sample_radius(anchor_factors, low=0, high=self._state_space.factor_sizes, r_low=self.p_radius_min, r_high=self.p_radius_max + 1)
         return positive_factors
 
 

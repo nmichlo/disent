@@ -33,6 +33,7 @@ from disent.dataset.data._groundtruth import Hdf5GroundTruthData
 # ========================================================================= #
 
 
+# TODO: this seems to have a memory leak compared to other datasets?
 class DSpritesData(Hdf5GroundTruthData):
     """
     DSprites Dataset

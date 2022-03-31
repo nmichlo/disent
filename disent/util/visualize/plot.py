@@ -45,6 +45,20 @@ log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
+# vars                                                                      #
+# ========================================================================= #
+
+
+_TORCH_NORMAL_TYPES = {torch.float16, torch.float32, torch.float64}
+
+# torch.complex32 exists in 1.10, but was disabled in 1.11, and planned to be added in 1.12 again
+if torch.version.__version__.startswith('1.11.'):
+    _TORCH_COMPLEX_TYPES = {torch.complex64}
+else:
+    _TORCH_COMPLEX_TYPES = {torch.complex32, torch.complex64}
+
+
+# ========================================================================= #
 # images                                                                    #
 # ========================================================================= #
 
@@ -59,11 +73,11 @@ def to_img(x: torch.Tensor, scale=False, to_cpu=True, move_channels=True) -> tor
 def to_imgs(x: torch.Tensor, scale=False, to_cpu=True, move_channels=True) -> torch.Tensor:
     # (..., C, H, W)
     assert x.ndim >= 3, 'image must have 3 or more dimensions: (..., C, H, W)'
-    assert x.dtype in {torch.float16, torch.float32, torch.float64, torch.complex32, torch.complex64}, f'unsupported dtype: {x.dtype}'
+    assert (x.dtype in _TORCH_NORMAL_TYPES) or (x.dtype in _TORCH_COMPLEX_TYPES), f'unsupported dtype: {x.dtype}'
     # no gradient
     with torch.no_grad():
         # imaginary to real
-        if x.dtype in {torch.complex32, torch.complex64}:
+        if x.dtype in _TORCH_COMPLEX_TYPES:
             x = torch.abs(x)
         # scale images
         if scale:
@@ -310,11 +324,10 @@ def visualize_dataset_traversal(
     # TODO: this is kinda hacky, maybe rather add a check?
     # TODO: can this be moved into the `output_wandb` if statement?
     # - animations glitch out if they do not have 3 channels
+    assert grid.ndim == 5, f'invalid number of dimensions, must be 5, got: {grid.ndim}'
     if grid.shape[-1] == 1:
         grid = grid.repeat(3, axis=-1)
-
-    assert grid.ndim == 5
-    assert grid.shape[-1] in (1, 3)
+    assert grid.shape[-1] in (1, 3), f'invalid number of channels, must be 1 or 3, got shape: {grid.shape}. Note that the dataset or augment if specified should output HWC images, not CHW images!'
 
     # generate visuals
     image = make_image_grid(np.concatenate(grid, axis=0), pad=pad, border=border, bg_color=bg_color, num_cols=num_frames)

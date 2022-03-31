@@ -6,13 +6,14 @@ defaults:
 
 trainer:
   log_every_n_steps: 50
-  flush_logs_every_n_steps: 100
-  progress_bar_refresh_rate: 0  # disable the builtin progress bar
+  enable_progress_bar: FALSE  # disable the builtin progress bar
 
 callbacks:
   progress:
+    _target_: disent.util.lightning.callbacks.LoggerProgressCallback
     interval: 5
 
 logging:
   wandb:
     enabled: FALSE
+  logger: NULL

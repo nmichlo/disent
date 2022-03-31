@@ -2,26 +2,21 @@
 
 dsettings:
   trainer:
-    cuda: NULL  # auto-detect cuda, some nodes may be configured incorrectly
+    cuda: TRUE  # `TRUE` forces cuda to be used. The job fails if cuda is not available!
   storage:
     logs_dir: 'logs'
     data_root: '/tmp/${oc.env:USER}/datasets'
   dataset:
-    gpu_augment: FALSE
     prepare: TRUE
     try_in_memory: TRUE
-  launcher:
-    partition: batch
-    array_parallelism: 16
-    exclude: "mscluster93,mscluster94,mscluster97,mscluster99"
 
-trainer:
+datamodule:
+  gpu_augment: FALSE
   prepare_data_per_node: TRUE
-
-dataloader:
-  num_workers: 8
-  pin_memory: ${dsettings.trainer.cuda}
-  batch_size: ${settings.dataset.batch_size}
+  dataloader:
+    num_workers: 8
+    pin_memory: ${dsettings.trainer.cuda}  # uses more memory, but faster!
+    batch_size: ${settings.dataset.batch_size}
 
 hydra:
   job:

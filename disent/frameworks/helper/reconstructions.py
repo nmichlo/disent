@@ -22,23 +22,21 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-import re
 import warnings
 from typing import final
-from typing import List
 from typing import Sequence
-from typing import Tuple
 from typing import Union
 
 import torch
 import torch.nn.functional as F
 
-from disent import registry
+import disent.registry as R
+from disent.dataset.transform import FftKernel
 from disent.frameworks.helper.util import compute_ave_loss
 from disent.nn.loss.reduction import batch_loss_reduction
 from disent.nn.loss.reduction import loss_reduction
 from disent.nn.modules import DisentModule
-from disent.dataset.transform import FftKernel
+from disent.util.deprecate import deprecated
 
 
 # ========================================================================= #
@@ -239,17 +237,30 @@ class ReconLossHandlerNormal(ReconLossHandlerMse):
 # ========================================================================= #
 
 
+_NO_ARG = object()
+
+
 class AugmentedReconLossHandler(ReconLossHandler):
 
-    def __init__(self, recon_loss_handler: ReconLossHandler, kernel: Union[str, torch.Tensor], wrap_weight=1.0, aug_weight=1.0):
+    def __init__(
+        self,
+        recon_loss_handler: ReconLossHandler,
+        kernel: Union[str, torch.Tensor],
+        wrap_weight: float = 1.0,
+        aug_weight: float = 1.0,
+        normalize_mode: str = _NO_ARG
+    ):
         super().__init__(reduction=recon_loss_handler._reduction)
         # save variables
         self._recon_loss_handler = recon_loss_handler
         # must be a recon loss handler, but cannot nest augmented handlers
         assert isinstance(recon_loss_handler, ReconLossHandler)
         assert not isinstance(recon_loss_handler, AugmentedReconLossHandler)
+        # deprecation error
+        if normalize_mode is _NO_ARG:
+            raise ValueError(f'default argument for normalize_mode was "sum", this has been deprecated and will change to "none" in future. Please manually override this value!')
         # load the kernel
-        self._kernel = FftKernel(kernel=kernel, normalize=True)
+        self._kernel = FftKernel(kernel=kernel, normalize_mode=normalize_mode)
         # kernel weighting
         assert 0 <= wrap_weight, f'loss_weight must be in the range [0, inf) but received: {repr(wrap_weight)}'
         assert 0 <= aug_weight, f'kern_weight must be in the range [0, inf) but received: {repr(aug_weight)}'
@@ -273,30 +284,31 @@ class AugmentedReconLossHandler(ReconLossHandler):
 
 # ========================================================================= #
 # Registry & Factory                                                        #
+# TODO: add ability to register parameterized reconstruction losses
 # ========================================================================= #
 
 
-# TODO: add ability to register parameterized reconstruction losses
-_ARG_RECON_LOSSES: List[Tuple[re.Pattern, str, callable]] = [
-    # (REGEX, EXAMPLE, FACTORY_FUNC)
-    # - factory function takes at min one arg: fn(reduction) with one arg after that per regex capture group
-    # - regex expressions are tested in order, expressions should be mutually exclusive or ordered such that more specialized versions occur first.
-]
+def _make_aug_recon_loss_l_w_n(loss: str, kern: str, loss_weight: str, kernel_weight: str, normalize_mode: str):
+    def _loss(reduction: str):
+        return AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=float(loss_weight), aug_weight=float(kernel_weight), normalize_mode=normalize_mode)
+    return _loss
+
+
+def _make_aug_recon_loss_l1_w1_n(loss: str, kern: str, normalize_mode: str):
+    def _loss(reduction: str):
+        return AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=1.0, aug_weight=1.0, normalize_mode=normalize_mode)
+    return _loss
+
+
+def _make_aug_recon_loss_l1_w1_nnone(loss: str, kern: str):
+    def _loss(reduction: str):
+        return AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=1.0, aug_weight=1.0, normalize_mode='none')
+    return _loss
 
 
 # NOTE: this function compliments make_kernel in transform/_augment.py
 def make_reconstruction_loss(name: str, reduction: str) -> ReconLossHandler:
-    if name in registry.RECON_LOSSES:
-        # search normal losses!
-        return registry.RECON_LOSSES[name](reduction)
-    else:
-        # regex search losses, and call with args!
-        for r, _, fn in _ARG_RECON_LOSSES:
-            result = r.search(name)
-            if result is not None:
-                return fn(reduction, *result.groups())
-    # we couldn't find anything
-    raise KeyError(f'Invalid vae reconstruction loss: {repr(name)} Valid losses include: {sorted(registry.RECON_LOSSES)}, examples of additional argument based losses include: {[example for _, example, _ in _ARG_RECON_LOSSES]}')
+    return R.RECON_LOSSES[name](reduction=reduction)
 
 
 # ========================================================================= #

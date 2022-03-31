@@ -27,6 +27,7 @@ from abc import ABCMeta
 from typing import Callable
 from typing import Dict
 from typing import final
+from typing import NoReturn
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
@@ -95,7 +96,7 @@ class DataFileHashed(DataFile, metaclass=ABCMeta):
             self._prepare(out_dir=out_dir, out_file=out_file)
         return wrapped()
 
-    def _prepare(self, out_dir: str, out_file: str) -> str:
+    def _prepare(self, out_dir: str, out_file: str) -> NoReturn:
         # TODO: maybe raise a FileNotFoundError or a HashError instead?
         raise NotImplementedError
 

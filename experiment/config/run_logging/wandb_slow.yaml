@@ -6,19 +6,26 @@ defaults:
 
 trainer:
   log_every_n_steps: 200
-  flush_logs_every_n_steps: 400
-  progress_bar_refresh_rate: 0  # disable the builtin progress bar
+  enable_progress_bar: FALSE  # disable the builtin progress bar
 
 callbacks:
   progress:
+    _target_: disent.util.lightning.callbacks.LoggerProgressCallback
     interval: 30
 
 logging:
   wandb:
     enabled: TRUE
+  logger:
+    _target_: pytorch_lightning.loggers.WandbLogger
     offline: FALSE
-    entity: '${settings.job.user}'
-    project: '${settings.job.project}'
-    name: '${settings.job.name}'
-    group: null
+    entity: ${settings.job.user}
+    project: ${settings.job.project}
+    name: ${settings.job.name}
+    group: NULL
     tags: []
+    save_dir: ${abspath:${dsettings.storage.logs_dir}}  # relative to hydra's original cwd
+    # https://docs.wandb.ai/guides/track/launch#init-start-error
+    settings:
+      _target_: wandb.Settings
+      start_method: "fork"  # fork: linux/macos, thread: google colab

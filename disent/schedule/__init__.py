@@ -30,7 +30,10 @@ from ._schedule import CosineWaveSchedule
 from ._schedule import CyclicSchedule
 from ._schedule import LinearSchedule
 from ._schedule import NoopSchedule
+from ._schedule import MultiplySchedule
+from ._schedule import FixedValueSchedule
 from ._schedule import SingleSchedule
+
 
 # aliases
 from ._schedule import ClipSchedule as Clip
@@ -38,4 +41,6 @@ from ._schedule import CosineWaveSchedule as CosineWave
 from ._schedule import CyclicSchedule as Cyclic
 from ._schedule import LinearSchedule as Linear
 from ._schedule import NoopSchedule as Noop
+from ._schedule import MultiplySchedule as Multiply
+from ._schedule import FixedValueSchedule as FixedValue
 from ._schedule import SingleSchedule as Single

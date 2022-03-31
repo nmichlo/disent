@@ -1,4 +1,5 @@
 defaults:
+  - _self_  # defaults lists override entries from this file!
   # data
   - sampling: default__bb
   - dataset: xyobject
@@ -18,8 +19,8 @@ defaults:
   - run_location: local
   - run_launcher: local
   - run_action: train
-  # entries in this file override entries from default lists
-  - _self_
+  # experiment
+  - run_plugins: default
 
 settings:
   job:
@@ -27,21 +28,20 @@ settings:
     project: 'DELETE'
     name: '${framework.name}:${settings.framework.recon_loss}|${dataset.name}:${sampling.name}|${trainer.max_steps}'
     seed: NULL
-
   framework:
     beta: 0.0316
     recon_loss: mse
-    loss_reduction: mean         # TODO: this should be renamed to `loss_mode="scaled"` or `enable_loss_scaling=True"` or `enable_beta_scaling`
-
+    loss_reduction: mean  # beta scaling
   framework_opt:
     latent_distribution: normal  # only used by VAEs
-
   model:
     z_size: 25
     weight_init: 'xavier_normal'  # xavier_normal, default
-
   dataset:
     batch_size: 256
-
   optimizer:
     lr: 1e-3
+# TODO: https://pytorch-lightning.readthedocs.io/en/stable/common/weights_loading.html
+#  checkpoint:
+#    load_checkpoint: NULL   # NULL or string
+#    save_checkpoint: FALSE  # boolean, save at end of run -- more advanced checkpointing can be done with a callback!

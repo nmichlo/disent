@@ -22,6 +22,7 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import pickle
 from dataclasses import asdict
 from functools import partial
 
@@ -47,7 +48,7 @@ from disent.dataset.transform import ToImgTensorF32
 # ========================================================================= #
 
 
-@pytest.mark.parametrize(['Framework', 'cfg_kwargs', 'Data'], [
+_TEST_FRAMEWORKS = [
     # AE - unsupervised
     (Ae,                   dict(),                                                                      XYObjectData),
     # AE - weakly supervised
@@ -69,8 +70,11 @@ from disent.dataset.transform import ToImgTensorF32
     (AdaGVaeMinimal,       dict(),                                                                      XYObjectData),
     # VAE - supervised
     (TripletVae,           dict(),                                                                      XYObjectData),
-    (TripletVae,           dict(disable_decoder=True, disable_reg_loss=True, disable_posterior_scale=0.5), XYObjectData),
-])
+    (TripletVae,           dict(detach_decoder=True, disable_reg_loss=True),                            XYObjectData),
+]
+
+
+@pytest.mark.parametrize(['Framework', 'cfg_kwargs', 'Data'], _TEST_FRAMEWORKS)
 def test_frameworks(Framework, cfg_kwargs, Data):
     DataSampler = {
         1: GroundTruthSingleSampler,
@@ -90,8 +94,28 @@ def test_frameworks(Framework, cfg_kwargs, Data):
         cfg=Framework.cfg(**cfg_kwargs)
     )
 
+    # test pickling before training
+    pickle.dumps(framework)
+
+    # train!
     trainer = pl.Trainer(logger=False, checkpoint_callback=False, max_steps=256, fast_dev_run=True)
     trainer.fit(framework, dataloader)
+
+    # test pickling after training, something may have changed!
+    pickle.dumps(framework)
+
+
+@pytest.mark.parametrize(['Framework', 'cfg_kwargs', 'Data'], _TEST_FRAMEWORKS)
+def test_framework_pickling(Framework, cfg_kwargs, Data):
+    framework = Framework(
+        model=AutoEncoder(
+            encoder=EncoderLinear(x_shape=(64, 64, 3), z_size=6, z_multiplier=2 if issubclass(Framework, Vae) else 1),
+            decoder=DecoderLinear(x_shape=(64, 64, 3), z_size=6),
+        ),
+        cfg=Framework.cfg(**cfg_kwargs)
+    )
+    # test pickling!
+    pickle.dumps(framework)
 
 
 def test_framework_config_defaults():
@@ -102,8 +126,7 @@ def test_framework_config_defaults():
         optimizer_kwargs=None,
         recon_loss='mse',
         disable_aug_loss=False,
-        disable_decoder=False,
-        disable_posterior_scale=None,
+        detach_decoder=False,
         disable_rec_loss=False,
         disable_reg_loss=False,
         loss_reduction='mean',
@@ -116,8 +139,7 @@ def test_framework_config_defaults():
         optimizer_kwargs=None,
         recon_loss='bce',
         disable_aug_loss=False,
-        disable_decoder=False,
-        disable_posterior_scale=None,
+        detach_decoder=False,
         disable_rec_loss=False,
         disable_reg_loss=False,
         loss_reduction='mean',

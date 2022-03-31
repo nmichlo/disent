@@ -22,9 +22,12 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+from typing import Optional
+
 import numpy as np
 from disent.dataset.data import GroundTruthData
 from disent.dataset.sampling._base import BaseDisentSampler
+from disent.dataset.util.state_space import StateSpace
 
 
 class GroundTruthPairOrigSampler(BaseDisentSampler):
@@ -47,11 +50,11 @@ class GroundTruthPairOrigSampler(BaseDisentSampler):
         # DIFFERING FACTORS
         self.p_k = p_k
         # dataset variable
-        self._data: GroundTruthData
+        self._state_space: Optional[StateSpace] = None
 
     def _init(self, dataset):
         assert isinstance(dataset, GroundTruthData), f'dataset must be an instance of {repr(GroundTruthData.__class__.__name__)}, got: {repr(dataset)}'
-        self._data = dataset
+        self._state_space = dataset.state_space_copy()
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # CORE                                                                  #
@@ -60,8 +63,8 @@ class GroundTruthPairOrigSampler(BaseDisentSampler):
     def _sample_idx(self, idx):
         f0, f1 = self.datapoint_sample_factors_pair(idx)
         return (
-            self._data.pos_to_idx(f0),
-            self._data.pos_to_idx(f1),
+            self._state_space.pos_to_idx(f0),
+            self._state_space.pos_to_idx(f1),
         )
 
     def datapoint_sample_factors_pair(self, idx):
@@ -70,14 +73,14 @@ class GroundTruthPairOrigSampler(BaseDisentSampler):
         Except deterministic for the first item in the pair, based off of idx.
         """
         # randomly sample the first observation -- In our case we just use the idx
-        sampled_factors = self._data.idx_to_pos(idx)
+        sampled_factors = self._state_space.idx_to_pos(idx)
         # sample the next observation with k differing factors
-        next_factors, k = _sample_k_differing(sampled_factors, self._data, k=self.p_k)
+        next_factors, k = _sample_k_differing(sampled_factors, self._state_space, k=self.p_k)
         # return the samples
         return sampled_factors, next_factors
 
 
-def _sample_k_differing(factors, ground_truth_data: GroundTruthData, k=1):
+def _sample_k_differing(factors, state_space: StateSpace, k=1):
     """
     Resample the factors used for the corresponding item in a pair.
       - Based on simple_dynamics() from:
@@ -88,7 +91,7 @@ def _sample_k_differing(factors, ground_truth_data: GroundTruthData, k=1):
     assert factors.ndim == 1
     # sample k
     if k <= 0:
-        k = np.random.randint(1, ground_truth_data.num_factors)
+        k = np.random.randint(1, state_space.num_factors)
     # randomly choose 1 or k
     # TODO: This is in disentanglement lib, HOWEVER is this not a mistake?
     #       A bug report has been submitted to disentanglement_lib for clarity:
@@ -98,20 +101,20 @@ def _sample_k_differing(factors, ground_truth_data: GroundTruthData, k=1):
     index_list = np.random.choice(len(factors), k, replace=False)
     # randomly update factors
     for index in index_list:
-        factors[index] = np.random.choice(ground_truth_data.factor_sizes[index])
+        factors[index] = np.random.choice(state_space.factor_sizes[index])
     # return!
     return factors, k
 
 
-def _sample_weak_pair_factors(gt_data: GroundTruthData):  # pragma: no cover
+def _sample_weak_pair_factors(state_space: StateSpace):  # pragma: no cover
     """
     Sample a weakly supervised pair from the given GroundTruthData.
       - Based on weak_dataset_generator() from:
         https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/weak/train_weak_lib.py
     """
     # randomly sample the first observation
-    sampled_factors = gt_data.sample_factors(1)
+    sampled_factors = state_space.sample_factors(1)
     # sample the next observation with k differing factors
-    next_factors, k = _sample_k_differing(sampled_factors, gt_data, k=1)
+    next_factors, k = _sample_k_differing(sampled_factors, state_space, k=1)
     # return the samples
     return sampled_factors, next_factors

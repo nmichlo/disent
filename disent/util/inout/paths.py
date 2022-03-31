@@ -42,10 +42,33 @@ def modify_file_name(file: Union[str, Path], prefix: str = None, suffix: str = N
     path = Path(file)
     assert path.name, f'file name cannot be empty: {repr(path)}, for name: {repr(path.name)}'
     # create new path
-    prefix = '' if (prefix is None) else f'{prefix}{sep}'
-    suffix = '' if (suffix is None) else f'{sep}{suffix}'
+    prefix = '' if (not prefix) else f'{prefix}{sep}'
+    suffix = '' if (not suffix) else f'{sep}{suffix}'
     new_path = path.parent.joinpath(f'{prefix}{path.name}{suffix}')
-    # return path
+    # return path with same format as input
+    return str(new_path) if isinstance(file, str) else new_path
+
+
+def modify_name_keep_ext(file: Union[str, Path], prefix: str = None, suffix: str = None, name_contains_sep: bool = False):
+    # get path components
+    path = Path(file)
+    name = path.name
+    assert name, f'file name cannot be empty: {repr(path)}, for name: {repr(name)}'
+    # handle suffix
+    if suffix:
+        components = name.rsplit('.', 1) if name_contains_sep else path.name.split('.', 1)
+        if len(components) >= 2:
+            [name, ext] = components
+            name = f'{name}{suffix}.{ext}'
+        else:
+            [name] = components
+            name = f'{name}{suffix}'
+    # handle prefix
+    if prefix:
+        name = f'{prefix}{name}'
+    # create new path
+    new_path = path.parent.joinpath(name)
+    # return path with same format as input
     return str(new_path) if isinstance(file, str) else new_path
 
 

@@ -21,10 +21,13 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
 import contextlib
 import os
 import sys
 from contextlib import contextmanager
+from typing import Any
+from typing import Dict
 
 
 # ========================================================================= #
@@ -58,10 +61,33 @@ def temp_wd(new_wd):
 
 @contextlib.contextmanager
 def temp_sys_args(new_argv):
+    # TODO: should this copy values?
     old_argv = sys.argv
     sys.argv = new_argv
     yield
     sys.argv = old_argv
+
+
+@contextmanager
+def temp_environ(environment: Dict[str, Any]):
+    # TODO: should this copy values? -- could use unittest.mock.patch.dict(...)
+    # save the old environment
+    existing_env = {}
+    for k in environment:
+        if k in os.environ:
+            existing_env[k] = os.environ[k]
+    # update the environment
+    os.environ.update(environment)
+    # run the context
+    try:
+        yield
+    finally:
+        # restore the original environment
+        for k in environment:
+            if k in existing_env:
+                os.environ[k] = existing_env[k]
+            else:
+                del os.environ[k]
 
 
 # ========================================================================= #

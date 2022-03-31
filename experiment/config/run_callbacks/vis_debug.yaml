@@ -1,0 +1,22 @@
+# @package _global_
+
+callbacks:
+
+  latent_cycle:
+    _target_: disent.util.lightning.callbacks.VaeLatentCycleLoggingCallback
+    seed: 7777
+    every_n_steps: 600
+    begin_first_step: TRUE
+    mode: 'minmax_interval_cycle'  # 'minmax_interval_cycle', 'fitted_gaussian_cycle'
+    log_wandb: ${logging.wandb.enabled}
+    recon_mean: ${dataset.meta.vis_mean}
+    recon_std: ${dataset.meta.vis_std}
+
+  gt_dists:
+    _target_: disent.util.lightning.callbacks.VaeGtDistsLoggingCallback
+    seed: 7777
+    every_n_steps: 600
+    traversal_repeats: 50
+    begin_first_step: FALSE
+    log_wandb: ${logging.wandb.enabled}
+    batch_size: ${settings.dataset.batch_size}

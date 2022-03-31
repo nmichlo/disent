@@ -4,13 +4,12 @@ defaults:
 name: cars3d
 
 data:
-  _target_: disent.dataset.data.Cars3dData
+  _target_: disent.dataset.data.Cars3d64Data
   data_root: ${dsettings.storage.data_root}
   prepare: ${dsettings.dataset.prepare}
 
 transform:
   _target_: disent.dataset.transform.ToImgTensorF32
-  size: 64
   mean: ${dataset.meta.vis_mean}
   std: ${dataset.meta.vis_std}
 
