@@ -233,10 +233,12 @@ The disent module structure:
 - `disent.schedule`: annealing schedules that can be registered to a framework
 - `disent.util`: helper classes, functions, callbacks, anything unrelated to a pytorch system/model/framework.
 
-**Please Note The API Is Still Unstable ⚠️**
+**⚠️ The API Is _Mostly_ Stable ⚠️**
 
-Disent is still under active development. Features and APIs are mostly stable but may change! A limited
-set of tests currently exist which will be expanded upon in time.
+Disent is still under development. Features and APIs are subject to change!
+However, I will try and minimise the impact of these.
+
+A small suite of tests currently exist which will be expanded upon in time.
 
 **Hydra Experiment Directories**
 
@@ -396,7 +398,7 @@ visualisations of latent traversals.
 
 ### Why?
   
-- Created as part of my Computer Science MSc scheduled for completion in 2021.
+- Created as part of my Computer Science MSc which ended early 2022.
 - I needed custom high quality implementations of various VAE's.
 - A pytorch version of [disentanglement_lib](https://github.com/google-research/disentanglement_lib).
 - I didn't have time to wait for [Weakly-Supervised Disentanglement Without Compromises](https://arxiv.org/abs/2002.02886) to release
