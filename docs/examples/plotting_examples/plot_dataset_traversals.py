@@ -45,7 +45,7 @@ from disent.dataset.data import XYObjectData
 from disent.dataset.data import XYObjectShadedData
 from disent.util.seeds import TempNumpySeed
 
-from docs.examples.extend_configs.code.groundtruth__xyblocks import XYBlocksData
+from docs.examples.extend_experiment.code.groundtruth__xyblocks import XYBlocksData
 
 
 # ========================================================================= #

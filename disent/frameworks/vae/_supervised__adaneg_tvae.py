@@ -25,16 +25,16 @@
 import logging
 from dataclasses import dataclass
 from typing import Sequence
+from typing import Tuple
 
 import torch
+from torch.distributions import Distribution
 from torch.distributions import Normal
 
 from disent.nn.loss.triplet import configured_dist_triplet
 from disent.nn.loss.triplet import configured_triplet
 from disent.frameworks.vae._supervised__tvae import TripletVae
 from disent.frameworks.vae._weaklysupervised__adavae import AdaVae
-from research.code.frameworks.vae._supervised__adatvae import compute_triplet_shared_masks
-from research.code.frameworks.vae._supervised__adatvae import compute_triplet_shared_masks_from_zs
 
 
 log = logging.getLogger(__name__)
@@ -116,6 +116,74 @@ class AdaNegTripletVae(TripletVae):
             'triplet': trip_loss,
             'triplet_chosen': triplet_hard_neg_ave_scaled,
         }
+
+
+# ========================================================================= #
+# AveAda-TVAE                                                               #
+# ========================================================================= #
+
+
+@dataclass
+class AdaTripletVae_cfg(TripletVae.cfg, AdaVae.cfg):
+    # adavae
+    ada_thresh_mode: str = 'dist'  # only works for: adat_share_mask_mode == "posterior"
+    # ada_tvae - averaging
+    adat_share_mask_mode: str = 'posterior'
+
+
+def compute_triplet_shared_masks_from_zs(zs: Sequence[torch.Tensor], cfg):
+    """
+    required config params:
+    - cfg.ada_thresh_ratio:
+    """
+    a_z, p_z, n_z = zs
+    # shared elements that need to be averaged, computed per pair in the batch.
+    ap_share_mask = AdaVae.compute_shared_mask_from_zs(a_z, p_z, ratio=cfg.ada_thresh_ratio)
+    an_share_mask = AdaVae.compute_shared_mask_from_zs(a_z, n_z, ratio=cfg.ada_thresh_ratio)
+    pn_share_mask = AdaVae.compute_shared_mask_from_zs(p_z, n_z, ratio=cfg.ada_thresh_ratio)
+    # return values
+    share_masks = (ap_share_mask, an_share_mask, pn_share_mask)
+    return share_masks, {
+        'ap_shared': ap_share_mask.sum(dim=1).float().mean(),
+        'an_shared': an_share_mask.sum(dim=1).float().mean(),
+        'pn_shared': pn_share_mask.sum(dim=1).float().mean(),
+    }
+
+
+def compute_triplet_shared_masks(ds_posterior: Sequence[Distribution], cfg: AdaTripletVae_cfg):
+    """
+    required config params:
+    - cfg.ada_thresh_ratio:
+    - cfg.ada_thresh_mode: "kl", "symmetric_kl", "dist", "sampled_dist"
+      : only applies if cfg.ada_share_mask_mode=="posterior"
+    - cfg.adat_share_mask_mode: "posterior", "sample", "sample_each"
+    """
+    a_posterior, p_posterior, n_posterior = ds_posterior
+
+    # shared elements that need to be averaged, computed per pair in the batch.
+    if cfg.adat_share_mask_mode == 'posterior':
+        ap_share_mask = AdaVae.compute_shared_mask_from_posteriors(a_posterior, p_posterior, thresh_mode=cfg.ada_thresh_mode, ratio=cfg.ada_thresh_ratio)
+        an_share_mask = AdaVae.compute_shared_mask_from_posteriors(a_posterior, n_posterior, thresh_mode=cfg.ada_thresh_mode, ratio=cfg.ada_thresh_ratio)
+        pn_share_mask = AdaVae.compute_shared_mask_from_posteriors(p_posterior, n_posterior, thresh_mode=cfg.ada_thresh_mode, ratio=cfg.ada_thresh_ratio)
+    elif cfg.adat_share_mask_mode == 'sample':
+        a_z_sample, p_z_sample, n_z_sample = a_posterior.rsample(), p_posterior.rsample(), n_posterior.rsample()
+        ap_share_mask = AdaVae.compute_shared_mask_from_zs(a_z_sample, p_z_sample, ratio=cfg.ada_thresh_ratio)
+        an_share_mask = AdaVae.compute_shared_mask_from_zs(a_z_sample, n_z_sample, ratio=cfg.ada_thresh_ratio)
+        pn_share_mask = AdaVae.compute_shared_mask_from_zs(p_z_sample, n_z_sample, ratio=cfg.ada_thresh_ratio)
+    elif cfg.adat_share_mask_mode == 'sample_each':
+        ap_share_mask = AdaVae.compute_shared_mask_from_zs(a_posterior.rsample(), p_posterior.rsample(), ratio=cfg.ada_thresh_ratio)
+        an_share_mask = AdaVae.compute_shared_mask_from_zs(a_posterior.rsample(), n_posterior.rsample(), ratio=cfg.ada_thresh_ratio)
+        pn_share_mask = AdaVae.compute_shared_mask_from_zs(p_posterior.rsample(), n_posterior.rsample(), ratio=cfg.ada_thresh_ratio)
+    else:
+        raise KeyError(f'Invalid cfg.adat_share_mask_mode={repr(cfg.adat_share_mask_mode)}')
+
+    # return values
+    share_masks = (ap_share_mask, an_share_mask, pn_share_mask)
+    return share_masks, {
+        'ap_shared': ap_share_mask.sum(dim=1).float().mean(),
+        'an_shared': an_share_mask.sum(dim=1).float().mean(),
+        'pn_shared': pn_share_mask.sum(dim=1).float().mean(),
+    }
 
 
 # ========================================================================= #

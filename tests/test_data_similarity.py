@@ -26,8 +26,8 @@ import numpy as np
 
 from disent.dataset.data import XYObjectData
 from disent.dataset.data import XYObjectShadedData
-from disent.dataset.data import XYSquaresData         # pragma: delete-on-release
-from disent.dataset.data import XYSquaresMinimalData  # pragma: delete-on-release
+from disent.dataset.data import XYSquaresData
+from disent.dataset.data import XYSquaresMinimalData
 
 
 # ========================================================================= #
@@ -35,18 +35,18 @@ from disent.dataset.data import XYSquaresMinimalData  # pragma: delete-on-releas
 # ========================================================================= #
 
 
-def test_xysquares_similarity():                      # pragma: delete-on-release
-    data_org = XYSquaresData()                        # pragma: delete-on-release
-    data_min = XYSquaresMinimalData()                 # pragma: delete-on-release
-    # check lengths                                   # pragma: delete-on-release
-    assert len(data_org) == len(data_min)             # pragma: delete-on-release
-    n = len(data_min)                                 # pragma: delete-on-release
-    # check items                                     # pragma: delete-on-release
-    for i in np.random.randint(0, n, size=100):       # pragma: delete-on-release
-        assert np.allclose(data_org[i], data_min[i])  # pragma: delete-on-release
-    # check bounds                                    # pragma: delete-on-release
-    assert np.allclose(data_org[0], data_min[0])      # pragma: delete-on-release
-    assert np.allclose(data_org[n-1], data_min[n-1])  # pragma: delete-on-release
+def test_xysquares_similarity():
+    data_org = XYSquaresData()
+    data_min = XYSquaresMinimalData()
+    # check lengths
+    assert len(data_org) == len(data_min)
+    n = len(data_min)
+    # check items
+    for i in np.random.randint(0, n, size=100):
+        assert np.allclose(data_org[i], data_min[i])
+    # check bounds
+    assert np.allclose(data_org[0], data_min[0])
+    assert np.allclose(data_org[n-1], data_min[n-1])
 
 
 def test_xyobject_similarity():

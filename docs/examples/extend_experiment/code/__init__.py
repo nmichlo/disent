@@ -24,7 +24,7 @@
 
 import logging
 import disent.registry as R
-from docs.examples.extend_configs.code.random_data import RandomData
+from docs.examples.extend_experiment.code.random_data import RandomData
 
 log = logging.getLogger(__name__)
 

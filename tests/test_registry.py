@@ -44,25 +44,25 @@ COUNTS = {
     'KERNELS': 2,
 }
 
-COUNTS = {                 # pragma: delete-on-release
-    'DATASETS': 16,        # pragma: delete-on-release
-    'SAMPLERS': 8,         # pragma: delete-on-release
-    'FRAMEWORKS': 25,      # pragma: delete-on-release
-    'RECON_LOSSES': 9,     # pragma: delete-on-release
-    'LATENT_HANDLERS': 2,  # pragma: delete-on-release
-    'OPTIMIZERS': 30,      # pragma: delete-on-release
-    'METRICS': 9,          # pragma: delete-on-release
-    'SCHEDULES': 5,        # pragma: delete-on-release
-    'MODELS': 8,           # pragma: delete-on-release
-    'KERNELS': 18,         # pragma: delete-on-release
-}                          # pragma: delete-on-release
+COUNTS = {
+    'DATASETS': 17,
+    'SAMPLERS': 8,
+    'FRAMEWORKS': 17,
+    'RECON_LOSSES': 9,
+    'LATENT_HANDLERS': 2,
+    'OPTIMIZERS': 30,
+    'METRICS': 9,
+    'SCHEDULES': 5,
+    'MODELS': 8,
+    'KERNELS': 2,
+}
 
 
 @pytest.mark.parametrize('registry_key', COUNTS.keys())
 def test_registry_loading(registry_key):
-    from research.code import register_to_disent                  # pragma: delete-on-release
-    register_to_disent()                                          # pragma: delete-on-release
-    register_to_disent()  # must be able to call more than once!  # pragma: delete-on-release
+    from docs.examples.extend_experiment.code import register_to_disent
+    register_to_disent()
+    register_to_disent()  # must be able to call more than once!
     # load everything and check the counts
     count = 0
     for example in R.REGISTRIES[registry_key]:

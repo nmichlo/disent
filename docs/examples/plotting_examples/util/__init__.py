@@ -59,7 +59,7 @@ from disent.dataset.sampling import BaseDisentSampler
 from disent.dataset.sampling import GroundTruthSingleSampler
 from disent.dataset.transform import ToImgTensorF32
 from disent.dataset.transform import ToImgTensorU8
-from docs.examples.extend_configs.code.groundtruth__xyblocks import XYBlocksData
+from docs.examples.extend_experiment.code.groundtruth__xyblocks import XYBlocksData
 
 # disent exports to make life easy
 from disent.util.visualize.plot import plt_imshow

@@ -5,7 +5,7 @@
 # get the various dirs relative to this file
 SCRIPT_DIR="$(realpath -s "$(dirname -- "${BASH_SOURCE[0]}")")"   # get the current script dir
 DISENT_DIR="$(realpath -s "$SCRIPT_DIR/../../..")"                # get the root directory for `disent`
-SEARCH_DIR="${DISENT_DIR}/docs/examples/extend_configs/config"
+SEARCH_DIR="${DISENT_DIR}/docs/examples/extend_experiment/config"
 RUN_SCRIPT="${DISENT_DIR}/experiment/run.py"
 
 echo "DISENT_DIR=$DISENT_DIR"

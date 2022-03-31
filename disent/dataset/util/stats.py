@@ -86,8 +86,8 @@ if __name__ == '__main__':
 
     def main(progress=True, num_workers=0, batch_size=256):  # try changing workers to zero on MacOS
         from disent.dataset import data
+        from docs.examples.extend_experiment.code import groundtruth__xyblocks as edat
         from disent.dataset.transform import ToImgTensorF32
-        from research.code.dataset import data as rdat  # pragma: delete-on-release
 
         for data_cls in [
             # groundtruth -- impl
@@ -100,20 +100,20 @@ if __name__ == '__main__':
             # groundtruth -- impl synthetic
             data.XYObjectData,
             data.XYObjectShadedData,
-            rdat.XYBlocksData,          # pragma: delete-on-release
-            rdat.XYSquaresData,         # pragma: delete-on-release
-            rdat.XYSquaresMinimalData,  # pragma: delete-on-release
-            rdat.XColumnsData,          # pragma: delete-on-release
-            # groundtruth -- increasing overlap                        # pragma: delete-on-release
-            (rdat.XYSquaresData, dict(grid_size=8, grid_spacing=8)),   # pragma: delete-on-release
-            (rdat.XYSquaresData, dict(grid_size=8, grid_spacing=7)),   # pragma: delete-on-release
-            (rdat.XYSquaresData, dict(grid_size=8, grid_spacing=6)),   # pragma: delete-on-release
-            (rdat.XYSquaresData, dict(grid_size=8, grid_spacing=5)),   # pragma: delete-on-release
-            (rdat.XYSquaresData, dict(grid_size=8, grid_spacing=4)),   # pragma: delete-on-release
-            (rdat.XYSquaresData, dict(grid_size=8, grid_spacing=3)),   # pragma: delete-on-release
-            (rdat.XYSquaresData, dict(grid_size=8, grid_spacing=2)),   # pragma: delete-on-release
-            (rdat.XYSquaresData, dict(grid_size=8, grid_spacing=1)),   # pragma: delete-on-release
-            (rdat.XYSquaresData, dict(rgb=False)),                     # pragma: delete-on-release
+            edat.XYBlocksData,
+            data.XYSquaresData,
+            data.XYSquaresMinimalData,
+            data.XColumnsData,
+            # groundtruth -- increasing overlap
+            (data.XYSquaresData, dict(grid_size=8, grid_spacing=8)),
+            (data.XYSquaresData, dict(grid_size=8, grid_spacing=7)),
+            (data.XYSquaresData, dict(grid_size=8, grid_spacing=6)),
+            (data.XYSquaresData, dict(grid_size=8, grid_spacing=5)),
+            (data.XYSquaresData, dict(grid_size=8, grid_spacing=4)),
+            (data.XYSquaresData, dict(grid_size=8, grid_spacing=3)),
+            (data.XYSquaresData, dict(grid_size=8, grid_spacing=2)),
+            (data.XYSquaresData, dict(grid_size=8, grid_spacing=1)),
+            (data.XYSquaresData, dict(rgb=False)),
             # large datasets
             (data.Mpi3dData, dict(subset='toy',       in_memory=True)),
             (data.Mpi3dData, dict(subset='realistic', in_memory=True)),

@@ -1,17 +1,16 @@
 defaults:
   - _data_type_: random
 
-name: mask_dthr_smallnorb
+name: mask_dthr_cars3d
 
 data:
   _target_: disent.dataset.wrapper.DitheredDataset
   dither_n: 2
-  keep_ratio: ${settings.framework_opt.usage_ratio}
+  keep_ratio: 0.5
   gt_data:
-    _target_: disent.dataset.data.SmallNorb64Data
+    _target_: disent.dataset.data.Cars3d64Data
     data_root: ${dsettings.storage.data_root}
     prepare: ${dsettings.dataset.prepare}
-    is_test: False
 
 transform:
   _target_: disent.dataset.transform.ToImgTensorF32
@@ -19,6 +18,6 @@ transform:
   std: ${dataset.meta.vis_std}
 
 meta:
-  x_shape: [1, 64, 64]
-  vis_mean: [0.7520918401088603]
-  vis_std: [0.09563879016827262]
+  x_shape: [3, 64, 64]
+  vis_mean: [0.8976676149976628, 0.8891658020067508, 0.885147515814868]
+  vis_std: [0.22503195531503034, 0.2399461278981261, 0.24792106319684404]

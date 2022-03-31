@@ -112,8 +112,8 @@ def plt_subplots(
     if titles is not None:
         titles = np.array(titles)
         if titles.ndim == 1:
-            titles = np.array([titles] + ([[None]*ncols] * (nrows-1)))
-        assert titles.ndim == 2
+            titles = np.stack([titles] + ([[None]*ncols] * (nrows-1)), axis=0)
+        assert titles.ndim == 2, f'invalid titles shape, must have 2 dims: {titles.shape}'
     # get labels
     if (row_labels is None) or isinstance(row_labels, str):
         row_labels = [row_labels] * nrows

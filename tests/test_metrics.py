@@ -30,7 +30,6 @@ from disent.dataset import DisentDataset
 from disent.metrics import *
 from disent.dataset.transform import ToImgTensorF32
 from disent.util.function import wrapped_partial
-from research.code.metrics import *  # pragma: delete-on-release
 
 
 # ========================================================================= #

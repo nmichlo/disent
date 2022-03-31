@@ -589,7 +589,7 @@ def _compute_factored_metric_components_along_factor(
 #         from disent.util.strings import colors
 #         from disent.util.profiling import Timer
 #         from disent.dataset.data import XYObjectData
-#         from research.code.dataset.data import XYSquaresData
+#         from disent.dataset.data import XYSquaresData
 #         from disent.dataset.sampling import RandomSampler
 #         from disent.dataset.sampling import GroundTruthDistSampler
 #         from disent.dataset.transform import ToImgTensorF32
