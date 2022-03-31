@@ -43,8 +43,8 @@ from disent.util.function import wrapped_partial
     wrapped_partial(metric_dci,          num_train=7, num_test=7),
     wrapped_partial(metric_sap,          num_train=7, num_test=7),
     wrapped_partial(metric_factor_vae,   num_train=7, num_eval=7, num_variance_estimate=7),
-    wrapped_partial(metric_flatness,            repeats=7),  # pragma: delete-on-release
-    wrapped_partial(metric_factored_components, repeats=7),  # pragma: delete-on-release
+    wrapped_partial(metric_flatness,            repeats=7),
+    wrapped_partial(metric_factored_components, repeats=7),
 ])
 def test_metrics(metric_fn):
     z_size = 8
