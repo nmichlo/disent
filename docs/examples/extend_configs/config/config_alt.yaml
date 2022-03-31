@@ -16,7 +16,7 @@ defaults:
   - run_callbacks: vis
   - run_logging: wandb
   # runtime
-  - run_location: stampede_shr
+  - run_location: cluster_shr
   - run_launcher: slurm
   - run_action: train
   # experiment

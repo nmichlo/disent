@@ -31,6 +31,14 @@ log = logging.getLogger(__name__)
 
 def register_to_disent():
     log.info('Registering example with disent!')
+
     # DATASETS.setm[...] is an alias for DATASETS[...] that only sets the value if it does not already exist.
     # -- register_to_disent should be able to be called multiple times in the same run!
+
+    # register: datasets
     R.DATASETS.setm['pseudorandom'] = R.LazyImport('docs.examples.extend_experiment.code.random_data.RandomData')
+    R.DATASETS.setm['xyblocks']     = R.LazyImport('docs.examples.extend_experiment.code.groundtruth__xyblocks.XYBlocksData')
+
+    # register: VAEs
+    R.FRAMEWORKS.setm['si_ada_vae']  = R.LazyImport('docs.examples.extend_experiment.code.weaklysupervised__si_adavae.SwappedInputAdaVae')
+    R.FRAMEWORKS.setm['si_beta_vae'] = R.LazyImport('docs.examples.extend_experiment.code.weaklysupervised__si_betavae.SwappedInputBetaVae')

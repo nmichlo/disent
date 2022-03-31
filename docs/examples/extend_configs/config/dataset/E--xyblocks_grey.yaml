@@ -4,7 +4,7 @@ defaults:
 name: xyblocks_grey
 
 data:
-  _target_: research.code.dataset.data.XYBlocksData
+  _target_: docs.examples.extend_experiment.code.groundtruth__xyblocks.XYBlocksData
   rgb: FALSE
 
 transform:

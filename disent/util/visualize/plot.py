@@ -313,49 +313,5 @@ def visualize_dataset_traversal(
 
 
 # ========================================================================= #
-# 2d density plot                                                           #
-# ========================================================================= #
-
-
-def plt_2d_density(
-    x,
-    y,
-    n_bins: int = 300,
-    xmin: Optional[float] = None,
-    xmax: Optional[float] = None,
-    ymin: Optional[float] = None,
-    ymax: Optional[float] = None,
-    ax: plt.Subplot = None,
-    pcolormesh_kwargs: Optional[Dict[str, Any]] = None
-):
-    from scipy.stats import kde
-    # https://www.python-graph-gallery.com/85-density-plot-with-matplotlib
-    # convert inputs
-    x = np.array(x)
-    y = np.array(y)
-    # prevent singular
-    # x = np.random.randn(*x.shape) * (0.01 * max(x.max() - x.min(), 1))
-    # y = np.random.randn(*y.shape) * (0.01 * max(y.max() - y.min(), 1))
-    # get bounds
-    if xmin is None: xmin = x.min()
-    if xmax is None: xmax = x.max()
-    if ymin is None: ymin = y.min()
-    if ymax is None: ymax = y.max()
-    # Evaluate a gaussian kde on a regular grid of nbins x nbins over data extents
-    xi, yi = np.mgrid[xmin:xmax:n_bins*1j, ymin:ymax:n_bins*1j]
-    try:
-        k = kde.gaussian_kde([x, y])
-        zi = k(np.stack([xi.flatten(), yi.flatten()], axis=0))
-    except np.linalg.LinAlgError:
-        log.warning('Could not create 2d_density plot')
-        return
-    # update args
-    if ax is None: ax = plt
-    if pcolormesh_kwargs is None: pcolormesh_kwargs = {}
-    # Make the plot
-    ax.pcolormesh(xi, yi, zi.reshape(xi.shape), shading='auto', **pcolormesh_kwargs)
-
-
-# ========================================================================= #
 # END                                                                       #
 # ========================================================================= #

@@ -27,7 +27,7 @@ import os
 import numpy as np
 
 from disent.util.inout.paths import ensure_parent_dir_exists
-import research.examples.util as H
+import docs.examples.plotting_examples.util as H
 import imageio
 
 from disent.util.seeds import TempNumpySeed
@@ -35,7 +35,7 @@ from disent.util.seeds import TempNumpySeed
 
 if __name__ == '__main__':
 
-    OUTPUT_DIR = os.path.abspath(os.path.join(__file__, '..', 'plots/animations'))
+    OUTPUT_DIR = os.path.abspath(os.path.join(__file__, '../../../research', 'plots/animations'))
     FRAMES_PER_TRAVERSAL = 18
     FRAMES_PER_SECOND = 8
 

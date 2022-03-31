@@ -1,18 +1,24 @@
 # @package _global_
 
+# -- this run_location reads data from the /tmp folder but does not prepare it!
+#    | *NB* the difference from `cluster_tmp` is that this script `rsync`s the already
+#    |      prepared files from the network drive to the /tmp folder instead of preparing
+#    |      it all. This is useful if the data is expensive to download, and the data needs
+#    |      to be constantly read off the disk!
+
 dsettings:
   trainer:
-    cuda: NULL  # auto-detect cuda, some nodes are not configured correctly
+    cuda: NULL  # auto-detect cuda, some nodes may be configured incorrectly
   storage:
     logs_dir: 'logs'
-    data_root: '${oc.env:HOME}/downloads/datasets'  # WE NEED TO BE VERY CAREFUL ABOUT USING A SHARED DRIVE
+    data_root: ${rsync_dir:'${oc.env:HOME}/downloads/datasets','/tmp/${oc.env:USER}/datasets'}
   dataset:
-    prepare: FALSE                                # WE MUST PREPARE DATA MANUALLY BEFOREHAND
-    try_in_memory: TRUE
+    prepare: TRUE
+    try_in_memory: FALSE
   launcher:
     partition: stampede
     array_parallelism: 16
-    exclude: "mscluster92,mscluster94,mscluster96"
+    exclude: "cluster92,cluster94,cluster96"
 
 datamodule:
   gpu_augment: FALSE

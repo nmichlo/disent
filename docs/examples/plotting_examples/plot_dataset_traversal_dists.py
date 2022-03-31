@@ -41,7 +41,7 @@ import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 
-import research.examples.util as H
+import docs.examples.plotting_examples.util as H
 from disent.dataset.data import GroundTruthData
 from disent.dataset.data import Mpi3dData
 from disent.dataset.data import SelfContainedHdf5GroundTruthData
@@ -65,7 +65,6 @@ SampleModeHint = Union[Literal['random'], Literal['near'], Literal['combinations
 def sample_factor_traversal_info(
     gt_data: GroundTruthData,
     f_idx: Optional[int] = None,
-    circular_distance: bool = False,
     sample_mode: SampleModeHint = 'random',
 ) -> dict:
     # load traversal -- TODO: this is the bottleneck! not threaded
@@ -74,7 +73,7 @@ def sample_factor_traversal_info(
     idxs_a, idxs_b = H.pair_indices(max_idx=len(indices), mode=sample_mode)
     # compute deltas
     deltas = F.mse_loss(obs[idxs_a], obs[idxs_b], reduction='none').mean(dim=[-3, -2, -1]).numpy()
-    fdists = H.np_factor_dists(factors[idxs_a], factors[idxs_b], factor_sizes=gt_data.factor_sizes, circular_if_factor_sizes=circular_distance, p=1)
+    fdists = np.abs(factors[idxs_a] - factors[idxs_b]).sum(axis=-1)  # (NUM, FACTOR_SIZE) -> (NUM,)
     # done!
     return dict(
         # traversals
@@ -92,9 +91,8 @@ def sample_factor_traversal_info(
 def sample_factor_traversal_info_and_distmat(
     gt_data: GroundTruthData,
     f_idx: Optional[int] = None,
-    circular_distance: bool = False,
 ) -> dict:
-    dat = sample_factor_traversal_info(gt_data=gt_data, f_idx=f_idx, sample_mode='combinations', circular_distance=circular_distance)
+    dat = sample_factor_traversal_info(gt_data=gt_data, f_idx=f_idx, sample_mode='combinations')
     # extract
     factors, idxs_a, idxs_b, deltas, fdists = dat['factors'], dat['idxs_a'], dat['idxs_b'], dat['deltas'], dat['fdists']
     # generate deltas matrix
@@ -151,169 +149,15 @@ def _collect_stats_for_factors(
 # ========================================================================= #
 
 
-_COLORS = {
-    'blue':   (None, 'Blues',   'Blues'),
-    'red':    (None, 'Reds',    'Reds'),
-    'purple': (None, 'Purples', 'Purples'),
-    'green':  (None, 'Greens',  'Greens'),
-    'orange': (None, 'Oranges', 'Oranges'),
-}
-
-
-def plot_traversal_stats_OLD(
-    dataset_or_name: Union[str, GroundTruthData],
-    num_repeats: int = 256,
-    f_idxs: Optional[NonNormalisedFactors] = None,
-    circular_distance: bool = False,
-    color='blue',
-    color_gt_dist='blue',
-    color_im_dist='purple',
-    suffix: Optional[str] = None,
-    save_path: Optional[str] = None,
-    plot_freq: bool = True,
-    plot_title: Union[bool, str] = False,
-    fig_block_size: float = 4.0,
-    col_titles: Union[bool, List[str]] = True,
-    hide_axis: bool = True,
-    hide_labels: bool = True,
-    y_size_offset: float = 0.0,
-    x_size_offset: float = 0.0,
-):
-    # TODO: this function is actually terrible...
-    # - - - - - - - - - - - - - - - - - #
-
-    def stats_fn(gt_data, i, f_idx):
-        return sample_factor_traversal_info_and_distmat(gt_data=gt_data, f_idx=f_idx, circular_distance=circular_distance)
-
-    def plot_ax(stats: dict, i: int, f_idx: int):
-        deltas = np.concatenate(stats['deltas'])
-        fdists = np.concatenate(stats['fdists'])
-        fdists_matrix = np.mean(stats['fdists_matrix'], axis=0)
-        deltas_matrix = np.mean(stats['deltas_matrix'], axis=0)
-
-        # ensure that if we limit the number of points, that we get good values
-        with TempNumpySeed(777): np.random.shuffle(deltas)
-        with TempNumpySeed(777): np.random.shuffle(fdists)
-
-        # subplot!
-        if plot_freq:
-            ax0, ax1, ax2, ax3 = axs[:, i]
-        else:
-            (ax0, ax1), (ax2, ax3) = (None, None), axs[:, i]
-
-        # get title
-        curr_title = None
-        if isinstance(col_titles, bool):
-            if col_titles:
-                curr_title = gt_data.factor_names[f_idx]
-        else:
-            curr_title = col_titles[i]
-
-        # set column titles
-        if curr_title is not None:
-            (ax0 if plot_freq else ax2).set_title(f'{curr_title}\n', fontsize=24)
-
-        # plot the frequency stuffs
-        if plot_freq:
-            ax0.violinplot([deltas], vert=False)
-            ax0.set_xlabel('deltas')
-            ax0.set_ylabel('proportion')
-
-            ax1.set_title('deltas vs. fdists')
-            ax1.scatter(x=deltas[:15_000], y=fdists[:15_000], s=20, alpha=0.1, c=c_points)
-            H.plt_2d_density(
-                x=deltas[:10_000], xmin=deltas.min(), xmax=deltas.max(),
-                y=fdists[:10_000], ymin=fdists.min() - 0.5, ymax=fdists.max() + 0.5,
-                n_bins=100,
-                ax=ax1, pcolormesh_kwargs=dict(cmap=cmap_density, alpha=0.5),
-            )
-            ax1.set_xlabel('deltas')
-            ax1.set_ylabel('fdists')
-
-        # ax2.set_title('fdists')
-        ax2.imshow(fdists_matrix, cmap=gt_cmap_img)
-        if not hide_labels: ax2.set_xlabel('f_idx')
-        if not hide_labels: ax2.set_ylabel('f_idx')
-        if hide_axis: H.plt_hide_axis(ax2)
-
-        # ax3.set_title('divergence')
-        ax3.imshow(deltas_matrix, cmap=im_cmap_img)
-        if not hide_labels: ax3.set_xlabel('f_idx')
-        if not hide_labels: ax3.set_ylabel('f_idx')
-        if hide_axis: H.plt_hide_axis(ax3)
-
-
-    # - - - - - - - - - - - - - - - - - #
-
-    # initialize
-    gt_data: GroundTruthData = H.make_data(dataset_or_name) if isinstance(dataset_or_name, str) else dataset_or_name
-    f_idxs = gt_data.normalise_factor_idxs(f_idxs)
-
-    c_points, cmap_density, cmap_img = _COLORS[color]
-    im_c_points, im_cmap_density, im_cmap_img = _COLORS[color if (color_im_dist is None) else color_im_dist]
-    gt_c_points, gt_cmap_density, gt_cmap_img = _COLORS[color if (color_gt_dist is None) else color_gt_dist]
-
-    n = 4 if plot_freq else 2
-
-    # get additional spacing
-    title_offset = 0 if (isinstance(col_titles, bool) and not col_titles) else 0.15
-
-    # settings
-    r, c = [n,  len(f_idxs)]
-    h, w = [(n+title_offset)*fig_block_size + y_size_offset, len(f_idxs)*fig_block_size + x_size_offset]
-
-    # initialize plot
-    fig, axs = plt.subplots(r, c, figsize=(w, h), squeeze=False)
-
-    if isinstance(plot_title, str):
-        fig.suptitle(f'{plot_title}\n', fontsize=25)
-    elif plot_title:
-        fig.suptitle(f'{gt_data.name} [circular={circular_distance}]{f" {suffix}" if suffix else ""}\n', fontsize=25)
-
-    # generate plot
-    _collect_stats_for_factors(
-        gt_data=gt_data,
-        f_idxs=f_idxs,
-        stats_fn=stats_fn,
-        keep_keys=['deltas', 'fdists', 'deltas_matrix', 'fdists_matrix'],
-        stats_callback=plot_ax,
-        num_traversal_sample=num_repeats,
-    )
-
-    # finalize plot
-    fig.tight_layout()  # (pad=1.4 if hide_labels else 1.08)
-
-    # save the path
-    if save_path is not None:
-        assert save_path.endswith('.png')
-        ensure_parent_dir_exists(save_path)
-        plt.savefig(save_path)
-        print(f'saved {gt_data.name} to: {save_path}')
-
-    # show it!
-    plt.show()
-
-    # - - - - - - - - - - - - - - - - - #
-    return fig
-
-
-# TODO: fix
 def plot_traversal_stats(
     dataset_or_name: Union[str, GroundTruthData],
     num_repeats: int = 256,
     f_idxs: Optional[NonNormalisedFactors] = None,
-    circular_distance: bool = False,
-    color='blue',
-    color_gt_dist='blue',
-    color_im_dist='purple',
     suffix: Optional[str] = None,
     save_path: Optional[str] = None,
-    plot_freq: bool = True,
     plot_title: Union[bool, str] = False,
     plt_scale: float = 6,
     col_titles: Union[bool, List[str]] = True,
-    hide_axis: bool = True,
-    hide_labels: bool = True,
     y_size_offset: float = 0.45,
     x_size_offset: float = 0.75,
     disable_labels: bool = False,
@@ -324,9 +168,7 @@ def plot_traversal_stats(
     # - - - - - - - - - - - - - - - - - #
 
     def stats_fn(gt_data, i, f_idx):
-        return sample_factor_traversal_info_and_distmat(
-            gt_data=gt_data, f_idx=f_idx, circular_distance=circular_distance
-        )
+        return sample_factor_traversal_info_and_distmat(gt_data=gt_data, f_idx=f_idx)
 
     grid_t = []
     grid_titles = []
@@ -350,7 +192,7 @@ def plot_traversal_stats(
     if isinstance(plot_title, str):
         suptitle = f'{plot_title}'
     elif plot_title:
-        suptitle = f'{gt_data.name} [circular={circular_distance}]{f" {suffix}" if suffix else ""}'
+        suptitle = f'{gt_data.name} {f" {suffix}" if suffix else ""}'
     else:
         suptitle = None
 
@@ -480,7 +322,14 @@ def print_ave_factor_stats(gt_data: GroundTruthData, f_idxs=None, min_samples: i
         print(f'[{gt_data.name}] {gt_data.factor_names[f_idx]} ({gt_data.factor_sizes[f_idx]}, {len(f_dists[f_idx])}) - mean: {f_mean:7.4f}  std: {f_std:7.4f}')
 
 
-def main_compute_dists(factor_samples: int = 50_000, min_repeats: int = 5000, random_samples: int = 50_000, recon_loss: str = 'mse', sample_mode: str = 'random', seed: int = 777):
+def main_compute_dists(
+    factor_samples: int = 50_000,
+    min_repeats: int = 5000,
+    random_samples: int = 50_000,
+    recon_loss: str = 'mse',
+    sample_mode: str = 'random',
+    seed: int = 777,
+):
     # plot standard datasets
     for name in [
         'dsprites',
@@ -550,16 +399,15 @@ def main_compute_dists(factor_samples: int = 50_000, min_repeats: int = 5000, ra
 # [xy_object] intensity (4, 50000) - mean:  0.0033  std:  0.0039
 # [xy_object] RANDOM (75000, 50000) - mean:  0.0145  std:  0.0111
 
+# ========================================================================= #
+# MAIN - PLOTTING                                                           #
+# ========================================================================= #
+
 
 def _grid_plot_save(path: str, imgs: Sequence[np.ndarray], show: bool = True):
     img = make_image_grid(imgs, pad=0, border=False, num_cols=-1)
     H.plt_imshow(img, show=True)
     imageio.imsave(path, img)
-
-
-# ========================================================================= #
-# MAIN - PLOTTING                                                           #
-# ========================================================================= #
 
 
 def _make_self_contained_dataset(h5_path):
@@ -574,18 +422,14 @@ def _print_data_mean_std(data_or_name, print_mean_std: bool = True):
         print(f'{name}\n    vis_mean: {mean.tolist()}\n    vis_std: {std.tolist()}')
 
 
-def main_plotting(plot_all=True, print_mean_std=False):
-    CIRCULAR = False
-    PLOT_FREQ = False
+def main_plotting(print_mean_std: bool = True):
 
     def sp(name):
-        prefix = 'CIRCULAR_' if CIRCULAR else 'DIST_'
-        prefix = prefix + ('FREQ_' if PLOT_FREQ else 'NO-FREQ_')
-        return os.path.join(os.path.dirname(__file__), 'plots/dists', f'{prefix}{name}.png')
+        return os.path.join(os.path.dirname(__file__), 'plots/dists', f'DIST_NO-FREQ_{name}.png')
 
     # plot xysquares with increasing overlap
     for s in [1, 2, 3, 4, 5, 6, 7, 8]:
-        plot_traversal_stats(circular_distance=CIRCULAR, plt_scale=8, label_size=26, x_size_offset=0, y_size_offset=0.6, save_path=sp(f'xysquares_8x8_s{s}'), color='blue', dataset_or_name=f'xysquares_8x8_s{s}', f_idxs=[1], col_titles=[f'Space: {s}px'], plot_freq=PLOT_FREQ)
+        plot_traversal_stats(plt_scale=8, label_size=26, x_size_offset=0, y_size_offset=0.6, save_path=sp(f'xysquares_8x8_s{s}'), dataset_or_name=f'xysquares_8x8_s{s}', f_idxs=[1], col_titles=[f'Space: {s}px'])
         _print_data_mean_std(f'xysquares_8x8_s{s}', print_mean_std)
 
     # plot xysquares with increasing overlap -- combined into one image
@@ -607,17 +451,14 @@ def main_plotting(plot_all=True, print_mean_std=False):
         'mpi3d_realistic',
         'mpi3d_real',
     ]:
-        plot_traversal_stats(circular_distance=CIRCULAR, x_size_offset=0, y_size_offset=0.6, num_repeats=256, disable_labels=False, save_path=sp(name), color='blue', dataset_or_name=name, plot_freq=PLOT_FREQ)
+        plot_traversal_stats(x_size_offset=0, y_size_offset=0.6, num_repeats=256, disable_labels=False, save_path=sp(name), dataset_or_name=name)
         _print_data_mean_std(name, print_mean_std)
-
-    if not plot_all:
-        return
 
     # plot adversarial dsprites datasets
     for fg in [True, False]:
         for vis in [100, 75, 50, 25, 0]:
             name = f'dsprites_imagenet_{"fg" if fg else "bg"}_{vis}'
-            plot_traversal_stats(circular_distance=CIRCULAR, save_path=sp(name), color='orange', dataset_or_name=name, plot_freq=PLOT_FREQ, x_size_offset=0.4)
+            plot_traversal_stats(save_path=sp(name), dataset_or_name=name, x_size_offset=0.4)
             _print_data_mean_std(name, print_mean_std)
 
 # ========================================================================= #
@@ -631,51 +472,6 @@ if __name__ == '__main__':
     # run!
     main_plotting()
     main_compute_dists()
-
-
-# ========================================================================= #
-# STATS                                                                     #
-# ========================================================================= #
-
-
-# 2021-08-18--00-58-22_FINAL-dsprites_self_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06
-#     vis_mean: [0.04375297]
-#     vis_std: [0.06837677]
-# 2021-08-18--01-33-47_FINAL-shapes3d_self_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06
-#     vis_mean: [0.48852729, 0.5872147 , 0.59863929]
-#     vis_std: [0.08931785, 0.18920148, 0.23331079]
-# 2021-08-18--02-20-13_FINAL-cars3d_self_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06
-#     vis_mean: [0.88888636, 0.88274618, 0.87782785]
-#     vis_std: [0.18967542, 0.20009377, 0.20805905]
-# 2021-08-18--03-10-53_FINAL-smallnorb_self_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06
-#     vis_mean: [0.74029344]
-#     vis_std: [0.06706581]
-#
-# 2021-08-18--03-52-31_FINAL-dsprites_invert_margin_0.005_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06
-#     vis_mean: [0.0493243]
-#     vis_std: [0.09729655]
-# 2021-08-18--04-29-25_FINAL-shapes3d_invert_margin_0.005_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06
-#     vis_mean: [0.49514523, 0.58791172, 0.59616399]
-#     vis_std: [0.08637031, 0.1895267 , 0.23397072]
-# 2021-08-18--05-13-15_FINAL-cars3d_invert_margin_0.005_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06
-#     vis_mean: [0.88851889, 0.88029857, 0.87666017]
-#     vis_std: [0.200735 , 0.2151134, 0.2217553]
-# 2021-08-18--06-03-32_FINAL-smallnorb_invert_margin_0.005_aw10.0_close_p_random_n_s50001_Adam_lr0.0005_wd1e-06
-#     vis_mean: [0.73232105]
-#     vis_std: [0.08755041]
-#
-# 2021-09-06--00-29-23_INVERT-VSTRONG-shapes3d_invert_margin_0.05_aw10.0_same_k1_close_s200001_Adam_lr0.0005_wd1e-06
-#     vis_mean: [0.47992192, 0.51311111, 0.54627272]
-#     vis_std: [0.28653814, 0.29201543, 0.27395435]
-# 2021-09-06--03-17-28_INVERT-VSTRONG-dsprites_invert_margin_0.05_aw10.0_same_k1_close_s200001_Adam_lr0.0005_wd1e-06
-#     vis_mean: [0.20482841]
-#     vis_std: [0.33634909]
-# 2021-09-06--05-42-06_INVERT-VSTRONG-cars3d_invert_margin_0.05_aw10.0_same_k1_close_s200001_Adam_lr0.0005_wd1e-06
-#     vis_mean: [0.76418207, 0.75554032, 0.75075393]
-#     vis_std: [0.31892905, 0.32751031, 0.33319886]
-# 2021-09-06--09-10-59_INVERT-VSTRONG-smallnorb_invert_margin_0.05_aw10.0_same_k1_close_s200001_Adam_lr0.0005_wd1e-06
-#     vis_mean: [0.69691603]
-#     vis_std: [0.21310608]
 
 
 # ========================================================================= #

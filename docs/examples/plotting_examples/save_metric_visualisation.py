@@ -34,7 +34,7 @@ from matplotlib import cm
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
-import research.examples.util as H
+import docs.examples.plotting_examples.util as H
 from disent.metrics._factored_components import compute_axis_score
 from disent.metrics._factored_components import compute_linear_score
 from disent.util.seeds import seed

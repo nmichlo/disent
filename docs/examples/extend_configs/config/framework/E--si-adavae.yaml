@@ -1,10 +1,10 @@
 defaults:
   - _input_mode_: pair
 
-name: st-adavae
+name: si-adavae
 
 cfg:
-  _target_: research.code.frameworks.vae.SwappedTargetAdaVae.cfg
+  _target_: docs.examples.extend_experiment.code.weaklysupervised__si_adavae.SwappedInputAdaVae.cfg
   # base ae
   recon_loss: ${settings.framework.recon_loss}
   loss_reduction: ${settings.framework.loss_reduction}

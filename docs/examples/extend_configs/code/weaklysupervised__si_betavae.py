@@ -25,20 +25,24 @@
 from dataclasses import dataclass
 
 import numpy as np
-from disent.frameworks.vae._weaklysupervised__adavae import AdaVae
+from disent.frameworks.vae._unsupervised__betavae import BetaVae
 
 
 # ========================================================================= #
-# Swapped Target AdaVae                                                     #
+# Swapped Target BetaVAE                                                    #
 # ========================================================================= #
 
 
-class SwappedTargetAdaVae(AdaVae):
+class SwappedInputBetaVae(BetaVae):
+    """
+    This is a naive example of a framework that randomly swaps the inputs to
+    the VAE, effectively creating a type of denoising auto-encoder.
+    """
 
     REQUIRED_OBS = 2
 
     @dataclass
-    class cfg(AdaVae.cfg):
+    class cfg(BetaVae.cfg):
         swap_chance: float = 0.1
 
     def __init__(self, model: 'AutoEncoder', cfg: cfg = None, batch_augment=None):
@@ -50,11 +54,11 @@ class SwappedTargetAdaVae(AdaVae):
 
         # random change for the target not to be equal to the input
         if np.random.random() < self.cfg.swap_chance:
-            x0_targ, x1_targ = x1_targ, x0_targ
+            x0, x1 = x1, x0
 
-        return super(SwappedTargetAdaVae, self).do_training_step({
-            'x': (x0, x1),
-            'x_targ': (x0_targ, x1_targ),
+        return super(SwappedInputBetaVae, self).do_training_step({
+            'x': (x0,),
+            'x_targ': (x0_targ,),
         }, batch_idx)
 
 

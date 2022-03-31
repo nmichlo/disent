@@ -28,7 +28,7 @@ from typing import Optional
 import numpy as np
 from matplotlib import pyplot as plt
 
-import research.examples.util as H
+import docs.examples.plotting_examples.util as H
 from disent.dataset.data import Cars3d64Data
 from disent.dataset.data import DSpritesData
 from disent.dataset.data import GroundTruthData

@@ -1,18 +1,24 @@
 # @package _global_
 
+# -- this run_location reads data from the /tmp folder and prepares it if it is missing
+#    this is useful if we need to read data constantly from the disk
+#    |
+#    |
+#    |
+
 dsettings:
   trainer:
-    cuda: NULL  # auto-detect cuda, some nodes are not configured correctly
+    cuda: NULL  # auto-detect cuda, some nodes may be configured incorrectly
   storage:
     logs_dir: 'logs'
-    data_root: ${rsync_dir:'${oc.env:HOME}/downloads/datasets','/tmp/${oc.env:USER}/datasets'}
+    data_root: '/tmp/${oc.env:USER}/datasets'
   dataset:
     prepare: TRUE
-    try_in_memory: FALSE
+    try_in_memory: TRUE
   launcher:
     partition: stampede
     array_parallelism: 16
-    exclude: "mscluster92,mscluster94,mscluster96"
+    exclude: "cluster92,cluster94,cluster96"
 
 datamodule:
   gpu_augment: FALSE

@@ -1,6 +1,6 @@
 # Research - Config
 
-- The research config is added to the experiment search path such that any 
+- These configs are added to the experiment search path such that any 
   files are found and read before that of the default experiment config.
   This means that if a file has the same name, it will overwrite the default file!
   The search path is overridden by setting the `DISENT_CONFIGS_PREPEND` environment variable.

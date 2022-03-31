@@ -30,7 +30,7 @@ from typing import Union
 import numpy as np
 from matplotlib import pyplot as plt
 
-import research.examples.util as H
+import docs.examples.plotting_examples.util as H
 from disent.dataset import DisentDataset
 from disent.dataset.data import Cars3d64Data
 from disent.dataset.data import DSpritesData
@@ -41,10 +41,11 @@ from disent.dataset.data import Shapes3dData
 from disent.dataset.data import SmallNorb64Data
 from disent.dataset.data import XYSingleSquareData
 from disent.dataset.data import XYSquaresData
-from research.code.dataset.data import XYBlocksData
 from disent.dataset.data import XYObjectData
 from disent.dataset.data import XYObjectShadedData
 from disent.util.seeds import TempNumpySeed
+
+from docs.examples.extend_configs.code.groundtruth__xyblocks import XYBlocksData
 
 
 # ========================================================================= #

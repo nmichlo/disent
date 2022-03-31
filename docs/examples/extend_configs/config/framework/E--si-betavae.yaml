@@ -1,10 +1,10 @@
 defaults:
   - _input_mode_: pair
 
-name: st-betavae
+name: si-betavae
 
 cfg:
-  _target_: research.code.frameworks.vae.SwappedTargetBetaVae.cfg
+  _target_: docs.examples.extend_experiment.code.weaklysupervised__si_betavae.SwappedInputBetaVae.cfg
   # base ae
   recon_loss: ${settings.framework.recon_loss}
   loss_reduction: ${settings.framework.loss_reduction}
