@@ -32,6 +32,7 @@ import research.examples.util as H
 from disent.dataset.data import Cars3d64Data
 from disent.dataset.data import DSpritesData
 from disent.dataset.data import GroundTruthData
+from disent.dataset.data import Mpi3dData
 from disent.dataset.data import Shapes3dData
 from disent.dataset.data import SmallNorb64Data
 from disent.dataset.data import XYObjectData
@@ -165,7 +166,10 @@ if __name__ == '__main__':
         (wrapped_partial(XYSquaresData, grid_spacing=4, grid_size=8, no_warnings=True), f'xy-squares-spacing4'),
         (wrapped_partial(XYSquaresData, grid_spacing=8, grid_size=8, no_warnings=True), f'xy-squares-spacing8'),
     ]:
-        plot_dataset_overlap(gt_data_cls(), rel_path=f'plots/overlap__{name}', obs_max=3, obs_spacing=4, seed=seed-40)
+        plot_dataset_overlap(gt_data_cls(), rel_path=f'plots/overlap/overlap__{name}', obs_max=3, obs_spacing=4, seed=seed-40)
+
+    # replace the factor names!
+    Mpi3dData.factor_names = ('color', 'shape', 'size', 'elevation', 'bg_color', 'first_dof', 'second_dof')
 
     for gt_data_cls, name in [
         (XYObjectData,       f'xyobject'),
@@ -174,10 +178,16 @@ if __name__ == '__main__':
         (Shapes3dData,       f'shapes3d'),
         (Cars3d64Data,       f'cars3d'),
         (SmallNorb64Data,    f'smallnorb'),
+        (wrapped_partial(Mpi3dData, in_memory=True, subset='toy'),       f'mpi3d_toy'),
+        (wrapped_partial(Mpi3dData, in_memory=True, subset='realistic'), f'mpi3d_realistic'),
+        (wrapped_partial(Mpi3dData, in_memory=True, subset='real'),      f'mpi3d_real'),
     ]:
         gt_data = gt_data_cls()
         for f_idx, f_name in enumerate(gt_data.factor_names):
-            plot_dataset_overlap(gt_data, rel_path=f'plots/overlap__{name}__f{f_idx}-{f_name}', obs_max=3, obs_spacing=4, f_idxs=f_idx, seed=seed)
+            try:
+                plot_dataset_overlap(gt_data, rel_path=f'plots/overlap/overlap__{name}__f{f_idx}-{f_name}', obs_max=3, obs_spacing=4, f_idxs=f_idx, seed=seed)
+            except Exception as e:
+                print('FAILED', gt_data_cls, f_idx, f_name, e)
 
 
 # ========================================================================= #

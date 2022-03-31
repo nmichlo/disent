@@ -388,7 +388,7 @@ if __name__ == '__main__':
         repeats=250,
         num_points=25000,
     )
-    plt.savefig(H.make_rel_path_add_ext('plots/metric_grid', ext='.png'))
+    plt.savefig(H.make_rel_path_add_ext('plots/metric/metric_grid', ext='.png'))
     plt.show()
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -401,7 +401,7 @@ if __name__ == '__main__':
         repeats=250,
         num_points=25000,
     )
-    plt.savefig(H.make_rel_path_add_ext('plots/metric_grid_minimal_5x5', ext='.png'))
+    plt.savefig(H.make_rel_path_add_ext('plots/metric/metric_grid_minimal_5x5', ext='.png'))
     plt.show()
 
     # plot everything -- minimal
@@ -412,7 +412,7 @@ if __name__ == '__main__':
         repeats=250,
         num_points=25000,
     )
-    plt.savefig(H.make_rel_path_add_ext('plots/metric_grid_minimal_4x5', ext='.png'))
+    plt.savefig(H.make_rel_path_add_ext('plots/metric/metric_grid_minimal_4x5', ext='.png'))
     plt.show()
 
     # plot everything -- minimal
@@ -423,14 +423,14 @@ if __name__ == '__main__':
         repeats=250,
         num_points=25000,
     )
-    plt.savefig(H.make_rel_path_add_ext('plots/metric_grid_minimal_3x5', ext='.png'))
+    plt.savefig(H.make_rel_path_add_ext('plots/metric/metric_grid_minimal_3x5', ext='.png'))
     plt.show()
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     seed(777)
     make_ave_scores_plot(repeats=250, num_points=10000, top_2=False)
-    plt.savefig(H.make_rel_path_add_ext('plots/metric_scores', ext='.png'))
+    plt.savefig(H.make_rel_path_add_ext('plots/metric/metric_scores', ext='.png'))
     plt.show()
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #

@@ -43,6 +43,7 @@ from tqdm import tqdm
 
 import research.examples.util as H
 from disent.dataset.data import GroundTruthData
+from disent.dataset.data import Mpi3dData
 from disent.dataset.data import SelfContainedHdf5GroundTruthData
 from disent.dataset.util.state_space import NonNormalisedFactors
 from disent.dataset.transform import ToImgTensorF32
@@ -481,7 +482,18 @@ def print_ave_factor_stats(gt_data: GroundTruthData, f_idxs=None, min_samples: i
 
 def main_compute_dists(factor_samples: int = 50_000, min_repeats: int = 5000, random_samples: int = 50_000, recon_loss: str = 'mse', sample_mode: str = 'random', seed: int = 777):
     # plot standard datasets
-    for name in ['dsprites', 'shapes3d', 'cars3d', 'smallnorb', 'xysquares_8x8_s8', 'xyobject', 'xyobject_shaded']:
+    for name in [
+        'dsprites',
+        'shapes3d',
+        'cars3d',
+        'smallnorb',
+        'xysquares_8x8_s8',
+        'xyobject',
+        'xyobject_shaded',
+        'mpi3d_toy',
+        'mpi3d_realistic',
+        'mpi3d_real',
+    ]:
         gt_data = H.make_data(name)
         if factor_samples is not None:
             with TempNumpySeed(seed):
@@ -562,14 +574,14 @@ def _print_data_mean_std(data_or_name, print_mean_std: bool = True):
         print(f'{name}\n    vis_mean: {mean.tolist()}\n    vis_std: {std.tolist()}')
 
 
-def main_plotting(plot_all=False, print_mean_std=False):
+def main_plotting(plot_all=True, print_mean_std=False):
     CIRCULAR = False
     PLOT_FREQ = False
 
     def sp(name):
         prefix = 'CIRCULAR_' if CIRCULAR else 'DIST_'
         prefix = prefix + ('FREQ_' if PLOT_FREQ else 'NO-FREQ_')
-        return os.path.join(os.path.dirname(__file__), 'plots', f'{prefix}{name}.png')
+        return os.path.join(os.path.dirname(__file__), 'plots/dists', f'{prefix}{name}.png')
 
     # plot xysquares with increasing overlap
     for s in [1, 2, 3, 4, 5, 6, 7, 8]:
@@ -580,8 +592,21 @@ def main_plotting(plot_all=False, print_mean_std=False):
     _grid_plot_save(path=sp(f'xysquares_8x8_all'),  imgs=[imageio.imread(sp(f'xysquares_8x8_s{s}'))[:, 2:-2, :3] for s in range(1, 9)])
     _grid_plot_save(path=sp(f'xysquares_8x8_some'), imgs=[imageio.imread(sp(f'xysquares_8x8_s{s}'))[:, 2:-2, :3] for s in [1, 2, 4, 8]])
 
+    # replace the factor names!
+    Mpi3dData.factor_names = ('color', 'shape', 'size', 'elevation', 'bg_color', 'first_dof', 'second_dof')
+
     # plot standard datasets
-    for name in ['dsprites', 'shapes3d', 'cars3d', 'smallnorb', 'xyobject', 'xyobject_shaded']:
+    for name in [
+        'dsprites',
+        'shapes3d',
+        'cars3d',
+        'smallnorb',
+        'xyobject',
+        'xyobject_shaded',
+        'mpi3d_toy',
+        'mpi3d_realistic',
+        'mpi3d_real',
+    ]:
         plot_traversal_stats(circular_distance=CIRCULAR, x_size_offset=0, y_size_offset=0.6, num_repeats=256, disable_labels=False, save_path=sp(name), color='blue', dataset_or_name=name, plot_freq=PLOT_FREQ)
         _print_data_mean_std(name, print_mean_std)
 
