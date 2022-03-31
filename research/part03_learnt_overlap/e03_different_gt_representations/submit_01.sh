@@ -29,7 +29,7 @@ source "$(dirname "$(dirname "$(dirname "$(realpath -s "$0")")")")/scripts/helpe
 # ========================================================================= #
 
 # SWEEP FOR GOOD UNSUPERVISED DO-ADA-TVAE PARAMS
-#   1 * (3*4*2*2) = 48
+#   3 * (4*2*2) = 48
 ARGS_FILE="$ARGS_FILE" gen_sbatch_args_file \
     +DUMMY.repeat=1,2,3 \
     +EXTRA.tags='sweep_different-gt-repr_basic-vaes' \

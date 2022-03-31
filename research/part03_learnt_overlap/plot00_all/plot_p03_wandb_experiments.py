@@ -479,10 +479,10 @@ def plot_e01_learnt_loss_with_vaes(
 
     print('NUM?', len(df))
     df = df[
-        ((df[K_LOSS] == N_mse)  & ( df[K_BETA].isin([0.0001, 0.000316])))
-      # ((df[K_LOSS] == N_gau)  & (~df[K_BETA].isin([0.0001, 0.000316, 0.001, 0.00316, 0.01, 0.0316])))
-      | ((df[K_LOSS] == N_gau)  & (~df[K_BETA].isin([0.0001, 0.000316,                 0.01, 0.0316])))
-      | ((df[K_LOSS] == N_box)  & (~df[K_BETA].isin([0.0001, 0.000316, 0.001, 0.00316])))
+        ((df[K_LOSS] == N_mse)     & ( df[K_BETA].isin([0.0001, 0.000316])))
+      # ((df[K_LOSS] == N_gau)     & (~df[K_BETA].isin([0.0001, 0.000316, 0.001, 0.00316, 0.01, 0.0316])))
+      | ((df[K_LOSS] == N_gau)     & (~df[K_BETA].isin([0.0001, 0.000316,                 0.01, 0.0316])))
+      | ((df[K_LOSS] == N_box)     & (~df[K_BETA].isin([0.0001, 0.000316, 0.001, 0.00316])))
       | ((df[K_LOSS] == N_xy8r31)  & (~df[K_BETA].isin([0.0001, 0.000316, 0.001, 0.00316])))
     ]
     print('NUM?', len(df))
@@ -541,12 +541,12 @@ if __name__ == '__main__':
     # clear_cache(clear_data=True, clear_wandb=False)
 
     def main():
-        # plot_e03_different_gt_representations(rel_path='plots/p03e03_different-gt-representations', show=True)
-
-        # plot_e04_random_external_factors(rel_path='plots/p03e04_random-external-factors__fg', mode='fg', show=True)
-        # plot_e04_random_external_factors(rel_path='plots/p03e04_random-external-factors__bg', mode='bg', show=True)
-
         plot_e01_learnt_loss_with_vaes(rel_path='plots/p03e01_learnt-loss-with-vaes', show=True)
+
+        plot_e03_different_gt_representations(rel_path='plots/p03e03_different-gt-representations', show=True)
+
+        plot_e04_random_external_factors(rel_path='plots/p03e04_random-external-factors__fg', mode='fg', show=True)
+        plot_e04_random_external_factors(rel_path='plots/p03e04_random-external-factors__bg', mode='bg', show=True)
 
     main()
 
