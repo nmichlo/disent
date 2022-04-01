@@ -40,14 +40,14 @@ if __name__ == '__main__':
     FRAMES_PER_SECOND = 8
 
     for data_name, base_factors in [
-        ('xysquares_8x8', [5, 5, 1, 5, 5, 1]),        # ('x_R', 'y_R', 'x_G', 'y_G', 'x_B', 'y_B')
-        ('dsprites',      [2,  3,  4, 16, 20]),       # ('shape', 'scale', 'orientation', 'position_x', 'position_y')
-        ('cars3d',        [2, 2, 79]),                # ('elevation', 'azimuth', 'object_type')
-        ('shapes3d',      [1, 6, 9, 4, 3, 2]),        # ('floor_hue', 'wall_hue', 'object_hue', 'scale', 'shape', 'orientation')
-        ('smallnorb',     [2, 4, 1, 2, 3]),           # ('category', 'instance', 'elevation', 'rotation', 'lighting')
-        ('mpi3d_toy',       [3, 3, 1, 2, 1, 11, 10]),  # ('object_color', 'object_shape', 'object_size', 'camera_height', 'background_color', 'first_dof', 'second_dof') (4, 4, 2, 3, 3, 40, 40)
-        ('mpi3d_realistic', [3, 3, 1, 2, 1, 11, 10]),  # ('object_color', 'object_shape', 'object_size', 'camera_height', 'background_color', 'first_dof', 'second_dof') (4, 4, 2, 3, 3, 40, 40)
-        ('mpi3d_real',      [3, 3, 1, 2, 1, 11, 10]),  # ('object_color', 'object_shape', 'object_size', 'camera_height', 'background_color', 'first_dof', 'second_dof') (4, 4, 2, 3, 3, 40, 40)
+        ('xysquares_8x8',   [5, 5, 1, 5, 5, 1]),        # ('x_R', 'y_R', 'x_G', 'y_G', 'x_B', 'y_B')
+        ('dsprites',        [2,  3,  4, 16, 20]),       # ('shape', 'scale', 'orientation', 'position_x', 'position_y')
+        ('cars3d',          [2, 2, 79]),                # ('elevation', 'azimuth', 'object_type')
+        ('shapes3d',        [1, 6, 9, 4, 3, 2]),        # ('floor_hue', 'wall_hue', 'object_hue', 'scale', 'shape', 'orientation')
+        ('smallnorb',       [2, 4, 1, 2, 3]),           # ('category', 'instance', 'elevation', 'rotation', 'lighting')
+        ('mpi3d_toy',       [2, 3, 1, 2, 1, 11, 10]),  # ('object_color', 'object_shape', 'object_size', 'camera_height', 'background_color', 'first_dof', 'second_dof') (4, 4, 2, 3, 3, 40, 40)
+        ('mpi3d_realistic', [2, 3, 1, 2, 1, 11, 10]),  # ('object_color', 'object_shape', 'object_size', 'camera_height', 'background_color', 'first_dof', 'second_dof') (4, 4, 2, 3, 3, 40, 40)
+        ('mpi3d_real',      [2, 3, 1, 2, 1, 11, 10]),  # ('object_color', 'object_shape', 'object_size', 'camera_height', 'background_color', 'first_dof', 'second_dof') (4, 4, 2, 3, 3, 40, 40)
     ]:
         data = H.make_data(data_name, transform_mode='none')
 

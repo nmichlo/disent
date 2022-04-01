@@ -135,9 +135,9 @@ def make_data(
     elif name == 'smallnorb':      data = SmallNorb64Data(data_root=data_root, prepare=True, transform=transform)
     elif name == 'shapes3d':       data = Shapes3dData(data_root=data_root,  prepare=True, transform=transform, in_memory=try_in_memory)
     elif name == 'dsprites':       data = DSpritesData(data_root=data_root,  prepare=True, transform=transform, in_memory=try_in_memory)
-    elif name == 'mpi3d_toy':      data = Mpi3dData(data_root=data_root,  prepare=True, subset='toy',       transform=transform, in_memory=True)
-    elif name == 'mpi3d_realistic':data = Mpi3dData(data_root=data_root,  prepare=True, subset='realistic', transform=transform, in_memory=True)
-    elif name == 'mpi3d_real':     data = Mpi3dData(data_root=data_root,  prepare=True, subset='real',      transform=transform, in_memory=True)
+    elif name == 'mpi3d_toy':      data = Mpi3dData(data_root=data_root,  prepare=True, subset='toy',       transform=transform, in_memory=try_in_memory)
+    elif name == 'mpi3d_realistic':data = Mpi3dData(data_root=data_root,  prepare=True, subset='realistic', transform=transform, in_memory=try_in_memory)
+    elif name == 'mpi3d_real':     data = Mpi3dData(data_root=data_root,  prepare=True, subset='real',      transform=transform, in_memory=try_in_memory)
     # CUSTOM DATASETS
     elif name == 'dsprites_imagenet_bg_100': data = DSpritesImagenetData(visibility=100, mode='bg', data_root=data_root,  prepare=True, transform=transform, in_memory=try_in_memory)
     elif name == 'dsprites_imagenet_bg_80':  data = DSpritesImagenetData(visibility=80, mode='bg', data_root=data_root,  prepare=True, transform=transform, in_memory=try_in_memory)
