@@ -59,45 +59,6 @@ else:
 
 
 # ========================================================================= #
-# images                                                                    #
-# ========================================================================= #
-
-
-# TODO: similar functions exist: output_image, to_img, to_imgs, reconstructions_to_images
-def to_img(x: torch.Tensor, scale=False, to_cpu=True, move_channels=True) -> torch.Tensor:
-    assert x.ndim == 3, 'image must have 3 dimensions: (C, H, W)'
-    return to_imgs(x, scale=scale, to_cpu=to_cpu, move_channels=move_channels)
-
-
-# TODO: similar functions exist: output_image, to_img, to_imgs, reconstructions_to_images
-def to_imgs(x: torch.Tensor, scale=False, to_cpu=True, move_channels=True) -> torch.Tensor:
-    # (..., C, H, W)
-    assert x.ndim >= 3, 'image must have 3 or more dimensions: (..., C, H, W)'
-    assert (x.dtype in _TORCH_NORMAL_TYPES) or (x.dtype in _TORCH_COMPLEX_TYPES), f'unsupported dtype: {x.dtype}'
-    # no gradient
-    with torch.no_grad():
-        # imaginary to real
-        if x.dtype in _TORCH_COMPLEX_TYPES:
-            x = torch.abs(x)
-        # scale images
-        if scale:
-            m = x.min(dim=-3, keepdim=True).values.min(dim=-2, keepdim=True).values.min(dim=-1, keepdim=True).values
-            M = x.max(dim=-3, keepdim=True).values.max(dim=-2, keepdim=True).values.max(dim=-1, keepdim=True).values
-            x = (x - m) / (M - m)
-        # move axis
-        if move_channels:
-            x = torch.moveaxis(x, -3, -1)
-        # to uint8
-        x = torch.clamp(x, 0, 1)
-        x = (x * 255).to(torch.uint8)
-    # done!
-    x = x.detach()  # is this needeed?
-    if to_cpu:
-        x = x.cpu()
-    return x
-
-
-# ========================================================================= #
 # Matplotlib Helper                                                         #
 # ========================================================================= #
 
@@ -151,8 +112,8 @@ def plt_subplots(
     if titles is not None:
         titles = np.array(titles)
         if titles.ndim == 1:
-            titles = np.array([titles] + ([[None]*ncols] * (nrows-1)))
-        assert titles.ndim == 2
+            titles = np.stack([titles] + ([[None]*ncols] * (nrows-1)), axis=0)
+        assert titles.ndim == 2, f'invalid titles shape, must have 2 dims: {titles.shape}'
     # get labels
     if (row_labels is None) or isinstance(row_labels, str):
         row_labels = [row_labels] * nrows
@@ -349,50 +310,6 @@ def visualize_dataset_traversal(
         image,      # ([[H+PAD]*[FACTORS+1]], [[W+PAD]*[NUM_FRAMES+1]], C)
         animation,  # (NUM_FRAMES, [H & FACTORS], [W & FACTORS], C) -- size is auto-chosen
     )
-
-
-# ========================================================================= #
-# 2d density plot                                                           #
-# ========================================================================= #
-
-
-def plt_2d_density(
-    x,
-    y,
-    n_bins: int = 300,
-    xmin: Optional[float] = None,
-    xmax: Optional[float] = None,
-    ymin: Optional[float] = None,
-    ymax: Optional[float] = None,
-    ax: plt.Subplot = None,
-    pcolormesh_kwargs: Optional[Dict[str, Any]] = None
-):
-    from scipy.stats import kde
-    # https://www.python-graph-gallery.com/85-density-plot-with-matplotlib
-    # convert inputs
-    x = np.array(x)
-    y = np.array(y)
-    # prevent singular
-    # x = np.random.randn(*x.shape) * (0.01 * max(x.max() - x.min(), 1))
-    # y = np.random.randn(*y.shape) * (0.01 * max(y.max() - y.min(), 1))
-    # get bounds
-    if xmin is None: xmin = x.min()
-    if xmax is None: xmax = x.max()
-    if ymin is None: ymin = y.min()
-    if ymax is None: ymax = y.max()
-    # Evaluate a gaussian kde on a regular grid of nbins x nbins over data extents
-    xi, yi = np.mgrid[xmin:xmax:n_bins*1j, ymin:ymax:n_bins*1j]
-    try:
-        k = kde.gaussian_kde([x, y])
-        zi = k(np.stack([xi.flatten(), yi.flatten()], axis=0))
-    except np.linalg.LinAlgError:
-        log.warning('Could not create 2d_density plot')
-        return
-    # update args
-    if ax is None: ax = plt
-    if pcolormesh_kwargs is None: pcolormesh_kwargs = {}
-    # Make the plot
-    ax.pcolormesh(xi, yi, zi.reshape(xi.shape), shading='auto', **pcolormesh_kwargs)
 
 
 # ========================================================================= #

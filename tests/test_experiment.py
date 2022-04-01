@@ -37,9 +37,9 @@ from tests.util import temp_sys_args
 # ========================================================================= #
 # TESTS                                                                     #
 # ========================================================================= #
-                                                                                                                 # pragma: delete-on-release
-                                                                                                                 # pragma: delete-on-release
-RESEARCH_CFG_DIR = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'research/config'))  # pragma: delete-on-release
+
+
+EXAMPLE_CFG_DIR = os.path.abspath(os.path.join(__file__, '../..', 'docs/examples/extend_experiment/config'))
 
 
 @pytest.mark.parametrize(('env', 'args'), [
@@ -47,10 +47,11 @@ RESEARCH_CFG_DIR = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(
     (dict(), ['run_action=skip']),
     (dict(), ['run_action=prepare_data']),
     (dict(), ['run_action=train']),
-    # test the configs with the research components  # pragma: delete-on-release
-    # -- we need to modify the search path           # pragma: delete-on-release
-    # -- we need to register all the components      # pragma: delete-on-release
-    (dict(DISENT_CONFIGS_PREPEND=RESEARCH_CFG_DIR), ['run_action=train', 'dataset=X--xysquares', 'metrics=test', 'framework=X--adaae_os', 'schedule=adanegtvae_up_all']),  # pragma: delete-on-release
+    # test the configs with the research components
+    # -- we need to modify the search path
+    # -- we need to register all the components
+    (dict(DISENT_CONFIGS_PREPEND=EXAMPLE_CFG_DIR), ['run_action=train', 'dataset=E--xyblocks',                    'metrics=test', 'framework=E--si-betavae', 'schedule=adanegtvae_up_all']),
+    (dict(DISENT_CONFIGS_PREPEND=EXAMPLE_CFG_DIR), ['run_action=train', 'dataset=E--mask-dthr-pseudorandom.yaml', 'metrics=none', 'framework=adavae_os',     'schedule=beta_cyclic']),
 ])
 def test_experiment_run(env, args):
     # show full errors in hydra

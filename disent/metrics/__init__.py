@@ -29,7 +29,8 @@ from ._mig import metric_mig
 from ._sap import metric_sap
 from ._unsupervised import metric_unsupervised
 
-
-# ========================================================================= #
-# Fast Metric Settings                                                      #
-# ========================================================================= #
+# Michlo et al.
+from disent.metrics._flatness import metric_flatness
+from disent.metrics._factored_components import metric_factored_components
+from disent.metrics._factored_components import metric_distances
+from disent.metrics._factored_components import metric_linearity

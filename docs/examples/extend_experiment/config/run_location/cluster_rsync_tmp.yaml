@@ -1,0 +1,38 @@
+# @package _global_
+
+# -- this run_location reads data from the /tmp folder but does not prepare it!
+#    | *NB* the difference from `cluster_tmp` is that this script `rsync`s the already
+#    |      prepared files from the network drive to the /tmp folder instead of preparing
+#    |      it all. This is useful if the data is expensive to download, and the data needs
+#    |      to be constantly read off the disk!
+
+dsettings:
+  trainer:
+    cuda: NULL  # auto-detect cuda, some nodes may be configured incorrectly
+  storage:
+    logs_dir: 'logs'
+    data_root: ${rsync_dir:'${oc.env:HOME}/downloads/datasets','/tmp/${oc.env:USER}/datasets'}
+  dataset:
+    prepare: TRUE
+    try_in_memory: FALSE
+  launcher:
+    partition: stampede
+    array_parallelism: 16
+    exclude: "cluster92,cluster94,cluster96"
+
+datamodule:
+  gpu_augment: FALSE
+  prepare_data_per_node: TRUE
+  dataloader:
+    num_workers: 16
+    pin_memory: ${dsettings.trainer.cuda}  # uses more memory, but faster!
+    batch_size: ${settings.dataset.batch_size}
+
+hydra:
+  job:
+    name: 'disent'
+  run:
+    dir: '${dsettings.storage.logs_dir}/hydra_run/${now:%Y-%m-%d_%H-%M-%S}_${hydra.job.name}'
+  sweep:
+    dir: '${dsettings.storage.logs_dir}/hydra_sweep/${now:%Y-%m-%d_%H-%M-%S}_${hydra.job.name}'
+    subdir: '${hydra.job.id}' # hydra.job.id is not available for dir

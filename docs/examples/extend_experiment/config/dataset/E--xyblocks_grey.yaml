@@ -1,0 +1,18 @@
+defaults:
+  - _data_type_: gt
+
+name: xyblocks_grey
+
+data:
+  _target_: docs.examples.extend_experiment.code.groundtruth__xyblocks.XYBlocksData
+  rgb: FALSE
+
+transform:
+  _target_: disent.dataset.transform.ToImgTensorF32
+  mean: ${dataset.meta.vis_mean}
+  std: ${dataset.meta.vis_std}
+
+meta:
+  x_shape: [1, 64, 64]
+  vis_mean: "${exit:EXITING... please compute the vis_mean and vis_std}"
+  vis_std: "${exit:EXITING... please compute the vis_mean and vis_std}"

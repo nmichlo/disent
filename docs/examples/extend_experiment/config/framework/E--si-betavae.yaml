@@ -1,0 +1,24 @@
+defaults:
+  - _input_mode_: pair
+
+name: si-betavae
+
+cfg:
+  _target_: docs.examples.extend_experiment.code.weaklysupervised__si_betavae.SwappedInputBetaVae.cfg
+  # base ae
+  recon_loss: ${settings.framework.recon_loss}
+  loss_reduction: ${settings.framework.loss_reduction}
+  # base vae
+  latent_distribution: ${settings.framework_opt.latent_distribution}
+  # disable various components
+  detach_decoder: FALSE
+  disable_reg_loss: FALSE
+  disable_rec_loss: FALSE
+  disable_aug_loss: FALSE
+  # Beta-VAE
+  beta: ${settings.framework.beta}
+  # swapped target
+  swap_chance: 0.1
+
+meta:
+  model_z_multiplier: 2

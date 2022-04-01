@@ -1,0 +1,23 @@
+defaults:
+  - _data_type_: gt
+
+name: xysquares_grey
+
+data:
+  _target_: disent.dataset.data.XYSquaresData
+  square_size: 8     # AFFECTS: mean and std
+  image_size: 64     # usually ok to adjust
+  grid_size: 8       # usually ok to adjust
+  grid_spacing: 8    # usually ok to adjust
+  num_squares: 3     # AFFECTS: mean and std
+  rgb: FALSE         # AFFECTS: mean and std
+
+transform:
+  _target_: disent.dataset.transform.ToImgTensorF32
+  mean: ${dataset.meta.vis_mean}
+  std: ${dataset.meta.vis_std}
+
+meta:
+  x_shape: [1, 64, 64]
+  vis_mean: [0.046146392822265625]
+  vis_std: [0.2096506119375896]

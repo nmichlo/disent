@@ -1,0 +1,38 @@
+# @package _global_
+
+# -- this run_location reads data from a network drive but does not prepare it!
+#    | this is useful if we read data once into memory
+#    |
+#    |
+#    |
+
+dsettings:
+  trainer:
+    cuda: NULL  # auto-detect cuda, some nodes may be configured incorrectly
+  storage:
+    logs_dir: 'logs'
+    data_root: '${oc.env:HOME}/downloads/datasets'  # WE NEED TO BE VERY CAREFUL ABOUT USING A SHARED DRIVE
+  dataset:
+    prepare: FALSE                                  # WE MUST PREPARE DATA MANUALLY BEFOREHAND
+    try_in_memory: TRUE
+  launcher:
+    partition: stampede
+    array_parallelism: 16
+    exclude: "cluster92,cluster94,cluster96"
+
+datamodule:
+  gpu_augment: FALSE
+  prepare_data_per_node: TRUE
+  dataloader:
+    num_workers: 16
+    pin_memory: ${dsettings.trainer.cuda}  # uses more memory, but faster!
+    batch_size: ${settings.dataset.batch_size}
+
+hydra:
+  job:
+    name: 'disent'
+  run:
+    dir: '${dsettings.storage.logs_dir}/hydra_run/${now:%Y-%m-%d_%H-%M-%S}_${hydra.job.name}'
+  sweep:
+    dir: '${dsettings.storage.logs_dir}/hydra_sweep/${now:%Y-%m-%d_%H-%M-%S}_${hydra.job.name}'
+    subdir: '${hydra.job.id}' # hydra.job.id is not available for dir

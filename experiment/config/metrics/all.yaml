@@ -1,4 +1,6 @@
 metric_list:
+  - flatness: {}
+  - factored_components: {}
   - mig: {}
   - sap: {}
   - dci:

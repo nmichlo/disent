@@ -1,5 +1,5 @@
 defaults:
-  - _input_mode_: weak_pair
+  - _input_mode_: weak_pair  # original sampling
 
 name: adavae_os
 

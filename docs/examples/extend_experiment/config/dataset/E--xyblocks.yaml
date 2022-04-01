@@ -1,0 +1,18 @@
+defaults:
+  - _data_type_: gt
+
+name: xyblocks
+
+data:
+  _target_: docs.examples.extend_experiment.code.groundtruth__xyblocks.XYBlocksData
+  rgb: TRUE
+
+transform:
+  _target_: disent.dataset.transform.ToImgTensorF32
+  mean: ${dataset.meta.vis_mean}
+  std: ${dataset.meta.vis_std}
+
+meta:
+  x_shape: [3, 64, 64]
+  vis_mean: [0.10040509259259259, 0.10040509259259259, 0.10040509259259259]
+  vis_std: [0.21689087652106678, 0.21689087652106676, 0.21689087652106678]

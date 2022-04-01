@@ -31,6 +31,7 @@ from typing import Callable
 from typing import List
 from typing import NoReturn
 from typing import Optional
+from typing import Union
 
 import hydra
 from omegaconf import OmegaConf
@@ -66,8 +67,8 @@ _DISENT_CONFIG_DIRS: List[str] = None
 
 def register_searchpath_plugin(
     search_dir_main: str = EXP_CONFIG_DIR,
-    search_dirs_prepend: Optional[List[str]] = None,
-    search_dirs_append:  Optional[List[str]] = None,
+    search_dirs_prepend: Optional[Union[str, List[str]]] = None,
+    search_dirs_append:  Optional[Union[str, List[str]]] = None,
 ):
     """
     Patch Hydra:
@@ -81,6 +82,8 @@ def register_searchpath_plugin(
     # normalise the config paths
     if search_dirs_prepend is None: search_dirs_prepend = []
     if search_dirs_append is None:  search_dirs_append = []
+    if isinstance(search_dirs_prepend, str): search_dirs_prepend = [search_dirs_prepend]
+    if isinstance(search_dirs_append, str): search_dirs_append = [search_dirs_append]
     assert isinstance(search_dirs_prepend, (tuple, list)) and all((isinstance(d, str) and d) for d in search_dirs_prepend), f'`search_dirs_prepend` must be a list or tuple of non-empty path strings to directories, got: {repr(search_dirs_prepend)}'
     assert isinstance(search_dirs_append, (tuple, list)) and all((isinstance(d, str) and d) for d in search_dirs_append), f'`search_dirs_append` must be a list or tuple of non-empty path strings to directories, got: {repr(search_dirs_append)}'
     assert isinstance(search_dir_main, str) and search_dir_main, f'`search_dir_main` must be a non-empty path string to a directory, got: {repr(search_dir_main)}'
@@ -178,8 +181,8 @@ def register_hydra_resolvers():
 def patch_hydra(
     # config search path
     search_dir_main: str = EXP_CONFIG_DIR,
-    search_dirs_prepend: Optional[List[str]] = None,
-    search_dirs_append: Optional[List[str]] = None,
+    search_dirs_prepend: Optional[Union[str, List[str]]] = None,
+    search_dirs_append: Optional[Union[str, List[str]]] = None,
 ):
     # Patch Hydra and OmegaConf:
     register_searchpath_plugin(search_dir_main=search_dir_main, search_dirs_prepend=search_dirs_prepend, search_dirs_append=search_dirs_append)
@@ -191,8 +194,8 @@ def hydra_main(
     config_name: str = 'config',
     # config search path
     search_dir_main: str = EXP_CONFIG_DIR,
-    search_dirs_prepend: Optional[List[str]] = None,
-    search_dirs_append:  Optional[List[str]] = None,
+    search_dirs_prepend: Optional[Union[str, List[str]]] = None,
+    search_dirs_append:  Optional[Union[str, List[str]]] = None,
     # logging
     log_level: Optional[int] = logging.INFO,
     log_exc_info_callback: bool = True,

@@ -1,0 +1,45 @@
+defaults:
+  - _self_  # defaults lists override entries from this file!
+  # data
+  - sampling: default__bb
+  - dataset: xyobject
+  - augment: none
+  # system
+  - framework: betavae
+  - model: vae_conv64
+  # training
+  - optimizer: adam
+  - schedule: none
+  - metrics: all
+  - run_length: long
+  # logs
+  - run_callbacks: vis
+  - run_logging: wandb
+  # runtime
+  - run_location: cluster_shr
+  - run_launcher: slurm
+  - run_action: train
+  # experiment
+  - run_plugins: default
+
+settings:
+  job:
+    user: '${oc.env:USER}'
+    project: 'DELETE'
+    name: '${framework.name}:${settings.framework.recon_loss}|${dataset.name}:${sampling.name}|${trainer.max_steps}'
+    seed: NULL
+  framework:
+    beta: 0.0316
+    recon_loss: mse
+    loss_reduction: mean  # beta scaling
+  framework_opt:
+    latent_distribution: normal  # only used by VAEs
+    overlap_loss: NULL           # only used for experimental dotvae and dorvae
+    usage_ratio: 0.5             # only used by adversarial masked datasets
+  model:
+    z_size: 25
+    weight_init: 'xavier_normal'  # xavier_normal, default
+  dataset:
+    batch_size: 256
+  optimizer:
+    lr: 1e-3

@@ -1,0 +1,21 @@
+defaults:
+  - _data_type_: random
+
+name: mask_dthr_pseudorandom
+
+data:
+  _target_: disent.dataset.wrapper.DitheredDataset
+  dither_n: 2
+  keep_ratio: 0.5
+  gt_data:
+    _target_: docs.examples.extend_experiment.code.random_data.RandomData
+
+transform:
+  _target_: disent.dataset.transform.ToImgTensorF32
+  mean: ${dataset.meta.vis_mean}
+  std: ${dataset.meta.vis_std}
+
+meta:
+  x_shape: [1, 64, 64]
+  vis_mean: [0.4999966931838419]
+  vis_std: [0.2897895504502549]
