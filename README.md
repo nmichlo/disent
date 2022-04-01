@@ -128,7 +128,7 @@ on the GPU or CPU at different points in the pipeline.
 
   + <details>
     <summary>🔺 <a href="https://arxiv.org/abs/1906.03292" target="_blank">MPI3D</a></summary>
-    <p align="center">🏗 Todo</p>
+    <p align="center"><img height="192" src="docs/img/traversals/traversal-transpose__mpi3d-real.jpg" alt="MPI3D-Real Dataset Factor Traversals"></p>
   </details>
 
   + <details>
@@ -150,6 +150,14 @@ on the GPU or CPU at different points in the pipeline.
   </details>
 
 - **Ground Truth Synthetic**:
+  + <details open>
+    <summary>
+      🧵 <u>XYSquares</u>:
+      <i>Three non-overlapping squares that can move around a grid. This dataset is adversarial to VAEs that use pixel-wise reconstruction losses.</i>
+    </summary>
+    <p align="center"><img height="192" src="docs/img/traversals/traversal-transpose__xy-squares__spacing8.jpg" alt="XYSquares Dataset Factor Traversals"></p>
+  </details>
+
   + <details>
     <summary>
       🧵 <u>XYObject</u>:
@@ -185,6 +193,17 @@ Disent provides the following Auto-Encoders and Variational Auto-Encoders!
   + <u>TAE</u>: _Triplet Auto-Encoder_
   + [TVAE](https://arxiv.org/abs/1802.04403): Triplet Variational Auto-Encoder
 
+Introduced in Disent
+
+- **Unsupervised**:
+  + 🧵 <u>Ada-TVAE-D</u>: Adaptive Triplet VAE that uses data distances instead of ground-truth distances as the supervision signal.
+  + 🧵 <u>Ada-TAE-D</u>:  Adaptive Triplet AE that uses data distances instead of ground-truth distances as the supervision signal.
+- **Weakly Supervised**:
+  + 🧵 <u>Ada-AE</u>: Adaptive AE, the auto-encoder version of the Ada-GVAE
+- **Supervised**:
+  + 🧵 <u>Ada-TVAE</u>: Adaptive Triplet VAE, disentangled version of the TVAE
+  + 🧵 <u>Ada-TAE</u>:  Adaptive Triplet AE, disentangled version of the TAE
+
 <details><summary><b>🏗 Todo</b>: <i>Many popular disentanglement frameworks still need to be added, please
 submit an issue if you have a request for an additional framework.</i></summary><p>
 
@@ -204,6 +223,11 @@ learnt representations of models that have been trained on ground-truth data.
   + [MIG](https://arxiv.org/abs/1802.04942)
   + [SAP](https://arxiv.org/abs/1711.00848)
   + [Unsupervised Scores](https://github.com/google-research/disentanglement_lib)
+  + 🧵 <u>Flatness Components</u>: _Measures of the three components needed to learn factored representations from distances. VAEs often learn the first two (correlation & linearity), and the can happen accidentally (axis-alignment)!_
+    - 🪡 <u>Ground-Truth Correlation</u> - _The spearman rank correlation between latent distances and ground-truth distances._
+    - 🪡 <u>Linearity Ratio</u> - _How well factor traversals lie along an n-dimensional arbitrarily rotated line in the latent space_
+    - 🪡 <u>Axis-Alignment Ratio</u> - _How well factor traversals are represented by a single latent variable, ie. an n-dimensional line that is axis-aligned._
+  + 🧵 <u>Flatness Score</u> - _Measuring the max distance between factor traversal embeddings and the path length of their embeddings._
 
 <details><summary><b>🏗 Todo</b>: <i>Some popular metrics still need to be added, please submit an issue if you wish to
 add your own, or you have a request.</i></summary><p>
@@ -259,6 +283,17 @@ are not available from `pip install`.
 - `experiment/config/config.yaml`: main configuration file, this is probably what you want to edit!
 - `experiment/config`: root folder for [hydra](https://github.com/facebookresearch/hydra) config files
 - `experiment/util`: various helper code for experiments
+
+**Extending The Default Configs**
+
+All configs in `experiment/config` can easily be extended or overridden
+without modifying any files. We can add a new config folder to the hydra search path
+by setting the environment variable `DISENT_CONFIGS_PREPEND` to point to a config folder
+that should take priority over those contained in the default folder.
+
+The advantage of this is that new frameworks and datasets can be used with experiments without cloning or modifying
+disent itself. You can separate your research code from the library!
+- See the examples in the docs for more information!
 
 ----------------------
 

@@ -35,7 +35,7 @@ from disent.util.seeds import TempNumpySeed
 
 if __name__ == '__main__':
 
-    OUTPUT_DIR = os.path.abspath(os.path.join(__file__, '../../../research', 'plots/animations'))
+    OUTPUT_DIR = os.path.abspath(os.path.join(__file__, '..', 'plots/animations'))
     FRAMES_PER_TRAVERSAL = 18
     FRAMES_PER_SECOND = 8
 
