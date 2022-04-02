@@ -187,6 +187,9 @@ class StateSpace(LengthIter):
     # Sampling Functions - any dim array, only last axis counts!            #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
+    def sample_indices(self, size=None):
+        return np.random.randint(0, len(self), size=size)
+
     def sample_factors(self, size=None, factor_indices=None) -> np.ndarray:
         """
         sample randomly from all factors, otherwise the given factor_indices.
@@ -281,6 +284,23 @@ class StateSpace(LengthIter):
         base_factors[:, f_idx] = get_idx_traversal(self.factor_sizes[f_idx], num_frames=num, mode=mode, start_index=start_index)
         # return factors (num_frames, num_factors)
         return base_factors
+
+    def sample_random_factor_traversal_grid(self, num: int = None, base_factors=None, mode: str = 'interval', factor_indices=None, return_indices: bool = False) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
+        # default values
+        if num is None:
+            num = int(np.ceil(np.mean(self.factor_sizes)))
+        if base_factors is None:
+            base_factors = self.sample_factors()
+        factor_indices = self.normalise_factor_idxs(factor_indices)
+        # generate a grid of factors
+        factors_grid = []
+        for f_idx in factor_indices:
+            factors_grid.append(self.sample_random_factor_traversal(f_idx=f_idx, base_factors=base_factors, num=num, mode=mode, start_index=0))
+        factors_grid = np.stack(factors_grid, axis=0)
+        # done!
+        if return_indices:
+            return factors_grid, self.pos_to_idx(factors_grid)
+        return factors_grid
 
 
 # ========================================================================= #

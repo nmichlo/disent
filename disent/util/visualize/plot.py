@@ -66,7 +66,7 @@ else:
 def plt_imshow(img, figsize=12, show=False, **kwargs):
     # check image shape
     assert img.ndim == 3
-    assert img.shape[-1] in (1, 3)
+    assert img.shape[-1] in (1, 3, 4)
     # figure size -- fixed width, adjust height according to image
     if isinstance(figsize, (int, str, Number)):
         size = np.array(img.shape[:2][::-1])
