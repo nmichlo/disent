@@ -39,6 +39,7 @@ from disent.dataset.data import GroundTruthData
 from disent.dataset.data import Mpi3dData
 from disent.dataset.data import Shapes3dData
 from disent.dataset.data import SmallNorb64Data
+from disent.dataset.data import SpritesData
 from disent.dataset.data import XYSingleSquareData
 from disent.dataset.data import XYSquaresData
 from disent.dataset.data import XYObjectData
@@ -206,6 +207,7 @@ if __name__ == '__main__':
     plot_dataset_traversals(DSpritesData(),       rel_path=f'plots/traversals/traversal-mini__dsprites',                                   title=TITLE_MINI, seed=seed, transpose=False, add_random_traversal=False, num_cols=mini_cols)
     plot_dataset_traversals(SmallNorb64Data(),    rel_path=f'plots/traversals/traversal-mini__smallnorb',                                  title=TITLE_MINI, seed=seed, transpose=False, add_random_traversal=False, num_cols=mini_cols)
     plot_dataset_traversals(Cars3d64Data(),       rel_path=f'plots/traversals/traversal-mini__cars3d',                                     title=TITLE_MINI, seed=seed, transpose=False, add_random_traversal=False, num_cols=mini_cols, take_cols=mini_cols+1)
+    plot_dataset_traversals(SpritesData(),        rel_path=f'plots/traversals/traversal-mini__sprites',                                    title=TITLE_MINI, seed=seed, transpose=False, add_random_traversal=False, num_cols=mini_cols, take_cols=mini_cols+1)
     plot_dataset_traversals(Mpi3dData(subset='toy'),       rel_path=f'plots/traversals/traversal-mini__mpi3d-toy',         title=TITLE_MINI, seed=seed, transpose=False, add_random_traversal=False, num_cols=mini_cols)
     plot_dataset_traversals(Mpi3dData(subset='realistic'), rel_path=f'plots/traversals/traversal-mini__mpi3d-realistic',   title=TITLE_MINI, seed=seed, transpose=False, add_random_traversal=False, num_cols=mini_cols)
     plot_dataset_traversals(Mpi3dData(subset='real'),      rel_path=f'plots/traversals/traversal-mini__mpi3d-real',        title=TITLE_MINI, seed=seed, transpose=False, add_random_traversal=False, num_cols=mini_cols)
@@ -217,6 +219,7 @@ if __name__ == '__main__':
     plot_dataset_traversals(DSpritesData(),                                rel_path=f'plots/traversals/traversal-transpose__dsprites',                   title=TITLE_TRANSPOSE, offset=0.95, label_size=23, seed=seed, labels_at_top=True, transpose=True, add_random_traversal=False, num_cols=transpose_cols)
     plot_dataset_traversals(SmallNorb64Data(),                             rel_path=f'plots/traversals/traversal-transpose__smallnorb',                  title=TITLE_TRANSPOSE, offset=0.95, label_size=23, seed=seed, labels_at_top=True, transpose=True, add_random_traversal=False, num_cols=transpose_cols)
     plot_dataset_traversals(Cars3d64Data(),                                rel_path=f'plots/traversals/traversal-transpose__cars3d',                     title=TITLE_TRANSPOSE, offset=0.95, label_size=23, seed=seed, labels_at_top=True, transpose=True, add_random_traversal=False, num_cols=transpose_cols, take_cols=mini_cols+1)
+    plot_dataset_traversals(SpritesData(),                                 rel_path=f'plots/traversals/traversal-transpose__sprites',                    title=TITLE_TRANSPOSE, offset=0.95, label_size=23, seed=seed, labels_at_top=True, transpose=True, add_random_traversal=False, num_cols=transpose_cols, take_cols=mini_cols+1)
     plot_dataset_traversals(Mpi3dData(subset='toy'),       rel_path=f'plots/traversals/traversal-transpose__mpi3d-toy',                  title=TITLE_TRANSPOSE, offset=0.95, label_size=23, seed=seed, labels_at_top=True, transpose=True, add_random_traversal=False, num_cols=transpose_cols)
     plot_dataset_traversals(Mpi3dData(subset='realistic'), rel_path=f'plots/traversals/traversal-transpose__mpi3d-realistic',            title=TITLE_TRANSPOSE, offset=0.95, label_size=23, seed=seed, labels_at_top=True, transpose=True, add_random_traversal=False, num_cols=transpose_cols)
     plot_dataset_traversals(Mpi3dData(subset='real'),      rel_path=f'plots/traversals/traversal-transpose__mpi3d-real',                 title=TITLE_TRANSPOSE, offset=0.95, label_size=23, seed=seed, labels_at_top=True, transpose=True, add_random_traversal=False, num_cols=transpose_cols)
@@ -232,6 +235,7 @@ if __name__ == '__main__':
     plot_dataset_traversals(DSpritesData(),                                rel_path=f'plots/traversals/{prefix}__dsprites',         title=TITLE, seed=seed, add_random_traversal=INCLUDE_RANDOM_TRAVERSAL, num_cols=num_cols)
     plot_dataset_traversals(SmallNorb64Data(),                             rel_path=f'plots/traversals/{prefix}__smallnorb',        title=TITLE, seed=seed, add_random_traversal=INCLUDE_RANDOM_TRAVERSAL, num_cols=num_cols)
     plot_dataset_traversals(Cars3d64Data(),                                rel_path=f'plots/traversals/{prefix}__cars3d',           title=TITLE, seed=seed, add_random_traversal=INCLUDE_RANDOM_TRAVERSAL, num_cols=num_cols)
+    plot_dataset_traversals(SpritesData(),                                 rel_path=f'plots/traversals/{prefix}__sprites',          title=TITLE, seed=seed, add_random_traversal=INCLUDE_RANDOM_TRAVERSAL, num_cols=num_cols)
     plot_dataset_traversals(Mpi3dData(subset='toy'),       rel_path=f'plots/traversals/{prefix}__mpi3d-toy',        title=TITLE, seed=seed, add_random_traversal=INCLUDE_RANDOM_TRAVERSAL, num_cols=num_cols)
     plot_dataset_traversals(Mpi3dData(subset='realistic'), rel_path=f'plots/traversals/{prefix}__mpi3d-realistic',  title=TITLE, seed=seed, add_random_traversal=INCLUDE_RANDOM_TRAVERSAL, num_cols=num_cols)
     plot_dataset_traversals(Mpi3dData(subset='real'),      rel_path=f'plots/traversals/{prefix}__mpi3d-real',       title=TITLE, seed=seed, add_random_traversal=INCLUDE_RANDOM_TRAVERSAL, num_cols=num_cols)

@@ -50,6 +50,7 @@ from disent.dataset.data._groundtruth__mpi3d import Mpi3dData
 from disent.dataset.data._groundtruth__norb import SmallNorbData
 from disent.dataset.data._groundtruth__norb import SmallNorb64Data
 from disent.dataset.data._groundtruth__shapes3d import Shapes3dData
+from disent.dataset.data._groundtruth__sprites import SpritesData
 
 # groundtruth -- impl synthetic
 from disent.dataset.data._groundtruth__xcolumns import XColumnsData

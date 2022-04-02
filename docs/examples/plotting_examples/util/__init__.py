@@ -49,6 +49,7 @@ from disent.dataset.data import DSpritesData
 from disent.dataset.data import DSpritesImagenetData
 from disent.dataset.data import Mpi3dData
 from disent.dataset.data import SmallNorb64Data
+from disent.dataset.data import SpritesData
 from disent.dataset.data import XColumnsData
 from disent.dataset.data import XYObjectShadedData
 from disent.dataset.data import GroundTruthData
@@ -138,6 +139,7 @@ def make_data(
     elif name == 'mpi3d_toy':      data = Mpi3dData(data_root=data_root,  prepare=True, subset='toy',       transform=transform, in_memory=try_in_memory)
     elif name == 'mpi3d_realistic':data = Mpi3dData(data_root=data_root,  prepare=True, subset='realistic', transform=transform, in_memory=try_in_memory)
     elif name == 'mpi3d_real':     data = Mpi3dData(data_root=data_root,  prepare=True, subset='real',      transform=transform, in_memory=try_in_memory)
+    elif name == 'sprites':        data = SpritesData(data_root=data_root,  prepare=True, transform=transform)
     # CUSTOM DATASETS
     elif name == 'dsprites_imagenet_bg_100': data = DSpritesImagenetData(visibility=100, mode='bg', data_root=data_root,  prepare=True, transform=transform, in_memory=try_in_memory)
     elif name == 'dsprites_imagenet_bg_80':  data = DSpritesImagenetData(visibility=80, mode='bg', data_root=data_root,  prepare=True, transform=transform, in_memory=try_in_memory)

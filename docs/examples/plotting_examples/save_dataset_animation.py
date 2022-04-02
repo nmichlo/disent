@@ -48,6 +48,7 @@ if __name__ == '__main__':
         ('mpi3d_toy',       [2, 3, 1, 2, 1, 11, 10]),  # ('object_color', 'object_shape', 'object_size', 'camera_height', 'background_color', 'first_dof', 'second_dof') (4, 4, 2, 3, 3, 40, 40)
         ('mpi3d_realistic', [2, 3, 1, 2, 1, 11, 10]),  # ('object_color', 'object_shape', 'object_size', 'camera_height', 'background_color', 'first_dof', 'second_dof') (4, 4, 2, 3, 3, 40, 40)
         ('mpi3d_real',      [2, 3, 1, 2, 1, 11, 10]),  # ('object_color', 'object_shape', 'object_size', 'camera_height', 'background_color', 'first_dof', 'second_dof') (4, 4, 2, 3, 3, 40, 40)
+        ('sprites',         777),
     ]:
         data = H.make_data(data_name, transform_mode='none')
 
