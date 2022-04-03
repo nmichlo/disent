@@ -1,14 +1,12 @@
 defaults:
   - _data_type_: gt
 
-name: mpi3d_real
+name: sprites
 
 data:
-  _target_: disent.dataset.data.Mpi3dData
+  _target_: disent.dataset.data.SpritesData
   data_root: ${dsettings.storage.data_root}
   prepare: ${dsettings.dataset.prepare}
-  in_memory: ${dsettings.dataset.try_in_memory}
-  subset: 'real'
 
 transform:
   _target_: disent.dataset.transform.ToImgTensorF32
@@ -17,5 +15,5 @@ transform:
 
 meta:
   x_shape: [3, 64, 64]
-  vis_mean: [0.12848577057593918, 0.1648033279246875, 0.13971583058948006]
-  vis_std: [0.09329210572942123, 0.09203401520672466, 0.10322983729706256]
+  vis_mean: [0.09906152159057463, 0.0778614646916404, 0.07261320645877936]
+  vis_std: [0.23002326114948654, 0.19781224128167926, 0.18283647186482793]

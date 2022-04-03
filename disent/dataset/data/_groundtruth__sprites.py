@@ -110,7 +110,7 @@ class DataFileSprites(DataFileHashed):
 # ========================================================================= #
 
 
-class SpritesFullData(DiskGroundTruthData):
+class SpritesAllData(DiskGroundTruthData):
     name = 'sprites'
     factor_names = ('bottomwear', 'topwear', 'hair', 'eyes', 'shoes', 'body', 'action', 'rotation', 'frame')
     factor_sizes = (7, 7, 10, 5, 3, 7, 5, 4, 6)  # 6_174_000
@@ -185,13 +185,13 @@ class SpritesPartialData(GroundTruthData):
     are removed too because they are missing entries.
     """
 
-    img_shape = SpritesFullData.img_shape
-    factor_names = SpritesFullData.factor_names
+    img_shape = SpritesAllData.img_shape
+    factor_names = SpritesAllData.factor_names
     factor_sizes = (6, 6, 10, 5, 3, 7, 5, 3, 6)  # 3_402_000
 
     def __init__(self, data_root: Optional[str] = None, prepare: bool = False, transform=None):
         super().__init__(transform=transform)
-        self._sprites = SpritesFullData(data_root=data_root, prepare=prepare, transform=None)
+        self._sprites = SpritesAllData(data_root=data_root, prepare=prepare, transform=None)
 
     def _offset_idx(self, idx: int) -> int:
         pos = self.idx_to_pos(idx)
@@ -245,7 +245,7 @@ if __name__ == '__main__':
         from disent.util.visualize.plot import plt_imshow
         from disent.util.visualize.vis_util import make_image_grid
 
-        data = SpritesFullData(prepare=True)
+        data = SpritesAllData(prepare=True)
 
         # show frames and combined frames
         frames = data.sample_random_frames(True, True)
@@ -259,7 +259,7 @@ if __name__ == '__main__':
         plt.show()
 
         # check speeds
-        for i, _ in enumerate(tqdm(SpritesFullData(prepare=True))):  # ~7443 it/s
+        for i, _ in enumerate(tqdm(SpritesAllData(prepare=True))):  # ~7443 it/s
             if i > 25000: break
         for i, _ in enumerate(tqdm(SpritesData(prepare=True))):      # ~6355 it/s
             if i > 25000: break

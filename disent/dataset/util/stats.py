@@ -84,7 +84,7 @@ def compute_data_mean_std(
 
 if __name__ == '__main__':
 
-    def main(progress=True, num_workers=0, batch_size=256):  # try changing workers to zero on MacOS
+    def main(progress=True, num_workers=32, batch_size=2048):  # try changing workers to zero on MacOS
         from disent.dataset import data
         from docs.examples.extend_experiment.code import groundtruth__xyblocks as edat
         from disent.dataset.transform import ToImgTensorF32
@@ -97,6 +97,8 @@ if __name__ == '__main__':
             data.SmallNorb64Data,
             data.DSpritesData,
             data.Shapes3dData,
+            data.SpritesData,
+            data.SpritesAllData,
             # groundtruth -- impl synthetic
             data.XYObjectData,
             data.XYObjectShadedData,
