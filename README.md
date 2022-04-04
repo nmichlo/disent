@@ -108,8 +108,10 @@ _Note that "🧵" means that the dataset, framework or metric was introduced by 
 
 ### Datasets
 
-Various common datasets used in disentanglement research are included, with hash
-verification and automatic chunk-size optimization of underlying hdf5 formats for
+Various common datasets used in disentanglement research are included with disent. The dataset loaders provide various features including:
+- automatic downloads & preperation
+- automatic hash verification
+- automatic optimization of underlying hdf5 formats for
 low-memory disk-based access.
 
 Data input and target dataset augmentations and transforms are supported, as well as augmentations
