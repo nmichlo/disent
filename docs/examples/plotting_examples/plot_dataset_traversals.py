@@ -159,8 +159,9 @@ def plot_incr_overlap(
     for s in spacings:
         data = XYSquaresData(grid_spacing=s, grid_size=8, no_warnings=True)
         with TempNumpySeed(seed):
-            factors, indices, obs = data.sample_random_obs_traversal(f_idx=data.normalise_factor_idx(fidx), num=traversal_size, mode='interval')
-        grid.append(obs[:traversal_lim])
+            factors, indices = data.sample_random_factor_traversal(f_idx=data.normalise_factor_idx(fidx), num=traversal_size, mode='interval', return_indices=True)
+            obs = [data[i] for i in indices[:traversal_lim]]
+        grid.append(obs)
 
     w, h = traversal_lim * 2.54, len(spacings) * 2.54
     fig, axs = H.plt_subplots_imshow(grid, row_labels=[f'Space: {s}px' for s in spacings], figsize=(w, h), label_size=24)

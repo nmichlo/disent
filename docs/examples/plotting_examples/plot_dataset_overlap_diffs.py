@@ -74,7 +74,7 @@ def plot_dataset_overlap(
         f_name = gt_data.factor_names[f_idx]
         num_cols = gt_data.factor_sizes[f_idx]
         # get a traversal
-        factors, indices, obs = gt_data.sample_random_obs_traversal(f_idx=f_idx)
+        obs = [gt_data[i] for i in gt_data.pos_to_idx(gt_data.sample_random_factor_traversal(f_idx=f_idx))]
         # get subset
         if obs_max is not None:
             max_obs_spacing, i = obs_spacing, 1

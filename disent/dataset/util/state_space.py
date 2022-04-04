@@ -38,7 +38,9 @@ from disent.util.visualize.vis_util import get_idx_traversal
 # ========================================================================= #
 
 
-NonNormalisedFactors = Union[Sequence[Union[int, str]], Union[int, str]]
+NonNormalisedFactorIdx  = Union[Sequence[Union[int, str]], Union[int, str]]
+NonNormalisedFactorIdxs = Union[Sequence[NonNormalisedFactorIdx], NonNormalisedFactorIdx]
+NonNormalisedFactors    = Union[np.ndarray, Sequence[Union[int, Sequence]]]
 
 
 # ========================================================================= #
@@ -57,6 +59,11 @@ class StateSpace(LengthIter):
         # dimension: [read only]
         self.__factor_sizes = np.array(factor_sizes)
         self.__factor_sizes.flags.writeable = False
+        # checks
+        if self.__factor_sizes.ndim != 1:
+            raise ValueError(f'`factor_sizes` must be an array with only one dimension, got shape: {self.__factor_sizes.shape}')
+        if len(self.__factor_sizes) <= 0:
+            raise ValueError(f'`factor_sizes` must be non-empty, got shape: {self.__factor_sizes.shape}')
         # multipliers: [read only]
         self.__factor_multipliers = _dims_multipliers(self.__factor_sizes)
         self.__factor_multipliers.flags.writeable = False
@@ -118,7 +125,7 @@ class StateSpace(LengthIter):
     # Factor Helpers                                                        #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def normalise_factor_idx(self, factor: Union[int, str]) -> int:
+    def normalise_factor_idx(self, factor: NonNormalisedFactorIdx) -> int:
         # convert a factor name to the factor id
         if isinstance(factor, str):
             try:
@@ -133,18 +140,26 @@ class StateSpace(LengthIter):
         # return the resulting values
         return f_idx
 
-    def normalise_factor_idxs(self, factors: 'NonNormalisedFactors') -> np.ndarray:
+    def normalise_factor_idxs(self, f_idxs: Optional[NonNormalisedFactorIdxs]) -> np.ndarray:
         # return the default list of factor indices
-        if factors is None:
+        if f_idxs is None:
             return np.arange(self.num_factors)
         # normalize a single factor into a list
-        if isinstance(factors, (int, str)):
-            factors = [factors]
+        if isinstance(f_idxs, (int, str)):
+            f_idxs = [f_idxs]
         # convert all the factors to their indices
-        factors = np.array([self.normalise_factor_idx(factor) for factor in factors])
+        f_idxs = np.array([self.normalise_factor_idx(f_idx) for f_idx in f_idxs])
         # done! make sure there are not duplicates!
-        assert len(set(factors)) == len(factors), 'duplicate factors were found!'
-        return factors
+        assert len(set(f_idxs)) == len(f_idxs), 'duplicate factors were found!'
+        return f_idxs
+
+    def invert_factor_idxs(self, f_idxs: Optional[NonNormalisedFactorIdxs]) -> np.ndarray:
+        f_idxs = self.normalise_factor_idxs(f_idxs)
+        # create a mask of factors
+        f_mask = np.ones(self.num_factors, dtype='bool')
+        f_mask[f_idxs] = False
+        # # # select the inverse factors
+        return np.where(f_mask)[0]
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Coordinate Transform - any dim array, only last axis counts!          #
@@ -190,7 +205,7 @@ class StateSpace(LengthIter):
     def sample_indices(self, size=None):
         return np.random.randint(0, len(self), size=size)
 
-    def sample_factors(self, size=None, factor_indices=None) -> np.ndarray:
+    def sample_factors(self, size=None, f_idxs: Optional[NonNormalisedFactorIdxs] = None) -> np.ndarray:
         """
         sample randomly from all factors, otherwise the given factor_indices.
         returned values must appear in the same order as factor_indices.
@@ -201,22 +216,25 @@ class StateSpace(LengthIter):
             the same size as factor_indices, ie (*size, len(factor_indices))
         """
         # get factor sizes
-        sizes = self.__factor_sizes if (factor_indices is None) else self.__factor_sizes[factor_indices]
+        if f_idxs is None:
+            f_sizes = self.__factor_sizes
+        else:
+            f_sizes = self.__factor_sizes[self.normalise_factor_idxs(f_idxs)]  # this may be quite slow, add caching?
         # get resample size
         if size is not None:
             # empty np.array(()) gets dtype float which is incompatible with len
-            size = np.append(np.array(size, dtype=int), len(sizes))
+            size = np.append(np.array(size, dtype=int), len(f_sizes))
         # sample for factors
-        return np.random.randint(0, sizes, size=size)
+        return np.random.randint(0, f_sizes, size=size)
 
-    def sample_missing_factors(self, known_factors, known_factor_indices) -> np.ndarray:
+    def sample_missing_factors(self, known_factors: NonNormalisedFactors, f_idxs: NonNormalisedFactorIdxs) -> np.ndarray:
         """
         Samples the remaining factors not given in the known_factor_indices.
         ie. fills in the missing values by sampling from the unused dimensions.
         returned values are ordered by increasing factor index and not factor_indices.
         (known_factors must correspond to known_factor_indices)
 
-        - eg. known_factors=A, known_factor_indices=1
+        - eg. known_factors=[A], known_factor_indices=1
               BECOMES: known_factors=[A], known_factor_indices=[1]
         - eg. known_factors=[A], known_factor_indices=[1]
               = [..., A, ...]
@@ -229,27 +247,46 @@ class StateSpace(LengthIter):
         - eg. known_factors=[[A, B], [C, D]], known_factor_indices=[1, 2]
               = [[..., A, B, ...], [..., C, D, ...]]
         """
-        # convert & check
-        known_factors = np.atleast_1d(known_factors)
-        known_factor_indices = np.atleast_1d(known_factor_indices)
-        assert known_factor_indices.ndim == 1
-        # mask of known factors
-        known_mask = np.zeros(self.num_factors, dtype='bool')
-        known_mask[known_factor_indices] = True
-        # set values
-        all_factors = np.zeros((*known_factors.shape[:-1], self.num_factors), dtype='int')
-        all_factors[..., known_mask] = known_factors
-        all_factors[..., ~known_mask] = self.sample_factors(size=known_factors.shape[:-1], factor_indices=~known_mask)
-        return all_factors
+        f_idxs = self.normalise_factor_idxs(f_idxs)
+        f_idxs_inv = self.invert_factor_idxs(f_idxs)
+        # normalize shapes
+        known_factors = np.array(known_factors)
+        # checks
+        assert known_factors.ndim >= 1, f'known_factors must have at least one dimension, got shape: {known_factors.shape}'
+        assert known_factors.shape[-1] == len(f_idxs), f'last dimension of factors must be the same size as the number of f_idxs ({len(f_idxs)}), got shape: {known_factors.shape}'
+        # replace the specified factors
+        new_factors = np.empty([*known_factors.shape[:-1], self.num_factors], dtype='int')
+        new_factors[..., f_idxs] = known_factors
+        new_factors[..., f_idxs_inv] = self.sample_factors(size=known_factors.shape[:-1], f_idxs=f_idxs_inv)
+        # done!
+        return new_factors
 
-    def resample_factors(self, factors, fixed_factor_indices) -> np.ndarray:
+    def resample_other_factors(self, factors: NonNormalisedFactors, f_idxs: NonNormalisedFactorIdxs) -> np.ndarray:
         """
-        Resample across all the factors, keeping factor_indices constant.
-        returned values are ordered by increasing factor index and not factor_indices.
+        Resample all unspecified factors, keeping f_idxs constant.
         """
-        return self.sample_missing_factors(np.array(factors)[..., fixed_factor_indices], fixed_factor_indices)
+        return self.resample_given_factors(factors=factors, f_idxs=self.invert_factor_idxs(f_idxs))
 
-    def _get_f_idx_and_factors_and_size(self, f_idx: int = None, base_factors=None, num: int = None):
+    def resample_given_factors(self, factors: NonNormalisedFactors, f_idxs: NonNormalisedFactorIdxs):
+        """
+        Resample all specified f_idxs, keeping all remaining factors constant.
+        """
+        f_idxs = self.normalise_factor_idxs(f_idxs)
+        new_factors = np.copy(factors)
+        # checks
+        assert new_factors.ndim >= 1, f'factors must have at least one dimension, got shape: {new_factors.shape}'
+        assert new_factors.shape[-1] == self.num_factors, f'last dimension of factors must be the same size as the number of factors ({self.num_factors}), got shape: {new_factors.shape}'
+        # replace the specified factors
+        new_factors[..., f_idxs] = self.sample_factors(size=new_factors.shape[:-1], f_idxs=f_idxs)
+        # done!
+        return new_factors
+
+    def _get_f_idx_and_factors_and_size(
+        self,
+        f_idx: Optional[int] = None,
+        base_factors: Optional[NonNormalisedFactors] = None,
+        num: Optional[int] = None,
+    ):
         """
         :param f_idx: Sampled randomly in the range [0, num_factors) if not given.
         :param base_factors: Sampled randomly from all possible factors if not given. Coerced into the shape (1, num_factors)
@@ -274,7 +311,15 @@ class StateSpace(LengthIter):
         # return everything
         return f_idx, base_factors, num
 
-    def sample_random_factor_traversal(self, f_idx: int = None, base_factors=None, num: int = None, mode: str = 'interval', start_index: int = 0) -> np.ndarray:
+    def sample_random_factor_traversal(
+        self,
+        f_idx: Optional[int] = None,
+        base_factors: Optional[NonNormalisedFactors] = None,
+        num: Optional[int] = None,
+        mode: str = 'interval',
+        start_index: int = 0,
+        return_indices: bool = False,
+    ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
         """
         Sample a single random factor traversal along the
         given factor index, starting from some random base sample.
@@ -283,9 +328,18 @@ class StateSpace(LengthIter):
         # generate traversal
         base_factors[:, f_idx] = get_idx_traversal(self.factor_sizes[f_idx], num_frames=num, mode=mode, start_index=start_index)
         # return factors (num_frames, num_factors)
+        if return_indices:
+            return base_factors, self.pos_to_idx(base_factors)
         return base_factors
 
-    def sample_random_factor_traversal_grid(self, num: int = None, base_factors=None, mode: str = 'interval', factor_indices=None, return_indices: bool = False) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
+    def sample_random_factor_traversal_grid(
+        self,
+        num: Optional[int] = None,
+        base_factors: Optional[NonNormalisedFactors] = None,
+        mode: str = 'interval',
+        factor_indices: Optional[NonNormalisedFactorIdxs] = None,
+        return_indices: bool = False,
+    ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
         # default values
         if num is None:
             num = int(np.ceil(np.mean(self.factor_sizes)))

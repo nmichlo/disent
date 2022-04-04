@@ -76,9 +76,32 @@ def test_discrete_state_space_one_to_one():
 
 def test_new_functions():
     # TODO: convert to propper tests
-    s = StateSpace([2, 4, 6])
-    maxs = np.max([s.sample_factors((2, 2), factor_indices=[2, 1, 2, 2]) for i in range(100)], axis=0)
-    maxs = np.max([s.sample_missing_factors([[1, 1], [2, 2]], known_factor_indices=[0, 2]) for i in range(100)], axis=0)
+    s = StateSpace([2, 3, 4])
+
+    assert np.max([s.sample_factors(size=2, f_idxs=[0, 2])                   for i in range(1000)], axis=0).tolist() == [[1, 3], [1, 3]]
+    assert np.max([s.sample_factors(size=(2,), f_idxs=[0, 2])                for i in range(1000)], axis=0).tolist() == [[1, 3], [1, 3]]
+    assert np.max([s.sample_factors(size=(2, 3), f_idxs=[0, 2])              for i in range(1000)], axis=0).tolist() == [[[1, 3], [1, 3], [1, 3]], [[1, 3], [1, 3], [1, 3]]]
+    assert np.max([s.sample_missing_factors([[0, 0], [0, 0]], f_idxs=[0, 2]) for i in range(1000)], axis=0).tolist() == [[0, 2, 0], [0, 2, 0]]
+
+    states = StateSpace([2, 3, 4, 5])
+
+    assert np.max([states.resample_given_factors([[0, 0, 0, 0], [0, 0, 0, 0]], f_idxs=1)      for i in range(1000)], axis=0).tolist() == [[0, 2, 0, 0], [0, 2, 0, 0]]
+    assert np.max([states.resample_given_factors([[0, 0, 0, 0], [0, 0, 0, 0]], f_idxs=[1, 2]) for i in range(1000)], axis=0).tolist() == [[0, 2, 3, 0], [0, 2, 3, 0]]
+    assert np.max([states.resample_given_factors([0, 0, 0, 0],                 f_idxs=[0, 3]) for i in range(1000)], axis=0).tolist() == [1, 0, 0, 4]
+
+    assert np.max([states.resample_other_factors([[0, 0, 0, 0], [0, 0, 0, 0]], f_idxs=1)      for i in range(1000)], axis=0).tolist() == [[1, 0, 3, 4], [1, 0, 3, 4]]
+    assert np.max([states.resample_other_factors([[0, 0, 0, 0], [0, 0, 0, 0]], f_idxs=[1, 2]) for i in range(1000)], axis=0).tolist() == [[1, 0, 0, 4], [1, 0, 0, 4]]
+    assert np.max([states.resample_other_factors([0, 0, 0, 0],                 f_idxs=[0, 3]) for i in range(1000)], axis=0).tolist() == [0, 2, 3, 0]
+
+    # make sure these work
+    states.sample_missing_factors([1],             f_idxs=2)
+    states.sample_missing_factors([1],             f_idxs=2)
+    states.sample_missing_factors([[1], [3], [5]], f_idxs=2)
+
+    # make sure these work
+    states.sample_random_factor_traversal_grid(base_factors=[1, 2, 3, 4])
+    states.sample_random_factor_traversal_grid(base_factors=np.array([1, 2, 3, 4]))
+
     # print(np.min([s.resample_radius([[0, 1, 2], [0, 0, 0]], resample_radius=1, distinct=True) for i in range(1000)], axis=0).tolist())
     # print(np.max([s.resample_radius([[0, 1, 2], [0, 0, 0]], resample_radius=1, distinct=True) for i in range(1000)], axis=0).tolist())
 
