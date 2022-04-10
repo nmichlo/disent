@@ -29,6 +29,7 @@ Utilities for converting and testing different chunk sizes of hdf5 files
 import contextlib
 import logging
 import os
+import warnings
 from pathlib import Path
 from typing import Any
 from typing import Callable
@@ -89,6 +90,7 @@ ChunksType = Union[Tuple[int, ...], Literal['auto'], Literal['batch']]
 
 def _normalize_chunks(chunks: ChunksType, shape: Tuple[int, ...]):
     if chunks == 'auto':
+        warnings.warn('`auto` chuck shape has been used, did you mean `batch`')
         return True
     elif chunks == 'batch':
         return (1, *shape[1:])
@@ -133,15 +135,16 @@ def h5_assert_deterministic(h5_file: h5py.File) -> h5py.File:
 def h5_open(path: str, mode: str = 'r') -> h5py.File:
     """
     MODES:
-        atomic_w Create temp file, then move and overwrite existing when done
-        atomic_x Create temp file, then try move or fail if existing when done
-        r        Readonly, file must exist (default)
-        r+       Read/write, file must exist
-        w        Create file, truncate if exists
-        w- or x  Create file, fail if exists
-        a        Read/write if exists, create otherwise
+        | atomic_w | Create temp file, then move and overwrite existing when done
+        | atomic_x | Create temp file, then try move or fail if existing when done
+        | r        | Readonly, file must exist (default)
+        | r+       | Read/write, file must exist
+        | w        | Create file, truncate if exists
+        | w- or x  | Create file, fail if exists
+        | a        | Read/write if exists, create otherwise
     """
-    assert str.endswith(path, '.h5') or str.endswith(path, '.hdf5'), f'hdf5 file path does not end with extension: `.h5` or `.hdf5`, got: {path}'
+    if not (str.endswith(path, '.h5') or str.endswith(path, '.hdf5')):
+        warnings.warn(f'hdf5 file path does not end with extension: `.h5` or `.hdf5`, got: {path}')
     # get atomic context manager
     if mode == 'atomic_w':
         save_context, mode = AtomicSaveFile(path, open_mode=None, overwrite=True), 'w'
@@ -158,6 +161,16 @@ def h5_open(path: str, mode: str = 'r') -> h5py.File:
 class H5Builder(object):
 
     def __init__(self, path: Union[str, Path], mode: str = 'x'):
+        """
+        Supports the modes from `h5_open(...)`:
+            | atomic_w | Create temp file, then move and overwrite existing when done
+            | atomic_x | Create temp file, then try move or fail if existing when done
+            | r        | Readonly, file must exist (default)
+            | r+       | Read/write, file must exist
+            | w        | Create file, truncate if exists
+            | w- or x  | Create file, fail if exists
+            | a        | Read/write if exists, create otherwise
+        """
         super().__init__()
         # make sure that the file is deterministic
         # - we might be missing some of the properties that control this
@@ -185,7 +198,7 @@ class H5Builder(object):
             raise 'The H5Builder has not been opened in a new context, use `with H5Builder(...) as builder: ...`'
         return self._open_file
 
-    def add_dataset(
+    def add_empty_dataset(
         self,
         name: str,
         shape: Tuple[int, ...],
@@ -349,8 +362,8 @@ class H5Builder(object):
 
     def add_dataset_from_array(
         self,
-        name: str,
         array: np.ndarray,
+        name: str = 'data',
         chunk_shape: ChunksType = 'batch',
         compression_lvl: Optional[int] = 4,
         attrs: Optional[Dict[str, Any]] = None,
@@ -361,7 +374,7 @@ class H5Builder(object):
         dtype: Optional[np.dtype] = None,
         shape: Optional[Tuple[int, ...]] = None,
     ):
-        self.add_dataset(
+        self.add_empty_dataset(
             name=name,
             shape=array.shape if (shape is None) else shape,
             dtype=array.dtype if (dtype is None) else dtype,
@@ -380,12 +393,14 @@ class H5Builder(object):
     def add_dataset_from_gt_data(
         self,
         data: Union['DisentDataset', 'GroundTruthData'],
+        name: str = 'data',
         mutator: Optional[Callable[[Any], np.ndarray]] = None,
         img_shape: Tuple[Optional[int], ...] = (None, None, None),  # None items are automatically found
         batch_size: int = 32,
-        compression_lvl: Optional[int] = 9,
+        compression_lvl: Optional[int] = 4,
         num_workers: int = min(os.cpu_count(), 16),
         show_progress: bool = True,
+        chunk_shape: ChunksType = 'batch',
         dtype: str = 'uint8',
         attrs: Optional[dict] = None
     ):
@@ -396,19 +411,17 @@ class H5Builder(object):
         if isinstance(data, DisentDataset): gt_data = data.gt_data
         elif isinstance(data, GroundTruthData): gt_data = data
         else: raise TypeError(f'invalid data type: {type(data)}, must be {DisentDataset} or {GroundTruthData}')
-        # magic vars
-        name = 'data'
         # process image shape
         H, W, C = img_shape
         if H is None: H = gt_data.img_shape[0]
         if W is None: W = gt_data.img_shape[1]
         if C is None: C = gt_data.img_shape[2]
         # make the empty dataset
-        self.add_dataset(
+        self.add_empty_dataset(
             name=name,
             shape=(len(gt_data), H, W, C),
             dtype=dtype,
-            chunk_shape='batch',
+            chunk_shape=chunk_shape,
             compression_lvl=compression_lvl,
             # THESE ATTRIBUTES SHOULD MATCH: SelfContainedHdf5GroundTruthData
             attrs=dict(
