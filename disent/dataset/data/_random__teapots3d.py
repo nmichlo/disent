@@ -62,7 +62,7 @@ def resave_teapots3d_as_uint8(orig_file: str, new_file: str, overwrite: bool = F
     imgs = imgs.astype('uint8')
     log.debug('converted teapots data!')
     # save the array
-    from disent.dataset.util.npz import save_dataset_array
+    from disent.dataset.util.formats.npz import save_dataset_array
     log.debug('saving convert teapots data...')
     save_dataset_array(imgs, new_file, overwrite=overwrite, save_key='images')
     log.debug('saved convert teapots data!')

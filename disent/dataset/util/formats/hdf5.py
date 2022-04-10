@@ -507,6 +507,7 @@ def _normalize_out_array(array: Union[torch.Tensor, np.ndarray]) -> np.ndarray:
     return np.array(array)
 
 
+@deprecated('this logic needs to be moved into `H5Builder`')
 def hdf5_save_array(
     inp_data: Union[h5py.Dataset, np.ndarray, 'torch.Tensor'],
     out_h5: h5py.File,
@@ -570,6 +571,7 @@ def hdf5_save_array(
             progress.update(batch_size)
 
 
+@deprecated('this logic needs to be moved into `H5Builder`')
 def hdf5_resave_file(
     inp_path: Union[str, torch.Tensor, np.ndarray],
     out_path: str,
@@ -624,6 +626,7 @@ def hdf5_resave_file(
 # ========================================================================= #
 
 
+@deprecated('this logic needs to be moved into `H5Builder`')
 def hdf5_test_entries_per_second(h5_dataset: h5py.Dataset, access_method='random', max_entries=48000, timeout=10, batch_size: int = 256):
     # get access method
     if access_method == 'sequential':
@@ -649,6 +652,7 @@ def hdf5_test_entries_per_second(h5_dataset: h5py.Dataset, access_method='random
     return entries_per_sec
 
 
+@deprecated('this logic needs to be moved into `H5Builder`')
 def hdf5_test_speed(h5_path: str, dataset_name: str, access_method: str = 'random'):
     with h5py.File(h5_path, 'r') as out_h5:
         log.info('[TESTING] Access Speed...')
@@ -660,7 +664,7 @@ def hdf5_test_speed(h5_path: str, dataset_name: str, access_method: str = 'rando
 # ========================================================================= #
 
 
-# TODO: cleanup
+@deprecated('this logic needs to be moved into `H5Builder`')
 def hdf5_print_entry_data_stats(h5_dataset: h5py.Dataset, label='STATISTICS'):
     if not isinstance(h5_dataset, h5py.Dataset):
         tqdm.write(

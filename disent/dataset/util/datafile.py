@@ -35,7 +35,7 @@ from typing import Union
 
 import numpy as np
 
-from disent.dataset.util.hdf5 import hdf5_resave_file
+from disent.dataset.util.formats.hdf5 import hdf5_resave_file
 from disent.util.inout.cache import stalefile
 from disent.util.function import wrapped_partial
 from disent.util.inout.files import retrieve_file

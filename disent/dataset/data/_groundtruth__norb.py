@@ -142,7 +142,7 @@ def resave_norb_archive(in_dat_path: str, in_cat_path: str, in_info_path: str, n
     images, factors = read_norb_dataset(dat_path=in_dat_path, cat_path=in_cat_path, info_path=in_info_path, gzipped=in_gzipped, sort=True, add_channel_dim=True)
     assert images.shape == (24300, 96, 96, 1)
     # save the array
-    from disent.dataset.util.npz import save_dataset_array
+    from disent.dataset.util.formats.npz import save_dataset_array
     save_dataset_array(images, new_save_file, overwrite=overwrite, save_key='images')
 
 
@@ -151,7 +151,7 @@ def resave_norb_resized(orig_converted_file: str, new_resized_file: str, overwri
     norb_array = np.load(orig_converted_file)['images']
     assert norb_array.shape == (24300, 96, 96, 1)
     # save the array
-    from disent.dataset.util.npz import save_resized_dataset_array
+    from disent.dataset.util.formats.npz import save_resized_dataset_array
     save_resized_dataset_array(norb_array, new_resized_file, overwrite=overwrite, size=size, save_key='images')
 
 

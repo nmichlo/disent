@@ -26,7 +26,6 @@ import logging
 from typing import Dict
 from typing import Optional
 from typing import Sequence
-from typing import Tuple
 from typing import Union
 
 import numpy as np
@@ -38,7 +37,6 @@ from disent.dataset.util.datafile import DataFile
 from disent.dataset.util.datafile import DataFileHashed
 from disent.dataset.util.datafile import DataFileHashedDl
 from disent.dataset.data._groundtruth import NumpyFileGroundTruthData
-from disent.dataset.util.datafile import DataFileHashedDlH5
 from disent.util.inout.paths import modify_ext
 
 
@@ -51,7 +49,7 @@ log = logging.getLogger(__name__)
 
 def resave_mpi3d_array(in_npz_path: str, out_h5_path: str, overwrite: bool = False):
     from disent.util.profiling import Timer
-    from disent.dataset.util.hdf5 import H5Builder
+    from disent.dataset.util.formats.hdf5 import H5Builder
     # load the array
     with Timer('loading images into memory'):
         imgs = np.load(in_npz_path)['images']

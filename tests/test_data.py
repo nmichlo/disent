@@ -33,8 +33,8 @@ import pytest
 
 from disent.dataset.data import Hdf5Dataset
 from disent.dataset.data import XYObjectData
-from disent.dataset.util.hdf5 import hdf5_resave_file
-from disent.dataset.util.hdf5 import hdf5_test_speed
+from disent.dataset.util.formats.hdf5 import hdf5_resave_file
+from disent.dataset.util.formats.hdf5 import hdf5_test_speed
 from disent.util.inout.hashing import hash_file
 from disent.util.function import wrapped_partial
 

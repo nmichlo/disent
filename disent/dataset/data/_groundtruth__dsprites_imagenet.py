@@ -39,7 +39,7 @@ from disent.dataset.data._groundtruth import _DiskDataMixin
 from disent.dataset.data._groundtruth import _Hdf5DataMixin
 from disent.dataset.data._groundtruth__dsprites import DSpritesData
 from disent.dataset.util.datafile import DataFileHashedDlGen
-from disent.dataset.util.hdf5 import H5Builder
+from disent.dataset.util.formats.hdf5 import H5Builder
 from disent.util.inout.files import AtomicSaveFile
 from disent.util.iters import LengthIter
 from disent.util.math.random import random_choice_prng
