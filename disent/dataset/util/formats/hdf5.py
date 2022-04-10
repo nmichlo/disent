@@ -217,7 +217,7 @@ class H5Builder(object):
             # shuffle=True,     # reorder chunk values to possibly help compression
             # scaleoffset=<int> # enable lossy compression, ints: number of bits to keep (0 is automatic lossless), floats: number of digits after decimal
         )
-        # add atttributes & convert
+        # add attributes & convert
         if attrs is not None:
             for key, value in attrs.items():
                 if isinstance(value, str):
@@ -265,6 +265,39 @@ class H5Builder(object):
         # done!
         return self
 
+    def make_get_batch_fn(
+        self,
+        array,
+        mutator: Optional[Callable[[np.ndarray], np.ndarray]] = None,
+    ) -> Callable[[int, int], np.ndarray]:
+        # get the array extractor
+        if isinstance(array, torch.Tensor):
+            def _extract_fn(i, j) -> np.ndarray: return array[i:j].detach().cpu().numpy()
+        elif isinstance(array, (np.ndarray, h5py.Dataset)):  # chunk sizes will be missmatched
+            def _extract_fn(i, j) -> np.ndarray: return array[i:j]
+        elif isinstance(array, (tuple, list)):
+            def _extract_fn(i, j) -> np.ndarray: return np.array(array[i:j])
+        elif isinstance(array, Sequence):
+            def _extract_fn(i, j) -> np.ndarray: return np.array([array[k] for k in range(i, j)])
+        else:
+            # last ditch effort, try as an iterator
+            try:
+                array = iter(array)
+            except:
+                raise TypeError(f'`fill_dataset_from_array` only supports arrays of type: `np.ndarray` or `torch.Tensor`')
+            # get iterator function
+            def _extract_fn(i, j) -> np.ndarray: return np.array([next(array) for k in range(i, j)])
+
+        # make the get batch fn
+        def get_batch_fn(i, j):
+            batch: np.ndarray = _extract_fn(i, j)
+            if mutator:
+                batch = mutator(batch)
+            assert isinstance(batch, np.ndarray), f'result of get_batch_fn is not a numpy array, got: {type(batch)}'
+            return batch
+
+        return get_batch_fn
+
     def fill_dataset_from_array(
         self,
         name: str,
@@ -273,36 +306,10 @@ class H5Builder(object):
         show_progress: bool = False,
         mutator: Optional[Callable[[np.ndarray], np.ndarray]] = None,
     ) -> 'H5Builder':
-        # get the array extractor
-        if isinstance(array, torch.Tensor):
-            @torch.no_grad()
-            def _extract_fn(i, j): return array[i:j].cpu().numpy()
-        elif isinstance(array, (np.ndarray, h5py.Dataset)):  # chunk sizes will be missmatched
-            def _extract_fn(i, j): return array[i:j]
-        elif isinstance(array, (tuple, list)):
-            def _extract_fn(i, j): return array[i:j]
-        elif isinstance(array, Sequence):
-            def _extract_fn(i, j): return [array[k] for k in range(i, j)]
-        else:
-            # last ditch effort, try as an iterator
-            try:
-                array = iter(array)
-            except:
-                raise TypeError(f'`fill_dataset_from_array` only supports arrays of type: `np.ndarray` or `torch.Tensor`')
-            # get iterator function
-            def _extract_fn(i, j): return [next(array) for k in range(i, j)]
-
-        # get the batch fn
-        def get_batch_fn(i, j):
-            batch = _extract_fn(i, j)
-            if mutator:
-                batch = mutator(batch)
-            return np.array(batch)
-
+        get_batch_fn = self.make_get_batch_fn(array, mutator=mutator)
         # get the batch size
         if batch_size == 'auto' and isinstance(array, h5py.Dataset):
             batch_size = array.chunks[0]
-
         # copy into the dataset
         self.fill_dataset(
             name=name,
