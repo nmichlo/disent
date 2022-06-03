@@ -109,7 +109,7 @@ _Note that "🧵" means that the dataset, framework or metric was introduced by 
 ### Datasets
 
 Various common datasets used in disentanglement research are included with disent. The dataset loaders provide various features including:
-- automatic downloads & preperation
+- automatic downloads & preperation `prepare=True`
 - automatic hash verification
 - automatic optimization of underlying hdf5 formats for
 low-memory disk-based access.
