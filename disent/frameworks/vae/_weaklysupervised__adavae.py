@@ -218,7 +218,7 @@ def compute_average_gvae_std(d0_posterior: Normal, d1_posterior: Normal) -> Norm
     assert isinstance(d1_posterior, Normal), f'posterior distributions must be {Normal.__name__} distributions, got: {type(d1_posterior)}'
     # averages
     ave_std = 0.5 * (d0_posterior.stddev + d1_posterior.stddev)
-    ave_mean = 0.5 * (d1_posterior.mean + d1_posterior.mean)
+    ave_mean = 0.5 * (d0_posterior.mean + d1_posterior.mean)
     # done!
     return Normal(loc=ave_mean, scale=ave_std)
 
@@ -235,7 +235,7 @@ def compute_average_gvae(d0_posterior: Normal, d1_posterior: Normal) -> Normal:
     assert isinstance(d1_posterior, Normal), f'posterior distributions must be {Normal.__name__} distributions, got: {type(d1_posterior)}'
     # averages
     ave_var = 0.5 * (d0_posterior.variance + d1_posterior.variance)
-    ave_mean = 0.5 * (d1_posterior.mean + d1_posterior.mean)
+    ave_mean = 0.5 * (d0_posterior.mean + d1_posterior.mean)
     # done!
     return Normal(loc=ave_mean, scale=torch.sqrt(ave_var))
 
@@ -323,10 +323,10 @@ class AdaGVaeMinimal(BetaVae):
         ave_std  = (0.5 * d0_posterior.variance + 0.5 * d1_posterior.variance) ** 0.5
 
         # [4.b] select shared or original values based on mask
-        z0_mean = torch.where(share_mask,  d0_posterior.loc,   ave_mean)
-        z1_mean = torch.where(share_mask,  d1_posterior.loc,   ave_mean)
-        z0_std  = torch.where(share_mask,  d0_posterior.scale, ave_std)
-        z1_std  = torch.where(share_mask,  d1_posterior.scale, ave_std)
+        z0_mean = torch.where(share_mask, ave_mean, d0_posterior.loc)
+        z1_mean = torch.where(share_mask, ave_mean, d1_posterior.loc)
+        z0_std  = torch.where(share_mask, ave_std,  d0_posterior.scale)
+        z1_std  = torch.where(share_mask, ave_std,  d1_posterior.scale)
 
         # construct distributions
         ave_d0_posterior = Normal(loc=z0_mean, scale=z0_std)
