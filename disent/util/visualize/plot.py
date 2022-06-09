@@ -32,7 +32,7 @@ import torch
 import logging
 
 from disent.dataset import DisentDataset
-from disent.dataset.util.state_space import NonNormalisedFactors
+from disent.dataset.util.state_space import NonNormalisedFactorIdxs
 from disent.util.seeds import TempNumpySeed
 from disent.util.visualize.vis_util import make_animated_image_grid
 from disent.util.visualize.vis_util import make_image_grid
@@ -66,7 +66,7 @@ else:
 def plt_imshow(img, figsize=12, show=False, **kwargs):
     # check image shape
     assert img.ndim == 3
-    assert img.shape[-1] in (1, 3)
+    assert img.shape[-1] in (1, 3, 4)
     # figure size -- fixed width, adjust height according to image
     if isinstance(figsize, (int, str, Number)):
         size = np.array(img.shape[:2][::-1])
@@ -235,7 +235,7 @@ def plt_hide_axis(ax, hide_xaxis=True, hide_yaxis=True, hide_border=True, hide_a
 def visualize_dataset_traversal(
     dataset: DisentDataset,
     # inputs
-    factor_names: Optional[NonNormalisedFactors] = None,
+    factor_names: Optional[NonNormalisedFactorIdxs] = None,
     num_frames: int = 9,
     seed: int = 777,
     base_factors=None,

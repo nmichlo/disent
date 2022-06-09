@@ -63,12 +63,12 @@ def _yield_fast_hash_bytes(file: str, chunk_size=16384, num_chunks=3):
 # ========================================================================= #
 
 
-def hash_file(file: str, hash_type='md5', hash_mode='full', missing_ok=True) -> str:
+def hash_file(file: str, hash_type='md5', hash_mode='full', missing_ok: bool = False) -> str:
     """
     :param file: the path to the file
     :param hash_type: the kind of hash to compute, default is "md5"
     :param hash_mode: "full" uses all the bytes in the file to compute the hash, "fast" uses the start, middle, end bytes as well as the size of the file in the hash.
-    :param chunk_size: number of bytes to read at a time
+    :param missing_ok: If enabled, then an error is not thrown if the file is missing, rather an empty hash is returned!
     :return: the hexdigest of the hash
     :raises FileNotFoundError
     """
@@ -118,7 +118,7 @@ def normalise_hash(hash: Union[str, Dict[str, str]], hash_mode: str) -> str:
     return hash
 
 
-def validate_file_hash(file: str, hash: Union[str, Dict[str, str]], hash_type: str = 'md5', hash_mode: str = 'full', missing_ok=True):
+def validate_file_hash(file: str, hash: Union[str, Dict[str, str]], hash_type: str = 'md5', hash_mode: str = 'full', missing_ok: bool = False):
     """
     :raises FileNotFoundError, HashError
     """
@@ -130,7 +130,7 @@ def validate_file_hash(file: str, hash: Union[str, Dict[str, str]], hash_type: s
         raise HashError(f'computed {hash_mode} {hash_type} hash: {repr(fhash)} does not match expected hash: {repr(hash)} for file: {repr(file)}')
 
 
-def is_valid_file_hash(file: str, hash: Union[str, Dict[str, str]], hash_type: str = 'md5', hash_mode: str = 'full', missing_ok=True):
+def is_valid_file_hash(file: str, hash: Union[str, Dict[str, str]], hash_type: str = 'md5', hash_mode: str = 'full', missing_ok: bool = False):
     try:
         validate_file_hash(file=file, hash=hash, hash_type=hash_type, hash_mode=hash_mode, missing_ok=missing_ok)
     except HashError:

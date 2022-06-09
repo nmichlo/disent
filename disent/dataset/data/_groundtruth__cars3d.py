@@ -79,7 +79,7 @@ def resave_cars3d_archive(orig_zipped_file, new_save_file, overwrite=False):
         # load images
         images = load_cars3d_folder(raw_data_dir=os.path.join(temp_dir, 'data'))
     # save the array
-    from disent.dataset.util.npz import save_dataset_array
+    from disent.dataset.util.formats.npz import save_dataset_array
     save_dataset_array(images, new_save_file, overwrite=overwrite, save_key='images')
 
 
@@ -88,7 +88,7 @@ def resave_cars3d_resized(orig_converted_file: str, new_resized_file: str, overw
     cars3d_array = np.load(orig_converted_file)['images']
     assert cars3d_array.shape == (17568, 128, 128, 3)
     # save the array
-    from disent.dataset.util.npz import save_resized_dataset_array
+    from disent.dataset.util.formats.npz import save_resized_dataset_array
     save_resized_dataset_array(cars3d_array, new_resized_file, overwrite=overwrite, size=size, save_key='images')
 
 

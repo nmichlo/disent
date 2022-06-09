@@ -67,7 +67,7 @@ class stalefile(object):
             if self.is_stale():
                 log.debug(f'calling wrapped function: {func} because the file is stale: {repr(self.file)}')
                 func(self.file)
-                validate_file_hash(self.file, hash=self.hash, hash_type=self.hash_type, hash_mode=self.hash_mode)
+                validate_file_hash(self.file, hash=self.hash, hash_type=self.hash_type, hash_mode=self.hash_mode, missing_ok=True)
             else:
                 log.debug(f'skipped wrapped function: {func} because the file is fresh: {repr(self.file)}')
             return self.file
