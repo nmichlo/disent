@@ -48,7 +48,7 @@ setuptools.setup(
     author="Nathan Juraj Michlo",
     author_email="NathanJMichlo@gmail.com",
 
-    version="0.5.1",
+    version="0.6.0",
     python_requires=">=3.8",  # we make use of standard library features only in 3.8
     packages=setuptools.find_packages(),
 
