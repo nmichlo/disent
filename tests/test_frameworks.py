@@ -28,6 +28,7 @@ from functools import partial
 
 import pytest
 import pytorch_lightning as pl
+import torch
 from torch.utils.data import DataLoader
 
 from disent.dataset import DisentDataset
@@ -35,6 +36,7 @@ from disent.dataset.data import XYObjectData
 from disent.dataset.sampling import GroundTruthSingleSampler
 from disent.dataset.sampling import GroundTruthPairSampler
 from disent.dataset.sampling import GroundTruthTripleSampler
+from disent.dataset.sampling import RandomSampler
 from disent.frameworks.ae import *
 from disent.frameworks.vae import *
 from disent.model import AutoEncoder
@@ -46,6 +48,8 @@ from disent.dataset.transform import ToImgTensorF32
 # ========================================================================= #
 # TEST FRAMEWORKS                                                           #
 # ========================================================================= #
+from disent.util.seeds import seed
+from disent.util.seeds import TempNumpySeed
 from docs.examples.extend_experiment.code.weaklysupervised__si_adavae import SwappedInputAdaVae
 from docs.examples.extend_experiment.code.weaklysupervised__si_betavae import SwappedInputBetaVae
 
@@ -164,6 +168,53 @@ def test_framework_config_defaults():
         kl_loss_mode='approx',
         beta=0.003,
     )
+
+
+def test_ada_vae_similarity():
+
+    seed(42)
+
+    data = XYObjectData()
+    dataset = DisentDataset(data, sampler=RandomSampler(num_samples=2), transform=ToImgTensorF32())
+    dataloader = DataLoader(dataset, num_workers=0, batch_size=3)
+
+    model = AutoEncoder(
+        encoder=EncoderLinear(x_shape=data.x_shape, z_size=25, z_multiplier=2),
+        decoder=DecoderLinear(x_shape=data.x_shape, z_size=25, z_multiplier=1),
+    )
+
+    adavae0 = AdaGVaeMinimal(model=model, cfg=AdaGVaeMinimal.cfg())
+    adavae1 = AdaVae(model=model, cfg=AdaVae.cfg())
+    adavae2 = AdaVae(model=model, cfg=AdaVae.cfg(
+        ada_average_mode='gvae',
+        ada_thresh_mode='symmetric_kl',
+        ada_thresh_ratio=0.5,
+    ))
+
+    batch = next(iter(dataloader))
+
+    # TODO: add a TempNumpySeed equivalent for torch
+    seed(777)
+    result0a = adavae0.do_training_step(batch, 0)
+    seed(777)
+    result0b = adavae0.do_training_step(batch, 0)
+    assert torch.allclose(result0a, result0b), f'{result0a} does not match {result0b}'
+
+    seed(777)
+    result1a = adavae1.do_training_step(batch, 0)
+    seed(777)
+    result1b = adavae1.do_training_step(batch, 0)
+    assert torch.allclose(result1a, result1b), f'{result1a} does not match {result1b}'
+
+    seed(777)
+    result2a = adavae2.do_training_step(batch, 0)
+    seed(777)
+    result2b = adavae2.do_training_step(batch, 0)
+    assert torch.allclose(result2a, result2b), f'{result2a} does not match {result2b}'
+
+    # check similar
+    assert torch.allclose(result0a, result1a), f'{result0a} does not match {result1a}'
+    assert torch.allclose(result1a, result2a), f'{result1a} does not match {result2a}'
 
 
 # ========================================================================= #

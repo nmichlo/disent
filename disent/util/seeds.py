@@ -24,8 +24,6 @@
 
 import contextlib
 import logging
-import random
-import numpy as np
 
 
 log = logging.getLogger(__name__)
@@ -44,8 +42,10 @@ def seed(long=777):
         log.warning(f'[SEEDING]: no seed was specified. Seeding skipped!')
         return
     # seed python
+    import random
     random.seed(long)
     # seed numpy
+    import numpy as np
     np.random.seed(long)
     # seed torch - it can be slow to import
     try:
@@ -60,33 +60,33 @@ def seed(long=777):
 
 
 class TempNumpySeed(contextlib.ContextDecorator):
-    def __init__(self, seed=None, offset=0):
+    def __init__(self, seed: int = None):
         # check and normalize seed
         if seed is not None:
             try:
                 seed = int(seed)
             except:
-                raise ValueError(f'{seed=} is not int-like!')
-        # offset seed
-        if seed is not None:
-            seed += offset
+                raise ValueError(f'seed={seed} is not int-like!')
         # save values
         self._seed = seed
         self._state = None
 
     def __enter__(self):
         if self._seed is not None:
+            import numpy as np
             self._state = np.random.get_state()
             np.random.seed(self._seed)
 
     def __exit__(self, *args, **kwargs):
         if self._seed is not None:
+            import numpy as np
             np.random.set_state(self._state)
             self._state = None
 
     def _recreate_cm(self):
         # TODO: do we need to override this?
         return self
+
 
 # ========================================================================= #
 # END                                                                       #
