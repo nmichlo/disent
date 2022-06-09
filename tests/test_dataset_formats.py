@@ -130,35 +130,20 @@ def test_hdf5_determinism(hash_mode: str, target_hash: str):
 ])
 def test_hdf5_resave_dataset(chunk_shape, compression_lvl, target_hash):
     with no_stdout(), no_stderr():
-        with \
-                create_temp_h5data(chunks=(_TEST_LEN, 4, 4, 3)) as (inp_path, raw_data),\
-                NamedTemporaryFile('r') as out_file,\
-                NamedTemporaryFile('r') as alt_file:
+        with create_temp_h5data(chunks=(_TEST_LEN, 4, 4, 3)) as (inp_path, raw_data), NamedTemporaryFile('r') as out_file:
             out_path = out_file.name
-            alt_path = alt_file.name
             # convert dataset
             hdf5_resave_file(
                 inp_path=inp_path,
                 out_path=out_path,
                 dataset_name='data',
-                chunk_size=(1, 4, 4, 3),
-                compression='gzip' if (compression_lvl is not None) else None,
-                compression_lvl=compression_lvl,
-                batch_size=None,
+                out_chunk_shape=chunk_shape,
+                out_compression_lvl=compression_lvl,
                 out_dtype=None,
                 out_mutator=None,
-                obs_shape=None,
+                batch_size='auto',
                 write_mode='w',
             )
-            # check alt conversion
-            with h5py.File(inp_path, 'r') as inp, H5Builder(alt_path, mode='w') as builder:
-                builder.add_dataset_from_array(
-                    array=inp['data'],
-                    name='data',
-                    chunk_shape=chunk_shape,
-                    compression_lvl=compression_lvl,
-                    batch_size='auto',
-                )
             # check datasets
             with h5py.File(inp_path, 'r') as inp:
                 assert np.all(inp['data'][...] == raw_data)
@@ -166,16 +151,11 @@ def test_hdf5_resave_dataset(chunk_shape, compression_lvl, target_hash):
             with h5py.File(out_path, 'r') as out:
                 assert np.all(out['data'][...] == raw_data)
                 assert out['data'].chunks == (1, 4, 4, 3)
-            with h5py.File(alt_path, 'r') as alt:
-                assert np.all(alt['data'][...] == raw_data)
-                assert alt['data'].chunks == (1, 4, 4, 3)
             # check hashes
             inp_hash = hash_file(inp_path, hash_type='md5', hash_mode='full', missing_ok=False)
             out_hash = hash_file(out_path, hash_type='md5', hash_mode='full', missing_ok=False)
-            alt_hash = hash_file(alt_path, hash_type='md5', hash_mode='full', missing_ok=False)
             assert inp_hash == '8f21382c20cd0230aac5b1105fee8b39'
             assert out_hash == target_hash
-            assert alt_hash == target_hash
 
 
 def test_hdf5_speed_test():
