@@ -143,6 +143,11 @@ on the GPU or CPU at different points in the pipeline.
     <p align="center"><img height="192" src="docs/img/traversals/traversal-transpose__shapes3d.jpg" alt="Shapes3D Dataset Factor Traversals"></p>
   </details>
 
+  + <details>
+    <summary>🏹 <a href="https://github.com/YingzhenLi/Sprites" target="_blank">Sprites (custom)</a></summary>
+    <p align="center"><img height="192" src="docs/img/traversals/traversal-transpose__sprites.jpg" alt="Sprites (Custom) Dataset Factor Traversals"></p>
+  </details>
+
   + <details open>
     <summary>
       🧵 <u>dSpritesImagenet</u>:

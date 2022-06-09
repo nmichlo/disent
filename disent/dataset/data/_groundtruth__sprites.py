@@ -46,16 +46,22 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
+SPRITES_REPO = 'https://github.com/YingzhenLi/Sprites'
+SPRITES_REPO_COMMIT_SHA = '3ce4048c5227802bd8f1888e293fd3afdba91c0c'
+
+
 def fetch_sprite_components() -> Tuple[np.array, np.array]:
     try:
         import git
     except ImportError:
-        logging.error('GitPython not found! Please install it: `pip install GitPython`')
+        log.error('GitPython not found! Please install it: `pip install GitPython`')
         exit(1)
     # store files in a temporary directory
     with TemporaryDirectory(suffix='sprites') as temp_dir:
         # clone the files into the temp dir
-        git.Repo.clone_from('https://github.com/YingzhenLi/Sprites', temp_dir)
+        log.info(f'Generating sprites data, temporarily cloning: {SPRITES_REPO} to {temp_dir}`')
+        repo = git.Repo.clone_from(SPRITES_REPO, temp_dir, no_checkout=True)
+        repo.git.checkout(SPRITES_REPO_COMMIT_SHA)
         # get all the components!
         component_sheets: List[np.ndarray] = []
         component_names = ['bottomwear', 'topwear', 'hair', 'eyes', 'shoes', 'body']
@@ -111,6 +117,11 @@ class DataFileSprites(DataFileHashed):
 
 
 class SpritesAllData(DiskGroundTruthData):
+    """
+    Custom version of sprites, with the data obtained from:
+    https://github.com/YingzhenLi/Sprites
+    """
+
     name = 'sprites'
     factor_names = ('bottomwear', 'topwear', 'hair', 'eyes', 'shoes', 'body', 'action', 'rotation', 'frame')
     factor_sizes = (7, 7, 10, 5, 3, 7, 5, 4, 6)  # 6_174_000
