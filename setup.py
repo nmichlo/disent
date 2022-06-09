@@ -48,7 +48,7 @@ setuptools.setup(
     author="Nathan Juraj Michlo",
     author_email="NathanJMichlo@gmail.com",
 
-    version="0.5.0",
+    version="0.5.1",
     python_requires=">=3.8",  # we make use of standard library features only in 3.8
     packages=setuptools.find_packages(),
 
@@ -64,6 +64,7 @@ setuptools.setup(
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
         "Intended Audience :: Science/Research",
     ],
 )
