@@ -74,7 +74,7 @@ def make_image_grid(images: Sequence[np.ndarray], pad: int = 8, border: bool = T
     # get image size and channels
     img_size = img_shape[:2]
     if ndim == 3:
-        assert (img_shape[2] == 1) or (img_shape[2] == 3), f'Invalid number of channels for an image: {img_shape}'
+        assert img_shape[2] in (1, 3, 4), f'Invalid number of channels for an image: {img_shape}'
     # get bg color
     if bg_color is None:
         bg_color = _BG_COLOR_DTYPE_MAP[images[0].dtype]

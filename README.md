@@ -390,8 +390,8 @@ Visit the [docs](https://disent.dontpanic.sh) for more examples!
 The entrypoint for basic experiments is `experiment/run.py`.
 
 Some configuration will be required, but basic experiments can
-be adjusted by modifying the [Hydra Config 1.0](https://github.com/facebookresearch/hydra)
-files in `experiment/config` (Please note that hydra 1.1 is not yet supported).
+be adjusted by modifying the [Hydra Config 1.1](https://github.com/facebookresearch/hydra)
+files in `experiment/config`.
 
 Modifying the main `experiment/config/config.yaml` is all you
 need for most basic experiments. The main config file contains

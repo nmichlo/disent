@@ -45,7 +45,7 @@ import docs.examples.plotting_examples.util as H
 from disent.dataset.data import GroundTruthData
 from disent.dataset.data import Mpi3dData
 from disent.dataset.data import SelfContainedHdf5GroundTruthData
-from disent.dataset.util.state_space import NonNormalisedFactors
+from disent.dataset.util.state_space import NonNormalisedFactorIdxs
 from disent.dataset.transform import ToImgTensorF32
 from disent.dataset.util.stats import compute_data_mean_std
 from disent.util.inout.paths import ensure_parent_dir_exists
@@ -67,8 +67,9 @@ def sample_factor_traversal_info(
     f_idx: Optional[int] = None,
     sample_mode: SampleModeHint = 'random',
 ) -> dict:
-    # load traversal -- TODO: this is the bottleneck! not threaded
-    factors, indices, obs = gt_data.sample_random_obs_traversal(f_idx=f_idx, obs_collect_fn=torch.stack)
+    # load traversal
+    factors, indices = gt_data.sample_random_factor_traversal(f_idx=f_idx, return_indices=True)
+    obs = torch.stack([gt_data[i] for i in indices])  # TODO: this is the bottleneck! not threaded
     # get pairs
     idxs_a, idxs_b = H.pair_indices(max_idx=len(indices), mode=sample_mode)
     # compute deltas
@@ -152,7 +153,7 @@ def _collect_stats_for_factors(
 def plot_traversal_stats(
     dataset_or_name: Union[str, GroundTruthData],
     num_repeats: int = 256,
-    f_idxs: Optional[NonNormalisedFactors] = None,
+    f_idxs: Optional[NonNormalisedFactorIdxs] = None,
     suffix: Optional[str] = None,
     save_path: Optional[str] = None,
     plot_title: Union[bool, str] = False,
@@ -265,7 +266,8 @@ def factor_stats(gt_data: GroundTruthData, f_idxs=None, min_samples: int = 100_0
             # for multiple random factor traversals along the factor
             while len(dists) < min_samples or p.n < min_repeats:
                 # based on: sample_factor_traversal_info(...) # TODO: should add recon loss to that function instead
-                factors, indices, obs = gt_data.sample_random_obs_traversal(f_idx=f_idx, obs_collect_fn=torch.stack)
+                factors, indices = gt_data.sample_random_factor_traversal(f_idx=f_idx, return_indices=True)
+                obs = torch.stack([gt_data[i] for i in indices])
                 # random pairs -- we use this because it does not include [i == i]
                 idxs_a, idxs_b = H.pair_indices(max_idx=len(indices), mode=sample_mode)
                 # get distances
