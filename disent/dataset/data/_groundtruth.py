@@ -42,6 +42,7 @@ from disent.dataset.data._raw import Hdf5Dataset
 from disent.dataset.util.state_space import StateSpace
 from disent.util.deprecate import deprecated
 from disent.util.inout.paths import ensure_dir_exists
+from disent.util.iters import LengthIter
 
 
 log = logging.getLogger(__name__)
@@ -52,7 +53,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class DisentData(Dataset, ABC):
+class DisentData(LengthIter, Dataset, ABC):
 
     def __init__(self, transform=None):
         self._transform = transform
@@ -109,18 +110,16 @@ class DisentData(Dataset, ABC):
 
 # TODO: StateSpace should be accessed via a property?
 #       this should not inherit all its methods?
-class DisentGtData(DisentData, StateSpace, ABC):
+class DisentGtData(DisentData):
     """
     Dataset that corresponds to some state space or ground truth factors
     """
 
     def __init__(self, transform=None):
-        DisentData.__init__(
-            self,
+        super().__init__(
             transform=transform,
         )
-        StateSpace.__init__(
-            self,
+        self.__state_space = StateSpace(
             factor_sizes=self.factor_sizes,
             factor_names=self.factor_names,
         )
@@ -137,6 +136,11 @@ class DisentGtData(DisentData, StateSpace, ABC):
     def factor_sizes(self) -> Tuple[int, ...]:
         raise NotImplementedError()
 
+    @property
+    def states(self) -> StateSpace:
+        return self.__state_space
+
+    @deprecated('state spaces are immutable, use the .states property instead')
     def state_space_copy(self) -> StateSpace:
         """
         :return: Copy this ground truth dataset as a StateSpace, discarding everything else!
@@ -147,20 +151,108 @@ class DisentGtData(DisentData, StateSpace, ABC):
         )
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # OVERRIDE                                                              #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    def __len__(self):
+        return len(self.states)
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # EXTRAS                                                                #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    # def sample_random_obs_traversal(self, f_idx: int = None, base_factors=None, num: int = None, mode='interval', obs_collect_fn=None) -> Tuple[np.ndarray, np.ndarray, Union[List[Any], Any]]:
-    #     """
-    #     Same API as sample_random_factor_traversal, but also
-    #     returns the corresponding indices and uncollated list of observations
-    #     """
-    #     factors = self.sample_random_factor_traversal(f_idx=f_idx, base_factors=base_factors, num=num, mode=mode)
-    #     indices = self.pos_to_idx(factors)
-    #     obs = [self[i] for i in indices]
-    #     if obs_collect_fn is not None:
-    #         obs = obs_collect_fn(obs)
-    #     return factors, indices, obs
+    def sample_random_obs_traversal(self, f_idx: int = None, base_factors=None, num: int = None, mode='interval', obs_collect_fn=None) -> Tuple[np.ndarray, np.ndarray, Union[List[Any], Any]]:
+        """
+        Same API as sample_random_factor_traversal, but also
+        returns the corresponding indices and uncollated list of observations
+        """
+        factors = self.sample_random_factor_traversal(f_idx=f_idx, base_factors=base_factors, num=num, mode=mode)
+        indices = self.pos_to_idx(factors)
+        obs = [self[i] for i in indices]
+        if obs_collect_fn is not None:
+            obs = obs_collect_fn(obs)
+        return factors, indices, obs
+
+    # ================================ #
+    # STATE SPACE PROPERTIES & METHODS #
+    # ================================ #
+
+    @property
+    @deprecated('`DisentGtData.size` has been deprecated, `DisentGtData` no longer inherits `StateSpace`, please access this property from `DisentGtData.states.size`')
+    def size(self) -> int:
+        return self.states.size
+
+    @property
+    @deprecated('`DisentGtData.num_factors` has been deprecated, `DisentGtData` no longer inherits `StateSpace`, please access this property from `DisentGtData.states.num_factors`')
+    def num_factors(self) -> int:
+        return self.states.num_factors
+
+    # @property
+    # @deprecated('`DisentGtData.factor_sizes` has been deprecated, `DisentGtData` no longer inherits `StateSpace`, please access this property from `DisentGtData.states.factor_sizes`')
+    # def factor_sizes(self) -> np.ndarray:
+    #     return self.states.factor_sizes
+
+    # @property
+    # @deprecated('`DisentGtData.factor_names` has been deprecated, `DisentGtData` no longer inherits `StateSpace`, please access this property from `DisentGtData.states.factor_names`')
+    # def factor_names(self) -> Tuple[str, ...]:
+    #     return self.states.factor_names
+
+    @property
+    @deprecated('`DisentGtData.factor_multipliers` has been deprecated, `DisentGtData` no longer inherits `StateSpace`, please access this property from `DisentGtData.states.factor_multipliers`')
+    def factor_multipliers(self) -> np.ndarray:
+        return self.states.factor_multipliers
+
+    @deprecated('`DisentGtData.normalise_factor_idx(...)` has been deprecated, `DisentGtData` no longer inherits `StateSpace`, please access this method from `DisentGtData.states.normalise_factor_idx(...)`')
+    def normalise_factor_idx(self, *args, **kwargs):
+        return self.states.normalise_factor_idx(*args, **kwargs)
+
+    @deprecated('`DisentGtData.normalise_factor_idxs(...)` has been deprecated, `DisentGtData` no longer inherits `StateSpace`, please access this method from `DisentGtData.states.normalise_factor_idxs(...)`')
+    def normalise_factor_idxs(self, *args, **kwargs):
+        return self.states.normalise_factor_idxs(*args, **kwargs)
+
+    @deprecated('`DisentGtData.invert_factor_idxs(...)` has been deprecated, `DisentGtData` no longer inherits `StateSpace`, please access this method from `DisentGtData.states.invert_factor_idxs(...)`')
+    def invert_factor_idxs(self, *args, **kwargs):
+        return self.states.invert_factor_idxs(*args, **kwargs)
+
+    @deprecated('`DisentGtData.pos_to_idx(...)` has been deprecated, `DisentGtData` no longer inherits `StateSpace`, please access this method from `DisentGtData.states.pos_to_idx(...)`')
+    def pos_to_idx(self, *args, **kwargs):
+        return self.states.pos_to_idx(*args, **kwargs)
+
+    @deprecated('`DisentGtData.idx_to_pos(...)` has been deprecated, `DisentGtData` no longer inherits `StateSpace`, please access this method from `DisentGtData.states.idx_to_pos(...)`')
+    def idx_to_pos(self, *args, **kwargs):
+        return self.states.idx_to_pos(*args, **kwargs)
+
+    @deprecated('`DisentGtData.iter_traversal_indices(...)` has been deprecated, `DisentGtData` no longer inherits `StateSpace`, please access this method from `DisentGtData.states.iter_traversal_indices(...)`')
+    def iter_traversal_indices(self, *args, **kwargs):
+        return self.states.iter_traversal_indices(*args, **kwargs)
+
+    @deprecated('`DisentGtData.sample_indices(...)` has been deprecated, `DisentGtData` no longer inherits `StateSpace`, please access this method from `DisentGtData.states.sample_indices(...)`')
+    def sample_indices(self, *args, **kwargs):
+        return self.states.sample_indices(*args, **kwargs)
+
+    @deprecated('`DisentGtData.sample_factors(...)` has been deprecated, `DisentGtData` no longer inherits `StateSpace`, please access this method from `DisentGtData.states.sample_factors(...)`')
+    def sample_factors(self, *args, **kwargs):
+        return self.states.sample_factors(*args, **kwargs)
+
+    @deprecated('`DisentGtData.sample_missing_factors(...)` has been deprecated, `DisentGtData` no longer inherits `StateSpace`, please access this method from `DisentGtData.states.sample_missing_factors(...)`')
+    def sample_missing_factors(self, *args, **kwargs):
+        return self.states.sample_missing_factors(*args, **kwargs)
+
+    @deprecated('`DisentGtData.resample_other_factors(...)` has been deprecated, `DisentGtData` no longer inherits `StateSpace`, please access this method from `DisentGtData.states.resample_other_factors(...)`')
+    def resample_other_factors(self, *args, **kwargs):
+        return self.states.resample_other_factors(*args, **kwargs)
+
+    @deprecated('`DisentGtData.resample_given_factors(...)` has been deprecated, `DisentGtData` no longer inherits `StateSpace`, please access this method from `DisentGtData.states.resample_given_factors(...)`')
+    def resample_given_factors(self, *args, **kwargs):
+        return self.states.resample_given_factors(*args, **kwargs)
+
+    @deprecated('`DisentGtData.sample_random_factor_traversal(...)` has been deprecated, `DisentGtData` no longer inherits `StateSpace`, please access this method from `DisentGtData.states.sample_random_factor_traversal(...)`')
+    def sample_random_factor_traversal(self, *args, **kwargs):
+        return self.states.sample_random_factor_traversal(*args, **kwargs)
+
+    @deprecated('`DisentGtData.sample_random_factor_traversal_grid(...)` has been deprecated, `DisentGtData` no longer inherits `StateSpace`, please access this method from `DisentGtData.states.sample_random_factor_traversal_grid(...)`')
+    def sample_random_factor_traversal_grid(self, *args, **kwargs):
+        return self.states.sample_random_factor_traversal_grid(*args, **kwargs)
 
 
 # ========================================================================= #
