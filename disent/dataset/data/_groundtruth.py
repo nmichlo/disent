@@ -173,19 +173,28 @@ class DisentGtData(DisentData):
             obs = obs_collect_fn(obs)
         return factors, indices, obs
 
-    # ================================ #
-    # STATE SPACE PROPERTIES & METHODS #
-    # ================================ #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # IMPLEMENTED - StateSpace - The most common functions                  #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    @property
+    def num_factors(self) -> int:
+        return self.states.num_factors
+
+    def pos_to_idx(self, positions) -> np.ndarray:
+        return self.states.pos_to_idx(positions)
+
+    def idx_to_pos(self, indices) -> np.ndarray:
+        return self.states.idx_to_pos(indices)
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # DEPRECATED - StateSpace - All the uncommon functions                  #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     @property
     @deprecated('`DisentGtData.size` has been deprecated, `DisentGtData` no longer inherits `StateSpace`, please access this property from `DisentGtData.states.size`')
     def size(self) -> int:
         return self.states.size
-
-    @property
-    @deprecated('`DisentGtData.num_factors` has been deprecated, `DisentGtData` no longer inherits `StateSpace`, please access this property from `DisentGtData.states.num_factors`')
-    def num_factors(self) -> int:
-        return self.states.num_factors
 
     # @property
     # @deprecated('`DisentGtData.factor_sizes` has been deprecated, `DisentGtData` no longer inherits `StateSpace`, please access this property from `DisentGtData.states.factor_sizes`')
@@ -213,14 +222,6 @@ class DisentGtData(DisentData):
     @deprecated('`DisentGtData.invert_factor_idxs(...)` has been deprecated, `DisentGtData` no longer inherits `StateSpace`, please access this method from `DisentGtData.states.invert_factor_idxs(...)`')
     def invert_factor_idxs(self, *args, **kwargs):
         return self.states.invert_factor_idxs(*args, **kwargs)
-
-    @deprecated('`DisentGtData.pos_to_idx(...)` has been deprecated, `DisentGtData` no longer inherits `StateSpace`, please access this method from `DisentGtData.states.pos_to_idx(...)`')
-    def pos_to_idx(self, *args, **kwargs):
-        return self.states.pos_to_idx(*args, **kwargs)
-
-    @deprecated('`DisentGtData.idx_to_pos(...)` has been deprecated, `DisentGtData` no longer inherits `StateSpace`, please access this method from `DisentGtData.states.idx_to_pos(...)`')
-    def idx_to_pos(self, *args, **kwargs):
-        return self.states.idx_to_pos(*args, **kwargs)
 
     @deprecated('`DisentGtData.iter_traversal_indices(...)` has been deprecated, `DisentGtData` no longer inherits `StateSpace`, please access this method from `DisentGtData.states.iter_traversal_indices(...)`')
     def iter_traversal_indices(self, *args, **kwargs):
