@@ -24,6 +24,7 @@
 
 import logging
 import os
+from abc import ABC
 from abc import ABCMeta
 from typing import Any
 from typing import List
@@ -39,6 +40,7 @@ from disent.dataset.util.datafile import DataFile
 from disent.dataset.util.datafile import DataFileHashedDlH5
 from disent.dataset.data._raw import Hdf5Dataset
 from disent.dataset.util.state_space import StateSpace
+from disent.util.deprecate import deprecated
 from disent.util.inout.paths import ensure_dir_exists
 
 
@@ -46,21 +48,14 @@ log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
-# ground truth data                                                         #
+# disent data                                                               #
 # ========================================================================= #
 
 
-class GroundTruthData(Dataset, StateSpace):
-    """
-    Dataset that corresponds to some state space or ground truth factors
-    """
+class DisentData(Dataset, ABC):
 
     def __init__(self, transform=None):
         self._transform = transform
-        super().__init__(
-            factor_sizes=self.factor_sizes,
-            factor_names=self.factor_names,
-        )
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Overridable Defaults                                                  #
@@ -68,31 +63,7 @@ class GroundTruthData(Dataset, StateSpace):
 
     @property
     def name(self):
-        name = self.__class__.__name__
-        if name.endswith('Data'):
-            name = name[:-len('Data')]
-        return name.lower()
-
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # State Space                                                           #
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-
-    @property
-    def factor_names(self) -> Tuple[str, ...]:
         raise NotImplementedError()
-
-    @property
-    def factor_sizes(self) -> Tuple[int, ...]:
-        raise NotImplementedError()
-
-    def state_space_copy(self) -> StateSpace:
-        """
-        :return: Copy this ground truth dataset as a StateSpace, discarding everything else!
-        """
-        return StateSpace(
-            factor_sizes=self.factor_sizes,
-            factor_names=self.factor_names,
-        )
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Properties                                                            #
@@ -130,21 +101,74 @@ class GroundTruthData(Dataset, StateSpace):
     def _get_observation(self, idx):
         raise NotImplementedError
 
+
+# ========================================================================= #
+# ground truth data                                                         #
+# ========================================================================= #
+
+
+# TODO: StateSpace should be accessed via a property?
+#       this should not inherit all its methods?
+class DisentGtData(DisentData, StateSpace, ABC):
+    """
+    Dataset that corresponds to some state space or ground truth factors
+    """
+
+    def __init__(self, transform=None):
+        DisentData.__init__(
+            self,
+            transform=transform,
+        )
+        StateSpace.__init__(
+            self,
+            factor_sizes=self.factor_sizes,
+            factor_names=self.factor_names,
+        )
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # State Space                                                           #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    @property
+    def factor_names(self) -> Tuple[str, ...]:
+        raise NotImplementedError()
+
+    @property
+    def factor_sizes(self) -> Tuple[int, ...]:
+        raise NotImplementedError()
+
+    def state_space_copy(self) -> StateSpace:
+        """
+        :return: Copy this ground truth dataset as a StateSpace, discarding everything else!
+        """
+        return StateSpace(
+            factor_sizes=self.factor_sizes,
+            factor_names=self.factor_names,
+        )
+
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # EXTRAS                                                                #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def sample_random_obs_traversal(self, f_idx: int = None, base_factors=None, num: int = None, mode='interval', obs_collect_fn=None) -> Tuple[np.ndarray, np.ndarray, Union[List[Any], Any]]:
-        """
-        Same API as sample_random_factor_traversal, but also
-        returns the corresponding indices and uncollated list of observations
-        """
-        factors = self.sample_random_factor_traversal(f_idx=f_idx, base_factors=base_factors, num=num, mode=mode)
-        indices = self.pos_to_idx(factors)
-        obs = [self[i] for i in indices]
-        if obs_collect_fn is not None:
-            obs = obs_collect_fn(obs)
-        return factors, indices, obs
+    # def sample_random_obs_traversal(self, f_idx: int = None, base_factors=None, num: int = None, mode='interval', obs_collect_fn=None) -> Tuple[np.ndarray, np.ndarray, Union[List[Any], Any]]:
+    #     """
+    #     Same API as sample_random_factor_traversal, but also
+    #     returns the corresponding indices and uncollated list of observations
+    #     """
+    #     factors = self.sample_random_factor_traversal(f_idx=f_idx, base_factors=base_factors, num=num, mode=mode)
+    #     indices = self.pos_to_idx(factors)
+    #     obs = [self[i] for i in indices]
+    #     if obs_collect_fn is not None:
+    #         obs = obs_collect_fn(obs)
+    #     return factors, indices, obs
+
+
+# ========================================================================= #
+# EXPORT                                                                    #
+# ========================================================================= #
+
+
+GroundTruthData = deprecated('`GroundTruthData` has been renamed to `DisentGtData`', fn=DisentGtData)
 
 
 # ========================================================================= #

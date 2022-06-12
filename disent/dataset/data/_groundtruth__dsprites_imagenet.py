@@ -82,6 +82,7 @@ def resave_imagenet_tiny_archive(orig_zipped_file, new_save_file, overwrite=Fals
     _, ext = os.path.splitext(new_save_file)
     assert ext in {'.npz', '.h5'}, f'unsupported save extension: {repr(ext)}, must be one of: {[".npz", ".h5"]}'
     # extract zipfile into temp dir
+    # TODO: this could be done in memory? using `file = ZipFile(input_zip); [input_zip.read(name) for name in input_zip.namelist()]`
     with TemporaryDirectory(prefix='unzip_imagenet_tiny_', dir=os.path.dirname(orig_zipped_file)) as temp_dir:
         log.info(f"Extracting into temporary directory: {temp_dir}")
         shutil.unpack_archive(filename=orig_zipped_file, extract_dir=temp_dir)
