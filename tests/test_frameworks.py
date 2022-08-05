@@ -105,7 +105,7 @@ def test_frameworks(Framework, cfg_kwargs, Data):
 
     data = XYObjectData() if (Data is None) else Data()
     dataset = DisentDataset(data, DataSampler(), transform=ToImgTensorF32())
-    dataloader = DataLoader(dataset=dataset, batch_size=4, shuffle=True)
+    dataloader = DataLoader(dataset=dataset, batch_size=4, shuffle=True, num_workers=0)
 
     framework = Framework(
         model=AutoEncoder(
@@ -176,7 +176,7 @@ def test_ada_vae_similarity():
 
     data = XYObjectData()
     dataset = DisentDataset(data, sampler=RandomSampler(num_samples=2), transform=ToImgTensorF32())
-    dataloader = DataLoader(dataset, num_workers=0, batch_size=3)
+    dataloader = DataLoader(dataset, batch_size=3, num_workers=0)
 
     model = AutoEncoder(
         encoder=EncoderLinear(x_shape=data.x_shape, z_size=25, z_multiplier=2),

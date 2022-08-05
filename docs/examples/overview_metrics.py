@@ -11,7 +11,7 @@ from disent.util import is_test_run
 
 data = XYObjectData()
 dataset = DisentDataset(data, transform=ToImgTensorF32(), augment=None)
-dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True)
+dataloader = DataLoader(dataset=dataset, batch_size=32, shuffle=True, num_workers=0)
 
 def make_vae(beta):
     return BetaVae(

@@ -24,8 +24,10 @@ dataset_train = DisentDataset(MNIST(data_folder, train=True,  download=True, tra
 dataset_test  =               MNIST(data_folder, train=False, download=True, transform=ToImgTensorF32())
 
 # create the dataloaders
-dataloader_train = DataLoader(dataset=dataset_train, batch_size=128, shuffle=True, num_workers=os.cpu_count())
-dataloader_test  = DataLoader(dataset=dataset_test,  batch_size=128, shuffle=True, num_workers=os.cpu_count())
+# - if you use `num_workers != 0` in the DataLoader, the make sure to
+#   wrap `trainer.fit` with `if __name__ == '__main__': ...`
+dataloader_train = DataLoader(dataset=dataset_train, batch_size=128, shuffle=True, num_workers=0)
+dataloader_test  = DataLoader(dataset=dataset_test,  batch_size=128, shuffle=True, num_workers=0)
 
 # create the model
 module = AdaVae(

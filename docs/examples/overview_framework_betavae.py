@@ -12,7 +12,7 @@ from disent.util import is_test_run  # you can ignore and remove this
 # prepare the data
 data = XYObjectData()
 dataset = DisentDataset(data, transform=ToImgTensorF32())
-dataloader = DataLoader(dataset=dataset, batch_size=4, shuffle=True)
+dataloader = DataLoader(dataset=dataset, batch_size=4, shuffle=True, num_workers=0)
 
 # create the pytorch lightning system
 module: pl.LightningModule = BetaVae(
