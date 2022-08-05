@@ -22,7 +22,6 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-import logging
 from dataclasses import dataclass
 from numbers import Number
 from typing import Any
@@ -34,7 +33,7 @@ from typing import Union
 
 import torch
 
-from disent.frameworks.ae._ae_mixin import _AeAndVaeMixin
+from disent.frameworks._ae_mixin import _AeAndVaeMixin
 from disent.frameworks.helper.util import detach_all
 from disent.model import AutoEncoder
 from disent.util.iters import map_all
