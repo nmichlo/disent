@@ -16,11 +16,11 @@ from disent.schedule import CyclicSchedule
 
 # create the dataset & dataloaders
 # - ToImgTensorF32 transforms images from numpy arrays to tensors and performs checks
-# - if you use `num_workers` in the DataLoader, the make sure to wrap `trainer.fit`
-#   with `if __name__ == '__main__': ...`
+# - if you use `num_workers != 0` in the DataLoader, the make sure to
+#   wrap `trainer.fit` with `if __name__ == '__main__': ...`
 data = XYObjectData()
 dataset = DisentDataset(dataset=data, sampler=SingleSampler(), transform=ToImgTensorF32())
-dataloader = DataLoader(dataset=dataset, batch_size=128, shuffle=True)
+dataloader = DataLoader(dataset=dataset, batch_size=128, shuffle=True, num_workers=0)
 
 # create the BetaVAE model
 # - adjusting the beta, learning rate, and representation size.
