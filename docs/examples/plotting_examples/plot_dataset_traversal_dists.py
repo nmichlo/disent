@@ -61,6 +61,28 @@ from disent.util.visualize.vis_util import make_image_grid
 SampleModeHint = Union[Literal['random'], Literal['near'], Literal['combinations']]
 
 
+_SETTINGS = {'loss': 'mse'}
+
+
+def _pairwaise_loss(obs, idxs_a, idxs_b):
+    mode = _SETTINGS['loss']
+    # handle the mode
+    if mode == 'mse':
+        deltas = F.mse_loss(obs[idxs_a], obs[idxs_b], reduction='none').mean(dim=[-3, -2, -1])
+    elif mode == 'dfc':
+        # cache
+        dfc = _SETTINGS.get('dfc_model', None)
+        if dfc is None:
+            from disent.frameworks.vae._unsupervised__dfcvae import DfcLossModule
+            dfc = _SETTINGS.setdefault('dfc_model', DfcLossModule())
+        # compute
+        deltas = dfc.compute_pairwise_loss(obs[idxs_a], obs[idxs_b], reduction='mean')
+    else:
+        raise KeyError
+    # done
+    return deltas.numpy()
+
+
 @torch.no_grad()
 def sample_factor_traversal_info(
     gt_data: GroundTruthData,
@@ -72,8 +94,8 @@ def sample_factor_traversal_info(
     obs = torch.stack([gt_data[i] for i in indices])  # TODO: this is the bottleneck! not threaded
     # get pairs
     idxs_a, idxs_b = H.pair_indices(max_idx=len(indices), mode=sample_mode)
-    # compute deltas
-    deltas = F.mse_loss(obs[idxs_a], obs[idxs_b], reduction='none').mean(dim=[-3, -2, -1]).numpy()
+    # compute recon deltas
+    deltas = _pairwaise_loss(obs, idxs_a, idxs_b)
     fdists = np.abs(factors[idxs_a] - factors[idxs_b]).sum(axis=-1)  # (NUM, FACTOR_SIZE) -> (NUM,)
     # done!
     return dict(
@@ -420,18 +442,20 @@ def _print_data_mean_std(data_or_name, print_mean_std: bool = True):
     if print_mean_std:
         data = H.make_data(data_or_name) if isinstance(data_or_name, str) else data_or_name
         name = data_or_name if isinstance(data_or_name, str) else data.name
-        mean, std = compute_data_mean_std(data)
+        mean, std = compute_data_mean_std(data, progress=True)
         print(f'{name}\n    vis_mean: {mean.tolist()}\n    vis_std: {std.tolist()}')
 
 
-def main_plotting(print_mean_std: bool = True):
+def main_plotting(print_mean_std: bool = False, loss: str = 'mse', num_repeats: int = 256):
+    # hack
+    _SETTINGS['loss'] = loss
 
     def sp(name):
-        return os.path.join(os.path.dirname(__file__), 'plots/dists', f'DIST_NO-FREQ_{name}.png')
+        return os.path.join(os.path.dirname(__file__), f'plots/{loss}_dists', f'DIST_NO-FREQ_{name}.png')
 
     # plot xysquares with increasing overlap
     for s in [1, 2, 3, 4, 5, 6, 7, 8]:
-        plot_traversal_stats(plt_scale=8, label_size=26, x_size_offset=0, y_size_offset=0.6, save_path=sp(f'xysquares_8x8_s{s}'), dataset_or_name=f'xysquares_8x8_s{s}', f_idxs=[1], col_titles=[f'Space: {s}px'])
+        plot_traversal_stats(plt_scale=8, label_size=26, num_repeats=num_repeats, x_size_offset=0, y_size_offset=0.6, save_path=sp(f'xysquares_8x8_s{s}'), dataset_or_name=f'xysquares_8x8_s{s}', f_idxs=[1], col_titles=[f'Space: {s}px'])
         _print_data_mean_std(f'xysquares_8x8_s{s}', print_mean_std)
 
     # plot xysquares with increasing overlap -- combined into one image
@@ -453,14 +477,14 @@ def main_plotting(print_mean_std: bool = True):
         'mpi3d_realistic',
         'mpi3d_real',
     ]:
-        plot_traversal_stats(x_size_offset=0, y_size_offset=0.6, num_repeats=256, disable_labels=False, save_path=sp(name), dataset_or_name=name)
+        plot_traversal_stats(x_size_offset=0, y_size_offset=0.6, num_repeats=num_repeats, disable_labels=False, save_path=sp(name), dataset_or_name=name)
         _print_data_mean_std(name, print_mean_std)
 
     # plot adversarial dsprites datasets
     for fg in [True, False]:
         for vis in [100, 75, 50, 25, 0]:
             name = f'dsprites_imagenet_{"fg" if fg else "bg"}_{vis}'
-            plot_traversal_stats(save_path=sp(name), dataset_or_name=name, x_size_offset=0.4)
+            plot_traversal_stats(save_path=sp(name), num_repeats=num_repeats, dataset_or_name=name, x_size_offset=0.4)
             _print_data_mean_std(name, print_mean_std)
 
 # ========================================================================= #
@@ -472,7 +496,8 @@ if __name__ == '__main__':
     # matplotlib style
     plt.style.use(os.path.join(os.path.dirname(__file__), 'util/gadfly.mplstyle'))
     # run!
-    main_plotting()
+    # main_plotting(loss='mse', num_repeats=256)
+    main_plotting(print_mean_std=False, loss='dfc', num_repeats=32)
     main_compute_dists()
 
 
