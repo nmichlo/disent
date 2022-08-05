@@ -354,6 +354,9 @@ class DisentDataset(Dataset, LengthIter):
     # Batches -- Ground Truth Only                                          #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
+    # TODO: batches should be obtained from indices
+    #       - the wrapped gt datasets should handle generating these indices, eg. factor traversals etc.
+
     @groundtruth_only
     def dataset_batch_from_factors(self, factors: np.ndarray, mode: str, collate: bool = True):
         """Get a batch of observations X from a batch of factors Y."""
