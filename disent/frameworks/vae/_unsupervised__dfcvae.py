@@ -40,6 +40,7 @@ from torchvision.models import vgg19_bn
 
 from disent.frameworks.helper.util import compute_ave_loss
 from disent.frameworks.vae._unsupervised__betavae import BetaVae
+from disent.nn.loss.reduction import batch_loss_reduction
 from disent.nn.loss.reduction import get_mean_loss_scale
 from disent.dataset.transform.functional import check_tensor
 
@@ -131,6 +132,24 @@ class DfcLossModule(torch.nn.Module):
         # input node
         assert input_mode in {'none', 'clamp', 'assert'}
         self.input_mode = input_mode
+
+    def compute_pairwise_loss(self, x_recon, x_targ, reduction='mean'):
+        """
+        THIS DOES NOT HAVE LOSS SCALING, LIKE `compute_loss`
+
+        x_recon and x_targ data should be an unnormalized RGB batch of
+        data [B x C x H x W] in the range [0, 1].
+        """
+        features_recon = self._extract_features(x_recon)
+        features_targ = self._extract_features(x_targ)
+        # compute losses
+        feature_loss = 0.0
+        for (f_recon, f_targ) in zip(features_recon, features_targ):
+            loss = F.mse_loss(f_recon, f_targ, reduction='none')
+            feature_loss += batch_loss_reduction(loss, reduction=reduction)
+        # checks
+        assert (feature_loss.ndim == 1) and (len(feature_loss) == len(x_recon))
+        return feature_loss
 
     def compute_loss(self, x_recon, x_targ, reduction='mean'):
         """
