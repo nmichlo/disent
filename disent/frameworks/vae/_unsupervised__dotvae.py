@@ -33,7 +33,7 @@ from torch.distributions import Normal
 
 from disent.frameworks.helper.reconstructions import make_reconstruction_loss
 from disent.frameworks.helper.reconstructions import ReconLossHandler
-from disent.frameworks.vae import AdaNegTripletVae
+from disent.frameworks.vae._supervised__adaneg_tvae import AdaNegTripletVae
 from disent.nn.loss.triplet_mining import configured_idx_mine
 
 
