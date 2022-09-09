@@ -29,7 +29,7 @@
 
 <p align="center">
     <p align="center">
-        Visit the <a href="https://disent.dontpanic.sh/" target="_blank">docs</a> for more info, or browse the  <a href="https://github.com/nmichlo/disent/releases">releases</a>.
+        Visit the <a href="https://disent.michlo.dev/" target="_blank">docs</a> for more info, or browse the  <a href="https://github.com/nmichlo/disent/releases">releases</a>.
     </p>
     <p align="center">
         <a href="https://github.com/nmichlo/disent/issues/new/choose">Contributions</a> are welcome!
@@ -388,7 +388,7 @@ print('metrics:', metrics)
 </p>
 </details>
 
-Visit the [docs](https://disent.dontpanic.sh) for more examples!
+Visit the [docs](https://disent.michlo.dev) for more examples!
 
 
 ### Hydra Config Example
