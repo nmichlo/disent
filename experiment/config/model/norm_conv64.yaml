@@ -9,7 +9,7 @@ model_cls:
     _target_: disent.model.AutoEncoder
     encoder:
       _target_: disent.model.ae.EncoderConv64Norm
-      x_shape: ${data.meta.x_shape}
+      x_shape: ${dataset.meta.x_shape}
       z_size: ${settings.model.z_size}
       z_multiplier: ${framework.meta.model_z_multiplier}
       activation: ${model.meta.activation}
@@ -17,7 +17,7 @@ model_cls:
       norm_pre_act: ${model.meta.norm_pre_act}
     decoder:
       _target_: disent.model.ae.DecoderConv64Norm
-      x_shape: ${data.meta.x_shape}
+      x_shape: ${dataset.meta.x_shape}
       z_size: ${settings.model.z_size}
       activation: ${model.meta.activation}
       norm: ${model.meta.norm}
