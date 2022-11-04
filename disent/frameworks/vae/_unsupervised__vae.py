@@ -104,6 +104,11 @@ class Vae(_AeAndVaeMixin):
         # vae distribution
         self.__latents_handler = make_latent_distribution(self.cfg.latent_distribution, kl_mode=self.cfg.kl_loss_mode, reduction=self.cfg.loss_reduction)
 
+
+    def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
+        checkpoint["hyper_parameters"]["model"] = self._model
+        return super().on_save_checkpoint(checkpoint)
+
     @final
     @property
     def latents_handler(self) -> LatentDistsHandler:
