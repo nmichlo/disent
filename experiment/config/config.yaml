@@ -41,7 +41,6 @@ settings:
     batch_size: 256
   optimizer:
     lr: 1e-3
-# TODO: https://pytorch-lightning.readthedocs.io/en/stable/common/weights_loading.html
-#  checkpoint:
-#    load_checkpoint: NULL   # NULL or string
-#    save_checkpoint: FALSE  # boolean, save at end of run -- more advanced checkpointing can be done with a callback!
+  checkpoint:
+    # load_checkpoint: NULL   # NULL or string
+    save_checkpoint: FALSE  # boolean, save at end of run -- more advanced checkpointing can be done with a callback!

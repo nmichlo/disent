@@ -41,6 +41,7 @@ from omegaconf import ListConfig
 from omegaconf import OmegaConf
 from pytorch_lightning import Callback
 from pytorch_lightning.callbacks import ModelSummary
+from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import LightningLoggerBase
 
 import disent.registry as R
@@ -150,6 +151,18 @@ def hydra_get_callbacks(cfg) -> list:
         # add to callbacks list
         log.info(f'made callback: {name} ({item._target_})')
         callbacks.append(callback)
+    return callbacks
+
+def hydra_get_checkpoint_callbacks(cfg) -> list:
+    callbacks = []
+    if cfg.settings.checkpoint.save_checkpoint:
+        hydra_ckp_dir = os.path.join(os.getcwd(), "checkpoints")
+        hydra_checkpoint = ModelCheckpoint(dirpath=hydra_ckp_dir, verbose=True, save_last=True)
+        callbacks.append(hydra_checkpoint)
+        if cfg.logging.wandb.enabled:
+            wandb_ckp_dir = os.path.join(wandb.run.dir, "checkpoints")
+            wandb_checkpoint = ModelCheckpoint(dirpath=wandb_ckp_dir, save_last=True)
+            callbacks.append(wandb_checkpoint)
     return callbacks
 
 
@@ -309,6 +322,7 @@ def action_train(cfg: DictConfig):
         gpus=gpus,
         callbacks=[
             *hydra_get_callbacks(cfg),
+            *hydra_get_checkpoint_callbacks(cfg),
             *hydra_get_metric_callbacks(cfg),
             ModelSummary(max_depth=2),  # override default ModelSummary
         ],
@@ -316,7 +330,7 @@ def action_train(cfg: DictConfig):
         **{
             **dict(
                 detect_anomaly=False,        # this should only be enabled for debugging torch and finding NaN values, slows down execution, not by much though?
-                enable_checkpointing=False,  # TODO: enable this in future
+                enable_checkpointing=cfg.settings.checkpoint.save_checkpoint,
             ),
             **cfg.trainer,  # overrides
         }
