@@ -24,7 +24,7 @@
 
 import logging
 from dataclasses import dataclass
-from typing import Dict
+from typing import Any, Dict
 from typing import final
 from typing import Tuple
 
@@ -141,6 +141,13 @@ class _AeAndVaeMixin(DisentFramework):
         """Decode latent vector z into partial reconstructions that exclude the final activation if there is one."""
         raise NotImplementedError
 
+    def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
+        if not checkpoint.get("hyper_parameters"):  # if the logger did not register hyperparameters they're set here manually
+            checkpoint["hyper_parameters"] = {}
+        checkpoint["hyper_parameters"]["model"] = self._model
+        checkpoint["hyper_parameters"]["cfg"] = self.cfg
+        checkpoint["hyper_parameters"]["batch_augment"] = self._batch_augment
+        return super().on_save_checkpoint(checkpoint)
 
 # ========================================================================= #
 # END                                                                       #

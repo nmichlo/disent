@@ -28,6 +28,7 @@ from functools import partial
 
 import pytest
 import pytorch_lightning as pl
+from pytorch_lightning.callbacks import ModelCheckpoint
 import torch
 from torch.utils.data import DataLoader
 
@@ -43,7 +44,6 @@ from disent.model import AutoEncoder
 from disent.model.ae import DecoderLinear
 from disent.model.ae import EncoderLinear
 from disent.dataset.transform import ToImgTensorF32
-
 
 # ========================================================================= #
 # TEST FRAMEWORKS                                                           #
@@ -124,6 +124,49 @@ def test_frameworks(Framework, cfg_kwargs, Data):
 
     # test pickling after training, something may have changed!
     pickle.dumps(framework)
+
+
+
+@pytest.mark.parametrize(['Framework', 'cfg_kwargs', 'Data'], _TEST_FRAMEWORKS)
+def test_framework_checkpointing(Framework, cfg_kwargs, Data, tmp_path):
+    DataSampler = {
+        1: GroundTruthSingleSampler,
+        2: GroundTruthPairSampler,
+        3: GroundTruthTripleSampler,
+    }[Framework.REQUIRED_OBS]
+
+    data = XYObjectData() if (Data is None) else Data()
+    dataset = DisentDataset(data, DataSampler(), transform=ToImgTensorF32())
+    dataloader = DataLoader(dataset=dataset, batch_size=4, shuffle=True, num_workers=0)
+
+    framework = Framework(
+        model=AutoEncoder(
+            encoder=EncoderLinear(x_shape=data.x_shape, z_size=6, z_multiplier=2 if issubclass(Framework, Vae) else 1),
+            decoder=DecoderLinear(x_shape=data.x_shape, z_size=6),
+        ),
+        cfg=Framework.cfg(**cfg_kwargs)
+    )
+
+    # save checkpoints during fit()
+    cpk = ModelCheckpoint(dirpath=tmp_path, save_last=True)
+
+    # train!
+    trainer = pl.Trainer(default_root_dir=tmp_path, enable_checkpointing=True, callbacks=[cpk], max_steps=2, fast_dev_run=False)
+
+    framework.hparams.update(cfg_kwargs)
+    if trainer.logger:
+        trainer.logger.log_hyperparams(framework.hparams)
+
+    trainer.fit(framework, dataloader)
+
+    # load checkpoint
+    checkpoints = list(tmp_path.glob("*.ckpt"))
+    assert len(checkpoints) == 2
+    for c in checkpoints:
+        framework_checkpoint = Framework.load_from_checkpoint(c)
+        assert isinstance(framework_checkpoint, Framework)
+
+
 
 
 @pytest.mark.parametrize(['Framework', 'cfg_kwargs', 'Data'], _TEST_FRAMEWORKS)

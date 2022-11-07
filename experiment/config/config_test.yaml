@@ -41,3 +41,6 @@ settings:
     batch_size: 5
   optimizer:
     lr: 1e-3
+  checkpoint:
+    # load_checkpoint: NULL   # NULL or string
+    save_checkpoint: TRUE  # boolean, save at end of run -- more advanced checkpointing can be done with a callback!
