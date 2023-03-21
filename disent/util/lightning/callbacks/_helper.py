@@ -25,8 +25,8 @@
 import warnings
 from typing import Union
 
-import pytorch_lightning as pl
-from pytorch_lightning.trainer.supporters import CombinedLoader
+import lightning as L
+from lightning.pytorch.utilities import CombinedLoader
 
 from disent.dataset import DisentDataset
 from disent.frameworks.ae import Ae
@@ -38,11 +38,11 @@ from disent.frameworks.vae import Vae
 
 
 def _get_dataset_and_ae_like(
-    trainer_or_dataset: pl.Trainer, pl_module: pl.LightningModule, unwrap_groundtruth: bool = False
+    trainer_or_dataset: L.Trainer, pl_module: L.LightningModule, unwrap_groundtruth: bool = False
 ) -> (DisentDataset, Union[Ae, Vae]):
     assert isinstance(pl_module, (Ae, Vae)), f"{pl_module.__class__} is not an instance of {Ae} or {Vae}"
     # get dataset
-    if isinstance(trainer_or_dataset, pl.Trainer):
+    if isinstance(trainer_or_dataset, L.Trainer):
         trainer = trainer_or_dataset
         if hasattr(trainer, "datamodule") and (trainer.datamodule is not None):
             assert hasattr(
@@ -82,7 +82,7 @@ def _get_dataset_and_ae_like(
 #         super().__init__(every_n_steps=every_n_steps, begin_first_step=begin_first_step)
 #         self._repeats_per_factor = repeats_per_factor
 #
-#     def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+#     def do_step(self, trainer: L.Trainer, pl_module: L.LightningModule):
 #         # get dataset and vae framework from trainer and module
 #         dataset, vae = _get_dataset_and_vae(trainer, pl_module)
 #         # check if we need to skip
@@ -120,12 +120,12 @@ def _get_dataset_and_ae_like(
 #         log.info(f'ave latent correlation: {ave_z_to_f_corr}')
 #         log.info(f'ave factor correlation: {ave_f_to_z_corr}')
 #         # log everything
-#         log_metrics(trainer.logger, {
+#         log_metrics(trainer.loggers, {
 #             'metric.ave_latent_correlation': ave_z_to_f_corr,
 #             'metric.ave_factor_correlation': ave_f_to_z_corr,
 #         })
 #         # make sure we only log the heatmap to WandB
-#         wb_log_metrics(trainer.logger, {
+#         wb_log_metrics(trainer.loggers, {
 #             'metric.correlation_heatmap': wandb.plots.HeatMap(
 #                 x_labels=[f'z{i}' for i in range(z_size)],
 #                 y_labels=list(dataset.ground_truth_data.factor_names),
@@ -149,7 +149,7 @@ def _get_dataset_and_ae_like(
 #
 #                 # wandb.log({f"chart.correlation.z{ix}-vs-z{iy}": plt})
 #                 # make sure we only log to WANDB
-#                 wb_log_metrics(trainer.logger, {f"chart.correlation.z{ix}-vs-max-corr": plt})
+#                 wb_log_metrics(trainer.loggers, {f"chart.correlation.z{ix}-vs-max-corr": plt})
 
 
 # ========================================================================= #

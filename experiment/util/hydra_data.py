@@ -23,13 +23,14 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
+import os
 import warnings
 from typing import Any
 from typing import Dict
 from typing import Optional
 
 import hydra
-import pytorch_lightning as pl
+import lightning as L
 import torch.utils.data
 from omegaconf import DictConfig
 
@@ -45,7 +46,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-# class DisentDatasetModule(pl.LightningDataModule):
+# class DisentDatasetModule(L.LightningDataModule):
 #
 #     def prepare_data(self, *args, **kwargs):
 #         raise NotImplementedError
@@ -81,7 +82,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class HydraDataModule(pl.LightningDataModule):
+class HydraDataModule(L.LightningDataModule):
     def __init__(
         self,
         data: Dict[str, Any],  # = dataset.data
@@ -204,6 +205,10 @@ class HydraDataModule(pl.LightningDataModule):
             raise KeyError(
                 f'`dataset.dataloader` must contain keys: ["batch_size", "num_workers"], got: {sorted(kwargs.keys())}'
             )
+        # limit num_workers according to the number of CPUs
+        if kwargs["num_workers"] > os.cpu_count():
+            kwargs["num_workers"] = os.cpu_count()
+            warnings.warn(f"`num_workers` limited to {os.cpu_count()}")
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         # create dataloader
         return torch.utils.data.DataLoader(dataset=dataset, **{**default_kwargs, **kwargs})

@@ -30,12 +30,9 @@ from typing import Sequence
 from typing import Tuple
 from typing import Union
 
-# TODO: wandb and matplotlib are not in requirements
-import matplotlib.pyplot as plt
+import lightning as L
 import numpy as np
-import pytorch_lightning as pl
 import torch
-import wandb
 
 import disent.util.strings.colors as c
 from disent.dataset import DisentDataset
@@ -296,7 +293,7 @@ class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
         super().__init__(every_n_steps, begin_first_step)
 
     @torch.no_grad()
-    def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+    def do_step(self, trainer: L.Trainer, pl_module: L.LightningModule):
         # exit early
         if not (self._plt_show or self._log_wandb):
             log.warning(f"skipping {self.__class__.__name__} neither `plt_show` or `log_wandb` is `True`!")
@@ -338,10 +335,14 @@ class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
         )
         # show the plot
         if self._plt_show:
+            import matplotlib.pyplot as plt
+
             plt.show()
         # log the plot to wandb
         if self._log_wandb:
-            wb_log_metrics(trainer.logger, {"factor_distances": wandb.Image(fig)})
+            import wandb
+
+            wb_log_metrics(trainer.loggers, {"factor_distances": wandb.Image(fig)})
 
 
 # ========================================================================= #

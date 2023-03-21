@@ -66,6 +66,7 @@
 - [Examples](#examples)
     * [Python Example](#python-example)
     * [Hydra Config Example](#hydra-config-example)
+- [Install](#install)
 - [Development](#development)
 - [Why?](#why)
 
@@ -322,7 +323,7 @@ beta schedule and evaluates the trained model with various metrics.
 <p>
 
 ```python3
-import pytorch_lightning as pl
+import lightning as L
 import torch
 from torch.utils.data import DataLoader
 
@@ -373,8 +374,8 @@ module.register_schedule(
 
 # train model
 # - for 2048 batches/steps
-trainer = pl.Trainer(
-    max_steps=2048, gpus=1 if torch.cuda.is_available() else None, logger=False, checkpoint_callback=False
+trainer = L.Trainer(
+    max_steps=2048, gpus=1 if torch.cuda.is_available() else None, logger=False, enable_checkpointing=False
 )
 trainer.fit(module, dataloader)
 
@@ -456,6 +457,47 @@ visualisations of latent traversals.
 
 ----------------------
 
+### Install
+
+```bash
+pip install disent
+```
+
+Otherwise, to install from source we recommend using a conda virtual environment.
+
+<details><summary><b>⤵️ Install from Source</b></summary>
+
+```bash
+# clone the repo
+git clone https://github.com/nmichlo/disent
+cd disent
+
+# create and activate the conda environment [py38,py39,py310]
+conda create -n disent-py310 python=3.10
+conda activate disent-py310
+
+# check that the correct python version is used
+which python
+which pip
+
+# make sure to upgrade pip
+pip install --upgrade pip
+
+# install minimal requirements
+pip install -r requirements.txt
+
+# (optional) install extra requirements
+# - first do the above because torch is required to compile torchsort while installing
+pip install -r requirements-extra.txt
+
+# (optional) install test requirements
+pip install -r requirements-test.txt
+```
+
+</details>
+
+----------------------
+
 ### Development
 
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
@@ -466,11 +508,20 @@ correctly when committing or pushing changes to `disent`.
 
 ```bash
 # install git hooks
-pip install -r pre-commit
+pip install pre-commit
 pre-commit install
 
 # manually trigger all pre-commit hooks
 pre-commit run --all-files
+```
+
+To run tests locally, make sure to install all the test and extra dependencies in your
+environment.
+
+```bash
+pip install -r requirements.txt
+# torchsort first requires torch to be installed
+pip install -r requirements-extra.txt -r requirements-test.txt
 ```
 
 ----------------------

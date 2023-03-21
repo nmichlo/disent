@@ -29,20 +29,21 @@ from typing import Callable
 from typing import List
 from typing import NoReturn
 from typing import Optional
+from typing import Tuple
 from typing import Union
 
 import hydra
-import pytorch_lightning as pl
+import lightning as L
 import torch
 import torch.utils.data
 import wandb
+from lightning import Callback
+from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.callbacks import ModelSummary
+from lightning.pytorch.loggers import Logger
 from omegaconf import DictConfig
 from omegaconf import ListConfig
 from omegaconf import OmegaConf
-from pytorch_lightning import Callback
-from pytorch_lightning.callbacks import ModelCheckpoint
-from pytorch_lightning.callbacks import ModelSummary
-from pytorch_lightning.loggers import LightningLoggerBase
 
 import disent.registry as R
 from disent.frameworks import DisentFramework
@@ -53,9 +54,9 @@ from disent.util.strings.fmt import make_box_str
 from experiment.util.hydra_data import HydraDataModule
 from experiment.util.hydra_main import EXP_CONFIG_DIR
 from experiment.util.hydra_main import hydra_main
-from experiment.util.run_utils import safe_unset_debug_logger
+from experiment.util.run_utils import safe_unset_debug_loggers
 from experiment.util.run_utils import safe_unset_debug_trainer
-from experiment.util.run_utils import set_debug_logger
+from experiment.util.run_utils import set_debug_loggers
 from experiment.util.run_utils import set_debug_trainer
 
 log = logging.getLogger(__name__)
@@ -79,8 +80,12 @@ def hydra_register_disent_plugins(cfg):
         )
 
 
-def hydra_get_gpus(cfg) -> int:
+def hydra_get_accelerator_and_devices(cfg) -> Tuple[str, Optional[int]]:
+    # TODO: rather specify accelerator and devices directly in config...
+    #       this is redundant with the new pytorch lightning auto system.
+    #       - we should also allow different accelerators like mps for apple silicon
     use_cuda = cfg.dsettings.trainer.cuda
+
     # check cuda values
     if use_cuda in {"try_cuda", None}:
         use_cuda = torch.cuda.is_available()
@@ -96,7 +101,7 @@ def hydra_get_gpus(cfg) -> int:
         else:
             log.warning("CUDA is available but is not being used!")
     # get number of gpus to use
-    return 1 if use_cuda else 0
+    return ("cuda", 1) if use_cuda else ("cpu", "auto")
 
 
 def hydra_check_data_paths(cfg):
@@ -132,13 +137,19 @@ def hydra_check_data_meta(cfg):
         log.info(f"* dataset.meta.vis_std:  {cfg.dataset.meta.vis_std}")
 
 
-def hydra_make_logger(cfg) -> Optional[LightningLoggerBase]:
-    logger = hydra.utils.instantiate(cfg.logging.logger)
-    if logger:
-        log.info(f"Initialised Logger: {logger}")
+def hydra_make_loggers(cfg) -> List[Logger]:
+    loggers = hydra.utils.instantiate(cfg.logging.loggers)
+    if loggers:
+        if isinstance(loggers, Logger):
+            loggers = [loggers]
+        for logger in loggers:
+            if not isinstance(logger, Logger):
+                raise TypeError(f"logger is not an instance of {Logger}, got type: {type(logger)} with value: {logger}")
+        log.info(f"Initialised Loggers: {loggers}")
     else:
+        loggers = []
         log.warning(f"No Logger Utilised!")
-    return logger
+    return loggers
 
 
 def hydra_get_callbacks(cfg) -> list:
@@ -299,7 +310,7 @@ def action_train(cfg: DictConfig):
 
     try:
         safe_unset_debug_trainer()
-        safe_unset_debug_logger()
+        safe_unset_debug_loggers()
         wandb.finish()
     except:
         pass
@@ -309,7 +320,7 @@ def action_train(cfg: DictConfig):
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
 
     # create trainer loggers & callbacks & initialise error messages
-    logger = set_debug_logger(hydra_make_logger(cfg))
+    loggers = set_debug_loggers(hydra_make_loggers(cfg))
 
     # deterministic seed
     seed(cfg.settings.job.seed)
@@ -319,7 +330,7 @@ def action_train(cfg: DictConfig):
     log.info(f"Current working directory : {os.getcwd()}")
     log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
     # checks
-    gpus = hydra_get_gpus(cfg)
+    accelerator, devices = hydra_get_accelerator_and_devices(cfg)
     hydra_check_data_paths(cfg)
     hydra_check_data_meta(cfg)
 
@@ -331,27 +342,31 @@ def action_train(cfg: DictConfig):
     datamodule = hydra_make_datamodule(cfg)
     framework = hydra_create_framework(cfg, gpu_batch_augment=datamodule.gpu_batch_augment)
 
-    # trainer default kwargs
-    # Setup Trainer
+    # TRAINER
+    # - trainer: callbacks
+    trainer_callbacks = [
+        *hydra_get_callbacks(cfg),
+        *hydra_get_checkpoint_callbacks(cfg),
+        *hydra_get_metric_callbacks(cfg),
+        ModelSummary(max_depth=2),  # override default ModelSummary set by trainer
+    ]
+
+    # - trainer: default kwargs
+    trainer_default_kwargs = dict(
+        detect_anomaly=False,  # this should only be enabled for debugging torch and finding NaN values, slows down execution, not by much though?
+        enable_checkpointing=cfg.settings.checkpoint.save_checkpoint,
+    )
+
+    # - trainer: init
     trainer = set_debug_trainer(
-        pl.Trainer(
+        L.Trainer(
             # cannot override these
-            logger=logger,
-            gpus=gpus,
-            callbacks=[
-                *hydra_get_callbacks(cfg),
-                *hydra_get_checkpoint_callbacks(cfg),
-                *hydra_get_metric_callbacks(cfg),
-                ModelSummary(max_depth=2),  # override default ModelSummary
-            ],
-            # additional kwargs from the config
-            **{
-                **dict(
-                    detect_anomaly=False,  # this should only be enabled for debugging torch and finding NaN values, slows down execution, not by much though?
-                    enable_checkpointing=cfg.settings.checkpoint.save_checkpoint,
-                ),
-                **cfg.trainer,  # overrides
-            },
+            logger=loggers,
+            accelerator=accelerator,
+            devices=devices,
+            callbacks=trainer_callbacks,
+            # additional kwargs from the config, overrides the defaults
+            **{**trainer_default_kwargs, **cfg.trainer},
         )
     )
 
@@ -380,10 +395,11 @@ def action_train(cfg: DictConfig):
 
     # save hparams
     framework.hparams.update(cfg)
-    if trainer.logger:
-        trainer.logger.log_hyperparams(
-            framework.hparams
-        )  # TODO: is this a pytorch lightning bug? The trainer should automatically save these if hparams is set?
+
+    # TODO: is this a pytorch lightning bug? The trainer should automatically save these if hparams is set?
+    if trainer.loggers:
+        for logger in trainer.loggers:
+            logger.log_hyperparams(framework.hparams)
 
     # fit the model
     # -- if an error/signal occurs while pytorch lightning is

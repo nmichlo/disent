@@ -1,6 +1,6 @@
 import math
 
-import pytorch_lightning as pl
+import lightning as L
 from torch.utils.data import DataLoader
 from torch.utils.data import random_split
 
@@ -34,7 +34,7 @@ dataloader_train = DataLoader(dataset=dataset_train, batch_size=4, shuffle=True,
 dataloader_val = DataLoader(dataset=dataset_val, batch_size=4, shuffle=True, num_workers=0)
 
 # create the pytorch lightning system
-module: pl.LightningModule = BetaVae(
+module: L.LightningModule = BetaVae(
     model=AutoEncoder(
         encoder=EncoderConv64(x_shape=gt_data.x_shape, z_size=6, z_multiplier=2),
         decoder=DecoderConv64(x_shape=gt_data.x_shape, z_size=6),
@@ -43,7 +43,7 @@ module: pl.LightningModule = BetaVae(
 )
 
 # train the model
-trainer = pl.Trainer(logger=False, checkpoint_callback=False, fast_dev_run=is_test_run())
+trainer = L.Trainer(logger=False, enable_checkpointing=False, fast_dev_run=is_test_run())
 trainer.fit(module, dataloader_train, dataloader_val)
 
 # compute metrics

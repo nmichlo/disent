@@ -1,4 +1,4 @@
-import pytorch_lightning as pl
+import lightning as L
 from torch.utils.data import DataLoader
 
 from disent.dataset import DisentDataset
@@ -28,7 +28,7 @@ def make_vae(beta):
 
 
 def train(module):
-    trainer = pl.Trainer(logger=False, checkpoint_callback=False, max_steps=256, fast_dev_run=is_test_run())
+    trainer = L.Trainer(logger=False, enable_checkpointing=False, max_steps=256, fast_dev_run=is_test_run())
     trainer.fit(module, dataloader)
 
     # we cannot guarantee which device the representation is on

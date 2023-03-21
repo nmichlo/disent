@@ -1,0 +1,54 @@
+-r requirements.txt
+
+# OPTIONAL DEPS INCLUDING
+# - those referenced or imported in disent, but are optional.
+# - those used in documentation examples
+# - those used in experiment code or hydra config targets
+# =============
+
+# -- INPUT / OUTPUT -- #
+GitPython>=3.0.0  # dataset downloads
+imageio>=2.9.0  # required for wandb video logging
+moviepy>=1.0.3  # required for wandb video logging
+psutil>=5.8.0
+
+# -- GRAPHING & LOGGING -- #
+matplotlib>=3
+wandb>=0.10.32
+
+# -- CONFIGS -- #
+omegaconf>=2.1.0   # only 2.1.0 supports nested variable interpolation eg. ${group.${group.key}}
+hydra-core==1.1.1  # needs omegaconf
+hydra-colorlog==1.1.0
+hydra-submitit-launcher==1.1.6
+
+# -- CONFIG TARGETS -- #
+torch_optimizer>=0.3.0
+
+# -- TORCH EXTENSIONS -- #
+# requires pytorch to be installed first (duplicated in requirements-experiment.txt)
+# - we need `nvcc` to be installed first, otherwise GPU kernel extensions will not be
+#   compiled and this error will silently be skipped. If you get an error such as
+#   $ conda install -c nvidia cuda-nvcc
+# - Make sure that the version of torch corresponds to the version of `nvcc`, torch needs
+#   to be compiled with the same version! Install the correct version from:
+#   https://pytorch.org/get-started/locally/ By default torch compiled with 10.2 is installed,
+#   but `nvcc` will probably want to install 11.
+#   CUDA 10.2 (as of 2022-03-15) EITHER OF:
+#       $ pip3 install torch torchvision torchaudio
+#       $ conda install pytorch torchvision torchaudio cudatoolkit=10.2 -c pytorch
+#   CUDA 11.3 (as of 2022-03-15) EITHER OF:
+#       $ pip3 install torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0+cu113 -f https://download.pytorch.org/whl/cu113/torch_stable.html
+#       $ conda install pytorch torchvision torchaudio cudatoolkit=11.3 -c pytorch
+# - I personally just manage my cuda version manually, installing the correct cudatoolkit from: https://developer.nvidia.com/cuda-toolkit-archive
+#   Then making sure that:
+#       PATH contains:            "/usr/local/cuda/bin"
+#       LD_LIBRARY_PATH contains: "/usr/local/cuda/lib64"
+torchsort>=0.1.4
+
+# -- JIT -- #
+numba>=0.50.0  # optimised sampling
+
+# -- Gradient Boosting -- #
+# lightgbm
+# xgboost

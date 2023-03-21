@@ -16,8 +16,8 @@ callbacks:
 logging:
   wandb:
     enabled: TRUE
-  logger:
-    _target_: pytorch_lightning.loggers.WandbLogger
+  loggers:
+    _target_: lightning.pytorch.loggers.WandbLogger
     offline: FALSE
     entity: ${settings.job.user}
     project: ${settings.job.project}
