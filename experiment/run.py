@@ -29,6 +29,7 @@ from typing import Callable
 from typing import List
 from typing import NoReturn
 from typing import Optional
+from typing import Tuple
 from typing import Union
 
 import hydra
@@ -79,8 +80,12 @@ def hydra_register_disent_plugins(cfg):
         )
 
 
-def hydra_get_gpus(cfg) -> int:
+def hydra_get_accelerator_and_devices(cfg) -> Tuple[str, Optional[int]]:
+    # TODO: rather specify accelerator and devices directly in config...
+    #       this is redundant with the new pytorch lightning auto system.
+    #       - we should also allow different accelerators like mps for apple silicon
     use_cuda = cfg.dsettings.trainer.cuda
+
     # check cuda values
     if use_cuda in {"try_cuda", None}:
         use_cuda = torch.cuda.is_available()
@@ -96,7 +101,7 @@ def hydra_get_gpus(cfg) -> int:
         else:
             log.warning("CUDA is available but is not being used!")
     # get number of gpus to use
-    return 1 if use_cuda else 0
+    return ("cuda", 1) if use_cuda else ("cpu", "auto")
 
 
 def hydra_check_data_paths(cfg):
@@ -325,7 +330,7 @@ def action_train(cfg: DictConfig):
     log.info(f"Current working directory : {os.getcwd()}")
     log.info(f"Orig working directory    : {hydra.utils.get_original_cwd()}")
     # checks
-    gpus = hydra_get_gpus(cfg)
+    accelerator, devices = hydra_get_accelerator_and_devices(cfg)
     hydra_check_data_paths(cfg)
     hydra_check_data_meta(cfg)
 
@@ -357,7 +362,8 @@ def action_train(cfg: DictConfig):
         L.Trainer(
             # cannot override these
             logger=loggers,
-            gpus=gpus,
+            accelerator=accelerator,
+            devices=devices,
             callbacks=trainer_callbacks,
             # additional kwargs from the config, overrides the defaults
             **{**trainer_default_kwargs, **cfg.trainer},
