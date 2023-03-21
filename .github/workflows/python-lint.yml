@@ -2,8 +2,10 @@
 # - `.pre-commit-config.yaml`
 # - `requirements-dev.txt`
 
-name: python-lint
+name: lint
+
 on: [pull_request]
+
 jobs:
   black:
     runs-on: ubuntu-latest
