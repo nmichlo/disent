@@ -3,12 +3,12 @@ pip>=21.0
 # DATA SCIENCE & ML
 # =================
 numpy>=1.19.0
-torch>=1.9.0
-torchvision>=0.10.0
-pytorch-lightning>=1.4.0,<1.7
-torch_optimizer>=0.1.0,!=0.2
+torch>=2.0.0
+torchvision>=0.15.0
+lightning>=2.0.0
+torch_optimizer>=0.3.0
 scipy>=1.7.0
-scikit-learn>=0.24.2
+scikit-learn>=1.0.0
 
 # INPUT & OUTPUT
 # ================
