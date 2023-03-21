@@ -47,7 +47,7 @@ torch_optimizer>=0.3.0
 torchsort>=0.1.4
 
 # -- JIT -- #
-# numba>=0.50.0  # optimised sampling
+numba>=0.50.0  # optimised sampling
 
 # -- Gradient Boosting -- #
 # lightgbm
