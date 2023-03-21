@@ -719,15 +719,15 @@ def _compute_factored_metric_components_along_factor(
 #             # we cannot guarantee which device the representation is on
 #             get_repr = lambda x: module.encode(x.to(module.device))
 #             # PHASE 1, UNTRAINED
-#             L.Trainer(logger=False, checkpoint_callback=False, fast_dev_run=True, gpus=gpus, weights_summary=None).fit(module, dataloader)
+#             L.Trainer(logger=False, enable_checkpointing=False, fast_dev_run=True, gpus=gpus, weights_summary=None).fit(module, dataloader)
 #             if torch.cuda.is_available(): module = module.to('cuda')
 #             calculate(data.__class__.__name__, 0, dataset, get_repr)
 #             # PHASE 2, LITTLE TRAINING
-#             L.Trainer(logger=False, checkpoint_callback=False, max_steps=256, gpus=gpus, weights_summary=None).fit(module, dataloader)
+#             L.Trainer(logger=False, enable_checkpointing=False, max_steps=256, gpus=gpus, weights_summary=None).fit(module, dataloader)
 #             if torch.cuda.is_available(): module = module.to('cuda')
 #             calculate(data.__class__.__name__, 256, dataset, get_repr)
 #             # PHASE 3, MORE TRAINING
-#             L.Trainer(logger=False, checkpoint_callback=False, max_steps=2048, gpus=gpus, weights_summary=None).fit(module, dataloader)
+#             L.Trainer(logger=False, enable_checkpointing=False, max_steps=2048, gpus=gpus, weights_summary=None).fit(module, dataloader)
 #             if torch.cuda.is_available(): module = module.to('cuda')
 #             calculate(data.__class__.__name__, 256+2048, dataset, get_repr)
 #             results.append(None)

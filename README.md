@@ -374,7 +374,7 @@ module.register_schedule(
 # train model
 # - for 2048 batches/steps
 trainer = L.Trainer(
-    max_steps=2048, gpus=1 if torch.cuda.is_available() else None, logger=False, checkpoint_callback=False
+    max_steps=2048, gpus=1 if torch.cuda.is_available() else None, logger=False, enable_checkpointing=False
 )
 trainer.fit(module, dataloader)
 

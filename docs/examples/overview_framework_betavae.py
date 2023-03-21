@@ -25,5 +25,5 @@ module: L.LightningModule = BetaVae(
 )
 
 # train the model
-trainer = L.Trainer(logger=False, checkpoint_callback=False, fast_dev_run=is_test_run())
+trainer = L.Trainer(logger=False, enable_checkpointing=False, fast_dev_run=is_test_run())
 trainer.fit(module, dataloader)

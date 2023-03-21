@@ -119,7 +119,7 @@ def test_frameworks(Framework, cfg_kwargs, Data):
     pickle.dumps(framework)
 
     # train!
-    trainer = L.Trainer(logger=False, checkpoint_callback=False, max_steps=256, fast_dev_run=True)
+    trainer = L.Trainer(logger=False, enable_checkpointing=False, max_steps=256, fast_dev_run=True)
     trainer.fit(framework, dataloader)
 
     # test pickling after training, something may have changed!

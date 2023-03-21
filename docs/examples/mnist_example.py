@@ -51,7 +51,7 @@ module = AdaVae(
 
 # train the model
 trainer = L.Trainer(
-    logger=False, checkpoint_callback=False, max_steps=2048
+    logger=False, enable_checkpointing=False, max_steps=2048
 )  # callbacks=[VaeLatentCycleLoggingCallback(every_n_steps=250, plt_show=True)]
 trainer.fit(module, dataloader_train)
 
