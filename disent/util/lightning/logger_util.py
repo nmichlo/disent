@@ -27,9 +27,8 @@ import warnings
 from typing import Iterable
 from typing import Optional
 
-from pytorch_lightning.loggers import LightningLoggerBase
-from pytorch_lightning.loggers import LoggerCollection
-from pytorch_lightning.loggers import WandbLogger
+from lightning.pytorch.loggers import Logger
+from lightning.pytorch.loggers import WandbLogger
 
 log = logging.getLogger(__name__)
 
@@ -44,7 +43,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def log_metrics(logger: Optional[LightningLoggerBase], metrics_dct: dict):
+def log_metrics(logger: Optional[Logger], metrics_dct: dict):
     """
     Log the given values to the given logger.
     - warn the user if something goes wrong
@@ -63,25 +62,25 @@ def log_metrics(logger: Optional[LightningLoggerBase], metrics_dct: dict):
 # ========================================================================= #
 
 
-def wb_yield_loggers(logger: Optional[LightningLoggerBase]) -> Iterable[WandbLogger]:
+def wb_yield_loggers(logger: Optional[Logger]) -> Iterable[WandbLogger]:
     """
     Recursively yield all the loggers or sub-loggers that are an instance of WandbLogger
     """
     if logger:
         if isinstance(logger, WandbLogger):
             yield logger
-        elif isinstance(logger, LoggerCollection):
+        elif isinstance(logger, (tuple, list)):  # was LoggerCollection
             for l in logger:
                 yield from wb_yield_loggers(l)
 
 
-def wb_has_logger(logger: Optional[LightningLoggerBase]) -> bool:
+def wb_has_logger(logger: Optional[Logger]) -> bool:
     for l in wb_yield_loggers(logger):
         return True
     return False
 
 
-def wb_log_metrics(logger: Optional[LightningLoggerBase], metrics_dct: dict):
+def wb_log_metrics(logger: Optional[Logger], metrics_dct: dict):
     """
     Log the given values only to loggers that are an instance of WandbLogger
     """
@@ -101,7 +100,7 @@ _SUMMARY_REDICTIONS = {
 }
 
 
-def wb_log_reduced_summaries(logger: Optional[LightningLoggerBase], summary_dct: dict, reduction="max"):
+def wb_log_reduced_summaries(logger: Optional[Logger], summary_dct: dict, reduction="max"):
     """
     Aggregate the given values only to loggers that are an instance of WandbLogger
     - supported reduction modes are `"max"` and `"min"`

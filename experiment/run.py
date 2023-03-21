@@ -36,13 +36,13 @@ import lightning as L
 import torch
 import torch.utils.data
 import wandb
+from lightning import Callback
+from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.callbacks import ModelSummary
+from lightning.pytorch.loggers import Logger
 from omegaconf import DictConfig
 from omegaconf import ListConfig
 from omegaconf import OmegaConf
-from pytorch_lightning import Callback
-from pytorch_lightning.callbacks import ModelCheckpoint
-from pytorch_lightning.callbacks import ModelSummary
-from pytorch_lightning.loggers import LightningLoggerBase
 
 import disent.registry as R
 from disent.frameworks import DisentFramework
@@ -132,7 +132,7 @@ def hydra_check_data_meta(cfg):
         log.info(f"* dataset.meta.vis_std:  {cfg.dataset.meta.vis_std}")
 
 
-def hydra_make_logger(cfg) -> Optional[LightningLoggerBase]:
+def hydra_make_logger(cfg) -> Optional[Logger]:
     logger = hydra.utils.instantiate(cfg.logging.logger)
     if logger:
         log.info(f"Initialised Logger: {logger}")

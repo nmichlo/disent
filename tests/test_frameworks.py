@@ -28,7 +28,7 @@ from dataclasses import asdict
 import lightning as L
 import pytest
 import torch
-from pytorch_lightning.callbacks import ModelCheckpoint
+from lightning.pytorch.callbacks import ModelCheckpoint
 from torch.utils.data import DataLoader
 
 from disent.dataset import DisentDataset

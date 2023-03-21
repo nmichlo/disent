@@ -26,7 +26,7 @@ import warnings
 from typing import Union
 
 import lightning as L
-from pytorch_lightning.trainer.supporters import CombinedLoader
+from lightning.pytorch.utilities import CombinedLoader
 
 from disent.dataset import DisentDataset
 from disent.frameworks.ae import Ae

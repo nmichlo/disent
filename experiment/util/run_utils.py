@@ -28,8 +28,8 @@ import sys
 from multiprocessing import current_process
 from typing import Optional
 
-from pytorch_lightning import Trainer
-from pytorch_lightning.loggers import LoggerCollection
+from lightning.pytorch import Trainer
+from lightning.pytorch.loggers import LoggerCollection
 
 from disent.util.lightning.logger_util import wb_yield_loggers
 
