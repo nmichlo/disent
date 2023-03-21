@@ -24,7 +24,6 @@
 
 import pickle
 from dataclasses import asdict
-from functools import partial
 
 import pytest
 import pytorch_lightning as pl
@@ -44,14 +43,16 @@ from disent.frameworks.vae import *
 from disent.model import AutoEncoder
 from disent.model.ae import DecoderLinear
 from disent.model.ae import EncoderLinear
-
-# ========================================================================= #
-# TEST FRAMEWORKS                                                           #
-# ========================================================================= #
+from disent.util.function import wrapped_partial
 from disent.util.seeds import TempNumpySeed
 from disent.util.seeds import seed
 from docs.examples.extend_experiment.code.weaklysupervised__si_adavae import SwappedInputAdaVae
 from docs.examples.extend_experiment.code.weaklysupervised__si_betavae import SwappedInputBetaVae
+
+# ========================================================================= #
+# TEST FRAMEWORKS                                                           #
+# ========================================================================= #
+
 
 _TEST_FRAMEWORKS = [
     # AE - unsupervised
@@ -73,7 +74,7 @@ _TEST_FRAMEWORKS = [
     (DipVae, dict(dip_mode="i"), XYObjectData),
     (InfoVae, dict(), XYObjectData),
     (DfcVae, dict(), XYObjectData),
-    (DfcVae, dict(), partial(XYObjectData, rgb=False)),
+    (DfcVae, dict(), wrapped_partial(XYObjectData, rgb=False)),
     (BetaTcVae, dict(), XYObjectData),
     # VAE - unsupervised - EXP
     (DataOverlapTripletVae, dict(overlap_mine_triplet_mode="none"), XYObjectData),
