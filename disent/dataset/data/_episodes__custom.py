@@ -34,7 +34,6 @@ from disent.util.inout.files import download_file
 from disent.util.inout.paths import filename_from_url
 from disent.util.inout.tar import tar_safe_extract_all
 
-
 log = logging.getLogger(__name__)
 
 

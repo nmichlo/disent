@@ -23,8 +23,8 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import os
-from typing import Union
 from pathlib import Path
+from typing import Union
 
 
 def tar_safe_extract_all(in_file: Union[Path, str], out_dir: Union[Path, str]):
