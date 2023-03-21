@@ -66,6 +66,7 @@
 - [Examples](#examples)
     * [Python Example](#python-example)
     * [Hydra Config Example](#hydra-config-example)
+- [Install](#install)
 - [Development](#development)
 - [Why?](#why)
 
@@ -456,6 +457,47 @@ visualisations of latent traversals.
 
 ----------------------
 
+### Install
+
+```bash
+pip install disent
+```
+
+Otherwise, to install from source we recommend using a conda virtual environment.
+
+<details><summary><b>⤵️ Install from Source</b></summary>
+
+```bash
+# clone the repo
+git clone https://github.com/nmichlo/disent
+cd disent
+
+# create and activate the conda environment [py38,py39,py310]
+conda create -n disent-py310 python=3.10
+conda activate disent-py310
+
+# check that the correct python version is used
+which python
+which pip
+
+# make sure to upgrade pip
+pip install --upgrade pip
+
+# install minimal requirements
+pip install -r requirements.txt
+
+# (optional) install extra requirements
+# - first do the above because torch is required to compile torchsort while installing
+pip install -r requirements-extra.txt
+
+# (optional) install test requirements
+pip install -r requirements-test.txt
+```
+
+</details>
+
+----------------------
+
 ### Development
 
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
@@ -466,11 +508,20 @@ correctly when committing or pushing changes to `disent`.
 
 ```bash
 # install git hooks
-pip install -r pre-commit
+pip install pre-commit
 pre-commit install
 
 # manually trigger all pre-commit hooks
 pre-commit run --all-files
+```
+
+To run tests locally, make sure to install all the test and extra dependencies in your
+environment.
+
+```bash
+pip install -r requirements.txt
+# torchsort first requires torch to be installed
+pip install -r requirements-extra.txt -r requirements-test.txt
 ```
 
 ----------------------
