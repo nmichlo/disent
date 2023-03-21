@@ -19,4 +19,4 @@ jobs:
       - uses: actions/checkout@v3
       - uses: isort/isort-action@v1.1.0
         with:
-          configuration: "--check --verbose --diff --color --py=38 --profile=black --line-length=120 --force-single-line-imports"
+          configuration: "--check --verbose --diff --color --py=38 --profile=black --line-length=120 --force-single-line-imports --skip-glob='disent/**__init__.py'"
