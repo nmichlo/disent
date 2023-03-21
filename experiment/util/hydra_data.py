@@ -23,6 +23,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
+import os
 import warnings
 from typing import Any
 from typing import Dict
@@ -204,6 +205,10 @@ class HydraDataModule(L.LightningDataModule):
             raise KeyError(
                 f'`dataset.dataloader` must contain keys: ["batch_size", "num_workers"], got: {sorted(kwargs.keys())}'
             )
+        # limit num_workers according to the number of CPUs
+        if kwargs["num_workers"] > os.cpu_count():
+            kwargs["num_workers"] = os.cpu_count()
+            warnings.warn(f"`num_workers` limited to {os.cpu_count()}")
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         # create dataloader
         return torch.utils.data.DataLoader(dataset=dataset, **{**default_kwargs, **kwargs})
