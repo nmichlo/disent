@@ -23,8 +23,8 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import pytest
-import disent.registry as R
 
+import disent.registry as R
 
 # ========================================================================= #
 # TESTS                                                                     #
@@ -32,35 +32,36 @@ import disent.registry as R
 
 
 COUNTS = {
-    'DATASETS': 15,
-    'SAMPLERS': 8,
-    'FRAMEWORKS': 15,
-    'RECON_LOSSES': 9,
-    'LATENT_HANDLERS': 2,
-    'OPTIMIZERS': 30,
-    'METRICS': 9,
-    'SCHEDULES': 5,
-    'MODELS': 8,
-    'KERNELS': 2,
+    "DATASETS": 15,
+    "SAMPLERS": 8,
+    "FRAMEWORKS": 15,
+    "RECON_LOSSES": 9,
+    "LATENT_HANDLERS": 2,
+    "OPTIMIZERS": 30,
+    "METRICS": 9,
+    "SCHEDULES": 5,
+    "MODELS": 8,
+    "KERNELS": 2,
 }
 
 COUNTS = {
-    'DATASETS': 17,
-    'SAMPLERS': 8,
-    'FRAMEWORKS': 17,
-    'RECON_LOSSES': 9,
-    'LATENT_HANDLERS': 2,
-    'OPTIMIZERS': 30,
-    'METRICS': 9,
-    'SCHEDULES': 5,
-    'MODELS': 8,
-    'KERNELS': 2,
+    "DATASETS": 17,
+    "SAMPLERS": 8,
+    "FRAMEWORKS": 17,
+    "RECON_LOSSES": 9,
+    "LATENT_HANDLERS": 2,
+    "OPTIMIZERS": 30,
+    "METRICS": 9,
+    "SCHEDULES": 5,
+    "MODELS": 8,
+    "KERNELS": 2,
 }
 
 
-@pytest.mark.parametrize('registry_key', COUNTS.keys())
+@pytest.mark.parametrize("registry_key", COUNTS.keys())
 def test_registry_loading(registry_key):
     from docs.examples.extend_experiment.code import register_to_disent
+
     register_to_disent()
     register_to_disent()  # must be able to call more than once!
     # load everything and check the counts
@@ -68,7 +69,7 @@ def test_registry_loading(registry_key):
     for example in R.REGISTRIES[registry_key]:
         loaded = R.REGISTRIES[registry_key][example]
         count += 1
-    assert count == COUNTS[registry_key], f'invalid count for: {registry_key}'
+    assert count == COUNTS[registry_key], f"invalid count for: {registry_key}"
 
 
 # ========================================================================= #

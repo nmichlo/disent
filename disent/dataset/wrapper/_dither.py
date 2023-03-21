@@ -23,6 +23,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
+
 import numpy as np
 from torch.utils.data import Dataset
 
@@ -30,7 +31,6 @@ from disent.dataset.data import GroundTruthData
 from disent.dataset.util.state_space import StateSpace
 from disent.dataset.wrapper._base import WrappedDataset
 from disent.util.math.dither import nd_dither_matrix
-
 
 log = logging.getLogger(__name__)
 
@@ -41,7 +41,6 @@ log = logging.getLogger(__name__)
 
 
 class DitheredDataset(WrappedDataset):
-
     def __init__(self, gt_data: GroundTruthData, dither_n: int = 2, keep_ratio: float = 1):
         assert 0 < keep_ratio <= 1.0
         assert isinstance(gt_data, GroundTruthData)
@@ -66,7 +65,9 @@ class DitheredDataset(WrappedDataset):
         assert len(unique_count_map) == 2
         assert unique_count_map[True] > 0
         assert sum(unique_count_map.values()) == len(gt_data)
-        log.info(f'[n={dither_n}] keep ratio: {keep_ratio:.2f} actual ratio: {unique_count_map[True] / sum(unique_count_map.values()):.2f}')
+        log.info(
+            f"[n={dither_n}] keep ratio: {keep_ratio:.2f} actual ratio: {unique_count_map[True] / sum(unique_count_map.values()):.2f}"
+        )
 
     def __len__(self):
         return len(self._indices)

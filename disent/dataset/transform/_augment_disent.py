@@ -24,8 +24,8 @@
 
 from typing import Callable
 from typing import Optional
-import torch
 
+import torch
 
 # ========================================================================= #
 # Augment                                                                   #
@@ -40,7 +40,7 @@ class DisentDatasetTransform(object):
 
     def __init__(
         self,
-        transform:      Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
+        transform: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
         transform_targ: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
     ):
         self.transform = transform
@@ -49,17 +49,19 @@ class DisentDatasetTransform(object):
     def __call__(self, batch):
         # transform inputs
         if self.transform is not None:
-            if 'x' not in batch:
-                batch['x'] = batch['x_targ']
-            batch['x'] = _apply_transform_to_batch_dict(batch['x'], self.transform)
+            if "x" not in batch:
+                batch["x"] = batch["x_targ"]
+            batch["x"] = _apply_transform_to_batch_dict(batch["x"], self.transform)
         # transform targets
         if self.transform_targ is not None:
-            batch['x_targ'] = _apply_transform_to_batch_dict(batch['x_targ'], self.transform_targ)
+            batch["x_targ"] = _apply_transform_to_batch_dict(batch["x_targ"], self.transform_targ)
         # done!
         return batch
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(transform={repr(self.transform)}, transform_targ={repr(self.transform_targ)})'
+        return (
+            f"{self.__class__.__name__}(transform={repr(self.transform)}, transform_targ={repr(self.transform_targ)})"
+        )
 
 
 def _apply_transform_to_batch_dict(batch, transform):

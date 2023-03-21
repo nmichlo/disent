@@ -24,7 +24,6 @@
 
 import torch
 
-
 # ========================================================================= #
 # PCA                                                                       #
 # ========================================================================= #
@@ -44,14 +43,14 @@ def torch_pca_eig(X, center=True, scale=False, zero_negatives=False):
     if center:
         X = X - X.mean(dim=0)
     # compute covariance -- TODO: optimise this line
-    covariance = (1 / (n-1)) * torch.mm(X.T, X)
+    covariance = (1 / (n - 1)) * torch.mm(X.T, X)
     if scale:
         scaling = torch.sqrt(1 / torch.diagonal(covariance))
         covariance = torch.mm(torch.diagflat(scaling), covariance)
     # compute eigen values and eigen vectors
     eigenvalues, eigenvectors = torch.linalg.eig(covariance)
     # sort components by decreasing variance
-    components = torch.real(eigenvectors.T)       # TODO: handle imaginary numbers!
+    components = torch.real(eigenvectors.T)  # TODO: handle imaginary numbers!
     explained_variance = torch.real(eigenvalues)  # TODO: handle imaginary numbers!
     # handle n < m -- numerical stability issues return negative values!
     #                 maybe this should just zero out the negatives instead, they don't contribute!?
@@ -77,20 +76,20 @@ def torch_pca_svd(X, center=True):
     # sort components by decreasing variance
     # these are already sorted?
     components = v.T
-    explained_variance = torch.mul(s, s) / (n-1)
+    explained_variance = torch.mul(s, s) / (n - 1)
     return components, explained_variance
 
 
-def torch_pca(X, center=True, mode='svd') -> (torch.Tensor, torch.Tensor):
+def torch_pca(X, center=True, mode="svd") -> (torch.Tensor, torch.Tensor):
     # number of values returned may differ depending on the method!
     # -- svd returns: min(num, z_size)
     # -- eig returns: num
-    if mode == 'svd':
+    if mode == "svd":
         return torch_pca_svd(X, center=center)
-    elif mode == 'eig':
+    elif mode == "eig":
         return torch_pca_eig(X, center=center, scale=False)
     else:
-        raise KeyError(f'invalid torch_pca mode: {repr(mode)}')
+        raise KeyError(f"invalid torch_pca mode: {repr(mode)}")
 
 
 # ========================================================================= #

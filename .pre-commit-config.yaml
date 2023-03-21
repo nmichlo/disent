@@ -1,0 +1,18 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - { id: check-added-large-files, args: ["--maxkb=300"] }
+      - { id: check-case-conflict }
+      - { id: detect-private-key }
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+        args: ["--verbose", "--py=38", "--profile=black", "--line-length=120", "--force-single-line-imports"]
+        exclude: ^disent/(.+/)?__init__\.py
+  - repo: https://github.com/psf/black
+    rev: 23.1.0
+    hooks:
+      - id: black
+        args: ["--verbose", "--target-version=py38", "--line-length=120"]

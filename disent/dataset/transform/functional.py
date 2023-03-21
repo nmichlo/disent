@@ -30,17 +30,16 @@ from typing import TypeVar
 from typing import Union
 
 import numpy as np
-from PIL.Image import Image
 import torch
 import torchvision.transforms.functional as F_tv
-
+from PIL.Image import Image
 
 # ========================================================================= #
 # Types                                                                     #
 # ========================================================================= #
 
 
-_T = TypeVar('_T')
+_T = TypeVar("_T")
 
 Obs = Union[np.ndarray, Image]
 
@@ -61,8 +60,8 @@ def noop(obs: _T) -> _T:
 
 def check_tensor(
     obs: Any,
-    low: Optional[float] = 0.,
-    high: Optional[float] = 1.,
+    low: Optional[float] = 0.0,
+    high: Optional[float] = 1.0,
     dtype: torch.dtype = torch.float32,
 ) -> torch.Tensor:
     """
@@ -70,15 +69,15 @@ def check_tensor(
     that it is in the required range.
     """
     # check is a tensor
-    assert torch.is_tensor(obs), 'observation is not a tensor'
+    assert torch.is_tensor(obs), "observation is not a tensor"
     # check type
     if dtype is not None:
-        assert obs.dtype == dtype, f'tensor type {obs.dtype} is not required type {dtype}'
+        assert obs.dtype == dtype, f"tensor type {obs.dtype} is not required type {dtype}"
     # check range
     if low is not None:
-        assert low <= obs.min(), f'minimum value of tensor {obs.min()} is less than allowed minimum value: {low}'
+        assert low <= obs.min(), f"minimum value of tensor {obs.min()} is less than allowed minimum value: {low}"
     if high is not None:
-        assert obs.max() <= high, f'maximum value of tensor {obs.max()} is greater than allowed maximum value: {high}'
+        assert obs.max() <= high, f"maximum value of tensor {obs.max()} is greater than allowed maximum value: {high}"
     # DONE!
     return obs
 
@@ -168,12 +167,14 @@ def to_img_tensor_f32(
     #            might then be slower to convolve this data? Speed benefits could be negated? A copy might be better?
     obs = F_tv.to_tensor(obs)
     # checks
-    assert obs.ndim == 3, f'obs has does not have 3 dimensions, got: {obs.ndim} for shape: {obs.shape}'
-    assert obs.dtype == torch.float32, f'obs is not dtype torch.float32, got: {obs.dtype}'
+    assert obs.ndim == 3, f"obs has does not have 3 dimensions, got: {obs.ndim} for shape: {obs.shape}"
+    assert obs.dtype == torch.float32, f"obs is not dtype torch.float32, got: {obs.dtype}"
     # apply mean and std, we obs is of the shape (C, H, W)
     if (mean is not None) or (std is not None):
-        obs = F_tv.normalize(obs, mean=0. if (mean is None) else mean, std=1. if (std is None) else std, inplace=True)
-        assert obs.dtype == torch.float32, f'after normalization, tensor should remain as dtype torch.float32, got: {obs.dtype}'
+        obs = F_tv.normalize(obs, mean=0.0 if (mean is None) else mean, std=1.0 if (std is None) else std, inplace=True)
+        assert (
+            obs.dtype == torch.float32
+        ), f"after normalization, tensor should remain as dtype torch.float32, got: {obs.dtype}"
     # done!
     return obs
 

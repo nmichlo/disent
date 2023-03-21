@@ -22,17 +22,16 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+from dataclasses import dataclass
 from typing import Any
 from typing import Dict
 from typing import Sequence
 from typing import Tuple
 
 import torch
-from dataclasses import dataclass
 
 from disent.frameworks.ae._unsupervised__ae import Ae
 from disent.frameworks.vae._weaklysupervised__adavae import AdaVae
-
 
 # ========================================================================= #
 # Ada-GVAE                                                                  #
@@ -72,9 +71,8 @@ class AdaAe(Ae):
         # compute average posteriors
         new_zs = AdaVae.make_shared_zs(z0, z1, share_mask)
         # return new args & generate logs
-        return new_zs, {
-            'shared': share_mask.sum(dim=1).float().mean()
-        }
+        return new_zs, {"shared": share_mask.sum(dim=1).float().mean()}
+
 
 # ========================================================================= #
 # END                                                                       #

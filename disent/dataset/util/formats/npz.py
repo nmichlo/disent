@@ -24,27 +24,37 @@
 
 import numpy as np
 from tqdm import tqdm
-from disent.util.inout.files import AtomicSaveFile
 
+from disent.util.inout.files import AtomicSaveFile
 
 # ========================================================================= #
 # Save Numpy Files                                                          #
 # ========================================================================= #
 
 
-def save_dataset_array(array: np.ndarray, out_file: str, overwrite: bool = False, save_key: str = 'images'):
-    assert array.ndim == 4, f'invalid array shape, got: {array.shape}, must be: (N, H, W, C)'
-    assert array.dtype == 'uint8', f'invalid array dtype, got: {array.dtype}, must be: "uint8"'
+def save_dataset_array(array: np.ndarray, out_file: str, overwrite: bool = False, save_key: str = "images"):
+    assert array.ndim == 4, f"invalid array shape, got: {array.shape}, must be: (N, H, W, C)"
+    assert array.dtype == "uint8", f'invalid array dtype, got: {array.dtype}, must be: "uint8"'
     # save the data
     with AtomicSaveFile(out_file, overwrite=overwrite) as temp_file:
         np.savez_compressed(temp_file, **{save_key: array})
 
 
-def save_resized_dataset_array(array: np.ndarray, out_file: str, size: int = 64, overwrite: bool = False, save_key: str = 'images', progress: bool = True):
+def save_resized_dataset_array(
+    array: np.ndarray,
+    out_file: str,
+    size: int = 64,
+    overwrite: bool = False,
+    save_key: str = "images",
+    progress: bool = True,
+):
     import torchvision.transforms.functional as F_tv
+
     from disent.dataset.data import ArrayDataset
+
     # checks
-    assert out_file.endswith('.npz'), f'The output file must end with the extension: ".npz", got: {repr(out_file)}'
+    assert out_file.endswith(".npz"), f'The output file must end with the extension: ".npz", got: {repr(out_file)}'
+
     # Get the transform -- copied from: ToImgTensorF32 / ToImgTensorU8
     def transform(obs):
         H, W, C = obs.shape
@@ -56,16 +66,17 @@ def save_resized_dataset_array(array: np.ndarray, out_file: str, size: int = 64,
             obs = obs[:, :, None]
             assert obs.shape == (size, size, C)
         return obs
+
     # load the converted cars3d data ?x128x128x3
-    assert array.ndim == 4, f'invalid array shape, got: {array.shape}, must be: (N, H, W, C)'
-    assert array.dtype == 'uint8', f'invalid array dtype, got: {array.dtype}, must be: "uint8"'
+    assert array.ndim == 4, f"invalid array shape, got: {array.shape}, must be: (N, H, W, C)"
+    assert array.dtype == "uint8", f'invalid array dtype, got: {array.dtype}, must be: "uint8"'
     N, H, W, C = array.shape
     data = ArrayDataset(array, transform=transform)
     # save the data
     with AtomicSaveFile(out_file, overwrite=overwrite) as temp_file:
         # resize the cars3d data
-        idxs = tqdm(range(N), desc = 'converting') if progress else range(N)
-        converted = np.zeros([N, size, size, C], dtype='uint8')
+        idxs = tqdm(range(N), desc="converting") if progress else range(N)
+        converted = np.zeros([N, size, size, C], dtype="uint8")
         for i in idxs:
             converted[i, ...] = data[i]
         # save the data

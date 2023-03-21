@@ -36,14 +36,13 @@ from torch.utils.data import Dataset
 from torch.utils.data import IterableDataset
 from torch.utils.data.dataloader import default_collate
 
-from disent.dataset.sampling import BaseDisentSampler
 from disent.dataset.data import GroundTruthData
+from disent.dataset.sampling import BaseDisentSampler
 from disent.dataset.sampling import SingleSampler
 from disent.dataset.wrapper import WrappedDataset
 from disent.util.deprecate import deprecated
 from disent.util.iters import LengthIter
 from disent.util.math.random import random_choice_prng
-
 
 # ========================================================================= #
 # Helper                                                                    #
@@ -59,24 +58,30 @@ class NotGroundTruthDataError(Exception):
     """
 
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 def groundtruth_only(func: T) -> T:
     @wraps(func)
-    def wrapper(self: 'DisentDataset', *args, **kwargs):
+    def wrapper(self: "DisentDataset", *args, **kwargs):
         if not self.is_ground_truth:
-            raise NotGroundTruthDataError(f'Check `is_ground_truth` first before calling `{func.__name__}`, the dataset wrapped by {repr(self.__class__.__name__)} is not a {repr(GroundTruthData.__name__)}, instead got: {repr(self._dataset)}.')
+            raise NotGroundTruthDataError(
+                f"Check `is_ground_truth` first before calling `{func.__name__}`, the dataset wrapped by {repr(self.__class__.__name__)} is not a {repr(GroundTruthData.__name__)}, instead got: {repr(self._dataset)}."
+            )
         return func(self, *args, **kwargs)
+
     return wrapper
 
 
 def wrapped_only(func):
     @wraps(func)
-    def wrapper(self: 'DisentDataset', *args, **kwargs):
+    def wrapper(self: "DisentDataset", *args, **kwargs):
         if not self.is_wrapped_data:
-            raise NotGroundTruthDataError(f'Check `is_data_wrapped` first before calling `{func.__name__}`, the dataset wrapped by {repr(self.__class__.__name__)} is not a {repr(WrappedDataset.__name__)}, instead got: {repr(self._dataset)}.')
+            raise NotGroundTruthDataError(
+                f"Check `is_data_wrapped` first before calling `{func.__name__}`, the dataset wrapped by {repr(self.__class__.__name__)} is not a {repr(WrappedDataset.__name__)}, instead got: {repr(self._dataset)}."
+            )
         return func(self, *args, **kwargs)
+
     return wrapper
 
 
@@ -89,7 +94,6 @@ _REF_ = object()
 
 
 class DisentDataset(Dataset, LengthIter):
-
     def __init__(
         self,
         dataset: Union[Dataset, GroundTruthData],  # TODO: this should be renamed to data
@@ -108,35 +112,41 @@ class DisentDataset(Dataset, LengthIter):
         self._return_indices = return_indices
         self._return_factors = return_factors
         # check sampler
-        assert isinstance(self._sampler, BaseDisentSampler), f'{DisentDataset.__name__} got an invalid {BaseDisentSampler.__name__}: {type(self._sampler)}'
+        assert isinstance(
+            self._sampler, BaseDisentSampler
+        ), f"{DisentDataset.__name__} got an invalid {BaseDisentSampler.__name__}: {type(self._sampler)}"
         # initialize sampler
         if not self._sampler.is_init:
             self._sampler.init(dataset)
         # warn if we are overriding a transform
         if self._transform is not None:
-            if hasattr(dataset, '_transform') and dataset._transform:
-                warnings.warn(f'{DisentDataset.__name__} has transform specified as well as wrapped dataset: {dataset}, are you sure this is intended?')
+            if hasattr(dataset, "_transform") and dataset._transform:
+                warnings.warn(
+                    f"{DisentDataset.__name__} has transform specified as well as wrapped dataset: {dataset}, are you sure this is intended?"
+                )
         # check the dataset if we are returning the factors
         if self._return_factors:
-            assert isinstance(self._dataset, GroundTruthData), f'If `return_factors` is `True`, then the dataset must be an instance of: {GroundTruthData.__name__}, got: {type(dataset)}'
+            assert isinstance(
+                self._dataset, GroundTruthData
+            ), f"If `return_factors` is `True`, then the dataset must be an instance of: {GroundTruthData.__name__}, got: {type(dataset)}"
 
     def shallow_copy(
         self,
-        dataset: Union[Dataset, GroundTruthData] =_REF_,  # TODO: this should be renamed to data
+        dataset: Union[Dataset, GroundTruthData] = _REF_,  # TODO: this should be renamed to data
         sampler: Optional[BaseDisentSampler] = _REF_,
         transform: Optional[callable] = _REF_,
         augment: Optional[callable] = _REF_,
         return_indices: bool = _REF_,
         return_factors: bool = _REF_,
-    ) -> 'DisentDataset':
+    ) -> "DisentDataset":
         # instantiate shallow dataset copy, overwriting elements if specified
         return DisentDataset(
-            dataset        = self._dataset               if (dataset is _REF_)        else dataset,
-            sampler        = self._sampler.uninit_copy() if (sampler is _REF_)        else sampler,
-            transform      = self._transform             if (transform is _REF_)      else transform,
-            augment        = self._augment               if (augment is _REF_)        else augment,
-            return_indices = self._return_indices        if (return_indices is _REF_) else return_indices,
-            return_factors = self._return_factors        if (return_factors is _REF_) else return_factors,
+            dataset=self._dataset if (dataset is _REF_) else dataset,
+            sampler=self._sampler.uninit_copy() if (sampler is _REF_) else sampler,
+            transform=self._transform if (transform is _REF_) else transform,
+            augment=self._augment if (augment is _REF_) else augment,
+            return_indices=self._return_indices if (return_indices is _REF_) else return_indices,
+            return_factors=self._return_factors if (return_factors is _REF_) else return_factors,
         )
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -168,7 +178,7 @@ class DisentDataset(Dataset, LengthIter):
         return isinstance(self._dataset, GroundTruthData)
 
     @property
-    @deprecated('ground_truth_data property replaced with `gt_data`')
+    @deprecated("ground_truth_data property replaced with `gt_data`")
     @groundtruth_only
     def ground_truth_data(self) -> GroundTruthData:
         return self._dataset
@@ -214,7 +224,7 @@ class DisentDataset(Dataset, LengthIter):
         augment: Optional[callable] = _REF_,
         return_indices: bool = _REF_,
         return_factors: bool = _REF_,
-    ) -> 'DisentDataset':
+    ) -> "DisentDataset":
         # like shallow_copy, but unwrap the dataset instead!
         return self.shallow_copy(
             dataset=self.wrapped_data,
@@ -279,44 +289,44 @@ class DisentDataset(Dataset, LengthIter):
         try:
             idx = int(idx)
         except:
-            raise TypeError(f'Indices must be integer-like ({type(idx)}): {idx}')
+            raise TypeError(f"Indices must be integer-like ({type(idx)}): {idx}")
         # we do not support indexing by lists
         x_raw = self._dataset[idx]
         # return correct data
-        if mode == 'pair':
+        if mode == "pair":
             x_targ = self._datapoint_raw_to_target(x_raw)  # applies self.transform
-            x = self._datapoint_target_to_input(x_targ)    # applies self.augment
+            x = self._datapoint_target_to_input(x_targ)  # applies self.augment
             return x, x_targ
-        elif mode == 'input':
+        elif mode == "input":
             x_targ = self._datapoint_raw_to_target(x_raw)  # applies self.transform
-            x = self._datapoint_target_to_input(x_targ)    # applies self.augment
+            x = self._datapoint_target_to_input(x_targ)  # applies self.augment
             return x
-        elif mode == 'target':
+        elif mode == "target":
             x_targ = self._datapoint_raw_to_target(x_raw)  # applies self.transform
             return x_targ
-        elif mode == 'raw':
+        elif mode == "raw":
             return x_raw
         else:
-            raise ValueError(f'Invalid {mode=}')
+            raise ValueError(f"Invalid {mode=}")
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Multiple Datapoints                                                   #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     def _dataset_get_observation(self, *idxs):
-        xs, xs_targ = zip(*(self.dataset_get(idx, mode='pair') for idx in idxs))
+        xs, xs_targ = zip(*(self.dataset_get(idx, mode="pair") for idx in idxs))
         # handle cases
-        obs = {'x_targ': xs_targ}
+        obs = {"x_targ": xs_targ}
         # 5-10% faster
         if self._augment is not None:
-            obs['x'] = xs
+            obs["x"] = xs
         # add indices
         if self._return_indices:
-            obs['idx'] = idxs
+            obs["idx"] = idxs
         # add factors
         if self._return_factors:
             # >>> this is about 10% faster than below, because we do not need to do conversions!
-            obs['factors'] = tuple(np.array(np.unravel_index(idxs, self._dataset.factor_sizes)).T)
+            obs["factors"] = tuple(np.array(np.unravel_index(idxs, self._dataset.factor_sizes)).T)
             # >>> builtin but slower method, does some magic for more than 2 dims, could replace with faster try_njit method, but then we need numba!
             # obs['factors1'] = tuple(self.gt_data.idx_to_pos(idxs))
         # done!
@@ -334,7 +344,15 @@ class DisentDataset(Dataset, LengthIter):
         batch = [self.dataset_get(idx, mode=mode) for idx in indices]
         return default_collate(batch) if collate else batch
 
-    def dataset_sample_batch(self, num_samples: int, mode: str, replace: bool = False, return_indices: bool = False, collate: bool = True, seed: Optional[int] = None):
+    def dataset_sample_batch(
+        self,
+        num_samples: int,
+        mode: str,
+        replace: bool = False,
+        return_indices: bool = False,
+        collate: bool = True,
+        seed: Optional[int] = None,
+    ):
         """Sample a batch of observations X."""
         # built in np.random.choice cannot handle large values: https://github.com/numpy/numpy/issues/5299#issuecomment-497915672
         indices = random_choice_prng(len(self._dataset), size=num_samples, replace=replace, seed=seed)
@@ -346,9 +364,13 @@ class DisentDataset(Dataset, LengthIter):
         else:
             return batch
 
-    def dataset_sample_elems(self, num_samples: int, mode: str, return_indices: bool = False, seed: Optional[int] = None):
+    def dataset_sample_elems(
+        self, num_samples: int, mode: str, return_indices: bool = False, seed: Optional[int] = None
+    ):
         """Sample uncollated elements with replacement, like `dataset_sample_batch`"""
-        return self.dataset_sample_batch(num_samples=num_samples, mode=mode, replace=True, return_indices=return_indices, collate=False, seed=seed)
+        return self.dataset_sample_batch(
+            num_samples=num_samples, mode=mode, replace=True, return_indices=return_indices, collate=False, seed=seed
+        )
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Batches -- Ground Truth Only                                          #
@@ -372,7 +394,6 @@ class DisentDataset(Dataset, LengthIter):
 
 
 class DisentIterDataset(IterableDataset, DisentDataset):
-
     # make sure we cannot obtain the length directly
     __len__ = None
 
@@ -395,7 +416,10 @@ def _batch_to_observation(batch, obs_shape):
     Convert a batch of size 1, to a single observation.
     """
     if batch.shape != obs_shape:
-        assert batch.shape == (1, *obs_shape), f'batch.shape={repr(batch.shape)} does not correspond to obs_shape={repr(obs_shape)} with batch dimension added'
+        assert batch.shape == (
+            1,
+            *obs_shape,
+        ), f"batch.shape={repr(batch.shape)} does not correspond to obs_shape={repr(obs_shape)} with batch dimension added"
         return batch.reshape(obs_shape)
     return batch
 

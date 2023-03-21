@@ -25,8 +25,8 @@
 
 import math
 from typing import Union
-import numpy as np
 
+import numpy as np
 
 # ========================================================================= #
 # linear interpolate                                                        #
@@ -36,7 +36,7 @@ import numpy as np
 def lerp(ratio, start_val, end_val):
     """Linear interpolation between parameters, respects bounds when t is out of bounds [0, 1]"""
     # assert a < b
-    r = np.clip(ratio, 0., 1.)
+    r = np.clip(ratio, 0.0, 1.0)
     # precise method, guarantees v==b when t==1 | simplifies to: a + t*(b-a)
     return (1 - r) * start_val + r * end_val
     # return start_val + r * (end_val - start_val)  # EQUIVALENT
@@ -54,14 +54,14 @@ def lerp_step(step, max_step, start_val, end_val):
 
 
 _SCALE_RATIO_FNS = {
-    'linear':  lambda r: r,
-    'sigmoid': lambda r: 1 / (1 + np.exp(-12 * r + 6)),
-    'cosine':  lambda r: 0.5 * (1 - np.cos(r * math.pi)),
+    "linear": lambda r: r,
+    "sigmoid": lambda r: 1 / (1 + np.exp(-12 * r + 6)),
+    "cosine": lambda r: 0.5 * (1 - np.cos(r * math.pi)),
 }
 
 
-def scale_ratio(r, mode='linear'):
-    r = np.clip(r, 0., 1.)
+def scale_ratio(r, mode="linear"):
+    r = np.clip(r, 0.0, 1.0)
     return _SCALE_RATIO_FNS[mode](r)
 
 
@@ -74,8 +74,8 @@ def scale_ratio(r, mode='linear'):
 
 
 _END_VALUES = {
-    'low': 0,
-    'high': 1,
+    "low": 0,
+    "high": 1,
 }
 
 
@@ -86,14 +86,14 @@ def cyclical_anneal(
     high_ratio: float = 0.0,
     repeats: int = None,
     start_low: bool = True,
-    end_value: str = 'high',
-    mode: str = 'linear',
+    end_value: str = "high",
+    mode: str = "linear",
 ):
     # check values
     assert 0 <= low_ratio <= 1
     assert 0 <= high_ratio <= 1
     assert (low_ratio + high_ratio) <= 1
-    assert (period > 0)
+    assert period > 0
     # compute ratio & masks
     r = (step / period) % 1
     # flip the axis
@@ -103,7 +103,7 @@ def cyclical_anneal(
     low_mask, high_mask = r <= low_ratio, (1 - high_ratio) <= r
     # compute increasing values
     if low_ratio + high_ratio < 1:
-        r = (r - low_ratio) / (1-low_ratio-high_ratio)
+        r = (r - low_ratio) / (1 - low_ratio - high_ratio)
         r = scale_ratio(r, mode=mode)
     # truncate values
     r = np.where(low_mask, 0, r)

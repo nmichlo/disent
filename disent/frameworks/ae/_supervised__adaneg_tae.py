@@ -37,7 +37,6 @@ from disent.frameworks.ae._supervised__tae import TripletAe
 from disent.frameworks.ae._weaklysupervised__adaae import AdaAe
 from disent.frameworks.vae._supervised__adaneg_tvae import AdaNegTripletVae
 
-
 log = logging.getLogger(__name__)
 
 
@@ -63,7 +62,9 @@ class AdaNegTripletAe(TripletAe):
         # ada_tvae - loss
         adat_triplet_share_scale: float = 0.95
 
-    def hook_ae_compute_ave_aug_loss(self, zs: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
+    def hook_ae_compute_ave_aug_loss(
+        self, zs: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]
+    ) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
         return AdaNegTripletVae.estimate_ada_triplet_loss_from_zs(
             zs=zs,
             cfg=self.cfg,

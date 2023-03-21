@@ -28,7 +28,6 @@ from pathlib import Path
 from typing import Tuple
 from typing import Union
 
-
 log = logging.getLogger(__name__)
 
 
@@ -37,35 +36,37 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def modify_file_name(file: Union[str, Path], prefix: str = None, suffix: str = None, sep='.') -> Union[str, Path]:
+def modify_file_name(file: Union[str, Path], prefix: str = None, suffix: str = None, sep=".") -> Union[str, Path]:
     # get path components
     path = Path(file)
-    assert path.name, f'file name cannot be empty: {repr(path)}, for name: {repr(path.name)}'
+    assert path.name, f"file name cannot be empty: {repr(path)}, for name: {repr(path.name)}"
     # create new path
-    prefix = '' if (not prefix) else f'{prefix}{sep}'
-    suffix = '' if (not suffix) else f'{sep}{suffix}'
-    new_path = path.parent.joinpath(f'{prefix}{path.name}{suffix}')
+    prefix = "" if (not prefix) else f"{prefix}{sep}"
+    suffix = "" if (not suffix) else f"{sep}{suffix}"
+    new_path = path.parent.joinpath(f"{prefix}{path.name}{suffix}")
     # return path with same format as input
     return str(new_path) if isinstance(file, str) else new_path
 
 
-def modify_name_keep_ext(file: Union[str, Path], prefix: str = None, suffix: str = None, name_contains_sep: bool = False) -> Union[str, Path]:
+def modify_name_keep_ext(
+    file: Union[str, Path], prefix: str = None, suffix: str = None, name_contains_sep: bool = False
+) -> Union[str, Path]:
     # get path components
     path = Path(file)
     name = path.name
-    assert name, f'file name cannot be empty: {repr(path)}, for name: {repr(name)}'
+    assert name, f"file name cannot be empty: {repr(path)}, for name: {repr(name)}"
     # handle suffix
     if suffix:
-        components = name.rsplit('.', 1) if name_contains_sep else path.name.split('.', 1)
+        components = name.rsplit(".", 1) if name_contains_sep else path.name.split(".", 1)
         if len(components) >= 2:
             [name, ext] = components
-            name = f'{name}{suffix}.{ext}'
+            name = f"{name}{suffix}.{ext}"
         else:
             [name] = components
-            name = f'{name}{suffix}'
+            name = f"{name}{suffix}"
     # handle prefix
     if prefix:
-        name = f'{prefix}{name}'
+        name = f"{prefix}{name}"
     # create new path
     new_path = path.parent.joinpath(name)
     # return path with same format as input
@@ -73,14 +74,14 @@ def modify_name_keep_ext(file: Union[str, Path], prefix: str = None, suffix: str
 
 
 def modify_ext(file: Union[str, Path], ext: str, name_contains_sep: bool = True) -> Union[str, Path]:
-    assert not ext.startswith('.'), f'please specify the extension without the starting period: {repr(ext)}'
+    assert not ext.startswith("."), f"please specify the extension without the starting period: {repr(ext)}"
     # get path components
     path = Path(file)
     name = path.name
-    assert name, f'file name cannot be empty: {repr(path)}, for name: {repr(name)}'
+    assert name, f"file name cannot be empty: {repr(path)}, for name: {repr(name)}"
     # update the path name
-    (name, *_) = name.rsplit('.', 1) if name_contains_sep else path.name.split('.', 1)
-    name = f'{name}.{ext}'
+    (name, *_) = name.rsplit(".", 1) if name_contains_sep else path.name.split(".", 1)
+    name = f"{name}.{ext}"
     new_path = path.parent.joinpath(name)
     # return path with same format as input
     return str(new_path) if isinstance(file, str) else new_path
@@ -93,6 +94,7 @@ def modify_ext(file: Union[str, Path], ext: str, name_contains_sep: bool = True)
 
 def ensure_dir_exists(*join_paths: str, is_file=False, absolute=False):
     import os
+
     # join path
     path = os.path.join(*join_paths)
     # to abs path
@@ -103,10 +105,10 @@ def ensure_dir_exists(*join_paths: str, is_file=False, absolute=False):
     # create missing directory
     if os.path.exists(dirs):
         if not os.path.isdir(dirs):
-            raise IOError(f'path is not a directory: {dirs}')
+            raise IOError(f"path is not a directory: {dirs}")
     else:
         os.makedirs(dirs, exist_ok=True)
-        log.info(f'created missing directories: {dirs}')
+        log.info(f"created missing directories: {dirs}")
     # return directory
     return path
 
@@ -123,29 +125,35 @@ def ensure_parent_dir_exists(*join_paths: str):
 def filename_from_url(url: str):
     import os
     from urllib.parse import urlparse
+
     return os.path.basename(urlparse(url).path)
 
 
 def uri_parse_file_or_url(inp_uri: str) -> Tuple[str, bool]:
     from urllib.parse import urlparse
+
     result = urlparse(inp_uri)
     # parse different cases
-    if result.scheme in ('http', 'https'):
+    if result.scheme in ("http", "https"):
         is_url = True
         uri = result.geturl()
-    elif result.scheme in ('file', ''):
+    elif result.scheme in ("file", ""):
         is_url = False
-        if result.scheme == 'file':
+        if result.scheme == "file":
             if result.netloc:
-                raise KeyError(f'file uri format is invalid: "{result.geturl()}" two slashes specifies host as: "{result.netloc}" eg. instead of "file://hostname/root_folder/file.txt", please use: "file:/root_folder/file.txt" (no hostname) or "file:///root_folder/file.txt" (empty hostname).')
+                raise KeyError(
+                    f'file uri format is invalid: "{result.geturl()}" two slashes specifies host as: "{result.netloc}" eg. instead of "file://hostname/root_folder/file.txt", please use: "file:/root_folder/file.txt" (no hostname) or "file:///root_folder/file.txt" (empty hostname).'
+                )
             if not os.path.isabs(result.path):
-                raise RuntimeError(f'path: {repr(result.path)} obtained from file URI: {repr(inp_uri)} should always be absolute')
+                raise RuntimeError(
+                    f"path: {repr(result.path)} obtained from file URI: {repr(inp_uri)} should always be absolute"
+                )
             uri = result.path
         else:
             uri = result.geturl()
         uri = os.path.abspath(uri)
     else:
-        raise ValueError(f'invalid file or url: {repr(inp_uri)}')
+        raise ValueError(f"invalid file or url: {repr(inp_uri)}")
     # done
     return uri, is_url
 

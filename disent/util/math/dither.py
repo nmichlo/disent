@@ -29,7 +29,6 @@ from typing import Sequence
 
 import numpy as np
 
-
 # ========================================================================= #
 # Dither Matrix                                                             #
 # ========================================================================= #
@@ -59,10 +58,9 @@ def nd_dither_offsets(d: int) -> np.ndarray:
         return np.array([0, 1])
     # recurse
     prev = nd_dither_offsets(d=d - 1)
-    offs = np.array([
-        2 * prev,
-        2 * np.flip(prev) + 1  # flip(prev) is the same as prev[::-1, >>>] with ::-1 in all dimensions
-    ])
+    offs = np.array(
+        [2 * prev, 2 * np.flip(prev) + 1]  # flip(prev) is the same as prev[::-1, >>>] with ::-1 in all dimensions
+    )
     return _np_immutable_copy(offs)
 
 
@@ -131,7 +129,9 @@ def nd_dither(arr: np.ndarray, n: int = 2, axis: Optional[Sequence[int]] = None)
     return arr > dd
 
 
-def nd_dither_matrix_like(arr: np.ndarray, n: int = 2, axis: Optional[Sequence[int]] = None, norm: bool = True, expand: bool = True) -> np.ndarray:
+def nd_dither_matrix_like(
+    arr: np.ndarray, n: int = 2, axis: Optional[Sequence[int]] = None, norm: bool = True, expand: bool = True
+) -> np.ndarray:
     """
     Tile the dither matrix across an array.
     - `norm` specifies that the values should be in the range [0, 1)
@@ -186,7 +186,7 @@ def _normalize_axis(ndim: int, axis: Optional[Sequence[int]]) -> np.ndarray:
         axis = axis[None]
     # checks
     assert axis.ndim == 1
-    assert axis.dtype in ('int', 'int32', 'int64')
+    assert axis.dtype in ("int", "int32", "int64")
     # convert
     axis = np.where(axis < 0, ndim + axis, axis)
     axis = np.sort(axis)

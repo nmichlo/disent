@@ -29,13 +29,12 @@ from typing import Dict
 from typing import Optional
 
 import hydra
-import torch.utils.data
 import pytorch_lightning as pl
+import torch.utils.data
 from omegaconf import DictConfig
 
 from disent.dataset import DisentDataset
 from disent.dataset.transform import DisentDatasetTransform
-
 
 log = logging.getLogger(__name__)
 
@@ -83,19 +82,18 @@ log = logging.getLogger(__name__)
 
 
 class HydraDataModule(pl.LightningDataModule):
-
     def __init__(
         self,
-        data: Dict[str, Any],                                # = dataset.data
-        sampler: Dict[str, Any],                             # = sampling._sampler_.sampler_cls
-        transform: Optional[Dict[str, Any]] = None,          # = dataset.transform
-        augment: Optional[Dict[str, Any]] = None,            # = augment.augment_cls
+        data: Dict[str, Any],  # = dataset.data
+        sampler: Dict[str, Any],  # = sampling._sampler_.sampler_cls
+        transform: Optional[Dict[str, Any]] = None,  # = dataset.transform
+        augment: Optional[Dict[str, Any]] = None,  # = augment.augment_cls
         dataloader_kwargs: Optional[Dict[str, Any]] = None,  # = dataloader
-        augment_on_gpu: bool = False,                        # = dsettings.dataset.gpu_augment
-        using_cuda: Optional[bool] = False,                  # = self.hparams.dsettings.trainer.cuda
-        prepare_data_per_node: bool = True,                  # DataHooks.prepare_data_per_node
-        return_indices: bool = False,                        # = framework.meta.requires_indices
-        return_factors: bool = False,                        # = framework.meta.requires_factors
+        augment_on_gpu: bool = False,  # = dsettings.dataset.gpu_augment
+        using_cuda: Optional[bool] = False,  # = self.hparams.dsettings.trainer.cuda
+        prepare_data_per_node: bool = True,  # DataHooks.prepare_data_per_node
+        return_indices: bool = False,  # = framework.meta.requires_indices
+        return_factors: bool = False,  # = framework.meta.requires_factors
     ):
         super().__init__()
         # OVERRIDE:
@@ -108,14 +106,16 @@ class HydraDataModule(pl.LightningDataModule):
         assert (self.data_transform is None) or callable(self.data_transform)
         # input_transform_aug: augment data for inputs, then apply input_transform
         self.input_transform = hydra.utils.instantiate(augment)
-        assert (self.input_transform is None) or callable(self.input_transform)  # should be: `Callable[[torch.Tensor], torch.Tensor]`
+        assert (self.input_transform is None) or callable(
+            self.input_transform
+        )  # should be: `Callable[[torch.Tensor], torch.Tensor]`
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         # batch_augment: augments transformed data for inputs, should be applied across a batch
         # which version of the dataset we need to use if GPU augmentation is enabled or not.
         # - corresponds to below in train_dataloader()
         if augment_on_gpu:
             self._gpu_batch_augment = DisentDatasetTransform(transform=self.input_transform)
-            warnings.warn('`augment_on_gpu=True` is outdated and may no longer be equivalent to `augment_on_gpu=False`')
+            warnings.warn("`augment_on_gpu=True` is outdated and may no longer be equivalent to `augment_on_gpu=False`")
         else:
             self._gpu_batch_augment = None
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
@@ -132,23 +132,37 @@ class HydraDataModule(pl.LightningDataModule):
         # - Instantiate data once to download and prepare if needed.
         # - trainer.prepare_data_per_node affects this functions behavior per node.
         data = dict(self.hparams.data)
-        if 'in_memory' in data:
-            del data['in_memory']
+        if "in_memory" in data:
+            del data["in_memory"]
         # create the data
         # - we instantiate the data twice, once here and once in setup otherwise
         #   things could go wrong. We try be efficient about it by removing the
         #   in_memory argument if it exists.
-        log.info(f'Data - Preparation & Downloading')
+        log.info(f"Data - Preparation & Downloading")
         hydra.utils.instantiate(data)
 
     def setup(self, stage=None) -> None:
         # ground truth data
-        log.info(f'Data - Instance')
+        log.info(f"Data - Instance")
         data = hydra.utils.instantiate(self.hparams.data)
         # Wrap the data for the framework some datasets need triplets, pairs, etc.
         # Augmentation is done inside the frameworks so that it can be done on the GPU, otherwise things are very slow.
-        self.dataset_train_noaug = DisentDataset(data, hydra.utils.instantiate(self.hparams.sampler), transform=self.data_transform, augment=None,               return_indices=self.hparams.return_indices, return_factors=self.hparams.return_factors)
-        self.dataset_train_aug = DisentDataset(data, hydra.utils.instantiate(self.hparams.sampler), transform=self.data_transform, augment=self.input_transform, return_indices=self.hparams.return_indices, return_factors=self.hparams.return_factors)
+        self.dataset_train_noaug = DisentDataset(
+            data,
+            hydra.utils.instantiate(self.hparams.sampler),
+            transform=self.data_transform,
+            augment=None,
+            return_indices=self.hparams.return_indices,
+            return_factors=self.hparams.return_factors,
+        )
+        self.dataset_train_aug = DisentDataset(
+            data,
+            hydra.utils.instantiate(self.hparams.sampler),
+            transform=self.data_transform,
+            augment=self.input_transform,
+            return_indices=self.hparams.return_indices,
+            return_factors=self.hparams.return_factors,
+        )
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Training Dataset:
@@ -176,18 +190,20 @@ class HydraDataModule(pl.LightningDataModule):
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         # get default kwargs
         default_kwargs = {
-            'shuffle': True,
+            "shuffle": True,
             # This should usually be TRUE if cuda is enabled.
             # About 20% faster with the xysquares dataset, RTX 2060 Rev. A, and Intel i7-3930K
-            'pin_memory': self.hparams.using_cuda,
+            "pin_memory": self.hparams.using_cuda,
         }
         # get config kwargs
         kwargs = self.hparams.dataloader_kwargs
         if not kwargs:
             kwargs = {}
         # check required keys
-        if ('batch_size' not in kwargs) or ('num_workers' not in kwargs):
-            raise KeyError(f'`dataset.dataloader` must contain keys: ["batch_size", "num_workers"], got: {sorted(kwargs.keys())}')
+        if ("batch_size" not in kwargs) or ("num_workers" not in kwargs):
+            raise KeyError(
+                f'`dataset.dataloader` must contain keys: ["batch_size", "num_workers"], got: {sorted(kwargs.keys())}'
+            )
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         # create dataloader
         return torch.utils.data.DataLoader(dataset=dataset, **{**default_kwargs, **kwargs})

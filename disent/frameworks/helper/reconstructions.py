@@ -23,9 +23,9 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import warnings
-from typing import final
 from typing import Sequence
 from typing import Union
+from typing import final
 
 import torch
 import torch.nn.functional as F
@@ -38,20 +38,18 @@ from disent.nn.loss.reduction import loss_reduction
 from disent.nn.modules import DisentModule
 from disent.util.deprecate import deprecated
 
-
 # ========================================================================= #
 # Reconstruction Loss Base                                                  #
 # ========================================================================= #
 
 
 class ReconLossHandler(DisentModule):
-
-    def __init__(self, reduction: str = 'mean'):
+    def __init__(self, reduction: str = "mean"):
         super().__init__()
         self._reduction = reduction
 
     def forward(self, *args, **kwargs):
-        raise RuntimeError(f'Cannot call forward() on {self.__class__.__name__}')
+        raise RuntimeError(f"Cannot call forward() on {self.__class__.__name__}")
 
     def activate(self, x_partial: torch.Tensor):
         """
@@ -69,7 +67,7 @@ class ReconLossHandler(DisentModule):
         Takes in activated tensors
         :return: The computed reduced loss
         """
-        assert x_recon.shape == x_targ.shape, f'x_recon.shape={x_recon.shape} x_targ.shape={x_targ.shape}'
+        assert x_recon.shape == x_targ.shape, f"x_recon.shape={x_recon.shape} x_targ.shape={x_targ.shape}"
         batch_loss = self.compute_unreduced_loss(x_recon, x_targ)
         loss = loss_reduction(batch_loss, reduction=self._reduction)
         return loss
@@ -81,11 +79,12 @@ class ReconLossHandler(DisentModule):
         as well as an original target from the dataset.
         :return: The computed reduced loss
         """
-        assert x_partial_recon.shape == x_targ.shape, f'x_partial_recon.shape={x_partial_recon.shape} x_targ.shape={x_targ.shape}'
+        assert (
+            x_partial_recon.shape == x_targ.shape
+        ), f"x_partial_recon.shape={x_partial_recon.shape} x_targ.shape={x_targ.shape}"
         batch_loss = self.compute_unreduced_loss_from_partial(x_partial_recon, x_targ)
         loss = loss_reduction(batch_loss, reduction=self._reduction)
         return loss
-
 
     @final
     def compute_ave_loss(self, xs_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> torch.Tensor:
@@ -95,7 +94,9 @@ class ReconLossHandler(DisentModule):
         return compute_ave_loss(self.compute_loss, xs_recon, xs_targ)
 
     @final
-    def compute_ave_loss_from_partial(self, xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> torch.Tensor:
+    def compute_ave_loss_from_partial(
+        self, xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]
+    ) -> torch.Tensor:
         """
         Compute the average over losses computed from corresponding tensor pairs in the sequence.
         """
@@ -120,7 +121,7 @@ class ReconLossHandler(DisentModule):
         raise NotImplementedError
 
     def _pairwise_reduce(self, unreduced_loss: torch.Tensor):
-        assert self._reduction in ('mean', 'sum'), f'pairwise losses only support "mean" and "sum" reduction modes.'
+        assert self._reduction in ("mean", "sum"), f'pairwise losses only support "mean" and "sum" reduction modes.'
         return batch_loss_reduction(unreduced_loss, reduction_dtype=None, reduction=self._reduction)
 
     def compute_pairwise_loss(self, x_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
@@ -146,7 +147,7 @@ class ReconLossHandlerMse(ReconLossHandler):
         return x_partial
 
     def compute_unreduced_loss(self, x_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
-        return F.mse_loss(x_recon, x_targ, reduction='none')
+        return F.mse_loss(x_recon, x_targ, reduction="none")
 
     def compute_unreduced_loss_from_partial(self, x_partial_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
         return self.compute_unreduced_loss(self.activate(x_partial_recon), x_targ)
@@ -156,6 +157,7 @@ class ReconLossHandlerMae(ReconLossHandlerMse):
     """
     MAE loss should be used with continuous targets between [0, 1].
     """
+
     def compute_unreduced_loss(self, x_recon, x_targ):
         return torch.abs(x_recon - x_targ)
 
@@ -172,8 +174,8 @@ class ReconLossHandlerBce(ReconLossHandler):
         return torch.sigmoid(x_partial)
 
     def compute_unreduced_loss(self, x_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
-        warnings.warn('binary cross entropy not computed over logits is inaccurate!')
-        return F.binary_cross_entropy(x_recon, x_targ, reduction='none')
+        warnings.warn("binary cross entropy not computed over logits is inaccurate!")
+        return F.binary_cross_entropy(x_recon, x_targ, reduction="none")
 
     def compute_unreduced_loss_from_partial(self, x_partial_recon, x_targ):
         """
@@ -184,7 +186,7 @@ class ReconLossHandlerBce(ReconLossHandler):
         REFERENCE ALT:
             https://github.com/YannDubs/disentangling-vae/blob/master/disvae/models/losses.py
         """
-        return F.binary_cross_entropy_with_logits(x_partial_recon, x_targ, reduction='none')
+        return F.binary_cross_entropy_with_logits(x_partial_recon, x_targ, reduction="none")
 
 
 # ========================================================================= #
@@ -193,10 +195,9 @@ class ReconLossHandlerBce(ReconLossHandler):
 
 
 class ReconLossHandlerBernoulli(ReconLossHandlerBce):
-
     def compute_unreduced_loss(self, x_recon, x_targ):
         # This is exactly the same as the BCE version, but more 'correct'.
-        warnings.warn('bernoulli not computed over logits might be inaccurate!')
+        warnings.warn("bernoulli not computed over logits might be inaccurate!")
         return -torch.distributions.Bernoulli(probs=x_recon).log_prob(x_targ)
 
     def compute_unreduced_loss_from_partial(self, x_partial_recon, x_targ):
@@ -212,23 +213,22 @@ class ReconLossHandlerContinuousBernoulli(ReconLossHandlerBce):
     """
 
     def compute_unreduced_loss(self, x_recon, x_targ):
-        warnings.warn('Using continuous bernoulli distribution for reconstruction loss. This is not yet recommended!')
-        warnings.warn('continuous bernoulli not computed over logits might be inaccurate!')
+        warnings.warn("Using continuous bernoulli distribution for reconstruction loss. This is not yet recommended!")
+        warnings.warn("continuous bernoulli not computed over logits might be inaccurate!")
         # I think there is something wrong with this...
         return -torch.distributions.ContinuousBernoulli(probs=x_recon, lims=(0.49, 0.51)).log_prob(x_targ)
 
     def compute_unreduced_loss_from_partial(self, x_partial_recon, x_targ):
-        warnings.warn('Using continuous bernoulli distribution for reconstruction loss. This is not yet recommended!')
+        warnings.warn("Using continuous bernoulli distribution for reconstruction loss. This is not yet recommended!")
         # I think there is something wrong with this...
         return -torch.distributions.ContinuousBernoulli(logits=x_partial_recon, lims=(0.49, 0.51)).log_prob(x_targ)
 
 
 class ReconLossHandlerNormal(ReconLossHandlerMse):
-
     def compute_unreduced_loss(self, x_recon, x_targ):
         # this is almost the same as MSE, but scaled with a tiny offset
         # A value for scale should actually be passed...
-        warnings.warn('Using normal distribution for reconstruction loss. This is not yet recommended!')
+        warnings.warn("Using normal distribution for reconstruction loss. This is not yet recommended!")
         return -torch.distributions.Normal(x_recon, 1.0).log_prob(x_targ)
 
 
@@ -241,14 +241,13 @@ _NO_ARG = object()
 
 
 class AugmentedReconLossHandler(ReconLossHandler):
-
     def __init__(
         self,
         recon_loss_handler: ReconLossHandler,
         kernel: Union[str, torch.Tensor],
         wrap_weight: float = 1.0,
         aug_weight: float = 1.0,
-        normalize_mode: str = _NO_ARG
+        normalize_mode: str = _NO_ARG,
     ):
         super().__init__(reduction=recon_loss_handler._reduction)
         # save variables
@@ -258,12 +257,14 @@ class AugmentedReconLossHandler(ReconLossHandler):
         assert not isinstance(recon_loss_handler, AugmentedReconLossHandler)
         # deprecation error
         if normalize_mode is _NO_ARG:
-            raise ValueError(f'default argument for normalize_mode was "sum", this has been deprecated and will change to "none" in future. Please manually override this value!')
+            raise ValueError(
+                f'default argument for normalize_mode was "sum", this has been deprecated and will change to "none" in future. Please manually override this value!'
+            )
         # load the kernel
         self._kernel = FftKernel(kernel=kernel, normalize_mode=normalize_mode)
         # kernel weighting
-        assert 0 <= wrap_weight, f'loss_weight must be in the range [0, inf) but received: {repr(wrap_weight)}'
-        assert 0 <= aug_weight, f'kern_weight must be in the range [0, inf) but received: {repr(aug_weight)}'
+        assert 0 <= wrap_weight, f"loss_weight must be in the range [0, inf) but received: {repr(wrap_weight)}"
+        assert 0 <= aug_weight, f"kern_weight must be in the range [0, inf) but received: {repr(aug_weight)}"
         self._wrap_weight = wrap_weight
         self._aug_weight = aug_weight
         # disable gradients
@@ -275,7 +276,7 @@ class AugmentedReconLossHandler(ReconLossHandler):
 
     def compute_unreduced_loss(self, x_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
         wrap_loss = self._recon_loss_handler.compute_unreduced_loss(x_recon, x_targ)
-        aug_loss  = self._recon_loss_handler.compute_unreduced_loss(self._kernel(x_recon), self._kernel(x_targ))
+        aug_loss = self._recon_loss_handler.compute_unreduced_loss(self._kernel(x_recon), self._kernel(x_targ))
         return (self._wrap_weight * wrap_loss) + (self._aug_weight * aug_loss)
 
     def compute_unreduced_loss_from_partial(self, x_partial_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
@@ -290,19 +291,40 @@ class AugmentedReconLossHandler(ReconLossHandler):
 
 def _make_aug_recon_loss_l_w_n(loss: str, kern: str, loss_weight: str, kernel_weight: str, normalize_mode: str):
     def _loss(reduction: str):
-        return AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=float(loss_weight), aug_weight=float(kernel_weight), normalize_mode=normalize_mode)
+        return AugmentedReconLossHandler(
+            make_reconstruction_loss(loss, reduction=reduction),
+            kernel=kern,
+            wrap_weight=float(loss_weight),
+            aug_weight=float(kernel_weight),
+            normalize_mode=normalize_mode,
+        )
+
     return _loss
 
 
 def _make_aug_recon_loss_l1_w1_n(loss: str, kern: str, normalize_mode: str):
     def _loss(reduction: str):
-        return AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=1.0, aug_weight=1.0, normalize_mode=normalize_mode)
+        return AugmentedReconLossHandler(
+            make_reconstruction_loss(loss, reduction=reduction),
+            kernel=kern,
+            wrap_weight=1.0,
+            aug_weight=1.0,
+            normalize_mode=normalize_mode,
+        )
+
     return _loss
 
 
 def _make_aug_recon_loss_l1_w1_nnone(loss: str, kern: str):
     def _loss(reduction: str):
-        return AugmentedReconLossHandler(make_reconstruction_loss(loss, reduction=reduction), kernel=kern, wrap_weight=1.0, aug_weight=1.0, normalize_mode='none')
+        return AugmentedReconLossHandler(
+            make_reconstruction_loss(loss, reduction=reduction),
+            kernel=kern,
+            wrap_weight=1.0,
+            aug_weight=1.0,
+            normalize_mode="none",
+        )
+
     return _loss
 
 

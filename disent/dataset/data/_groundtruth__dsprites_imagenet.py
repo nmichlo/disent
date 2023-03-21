@@ -44,7 +44,6 @@ from disent.util.inout.files import AtomicSaveFile
 from disent.util.iters import LengthIter
 from disent.util.math.random import random_choice_prng
 
-
 log = logging.getLogger(__name__)
 
 
@@ -65,35 +64,37 @@ def _noop(x):
 
 def load_imagenet_tiny_data(raw_data_dir):
     # load the data
-    data = NumpyFolder(os.path.join(raw_data_dir, 'train'))
-    data = DataLoader(data, batch_size=64, num_workers=min(16, os.cpu_count()), shuffle=False, drop_last=False, collate_fn=_noop)
+    data = NumpyFolder(os.path.join(raw_data_dir, "train"))
+    data = DataLoader(
+        data, batch_size=64, num_workers=min(16, os.cpu_count()), shuffle=False, drop_last=False, collate_fn=_noop
+    )
     # load data - this is a bit memory inefficient doing it like this instead of with a loop into a pre-allocated array
-    imgs = np.concatenate(list(tqdm(data, 'loading')), axis=0)
+    imgs = np.concatenate(list(tqdm(data, "loading")), axis=0)
     assert imgs.shape == (100_000, 64, 64, 3)
     return imgs
 
 
-def resave_imagenet_tiny_archive(orig_zipped_file, new_save_file, overwrite=False, h5_dataset_name: str = 'data'):
+def resave_imagenet_tiny_archive(orig_zipped_file, new_save_file, overwrite=False, h5_dataset_name: str = "data"):
     """
     Convert a imagenet tiny archive to an hdf5 or numpy file depending on the file extension.
     Uncompressing the contents of the archive into a temporary directory in the same folder,
     loading the images, then converting.
     """
     _, ext = os.path.splitext(new_save_file)
-    assert ext in {'.npz', '.h5'}, f'unsupported save extension: {repr(ext)}, must be one of: {[".npz", ".h5"]}'
+    assert ext in {".npz", ".h5"}, f'unsupported save extension: {repr(ext)}, must be one of: {[".npz", ".h5"]}'
     # extract zipfile into temp dir
-    with TemporaryDirectory(prefix='unzip_imagenet_tiny_', dir=os.path.dirname(orig_zipped_file)) as temp_dir:
+    with TemporaryDirectory(prefix="unzip_imagenet_tiny_", dir=os.path.dirname(orig_zipped_file)) as temp_dir:
         log.info(f"Extracting into temporary directory: {temp_dir}")
         shutil.unpack_archive(filename=orig_zipped_file, extract_dir=temp_dir)
-        images = load_imagenet_tiny_data(raw_data_dir=os.path.join(temp_dir, 'tiny-imagenet-200'))
+        images = load_imagenet_tiny_data(raw_data_dir=os.path.join(temp_dir, "tiny-imagenet-200"))
     # save the data
     with AtomicSaveFile(new_save_file, overwrite=overwrite) as temp_file:
         # check the mode
-        with H5Builder(temp_file, 'atomic_w') as builder:
+        with H5Builder(temp_file, "atomic_w") as builder:
             builder.add_dataset_from_array(
                 name=h5_dataset_name,
                 array=images,
-                chunk_shape='batch',
+                chunk_shape="batch",
                 compression_lvl=4,
                 attrs=None,
                 show_progress=True,
@@ -110,23 +111,24 @@ class ImageNetTinyDataFile(DataFileHashedDlGen):
     download the cars3d dataset and convert it to a hdf5 file.
     """
 
-    dataset_name: str = 'data'
+    dataset_name: str = "data"
 
     def _generate(self, inp_file: str, out_file: str):
-        resave_imagenet_tiny_archive(orig_zipped_file=inp_file, new_save_file=out_file, overwrite=True, h5_dataset_name=self.dataset_name)
+        resave_imagenet_tiny_archive(
+            orig_zipped_file=inp_file, new_save_file=out_file, overwrite=True, h5_dataset_name=self.dataset_name
+        )
 
 
 class ImageNetTinyData(_Hdf5DataMixin, _DiskDataMixin, Dataset, LengthIter):
-
-    name = 'imagenet_tiny'
+    name = "imagenet_tiny"
 
     datafile_imagenet_h5 = ImageNetTinyDataFile(
-        uri='http://cs231n.stanford.edu/tiny-imagenet-200.zip',
-        uri_hash={'fast': '4d97ff8efe3745a3bba9917d6d536559', 'full': '90528d7ca1a48142e341f4ef8d21d0de'},
-        file_hash={'fast': '9c23e8ec658b1ec9f3a86afafbdbae51', 'full': '4c32b0b53f257ac04a3afb37e3a4204e'},
-        uri_name='tiny-imagenet-200.zip',
-        file_name='tiny-imagenet-200.h5',
-        hash_mode='full'
+        uri="http://cs231n.stanford.edu/tiny-imagenet-200.zip",
+        uri_hash={"fast": "4d97ff8efe3745a3bba9917d6d536559", "full": "90528d7ca1a48142e341f4ef8d21d0de"},
+        file_hash={"fast": "9c23e8ec658b1ec9f3a86afafbdbae51", "full": "4c32b0b53f257ac04a3afb37e3a4204e"},
+        uri_name="tiny-imagenet-200.zip",
+        file_name="tiny-imagenet-200.h5",
+        hash_mode="full",
     )
 
     datafiles = (datafile_imagenet_h5,)
@@ -169,22 +171,34 @@ class DSpritesImagenetData(GroundTruthData):
       dSprites dataset but instead with three channels.
     """
 
-    name = 'dsprites_imagenet'
+    name = "dsprites_imagenet"
 
     # original dsprites it only (64, 64, 1) imagenet adds the colour channel
     img_shape = (64, 64, 3)
     factor_names = DSpritesData.factor_names
     factor_sizes = DSpritesData.factor_sizes
 
-    def __init__(self, visibility: int = 100, mode: str = 'bg', data_root: Optional[str] = None, prepare: bool = False, in_memory=False, transform=None):
+    def __init__(
+        self,
+        visibility: int = 100,
+        mode: str = "bg",
+        data_root: Optional[str] = None,
+        prepare: bool = False,
+        in_memory=False,
+        transform=None,
+    ):
         super().__init__(transform=transform)
         # check visibility and convert to ratio
-        assert isinstance(visibility, int), f'incorrect visibility percentage type, expected int, got: {type(visibility)}'
-        assert 0 <= visibility <= 100, f'incorrect visibility percentage: {repr(visibility)}, must be in range [0, 100]. '
+        assert isinstance(
+            visibility, int
+        ), f"incorrect visibility percentage type, expected int, got: {type(visibility)}"
+        assert (
+            0 <= visibility <= 100
+        ), f"incorrect visibility percentage: {repr(visibility)}, must be in range [0, 100]. "
         self._visibility = visibility / 100
         # check mode and convert to foreground boolean
-        assert mode in {'bg', 'fg'}, f'incorrect mode: {repr(mode)}, must be one of: ["bg", "fg"]'
-        self._foreground = (mode == 'fg')
+        assert mode in {"bg", "fg"}, f'incorrect mode: {repr(mode)}, must be one of: ["bg", "fg"]'
+        self._foreground = mode == "fg"
         # handle the datasets
         self._dsprites = DSpritesData(data_root=data_root, prepare=prepare, in_memory=in_memory, transform=None)
         self._imagenet = ImageNetTinyData(data_root=data_root, prepare=prepare, in_memory=in_memory, transform=None)
@@ -207,12 +221,12 @@ class DSpritesImagenetData(GroundTruthData):
         if self._foreground:
             # lerp content to white, and then insert into fg regions
             # r*bg + (1-r)*255
-            obs = (r*bg + ((1-r)*255)).astype('uint8')
+            obs = (r * bg + ((1 - r) * 255)).astype("uint8")
             obs[fg <= 127] = 0
         else:
             # lerp content to black, and then insert into bg regions
             # r*bg + (1-r)*000
-            obs = (r*bg).astype('uint8')
+            obs = (r * bg).astype("uint8")
             obs[fg > 127] = 255
         # checks
         return obs
@@ -290,7 +304,7 @@ dsprites
 """
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
     def compute_all_stats():
@@ -301,29 +315,43 @@ if __name__ == '__main__':
 
         def compute_stats(visibility: Optional[int], mode: Optional[str]):
             import psutil
+
             # get class
             is_imgnet = (visibility is not None) and (mode is not None)
-            data_cls = wrapped_partial(DSpritesImagenetData, visibility=visibility, mode=mode) if is_imgnet else DSpritesData
-            data_title = f'{DSpritesImagenetData.name} visibility={repr(visibility)} mode={repr(mode)}' if is_imgnet else f'{DSpritesData.name}'
-            data_name = f'dsprites_{mode}_{visibility}' if is_imgnet else f'dsprites'
+            data_cls = (
+                wrapped_partial(DSpritesImagenetData, visibility=visibility, mode=mode) if is_imgnet else DSpritesData
+            )
+            data_title = (
+                f"{DSpritesImagenetData.name} visibility={repr(visibility)} mode={repr(mode)}"
+                if is_imgnet
+                else f"{DSpritesData.name}"
+            )
+            data_name = f"dsprites_{mode}_{visibility}" if is_imgnet else f"dsprites"
             # plot images
             data = data_cls(prepare=True)
-            grid = np.array([data[i*24733] for i in np.arange(16)]).reshape([4, 4, *data.img_shape])
+            grid = np.array([data[i * 24733] for i in np.arange(16)]).reshape([4, 4, *data.img_shape])
             plt_subplots_imshow(grid, show=True, title=data_title)
             # compute stats
             data = data_cls(prepare=True, transform=ToImgTensorF32())
-            mean, std = compute_data_mean_std(data, batch_size=256, num_workers=min(psutil.cpu_count(logical=False), 64), progress=True)
-            print(f'{data_name}\n    vis_mean: {mean.tolist()}\n    vis_std: {std.tolist()}')
+            mean, std = compute_data_mean_std(
+                data, batch_size=256, num_workers=min(psutil.cpu_count(logical=False), 64), progress=True
+            )
+            print(f"{data_name}\n    vis_mean: {mean.tolist()}\n    vis_std: {std.tolist()}")
             # return stats
             return data_name, mean, std
 
         # compute common stats
         stats = []
-        for mode in ['fg', 'bg']:
+        for mode in ["fg", "bg"]:
             for vis in [
                 100,
-                80, 60, 40, 20,
-                75, 50, 25,
+                80,
+                60,
+                40,
+                20,
+                75,
+                50,
+                25,
                 0,
             ]:
                 stats.append(compute_stats(vis, mode))
@@ -332,7 +360,7 @@ if __name__ == '__main__':
 
         # print once at end
         for name, mean, std in stats:
-            print(f'{name}\n    vis_mean: {mean.tolist()}\n    vis_std: {std.tolist()}')
+            print(f"{name}\n    vis_mean: {mean.tolist()}\n    vis_std: {std.tolist()}")
 
     compute_all_stats()
 

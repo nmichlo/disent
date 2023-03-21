@@ -26,8 +26,8 @@ from typing import Optional
 from typing import Sequence
 
 import torch
-import disent.dataset.transform.functional as F_d
 
+import disent.dataset.transform.functional as F_d
 
 # ========================================================================= #
 # Transforms                                                                #
@@ -46,7 +46,7 @@ class Noop(object):
         return obs
 
     def __repr__(self):
-        return f'{self.__class__.__name__}()'
+        return f"{self.__class__.__name__}()"
 
 
 class CheckTensor(object):
@@ -58,8 +58,8 @@ class CheckTensor(object):
 
     def __init__(
         self,
-        low: Optional[float] = 0.,
-        high: Optional[float] = 1.,
+        low: Optional[float] = 0.0,
+        high: Optional[float] = 1.0,
         dtype: Optional[torch.dtype] = torch.float32,
     ):
         self._low = low
@@ -72,7 +72,7 @@ class CheckTensor(object):
     def __repr__(self):
         kwargs = dict(low=self._low, high=self._high, dtype=self._dtype)
         kwargs = ", ".join(f"{k}={repr(v)}" for k, v in kwargs.items() if (v is not None))
-        return f'{self.__class__.__name__}({kwargs})'
+        return f"{self.__class__.__name__}({kwargs})"
 
 
 class ToImgTensorF32(object):
@@ -106,7 +106,7 @@ class ToImgTensorF32(object):
     def __repr__(self):
         kwargs = dict(size=self._size, mean=self._mean, std=self._std)
         kwargs = ", ".join(f"{k}={repr(v)}" for k, v in kwargs.items() if (v is not None))
-        return f'{self.__class__.__name__}({kwargs})'
+        return f"{self.__class__.__name__}({kwargs})"
 
 
 class ToImgTensorU8(object):
@@ -131,8 +131,8 @@ class ToImgTensorU8(object):
         return F_d.to_img_tensor_u8(obs, size=self._size)
 
     def __repr__(self):
-        kwargs = f'size={repr(self._size)}' if (self._size is not None) else ''
-        return f'{self.__class__.__name__}({kwargs})'
+        kwargs = f"size={repr(self._size)}" if (self._size is not None) else ""
+        return f"{self.__class__.__name__}({kwargs})"
 
 
 # ========================================================================= #
@@ -140,12 +140,12 @@ class ToImgTensorU8(object):
 # ========================================================================= #
 
 
-@deprecated('ToStandardisedTensor renamed to ToImgTensorF32')
+@deprecated("ToStandardisedTensor renamed to ToImgTensorF32")
 class ToStandardisedTensor(ToImgTensorF32):
     pass
 
 
-@deprecated('ToUint8Tensor renamed to ToImgTensorU8')
+@deprecated("ToUint8Tensor renamed to ToImgTensorU8")
 class ToUint8Tensor(ToImgTensorU8):
     pass
 

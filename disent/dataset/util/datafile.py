@@ -26,22 +26,21 @@ import os
 from abc import ABCMeta
 from typing import Callable
 from typing import Dict
-from typing import final
 from typing import NoReturn
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
 from typing import Union
+from typing import final
 
 import numpy as np
 
 from disent.dataset.util.formats.hdf5 import hdf5_resave_file
-from disent.util.inout.cache import stalefile
 from disent.util.function import wrapped_partial
+from disent.util.inout.cache import stalefile
 from disent.util.inout.files import retrieve_file
 from disent.util.inout.paths import filename_from_url
 from disent.util.inout.paths import modify_file_name
-
 
 # ========================================================================= #
 # data objects                                                              #
@@ -67,7 +66,7 @@ class DataFile(object, metaclass=ABCMeta):
         pass
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(out_name={repr(self.out_name)})'
+        return f"{self.__class__.__name__}(out_name={repr(self.out_name)})"
 
 
 class DataFileHashed(DataFile, metaclass=ABCMeta):
@@ -82,8 +81,8 @@ class DataFileHashed(DataFile, metaclass=ABCMeta):
         self,
         file_name: str,
         file_hash: Optional[Union[str, Dict[str, str]]],
-        hash_type: str = 'md5',
-        hash_mode: str = 'fast',
+        hash_type: str = "md5",
+        hash_mode: str = "fast",
     ):
         super().__init__(file_name=file_name)
         self._file_hash = file_hash
@@ -91,9 +90,15 @@ class DataFileHashed(DataFile, metaclass=ABCMeta):
         self._hash_mode = hash_mode
 
     def prepare(self, out_dir: str) -> str:
-        @stalefile(file=os.path.join(out_dir, self._file_name), hash=self._file_hash, hash_type=self._hash_type, hash_mode=self._hash_mode)
+        @stalefile(
+            file=os.path.join(out_dir, self._file_name),
+            hash=self._file_hash,
+            hash_type=self._hash_type,
+            hash_mode=self._hash_mode,
+        )
         def wrapped(out_file):
             self._prepare(out_dir=out_dir, out_file=out_file)
+
         return wrapped()
 
     def _prepare(self, out_dir: str, out_file: str) -> NoReturn:
@@ -113,14 +118,14 @@ class DataFileHashedDl(DataFileHashed):
         uri: str,
         uri_hash: Optional[Union[str, Dict[str, str]]],
         uri_name: Optional[str] = None,
-        hash_type: str = 'md5',
-        hash_mode: str = 'fast',
+        hash_type: str = "md5",
+        hash_mode: str = "fast",
     ):
         super().__init__(
             file_name=filename_from_url(uri) if (uri_name is None) else uri_name,
             file_hash=uri_hash,
             hash_type=hash_type,
-            hash_mode=hash_mode
+            hash_mode=hash_mode,
         )
         self._uri = uri
 
@@ -128,7 +133,7 @@ class DataFileHashedDl(DataFileHashed):
         retrieve_file(src_uri=self._uri, dst_path=out_file, overwrite_existing=True)
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(uri={repr(self._uri)}, out_name={repr(self.out_name)})'
+        return f"{self.__class__.__name__}(uri={repr(self._uri)}, out_name={repr(self.out_name)})"
 
 
 class DataFileHashedDlGen(DataFileHashed, metaclass=ABCMeta):
@@ -147,8 +152,8 @@ class DataFileHashedDlGen(DataFileHashed, metaclass=ABCMeta):
         uri_name: Optional[str] = None,
         file_name: Optional[str] = None,
         # hash settings
-        hash_type: str = 'md5',
-        hash_mode: str = 'fast',
+        hash_type: str = "md5",
+        hash_mode: str = "fast",
     ):
         self._dl_obj = DataFileHashedDl(
             uri=uri,
@@ -158,7 +163,7 @@ class DataFileHashedDlGen(DataFileHashed, metaclass=ABCMeta):
             hash_mode=hash_mode,
         )
         super().__init__(
-            file_name=modify_file_name(self._dl_obj.out_name, prefix='gen') if (file_name is None) else file_name,
+            file_name=modify_file_name(self._dl_obj.out_name, prefix="gen") if (file_name is None) else file_name,
             file_hash=file_hash,
             hash_type=hash_type,
             hash_mode=hash_mode,
@@ -172,7 +177,7 @@ class DataFileHashedDlGen(DataFileHashed, metaclass=ABCMeta):
         raise NotImplementedError
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(uri={repr(self._dl_obj._uri)}, uri_name={repr(self._dl_obj.out_name)}, out_name={repr(self.out_name)})'
+        return f"{self.__class__.__name__}(uri={repr(self._dl_obj._uri)}, uri_name={repr(self._dl_obj.out_name)}, out_name={repr(self.out_name)})"
 
 
 class DataFileHashedDlH5(DataFileHashedDlGen):
@@ -189,7 +194,7 @@ class DataFileHashedDlH5(DataFileHashedDlGen):
         # h5 re-save settings
         hdf5_dataset_name: str,
         hdf5_chunk_size: Tuple[int, ...],
-        hdf5_compression: Optional[str] = 'gzip',
+        hdf5_compression: Optional[str] = "gzip",
         hdf5_compression_lvl: Optional[int] = 4,
         hdf5_dtype: Optional[Union[np.dtype, str]] = None,
         hdf5_mutator: Optional[Callable[[np.ndarray], np.ndarray]] = None,
@@ -198,8 +203,8 @@ class DataFileHashedDlH5(DataFileHashedDlGen):
         uri_name: Optional[str] = None,
         file_name: Optional[str] = None,
         # hash settings
-        hash_type: str = 'md5',
-        hash_mode: str = 'fast',
+        hash_type: str = "md5",
+        hash_mode: str = "fast",
     ):
         super().__init__(
             file_name=file_name,

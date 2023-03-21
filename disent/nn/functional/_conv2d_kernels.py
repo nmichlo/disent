@@ -27,11 +27,10 @@ import torch
 
 from disent.nn.functional._other import torch_unsqueeze_l
 from disent.nn.functional._other import torch_unsqueeze_r
-from disent.nn.functional._util_generic import generic_as_int32
-from disent.nn.functional._util_generic import generic_max
 from disent.nn.functional._util_generic import TypeGenericTensor
 from disent.nn.functional._util_generic import TypeGenericTorch
-
+from disent.nn.functional._util_generic import generic_as_int32
+from disent.nn.functional._util_generic import generic_max
 
 # ========================================================================= #
 # Kernels                                                                   #
@@ -57,8 +56,11 @@ def get_kernel_size(sigma: TypeGenericTensor = 1.0, truncate: TypeGenericTensor 
 
 
 def torch_gaussian_kernel(
-    sigma: TypeGenericTorch = 1.0, truncate: TypeGenericTorch = 4.0, size: int = None,
-    dtype=torch.float32, device=None,
+    sigma: TypeGenericTorch = 1.0,
+    truncate: TypeGenericTorch = 4.0,
+    size: int = None,
+    dtype=torch.float32,
+    device=None,
 ):
     # broadcast tensors together -- data may reference single memory locations
     sigma = torch.as_tensor(sigma, dtype=dtype, device=device)
@@ -73,27 +75,35 @@ def torch_gaussian_kernel(
     x = torch_unsqueeze_l(x, n=sigma.ndim)
     s = torch_unsqueeze_r(sigma, n=1)
     # compute
-    return torch.exp(-(x ** 2) / (2 * s ** 2)) / (np.sqrt(2 * np.pi) * s)
+    return torch.exp(-(x**2) / (2 * s**2)) / (np.sqrt(2 * np.pi) * s)
 
 
 def torch_gaussian_kernel_2d(
-    sigma: TypeGenericTorch = 1.0, truncate: TypeGenericTorch = 4.0, size: int = None,
-    sigma_b: TypeGenericTorch = None, truncate_b: TypeGenericTorch = None, size_b: int = None,
-    dtype=torch.float32, device=None,
+    sigma: TypeGenericTorch = 1.0,
+    truncate: TypeGenericTorch = 4.0,
+    size: int = None,
+    sigma_b: TypeGenericTorch = None,
+    truncate_b: TypeGenericTorch = None,
+    size_b: int = None,
+    dtype=torch.float32,
+    device=None,
 ):
     # set default values
-    if sigma_b is None: sigma_b = sigma
-    if truncate_b is None: truncate_b = truncate
-    if size_b is None: size_b = size
+    if sigma_b is None:
+        sigma_b = sigma
+    if truncate_b is None:
+        truncate_b = truncate
+    if size_b is None:
+        size_b = size
     # compute kernel
-    kh = torch_gaussian_kernel(sigma=sigma,   truncate=truncate,   size=size,   dtype=dtype, device=device)
+    kh = torch_gaussian_kernel(sigma=sigma, truncate=truncate, size=size, dtype=dtype, device=device)
     kw = torch_gaussian_kernel(sigma=sigma_b, truncate=truncate_b, size=size_b, dtype=dtype, device=device)
     return kh[..., :, None] * kw[..., None, :]
 
 
 def torch_box_kernel(radius: TypeGenericTorch = 1, dtype=torch.float32, device=None):
     radius = torch.abs(torch.as_tensor(radius, device=device))
-    assert radius.dtype in {torch.int32, torch.int64}, f'box kernel radius must be of integer type: {radius.dtype}'
+    assert radius.dtype in {torch.int32, torch.int64}, f"box kernel radius must be of integer type: {radius.dtype}"
     # box kernel values
     radius_max = radius.max()
     crange = torch.abs(torch.arange(radius_max * 2 + 1, dtype=dtype, device=device) - radius_max)
@@ -107,14 +117,13 @@ def torch_box_kernel(radius: TypeGenericTorch = 1, dtype=torch.float32, device=N
 
 
 def torch_box_kernel_2d(
-    radius: TypeGenericTorch = 1,
-    radius_b: TypeGenericTorch = None,
-    dtype=torch.float32, device=None
+    radius: TypeGenericTorch = 1, radius_b: TypeGenericTorch = None, dtype=torch.float32, device=None
 ):
     # set default values
-    if radius_b is None: radius_b = radius
+    if radius_b is None:
+        radius_b = radius
     # compute kernel
-    kh = torch_box_kernel(radius=radius,   dtype=dtype, device=device)
+    kh = torch_box_kernel(radius=radius, dtype=dtype, device=device)
     kw = torch_box_kernel(radius=radius_b, dtype=dtype, device=device)
     return kh[..., :, None] * kw[..., None, :]
 

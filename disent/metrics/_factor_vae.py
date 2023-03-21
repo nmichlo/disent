@@ -35,7 +35,6 @@ from disent.metrics import utils
 from disent.metrics.utils import make_metric
 from disent.util import to_numpy
 
-
 log = logging.getLogger(__name__)
 
 
@@ -44,15 +43,17 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-@make_metric('factor_vae', fast_kwargs=dict(num_train=700,  num_eval=350, num_variance_estimate=1000))  # may not be accurate, but it just takes waay too long otherwise 20+ seconds
+@make_metric(
+    "factor_vae", fast_kwargs=dict(num_train=700, num_eval=350, num_variance_estimate=1000)
+)  # may not be accurate, but it just takes waay too long otherwise 20+ seconds
 def metric_factor_vae(
-        dataset: DisentDataset,
-        representation_function: callable,
-        batch_size: int = 64,
-        num_train: int = 10000,
-        num_eval: int = 5000,
-        num_variance_estimate: int = 10000,
-        show_progress=False,
+    dataset: DisentDataset,
+    representation_function: callable,
+    batch_size: int = 64,
+    num_train: int = 10000,
+    num_eval: int = 5000,
+    num_variance_estimate: int = 10000,
+    show_progress=False,
 ):
     """
     Computes the FactorVAE disentanglement metric.
@@ -105,44 +106,53 @@ def metric_factor_vae(
     active_dims = _prune_dims(global_variances)
 
     if not active_dims.any():
-        return {
-            "factor_vae.train_accuracy": 0.,
-            "factor_vae.eval_accuracy": 0.,
-            "factor_vae.num_active_dims": 0
-        }
+        return {"factor_vae.train_accuracy": 0.0, "factor_vae.eval_accuracy": 0.0, "factor_vae.num_active_dims": 0}
 
     log.debug("Generating training set.")
-    training_votes = _generate_training_batch(dataset, representation_function, batch_size, num_train, global_variances, active_dims, show_progress=show_progress)
+    training_votes = _generate_training_batch(
+        dataset,
+        representation_function,
+        batch_size,
+        num_train,
+        global_variances,
+        active_dims,
+        show_progress=show_progress,
+    )
     classifier = np.argmax(training_votes, axis=0)
     other_index = np.arange(training_votes.shape[1])
 
     # Evaluate training set accuracy
-    train_accuracy = np.sum(training_votes[classifier, other_index]) * 1. / np.sum(training_votes)
+    train_accuracy = np.sum(training_votes[classifier, other_index]) * 1.0 / np.sum(training_votes)
 
     log.debug("Generating evaluation set.")
-    eval_votes = _generate_training_batch(dataset, representation_function, batch_size, num_eval, global_variances, active_dims, show_progress=show_progress)
+    eval_votes = _generate_training_batch(
+        dataset,
+        representation_function,
+        batch_size,
+        num_eval,
+        global_variances,
+        active_dims,
+        show_progress=show_progress,
+    )
 
     # Evaluate evaluation set accuracy
-    eval_accuracy = np.sum(eval_votes[classifier, other_index]) * 1. / np.sum(eval_votes)
+    eval_accuracy = np.sum(eval_votes[classifier, other_index]) * 1.0 / np.sum(eval_votes)
 
     return {
-        "factor_vae.train_accuracy": train_accuracy,    # "z-min variance" -- Measuring Disentanglement: A Review of Metrics
-        "factor_vae.eval_accuracy": eval_accuracy,      # "z-min variance" -- Measuring Disentanglement: A Review of Metrics
+        "factor_vae.train_accuracy": train_accuracy,  # "z-min variance" -- Measuring Disentanglement: A Review of Metrics
+        "factor_vae.eval_accuracy": eval_accuracy,  # "z-min variance" -- Measuring Disentanglement: A Review of Metrics
         "factor_vae.num_active_dims": len(active_dims),
     }
 
 
-def _prune_dims(variances, threshold=0.):
+def _prune_dims(variances, threshold=0.0):
     """Mask for dimensions collapsed to the prior."""
     scale_z = np.sqrt(variances)
     return scale_z >= threshold
 
 
 def _compute_variances(
-        dataset: DisentDataset,
-        representation_function: callable,
-        batch_size: int,
-        eval_batch_size: int = 64
+    dataset: DisentDataset, representation_function: callable, batch_size: int, eval_batch_size: int = 64
 ):
     """Computes the variance for each dimension of the representation.
     Args:
@@ -153,7 +163,7 @@ def _compute_variances(
     Returns:
       Vector with the variance of each dimension.
     """
-    observations = dataset.dataset_sample_batch(batch_size, mode='input')
+    observations = dataset.dataset_sample_batch(batch_size, mode="input")
     representations = to_numpy(utils.obtain_representation(observations, representation_function, eval_batch_size))
     representations = np.transpose(representations)
     assert representations.shape[0] == batch_size
@@ -161,11 +171,11 @@ def _compute_variances(
 
 
 def _generate_training_sample(
-        dataset: DisentDataset,
-        representation_function: callable,
-        batch_size: int,
-        global_variances: np.ndarray,
-        active_dims: list,
+    dataset: DisentDataset,
+    representation_function: callable,
+    batch_size: int,
+    global_variances: np.ndarray,
+    active_dims: list,
 ) -> (int, int):
     """Sample a single training sample based on a mini-batch of ground-truth data.
     Args:
@@ -186,7 +196,7 @@ def _generate_training_sample(
     # Fix the selected factor across mini-batch.
     factors[:, factor_index] = factors[0, factor_index]
     # Obtain the observations.
-    observations = dataset.dataset_batch_from_factors(factors, mode='input')
+    observations = dataset.dataset_batch_from_factors(factors, mode="input")
     representations = to_numpy(representation_function(observations))
     local_variances = np.var(representations, axis=0, ddof=1)
     argmin = np.argmin(local_variances[active_dims] / global_variances[active_dims])
@@ -194,13 +204,13 @@ def _generate_training_sample(
 
 
 def _generate_training_batch(
-        dataset: DisentDataset,
-        representation_function: callable,
-        batch_size: int,
-        num_points: int,
-        global_variances: np.ndarray,
-        active_dims: list,
-        show_progress=False,
+    dataset: DisentDataset,
+    representation_function: callable,
+    batch_size: int,
+    num_points: int,
+    global_variances: np.ndarray,
+    active_dims: list,
+    show_progress=False,
 ):
     """Sample a set of training samples based on a batch of ground-truth data.
     Args:
@@ -215,9 +225,12 @@ def _generate_training_batch(
     """
     votes = np.zeros((dataset.gt_data.num_factors, global_variances.shape[0]), dtype=np.int64)
     for _ in tqdm(range(num_points), disable=(not show_progress)):
-        factor_index, argmin = _generate_training_sample(dataset, representation_function, batch_size, global_variances, active_dims)
+        factor_index, argmin = _generate_training_sample(
+            dataset, representation_function, batch_size, global_variances, active_dims
+        )
         votes[factor_index, argmin] += 1
     return votes
+
 
 # ========================================================================= #
 # END                                                                       #

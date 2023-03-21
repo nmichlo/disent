@@ -23,6 +23,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import numpy as np
+
 from disent.dataset.data import GroundTruthData
 
 
@@ -32,15 +33,15 @@ class RandomData(GroundTruthData):
     """
 
     factor_sizes = (8, 16, 32, 64)
-    factor_names = ('r1', 'r2', 'r3', 'r4')
+    factor_names = ("r1", "r2", "r3", "r4")
     img_shape = (64, 64, 1)
 
     def _get_observation(self, idx: int):
         rng = np.random.default_rng(idx + 1)
-        return rng.integers(0, 256, size=self.img_shape, dtype='uint8')
+        return rng.integers(0, 256, size=self.img_shape, dtype="uint8")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     def main():
         """
@@ -50,13 +51,13 @@ if __name__ == '__main__':
         >>> vis_mean: [0.4999966931838419]
         >>> vis_std: [0.2897895504502549]
         """
-        from disent.dataset.util.stats import compute_data_mean_std
         from disent.dataset.transform import ToImgTensorF32
+        from disent.dataset.util.stats import compute_data_mean_std
 
         data = RandomData(transform=ToImgTensorF32(size=64))
         mean, std = compute_data_mean_std(data, progress=True, num_workers=0, batch_size=256)
 
-        print(f'vis_mean: {mean.tolist()}')
-        print(f'vis_std: {std.tolist()}')
+        print(f"vis_mean: {mean.tolist()}")
+        print(f"vis_std: {std.tolist()}")
 
     main()

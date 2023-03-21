@@ -35,7 +35,6 @@ from disent.frameworks.ae._supervised__adaneg_tae import AdaNegTripletAe
 from disent.frameworks.vae._supervised__adaneg_tvae import AdaNegTripletVae
 from disent.frameworks.vae._unsupervised__dotvae import DataOverlapMixin
 
-
 log = logging.getLogger(__name__)
 
 
@@ -61,12 +60,14 @@ class DataOverlapTripletAe(AdaNegTripletAe, DataOverlapMixin):
     class cfg(AdaNegTripletAe.cfg, DataOverlapMixin.cfg):
         pass
 
-    def __init__(self, model: 'AutoEncoder', cfg: cfg = None, batch_augment=None):
+    def __init__(self, model: "AutoEncoder", cfg: cfg = None, batch_augment=None):
         super().__init__(model=model, cfg=cfg, batch_augment=batch_augment)
         # initialise mixin
         self.init_data_overlap_mixin()
 
-    def hook_ae_compute_ave_aug_loss(self, zs: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[torch.Tensor, Dict[str, Any]]:
+    def hook_ae_compute_ave_aug_loss(
+        self, zs: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]
+    ) -> Tuple[torch.Tensor, Dict[str, Any]]:
         [z], [x_targ_orig] = zs, xs_targ
         # 1. randomly generate and mine triplets using augmented versions of the inputs
         a_idxs, p_idxs, n_idxs = self.random_mined_triplets(x_targ_orig=x_targ_orig)

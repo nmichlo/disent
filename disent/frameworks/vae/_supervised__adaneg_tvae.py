@@ -31,11 +31,10 @@ import torch
 from torch.distributions import Distribution
 from torch.distributions import Normal
 
-from disent.nn.loss.triplet import configured_dist_triplet
-from disent.nn.loss.triplet import configured_triplet
 from disent.frameworks.vae._supervised__tvae import TripletVae
 from disent.frameworks.vae._weaklysupervised__adavae import AdaVae
-
+from disent.nn.loss.triplet import configured_dist_triplet
+from disent.nn.loss.triplet import configured_triplet
 
 log = logging.getLogger(__name__)
 
@@ -60,15 +59,22 @@ class AdaNegTripletVae(TripletVae):
     @dataclass
     class cfg(TripletVae.cfg, AdaVae.cfg):
         # adavae
-        ada_thresh_mode: str = 'dist'  # only works for: adat_share_mask_mode == "posterior"
+        ada_thresh_mode: str = "dist"  # only works for: adat_share_mask_mode == "posterior"
         # ada_tvae - loss
         # * this should be used with a schedule, slowly decrease from 1.0 down to 0.5 or less
         # * a similar schedule should also be used on `ada_thresh_ratio`, slowly increasing from 0.0 to 0.5
         adat_triplet_share_scale: float = 0.95
         # ada_tvae - averaging
-        adat_share_mask_mode: str = 'posterior'
+        adat_share_mask_mode: str = "posterior"
 
-    def hook_compute_ave_aug_loss(self, ds_posterior: Sequence[Normal], ds_prior: Sequence[Normal], zs_sampled: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]):
+    def hook_compute_ave_aug_loss(
+        self,
+        ds_posterior: Sequence[Normal],
+        ds_prior: Sequence[Normal],
+        zs_sampled: Sequence[torch.Tensor],
+        xs_partial_recon: Sequence[torch.Tensor],
+        xs_targ: Sequence[torch.Tensor],
+    ):
         return self.estimate_ada_triplet_loss(
             ds_posterior=ds_posterior,
             cfg=self.cfg,
@@ -79,7 +85,9 @@ class AdaNegTripletVae(TripletVae):
         # compute shared masks, shared embeddings & averages over shared embeddings
         share_masks, share_logs = compute_triplet_shared_masks_from_zs(zs=zs, cfg=cfg)
         # compute loss
-        ada_triplet_loss, ada_triplet_logs = AdaNegTripletVae.compute_ada_triplet_loss(share_masks=share_masks, zs=zs, cfg=cfg)
+        ada_triplet_loss, ada_triplet_logs = AdaNegTripletVae.compute_ada_triplet_loss(
+            share_masks=share_masks, zs=zs, cfg=cfg
+        )
         # merge logs & return loss
         return ada_triplet_loss, {
             **ada_triplet_logs,
@@ -91,7 +99,9 @@ class AdaNegTripletVae(TripletVae):
         # compute shared masks, shared embeddings & averages over shared embeddings
         share_masks, share_logs = compute_triplet_shared_masks(ds_posterior, cfg=cfg)
         # compute loss
-        ada_triplet_loss, ada_triplet_logs = AdaNegTripletVae.compute_ada_triplet_loss(share_masks=share_masks, zs=(d.mean for d in ds_posterior), cfg=cfg)
+        ada_triplet_loss, ada_triplet_logs = AdaNegTripletVae.compute_ada_triplet_loss(
+            share_masks=share_masks, zs=(d.mean for d in ds_posterior), cfg=cfg
+        )
         # merge logs & return loss
         return ada_triplet_loss, {
             **ada_triplet_logs,
@@ -113,8 +123,8 @@ class AdaNegTripletVae(TripletVae):
         )
 
         return triplet_hard_neg_ave_scaled, {
-            'triplet': trip_loss,
-            'triplet_chosen': triplet_hard_neg_ave_scaled,
+            "triplet": trip_loss,
+            "triplet_chosen": triplet_hard_neg_ave_scaled,
         }
 
 
@@ -126,9 +136,9 @@ class AdaNegTripletVae(TripletVae):
 @dataclass
 class AdaTripletVae_cfg(TripletVae.cfg, AdaVae.cfg):
     # adavae
-    ada_thresh_mode: str = 'dist'  # only works for: adat_share_mask_mode == "posterior"
+    ada_thresh_mode: str = "dist"  # only works for: adat_share_mask_mode == "posterior"
     # ada_tvae - averaging
-    adat_share_mask_mode: str = 'posterior'
+    adat_share_mask_mode: str = "posterior"
 
 
 def compute_triplet_shared_masks_from_zs(zs: Sequence[torch.Tensor], cfg):
@@ -144,9 +154,9 @@ def compute_triplet_shared_masks_from_zs(zs: Sequence[torch.Tensor], cfg):
     # return values
     share_masks = (ap_share_mask, an_share_mask, pn_share_mask)
     return share_masks, {
-        'ap_shared': ap_share_mask.sum(dim=1).float().mean(),
-        'an_shared': an_share_mask.sum(dim=1).float().mean(),
-        'pn_shared': pn_share_mask.sum(dim=1).float().mean(),
+        "ap_shared": ap_share_mask.sum(dim=1).float().mean(),
+        "an_shared": an_share_mask.sum(dim=1).float().mean(),
+        "pn_shared": pn_share_mask.sum(dim=1).float().mean(),
     }
 
 
@@ -161,28 +171,40 @@ def compute_triplet_shared_masks(ds_posterior: Sequence[Distribution], cfg: AdaT
     a_posterior, p_posterior, n_posterior = ds_posterior
 
     # shared elements that need to be averaged, computed per pair in the batch.
-    if cfg.adat_share_mask_mode == 'posterior':
-        ap_share_mask = AdaVae.compute_shared_mask_from_posteriors(a_posterior, p_posterior, thresh_mode=cfg.ada_thresh_mode, ratio=cfg.ada_thresh_ratio)
-        an_share_mask = AdaVae.compute_shared_mask_from_posteriors(a_posterior, n_posterior, thresh_mode=cfg.ada_thresh_mode, ratio=cfg.ada_thresh_ratio)
-        pn_share_mask = AdaVae.compute_shared_mask_from_posteriors(p_posterior, n_posterior, thresh_mode=cfg.ada_thresh_mode, ratio=cfg.ada_thresh_ratio)
-    elif cfg.adat_share_mask_mode == 'sample':
+    if cfg.adat_share_mask_mode == "posterior":
+        ap_share_mask = AdaVae.compute_shared_mask_from_posteriors(
+            a_posterior, p_posterior, thresh_mode=cfg.ada_thresh_mode, ratio=cfg.ada_thresh_ratio
+        )
+        an_share_mask = AdaVae.compute_shared_mask_from_posteriors(
+            a_posterior, n_posterior, thresh_mode=cfg.ada_thresh_mode, ratio=cfg.ada_thresh_ratio
+        )
+        pn_share_mask = AdaVae.compute_shared_mask_from_posteriors(
+            p_posterior, n_posterior, thresh_mode=cfg.ada_thresh_mode, ratio=cfg.ada_thresh_ratio
+        )
+    elif cfg.adat_share_mask_mode == "sample":
         a_z_sample, p_z_sample, n_z_sample = a_posterior.rsample(), p_posterior.rsample(), n_posterior.rsample()
         ap_share_mask = AdaVae.compute_shared_mask_from_zs(a_z_sample, p_z_sample, ratio=cfg.ada_thresh_ratio)
         an_share_mask = AdaVae.compute_shared_mask_from_zs(a_z_sample, n_z_sample, ratio=cfg.ada_thresh_ratio)
         pn_share_mask = AdaVae.compute_shared_mask_from_zs(p_z_sample, n_z_sample, ratio=cfg.ada_thresh_ratio)
-    elif cfg.adat_share_mask_mode == 'sample_each':
-        ap_share_mask = AdaVae.compute_shared_mask_from_zs(a_posterior.rsample(), p_posterior.rsample(), ratio=cfg.ada_thresh_ratio)
-        an_share_mask = AdaVae.compute_shared_mask_from_zs(a_posterior.rsample(), n_posterior.rsample(), ratio=cfg.ada_thresh_ratio)
-        pn_share_mask = AdaVae.compute_shared_mask_from_zs(p_posterior.rsample(), n_posterior.rsample(), ratio=cfg.ada_thresh_ratio)
+    elif cfg.adat_share_mask_mode == "sample_each":
+        ap_share_mask = AdaVae.compute_shared_mask_from_zs(
+            a_posterior.rsample(), p_posterior.rsample(), ratio=cfg.ada_thresh_ratio
+        )
+        an_share_mask = AdaVae.compute_shared_mask_from_zs(
+            a_posterior.rsample(), n_posterior.rsample(), ratio=cfg.ada_thresh_ratio
+        )
+        pn_share_mask = AdaVae.compute_shared_mask_from_zs(
+            p_posterior.rsample(), n_posterior.rsample(), ratio=cfg.ada_thresh_ratio
+        )
     else:
-        raise KeyError(f'Invalid cfg.adat_share_mask_mode={repr(cfg.adat_share_mask_mode)}')
+        raise KeyError(f"Invalid cfg.adat_share_mask_mode={repr(cfg.adat_share_mask_mode)}")
 
     # return values
     share_masks = (ap_share_mask, an_share_mask, pn_share_mask)
     return share_masks, {
-        'ap_shared': ap_share_mask.sum(dim=1).float().mean(),
-        'an_shared': an_share_mask.sum(dim=1).float().mean(),
-        'pn_shared': pn_share_mask.sum(dim=1).float().mean(),
+        "ap_shared": ap_share_mask.sum(dim=1).float().mean(),
+        "an_shared": an_share_mask.sum(dim=1).float().mean(),
+        "pn_shared": pn_share_mask.sum(dim=1).float().mean(),
     }
 
 

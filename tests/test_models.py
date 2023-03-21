@@ -30,12 +30,15 @@ from disent.model import DisentEncoder
 from disent.model.ae import *
 
 
-@pytest.mark.parametrize(['encoder_cls', 'decoder_cls'], [
-    [EncoderConv64,     DecoderConv64],
-    [EncoderConv64Norm, DecoderConv64Norm],
-    [EncoderFC,         DecoderFC],
-    [EncoderLinear, DecoderLinear],
-])
+@pytest.mark.parametrize(
+    ["encoder_cls", "decoder_cls"],
+    [
+        [EncoderConv64, DecoderConv64],
+        [EncoderConv64Norm, DecoderConv64Norm],
+        [EncoderFC, DecoderFC],
+        [EncoderLinear, DecoderLinear],
+    ],
+)
 def test_ae_models(encoder_cls: DisentEncoder, decoder_cls: DisentDecoder):
     x_shape, z_size = (3, 64, 64), 8
     # create model

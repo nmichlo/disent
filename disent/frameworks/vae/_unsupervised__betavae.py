@@ -35,7 +35,6 @@ from torch.distributions import Distribution
 
 from disent.frameworks.vae._unsupervised__vae import Vae
 
-
 # ========================================================================= #
 # Beta-VAE Loss                                                             #
 # ========================================================================= #
@@ -78,22 +77,24 @@ class BetaVae(Vae):
         #
         beta: float = 0.003  # approximately equal to mean_sum beta of 4
 
-    def __init__(self, model: 'AutoEncoder', cfg: cfg = None, batch_augment=None):
+    def __init__(self, model: "AutoEncoder", cfg: cfg = None, batch_augment=None):
         super().__init__(model=model, cfg=cfg, batch_augment=batch_augment)
-        assert self.cfg.beta >= 0, 'beta must be >= 0'
+        assert self.cfg.beta >= 0, "beta must be >= 0"
 
     # --------------------------------------------------------------------- #
     # Overrides                                                             #
     # --------------------------------------------------------------------- #
 
-    def compute_ave_reg_loss(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
+    def compute_ave_reg_loss(
+        self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled: Sequence[torch.Tensor]
+    ) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
         # BetaVAE: compute regularization loss (kl divergence)
         kl_loss = self.latents_handler.compute_ave_kl_loss(ds_posterior, ds_prior, zs_sampled)
         kl_reg_loss = self.cfg.beta * kl_loss
         # return logs
         return kl_reg_loss, {
-            'kl_loss': kl_loss,
-            'kl_reg_loss': kl_reg_loss,
+            "kl_loss": kl_loss,
+            "kl_reg_loss": kl_reg_loss,
         }
 
 

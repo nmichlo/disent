@@ -22,8 +22,8 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from typing import Union
 from typing import Optional
+from typing import Union
 
 import numpy as np
 
@@ -31,14 +31,12 @@ from disent.schedule.lerp import cyclical_anneal
 from disent.schedule.lerp import lerp
 from disent.schedule.lerp import lerp_step
 
-
 # ========================================================================= #
 # Schedules                                                                 #
 # ========================================================================= #
 
 
 class Schedule(object):
-
     def __call__(self, step: int, value):
         return self.compute_value(step=step, value=value)
 
@@ -52,7 +50,6 @@ class Schedule(object):
 
 
 class NoopSchedule(Schedule):
-
     def compute_value(self, step: int, value):
         # does absolutely nothing!
         return value
@@ -103,6 +100,7 @@ class FixedValueSchedule(Schedule):
             return self.value
         else:
             return self.schedule(step, self.value)
+
 
 # ========================================================================= #
 # Value Schedules                                                           #
@@ -181,8 +179,8 @@ class CyclicSchedule(Schedule):
         repeats: Optional[int] = None,
         r_start: float = 0.0,
         r_end: float = 1.0,
-        end_mode: str = 'end',
-        mode: str = 'linear',
+        end_mode: str = "end",
+        mode: str = "linear",
         p_low: float = 0.0,
         p_high: float = 0.0,
     ):
@@ -208,7 +206,7 @@ class CyclicSchedule(Schedule):
         self.period = period
         self.repeats = repeats
         self.start_step = start_step
-        self.end_value = {'start': 'low', 'end': 'high'}[end_mode]
+        self.end_value = {"start": "low", "end": "high"}[end_mode]
         self.mode = mode
         # scale values
         self.r_start = r_start
@@ -232,7 +230,7 @@ class CyclicSchedule(Schedule):
             repeats=self.repeats,
             start_low=True,
             end_value=self.end_value,
-            mode=self.mode
+            mode=self.mode,
         )
         return _common_lerp_value(ratio, value=value, r_start=self.r_start, r_end=self.r_end)
 
@@ -252,7 +250,7 @@ class SingleSchedule(CyclicSchedule):
         end_step: int,
         r_start: float = 0.0,
         r_end: float = 1.0,
-        mode: str = 'linear',
+        mode: str = "linear",
     ):
         """
         :param start_step: The step when the schedule will start
@@ -267,10 +265,10 @@ class SingleSchedule(CyclicSchedule):
             repeats=1,
             r_start=r_start,
             r_end=r_end,
-            end_mode='end',
+            end_mode="end",
             mode=mode,
             p_low=0.0,  # adjust the start and end steps instead
-            p_high=0.0, # adjust the start and end steps instead
+            p_high=0.0,  # adjust the start and end steps instead
         )
 
 
@@ -353,12 +351,17 @@ class ClipSchedule(Schedule):
         self.max_value = max_value
 
     def compute_value(self, step: int, value):
-        if self.max_step is not None: step = np.minimum(self.max_step, step)
-        if self.min_step is not None: step = np.maximum(self.min_step, step)
-        if self.shift_step is not None: step += self.shift_step
+        if self.max_step is not None:
+            step = np.minimum(self.max_step, step)
+        if self.min_step is not None:
+            step = np.maximum(self.min_step, step)
+        if self.shift_step is not None:
+            step += self.shift_step
         result = self.schedule(step, value)
-        if self.max_value is not None: result = np.minimum(self.max_value, result)
-        if self.min_value is not None: result = np.maximum(self.min_value, result)
+        if self.max_value is not None:
+            result = np.minimum(self.max_value, result)
+        if self.min_value is not None:
+            result = np.maximum(self.min_value, result)
         return result
 
 
@@ -367,23 +370,23 @@ class ClipSchedule(Schedule):
 # ========================================================================= #
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     def plot_schedules(*schedules: Schedule, total: int = 1000, value=1):
         import matplotlib.pyplot as plt
-        fig, axs = plt.subplots(1, len(schedules), figsize=(3*len(schedules), 3))
+
+        fig, axs = plt.subplots(1, len(schedules), figsize=(3 * len(schedules), 3))
         for ax, s in zip(axs, schedules):
             xs = list(range(total))
             ys = [s(x, value) for x in xs]
             ax.set_xlim([-0.05 * total, total + 0.05 * total])
             ax.set_ylim([-0.05 * value, value + 0.05 * value])
             ax.plot(xs, ys)
-            ax.set_title(f'{s.__class__.__name__}')
+            ax.set_title(f"{s.__class__.__name__}")
         fig.tight_layout()
         plt.show()
 
     def main():
-
         # these should be equivalent
         plot_schedules(
             LinearSchedule(start_step=100, end_step=900, r_start=0.1, r_end=0.8),
@@ -395,17 +398,67 @@ if __name__ == '__main__':
         )
 
         plot_schedules(
-            CyclicSchedule(period=300, start_step=0,   repeats=None, r_start=0.1, r_end=0.8, end_mode='end',   mode='linear',  p_low=0.00, p_high=0.00),
-            CyclicSchedule(period=300, start_step=0,   repeats=2,    r_start=0.9, r_end=0.2, end_mode='start', mode='linear',  p_low=0.25, p_high=0.00),
-            CyclicSchedule(period=300, start_step=200, repeats=2,    r_start=0.9, r_end=0.2, end_mode='end', mode='linear',    p_low=0.00, p_high=0.25),
-            CyclicSchedule(period=300, start_step=0,   repeats=2,    r_start=0.1, r_end=0.8, end_mode='end',   mode='cosine',  p_low=0.25, p_high=0.25),
-            CyclicSchedule(period=300, start_step=250, repeats=None, r_start=0.1, r_end=0.8, end_mode='end',   mode='sigmoid', p_low=0.00, p_high=0.00),
+            CyclicSchedule(
+                period=300,
+                start_step=0,
+                repeats=None,
+                r_start=0.1,
+                r_end=0.8,
+                end_mode="end",
+                mode="linear",
+                p_low=0.00,
+                p_high=0.00,
+            ),
+            CyclicSchedule(
+                period=300,
+                start_step=0,
+                repeats=2,
+                r_start=0.9,
+                r_end=0.2,
+                end_mode="start",
+                mode="linear",
+                p_low=0.25,
+                p_high=0.00,
+            ),
+            CyclicSchedule(
+                period=300,
+                start_step=200,
+                repeats=2,
+                r_start=0.9,
+                r_end=0.2,
+                end_mode="end",
+                mode="linear",
+                p_low=0.00,
+                p_high=0.25,
+            ),
+            CyclicSchedule(
+                period=300,
+                start_step=0,
+                repeats=2,
+                r_start=0.1,
+                r_end=0.8,
+                end_mode="end",
+                mode="cosine",
+                p_low=0.25,
+                p_high=0.25,
+            ),
+            CyclicSchedule(
+                period=300,
+                start_step=250,
+                repeats=None,
+                r_start=0.1,
+                r_end=0.8,
+                end_mode="end",
+                mode="sigmoid",
+                p_low=0.00,
+                p_high=0.00,
+            ),
         )
 
         plot_schedules(
-            SingleSchedule(start_step=0,   end_step=800, r_start=0.1, r_end=0.8, mode='linear'),
-            SingleSchedule(start_step=100, end_step=800, r_start=0.8, r_end=0.1, mode='linear'),
-            SingleSchedule(start_step=100, end_step=800, r_start=0.8, r_end=0.1, mode='linear'),
+            SingleSchedule(start_step=0, end_step=800, r_start=0.1, r_end=0.8, mode="linear"),
+            SingleSchedule(start_step=100, end_step=800, r_start=0.8, r_end=0.1, mode="linear"),
+            SingleSchedule(start_step=100, end_step=800, r_start=0.8, r_end=0.1, mode="linear"),
         )
 
     main()

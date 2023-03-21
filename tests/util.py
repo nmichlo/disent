@@ -29,7 +29,6 @@ from contextlib import contextmanager
 from typing import Any
 from typing import Dict
 
-
 # ========================================================================= #
 # TEST UTILS                                                                #
 # ========================================================================= #
@@ -38,7 +37,7 @@ from typing import Dict
 @contextmanager
 def no_stdout():
     old_stdout = sys.stdout
-    sys.stdout = open(os.devnull, 'w')
+    sys.stdout = open(os.devnull, "w")
     yield
     sys.stdout = old_stdout
 
@@ -46,7 +45,7 @@ def no_stdout():
 @contextmanager
 def no_stderr():
     old_stderr = sys.stderr
-    sys.stderr = open(os.devnull, 'w')
+    sys.stderr = open(os.devnull, "w")
     yield
     sys.stderr = old_stderr
 

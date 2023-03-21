@@ -22,12 +22,11 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from torch import nn
 from torch import Tensor
+from torch import nn
 
 from disent.model import DisentDecoder
 from disent.model import DisentEncoder
-
 
 # ========================================================================= #
 # disentanglement_lib Conv models                                           #
@@ -58,17 +57,24 @@ class EncoderConv64(DisentEncoder):
     def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
         # checks
         (C, H, W) = x_shape
-        assert (H, W) == (64, 64), 'This model only works with image size 64x64.'
+        assert (H, W) == (64, 64), "This model only works with image size 64x64."
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
         self.model = nn.Sequential(
-            nn.Conv2d(in_channels=C,  out_channels=32, kernel_size=4, stride=2, padding=2), nn.ReLU(inplace=True),
-            nn.Conv2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=2), nn.ReLU(inplace=True),
-            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2, padding=2), nn.ReLU(inplace=True),  # This was reverted to kernel size 4x4 from 2x2, to match beta-vae paper
-            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=4, stride=2, padding=2), nn.ReLU(inplace=True),  # This was reverted to kernel size 4x4 from 2x2, to match beta-vae paper
+            nn.Conv2d(in_channels=C, out_channels=32, kernel_size=4, stride=2, padding=2),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=2),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2, padding=2),
+            nn.ReLU(inplace=True),  # This was reverted to kernel size 4x4 from 2x2, to match beta-vae paper
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=4, stride=2, padding=2),
+            nn.ReLU(inplace=True),  # This was reverted to kernel size 4x4 from 2x2, to match beta-vae paper
             nn.Flatten(),
-            nn.Linear(in_features=1600, out_features=256), nn.ReLU(inplace=True),
-            nn.Linear(in_features=256,  out_features=self.z_total),  # we combine the two networks in the reference implementation and use torch.chunk(2, dim=-1) to get mu & logvar
+            nn.Linear(in_features=1600, out_features=256),
+            nn.ReLU(inplace=True),
+            nn.Linear(
+                in_features=256, out_features=self.z_total
+            ),  # we combine the two networks in the reference implementation and use torch.chunk(2, dim=-1) to get mu & logvar
         )
 
     def encode(self, x) -> (Tensor, Tensor):
@@ -97,17 +103,22 @@ class DecoderConv64(DisentDecoder):
 
     def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
         (C, H, W) = x_shape
-        assert (H, W) == (64, 64), 'This model only works with image size 64x64.'
+        assert (H, W) == (64, 64), "This model only works with image size 64x64."
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
         self.model = nn.Sequential(
-            nn.Linear(in_features=self.z_size, out_features=256),  nn.ReLU(inplace=True),
-            nn.Linear(in_features=256,         out_features=1024), nn.ReLU(inplace=True),
+            nn.Linear(in_features=self.z_size, out_features=256),
+            nn.ReLU(inplace=True),
+            nn.Linear(in_features=256, out_features=1024),
+            nn.ReLU(inplace=True),
             nn.Unflatten(dim=1, unflattened_size=[64, 4, 4]),
-            nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=4, stride=2, padding=1), nn.ReLU(inplace=True),
-            nn.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=4, stride=2, padding=1), nn.ReLU(inplace=True),
-            nn.ConvTranspose2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=1), nn.ReLU(inplace=True),
-            nn.ConvTranspose2d(in_channels=32, out_channels=C,  kernel_size=4, stride=2, padding=1),
+            nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=4, stride=2, padding=1),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=4, stride=2, padding=1),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=1),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(in_channels=32, out_channels=C, kernel_size=4, stride=2, padding=1),
         )
 
     def decode(self, z) -> Tensor:

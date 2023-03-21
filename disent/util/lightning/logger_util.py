@@ -31,7 +31,6 @@ from pytorch_lightning.loggers import LightningLoggerBase
 from pytorch_lightning.loggers import LoggerCollection
 from pytorch_lightning.loggers import WandbLogger
 
-
 log = logging.getLogger(__name__)
 
 # TODO: convert these functions into generalised log_img, log_vid,
@@ -47,16 +46,16 @@ log = logging.getLogger(__name__)
 
 def log_metrics(logger: Optional[LightningLoggerBase], metrics_dct: dict):
     """
-     Log the given values to the given logger.
-     - warn the user if something goes wrong
+    Log the given values to the given logger.
+    - warn the user if something goes wrong
     """
     if logger:
         try:
             logger.log_metrics(metrics_dct)
         except:
-            warnings.warn(f'Failed to log metrics: {repr(metrics_dct)}')
+            warnings.warn(f"Failed to log metrics: {repr(metrics_dct)}")
     else:
-        warnings.warn('no trainer.logger found!')
+        warnings.warn("no trainer.logger found!")
 
 
 # ========================================================================= #
@@ -92,17 +91,17 @@ def wb_log_metrics(logger: Optional[LightningLoggerBase], metrics_dct: dict):
         wb_logger.log_metrics(metrics_dct)
     # warn if nothing logged
     if wb_logger is None:
-        warnings.warn('no wandb logger found to log metrics to!')
+        warnings.warn("no wandb logger found to log metrics to!")
 
 
 _SUMMARY_REDICTIONS = {
-    'min': min,
-    'max': max,
-    'recent': lambda prev, current: current,
+    "min": min,
+    "max": max,
+    "recent": lambda prev, current: current,
 }
 
 
-def wb_log_reduced_summaries(logger: Optional[LightningLoggerBase], summary_dct: dict, reduction='max'):
+def wb_log_reduced_summaries(logger: Optional[LightningLoggerBase], summary_dct: dict, reduction="max"):
     """
     Aggregate the given values only to loggers that are an instance of WandbLogger
     - supported reduction modes are `"max"` and `"min"`
@@ -112,16 +111,16 @@ def wb_log_reduced_summaries(logger: Optional[LightningLoggerBase], summary_dct:
     # iterate over loggers & update summaries
     for wb_logger in wb_yield_loggers(logger):
         for key, val_current in summary_dct.items():
-            key = f'{key}.{reduction}'
+            key = f"{key}.{reduction}"
             try:
                 val_prev = wb_logger.experiment.summary.get(key, val_current)
                 val_next = reduce_fn(val_prev, val_current)
                 wb_logger.experiment.summary[key] = val_next
             except:
-                log.error(f'W&B failed to update summary for: {repr(key)}', exc_info=True)
+                log.error(f"W&B failed to update summary for: {repr(key)}", exc_info=True)
     # warn if nothing logged!
     if wb_logger is None:
-        warnings.warn('no wandb logger found to log metrics to!')
+        warnings.warn("no wandb logger found to log metrics to!")
 
 
 # ========================================================================= #

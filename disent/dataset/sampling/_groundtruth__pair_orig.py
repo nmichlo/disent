@@ -25,22 +25,20 @@
 from typing import Optional
 
 import numpy as np
+
 from disent.dataset.data import GroundTruthData
 from disent.dataset.sampling._base import BaseDisentSampler
 from disent.dataset.util.state_space import StateSpace
 
 
 class GroundTruthPairOrigSampler(BaseDisentSampler):
-
-    def uninit_copy(self) -> 'GroundTruthPairOrigSampler':
-        return GroundTruthPairOrigSampler(
-            p_k=self.p_k
-        )
+    def uninit_copy(self) -> "GroundTruthPairOrigSampler":
+        return GroundTruthPairOrigSampler(p_k=self.p_k)
 
     def __init__(
-            self,
-            # num_differing_factors
-            p_k: int = 1,
+        self,
+        # num_differing_factors
+        p_k: int = 1,
     ):
         """
         Sampler that emulates choosing factors like:
@@ -53,7 +51,9 @@ class GroundTruthPairOrigSampler(BaseDisentSampler):
         self._state_space: Optional[StateSpace] = None
 
     def _init(self, dataset):
-        assert isinstance(dataset, GroundTruthData), f'dataset must be an instance of {repr(GroundTruthData.__class__.__name__)}, got: {repr(dataset)}'
+        assert isinstance(
+            dataset, GroundTruthData
+        ), f"dataset must be an instance of {repr(GroundTruthData.__class__.__name__)}, got: {repr(dataset)}"
         self._state_space = dataset.state_space_copy()
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #

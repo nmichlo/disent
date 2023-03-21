@@ -31,7 +31,6 @@ import torch
 from disent.util import to_numpy
 from disent.util.visualize import vis_util
 
-
 log = logging.getLogger(__name__)
 
 
@@ -69,7 +68,7 @@ def _z_fitted_gaussian_cycle(base_z, z_means, z_logvars, z_idx, num_frames):
 def _z_fixed_interval_cycle(base_z, z_means, z_logvars, z_idx, num_frames):
     # Cycle through [-2, 2] interval.
     zs = np.repeat(np.expand_dims(base_z, 0), num_frames, axis=0)
-    zs[:, z_idx] = vis_util.cycle_interval(base_z[z_idx], num_frames, -2., 2.)
+    zs[:, z_idx] = vis_util.cycle_interval(base_z[z_idx], num_frames, -2.0, 2.0)
     return zs
 
 
@@ -79,23 +78,25 @@ def _z_conf_interval_cycle(base_z, z_means, z_logvars, z_idx, num_frames):
     loc = np.mean(z_means[:, z_idx])
     total_variance = np.mean(np.exp(z_logvars[:, z_idx])) + np.var(z_means[:, z_idx])
     scale = np.sqrt(total_variance)
-    zs[:, z_idx] = vis_util.cycle_interval(base_z[z_idx], num_frames, loc - 2. * scale, loc + 2. * scale)
+    zs[:, z_idx] = vis_util.cycle_interval(base_z[z_idx], num_frames, loc - 2.0 * scale, loc + 2.0 * scale)
     return zs
 
 
 def _z_minmax_interval_cycle(base_z, z_means, z_logvars, z_idx, num_frames):
     # Cycle linearly through minmax of a fitted Gaussian.
     zs = np.repeat(np.expand_dims(base_z, 0), num_frames, axis=0)
-    zs[:, z_idx] = vis_util.cycle_interval(base_z[z_idx], num_frames, np.min(z_means[:, z_idx]), np.max(z_means[:, z_idx]))
+    zs[:, z_idx] = vis_util.cycle_interval(
+        base_z[z_idx], num_frames, np.min(z_means[:, z_idx]), np.max(z_means[:, z_idx])
+    )
     return zs
 
 
 _LATENT_CYCLE_MODES_MAP = {
-    'std_gaussian_cycle': _z_std_gaussian_cycle,
-    'fitted_gaussian_cycle': _z_fitted_gaussian_cycle,
-    'fixed_interval_cycle': _z_fixed_interval_cycle,
-    'conf_interval_cycle': _z_conf_interval_cycle,
-    'minmax_interval_cycle': _z_minmax_interval_cycle,
+    "std_gaussian_cycle": _z_std_gaussian_cycle,
+    "fitted_gaussian_cycle": _z_fitted_gaussian_cycle,
+    "fixed_interval_cycle": _z_fixed_interval_cycle,
+    "conf_interval_cycle": _z_conf_interval_cycle,
+    "minmax_interval_cycle": _z_minmax_interval_cycle,
 }
 
 
@@ -105,18 +106,20 @@ def make_latent_zs_cycle(
     z_logvars: torch.Tensor,
     z_idx: int,
     num_frames: int,
-    mode: str = 'minmax_interval_cycle',
+    mode: str = "minmax_interval_cycle",
 ) -> torch.Tensor:
     # get mode
     if mode not in _LATENT_CYCLE_MODES_MAP:
-        raise KeyError(f'Unsupported mode: {repr(mode)} not in {set(_LATENT_CYCLE_MODES_MAP)}')
+        raise KeyError(f"Unsupported mode: {repr(mode)} not in {set(_LATENT_CYCLE_MODES_MAP)}")
     z_gen_func = _LATENT_CYCLE_MODES_MAP[mode]
     # checks
     assert base_z.ndim == 1
     assert base_z.shape == z_means.shape[1:]
     assert z_means.ndim == z_logvars.ndim == 2
     assert z_means.shape == z_logvars.shape
-    assert len(z_means) > 1, f'not enough representations to average, number of z_means should be greater than 1, got: {z_means.shape}'
+    assert (
+        len(z_means) > 1
+    ), f"not enough representations to average, number of z_means should be greater than 1, got: {z_means.shape}"
     # make cycle
     z_cycle = z_gen_func(to_numpy(base_z), to_numpy(z_means), to_numpy(z_logvars), z_idx, num_frames)
     return torch.from_numpy(z_cycle)
@@ -132,7 +135,7 @@ def make_decoded_latent_cycles(
     decoder_func: Callable[[torch.Tensor], torch.Tensor],
     z_means: torch.Tensor,
     z_logvars: torch.Tensor,
-    mode: str = 'minmax_interval_cycle',
+    mode: str = "minmax_interval_cycle",
     num_animations: int = 4,
     num_frames: int = 20,
     decoder_device=None,

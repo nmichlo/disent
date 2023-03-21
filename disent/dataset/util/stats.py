@@ -29,7 +29,6 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-
 # ========================================================================= #
 # COMPUTE DATASET STATS                                                     #
 # ========================================================================= #
@@ -41,7 +40,7 @@ def compute_data_mean_std(
     batch_size: int = 256,
     num_workers: int = min(os.cpu_count(), 16),
     progress: bool = False,
-    chn_is_last: bool = False
+    chn_is_last: bool = False,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Input data when collected using a DataLoader should return
@@ -56,20 +55,21 @@ def compute_data_mean_std(
     )
     if progress:
         from tqdm import tqdm
-        loader = tqdm(loader, desc=f'{data.__class__.__name__} stats', total=(len(data) + batch_size - 1) // batch_size)
+
+        loader = tqdm(loader, desc=f"{data.__class__.__name__} stats", total=(len(data) + batch_size - 1) // batch_size)
     # reduction dims
     dims = (1, 2) if chn_is_last else (2, 3)
     # collect obs means & stds
     img_means, img_stds = [], []
     for batch in loader:
-        assert isinstance(batch, torch.Tensor), f'batch must be an instance of torch.Tensor, got: {type(batch)}'
-        assert batch.ndim == 4, f'batch shape must be: (B, C, H, W), got: {tuple(batch.shape)}'
+        assert isinstance(batch, torch.Tensor), f"batch must be an instance of torch.Tensor, got: {type(batch)}"
+        assert batch.ndim == 4, f"batch shape must be: (B, C, H, W), got: {tuple(batch.shape)}"
         batch = batch.to(torch.float64)
         img_means.append(torch.mean(batch, dim=dims))
         img_stds.append(torch.std(batch, dim=dims))
     # aggregate obs means & stds
     mean = torch.mean(torch.cat(img_means, dim=0), dim=0)
-    std  = torch.mean(torch.cat(img_stds, dim=0), dim=0)
+    std = torch.mean(torch.cat(img_stds, dim=0), dim=0)
     # checks!
     assert mean.ndim == 1
     assert std.ndim == 1
@@ -82,12 +82,12 @@ def compute_data_mean_std(
 # ========================================================================= #
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     def main(progress=True, num_workers=32, batch_size=2048):  # try changing workers to zero on MacOS
         from disent.dataset import data
-        from docs.examples.extend_experiment.code import groundtruth__xyblocks as edat
         from disent.dataset.transform import ToImgTensorF32
+        from docs.examples.extend_experiment.code import groundtruth__xyblocks as edat
 
         for data_cls in [
             # groundtruth -- impl
@@ -117,11 +117,12 @@ if __name__ == '__main__':
             (data.XYSquaresData, dict(grid_size=8, grid_spacing=1)),
             (data.XYSquaresData, dict(rgb=False)),
             # large datasets
-            (data.Mpi3dData, dict(subset='toy',       in_memory=True)),
-            (data.Mpi3dData, dict(subset='realistic', in_memory=True)),
-            (data.Mpi3dData, dict(subset='real',      in_memory=True)),
+            (data.Mpi3dData, dict(subset="toy", in_memory=True)),
+            (data.Mpi3dData, dict(subset="realistic", in_memory=True)),
+            (data.Mpi3dData, dict(subset="real", in_memory=True)),
         ]:
             from disent.dataset.transform import ToImgTensorF32
+
             # get arguments
             if isinstance(data_cls, tuple):
                 data_cls, kwargs = data_cls
@@ -132,7 +133,9 @@ if __name__ == '__main__':
             data = data_cls(transform=ToImgTensorF32(size=64), **kwargs)
             mean, std = compute_data_mean_std(data, progress=progress, num_workers=num_workers, batch_size=batch_size)
             # results!
-            print(f'{data.__class__.__name__} - {data.name} - {kwargs}:\n    mean: {mean.tolist()}\n    std: {std.tolist()}')
+            print(
+                f"{data.__class__.__name__} - {data.name} - {kwargs}:\n    mean: {mean.tolist()}\n    std: {std.tolist()}"
+            )
 
     # RUN!
     main()

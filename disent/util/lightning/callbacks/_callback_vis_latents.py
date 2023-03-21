@@ -44,7 +44,6 @@ from disent.util.visualize.vis_latents import make_decoded_latent_cycles
 from disent.util.visualize.vis_util import make_animated_image_grid
 from disent.util.visualize.vis_util import make_image_grid
 
-
 log = logging.getLogger(__name__)
 
 
@@ -53,7 +52,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-MinMaxHint = Optional[Union[int, Literal['auto']]]
+MinMaxHint = Optional[Union[int, Literal["auto"]]]
 MeanStdHint = Optional[Union[Tuple[float, ...], float]]
 
 
@@ -61,14 +60,14 @@ def get_vis_min_max(
     recon_min: MinMaxHint = None,
     recon_max: MinMaxHint = None,
     recon_mean: MeanStdHint = None,
-    recon_std:  MeanStdHint = None,
+    recon_std: MeanStdHint = None,
 ) -> Union[Tuple[None, None], Tuple[np.ndarray, np.ndarray]]:
     # check recon_min and recon_max
     if (recon_min is not None) or (recon_max is not None):
         if (recon_mean is not None) or (recon_std is not None):
-            raise ValueError('must choose either recon_min & recon_max OR recon_mean & recon_std, cannot specify both')
+            raise ValueError("must choose either recon_min & recon_max OR recon_mean & recon_std, cannot specify both")
         if (recon_min is None) or (recon_max is None):
-            raise ValueError('both recon_min & recon_max must be specified')
+            raise ValueError("both recon_min & recon_max must be specified")
         # check strings
         if isinstance(recon_min, str) or isinstance(recon_max, str):
             if not (isinstance(recon_min, str) and isinstance(recon_max, str)):
@@ -77,27 +76,29 @@ def get_vis_min_max(
     # check recon_mean and recon_std
     elif (recon_mean is not None) or (recon_std is not None):
         if (recon_min is not None) or (recon_max is not None):
-            raise ValueError('must choose either recon_min & recon_max OR recon_mean & recon_std, cannot specify both')
+            raise ValueError("must choose either recon_min & recon_max OR recon_mean & recon_std, cannot specify both")
         if (recon_mean is None) or (recon_std is None):
-            raise ValueError('both recon_mean & recon_std must be specified')
+            raise ValueError("both recon_mean & recon_std must be specified")
         # set values:
         #  | ORIG: [0, 1]
         #  | TRANSFORM: (x - mean) / std         ->  [(0-mean)/std, (1-mean)/std]
         #  | REVERT:    (x - min) / (max - min)  ->  [0, 1]
         #  |            min=(0-mean)/std, max=(1-mean)/std
-        recon_mean, recon_std = np.array(recon_mean, dtype='float32'), np.array(recon_std, dtype='float32')
+        recon_mean, recon_std = np.array(recon_mean, dtype="float32"), np.array(recon_std, dtype="float32")
         recon_min = np.divide(0 - recon_mean, recon_std)
         recon_max = np.divide(1 - recon_mean, recon_std)
     # set defaults
-    if recon_min is None: recon_min = 0.0
-    if recon_max is None: recon_max = 1.0
+    if recon_min is None:
+        recon_min = 0.0
+    if recon_max is None:
+        recon_max = 1.0
     # change type
     recon_min = np.array(recon_min)
     recon_max = np.array(recon_max)
     assert recon_min.ndim in (0, 1)
     assert recon_max.ndim in (0, 1)
     # checks
-    assert np.all(recon_min < recon_max), f'recon_min={recon_min} must be less than recon_max={recon_max}'
+    assert np.all(recon_min < recon_max), f"recon_min={recon_min} must be less than recon_max={recon_max}"
     return recon_min, recon_max
 
 
@@ -107,25 +108,24 @@ def get_vis_min_max(
 
 
 class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
-
     def __init__(
         self,
         seed: Optional[int] = 7777,
         every_n_steps: Optional[int] = None,
         begin_first_step: bool = False,
         num_frames: int = 17,
-        mode: str = 'minmax_interval_cycle',
+        mode: str = "minmax_interval_cycle",
         num_stats_samples: int = 64,
         log_wandb: bool = True,  # TODO: detect this automatically?
-        wandb_mode: str = 'both',
+        wandb_mode: str = "both",
         wandb_fps: int = 4,
         plt_show: bool = False,
         plt_block_size: float = 1.0,
         # recon_min & recon_max
-        recon_min: MinMaxHint = None,    # scale data in this range [min, max] to [0, 1]
-        recon_max: MinMaxHint = None,    # scale data in this range [min, max] to [0, 1]
+        recon_min: MinMaxHint = None,  # scale data in this range [min, max] to [0, 1]
+        recon_max: MinMaxHint = None,  # scale data in this range [min, max] to [0, 1]
         recon_mean: MeanStdHint = None,  # automatically converted to min & max [(0-mean)/std, (1-mean)/std], assuming original range of values is [0, 1]
-        recon_std: MeanStdHint = None,   # automatically converted to min & max [(0-mean)/std, (1-mean)/std], assuming original range of values is [0, 1]
+        recon_std: MeanStdHint = None,  # automatically converted to min & max [(0-mean)/std, (1-mean)/std], assuming original range of values is [0, 1]
     ):
         super().__init__(every_n_steps, begin_first_step)
         self._seed = seed
@@ -138,7 +138,11 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
         self._num_frames = num_frames
         self._fps = wandb_fps
         # checks
-        assert wandb_mode in {'img', 'vid', 'both'}, f'invalid wandb_mode={repr(wandb_mode)}, must be one of: ("img", "vid", "both")'
+        assert wandb_mode in {
+            "img",
+            "vid",
+            "both",
+        }, f'invalid wandb_mode={repr(wandb_mode)}, must be one of: ("img", "vid", "both")'
         # normalize
         self._recon_min, self._recon_max = get_vis_min_max(
             recon_min=recon_min,
@@ -151,7 +155,7 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
     def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         # exit early
         if not (self._plt_show or self._log_wandb):
-            log.warning(f'skipping {self.__class__.__name__} neither `plt_show` or `log_wandb` is `True`!')
+            log.warning(f"skipping {self.__class__.__name__} neither `plt_show` or `log_wandb` is `True`!")
             return
 
         # feed forward and visualise everything!
@@ -161,17 +165,25 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
         # TODO: there might be a memory leak in making the video below? Or there could be one in the actual DSPRITES dataset? memory usage seems to be very high and increase on this dataset.
         if self._log_wandb:
             import wandb
+
             wandb_items = {}
-            if self._wandb_mode in ('img', 'both'): wandb_items[f'{self._mode}_img'] = wandb.Image(image)
-            if self._wandb_mode in ('vid', 'both'): wandb_items[f'{self._mode}_vid'] = wandb.Video(np.transpose(animation, [0, 3, 1, 2]), fps=self._fps, format='mp4'),
+            if self._wandb_mode in ("img", "both"):
+                wandb_items[f"{self._mode}_img"] = wandb.Image(image)
+            if self._wandb_mode in ("vid", "both"):
+                wandb_items[f"{self._mode}_vid"] = (
+                    wandb.Video(np.transpose(animation, [0, 3, 1, 2]), fps=self._fps, format="mp4"),
+                )
             wb_log_metrics(trainer.logger, wandb_items)
 
         # log locally
         if self._plt_show:
             from matplotlib import pyplot as plt
-            fig, ax = plt.subplots(1, 1, figsize=(self._plt_block_size*stills.shape[1], self._plt_block_size*stills.shape[0]))
+
+            fig, ax = plt.subplots(
+                1, 1, figsize=(self._plt_block_size * stills.shape[1], self._plt_block_size * stills.shape[0])
+            )
             ax.imshow(image)
-            ax.axis('off')
+            ax.axis("off")
             fig.tight_layout()
             plt.show()
 
@@ -179,7 +191,9 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
         self,
         trainer_or_dataset: Union[pl.Trainer, DisentDataset],
         pl_module: pl.LightningModule,
-    ) -> Union[Tuple[np.ndarray, np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, np.ndarray, torch.Tensor, torch.Tensor]]:
+    ) -> Union[
+        Tuple[np.ndarray, np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, np.ndarray, torch.Tensor, torch.Tensor]
+    ]:
         return self.generate_visualisations(
             trainer_or_dataset,
             pl_module,
@@ -200,14 +214,16 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
         pl_module: pl.LightningModule,
         seed: Optional[int] = 7777,
         num_frames: int = 17,
-        mode: str = 'fitted_gaussian_cycle',
+        mode: str = "fitted_gaussian_cycle",
         num_stats_samples: int = 64,
         # recon_min & recon_max
         recon_min: MinMaxHint = None,
         recon_max: MinMaxHint = None,
         recon_mean: MeanStdHint = None,
         recon_std: MeanStdHint = None,
-    ) -> Union[Tuple[np.ndarray, np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, np.ndarray, torch.Tensor, torch.Tensor]]:
+    ) -> Union[
+        Tuple[np.ndarray, np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, np.ndarray, torch.Tensor, torch.Tensor]
+    ]:
         # normalize
         recon_min, recon_max = get_vis_min_max(
             recon_min=recon_min,
@@ -225,7 +241,9 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
 
         # get random sample of z_means and z_logvars for computing the range of values for the latent_cycle
         with TempNumpySeed(seed):
-            batch, indices = dataset.dataset_sample_batch(num_stats_samples, mode='input', replace=True, return_indices=True)  # replace just in case the dataset it tiny
+            batch, indices = dataset.dataset_sample_batch(
+                num_stats_samples, mode="input", replace=True, return_indices=True
+            )  # replace just in case the dataset it tiny
             batch = batch.to(vae.device)
 
         # get representations
@@ -238,28 +256,43 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
             zs_mean = vae.encode(batch)
             zs_logvar = torch.ones_like(zs_mean)
         else:
-            log.warning(f'cannot run {cls.__name__}, unsupported type: {type(vae)}, must be {Ae.__name__} or {Vae.__name__}')
+            log.warning(
+                f"cannot run {cls.__name__}, unsupported type: {type(vae)}, must be {Ae.__name__} or {Vae.__name__}"
+            )
             return
 
         # get min and max if auto
         if (recon_min is None) or (recon_max is None):
-            if recon_min is None: recon_min = float(torch.amin(batch).cpu())
-            if recon_max is None: recon_max = float(torch.amax(batch).cpu())
-            log.info(f'auto visualisation min: {recon_min} and max: {recon_max} obtained from {len(batch)} samples')
+            if recon_min is None:
+                recon_min = float(torch.amin(batch).cpu())
+            if recon_max is None:
+                recon_max = float(torch.amax(batch).cpu())
+            log.info(f"auto visualisation min: {recon_min} and max: {recon_max} obtained from {len(batch)} samples")
 
         # produce latent cycle still images & convert them to images
-        stills = make_decoded_latent_cycles(vae.decode, zs_mean, zs_logvar, mode=mode, num_animations=1, num_frames=num_frames, decoder_device=vae.device)[0]
-        stills = torch_to_images(stills, in_dims='CHW', out_dims='HWC', in_min=recon_min, in_max=recon_max, always_rgb=True, to_numpy=True)
+        stills = make_decoded_latent_cycles(
+            vae.decode,
+            zs_mean,
+            zs_logvar,
+            mode=mode,
+            num_animations=1,
+            num_frames=num_frames,
+            decoder_device=vae.device,
+        )[0]
+        stills = torch_to_images(
+            stills, in_dims="CHW", out_dims="HWC", in_min=recon_min, in_max=recon_max, always_rgb=True, to_numpy=True
+        )
 
         # generate the video frames and image grid from the stills
         # - TODO: this needs to be fixed to not use logvar, but rather the representations or distributions themselves
         # - TODO: should this not use `visualize_dataset_traversal`?
         frames = make_animated_image_grid(stills, pad=4, border=True, bg_color=None)
-        image = make_image_grid(stills.reshape(-1, *stills.shape[2:]), num_cols=stills.shape[1], pad=4, border=True, bg_color=None)
+        image = make_image_grid(
+            stills.reshape(-1, *stills.shape[2:]), num_cols=stills.shape[1], pad=4, border=True, bg_color=None
+        )
 
         # done
         return stills, frames, image
-
 
 
 # TODO: FIX THIS ERROR:

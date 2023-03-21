@@ -32,7 +32,6 @@ from torch.distributions import Normal
 
 from disent.frameworks.vae._unsupervised__vae import Vae
 
-
 # ========================================================================= #
 # InfoVae                                                                   #
 # ========================================================================= #
@@ -57,17 +56,17 @@ class InfoVae(Vae):
     class cfg(Vae.cfg):
         info_alpha: float = -0.5
         info_lambda: float = 5.0
-        info_kernel: str = 'rbf'
+        info_kernel: str = "rbf"
         # what is this? I don't think this should be configurable
-        z_var: float = 2.
+        z_var: float = 2.0
         # this is optional
         maintain_reg_ratio: bool = True
 
-    def __init__(self, model: 'AutoEncoder', cfg: cfg = None, batch_augment=None):
+    def __init__(self, model: "AutoEncoder", cfg: cfg = None, batch_augment=None):
         super().__init__(model=model, cfg=cfg, batch_augment=batch_augment)
         # checks
-        assert self.cfg.info_alpha <= 0, f'cfg.info_alpha must be <= zero, current value is: {self.cfg.info_alpha}'
-        assert self.cfg.loss_reduction == 'mean', 'InfoVAE only supports cfg.loss_reduction == "mean"'
+        assert self.cfg.info_alpha <= 0, f"cfg.info_alpha must be <= zero, current value is: {self.cfg.info_alpha}"
+        assert self.cfg.loss_reduction == "mean", 'InfoVAE only supports cfg.loss_reduction == "mean"'
 
     # --------------------------------------------------------------------- #
     # Overrides                                                             #
@@ -104,10 +103,10 @@ class InfoVae(Vae):
 
         # return logs
         return combined_loss, {
-            'kl_loss': kl_loss,
-            'kl_reg_loss': kl_reg_loss,
-            'mmd_loss': mmd_loss,
-            'mmd_reg_loss': mmd_reg_loss,
+            "kl_loss": kl_loss,
+            "kl_reg_loss": kl_reg_loss,
+            "mmd_loss": mmd_loss,
+            "mmd_reg_loss": mmd_reg_loss,
         }
 
     def _compute_mmd(self, z_posterior_samples: Tensor, z_prior_samples: Tensor) -> Tensor:
@@ -120,10 +119,14 @@ class InfoVae(Vae):
         assert z_posterior_samples.shape == z_prior_samples.shape
         # compute kernels: (B, Z) -> (,)
         mean_pz_pz = self._compute_unbiased_mean(self._compute_kernel(z_prior_samples, z_prior_samples), unbaised=True)
-        mean_pz_qz = self._compute_unbiased_mean(self._compute_kernel(z_prior_samples, z_posterior_samples), unbaised=False)
-        mean_qz_qz = self._compute_unbiased_mean(self._compute_kernel(z_posterior_samples, z_posterior_samples), unbaised=True)
+        mean_pz_qz = self._compute_unbiased_mean(
+            self._compute_kernel(z_prior_samples, z_posterior_samples), unbaised=False
+        )
+        mean_qz_qz = self._compute_unbiased_mean(
+            self._compute_kernel(z_posterior_samples, z_posterior_samples), unbaised=True
+        )
         # maximum-mean discrepancy
-        mmd = mean_pz_pz - 2*mean_pz_qz + mean_qz_qz
+        mmd = mean_pz_pz - 2 * mean_pz_qz + mean_qz_qz
         return mmd
 
     def _compute_unbiased_mean(self, kernel: Tensor, unbaised: bool) -> Tensor:
@@ -140,7 +143,7 @@ class InfoVae(Vae):
             # diagonal stacks values along last dimension ie. (B, B, Z) -> (Z, B) or (B, B) -> (B,)
             sum_kernel = kernel.sum(dim=(0, 1)) - torch.diagonal(kernel, dim1=0, dim2=1).sum(dim=-1)  # (B, B,) -> (,)
             # compute unbiased mean
-            mean_kernel = sum_kernel / (N*(N-1))
+            mean_kernel = sum_kernel / (N * (N - 1))
         else:
             mean_kernel = kernel.mean(dim=(0, 1))  # (B, B,) -> (,)
         # check size again
@@ -158,15 +161,15 @@ class InfoVae(Vae):
         z1 = z1.unsqueeze(-3)  # convert to row tensor     # [B, Z] -> [1, B, Z]
         # in our case this is not required, however it is useful
         # if z0 and z1 have different sizes along the 0th dimension.
-        z0 = z0.expand(batch_size, batch_size, z_size)     # [B, 1, Z] -> [B, B, Z]
-        z1 = z1.expand(batch_size, batch_size, z_size)     # [1, B, Z] -> [B, B, Z]
+        z0 = z0.expand(batch_size, batch_size, z_size)  # [B, 1, Z] -> [B, B, Z]
+        z1 = z1.expand(batch_size, batch_size, z_size)  # [1, B, Z] -> [B, B, Z]
         # compute correct kernel
-        if self.cfg.info_kernel == 'rbf':
+        if self.cfg.info_kernel == "rbf":
             kernel = self._kernel_rbf(z0, z1)
         # elif self.cfg.info_kernel == 'imq':
         #     kernel = self._kernel_imq(z0, z1)
         else:  # pragma: no cover
-            raise KeyError(f'invalid cfg.info_kernel: {self.cfg.info_kernel}')
+            raise KeyError(f"invalid cfg.info_kernel: {self.cfg.info_kernel}")
         # check result size
         assert kernel.shape == (batch_size, batch_size)
         return kernel

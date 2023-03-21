@@ -33,7 +33,6 @@ from disent.util.iters import aggregate_dict
 from disent.util.iters import collect_dicts
 from disent.util.iters import map_all
 
-
 # ========================================================================= #
 # AVE LOSS HELPER                                                           #
 # ========================================================================= #
@@ -73,4 +72,3 @@ def compute_ave_loss_and_logs(loss_and_logs_fn, *arg_list, **common_kwargs) -> T
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-

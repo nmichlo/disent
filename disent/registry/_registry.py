@@ -45,22 +45,20 @@ from disent.util.imports import _check_and_split_path
 from disent.util.imports import import_obj
 from disent.util.imports import import_obj_partial
 
-
 # ========================================================================= #
 # Type Hints                                                                #
 # ========================================================================= #
 
 
-K = TypeVar('K')
-V = TypeVar('V')
-T = TypeVar('T')
+K = TypeVar("K")
+V = TypeVar("V")
+T = TypeVar("T")
 AliasesHint = Union[str, Tuple[str, ...]]
 
 
 class _FactoryFn(Protocol[V]):
-    def __call__(self, *args) -> V: ...
-
-
+    def __call__(self, *args) -> V:
+        ...
 
 
 # ========================================================================= #
@@ -78,7 +76,7 @@ class ProvidedValue(Generic[V], ABC):
         raise NotImplementedError
 
     def __repr__(self):
-        return f'{self.__class__.__name__}()'
+        return f"{self.__class__.__name__}()"
 
 
 class StaticValue(ProvidedValue[V]):
@@ -94,7 +92,7 @@ class StaticValue(ProvidedValue[V]):
         return self._value
 
     def __repr__(self):
-        return f'{self.__class__.__name__}({repr(self._value)})'
+        return f"{self.__class__.__name__}({repr(self._value)})"
 
 
 class StaticImport(StaticValue[V]):
@@ -126,7 +124,7 @@ class LazyValue(ProvidedValue[V]):
         self._value = None
 
     def __repr__(self):
-        return f'{self.__class__.__name__}({repr(self._generate_fn)})'
+        return f"{self.__class__.__name__}({repr(self._generate_fn)})"
 
 
 class LazyImport(LazyValue[V]):
@@ -141,6 +139,7 @@ class LazyImport(LazyValue[V]):
         # function imports the object when called
         def generate_fn():
             return import_obj_partial(import_path, *partial_args, **partial_kwargs)
+
         # initialise the lazy value
         super().__init__(generate_fn=generate_fn)
 
@@ -186,7 +185,9 @@ class DictProviders(MutableMapping[K, V]):
 
     def _setitem(self, k: K, v: ProvidedValue[V]) -> NoReturn:
         if not isinstance(v, ProvidedValue):
-            raise TypeError(f'Values stored in {self.__class__.__name__} must be instances of: {ProvidedValue.__name__}, got: {repr(v)}')
+            raise TypeError(
+                f"Values stored in {self.__class__.__name__} must be instances of: {ProvidedValue.__name__}, got: {repr(v)}"
+            )
         self._providers[k] = v
 
 
@@ -196,10 +197,9 @@ class DictProviders(MutableMapping[K, V]):
 
 
 class Registry(DictProviders[str, V]):
-
     def __init__(self, name: str):
         if not str.isidentifier(name):
-            raise ValueError(f'Registry names must be valid identifiers, got: {repr(name)}')
+            raise ValueError(f"Registry names must be valid identifiers, got: {repr(name)}")
         # initialise
         self._name = name
         super().__init__()
@@ -217,7 +217,7 @@ class Registry(DictProviders[str, V]):
         return self._name
 
     def __repr__(self):
-        return f'{self.__class__.__name__}({self._name})'
+        return f"{self.__class__.__name__}({self._name})"
 
     # --- CORE --- #
 
@@ -230,7 +230,9 @@ class Registry(DictProviders[str, V]):
         return value
 
     def __delitem__(self, k: str) -> None:
-        raise RuntimeError(f'Registry: {repr(self.name)} does not support item deletion. Tried to remove key: {repr(k)}')
+        raise RuntimeError(
+            f"Registry: {repr(self.name)} does not support item deletion. Tried to remove key: {repr(k)}"
+        )
 
     # --- HELPER --- #
 
@@ -239,9 +241,11 @@ class Registry(DictProviders[str, V]):
         # check all the aliases
         for k in aliases:
             if not str.isidentifier(k):
-                raise ValueError(f'Keys stored in registry: {repr(self.name)} must be valid identifiers, got: {repr(k)}')
+                raise ValueError(
+                    f"Keys stored in registry: {repr(self.name)} must be valid identifiers, got: {repr(k)}"
+                )
             if k in self:
-                raise RuntimeError(f'Tried to overwrite existing key: {repr(k)} in registry: {repr(self.name)}')
+                raise RuntimeError(f"Tried to overwrite existing key: {repr(k)} in registry: {repr(self.name)}")
             self._check_key(k)
         # check the value
         v = self._check_and_normalise_value(v)
@@ -253,10 +257,14 @@ class Registry(DictProviders[str, V]):
         if isinstance(aliases, str):
             aliases = (aliases,)
         if not isinstance(aliases, tuple):
-            raise TypeError(f'Multiple aliases must be provided to registry: {repr(self.name)} as a Tuple[str], got: {repr(aliases)}')
+            raise TypeError(
+                f"Multiple aliases must be provided to registry: {repr(self.name)} as a Tuple[str], got: {repr(aliases)}"
+            )
         if check_nonempty:
             if len(aliases) < 1:
-                raise ValueError(f'At least one alias must be provided to registry: {repr(self.name)}, got: {repr(aliases)}')
+                raise ValueError(
+                    f"At least one alias must be provided to registry: {repr(self.name)}, got: {repr(aliases)}"
+                )
         return aliases
 
     # --- OVERRIDABLE --- #
@@ -281,7 +289,7 @@ class Registry(DictProviders[str, V]):
             self._setitems(missing, value)
 
     @property
-    def setm(self) -> '_RegistrySetMissing':
+    def setm(self) -> "_RegistrySetMissing":
         # instead of checking values manually, at the cost of some efficiency,
         # this allows us to register values multiple times with hardly modified notation!
         # -- only modifies unset values
@@ -290,7 +298,7 @@ class Registry(DictProviders[str, V]):
         return self._RegistrySetMissing(self)
 
     class _RegistrySetMissing(object):
-        def __init__(self, registry: 'Registry'):
+        def __init__(self, registry: "Registry"):
             self._registry = registry
 
         def __setitem__(self, aliases: str, v: ProvidedValue[V]) -> NoReturn:
@@ -323,9 +331,12 @@ class RegistryImports(Registry[V]):
         - specify defaults for the function with the args and kwargs
         """
         # default values
-        if aliases is None: aliases = ()
-        if partial_args is None: partial_args = ()
-        if partial_kwargs is None: partial_kwargs = {}
+        if aliases is None:
+            aliases = ()
+        if partial_args is None:
+            partial_args = ()
+        if partial_kwargs is None:
+            partial_kwargs = {}
         aliases = self._normalise_aliases(aliases, check_nonempty=False)
 
         # add the function name as an alias if it does not already exist,
@@ -334,6 +345,7 @@ class RegistryImports(Registry[V]):
             keys = self._append_auto_alias(self._get_fn_alias(orig_fn), aliases=aliases, auto_alias=auto_alias)
             self[keys] = StaticImport(orig_fn, *partial_args, **partial_kwargs)
             return orig_fn
+
         return _decorator
 
     def register_import(
@@ -349,7 +361,8 @@ class RegistryImports(Registry[V]):
         - This is the same as: registry[(import_name, *aliases)] = LazyImport(import_path, *partial_args, **partial_kwargs)
         """
         # normalise aliases
-        if aliases is None: aliases = ()
+        if aliases is None:
+            aliases = ()
         aliases = self._normalise_aliases(aliases, check_nonempty=False)
         # add object alias
         (*_, alias) = _check_and_split_path(import_path)
@@ -365,16 +378,20 @@ class RegistryImports(Registry[V]):
                 if alias not in self:
                     aliases = (alias, *aliases)
                 elif not aliases:
-                    raise RuntimeError(f'automatic alias: {repr(alias)} already exists for registry: {repr(self.name)} and no alternative aliases were specified.')
+                    raise RuntimeError(
+                        f"automatic alias: {repr(alias)} already exists for registry: {repr(self.name)} and no alternative aliases were specified."
+                    )
             elif not aliases:
-                raise RuntimeError(f'Cannot add value to registry: {repr(self.name)}, no automatic alias was found!')
+                raise RuntimeError(f"Cannot add value to registry: {repr(self.name)}, no automatic alias was found!")
         elif not aliases:
-            raise RuntimeError(f'Cannot add value to registry: {repr(self.name)}, no manual aliases were specified and automatic aliasing is disabled!')
+            raise RuntimeError(
+                f"Cannot add value to registry: {repr(self.name)}, no manual aliases were specified and automatic aliasing is disabled!"
+            )
         return aliases
 
     @staticmethod
     def _get_fn_alias(fn) -> Optional[str]:
-        if hasattr(fn, '__name__'):
+        if hasattr(fn, "__name__"):
             if str.isidentifier(fn.__name__):
                 return fn.__name__
         return None
@@ -383,7 +400,9 @@ class RegistryImports(Registry[V]):
 
     def _check_and_normalise_value(self, v: ProvidedValue[V]) -> ProvidedValue[V]:
         if not isinstance(v, (LazyImport, StaticImport)):
-            raise TypeError(f'Values stored in registry: {repr(self.name)} must be instances of: {(LazyImport.__name__, StaticImport.__name__)}, got: {repr(v)}')
+            raise TypeError(
+                f"Values stored in registry: {repr(self.name)} must be instances of: {(LazyImport.__name__, StaticImport.__name__)}, got: {repr(v)}"
+            )
         return v
 
     # --- OVERRIDABLE --- #
@@ -405,7 +424,6 @@ class RegistryImports(Registry[V]):
 
 
 class RegexConstructor(object):
-
     def __init__(
         self,
         pattern: Union[str, re.Pattern],
@@ -415,7 +433,9 @@ class RegexConstructor(object):
         self._pattern = self._check_pattern(pattern)
         self._example = self._check_example(example, self._pattern)
         # we can delay loading of the function if it is a string!
-        self._factory_fn = factory_fn if isinstance(factory_fn, str) else self._check_factory_fn(factory_fn, self._pattern)
+        self._factory_fn = (
+            factory_fn if isinstance(factory_fn, str) else self._check_factory_fn(factory_fn, self._pattern)
+        )
 
     @classmethod
     def _check_pattern(cls, pattern: Union[str, re.Pattern]):
@@ -423,31 +443,33 @@ class RegexConstructor(object):
         if isinstance(pattern, str):
             pattern = re.compile(pattern)
         if not isinstance(pattern, re.Pattern):
-            raise TypeError(f'regex pattern must be a regex `str` or `re.Pattern`, got: {repr(pattern)}')
+            raise TypeError(f"regex pattern must be a regex `str` or `re.Pattern`, got: {repr(pattern)}")
         if pattern.groups < 1:
-            raise ValueError(f'regex pattern must contain at least one group, got: {repr(pattern)}')
+            raise ValueError(f"regex pattern must contain at least one group, got: {repr(pattern)}")
         return pattern
 
     @classmethod
     def _check_factory_fn(cls, factory_fn: _FactoryFn[V], pattern: re.Pattern) -> _FactoryFn[V]:
         # we have an actual function, we can check it!
         if not callable(factory_fn):
-            raise TypeError(f'generator function must be callable, got: {factory_fn}')
+            raise TypeError(f"generator function must be callable, got: {factory_fn}")
         signature = inspect.signature(factory_fn)
         if len(signature.parameters) != pattern.groups:
-            raise ValueError(f'signature has incorrect number of parameters: {repr(signature)} compared to the number of groups in the regex pattern: {repr(pattern)}')
+            raise ValueError(
+                f"signature has incorrect number of parameters: {repr(signature)} compared to the number of groups in the regex pattern: {repr(pattern)}"
+            )
         return factory_fn
 
     @classmethod
     def _check_example(cls, example: str, pattern: re.Pattern) -> str:
         # check the example
         if not isinstance(example, str):
-            raise TypeError(f'example must be a `str`, got: {type(example)}')
+            raise TypeError(f"example must be a `str`, got: {type(example)}")
         if not example:
-            raise ValueError(f'example must not be empty, got: {type(example)}')
+            raise ValueError(f"example must not be empty, got: {type(example)}")
         # check that the regex matches the example!
         if pattern.search(example) is None:
-            raise ValueError(f'could not match example: {repr(example)} to regex: {repr(pattern)}')
+            raise ValueError(f"could not match example: {repr(example)} to regex: {repr(pattern)}")
         return example
 
     @property
@@ -462,7 +484,9 @@ class RegexConstructor(object):
         # get the results
         result = self._pattern.search(name)
         if result is None:
-            raise KeyError(f'pattern: {self.pattern} does not match given name: {repr(name)}. The following example would be valid: {repr(self.example)}')
+            raise KeyError(
+                f"pattern: {self.pattern} does not match given name: {repr(name)}. The following example would be valid: {repr(self.example)}"
+            )
         # get the function -- load via the path
         if isinstance(self._factory_fn, str):
             fn = import_obj(self._factory_fn)
@@ -480,7 +504,6 @@ class RegexConstructor(object):
 
 
 class RegexProvidersSearch(object):
-
     def __init__(self):
         self._patterns: Set[re.Pattern] = set()
         self._constructors: List[RegexConstructor] = []
@@ -498,7 +521,9 @@ class RegexProvidersSearch(object):
         if provider is not None:
             return provider.construct(arg_str)
         # no result was found!
-        raise KeyError(f'could not construct an item from the given argument string: {repr(arg_str)}, valid patterns include: {[p.pattern for p in self._constructors]}')
+        raise KeyError(
+            f"could not construct an item from the given argument string: {repr(arg_str)}, valid patterns include: {[p.pattern for p in self._constructors]}"
+        )
 
     def can_construct(self, arg_str: str) -> bool:
         return self.get_constructor(arg_str) is not None
@@ -513,9 +538,9 @@ class RegexProvidersSearch(object):
             return self._cache[arg_str]
         # check the input string
         if not isinstance(arg_str, str):
-            raise TypeError(f'regex factory can only construct from `str`, got: {repr(arg_str)}')
+            raise TypeError(f"regex factory can only construct from `str`, got: {repr(arg_str)}")
         if not arg_str:
-            raise ValueError(f'regex factory can only construct from non-empty `str`, got: {repr(arg_str)}')
+            raise ValueError(f"regex factory can only construct from non-empty `str`, got: {repr(arg_str)}")
         # match the values
         constructor = None
         for c in self:
@@ -541,9 +566,9 @@ class RegexProvidersSearch(object):
 
     def append(self, constructor: RegexConstructor):
         if not isinstance(constructor, RegexConstructor):
-            raise TypeError(f'regex factory only accepts {RegexConstructor.__name__} providers.')
+            raise TypeError(f"regex factory only accepts {RegexConstructor.__name__} providers.")
         if constructor.pattern in self._patterns:
-            raise RuntimeError(f'regex factory already contains the regex pattern: {repr(constructor.pattern)}')
+            raise RuntimeError(f"regex factory already contains the regex pattern: {repr(constructor.pattern)}")
         # append value!
         self._patterns.add(constructor.pattern)
         self._constructors.append(constructor)
@@ -588,18 +613,22 @@ class RegexRegistry(Registry[V]):
         return [*self.static_examples, *self.regex_examples]
 
     def __getitem__(self, k: str) -> V:
-        assert isinstance(k, str), f'invalid key: {repr(k)}, must be a `str`'
+        assert isinstance(k, str), f"invalid key: {repr(k)}, must be a `str`"
         # the regex provider is cached so this should be efficient for the same value calls
         # -- we do not cache the actual provided value!
         if k in self._providers:
             return self._getitem(k)
         elif self._regex_providers.can_construct(k):
             return self._regex_providers.construct(k)
-        raise KeyError(f'dynamic registry: {repr(self.name)} cannot construct item with key: {repr(k)}. Valid static values: {sorted(self._providers.keys())}. Valid dynamic examples: {[p.example for p in self._regex_providers]}')
+        raise KeyError(
+            f"dynamic registry: {repr(self.name)} cannot construct item with key: {repr(k)}. Valid static values: {sorted(self._providers.keys())}. Valid dynamic examples: {[p.example for p in self._regex_providers]}"
+        )
 
     def __setitem__(self, aliases: AliasesHint, v: ProvidedValue[V]) -> NoReturn:
         if isinstance(aliases, re.Pattern) or isinstance(v, RegexConstructor):
-            raise RuntimeError(f'register dynamic values to the dynamic registry: {repr(self.name)} with the `register_regex` or `register_constructor` methods.')
+            raise RuntimeError(
+                f"register dynamic values to the dynamic registry: {repr(self.name)} with the `register_regex` or `register_constructor` methods."
+            )
         super().__setitem__(aliases, v)
 
     def __contains__(self, k: K):
@@ -626,23 +655,29 @@ class RegexRegistry(Registry[V]):
     def has_regex(self, pattern: Union[str, re.Pattern]) -> bool:
         return self._regex_providers.has_pattern(pattern)
 
-    def register_constructor(self, constructor: RegexConstructor) -> 'RegexRegistry':
+    def register_constructor(self, constructor: RegexConstructor) -> "RegexRegistry":
         """
         Register a regex constructor
         """
         if not isinstance(constructor, RegexConstructor):
-            raise TypeError(f'dynamic registry: {repr(self.name)} only accepts dynamic {RegexConstructor.__name__}, got: {repr(constructor)}')
+            raise TypeError(
+                f"dynamic registry: {repr(self.name)} only accepts dynamic {RegexConstructor.__name__}, got: {repr(constructor)}"
+            )
         self._check_regex_constructor(constructor)
         self._regex_providers.append(constructor)
         return self
 
-    def register_regex(self, pattern: Union[str, re.Pattern], example: str, factory_fn: Optional[Union[_FactoryFn[V], str]] = None):
+    def register_regex(
+        self, pattern: Union[str, re.Pattern], example: str, factory_fn: Optional[Union[_FactoryFn[V], str]] = None
+    ):
         """
         Register and create a regex constructor
         """
+
         def _register_wrapper(fn: T) -> T:
             self.register_constructor(RegexConstructor(pattern=pattern, example=example, factory_fn=fn))
             return fn
+
         return _register_wrapper if (factory_fn is None) else _register_wrapper(factory_fn)
 
     def register_missing_constructor(self, constructor: RegexConstructor):
@@ -652,7 +687,9 @@ class RegexRegistry(Registry[V]):
         if not self.has_regex(constructor.pattern):
             return self.register_constructor(constructor)
 
-    def register_missing_regex(self, pattern: Union[str, re.Pattern], example: str, factory_fn: Optional[Union[_FactoryFn[V], str]] = None):
+    def register_missing_regex(
+        self, pattern: Union[str, re.Pattern], example: str, factory_fn: Optional[Union[_FactoryFn[V], str]] = None
+    ):
         """
         Only register and create a regex constructor if the pattern does not already exist!
         """
@@ -665,8 +702,7 @@ class RegexRegistry(Registry[V]):
 
     # override from the parent class!
     class _RegistrySetMissing(Registry._RegistrySetMissing):
-
-        _registry: 'RegexRegistry'
+        _registry: "RegexRegistry"
 
         def register_constructor(self, constructor: RegexConstructor):
             """
@@ -674,11 +710,17 @@ class RegexRegistry(Registry[V]):
             """
             return self._registry.register_missing_constructor(constructor=constructor)
 
-        def register_regex(self, pattern: Union[str, re.Pattern], example: str, factory_fn: Optional[Union[_FactoryFn[V], str]] = None):
+        def register_regex(
+            self, pattern: Union[str, re.Pattern], example: str, factory_fn: Optional[Union[_FactoryFn[V], str]] = None
+        ):
             """
             Only register and create a regex constructor if the pattern does not already exist!
             """
-            return self._registry.register_missing_regex(pattern=pattern, example=example, factory_fn=factory_fn, )
+            return self._registry.register_missing_regex(
+                pattern=pattern,
+                example=example,
+                factory_fn=factory_fn,
+            )
 
 
 # ========================================================================= #

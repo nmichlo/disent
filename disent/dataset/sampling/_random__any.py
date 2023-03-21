@@ -25,8 +25,8 @@
 from typing import Tuple
 
 import numpy as np
-from disent.dataset.sampling._base import BaseDisentSampler
 
+from disent.dataset.sampling._base import BaseDisentSampler
 
 # ========================================================================= #
 # Randomly Paired Dataset                                                   #
@@ -34,8 +34,7 @@ from disent.dataset.sampling._base import BaseDisentSampler
 
 
 class RandomSampler(BaseDisentSampler):
-
-    def uninit_copy(self) -> 'RandomSampler':
+    def uninit_copy(self) -> "RandomSampler":
         return RandomSampler(num_samples=self.num_samples)
 
     def __init__(self, num_samples=1):
@@ -46,7 +45,7 @@ class RandomSampler(BaseDisentSampler):
 
     def _sample_idx(self, idx: int) -> Tuple[int, ...]:
         # sample indices
-        return (idx, *np.random.randint(0, self._len, size=self._num_samples-1))
+        return (idx, *np.random.randint(0, self._len, size=self._num_samples - 1))
 
 
 # ========================================================================= #

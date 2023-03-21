@@ -23,12 +23,11 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import numpy as np
-from torch import nn
 from torch import Tensor
+from torch import nn
 
 from disent.model import DisentDecoder
 from disent.model import DisentEncoder
-
 
 # ========================================================================= #
 # disentanglement_lib FC models                                             #
@@ -58,9 +57,11 @@ class EncoderFC(DisentEncoder):
 
         self.model = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(in_features=int(np.prod(x_shape)), out_features=1200), nn.ReLU(True),
-            nn.Linear(in_features=1200,                  out_features=1200), nn.ReLU(True),
-            nn.Linear(in_features=1200,                  out_features=self.z_total)
+            nn.Linear(in_features=int(np.prod(x_shape)), out_features=1200),
+            nn.ReLU(True),
+            nn.Linear(in_features=1200, out_features=1200),
+            nn.ReLU(True),
+            nn.Linear(in_features=1200, out_features=self.z_total),
         )
 
     def encode(self, x) -> (Tensor, Tensor):
@@ -88,10 +89,13 @@ class DecoderFC(DisentDecoder):
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
         self.model = nn.Sequential(
-            nn.Linear(in_features=self.z_size, out_features=1200), nn.Tanh(),
-            nn.Linear(in_features=1200,        out_features=1200), nn.Tanh(),
-            nn.Linear(in_features=1200,        out_features=1200), nn.Tanh(),
-            nn.Linear(in_features=1200,        out_features=int(np.prod(self.x_shape))),
+            nn.Linear(in_features=self.z_size, out_features=1200),
+            nn.Tanh(),
+            nn.Linear(in_features=1200, out_features=1200),
+            nn.Tanh(),
+            nn.Linear(in_features=1200, out_features=1200),
+            nn.Tanh(),
+            nn.Linear(in_features=1200, out_features=int(np.prod(self.x_shape))),
             nn.Unflatten(dim=1, unflattened_size=self.x_shape),
         )
 

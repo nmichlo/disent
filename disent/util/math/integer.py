@@ -33,8 +33,8 @@ def gcd(a: int, b: int) -> int:
     Compute the greatest common divisor of a and b
     TODO: not actually sure if this returns the correct values for zero or negative inputs?
     """
-    assert isinstance(a, int), f'number must be an int, got: {type(a)}'
-    assert isinstance(b, int), f'number must be an int, got: {type(b)}'
+    assert isinstance(a, int), f"number must be an int, got: {type(a)}"
+    assert isinstance(b, int), f"number must be an int, got: {type(b)}"
     while b > 0:
         a, b = b, a % b
     return a

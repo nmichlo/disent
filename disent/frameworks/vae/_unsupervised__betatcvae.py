@@ -69,8 +69,8 @@ class BetaTcVae(BetaVae):
         combined_loss = kl_reg_loss + tc_reg_loss
         # return logs
         return combined_loss, {
-            **logs_kl_reg,   # kl_loss, kl_reg_loss
-            **logs_tc_reg,   #
+            **logs_kl_reg,  # kl_loss, kl_reg_loss
+            **logs_tc_reg,  #
         }
 
     # --------------------------------------------------------------------- #
@@ -83,10 +83,10 @@ class BetaTcVae(BetaVae):
             z_mean=d_posterior.mean,
             z_logvar=torch.log(d_posterior.variance),
         )
-        tc_reg_loss = (self.cfg.beta - 1.) * tc_loss
+        tc_reg_loss = (self.cfg.beta - 1.0) * tc_loss
         return tc_reg_loss, {
-            'tc_loss': tc_loss,
-            'tc_reg_loss': tc_reg_loss,
+            "tc_loss": tc_loss,
+            "tc_reg_loss": tc_reg_loss,
         }
 
     @staticmethod
@@ -98,7 +98,9 @@ class BetaTcVae(BetaVae):
         # Compute log(q(z(x_j)|x_i)) for every sample in the batch, which is a
         # tensor of size [batch_size, batch_size, num_latents]. In the following
         # comments, [batch_size, batch_size, num_latents] are indexed by [j, i, l].
-        log_qz_prob = BetaTcVae._betatc_compute_gaussian_log_density(z_sampled.unsqueeze(dim=1), z_mean.unsqueeze(dim=0), z_logvar.unsqueeze(dim=0))
+        log_qz_prob = BetaTcVae._betatc_compute_gaussian_log_density(
+            z_sampled.unsqueeze(dim=1), z_mean.unsqueeze(dim=0), z_logvar.unsqueeze(dim=0)
+        )
 
         # Compute log prod_l p(z(x_j)_l) = sum_l(log(sum_i(q(z(z_j)_l|x_i)))
         # + constant) for each sample in the batch, which is a vector of size
@@ -119,6 +121,7 @@ class BetaTcVae(BetaVae):
         """
         # TODO: can this be replaced with some variant of Normal.log_prob?
         import math
+
         pi = torch.tensor(math.pi, requires_grad=False)
         normalization = torch.log(2 * pi)
         inv_sigma = torch.exp(-log_var)

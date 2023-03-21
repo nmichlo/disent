@@ -30,10 +30,9 @@ from typing import NoReturn
 from typing import Optional
 from typing import Union
 
-from disent.util.inout.hashing import normalise_hash
 from disent.util.inout.hashing import hash_file
+from disent.util.inout.hashing import normalise_hash
 from disent.util.inout.hashing import validate_file_hash
-
 
 log = logging.getLogger(__name__)
 
@@ -53,8 +52,8 @@ class stalefile(object):
         self,
         file: str,
         hash: Optional[Union[str, Dict[str, str]]],
-        hash_type: str = 'md5',
-        hash_mode: str = 'fast',
+        hash_type: str = "md5",
+        hash_mode: str = "fast",
     ):
         self.file = file
         self.hash = normalise_hash(hash=hash, hash_mode=hash_mode)
@@ -65,23 +64,28 @@ class stalefile(object):
         @wraps(func)
         def wrapper() -> str:
             if self.is_stale():
-                log.debug(f'calling wrapped function: {func} because the file is stale: {repr(self.file)}')
+                log.debug(f"calling wrapped function: {func} because the file is stale: {repr(self.file)}")
                 func(self.file)
-                validate_file_hash(self.file, hash=self.hash, hash_type=self.hash_type, hash_mode=self.hash_mode, missing_ok=True)
+                validate_file_hash(
+                    self.file, hash=self.hash, hash_type=self.hash_type, hash_mode=self.hash_mode, missing_ok=True
+                )
             else:
-                log.debug(f'skipped wrapped function: {func} because the file is fresh: {repr(self.file)}')
+                log.debug(f"skipped wrapped function: {func} because the file is fresh: {repr(self.file)}")
             return self.file
+
         return wrapper
 
     def is_stale(self):
         fhash = hash_file(file=self.file, hash_type=self.hash_type, hash_mode=self.hash_mode, missing_ok=True)
         if not fhash:
-            log.info(f'file is stale because it does not exist: {repr(self.file)}')
+            log.info(f"file is stale because it does not exist: {repr(self.file)}")
             return True
         if fhash != self.hash:
-            log.warning(f'file is stale because the computed {self.hash_mode} {self.hash_type} hash: {fhash} does not match the target hash: {self.hash} for file: {repr(self.file)}')
+            log.warning(
+                f"file is stale because the computed {self.hash_mode} {self.hash_type} hash: {fhash} does not match the target hash: {self.hash} for file: {repr(self.file)}"
+            )
             return True
-        log.debug(f'file is fresh: {repr(self.file)}')
+        log.debug(f"file is fresh: {repr(self.file)}")
         return False
 
     def __bool__(self):

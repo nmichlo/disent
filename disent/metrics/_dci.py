@@ -27,16 +27,15 @@ Representations" (https://openreview.net/forum?id=By-7dz-AZ).
 """
 
 import logging
+
+import numpy as np
+import scipy
+import scipy.stats
 from tqdm import tqdm
 
 from disent.dataset import DisentDataset
 from disent.metrics import utils
-import numpy as np
-import scipy
-import scipy.stats
-
 from disent.metrics.utils import make_metric
-
 
 log = logging.getLogger(__name__)
 
@@ -46,15 +45,15 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-@make_metric('dci', fast_kwargs=dict(num_train=1000, num_test=500))
+@make_metric("dci", fast_kwargs=dict(num_train=1000, num_test=500))
 def metric_dci(
-        dataset: DisentDataset,
-        representation_function: callable,
-        num_train: int = 10000,
-        num_test: int = 5000,
-        batch_size: int = 16,
-        boost_mode='sklearn',
-        show_progress=False,
+    dataset: DisentDataset,
+    representation_function: callable,
+    num_train: int = 10000,
+    num_test: int = 5000,
+    batch_size: int = 16,
+    boost_mode="sklearn",
+    show_progress=False,
 ):
     """Computes the DCI scores according to Sec 2.
     Args:
@@ -73,10 +72,14 @@ def metric_dci(
     log.debug("Generating training set.")
     # mus_train are of shape [num_codes, num_train], while ys_train are of shape
     # [num_factors, num_train].
-    mus_train, ys_train = utils.generate_batch_factor_code(dataset, representation_function, num_train, batch_size, show_progress=False)
+    mus_train, ys_train = utils.generate_batch_factor_code(
+        dataset, representation_function, num_train, batch_size, show_progress=False
+    )
     assert mus_train.shape[1] == num_train
     assert ys_train.shape[1] == num_train
-    mus_test, ys_test = utils.generate_batch_factor_code(dataset, representation_function, num_test, batch_size, show_progress=False)
+    mus_test, ys_test = utils.generate_batch_factor_code(
+        dataset, representation_function, num_test, batch_size, show_progress=False
+    )
 
     log.debug("Computing DCI metric.")
     scores = _compute_dci(mus_train, ys_train, mus_test, ys_test, boost_mode=boost_mode, show_progress=show_progress)
@@ -84,20 +87,26 @@ def metric_dci(
     return scores
 
 
-def _compute_dci(mus_train, ys_train, mus_test, ys_test, boost_mode='sklearn', show_progress=False):
+def _compute_dci(mus_train, ys_train, mus_test, ys_test, boost_mode="sklearn", show_progress=False):
     """Computes score based on both training and testing codes and factors."""
-    importance_matrix, train_err, test_err = _compute_importance_gbt(mus_train, ys_train, mus_test, ys_test, boost_mode=boost_mode, show_progress=show_progress)
+    importance_matrix, train_err, test_err = _compute_importance_gbt(
+        mus_train, ys_train, mus_test, ys_test, boost_mode=boost_mode, show_progress=show_progress
+    )
     assert importance_matrix.shape[0] == mus_train.shape[0]
     assert importance_matrix.shape[1] == ys_train.shape[0]
     return {
-        "dci.informativeness_train": train_err,                      # "dci.explicitness" -- Measuring Disentanglement: A Review of Metrics
-        "dci.informativeness_test": test_err,                        # "dci.explicitness" -- Measuring Disentanglement: A Review of Metrics
-        "dci.disentanglement": _disentanglement(importance_matrix),  # "dci.modularity"   -- Measuring Disentanglement: A Review of Metrics
-        "dci.completeness": _completeness(importance_matrix),        # "dci.compactness"  -- Measuring Disentanglement: A Review of Metrics
+        "dci.informativeness_train": train_err,  # "dci.explicitness" -- Measuring Disentanglement: A Review of Metrics
+        "dci.informativeness_test": test_err,  # "dci.explicitness" -- Measuring Disentanglement: A Review of Metrics
+        "dci.disentanglement": _disentanglement(
+            importance_matrix
+        ),  # "dci.modularity"   -- Measuring Disentanglement: A Review of Metrics
+        "dci.completeness": _completeness(
+            importance_matrix
+        ),  # "dci.compactness"  -- Measuring Disentanglement: A Review of Metrics
     }
 
 
-def _compute_importance_gbt(x_train, y_train, x_test, y_test, boost_mode='sklearn', show_progress=False):
+def _compute_importance_gbt(x_train, y_train, x_test, y_test, boost_mode="sklearn", show_progress=False):
     """Compute importance based on gradient boosted trees."""
     num_factors = y_train.shape[0]
     num_codes = x_train.shape[0]
@@ -105,17 +114,20 @@ def _compute_importance_gbt(x_train, y_train, x_test, y_test, boost_mode='sklear
     train_loss = []
     test_loss = []
     for i in tqdm(range(num_factors), disable=(not show_progress)):
-        if boost_mode == 'sklearn':
+        if boost_mode == "sklearn":
             from sklearn.ensemble import GradientBoostingClassifier
+
             model = GradientBoostingClassifier()
-        elif boost_mode == 'xgboost':
+        elif boost_mode == "xgboost":
             from xgboost import XGBClassifier
+
             model = XGBClassifier()
-        elif boost_mode == 'lightgbm':
+        elif boost_mode == "lightgbm":
             from lightgbm import LGBMClassifier
+
             model = LGBMClassifier()
         else:
-            raise KeyError(f'Invalid boosting mode: {boost_mode=}')
+            raise KeyError(f"Invalid boosting mode: {boost_mode=}")
 
         model.fit(x_train.T, y_train[i, :])
         importance_matrix[:, i] = np.abs(model.feature_importances_)
@@ -128,13 +140,13 @@ def _compute_importance_gbt(x_train, y_train, x_test, y_test, boost_mode='sklear
 def _disentanglement_per_code(importance_matrix):
     """Compute disentanglement score of each code."""
     # importance_matrix is of shape [num_codes, num_factors].
-    return 1. - scipy.stats.entropy(importance_matrix.T + 1e-11, base=importance_matrix.shape[1])
+    return 1.0 - scipy.stats.entropy(importance_matrix.T + 1e-11, base=importance_matrix.shape[1])
 
 
 def _disentanglement(importance_matrix):
     """Compute the disentanglement score of the representation."""
     per_code = _disentanglement_per_code(importance_matrix)
-    if importance_matrix.sum() == 0.:
+    if importance_matrix.sum() == 0.0:
         importance_matrix = np.ones_like(importance_matrix)
     code_importance = importance_matrix.sum(axis=1) / importance_matrix.sum()
     return np.sum(per_code * code_importance)
@@ -143,13 +155,13 @@ def _disentanglement(importance_matrix):
 def _completeness_per_factor(importance_matrix):
     """Compute completeness of each factor."""
     # importance_matrix is of shape [num_codes, num_factors].
-    return 1. - scipy.stats.entropy(importance_matrix + 1e-11, base=importance_matrix.shape[0])
+    return 1.0 - scipy.stats.entropy(importance_matrix + 1e-11, base=importance_matrix.shape[0])
 
 
 def _completeness(importance_matrix):
-    """"Compute completeness of the representation."""
+    """ "Compute completeness of the representation."""
     per_factor = _completeness_per_factor(importance_matrix)
-    if importance_matrix.sum() == 0.:
+    if importance_matrix.sum() == 0.0:
         importance_matrix = np.ones_like(importance_matrix)
     factor_importance = importance_matrix.sum(axis=0) / importance_matrix.sum()
     return np.sum(per_factor * factor_importance)

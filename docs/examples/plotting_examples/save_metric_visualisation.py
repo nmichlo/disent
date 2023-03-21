@@ -39,7 +39,6 @@ from disent.metrics._factored_components import compute_axis_score
 from disent.metrics._factored_components import compute_linear_score
 from disent.util.seeds import seed
 
-
 # ========================================================================= #
 # distance function                                                         #
 # ========================================================================= #
@@ -64,7 +63,7 @@ def rotation_matrix_2d(deg):
 def _random_rotation_matrix(d):
     mat = torch.eye(d, dtype=torch.float32)
     for i in range(d):
-        for j in range(i+1, d):
+        for j in range(i + 1, d):
             mat @= _rotation_matrix(d, i, j, np.random.randint(0, 360))
     return mat
 
@@ -83,10 +82,10 @@ def make_nd_line_points(n: int = 100, dims: int = 4, std_x: float = 1.0, std_y: 
     xs = torch.randn(n, dims, dtype=torch.float32)
     # axis standard deviations
     if isinstance(std_y, (float, int)):
-        std_y = torch.full((dims-1,), fill_value=std_y, dtype=torch.float32)
+        std_y = torch.full((dims - 1,), fill_value=std_y, dtype=torch.float32)
     else:
         m, M = std_y
-        std_y = torch.rand(dims-1, dtype=torch.float32) * (M - m) + m
+        std_y = torch.rand(dims - 1, dtype=torch.float32) * (M - m) + m
     # scale axes
     std = torch.cat([torch.as_tensor([std_x]), std_y])
     xs = xs * std[None, :]
@@ -118,31 +117,49 @@ def make_line_points(n: int = 100, deg: float = None, dims: int = 2, std_x: floa
 # ========================================================================= #
 
 
-def gaussian_1d(x, s): return 1 / (np.sqrt(2 * np.pi) * s) * torch.exp(-(x**2)/(2*s**2))
-def gaussian_1d_dx(x, s): return gaussian_1d(x, s) * (-x/s**2)
-def gaussian_1d_dx2(x, s): return gaussian_1d(x, s) * ((x**2 - s**2)/s**4)
+def gaussian_1d(x, s):
+    return 1 / (np.sqrt(2 * np.pi) * s) * torch.exp(-(x**2) / (2 * s**2))
 
 
-def gaussian_2d(x, y, sx, sy): return gaussian_1d(x, sx) * gaussian_1d(y, sy)
-def gaussian_2d_dy(x, y, sx, sy): return gaussian_1d(x, sx) * gaussian_1d_dx(y, sy)
-def gaussian_2d_dy2(x, y, sx, sy): return gaussian_1d(x, sx) * gaussian_1d_dx2(y, sy)
+def gaussian_1d_dx(x, s):
+    return gaussian_1d(x, s) * (-x / s**2)
 
 
-def rotated_radius_meshgrid(radius: float, num_points: int, deg: float = 0, device=None, return_orig=False) -> Tuple[torch.Tensor, torch.Tensor]:
+def gaussian_1d_dx2(x, s):
+    return gaussian_1d(x, s) * ((x**2 - s**2) / s**4)
+
+
+def gaussian_2d(x, y, sx, sy):
+    return gaussian_1d(x, sx) * gaussian_1d(y, sy)
+
+
+def gaussian_2d_dy(x, y, sx, sy):
+    return gaussian_1d(x, sx) * gaussian_1d_dx(y, sy)
+
+
+def gaussian_2d_dy2(x, y, sx, sy):
+    return gaussian_1d(x, sx) * gaussian_1d_dx2(y, sy)
+
+
+def rotated_radius_meshgrid(
+    radius: float, num_points: int, deg: float = 0, device=None, return_orig=False
+) -> Tuple[torch.Tensor, torch.Tensor]:
     # x & y values centered around zero
     # p = torch.arange(size, device=device) - (size-1)/2
     p = torch.linspace(-radius, radius, num_points, device=device)
     x, y = torch.meshgrid(p, p)
     # matrix multiplication along first axis | https://pytorch.org/docs/stable/generated/torch.einsum.html
-    rx, ry = torch.einsum('dxy,kd->kxy', torch.stack([x, y]), rotation_matrix_2d(deg))
+    rx, ry = torch.einsum("dxy,kd->kxy", torch.stack([x, y]), rotation_matrix_2d(deg))
     # result
     if return_orig:
         return (rx, ry), (x, y)
     return rx, ry
 
 
-def rotated_guassian2d(std_x: float, std_y: float, deg: float, trunc_sigma: Optional[float] = None, num_points: int = 511):
-    radius = (2.25*max(std_x, std_y)) if (trunc_sigma is None) else trunc_sigma
+def rotated_guassian2d(
+    std_x: float, std_y: float, deg: float, trunc_sigma: Optional[float] = None, num_points: int = 511
+):
+    radius = (2.25 * max(std_x, std_y)) if (trunc_sigma is None) else trunc_sigma
     (xs_r, ys_r), (xs, ys) = rotated_radius_meshgrid(radius=radius, num_points=num_points, deg=deg, return_orig=True)
     zs = gaussian_2d(xs_r, ys_r, sx=std_x, sy=std_y)
     zs /= zs.sum()
@@ -171,7 +188,9 @@ def plot_gaussian(
     ax.set_xlim([-trunc_sigma, trunc_sigma])
     ax.set_ylim([-trunc_sigma, trunc_sigma])
     # plot contour
-    xs, ys, zs = rotated_guassian2d(std_x=std_x, std_y=std_y, deg=deg, trunc_sigma=trunc_sigma, num_points=contour_resolution)
+    xs, ys, zs = rotated_guassian2d(
+        std_x=std_x, std_y=std_y, deg=deg, trunc_sigma=trunc_sigma, num_points=contour_resolution
+    )
     ax.contourf(xs, ys, zs, **({} if contour_kwargs is None else contour_kwargs))
     # plot dots
     if dots_num is not None:
@@ -199,10 +218,10 @@ def score_grid(
 ):
     h, w = len(y_std_ratios), len(deg_rotations)
     # grids
-    axis_scores   = torch.zeros([h, w], dtype=torch.float64)
+    axis_scores = torch.zeros([h, w], dtype=torch.float64)
     linear_scores = torch.zeros([h, w], dtype=torch.float64)
     if return_points:
-        all_points    = torch.zeros([h, w, num_points, num_dims], dtype=torch.float64)
+        all_points = torch.zeros([h, w, num_points, num_dims], dtype=torch.float64)
     # compute scores
     for i, y_std_ratio in enumerate(y_std_ratios):
         for j, deg in enumerate(deg_rotations):
@@ -231,10 +250,21 @@ def ave_score_grid(
     results = []
     # repeat
     for i in tqdm(range(repeats)):
-        results.append(score_grid(deg_rotations=deg_rotations, y_std_ratios=y_std_ratios, x_std=x_std, num_points=num_points, num_dims=num_dims, use_std=use_std, top_2=top_2, norm=norm))
+        results.append(
+            score_grid(
+                deg_rotations=deg_rotations,
+                y_std_ratios=y_std_ratios,
+                x_std=x_std,
+                num_points=num_points,
+                num_dims=num_dims,
+                use_std=use_std,
+                top_2=top_2,
+                norm=norm,
+            )
+        )
     # average results
     all_axis_scores, all_linear_scores = zip(*results)
-    axis_scores   = torch.mean(torch.stack(all_axis_scores,   dim=0), dim=0)
+    axis_scores = torch.mean(torch.stack(all_axis_scores, dim=0), dim=0)
     linear_scores = torch.mean(torch.stack(all_linear_scores, dim=0), dim=0)
     # results
     return axis_scores, linear_scores
@@ -252,18 +282,18 @@ def make_ave_scores_plot(
     top_2: bool = False,
     norm: bool = True,
     # cmap
-    cmap_axis: str = 'GnBu_r',  # 'RdPu_r', 'GnBu_r', 'Blues_r', 'viridis', 'plasma', 'magma'
-    cmap_linear: str = 'RdPu_r',  # 'RdPu_r', 'GnBu_r', 'Blues_r', 'viridis', 'plasma', 'magma'
+    cmap_axis: str = "GnBu_r",  # 'RdPu_r', 'GnBu_r', 'Blues_r', 'viridis', 'plasma', 'magma'
+    cmap_linear: str = "RdPu_r",  # 'RdPu_r', 'GnBu_r', 'Blues_r', 'viridis', 'plasma', 'magma'
     vertical: bool = True,
     # subplot settings
-    subplot_size: float = 4.,
+    subplot_size: float = 4.0,
     subplot_padding: float = 1.5,
 ):
     # make sure to handle the random case
     deg_num = std_num if (ndim is None) else deg_num
     axis_scores, linear_scores = ave_score_grid(
-        deg_rotations=np.linspace(0., 180., num=deg_num) if (ndim is None) else [None],
-        y_std_ratios=np.linspace(0., 1., num=std_num),
+        deg_rotations=np.linspace(0.0, 180.0, num=deg_num) if (ndim is None) else [None],
+        y_std_ratios=np.linspace(0.0, 1.0, num=std_num),
         x_std=x_std,
         num_points=num_points,
         num_dims=2 if (ndim is None) else ndim,
@@ -274,21 +304,21 @@ def make_ave_scores_plot(
     )
     # make plot
     fig, axs = H.plt_subplots(
-        nrows=1+int(vertical),
-        ncols=1+int(not vertical),
-        titles=['Linear', 'Axis'],
-        row_labels=f'$σ_y$ - Standard Deviation',
-        col_labels=f'θ - Rotation Degrees',
-        figsize=(subplot_size + 0.5, subplot_size * 2 * (deg_num / std_num) + 0.75)[::1 if vertical else -1]
+        nrows=1 + int(vertical),
+        ncols=1 + int(not vertical),
+        titles=["Linear", "Axis"],
+        row_labels=f"$σ_y$ - Standard Deviation",
+        col_labels=f"θ - Rotation Degrees",
+        figsize=(subplot_size + 0.5, subplot_size * 2 * (deg_num / std_num) + 0.75)[:: 1 if vertical else -1],
     )
     (ax0, ax1) = axs.flatten()
     # subplots
-    ax0.imshow(linear_scores, cmap=cmap_linear, extent=[0., 180., 1., 0.])
-    ax1.imshow(axis_scores, cmap=cmap_axis, extent=[0., 180., 1., 0.])
+    ax0.imshow(linear_scores, cmap=cmap_linear, extent=[0.0, 180.0, 1.0, 0.0])
+    ax1.imshow(axis_scores, cmap=cmap_axis, extent=[0.0, 180.0, 1.0, 0.0])
     for ax in axs.flatten():
         ax.set_aspect(180 * (std_num / deg_num))
         if len(ax.get_xticks()):
-            ax.set_xticks(np.linspace(0., 180., 5))
+            ax.set_xticks(np.linspace(0.0, 180.0, 5))
     # layout
     fig.tight_layout(pad=subplot_padding)
     # done
@@ -302,14 +332,33 @@ def make_ave_scores_plot(
 
 def plot_scores(ax, axis_score, linear_score):
     from matplotlib.lines import Line2D
+
     assert 0 <= linear_score <= 1
     assert 0 <= axis_score <= 1
-    linear_rgb = cm.get_cmap('RdPu_r')(np.clip(linear_score, 0., 1.))
-    axis_rgb   = cm.get_cmap('GnBu_r')(np.clip(axis_score, 0., 1.))
-    ax.legend(handles=[
-        Line2D([0], [0], label=f'Linear: {float(linear_score):.2f}', color=linear_rgb, marker='o', markersize=10, linestyle='None'),
-        Line2D([0], [0], label=f'Axis: {float(axis_score):.2f}',     color=axis_rgb,   marker='o', markersize=10, linestyle='None'),
-    ])
+    linear_rgb = cm.get_cmap("RdPu_r")(np.clip(linear_score, 0.0, 1.0))
+    axis_rgb = cm.get_cmap("GnBu_r")(np.clip(axis_score, 0.0, 1.0))
+    ax.legend(
+        handles=[
+            Line2D(
+                [0],
+                [0],
+                label=f"Linear: {float(linear_score):.2f}",
+                color=linear_rgb,
+                marker="o",
+                markersize=10,
+                linestyle="None",
+            ),
+            Line2D(
+                [0],
+                [0],
+                label=f"Axis: {float(axis_score):.2f}",
+                color=axis_rgb,
+                marker="o",
+                markersize=10,
+                linestyle="None",
+            ),
+        ]
+    )
     return ax
 
 
@@ -321,7 +370,16 @@ def plot_scores(ax, axis_score, linear_score):
 def make_grid_gaussian_score_plot(
     # grid
     y_stds: Sequence[float] = (0.8, 0.2, 0.05)[::-1],  # (0.8, 0.4, 0.2, 0.1, 0.05),
-    deg_rotations: Sequence[float] = (0, 22.5, 45, 67.5, 90, 112.5, 135, 157.5),  # (0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165),
+    deg_rotations: Sequence[float] = (
+        0,
+        22.5,
+        45,
+        67.5,
+        90,
+        112.5,
+        135,
+        157.5,
+    ),  # (0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165),
     # plot dot options
     dots_num: Optional[int] = None,
     # score options
@@ -337,21 +395,24 @@ def make_grid_gaussian_score_plot(
     subplot_dots_kwargs: Optional[dict] = None,
 ):
     # defaults
-    if subplot_contour_kwargs is None: subplot_contour_kwargs = dict(cmap='Blues')
-    if subplot_dots_kwargs is None: subplot_dots_kwargs = dict(cmap='Purples')
+    if subplot_contour_kwargs is None:
+        subplot_contour_kwargs = dict(cmap="Blues")
+    if subplot_dots_kwargs is None:
+        subplot_dots_kwargs = dict(cmap="Purples")
 
     # make figure
     nrows, ncols = len(y_stds), len(deg_rotations)
     fig, axs = H.plt_subplots(
-        nrows=nrows, ncols=ncols,
-        row_labels=[f'$σ_y$ = {std_y}' for std_y in y_stds],
-        col_labels=[f'θ = {deg}°' for deg in deg_rotations],
-        hide_axis='all',
-        figsize=(ncols*subplot_size, nrows*subplot_size),
+        nrows=nrows,
+        ncols=ncols,
+        row_labels=[f"$σ_y$ = {std_y}" for std_y in y_stds],
+        col_labels=[f"θ = {deg}°" for deg in deg_rotations],
+        hide_axis="all",
+        figsize=(ncols * subplot_size, nrows * subplot_size),
     )
 
     # progress
-    p = tqdm(total=axs.size, desc='generating_plot')
+    p = tqdm(total=axs.size, desc="generating_plot")
     # generate plot
     for (y, std_y), (x, deg) in itertools.product(enumerate(y_stds), enumerate(deg_rotations)):
         # compute scores
@@ -362,7 +423,16 @@ def make_grid_gaussian_score_plot(
             linear_score.append(compute_linear_score(points, use_std=use_std, top_2=top_2, norm=norm))
         axis_score, linear_score = np.mean(axis_score), np.mean(linear_score)
         # generate subplots
-        plot_gaussian(ax=axs[y, x], deg=deg, std_x=1.0, std_y=std_y, dots_num=dots_num, contour_trunc_sigma=2.05, contour_kwargs=subplot_contour_kwargs, dots_kwargs=subplot_dots_kwargs)
+        plot_gaussian(
+            ax=axs[y, x],
+            deg=deg,
+            std_x=1.0,
+            std_y=std_y,
+            dots_num=dots_num,
+            contour_trunc_sigma=2.05,
+            contour_kwargs=subplot_contour_kwargs,
+            dots_kwargs=subplot_dots_kwargs,
+        )
         plot_scores(ax=axs[y, x], axis_score=axis_score, linear_score=linear_score)
         # update progress
         p.update()
@@ -376,9 +446,9 @@ def make_grid_gaussian_score_plot(
 # ========================================================================= #
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # matplotlib style
-    plt.style.use(os.path.join(os.path.dirname(__file__), 'util/gadfly.mplstyle'))
+    plt.style.use(os.path.join(os.path.dirname(__file__), "util/gadfly.mplstyle"))
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
@@ -388,7 +458,7 @@ if __name__ == '__main__':
         repeats=250,
         num_points=25000,
     )
-    plt.savefig(H.make_rel_path_add_ext('plots/metric/metric_grid', ext='.png'))
+    plt.savefig(H.make_rel_path_add_ext("plots/metric/metric_grid", ext=".png"))
     plt.show()
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -401,7 +471,7 @@ if __name__ == '__main__':
         repeats=250,
         num_points=25000,
     )
-    plt.savefig(H.make_rel_path_add_ext('plots/metric/metric_grid_minimal_5x5', ext='.png'))
+    plt.savefig(H.make_rel_path_add_ext("plots/metric/metric_grid_minimal_5x5", ext=".png"))
     plt.show()
 
     # plot everything -- minimal
@@ -412,7 +482,7 @@ if __name__ == '__main__':
         repeats=250,
         num_points=25000,
     )
-    plt.savefig(H.make_rel_path_add_ext('plots/metric/metric_grid_minimal_4x5', ext='.png'))
+    plt.savefig(H.make_rel_path_add_ext("plots/metric/metric_grid_minimal_4x5", ext=".png"))
     plt.show()
 
     # plot everything -- minimal
@@ -423,14 +493,14 @@ if __name__ == '__main__':
         repeats=250,
         num_points=25000,
     )
-    plt.savefig(H.make_rel_path_add_ext('plots/metric/metric_grid_minimal_3x5', ext='.png'))
+    plt.savefig(H.make_rel_path_add_ext("plots/metric/metric_grid_minimal_3x5", ext=".png"))
     plt.show()
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     seed(777)
     make_ave_scores_plot(repeats=250, num_points=10000, top_2=False)
-    plt.savefig(H.make_rel_path_add_ext('plots/metric/metric_scores', ext='.png'))
+    plt.savefig(H.make_rel_path_add_ext("plots/metric/metric_scores", ext=".png"))
     plt.show()
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #

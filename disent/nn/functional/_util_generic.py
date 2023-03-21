@@ -27,7 +27,6 @@ from typing import Union
 import numpy as np
 import torch
 
-
 # ========================================================================= #
 # Generic Helper Functions                                                  #
 # - torch, numpy, scalars                                                   #
@@ -36,8 +35,8 @@ import torch
 
 
 TypeGenericTensor = Union[float, int, torch.Tensor, np.ndarray]
-TypeGenericTorch   = Union[float, int, torch.Tensor]
-TypeGenericNumpy   = Union[float, int, np.ndarray]
+TypeGenericTorch = Union[float, int, torch.Tensor]
+TypeGenericNumpy = Union[float, int, np.ndarray]
 
 
 def generic_as_int32(input: TypeGenericTensor):
@@ -48,7 +47,7 @@ def generic_as_int32(input: TypeGenericTensor):
     elif isinstance(input, np.ndarray):
         return input.astype(np.int32)
     else:
-        raise TypeError(f'invalid type: {type(input)}')
+        raise TypeError(f"invalid type: {type(input)}")
 
 
 def generic_max(input: TypeGenericTensor):
@@ -59,7 +58,7 @@ def generic_max(input: TypeGenericTensor):
     elif isinstance(input, np.ndarray):
         return input.max()
     else:
-        raise TypeError(f'invalid type: {type(input)}')
+        raise TypeError(f"invalid type: {type(input)}")
 
 
 def generic_min(input: TypeGenericTensor):
@@ -70,7 +69,7 @@ def generic_min(input: TypeGenericTensor):
     elif isinstance(input, np.ndarray):
         return input.min()
     else:
-        raise TypeError(f'invalid type: {type(input)}')
+        raise TypeError(f"invalid type: {type(input)}")
 
 
 def generic_shape(input: TypeGenericTensor):
@@ -81,7 +80,7 @@ def generic_shape(input: TypeGenericTensor):
     elif isinstance(input, np.ndarray):
         return input.shape
     else:
-        raise TypeError(f'invalid type: {type(input)}')
+        raise TypeError(f"invalid type: {type(input)}")
 
 
 def generic_ndim(input: TypeGenericTensor):
@@ -92,7 +91,7 @@ def generic_ndim(input: TypeGenericTensor):
     elif isinstance(input, np.ndarray):
         return input.ndim
     else:
-        raise TypeError(f'invalid type: {type(input)}')
+        raise TypeError(f"invalid type: {type(input)}")
 
 
 # ========================================================================= #

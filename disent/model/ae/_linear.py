@@ -23,12 +23,11 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import numpy as np
-from torch import nn
 from torch import Tensor
+from torch import nn
 
 from disent.model import DisentDecoder
 from disent.model import DisentEncoder
-
 
 # ========================================================================= #
 # test models                                                               #
@@ -36,13 +35,11 @@ from disent.model import DisentEncoder
 
 
 class EncoderLinear(DisentEncoder):
-
     def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
         self.model = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(in_features=int(np.prod(self.x_shape)), out_features=self.z_total)
+            nn.Flatten(), nn.Linear(in_features=int(np.prod(self.x_shape)), out_features=self.z_total)
         )
 
     def encode(self, x) -> (Tensor, Tensor):
@@ -50,7 +47,6 @@ class EncoderLinear(DisentEncoder):
 
 
 class DecoderLinear(DisentDecoder):
-
     def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1):
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 

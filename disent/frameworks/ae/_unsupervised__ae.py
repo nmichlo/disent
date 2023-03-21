@@ -26,10 +26,10 @@ from dataclasses import dataclass
 from numbers import Number
 from typing import Any
 from typing import Dict
-from typing import final
 from typing import Sequence
 from typing import Tuple
 from typing import Union
+from typing import final
 
 import torch
 
@@ -37,7 +37,6 @@ from disent.frameworks._ae_mixin import _AeAndVaeMixin
 from disent.frameworks.helper.util import detach_all
 from disent.model import AutoEncoder
 from disent.util.iters import map_all
-
 
 # ========================================================================= #
 # framework_vae                                                             #
@@ -102,25 +101,34 @@ class Ae(_AeAndVaeMixin):
         # compute all the recon losses
         recon_loss, logs_recon = self.compute_ave_recon_loss(xs_partial_recon, xs_targ)
         # [HOOK] augment loss
-        aug_loss, logs_aug = self.hook_ae_compute_ave_aug_loss(zs=zs, xs_partial_recon=xs_partial_recon, xs_targ=xs_targ)
+        aug_loss, logs_aug = self.hook_ae_compute_ave_aug_loss(
+            zs=zs, xs_partial_recon=xs_partial_recon, xs_targ=xs_targ
+        )
         # compute combined loss
         loss = 0
-        if not self.cfg.disable_rec_loss: loss += recon_loss
-        if not self.cfg.disable_aug_loss: loss += aug_loss
+        if not self.cfg.disable_rec_loss:
+            loss += recon_loss
+        if not self.cfg.disable_aug_loss:
+            loss += aug_loss
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
         # log general
-        self.log_dict({
-            **logs_intercept_zs,
-            **logs_recon,
-            **logs_aug,
-        })
+        self.log_dict(
+            {
+                **logs_intercept_zs,
+                **logs_recon,
+                **logs_aug,
+            }
+        )
 
         # log progress bar
-        self.log_dict({
-            'recon_loss': float(recon_loss),
-            'aug_loss': float(aug_loss),
-        }, prog_bar=True)
+        self.log_dict(
+            {
+                "recon_loss": float(recon_loss),
+                "aug_loss": float(aug_loss),
+            },
+            prog_bar=True,
+        )
 
         # return values
         return loss
@@ -132,16 +140,18 @@ class Ae(_AeAndVaeMixin):
     def hook_ae_intercept_zs(self, zs: Sequence[torch.Tensor]) -> Tuple[Sequence[torch.Tensor], Dict[str, Any]]:
         return zs, {}
 
-    def hook_ae_compute_ave_aug_loss(self, zs: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
+    def hook_ae_compute_ave_aug_loss(
+        self, zs: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]
+    ) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
         return 0, {}
 
-    def compute_ave_recon_loss(self, xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
+    def compute_ave_recon_loss(
+        self, xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]
+    ) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
         # compute reconstruction loss
         pixel_loss = self.recon_handler.compute_ave_loss_from_partial(xs_partial_recon, xs_targ)
         # return logs
-        return pixel_loss, {
-            'pixel_loss': pixel_loss
-        }
+        return pixel_loss, {"pixel_loss": pixel_loss}
 
     # --------------------------------------------------------------------- #
     # AE Model Utility Functions (Visualisation)                            #

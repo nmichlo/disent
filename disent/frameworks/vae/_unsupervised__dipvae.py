@@ -32,7 +32,6 @@ from disent.frameworks.helper.util import compute_ave_loss_and_logs
 from disent.frameworks.vae._unsupervised__betavae import BetaVae
 from disent.nn.functional import torch_cov_matrix
 
-
 # ========================================================================= #
 # Dfc Vae                                                                   #
 # ========================================================================= #
@@ -50,18 +49,21 @@ class DipVae(BetaVae):
 
     @dataclass
     class cfg(BetaVae.cfg):
-        dip_mode: str = 'ii'
+        dip_mode: str = "ii"
         dip_beta: float = 1.0
-        lambda_d: float = 10.
-        lambda_od: float = 5.
+        lambda_d: float = 10.0
+        lambda_od: float = 5.0
 
-    def __init__(self, model: 'AutoEncoder', cfg: cfg = None, batch_augment=None):
+    def __init__(self, model: "AutoEncoder", cfg: cfg = None, batch_augment=None):
         super().__init__(model=model, cfg=cfg, batch_augment=batch_augment)
         # checks
-        assert self.cfg.dip_mode in {'i', 'ii'}, f'unsupported dip_mode={repr(self.cfg.dip_mode)} for {self.__class__.__name__}. Must be one of: {{"i", "ii"}}'
-        assert self.cfg.dip_beta >= 0, 'dip_beta must be >= 0'
-        assert self.cfg.lambda_d >= 0, 'lambda_d must be >= 0'
-        assert self.cfg.lambda_od >= 0, 'lambda_od must be >= 0'
+        assert self.cfg.dip_mode in {
+            "i",
+            "ii",
+        }, f'unsupported dip_mode={repr(self.cfg.dip_mode)} for {self.__class__.__name__}. Must be one of: {{"i", "ii"}}'
+        assert self.cfg.dip_beta >= 0, "dip_beta must be >= 0"
+        assert self.cfg.lambda_d >= 0, "lambda_d must be >= 0"
+        assert self.cfg.lambda_od >= 0, "lambda_od must be >= 0"
 
     # --------------------------------------------------------------------- #
     # Overrides                                                             #
@@ -76,7 +78,7 @@ class DipVae(BetaVae):
         combined_loss = kl_reg_loss + dip_reg_loss
         # return logs
         return combined_loss, {
-            **logs_kl_reg,   # kl_loss, kl_reg_loss
+            **logs_kl_reg,  # kl_loss, kl_reg_loss
             **logs_dip_reg,  # dip_loss_d, dip_loss_od, dip_loss, dip_reg_loss,
         }
 
@@ -99,17 +101,17 @@ class DipVae(BetaVae):
         cov_off_diag = cov_matrix - torch.diag(cov_diag)
         # regulariser, encourage covariance to match identity matrix
         # TODO: this is all summed, we should rather calculate the means of each so that the scale stays the same after changing z_size
-        dip_loss_d = torch.sum((cov_diag - 1)**2)  # / num_diag
-        dip_loss_od = torch.sum(cov_off_diag**2)   # / num_off_diag
+        dip_loss_d = torch.sum((cov_diag - 1) ** 2)  # / num_diag
+        dip_loss_od = torch.sum(cov_off_diag**2)  # / num_off_diag
         dip_loss = (self.cfg.lambda_d * dip_loss_d) + (self.cfg.lambda_od * dip_loss_od)
         # scale dip loss - like beta for beta vae
         dip_reg_loss = self.cfg.dip_beta * dip_loss
         # return logs
         return dip_reg_loss, {
-            'dip_loss_d': dip_loss_d,
-            'dip_loss_od': dip_loss_od,
-            'dip_loss': dip_loss,
-            'dip_reg_loss': dip_reg_loss,
+            "dip_loss_d": dip_loss_d,
+            "dip_loss_od": dip_loss_od,
+            "dip_loss": dip_loss,
+            "dip_reg_loss": dip_reg_loss,
         }
 
     def _dip_estimate_cov_matrix(self, d_posterior: Normal):
@@ -124,7 +126,7 @@ class DipVae(BetaVae):
             E_var = torch.mean(torch.diag(z_var), dim=0)
             cov_matrix = cov_z_mean + E_var
         else:  # pragma: no cover
-            raise KeyError(f'Unknown DipVAE mode: {self.cfg.dip_mode}')
+            raise KeyError(f"Unknown DipVAE mode: {self.cfg.dip_mode}")
         # shape: (Z, Z)
         return cov_matrix
 

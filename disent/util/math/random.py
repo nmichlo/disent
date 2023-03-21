@@ -25,7 +25,6 @@
 
 import numpy as np
 
-
 # ========================================================================= #
 # Better Choice                                                             #
 # ========================================================================= #
@@ -62,14 +61,16 @@ def randint2(a_low, a_high, b_low, b_high, size=None):
     a_low, a_high = np.array(a_low), np.array(a_high)
     b_low, b_high = np.array(b_low), np.array(b_high)
     # checks
-    assert np.all(a_low <= a_high), f'a_low <= a_high | {a_low} <= {a_high}'
-    assert np.all(b_low <= b_high), f'b_low <= b_high | {b_low} <= {b_high}'
-    assert np.all(a_high <= b_low), f'a_high <= b_low | {a_high} <= {b_low}'
+    assert np.all(a_low <= a_high), f"a_low <= a_high | {a_low} <= {a_high}"
+    assert np.all(b_low <= b_high), f"b_low <= b_high | {b_low} <= {b_high}"
+    assert np.all(a_high <= b_low), f"a_high <= b_low | {a_high} <= {b_low}"
     # compute
     da = a_high - a_low
     db = b_high - b_low
     d = da + db
-    assert np.all(d > 0), f'(a_high - a_low) + (b_high - b_low) > 0 | {d} = ({a_high} - {a_low}) + ({b_high} - {b_low}) > 0'
+    assert np.all(
+        d > 0
+    ), f"(a_high - a_low) + (b_high - b_low) > 0 | {d} = ({a_high} - {a_low}) + ({b_high} - {b_low}) > 0"
     # sampled
     offset = np.random.randint(0, d, size=size)
     offset += (da <= offset) * (b_low - a_high)

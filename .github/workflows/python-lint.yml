@@ -1,0 +1,24 @@
+# make sure to update the corresponding configs:
+# - `.pre-commit-config.yaml`
+# - `requirements-dev.txt`
+
+name: lint
+
+on: [pull_request]
+
+jobs:
+  black:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: psf/black@23.1.0
+        with:
+          options: "--check --verbose --diff --color --target-version=py38 --line-length=120"
+          src: "."
+  isort:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: isort/isort-action@v1.1.0
+        with:
+          configuration: "--check --verbose --diff --color --py=38 --profile=black --line-length=120 --force-single-line-imports --skip-glob='disent/**__init__.py'"

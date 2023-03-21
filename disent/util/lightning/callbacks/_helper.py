@@ -32,36 +32,41 @@ from disent.dataset import DisentDataset
 from disent.frameworks.ae import Ae
 from disent.frameworks.vae import Vae
 
-
 # ========================================================================= #
 # Helper Functions                                                          #
 # ========================================================================= #
 
 
-def _get_dataset_and_ae_like(trainer_or_dataset: pl.Trainer, pl_module: pl.LightningModule, unwrap_groundtruth: bool = False) -> (DisentDataset, Union[Ae, Vae]):
-    assert isinstance(pl_module, (Ae, Vae)), f'{pl_module.__class__} is not an instance of {Ae} or {Vae}'
+def _get_dataset_and_ae_like(
+    trainer_or_dataset: pl.Trainer, pl_module: pl.LightningModule, unwrap_groundtruth: bool = False
+) -> (DisentDataset, Union[Ae, Vae]):
+    assert isinstance(pl_module, (Ae, Vae)), f"{pl_module.__class__} is not an instance of {Ae} or {Vae}"
     # get dataset
     if isinstance(trainer_or_dataset, pl.Trainer):
         trainer = trainer_or_dataset
-        if hasattr(trainer, 'datamodule') and (trainer.datamodule is not None):
-            assert hasattr(trainer.datamodule, 'dataset_train_noaug')  # TODO: this is for experiments, another way of handling this should be added
+        if hasattr(trainer, "datamodule") and (trainer.datamodule is not None):
+            assert hasattr(
+                trainer.datamodule, "dataset_train_noaug"
+            )  # TODO: this is for experiments, another way of handling this should be added
             dataset = trainer.datamodule.dataset_train_noaug
-        elif hasattr(trainer, 'train_dataloader') and (trainer.train_dataloader is not None):
+        elif hasattr(trainer, "train_dataloader") and (trainer.train_dataloader is not None):
             if isinstance(trainer.train_dataloader, CombinedLoader):
                 dataset = trainer.train_dataloader.loaders.dataset
             else:
-                raise RuntimeError(f'invalid trainer.train_dataloader: {trainer.train_dataloader}')
+                raise RuntimeError(f"invalid trainer.train_dataloader: {trainer.train_dataloader}")
         else:
-            raise RuntimeError('could not retrieve dataset! please report this...')
+            raise RuntimeError("could not retrieve dataset! please report this...")
     else:
         dataset = trainer_or_dataset
     # check dataset
-    assert isinstance(dataset, DisentDataset), f'retrieved dataset is not an {DisentDataset.__name__}'
+    assert isinstance(dataset, DisentDataset), f"retrieved dataset is not an {DisentDataset.__name__}"
     # unwrap dataset
     if unwrap_groundtruth:
         if dataset.is_wrapped_gt_data:
             old_dataset, dataset = dataset, dataset.unwrapped_shallow_copy()
-            warnings.warn(f'Unwrapped ground truth dataset returned! {type(old_dataset.data).__name__} -> {type(dataset.data).__name__}')
+            warnings.warn(
+                f"Unwrapped ground truth dataset returned! {type(old_dataset.data).__name__} -> {type(dataset.data).__name__}"
+            )
     # done checks
     return dataset, pl_module
 

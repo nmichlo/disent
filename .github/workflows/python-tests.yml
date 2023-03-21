@@ -1,17 +1,12 @@
 # This workflow will install Python dependencies,
 # then run tests over a variety of Python versions.
 
-name: test
+name: tests
 
-on:
-  push:
-    branches: [ "main", "dev", "dev*", "feature*", "xdev", "xdev*"]
-    tags: [ '*' ]
-  pull_request:
-    branches: [ "main", "dev", "dev*", "feature*", "xdev", "xdev*"]
+on: [pull_request]
 
 jobs:
-  build:
+  test:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

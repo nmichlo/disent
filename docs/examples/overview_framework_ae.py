@@ -1,13 +1,14 @@
 import pytorch_lightning as pl
 from torch.utils.data import DataLoader
+
 from disent.dataset import DisentDataset
 from disent.dataset.data import XYObjectData
+from disent.dataset.transform import ToImgTensorF32
 from disent.frameworks.ae import Ae
 from disent.model import AutoEncoder
-from disent.model.ae import DecoderConv64, EncoderConv64
-from disent.dataset.transform import ToImgTensorF32
+from disent.model.ae import DecoderConv64
+from disent.model.ae import EncoderConv64
 from disent.util import is_test_run  # you can ignore and remove this
-
 
 # prepare the data
 data = XYObjectData()
@@ -20,7 +21,7 @@ module: pl.LightningModule = Ae(
         encoder=EncoderConv64(x_shape=data.x_shape, z_size=6),
         decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
     ),
-    cfg=Ae.cfg(optimizer='adam', optimizer_kwargs=dict(lr=1e-3), loss_reduction='mean_sum')
+    cfg=Ae.cfg(optimizer="adam", optimizer_kwargs=dict(lr=1e-3), loss_reduction="mean_sum"),
 )
 
 # train the model

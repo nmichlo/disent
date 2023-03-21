@@ -30,22 +30,27 @@ import numpy as np
 
 from disent.dataset.data._groundtruth import GroundTruthData
 
-
 # ========================================================================= #
 # helper                                                                    #
 # ========================================================================= #
 
 
-_R, _G, _B, _Y, _C, _M, _W = np.array([
-    [255, 000, 000], [000, 255, 000], [000, 000, 255],  # R, G, B
-    [255, 255, 000], [000, 255, 255], [255, 000, 255],  # Y, C, M
-    [255, 255, 255],                                    # white
-])
+_R, _G, _B, _Y, _C, _M, _W = np.array(
+    [
+        [255, 000, 000],
+        [000, 255, 000],
+        [000, 000, 255],  # R, G, B
+        [255, 255, 000],
+        [000, 255, 255],
+        [255, 000, 255],  # Y, C, M
+        [255, 255, 255],  # white
+    ]
+)
 
 
 def _shades(num: int, shades):
-    all_shades = np.array([shade * i // num for i in range(1, num+1) for shade in np.array(shades)])
-    assert all_shades.dtype in ('int64', 'int32')
+    all_shades = np.array([shade * i // num for i in range(1, num + 1) for shade in np.array(shades)])
+    assert all_shades.dtype in ("int64", "int32")
     return all_shades
 
 
@@ -67,38 +72,38 @@ class XYObjectData(GroundTruthData):
          We purposely leave this out to hinder disentanglement! It is subjective!
     """
 
-    name = 'xy_object'
+    name = "xy_object"
 
     COLOR_PALETTES_1 = {
-        'greys_1':   _shades(1, [[255]]),
-        'greys_2':   _shades(2, [[255]]),
-        'greys_4':   _shades(4, [[255]]),
+        "greys_1": _shades(1, [[255]]),
+        "greys_2": _shades(2, [[255]]),
+        "greys_4": _shades(4, [[255]]),
         # aliases for greys so that we can just set `rgb=False` and it still works
-        'rainbow_1': _shades(1, [[255]]),
-        'rainbow_2': _shades(2, [[255]]),
-        'rainbow_4': _shades(4, [[255]]),
+        "rainbow_1": _shades(1, [[255]]),
+        "rainbow_2": _shades(2, [[255]]),
+        "rainbow_4": _shades(4, [[255]]),
     }
 
     COLOR_PALETTES_3 = {
         # grey
-        'greys_1': _shades(1, [_W]),
-        'greys_2': _shades(2, [_W]),
-        'greys_4': _shades(4, [_W]),
+        "greys_1": _shades(1, [_W]),
+        "greys_2": _shades(2, [_W]),
+        "greys_4": _shades(4, [_W]),
         # colors -- white here and the incorrect ordering may throw off learning ground truth factors
-        'colors_1': _shades(1, [_R, _G, _B, _Y, _C, _M, _W]),
-        'colors_2': _shades(2, [_R, _G, _B, _Y, _C, _M, _W]),
-        'colors_4': _shades(4, [_R, _G, _B, _Y, _C, _M, _W]),
+        "colors_1": _shades(1, [_R, _G, _B, _Y, _C, _M, _W]),
+        "colors_2": _shades(2, [_R, _G, _B, _Y, _C, _M, _W]),
+        "colors_4": _shades(4, [_R, _G, _B, _Y, _C, _M, _W]),
         # rgb
-        'rgb_1': _shades(1, [_R, _G, _B]),
-        'rgb_2': _shades(2, [_R, _G, _B]),
-        'rgb_4': _shades(4, [_R, _G, _B]),
+        "rgb_1": _shades(1, [_R, _G, _B]),
+        "rgb_2": _shades(2, [_R, _G, _B]),
+        "rgb_4": _shades(4, [_R, _G, _B]),
         # rainbows -- these colors are mostly ordered correctly to align with gt factors
-        'rainbow_1': _shades(1, [_R, _Y, _G, _C, _B, _M]),
-        'rainbow_2': _shades(2, [_R, _Y, _G, _C, _B, _M]),
-        'rainbow_4': _shades(4, [_R, _Y, _G, _C, _B, _M]),
+        "rainbow_1": _shades(1, [_R, _Y, _G, _C, _B, _M]),
+        "rainbow_2": _shades(2, [_R, _Y, _G, _C, _B, _M]),
+        "rainbow_4": _shades(4, [_R, _Y, _G, _C, _B, _M]),
     }
 
-    factor_names = ('x', 'y', 'scale', 'color')
+    factor_names = ("x", "y", "scale", "color")
 
     @property
     def factor_sizes(self) -> Tuple[int, ...]:
@@ -116,17 +121,21 @@ class XYObjectData(GroundTruthData):
         max_square_size: int = 15,
         square_size_spacing: int = 2,
         rgb: bool = True,
-        palette: str = 'rainbow_4',
+        palette: str = "rainbow_4",
         transform=None,
     ):
         # generation
         self._rgb = rgb
         # check the pallete name
-        assert len(str.split(palette, '_')) == 2, f'palette name must follow format: `<palette-name>_<brightness-levels>`, got: {repr(palette)}'
+        assert (
+            len(str.split(palette, "_")) == 2
+        ), f"palette name must follow format: `<palette-name>_<brightness-levels>`, got: {repr(palette)}"
         # get the color palette
-        color_palettes = (XYObjectData.COLOR_PALETTES_3 if rgb else XYObjectData.COLOR_PALETTES_1)
+        color_palettes = XYObjectData.COLOR_PALETTES_3 if rgb else XYObjectData.COLOR_PALETTES_1
         if palette not in color_palettes:
-            raise KeyError(f'color palette: {repr(palette)} does not exist for rgb={repr(rgb)}, select one of: {sorted(color_palettes.keys())}')
+            raise KeyError(
+                f"color palette: {repr(palette)} does not exist for rgb={repr(rgb)}, select one of: {sorted(color_palettes.keys())}"
+            )
         self._colors = color_palettes[palette]
         assert self._colors.ndim == 2
         assert self._colors.shape[-1] == (3 if rgb else 1)
@@ -135,20 +144,20 @@ class XYObjectData(GroundTruthData):
         # square scales
         assert min_square_size <= max_square_size
         self._max_square_size, self._max_square_size = min_square_size, max_square_size
-        self._square_scales = np.arange(min_square_size, max_square_size+1, square_size_spacing)
+        self._square_scales = np.arange(min_square_size, max_square_size + 1, square_size_spacing)
         # x, y
         self._spacing = grid_spacing
         self._placements = (self._width - max_square_size) // grid_spacing + 1
         super().__init__(transform=transform)
-    
+
     def _get_observation(self, idx):
         x, y, s, c = self.idx_to_pos(idx)
         s = self._square_scales[s]
         r = (self._max_square_size - s) // 2
-        x, y = self._spacing*x + r, self._spacing*y + r
+        x, y = self._spacing * x + r, self._spacing * y + r
         # GENERATE
         obs = np.zeros(self.img_shape, dtype=np.uint8)
-        obs[y:y+s, x:x+s] = self._colors[c]
+        obs[y : y + s, x : x + s] = self._colors[c]
         return obs
 
 
@@ -171,7 +180,7 @@ class XYObjectShadedData(XYObjectData):
          then disentanglement performance is improved!
     """
 
-    factor_names = ('x', 'y', 'scale', 'intensity', 'color')
+    factor_names = ("x", "y", "scale", "intensity", "color")
 
     @property
     def factor_sizes(self) -> Tuple[int, ...]:
@@ -189,11 +198,11 @@ class XYObjectShadedData(XYObjectData):
         max_square_size: int = 15,
         square_size_spacing: int = 2,
         rgb: bool = True,
-        palette: str = 'rainbow_4',
+        palette: str = "rainbow_4",
         brightness_levels: Optional[int] = None,
         transform=None,
     ):
-        parts = palette.split('_')
+        parts = palette.split("_")
         if len(parts) > 1:
             # extract num levels from the string
             palette, b_levels = parts
@@ -202,10 +211,14 @@ class XYObjectShadedData(XYObjectData):
             if brightness_levels is None:
                 brightness_levels = b_levels
             else:
-                warnings.warn(f'palette ends with brightness_levels integer: {repr(b_levels)} (ignoring) but actual brightness_levels parameter was already specified: {repr(brightness_levels)} (using)')
+                warnings.warn(
+                    f"palette ends with brightness_levels integer: {repr(b_levels)} (ignoring) but actual brightness_levels parameter was already specified: {repr(brightness_levels)} (using)"
+                )
         # check the brightness_levels
-        assert isinstance(brightness_levels, int), f'brightness_levels must be an integer, got: {type(brightness_levels)}'
-        assert 1 <= brightness_levels, f'brightness_levels must be >= 1, got: {repr(brightness_levels)}'
+        assert isinstance(
+            brightness_levels, int
+        ), f"brightness_levels must be an integer, got: {type(brightness_levels)}"
+        assert 1 <= brightness_levels, f"brightness_levels must be >= 1, got: {repr(brightness_levels)}"
         self._brightness_levels = brightness_levels
         # initialize parent
         super().__init__(
@@ -215,7 +228,7 @@ class XYObjectShadedData(XYObjectData):
             max_square_size=max_square_size,
             square_size_spacing=square_size_spacing,
             rgb=rgb,
-            palette=f'{palette}_1',
+            palette=f"{palette}_1",
             transform=transform,
         )
 
@@ -223,10 +236,10 @@ class XYObjectShadedData(XYObjectData):
         x, y, s, b, c = self.idx_to_pos(idx)
         s = self._square_scales[s]
         r = (self._max_square_size - s) // 2
-        x, y = self._spacing*x + r, self._spacing*y + r
+        x, y = self._spacing * x + r, self._spacing * y + r
         # GENERATE
         obs = np.zeros(self.img_shape, dtype=np.uint8)
-        obs[y:y+s, x:x+s] = self._colors[c] * (b + 1) // self._brightness_levels
+        obs[y : y + s, x : x + s] = self._colors[c] * (b + 1) // self._brightness_levels
         return obs
 
 

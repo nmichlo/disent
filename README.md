@@ -16,8 +16,14 @@
     <a href="https://pypi.org/project/disent" target="_blank">
         <img alt="pypi version" src="https://img.shields.io/pypi/v/disent?style=flat-square&color=blue"/>
     </a>
-    <a href="https://github.com/nmichlo/disent/actions?query=workflow%3Atest">
-        <img alt="tests status" src="https://img.shields.io/github/workflow/status/nmichlo/disent/test?label=tests&style=flat-square"/>
+    <a href="https://github.com/nmichlo/disent/actions?query=workflow%3Atests">
+        <img alt="tests status" src="https://github.com/nmichlo/disent/actions/workflows/python-tests.yml/badge.svg"/>
+    </a>
+    <a href="https://github.com/psf/black" target="_blank">
+        <img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"/>
+    </a>
+    <a href="https://pycqa.github.io/isort" target="_blank">
+        <img alt="Imports: isort" src="https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336"/>
     </a>
 <!--     <a href="https://codecov.io/gh/nmichlo/disent/"> -->
 <!--         <img alt="code coverage" src="https://img.shields.io/codecov/c/gh/nmichlo/disent?token=86IZK3J038&style=flat-square"/> -->
@@ -60,6 +66,7 @@
 - [Examples](#examples)
     * [Python Example](#python-example)
     * [Hydra Config Example](#hydra-config-example)
+- [Development](#development)
 - [Why?](#why)
 
 ----------------------
@@ -446,6 +453,25 @@ yaml files in the config group folders.
 `run_logging: wandb`. However, you will need to login from the command line. W&B logging supports
 visualisations of latent traversals.
 
+
+----------------------
+
+### Development
+
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Imports: isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336)](https://pycqa.github.io/isort/)
+
+Make sure to install `pre-commit` hooks to ensure code is automatically formatted
+correctly when committing or pushing changes to `disent`.
+
+```bash
+# install git hooks
+pip install -r pre-commit
+pre-commit install
+
+# manually trigger all pre-commit hooks
+pre-commit run --all-files
+```
 
 ----------------------
 

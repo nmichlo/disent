@@ -25,7 +25,6 @@
 import numpy as np
 import torch
 
-
 # ========================================================================= #
 # Discrete Cosine Transform                                                 #
 # ========================================================================= #
@@ -57,7 +56,9 @@ def torch_dct(x, dim=-1):
     """
     x, x_shape, n = _flatten_dim_to_end(x, dim=dim)
     if n % 2 != 0:
-        raise ValueError(f'dct does not support odd sized dimension! trying to compute dct over dimension: {dim} of tensor with shape: {x_shape}')
+        raise ValueError(
+            f"dct does not support odd sized dimension! trying to compute dct over dimension: {dim} of tensor with shape: {x_shape}"
+        )
 
     # concatenate even and odd offsets
     v_evn = x[:, 0::2]
@@ -86,7 +87,9 @@ def torch_idct(dct, dim=-1):
     """
     dct, dct_shape, n = _flatten_dim_to_end(dct, dim=dim)
     if n % 2 != 0:
-        raise ValueError(f'idct does not support odd sized dimension! trying to compute idct over dimension: {dim} of tensor with shape: {dct_shape}')
+        raise ValueError(
+            f"idct does not support odd sized dimension! trying to compute idct over dimension: {dim} of tensor with shape: {dct_shape}"
+        )
 
     # compute real & imaginary backward weights
     k = torch.arange(n, dtype=dct.dtype, device=dct.device) * (np.pi / (2 * n))
@@ -95,7 +98,7 @@ def torch_idct(dct, dim=-1):
     wi = torch.sin(k) / 2
 
     dct_real = dct
-    dct_imag = torch.cat([0*dct_real[:, :1], -dct_real[:, 1:].flip([1])], dim=-1)
+    dct_imag = torch.cat([0 * dct_real[:, :1], -dct_real[:, 1:].flip([1])], dim=-1)
 
     fft_r = dct_real * wr - dct_imag * wi
     fft_i = dct_real * wi + dct_imag * wr
@@ -108,8 +111,8 @@ def torch_idct(dct, dim=-1):
 
     # undo even and odd offsets
     x = torch.zeros_like(dct)
-    x[:, 0::2]  = v[:, :(n+1)//2]  # (N+1)//2 == N-(N//2)
-    x[:, 1::2] += v[:, (n+0)//2:].flip([1])
+    x[:, 0::2] = v[:, : (n + 1) // 2]  # (N+1)//2 == N-(N//2)
+    x[:, 1::2] += v[:, (n + 0) // 2 :].flip([1])
 
     # restore shape
     return _unflatten_dim_to_end(x, dim, dct_shape)

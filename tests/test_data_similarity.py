@@ -29,7 +29,6 @@ from disent.dataset.data import XYObjectShadedData
 from disent.dataset.data import XYSquaresData
 from disent.dataset.data import XYSquaresMinimalData
 
-
 # ========================================================================= #
 # TESTS                                                                     #
 # ========================================================================= #
@@ -46,7 +45,7 @@ def test_xysquares_similarity():
         assert np.allclose(data_org[i], data_min[i])
     # check bounds
     assert np.allclose(data_org[0], data_min[0])
-    assert np.allclose(data_org[n-1], data_min[n-1])
+    assert np.allclose(data_org[n - 1], data_min[n - 1])
 
 
 def test_xyobject_similarity():
