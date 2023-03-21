@@ -19,6 +19,12 @@
     <a href="https://github.com/nmichlo/disent/actions?query=workflow%3Atests">
         <img alt="tests status" src="https://github.com/nmichlo/disent/actions/workflows/python-tests.yml/badge.svg"/>
     </a>
+    <a href="https://github.com/psf/black" target="_blank">
+        <img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"/>
+    </a>
+    <a href="https://pycqa.github.io/isort" target="_blank">
+        <img alt="Imports: isort" src="https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336"/>
+    </a>
 <!--     <a href="https://codecov.io/gh/nmichlo/disent/"> -->
 <!--         <img alt="code coverage" src="https://img.shields.io/codecov/c/gh/nmichlo/disent?token=86IZK3J038&style=flat-square"/> -->
 <!--     </a> -->
