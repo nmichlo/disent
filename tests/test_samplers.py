@@ -35,7 +35,7 @@ from disent.dataset.data import XYObjectData
 from disent.dataset.sampling import *
 
 
-class TestEpisodesData(BaseEpisodesData):
+class DummyEpisodesData(BaseEpisodesData):
     def _load_episode_observations(self) -> List[np.ndarray]:
         return [
             np.random.randn(57, 3, 64, 64),
@@ -81,17 +81,17 @@ class TestEpisodesData(BaseEpisodesData):
         [XYObjectData(), 1, "first", RandomSampler(num_samples=1)],
         [XYObjectData(), 2, "first", RandomSampler(num_samples=2)],
         [XYObjectData(), 3, "first", RandomSampler(num_samples=3)],
-        [TestEpisodesData(), 1, "any", RandomEpisodeSampler(num_samples=1)],
-        [TestEpisodesData(), 2, "any", RandomEpisodeSampler(num_samples=2)],
-        [TestEpisodesData(), 3, "any", RandomEpisodeSampler(num_samples=3)],
+        [DummyEpisodesData(), 1, "any", RandomEpisodeSampler(num_samples=1)],
+        [DummyEpisodesData(), 2, "any", RandomEpisodeSampler(num_samples=2)],
+        [DummyEpisodesData(), 3, "any", RandomEpisodeSampler(num_samples=3)],
         [
-            TestEpisodesData(),
+            DummyEpisodesData(),
             3,
             "any",
             RandomEpisodeSampler(num_samples=3, sample_radius=3),
         ],  # sample_radius >= num_samples
-        [TestEpisodesData(), 3, "any", RandomEpisodeSampler(num_samples=3, sample_radius=4)],
-        [TestEpisodesData(), 3, "any", RandomEpisodeSampler(num_samples=3, sample_radius=-1)],
+        [DummyEpisodesData(), 3, "any", RandomEpisodeSampler(num_samples=3, sample_radius=4)],
+        [DummyEpisodesData(), 3, "any", RandomEpisodeSampler(num_samples=3, sample_radius=-1)],
     ],
 )
 def test_samplers(
