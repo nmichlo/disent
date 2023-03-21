@@ -25,7 +25,7 @@
 import warnings
 from typing import Union
 
-import pytorch_lightning as pl
+import lightning as L
 from pytorch_lightning.trainer.supporters import CombinedLoader
 
 from disent.dataset import DisentDataset
@@ -38,11 +38,11 @@ from disent.frameworks.vae import Vae
 
 
 def _get_dataset_and_ae_like(
-    trainer_or_dataset: pl.Trainer, pl_module: pl.LightningModule, unwrap_groundtruth: bool = False
+    trainer_or_dataset: L.Trainer, pl_module: L.LightningModule, unwrap_groundtruth: bool = False
 ) -> (DisentDataset, Union[Ae, Vae]):
     assert isinstance(pl_module, (Ae, Vae)), f"{pl_module.__class__} is not an instance of {Ae} or {Vae}"
     # get dataset
-    if isinstance(trainer_or_dataset, pl.Trainer):
+    if isinstance(trainer_or_dataset, L.Trainer):
         trainer = trainer_or_dataset
         if hasattr(trainer, "datamodule") and (trainer.datamodule is not None):
             assert hasattr(
@@ -82,7 +82,7 @@ def _get_dataset_and_ae_like(
 #         super().__init__(every_n_steps=every_n_steps, begin_first_step=begin_first_step)
 #         self._repeats_per_factor = repeats_per_factor
 #
-#     def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+#     def do_step(self, trainer: L.Trainer, pl_module: L.LightningModule):
 #         # get dataset and vae framework from trainer and module
 #         dataset, vae = _get_dataset_and_vae(trainer, pl_module)
 #         # check if we need to skip

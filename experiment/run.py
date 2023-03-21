@@ -32,7 +32,7 @@ from typing import Optional
 from typing import Union
 
 import hydra
-import pytorch_lightning as pl
+import lightning as L
 import torch
 import torch.utils.data
 import wandb
@@ -334,7 +334,7 @@ def action_train(cfg: DictConfig):
     # trainer default kwargs
     # Setup Trainer
     trainer = set_debug_trainer(
-        pl.Trainer(
+        L.Trainer(
             # cannot override these
             logger=logger,
             gpus=gpus,

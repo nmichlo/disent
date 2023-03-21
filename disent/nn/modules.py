@@ -22,7 +22,7 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-import pytorch_lightning as pl
+import lightning as L
 import torch
 
 # ========================================================================= #
@@ -40,7 +40,7 @@ class DisentModule(torch.nn.Module):
         raise NotImplementedError
 
 
-class DisentLightningModule(pl.LightningModule):
+class DisentLightningModule(L.LightningModule):
     # make sure we don't get complaints about the missing methods!
     # -- we prefer to use LightningDataModule
     train_dataloader = None

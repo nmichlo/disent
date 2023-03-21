@@ -28,8 +28,8 @@ from typing import Optional
 from typing import Tuple
 from typing import Union
 
+import lightning as L
 import numpy as np
-import pytorch_lightning as pl
 import torch
 
 from disent.dataset import DisentDataset
@@ -152,7 +152,7 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
         )
 
     @torch.no_grad()
-    def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+    def do_step(self, trainer: L.Trainer, pl_module: L.LightningModule):
         # exit early
         if not (self._plt_show or self._log_wandb):
             log.warning(f"skipping {self.__class__.__name__} neither `plt_show` or `log_wandb` is `True`!")
@@ -189,8 +189,8 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
 
     def get_visualisations(
         self,
-        trainer_or_dataset: Union[pl.Trainer, DisentDataset],
-        pl_module: pl.LightningModule,
+        trainer_or_dataset: Union[L.Trainer, DisentDataset],
+        pl_module: L.LightningModule,
     ) -> Union[
         Tuple[np.ndarray, np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, np.ndarray, torch.Tensor, torch.Tensor]
     ]:
@@ -210,8 +210,8 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
     @classmethod
     def generate_visualisations(
         cls,
-        trainer_or_dataset: Union[pl.Trainer, DisentDataset],
-        pl_module: pl.LightningModule,
+        trainer_or_dataset: Union[L.Trainer, DisentDataset],
+        pl_module: L.LightningModule,
         seed: Optional[int] = 7777,
         num_frames: int = 17,
         mode: str = "fitted_gaussian_cycle",

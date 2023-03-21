@@ -24,7 +24,7 @@
 
 import logging
 
-import pytorch_lightning as pl
+import lightning as L
 
 from disent.util.lightning.callbacks._callbacks_base import BaseCallbackTimed
 
@@ -32,7 +32,7 @@ log = logging.getLogger(__name__)
 
 
 # ========================================================================= #
-# General Callbacks that work for any pl.LightningModule                    #
+# General Callbacks that work for any L.LightningModule                     #
 # ========================================================================= #
 
 
@@ -41,7 +41,7 @@ class LoggerProgressCallback(BaseCallbackTimed):
         super().__init__(interval=interval)
         self._log_level = log_level
 
-    def do_interval(self, trainer: pl.Trainer, pl_module: pl.LightningModule, current_time, start_time):
+    def do_interval(self, trainer: L.Trainer, pl_module: L.LightningModule, current_time, start_time):
         # get missing vars
         trainer_max_epochs = trainer.max_epochs if (trainer.max_epochs is not None) else float("inf")
         trainer_max_steps = trainer.max_steps if (trainer.max_steps is not None) else float("inf")
@@ -58,7 +58,7 @@ class LoggerProgressCallback(BaseCallbackTimed):
         if hasattr(trainer, "batch_idx"):
             batch = trainer.batch_idx + 1
         else:
-            # warnings.warn('batch_idx missing on pl.Trainer')  # TODO: re-enable this warning but only ever print once!
+            # warnings.warn('batch_idx missing on L.Trainer')  # TODO: re-enable this warning but only ever print once!
             batch = global_step % max_batches  # might not be int?
 
         # completion

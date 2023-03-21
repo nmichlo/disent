@@ -322,7 +322,7 @@ beta schedule and evaluates the trained model with various metrics.
 <p>
 
 ```python3
-import pytorch_lightning as pl
+import lightning as L
 import torch
 from torch.utils.data import DataLoader
 
@@ -373,7 +373,7 @@ module.register_schedule(
 
 # train model
 # - for 2048 batches/steps
-trainer = pl.Trainer(
+trainer = L.Trainer(
     max_steps=2048, gpus=1 if torch.cuda.is_available() else None, logger=False, checkpoint_callback=False
 )
 trainer.fit(module, dataloader)

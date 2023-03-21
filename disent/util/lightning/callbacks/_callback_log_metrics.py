@@ -27,7 +27,7 @@ import warnings
 from typing import Optional
 from typing import Sequence
 
-import pytorch_lightning as pl
+import lightning as L
 
 from disent import registry as R
 from disent.dataset.data import GroundTruthData
@@ -83,9 +83,7 @@ class VaeMetricLoggingCallback(BaseCallbackPeriodic):
             self.step_end_metrics or self.train_end_metrics
         ), "No metrics given to step_end_metrics or train_end_metrics"
 
-    def _compute_metrics_and_log(
-        self, trainer: pl.Trainer, pl_module: pl.LightningModule, metrics: list, is_final=False
-    ):
+    def _compute_metrics_and_log(self, trainer: L.Trainer, pl_module: L.LightningModule, metrics: list, is_final=False):
         # get dataset and vae framework from trainer and module
         dataset, vae = _get_dataset_and_ae_like(trainer, pl_module, unwrap_groundtruth=True)
         # check if we need to skip
@@ -115,14 +113,14 @@ class VaeMetricLoggingCallback(BaseCallbackPeriodic):
             # this is kinda hacky... the above should work for parallel coordinate plots
             wb_log_reduced_summaries(trainer.logger, prefixed_scores, reduction="max")
 
-    def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+    def do_step(self, trainer: L.Trainer, pl_module: L.LightningModule):
         if self.step_end_metrics:
             log.debug("Computing Epoch Metrics:")
             with Timer() as timer:
                 self._compute_metrics_and_log(trainer, pl_module, metrics=self.step_end_metrics, is_final=False)
             log.debug(f"Computed Epoch Metrics! {timer.pretty}")
 
-    def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+    def on_train_end(self, trainer: L.Trainer, pl_module: L.LightningModule):
         if self.train_end_metrics:
             log.debug("Computing Final Metrics...")
             with Timer() as timer:

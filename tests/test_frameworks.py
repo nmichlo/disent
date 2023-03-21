@@ -25,8 +25,8 @@
 import pickle
 from dataclasses import asdict
 
+import lightning as L
 import pytest
-import pytorch_lightning as pl
 import torch
 from pytorch_lightning.callbacks import ModelCheckpoint
 from torch.utils.data import DataLoader
@@ -119,7 +119,7 @@ def test_frameworks(Framework, cfg_kwargs, Data):
     pickle.dumps(framework)
 
     # train!
-    trainer = pl.Trainer(logger=False, checkpoint_callback=False, max_steps=256, fast_dev_run=True)
+    trainer = L.Trainer(logger=False, checkpoint_callback=False, max_steps=256, fast_dev_run=True)
     trainer.fit(framework, dataloader)
 
     # test pickling after training, something may have changed!
@@ -150,7 +150,7 @@ def test_framework_checkpointing(Framework, cfg_kwargs, Data, tmp_path):
     cpk = ModelCheckpoint(dirpath=tmp_path, save_last=True)
 
     # train!
-    trainer = pl.Trainer(
+    trainer = L.Trainer(
         default_root_dir=tmp_path, enable_checkpointing=True, callbacks=[cpk], max_steps=2, fast_dev_run=False
     )
 

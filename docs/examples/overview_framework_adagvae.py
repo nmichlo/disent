@@ -1,4 +1,4 @@
-import pytorch_lightning as pl
+import lightning as L
 from torch.utils.data import DataLoader
 
 from disent.dataset import DisentDataset
@@ -17,7 +17,7 @@ dataset = DisentDataset(data, GroundTruthPairOrigSampler(), transform=ToImgTenso
 dataloader = DataLoader(dataset=dataset, batch_size=4, shuffle=True, num_workers=0)
 
 # create the pytorch lightning system
-module: pl.LightningModule = AdaVae(
+module: L.LightningModule = AdaVae(
     model=AutoEncoder(
         encoder=EncoderConv64(x_shape=data.x_shape, z_size=6, z_multiplier=2),
         decoder=DecoderConv64(x_shape=data.x_shape, z_size=6),
@@ -33,5 +33,5 @@ module: pl.LightningModule = AdaVae(
 )
 
 # train the model
-trainer = pl.Trainer(logger=False, checkpoint_callback=False, fast_dev_run=is_test_run())
+trainer = L.Trainer(logger=False, checkpoint_callback=False, fast_dev_run=is_test_run())
 trainer.fit(module, dataloader)

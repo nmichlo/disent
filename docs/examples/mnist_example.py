@@ -1,6 +1,6 @@
 import os
 
-import pytorch_lightning as pl
+import lightning as L
 from torch.utils.data import DataLoader
 from torchvision import datasets
 from tqdm import tqdm
@@ -50,7 +50,7 @@ module = AdaVae(
 )
 
 # train the model
-trainer = pl.Trainer(
+trainer = L.Trainer(
     logger=False, checkpoint_callback=False, max_steps=2048
 )  # callbacks=[VaeLatentCycleLoggingCallback(every_n_steps=250, plt_show=True)]
 trainer.fit(module, dataloader_train)

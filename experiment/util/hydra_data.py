@@ -29,7 +29,7 @@ from typing import Dict
 from typing import Optional
 
 import hydra
-import pytorch_lightning as pl
+import lightning as L
 import torch.utils.data
 from omegaconf import DictConfig
 
@@ -45,7 +45,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-# class DisentDatasetModule(pl.LightningDataModule):
+# class DisentDatasetModule(L.LightningDataModule):
 #
 #     def prepare_data(self, *args, **kwargs):
 #         raise NotImplementedError
@@ -81,7 +81,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class HydraDataModule(pl.LightningDataModule):
+class HydraDataModule(L.LightningDataModule):
     def __init__(
         self,
         data: Dict[str, Any],  # = dataset.data

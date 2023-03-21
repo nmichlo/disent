@@ -30,10 +30,11 @@ from typing import Sequence
 from typing import Tuple
 from typing import Union
 
+import lightning as L
+
 # TODO: wandb and matplotlib are not in requirements
 import matplotlib.pyplot as plt
 import numpy as np
-import pytorch_lightning as pl
 import torch
 import wandb
 
@@ -296,7 +297,7 @@ class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
         super().__init__(every_n_steps, begin_first_step)
 
     @torch.no_grad()
-    def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+    def do_step(self, trainer: L.Trainer, pl_module: L.LightningModule):
         # exit early
         if not (self._plt_show or self._log_wandb):
             log.warning(f"skipping {self.__class__.__name__} neither `plt_show` or `log_wandb` is `True`!")

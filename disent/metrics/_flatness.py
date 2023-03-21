@@ -305,7 +305,7 @@ def knn(x, y, k: int = None, largest=False, p="fro"):
 
 
 # if __name__ == '__main__':
-#     import pytorch_lightning as pl
+#     import lightning as L
 #     from torch.optim import Adam
 #     from torch.utils.data import DataLoader
 #     from disent.data.groundtruth import XYObjectData, XYSquaresData
@@ -355,14 +355,14 @@ def knn(x, y, k: int = None, largest=False, p="fro"):
 #         # we cannot guarantee which device the representation is on
 #         get_repr = lambda x: module.encode(x.to(module.device))
 #         # PHASE 1, UNTRAINED
-#         pl.Trainer(logger=False, checkpoint_callback=False, fast_dev_run=True, gpus=1, weights_summary=None).fit(module, dataloader)
+#         L.Trainer(logger=False, checkpoint_callback=False, fast_dev_run=True, gpus=1, weights_summary=None).fit(module, dataloader)
 #         module = module.to('cuda')
 #         calculate(data.__class__.__name__, 0, dataset, get_repr)
 #         # PHASE 2, LITTLE TRAINING
-#         pl.Trainer(logger=False, checkpoint_callback=False, max_steps=256, gpus=1, weights_summary=None).fit(module, dataloader)
+#         L.Trainer(logger=False, checkpoint_callback=False, max_steps=256, gpus=1, weights_summary=None).fit(module, dataloader)
 #         calculate(data.__class__.__name__, 256, dataset, get_repr)
 #         # PHASE 3, MORE TRAINING
-#         pl.Trainer(logger=False, checkpoint_callback=False, max_steps=2048, gpus=1, weights_summary=None).fit(module, dataloader)
+#         L.Trainer(logger=False, checkpoint_callback=False, max_steps=2048, gpus=1, weights_summary=None).fit(module, dataloader)
 #         calculate(data.__class__.__name__, 256+2048, dataset, get_repr)
 #         results.append(None)
 #
