@@ -22,9 +22,8 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from typing import final
 from typing import Tuple
-
+from typing import final
 
 # ========================================================================= #
 # Base Sampler                                                              #
@@ -32,8 +31,7 @@ from typing import Tuple
 
 
 class BaseDisentSampler(object):
-
-    def uninit_copy(self) -> 'BaseDisentSampler':
+    def uninit_copy(self) -> "BaseDisentSampler":
         raise NotImplementedError
 
     def __init__(self, num_samples: int):
@@ -46,9 +44,11 @@ class BaseDisentSampler(object):
     __initialized = False
 
     @final
-    def init(self, dataset) -> 'BaseDisentSampler':
+    def init(self, dataset) -> "BaseDisentSampler":
         if self.__initialized:
-            raise RuntimeError(f'Sampler: {repr(self.__class__.__name__)} has already been initialized, are you sure it is not being reused?')
+            raise RuntimeError(
+                f"Sampler: {repr(self.__class__.__name__)} has already been initialized, are you sure it is not being reused?"
+            )
         # initialize
         self.__initialized = True
         self._init(dataset)
@@ -70,12 +70,14 @@ class BaseDisentSampler(object):
     def sample(self, idx: int) -> Tuple[int, ...]:
         # check that we have been initialized!
         if not self.is_init:
-            raise RuntimeError(f'{self.__class__.__name__} has not been initialized! call `sampler.init(gt_data)`')
+            raise RuntimeError(f"{self.__class__.__name__} has not been initialized! call `sampler.init(gt_data)`")
         # sample values
         idxs = self._sample_idx(idx)
         # check values
         if len(idxs) != self.num_samples:
-            raise RuntimeError(f'{self.__class__.__name__} returned incorrect number of samples, required: {self.num_samples}, got: {len(idxs)}')
+            raise RuntimeError(
+                f"{self.__class__.__name__} returned incorrect number of samples, required: {self.num_samples}, got: {len(idxs)}"
+            )
         # return values
         return idxs
 

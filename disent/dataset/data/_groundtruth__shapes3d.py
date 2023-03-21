@@ -24,9 +24,8 @@
 
 import logging
 
-from disent.dataset.util.datafile import DataFileHashedDlH5
 from disent.dataset.data._groundtruth import Hdf5GroundTruthData
-
+from disent.dataset.util.datafile import DataFileHashedDlH5
 
 # ========================================================================= #
 # shapes3d                                                                  #
@@ -45,20 +44,20 @@ class Shapes3dData(Hdf5GroundTruthData):
     """
 
     # TODO: name should be `shapes3d` so that it is a valid python identifier
-    name = '3dshapes'
+    name = "3dshapes"
 
-    factor_names = ('floor_hue', 'wall_hue', 'object_hue', 'scale', 'shape', 'orientation')
+    factor_names = ("floor_hue", "wall_hue", "object_hue", "scale", "shape", "orientation")
     factor_sizes = (10, 10, 10, 8, 4, 15)  # TOTAL: 480000
     img_shape = (64, 64, 3)
 
     datafile = DataFileHashedDlH5(
         # download file/link
-        uri='https://storage.googleapis.com/3d-shapes/3dshapes.h5',
-        uri_hash={'fast': '85b20ed7cc8dc1f939f7031698d2d2ab', 'full': '099a2078d58cec4daad0702c55d06868'},
+        uri="https://storage.googleapis.com/3d-shapes/3dshapes.h5",
+        uri_hash={"fast": "85b20ed7cc8dc1f939f7031698d2d2ab", "full": "099a2078d58cec4daad0702c55d06868"},
         # processed dataset file
-        file_hash={'fast': 'e3a1a449b95293d4b2c25edbfcb8e804', 'full': 'b5187ee0d8b519bb33281c5ca549658c'},
+        file_hash={"fast": "e3a1a449b95293d4b2c25edbfcb8e804", "full": "b5187ee0d8b519bb33281c5ca549658c"},
         # h5 re-save settings
-        hdf5_dataset_name='images',
+        hdf5_dataset_name="images",
         hdf5_chunk_size=(1, 64, 64, 3),
         hdf5_obs_shape=img_shape,
     )
@@ -68,6 +67,6 @@ class Shapes3dData(Hdf5GroundTruthData):
 # END                                                                       #
 # ========================================================================= #
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     Shapes3dData(prepare=True)

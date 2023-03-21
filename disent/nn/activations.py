@@ -23,8 +23,8 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import torch
-from disent.nn.modules import DisentModule
 
+from disent.nn.modules import DisentModule
 
 # ========================================================================= #
 # Swish                                                                     #

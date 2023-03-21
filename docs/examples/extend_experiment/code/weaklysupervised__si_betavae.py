@@ -25,8 +25,8 @@
 from dataclasses import dataclass
 
 import numpy as np
-from disent.frameworks.vae._unsupervised__betavae import BetaVae
 
+from disent.frameworks.vae._unsupervised__betavae import BetaVae
 
 # ========================================================================= #
 # Swapped Target BetaVAE                                                    #
@@ -45,7 +45,7 @@ class SwappedInputBetaVae(BetaVae):
     class cfg(BetaVae.cfg):
         swap_chance: float = 0.1
 
-    def __init__(self, model: 'AutoEncoder', cfg: cfg = None, batch_augment=None):
+    def __init__(self, model: "AutoEncoder", cfg: cfg = None, batch_augment=None):
         super().__init__(model=model, cfg=cfg, batch_augment=batch_augment)
         assert cfg.swap_chance >= 0
 
@@ -56,10 +56,13 @@ class SwappedInputBetaVae(BetaVae):
         if np.random.random() < self.cfg.swap_chance:
             x0, x1 = x1, x0
 
-        return super(SwappedInputBetaVae, self).do_training_step({
-            'x': (x0,),
-            'x_targ': (x0_targ,),
-        }, batch_idx)
+        return super(SwappedInputBetaVae, self).do_training_step(
+            {
+                "x": (x0,),
+                "x_targ": (x0_targ,),
+            },
+            batch_idx,
+        )
 
 
 # ========================================================================= #

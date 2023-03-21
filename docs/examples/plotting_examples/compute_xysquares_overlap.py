@@ -29,7 +29,6 @@ from disent.dataset.data import XYSquaresData
 
 
 class XYSquaresSampler(XYSquaresData):
-
     def sample_1d_boxes(self, size=None):
         size = (2,) if (size is None) else ((size, 2) if isinstance(size, int) else (*size, 2))
         # sample x0, y0
@@ -53,21 +52,32 @@ class XYSquaresSampler(XYSquaresData):
         return np.minimum(l_delta + r_delta, self._square_size * 2)
 
 
-if __name__ == '__main__':
-
-    print('\nDecreasing Spacing & Increasing Size')
+if __name__ == "__main__":
+    print("\nDecreasing Spacing & Increasing Size")
     for ss, gs in [(8, 8), (9, 7), (17, 6), (25, 5), (33, 4), (41, 3), (49, 2), (57, 1)][::-1]:
         d = XYSquaresSampler(square_size=ss, grid_spacing=gs, grid_size=8, no_warnings=True)
-        print('ss={:2d} gs={:1d} overlap={:7.4f} delta={:7.4f}'.format(ss, gs, d.sample_1d_overlap(size=1_000_000).mean(), d.sample_1d_delta(size=1_000_000).mean()))
+        print(
+            "ss={:2d} gs={:1d} overlap={:7.4f} delta={:7.4f}".format(
+                ss, gs, d.sample_1d_overlap(size=1_000_000).mean(), d.sample_1d_delta(size=1_000_000).mean()
+            )
+        )
 
-    print('\nDecreasing Spacing')
+    print("\nDecreasing Spacing")
     for i in range(8):
-        ss, gs = 8, 8-i
+        ss, gs = 8, 8 - i
         d = XYSquaresSampler(square_size=ss, grid_spacing=gs, grid_size=8, no_warnings=True)
-        print('ss={:2d} gs={:1d} overlap={:7.4f} delta={:7.4f}'.format(ss, gs, d.sample_1d_overlap(size=1_000_000).mean(), d.sample_1d_delta(size=1_000_000).mean()))
+        print(
+            "ss={:2d} gs={:1d} overlap={:7.4f} delta={:7.4f}".format(
+                ss, gs, d.sample_1d_overlap(size=1_000_000).mean(), d.sample_1d_delta(size=1_000_000).mean()
+            )
+        )
 
-    print('\nDecreasing Spacing & Keeping Dimension Size Constant')
+    print("\nDecreasing Spacing & Keeping Dimension Size Constant")
     for i in range(8):
-        ss, gs = 8, 8-i
+        ss, gs = 8, 8 - i
         d = XYSquaresSampler(square_size=ss, grid_spacing=gs, grid_size=None, no_warnings=True)
-        print('ss={:2d} gs={:1d} overlap={:7.4f} delta={:7.4f}'.format(ss, gs, d.sample_1d_overlap(size=1_000_000).mean(), d.sample_1d_delta(size=1_000_000).mean()))
+        print(
+            "ss={:2d} gs={:1d} overlap={:7.4f} delta={:7.4f}".format(
+                ss, gs, d.sample_1d_overlap(size=1_000_000).mean(), d.sample_1d_delta(size=1_000_000).mean()
+            )
+        )

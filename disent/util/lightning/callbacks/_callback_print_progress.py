@@ -28,7 +28,6 @@ import pytorch_lightning as pl
 
 from disent.util.lightning.callbacks._callbacks_base import BaseCallbackTimed
 
-
 log = logging.getLogger(__name__)
 
 
@@ -38,15 +37,14 @@ log = logging.getLogger(__name__)
 
 
 class LoggerProgressCallback(BaseCallbackTimed):
-
     def __init__(self, interval: float = 10, log_level: int = logging.INFO):
         super().__init__(interval=interval)
         self._log_level = log_level
 
     def do_interval(self, trainer: pl.Trainer, pl_module: pl.LightningModule, current_time, start_time):
         # get missing vars
-        trainer_max_epochs = trainer.max_epochs if (trainer.max_epochs is not None) else float('inf')
-        trainer_max_steps = trainer.max_steps if (trainer.max_steps is not None) else float('inf')
+        trainer_max_epochs = trainer.max_epochs if (trainer.max_epochs is not None) else float("inf")
+        trainer_max_steps = trainer.max_steps if (trainer.max_steps is not None) else float("inf")
 
         # compute vars
         max_batches = trainer.num_training_batches  # can be inf
@@ -57,8 +55,8 @@ class LoggerProgressCallback(BaseCallbackTimed):
         # get vars
         global_step = trainer.global_step + 1
         epoch = trainer.current_epoch + 1
-        if hasattr(trainer, 'batch_idx'):
-            batch = (trainer.batch_idx + 1)
+        if hasattr(trainer, "batch_idx"):
+            batch = trainer.batch_idx + 1
         else:
             # warnings.warn('batch_idx missing on pl.Trainer')  # TODO: re-enable this warning but only ever print once!
             batch = global_step % max_batches  # might not be int?
@@ -69,27 +67,26 @@ class LoggerProgressCallback(BaseCallbackTimed):
 
         # get speed -- TODO: make this a moving average?
         if global_step >= elapsed_sec:
-            step_speed_str = f'{global_step / elapsed_sec:4.2f}it/s'
+            step_speed_str = f"{global_step / elapsed_sec:4.2f}it/s"
         else:
-            step_speed_str = f'{elapsed_sec / global_step:4.2f}s/it'
+            step_speed_str = f"{elapsed_sec / global_step:4.2f}s/it"
 
         # get the metrics and format them
         info_dict = {
-            k: f'{v:.4g}' if isinstance(v, (int, float)) else f'{v}'
-            for k, v in trainer.progress_bar_metrics.items()
+            k: f"{v:.4g}" if isinstance(v, (int, float)) else f"{v}" for k, v in trainer.progress_bar_metrics.items()
         }
 
         # sort the keys placing loss entries first
-        sorted_k = sorted(info_dict.keys(), key=lambda k: ('loss' != k.lower(), 'loss' not in k.lower(), k))
+        sorted_k = sorted(info_dict.keys(), key=lambda k: ("loss" != k.lower(), "loss" not in k.lower(), k))
 
         # log everything
         log.log(
             level=self._log_level,
-            msg=f'[{int(elapsed_sec)}s, {step_speed_str}] '
-                + f'EPOCH: {epoch}/{max_epochs} - {int(global_step):0{len(str(max_steps))}d}/{max_steps} '
-                + f'({int(train_pct * 100):02d}%) [rem. {int(train_remain_time)}s] '
-                + f'STEP: {int(batch):{len(str(max_batches))}d}/{max_batches} ({int(batch / max_batches * 100):02d}%) '
-                + f'| {" ".join(f"{k}={info_dict[k]}" for k in sorted_k)}'
+            msg=f"[{int(elapsed_sec)}s, {step_speed_str}] "
+            + f"EPOCH: {epoch}/{max_epochs} - {int(global_step):0{len(str(max_steps))}d}/{max_steps} "
+            + f"({int(train_pct * 100):02d}%) [rem. {int(train_remain_time)}s] "
+            + f"STEP: {int(batch):{len(str(max_batches))}d}/{max_batches} ({int(batch / max_batches * 100):02d}%) "
+            + f'| {" ".join(f"{k}={info_dict[k]}" for k in sorted_k)}',
         )
 
 

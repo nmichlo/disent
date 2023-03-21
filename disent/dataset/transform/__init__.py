@@ -28,7 +28,7 @@ from disent.dataset.transform._transforms import Noop
 from disent.dataset.transform._transforms import ToImgTensorF32
 from disent.dataset.transform._transforms import ToImgTensorU8
 from disent.dataset.transform._transforms import ToStandardisedTensor  # deprecated
-from disent.dataset.transform._transforms import ToUint8Tensor         # deprecated
+from disent.dataset.transform._transforms import ToUint8Tensor  # deprecated
 
 # augments
 from disent.dataset.transform._augment import FftGaussianBlur

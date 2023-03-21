@@ -34,6 +34,7 @@ def wrapped_partial(func, *args, **kwargs):
     on the returned function.
     """
     import functools
+
     partial_func = functools.partial(func, *args, **kwargs)
     functools.update_wrapper(partial_func, func)
     return partial_func

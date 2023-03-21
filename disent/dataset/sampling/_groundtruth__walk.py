@@ -34,15 +34,13 @@ from disent.dataset.sampling import BaseDisentSampler
 from disent.dataset.util.state_space import StateSpace
 from disent.util.jit import try_njit
 
-
 # ========================================================================= #
 # Pretend We Are Walking Ground-Truth Factors Randomly                      #
 # ========================================================================= #
 
 
 class GroundTruthRandomWalkSampler(BaseDisentSampler):
-
-    def uninit_copy(self) -> 'GroundTruthRandomWalkSampler':
+    def uninit_copy(self) -> "GroundTruthRandomWalkSampler":
         return GroundTruthRandomWalkSampler(
             num_samples=self._num_samples,
             p_dist_max=self._p_dist_max,
@@ -57,7 +55,7 @@ class GroundTruthRandomWalkSampler(BaseDisentSampler):
     ):
         super().__init__(num_samples=num_samples)
         # checks
-        assert num_samples in {1, 2, 3}, f'num_samples ({repr(num_samples)}) must be 1, 2 or 3'
+        assert num_samples in {1, 2, 3}, f"num_samples ({repr(num_samples)}) must be 1, 2 or 3"
         # save hparams
         self._num_samples = num_samples
         self._p_dist_max = p_dist_max
@@ -66,7 +64,9 @@ class GroundTruthRandomWalkSampler(BaseDisentSampler):
         self._state_space: Optional[StateSpace] = None
 
     def _init(self, dataset: GroundTruthData):
-        assert isinstance(dataset, GroundTruthData), f'dataset must be an instance of {repr(GroundTruthData.__class__.__name__)}, got: {repr(dataset)}'
+        assert isinstance(
+            dataset, GroundTruthData
+        ), f"dataset must be an instance of {repr(GroundTruthData.__class__.__name__)}, got: {repr(dataset)}"
         self._state_space = dataset.state_space_copy()
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -97,7 +97,9 @@ class GroundTruthRandomWalkSampler(BaseDisentSampler):
 
 def _random_walk(idx: int, dist: int, factor_sizes: np.ndarray) -> int:
     # random walk
-    pos = np.array(np.unravel_index(idx, factor_sizes), dtype=int)  # much faster than StateSpace.idx_to_pos, we don't need checks!
+    pos = np.array(
+        np.unravel_index(idx, factor_sizes), dtype=int
+    )  # much faster than StateSpace.idx_to_pos, we don't need checks!
     for _ in range(dist):
         _walk_nearby_inplace(pos, factor_sizes)
     idx = np.ravel_multi_index(pos, factor_sizes)  # much faster than StateSpace.pos_to_idx, we don't need checks!

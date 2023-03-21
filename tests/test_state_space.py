@@ -26,7 +26,6 @@ import numpy as np
 
 from disent.dataset.util.state_space import StateSpace
 
-
 # ========================================================================= #
 # TEST STATE SPACE                                                          #
 # ========================================================================= #
@@ -42,6 +41,7 @@ FACTOR_SIZES = [
     [1],
 ]
 
+
 def test_discrete_state_space_single_values():
     for factor_sizes in FACTOR_SIZES:
         states = StateSpace(factor_sizes=factor_sizes)
@@ -55,13 +55,14 @@ def test_discrete_state_space_single_values():
             assert states.pos_to_idx(factors) == idx
             assert np.all(states.idx_to_pos(idx) == factors)
 
+
 def test_discrete_state_space_one_to_one():
     for factor_sizes in FACTOR_SIZES:
         states = StateSpace(factor_sizes=factor_sizes)
         # check that entire range of values is generated
         k = np.random.randint(1, 5)
         # chances of this failing are extremely low, but it could happen...
-        pos_0 = states.sample_factors([int(100_000 ** (1/k))] * k)
+        pos_0 = states.sample_factors([int(100_000 ** (1 / k))] * k)
         # check random values are in the right ranges
         all_dims = tuple(range(pos_0.ndim))
         assert np.all(np.max(pos_0, axis=all_dims[:-1]) == (states.factor_sizes - 1))
@@ -78,24 +79,44 @@ def test_new_functions():
     # TODO: convert to propper tests
     s = StateSpace([2, 3, 4])
 
-    assert np.max([s.sample_factors(size=2, f_idxs=[0, 2])                   for i in range(1000)], axis=0).tolist() == [[1, 3], [1, 3]]
-    assert np.max([s.sample_factors(size=(2,), f_idxs=[0, 2])                for i in range(1000)], axis=0).tolist() == [[1, 3], [1, 3]]
-    assert np.max([s.sample_factors(size=(2, 3), f_idxs=[0, 2])              for i in range(1000)], axis=0).tolist() == [[[1, 3], [1, 3], [1, 3]], [[1, 3], [1, 3], [1, 3]]]
-    assert np.max([s.sample_missing_factors([[0, 0], [0, 0]], f_idxs=[0, 2]) for i in range(1000)], axis=0).tolist() == [[0, 2, 0], [0, 2, 0]]
+    assert np.max([s.sample_factors(size=2, f_idxs=[0, 2]) for i in range(1000)], axis=0).tolist() == [[1, 3], [1, 3]]
+    assert np.max([s.sample_factors(size=(2,), f_idxs=[0, 2]) for i in range(1000)], axis=0).tolist() == [
+        [1, 3],
+        [1, 3],
+    ]
+    assert np.max([s.sample_factors(size=(2, 3), f_idxs=[0, 2]) for i in range(1000)], axis=0).tolist() == [
+        [[1, 3], [1, 3], [1, 3]],
+        [[1, 3], [1, 3], [1, 3]],
+    ]
+    assert np.max(
+        [s.sample_missing_factors([[0, 0], [0, 0]], f_idxs=[0, 2]) for i in range(1000)], axis=0
+    ).tolist() == [[0, 2, 0], [0, 2, 0]]
 
     states = StateSpace([2, 3, 4, 5])
 
-    assert np.max([states.resample_given_factors([[0, 0, 0, 0], [0, 0, 0, 0]], f_idxs=1)      for i in range(1000)], axis=0).tolist() == [[0, 2, 0, 0], [0, 2, 0, 0]]
-    assert np.max([states.resample_given_factors([[0, 0, 0, 0], [0, 0, 0, 0]], f_idxs=[1, 2]) for i in range(1000)], axis=0).tolist() == [[0, 2, 3, 0], [0, 2, 3, 0]]
-    assert np.max([states.resample_given_factors([0, 0, 0, 0],                 f_idxs=[0, 3]) for i in range(1000)], axis=0).tolist() == [1, 0, 0, 4]
+    assert np.max(
+        [states.resample_given_factors([[0, 0, 0, 0], [0, 0, 0, 0]], f_idxs=1) for i in range(1000)], axis=0
+    ).tolist() == [[0, 2, 0, 0], [0, 2, 0, 0]]
+    assert np.max(
+        [states.resample_given_factors([[0, 0, 0, 0], [0, 0, 0, 0]], f_idxs=[1, 2]) for i in range(1000)], axis=0
+    ).tolist() == [[0, 2, 3, 0], [0, 2, 3, 0]]
+    assert np.max(
+        [states.resample_given_factors([0, 0, 0, 0], f_idxs=[0, 3]) for i in range(1000)], axis=0
+    ).tolist() == [1, 0, 0, 4]
 
-    assert np.max([states.resample_other_factors([[0, 0, 0, 0], [0, 0, 0, 0]], f_idxs=1)      for i in range(1000)], axis=0).tolist() == [[1, 0, 3, 4], [1, 0, 3, 4]]
-    assert np.max([states.resample_other_factors([[0, 0, 0, 0], [0, 0, 0, 0]], f_idxs=[1, 2]) for i in range(1000)], axis=0).tolist() == [[1, 0, 0, 4], [1, 0, 0, 4]]
-    assert np.max([states.resample_other_factors([0, 0, 0, 0],                 f_idxs=[0, 3]) for i in range(1000)], axis=0).tolist() == [0, 2, 3, 0]
+    assert np.max(
+        [states.resample_other_factors([[0, 0, 0, 0], [0, 0, 0, 0]], f_idxs=1) for i in range(1000)], axis=0
+    ).tolist() == [[1, 0, 3, 4], [1, 0, 3, 4]]
+    assert np.max(
+        [states.resample_other_factors([[0, 0, 0, 0], [0, 0, 0, 0]], f_idxs=[1, 2]) for i in range(1000)], axis=0
+    ).tolist() == [[1, 0, 0, 4], [1, 0, 0, 4]]
+    assert np.max(
+        [states.resample_other_factors([0, 0, 0, 0], f_idxs=[0, 3]) for i in range(1000)], axis=0
+    ).tolist() == [0, 2, 3, 0]
 
     # make sure these work
-    states.sample_missing_factors([1],             f_idxs=2)
-    states.sample_missing_factors([1],             f_idxs=2)
+    states.sample_missing_factors([1], f_idxs=2)
+    states.sample_missing_factors([1], f_idxs=2)
     states.sample_missing_factors([[1], [3], [5]], f_idxs=2)
 
     # make sure these work

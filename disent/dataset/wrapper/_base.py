@@ -23,9 +23,10 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
-from torch.utils.data import Dataset
-from disent.dataset.data import GroundTruthData
 
+from torch.utils.data import Dataset
+
+from disent.dataset.data import GroundTruthData
 
 log = logging.getLogger(__name__)
 
@@ -36,7 +37,6 @@ log = logging.getLogger(__name__)
 
 
 class WrappedDataset(Dataset):
-
     def __len__(self):
         raise NotImplementedError
 

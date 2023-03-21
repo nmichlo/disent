@@ -30,7 +30,6 @@ from typing import Tuple
 import numpy as np
 import torch
 
-
 log = logging.getLogger(__name__)
 
 
@@ -57,38 +56,38 @@ def _delta_mine_hard_neg(dist_ap: torch.Tensor, dist_an: torch.Tensor, top_k: in
     # HARD NEGATIVE MINING
     # "most similar images which have a different label from the anchor image"
     # -- triples with smallest d(a, n)
-    hard_idxs = torch.argsort(dist_an, descending=False)[:int(top_k)]
+    hard_idxs = torch.argsort(dist_an, descending=False)[: int(top_k)]
     return hard_idxs
 
 
 def _delta_easy_neg(dist_ap, dist_an, cfg):
     # EASY NEGATIVE MINING
     # "least similar images which have the different label from the anchor image"
-    raise RuntimeError('This triplet mode is not useful! Choose another.')
+    raise RuntimeError("This triplet mode is not useful! Choose another.")
 
 
 def _delta_mine_hard_pos(dist_ap: torch.Tensor, dist_an: torch.Tensor, top_k: int, margin_max: float):
     # HARD POSITIVE MINING -- this performs really well!
     # "least similar images which have the same label to as anchor image"
     # -- shown not to be suitable for all datasets
-    hard_idxs = torch.argsort(dist_ap, descending=True)[:int(top_k)]
+    hard_idxs = torch.argsort(dist_ap, descending=True)[: int(top_k)]
     return hard_idxs
 
 
 def _delta_mine_easy_pos(dist_ap: torch.Tensor, dist_an: torch.Tensor, top_k: int, margin_max: float):
     # EASY POSITIVE MINING
     # "the most similar images that have the same label as the anchor image"
-    easy_idxs = torch.argsort(dist_ap, descending=False)[:int(top_k)]
+    easy_idxs = torch.argsort(dist_ap, descending=False)[: int(top_k)]
     return easy_idxs
 
 
 _TRIPLET_MINE_MODES = {
-    'none':          _delta_mine_none,
-    'semi_hard_neg': _delta_mine_semi_hard_neg,
-    'hard_neg':      _delta_mine_hard_neg,
+    "none": _delta_mine_none,
+    "semi_hard_neg": _delta_mine_semi_hard_neg,
+    "hard_neg": _delta_mine_hard_neg,
     # 'easy_neg':    delta_mine_easy_neg,  # not actually useful
-    'hard_pos':      _delta_mine_hard_pos,
-    'easy_pos':      _delta_mine_easy_pos,
+    "hard_pos": _delta_mine_hard_pos,
+    "easy_pos": _delta_mine_easy_pos,
 }
 
 
@@ -100,28 +99,32 @@ _TRIPLET_MINE_MODES = {
 @torch.no_grad()
 def mine(mode: str, dist_ap: torch.Tensor, dist_an: torch.Tensor, top_k: int, margin_max: float) -> torch.Tensor:
     # check arrays
-    assert (dist_ap.ndim == 1) and (dist_an.ndim == 1), f'dist arrays must only have one dimension: dist_ap: {dist_ap.shape} & dist_an: {dist_an.shape}'
-    assert (dist_ap.shape == dist_an.shape), f'dist array shapes do not match: {dist_ap.shape} & dist_an: {dist_an.shape}'
+    assert (dist_ap.ndim == 1) and (
+        dist_an.ndim == 1
+    ), f"dist arrays must only have one dimension: dist_ap: {dist_ap.shape} & dist_an: {dist_an.shape}"
+    assert dist_ap.shape == dist_an.shape, f"dist array shapes do not match: {dist_ap.shape} & dist_an: {dist_an.shape}"
     # get mining function
     try:
         mine_fn = _TRIPLET_MINE_MODES[mode]
     except KeyError:
-        raise KeyError(f'invalid triplet mining mode: {repr(mode)}, must be one of: {sorted(_TRIPLET_MINE_MODES.keys())}')
+        raise KeyError(
+            f"invalid triplet mining mode: {repr(mode)}, must be one of: {sorted(_TRIPLET_MINE_MODES.keys())}"
+        )
     # mine indices
     idxs = mine_fn(dist_ap=dist_ap, dist_an=dist_an, top_k=top_k, margin_max=margin_max)
     # check and return values
     if len(idxs) > 0:
         return idxs
     else:
-        log.warning('no results using {repr(mode)} mining! using entire batch instead')
+        log.warning("no results using {repr(mode)} mining! using entire batch instead")
         return _delta_mine_none(dist_ap=dist_ap, dist_an=dist_an, top_k=top_k, margin_max=margin_max)
 
 
 def mine_random_mode(mode: str, dist_ap: torch.Tensor, dist_an: torch.Tensor, top_k: int, margin_max: float):
     # randomly choose a mode
     # eg. `ran:hard_pos+easy_pos` randomly chooses between `hard_pos` and `easy_pos`
-    if mode.startswith('ran:'):
-        mode = np.random.choice(mode[len('ran:'):].split('+'))
+    if mode.startswith("ran:"):
+        mode = np.random.choice(mode[len("ran:") :].split("+"))
     # mine like usual
     return mine(mode=mode, dist_ap=dist_ap, dist_an=dist_an, top_k=top_k, margin_max=margin_max)
 
@@ -144,7 +147,7 @@ def configured_mine(dist_ap: torch.Tensor, dist_an: torch.Tensor, cfg: SampledTr
         dist_ap=dist_ap,
         dist_an=dist_an,
         top_k=int(cfg.overlap_num * cfg.overlap_mine_ratio),
-        margin_max=cfg.triplet_margin_max
+        margin_max=cfg.triplet_margin_max,
     )
 
 
@@ -160,7 +163,7 @@ def configured_idx_mine(
     # TODO: SIMPLIFY THIS FUNCTION HIERARCHY, THERE ARE A LOT OF UNNECESSARY CALLS!
     # TODO: this function is quite useless, its easier to just use configured_mine_random_mode
     # skip mining if mode is None!
-    if cfg.overlap_mine_triplet_mode == 'none':
+    if cfg.overlap_mine_triplet_mode == "none":
         return a_idxs, p_idxs, n_idxs
     # compute differences
     # TODO: this is computationally expensive! sometimes the dist_ap and dist_an may not be used depending on the mode!

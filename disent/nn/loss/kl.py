@@ -24,20 +24,6 @@
 
 import torch
 from torch.distributions import Distribution
-from torch.distributions import Distribution
-from torch.distributions import Distribution
-from torch.distributions import Distribution
-from torch.distributions import Distribution
-from torch.distributions import Distribution
-from torch.distributions import Distribution
-from torch.distributions import Distribution
-from torch.distributions import Distribution
-from torch.distributions import Distribution
-from torch.distributions import Distribution
-from torch.distributions import Distribution
-from torch.distributions import Distribution
-from torch.distributions import Distribution
-
 
 # ========================================================================= #
 # Kl Losses                                                                 #
@@ -59,7 +45,9 @@ def kl_loss_approx_reverse(posterior: Distribution, prior: Distribution, z_sampl
     # - kl(post|prior)
     # See issue: https://github.com/PyTorchLightning/pytorch-lightning-bolts/issues/565
     # - we approximate the reverse kl divergence instead of computing it analytically
-    assert z_sampled is not None, 'to compute the approximate kl loss, z_sampled needs to be defined (cfg.kl_mode="approx")'
+    assert (
+        z_sampled is not None
+    ), 'to compute the approximate kl loss, z_sampled needs to be defined (cfg.kl_mode="approx")'
     return posterior.log_prob(z_sampled) - prior.log_prob(z_sampled)
 
 
@@ -72,38 +60,44 @@ def kl_loss_direct_forward(posterior: Distribution, prior: Distribution, z_sampl
 def kl_loss_approx_forward(posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None):
     # compute the approximate forward kl
     # - kl(prior|post)
-    assert z_sampled is not None, 'to compute the approximate kl loss, z_sampled needs to be defined (cfg.kl_mode="approx")'
+    assert (
+        z_sampled is not None
+    ), 'to compute the approximate kl loss, z_sampled needs to be defined (cfg.kl_mode="approx")'
     return prior.log_prob(z_sampled) - posterior.log_prob(z_sampled)
 
 
 def kl_loss_direct_symmetric(posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None):
     # compute the (scaled) symmetric kl
     # - 0.5 * kl(prior|post) + 0.5 * kl(prior|post)
-    return 0.5 * kl_loss_direct_reverse(posterior, prior, z_sampled) + 0.5 * kl_loss_direct_forward(posterior, prior, z_sampled)
+    return 0.5 * kl_loss_direct_reverse(posterior, prior, z_sampled) + 0.5 * kl_loss_direct_forward(
+        posterior, prior, z_sampled
+    )
 
 
 def kl_loss_approx_symmetric(posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None):
     # compute the approximate (scaled) symmetric kl
     # - 0.5 * kl(prior|post) + 0.5 * kl(prior|post)
-    return 0.5 * kl_loss_approx_reverse(posterior, prior, z_sampled) + 0.5 * kl_loss_approx_forward(posterior, prior, z_sampled)
+    return 0.5 * kl_loss_approx_reverse(posterior, prior, z_sampled) + 0.5 * kl_loss_approx_forward(
+        posterior, prior, z_sampled
+    )
 
 
 _KL_LOSS_MODES = {
     # reverse kl -- how it should be done for VAEs
-    'direct':         kl_loss_direct_reverse,  # alias for reverse modes
-    'approx':         kl_loss_approx_reverse,  # alias for reverse modes
-    'direct_reverse': kl_loss_direct_reverse,
-    'approx_reverse': kl_loss_approx_reverse,
+    "direct": kl_loss_direct_reverse,  # alias for reverse modes
+    "approx": kl_loss_approx_reverse,  # alias for reverse modes
+    "direct_reverse": kl_loss_direct_reverse,
+    "approx_reverse": kl_loss_approx_reverse,
     # forward kl
-    'direct_forward': kl_loss_direct_forward,
-    'approx_forward': kl_loss_approx_forward,
+    "direct_forward": kl_loss_direct_forward,
+    "approx_forward": kl_loss_approx_forward,
     # symmetric kl
-    'direct_symmetric': kl_loss_direct_symmetric,
-    'approx_symmetric': kl_loss_approx_symmetric,
+    "direct_symmetric": kl_loss_direct_symmetric,
+    "approx_symmetric": kl_loss_approx_symmetric,
 }
 
 
-def kl_loss(posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None, mode='direct'):
+def kl_loss(posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None, mode="direct"):
     return _KL_LOSS_MODES[mode](posterior, prior, z_sampled)
 
 

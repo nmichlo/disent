@@ -26,15 +26,13 @@ from disent.dataset.data import BaseEpisodesData
 from disent.dataset.sampling._base import BaseDisentSampler
 from disent.util.math.random import sample_radius as sample_radius_fn
 
-
 # ========================================================================= #
 # Episode Sampler                                                           #
 # ========================================================================= #
 
 
 class RandomEpisodeSampler(BaseDisentSampler):
-
-    def uninit_copy(self) -> 'RandomEpisodeSampler':
+    def uninit_copy(self) -> "RandomEpisodeSampler":
         return RandomEpisodeSampler(
             num_samples=self.num_samples,
             sample_radius=self._sample_radius,
@@ -47,10 +45,12 @@ class RandomEpisodeSampler(BaseDisentSampler):
         if sample_radius is not None:
             if sample_radius >= 0:
                 if num_samples > sample_radius:
-                    raise RuntimeError(f'sample radius: {sample_radius} cannot be less than the number of requested samples: {num_samples}')
+                    raise RuntimeError(
+                        f"sample radius: {sample_radius} cannot be less than the number of requested samples: {num_samples}"
+                    )
 
     def _init(self, dataset):
-        assert isinstance(dataset, BaseEpisodesData), f'data ({type(dataset)}) is not an instance of {BaseEpisodesData}'
+        assert isinstance(dataset, BaseEpisodesData), f"data ({type(dataset)}) is not an instance of {BaseEpisodesData}"
         # TODO: reference to dataset is not ideal here
         self._dataset = dataset
 
@@ -84,7 +84,7 @@ class RandomEpisodeSampler(BaseDisentSampler):
             attempts += 1
         # checks
         if len(indices) != n:
-            raise RuntimeError('consider increasing the radius')
+            raise RuntimeError("consider increasing the radius")
         # sort indices from highest to lowest.
         # - anchor is the newest
         # - positive is close in the past

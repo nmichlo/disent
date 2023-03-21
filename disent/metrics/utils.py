@@ -41,17 +41,15 @@ from disent.dataset import DisentDataset
 from disent.util import to_numpy
 from disent.util.function import wrapped_partial
 
-
 # ========================================================================= #
 # Metric Wrapper                                                            #
 # ========================================================================= #
 
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class Metric(Generic[T]):
-
     def __init__(
         self,
         name: str,
@@ -60,9 +58,9 @@ class Metric(Generic[T]):
         fast_kwargs: Optional[Dict[str, Any]] = None,
     ):
         self._name = name
-        self._orig_fn           = metric_fn
+        self._orig_fn = metric_fn
         self._metric_fn_default = wrapped_partial(self._orig_fn, **(default_kwargs if default_kwargs else {}))
-        self._metric_fn_fast    = wrapped_partial(self._orig_fn, **(fast_kwargs    if fast_kwargs    else {}))
+        self._metric_fn_fast = wrapped_partial(self._orig_fn, **(fast_kwargs if fast_kwargs else {}))
 
     # How do we get a type hint for `__call__` so that its signature matches `T`?
     def __call__(self, *args, **kwargs) -> Dict[str, Number]:
@@ -85,7 +83,7 @@ class Metric(Generic[T]):
         return self._name
 
     def __str__(self):
-        return f'metric-{self.name}'
+        return f"metric-{self.name}"
 
 
 def make_metric(
@@ -103,9 +101,11 @@ def make_metric(
            - This should give a decent results, but should be decently fast, a few seconds/minutes at most.
              This is not used for testing
     """
+
     # `Union[Metric[T], T]` is hack to get type hint on `__call__`
     def _wrap_fn_as_metric(metric_fn: T) -> Union[Metric[T], T]:
         return Metric(name=name, metric_fn=metric_fn, default_kwargs=default_kwargs, fast_kwargs=fast_kwargs)
+
     return _wrap_fn_as_metric
 
 
@@ -115,11 +115,11 @@ def make_metric(
 
 
 def generate_batch_factor_code(
-        dataset: DisentDataset,
-        representation_function,
-        num_points: int,
-        batch_size: int,
-        show_progress: bool = False,
+    dataset: DisentDataset,
+    representation_function,
+    num_points: int,
+    batch_size: int,
+    show_progress: bool = False,
 ):
     """Sample a single training sample based on a mini-batch of ground-truth data.
     Args:
@@ -140,7 +140,9 @@ def generate_batch_factor_code(
     with tqdm(total=num_points, disable=not show_progress) as bar:
         while i < num_points:
             num_points_iter = min(num_points - i, batch_size)
-            current_observations, current_factors = dataset.dataset_sample_batch_with_factors(num_points_iter, mode='input')
+            current_observations, current_factors = dataset.dataset_sample_batch_with_factors(
+                num_points_iter, mode="input"
+            )
             if i == 0:
                 factors = current_factors
                 representations = to_numpy(representation_function(current_observations))
@@ -174,7 +176,7 @@ def split_train_test(observations, train_percentage):
 
 
 def obtain_representation(observations, representation_function, batch_size):
-    """"Obtain representations from observations.
+    """ "Obtain representations from observations.
     Args:
       observations: Observations for which we compute the representation.
       representation_function: Function that takes observation as input and
@@ -189,7 +191,7 @@ def obtain_representation(observations, representation_function, batch_size):
     i = 0
     while i < num_points:
         num_points_iter = min(num_points - i, batch_size)
-        current_observations = observations[i:i + num_points_iter]
+        current_observations = observations[i : i + num_points_iter]
         if i == 0:
             representations = to_numpy(representation_function(current_observations))
         else:
@@ -230,6 +232,7 @@ def discrete_entropy(ys):
     for j in range(num_factors):
         h[j] = sklearn.metrics.mutual_info_score(ys[j, :], ys[j, :])
     return h
+
 
 # ========================================================================= #
 # END                                                                       #

@@ -33,7 +33,6 @@ from disent.dataset import DisentDataset
 from disent.metrics import utils
 from disent.metrics.utils import make_metric
 
-
 log = logging.getLogger(__name__)
 
 
@@ -42,13 +41,8 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-@make_metric('unsupervised', fast_kwargs=dict(num_train=2000))
-def metric_unsupervised(
-        dataset: DisentDataset,
-        representation_function,
-        num_train=10000,
-        batch_size=16
-):
+@make_metric("unsupervised", fast_kwargs=dict(num_train=2000))
+def metric_unsupervised(dataset: DisentDataset, representation_function, num_train=10000, batch_size=16):
     """Computes unsupervised scores based on covariance and mutual information.
     Args:
       dataset: DisentDataset to be sampled from.
@@ -78,13 +72,13 @@ def metric_unsupervised(
     mus_discrete = utils.histogram_discretize(mus_train, num_bins=20)
     mutual_info_matrix = utils.discrete_mutual_info(mus_discrete, mus_discrete)
     np.fill_diagonal(mutual_info_matrix, 0)
-    mutual_info_score = np.sum(mutual_info_matrix) / (num_codes ** 2 - num_codes)
+    mutual_info_score = np.sum(mutual_info_matrix) / (num_codes**2 - num_codes)
 
     return {
-        'unsup.mi_score': mutual_info_score,
-        'unsup.gauss_total_corr': gaussian_total_correlation,
-        'unsup.gauss_wasser_corr': gaussian_wasserstein_correlation,
-        'unsup.gauss_wasser_corr_norm': gaussian_wasserstein_correlation_norm,
+        "unsup.mi_score": mutual_info_score,
+        "unsup.gauss_total_corr": gaussian_total_correlation,
+        "unsup.gauss_wasser_corr": gaussian_wasserstein_correlation,
+        "unsup.gauss_wasser_corr_norm": gaussian_wasserstein_correlation_norm,
     }
 
 

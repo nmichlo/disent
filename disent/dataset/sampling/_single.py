@@ -25,8 +25,8 @@
 from typing import Tuple
 
 import numpy as np
-from disent.dataset.sampling._base import BaseDisentSampler
 
+from disent.dataset.sampling._base import BaseDisentSampler
 
 # ========================================================================= #
 # Randomly Paired Dataset                                                   #
@@ -34,8 +34,7 @@ from disent.dataset.sampling._base import BaseDisentSampler
 
 
 class SingleSampler(BaseDisentSampler):
-
-    def uninit_copy(self) -> 'SingleSampler':
+    def uninit_copy(self) -> "SingleSampler":
         return SingleSampler()
 
     def __init__(self):

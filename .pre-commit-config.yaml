@@ -10,6 +10,7 @@ repos:
     hooks:
       - id: isort
         args: ["--verbose", "--py=38", "--profile=black", "--line-length=120", "--force-single-line-imports"]
+        exclude: ^disent/(.+/)?__init__.py
   - repo: https://github.com/psf/black
     rev: 23.1.0
     hooks:

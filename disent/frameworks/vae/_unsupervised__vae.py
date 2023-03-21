@@ -26,10 +26,10 @@ from dataclasses import dataclass
 from numbers import Number
 from typing import Any
 from typing import Dict
-from typing import final
 from typing import Sequence
 from typing import Tuple
 from typing import Union
+from typing import final
 
 import torch
 from torch.distributions import Distribution
@@ -39,7 +39,6 @@ from disent.frameworks.helper.latent_distributions import LatentDistsHandler
 from disent.frameworks.helper.latent_distributions import make_latent_distribution
 from disent.frameworks.helper.util import detach_all
 from disent.util.iters import map_all
-
 
 # ========================================================================= #
 # framework_vae                                                             #
@@ -91,18 +90,20 @@ class Vae(_AeAndVaeMixin):
     @dataclass
     class cfg(_AeAndVaeMixin.cfg):
         # latent distribution settings
-        latent_distribution: str = 'normal'
-        kl_loss_mode: str = 'direct'
+        latent_distribution: str = "normal"
+        kl_loss_mode: str = "direct"
         # disable various components
         disable_reg_loss: bool = False
 
-    def __init__(self, model: 'AutoEncoder', cfg: cfg = None, batch_augment=None):
+    def __init__(self, model: "AutoEncoder", cfg: cfg = None, batch_augment=None):
         # required_z_multiplier
         super().__init__(cfg=cfg, batch_augment=batch_augment)
         # initialise the auto-encoder mixin (recon handler, model, enc, dec, etc.)
         self._init_ae_mixin(model=model)
         # vae distribution
-        self.__latents_handler = make_latent_distribution(self.cfg.latent_distribution, kl_mode=self.cfg.kl_loss_mode, reduction=self.cfg.loss_reduction)
+        self.__latents_handler = make_latent_distribution(
+            self.cfg.latent_distribution, kl_mode=self.cfg.kl_loss_mode, reduction=self.cfg.loss_reduction
+        )
 
     @final
     @property
@@ -136,28 +137,42 @@ class Vae(_AeAndVaeMixin):
         # compute all the regularization losses
         reg_loss, logs_reg = self.compute_ave_reg_loss(ds_posterior, ds_prior, zs_sampled)
         # [HOOK] augment loss
-        aug_loss, logs_aug = self.hook_compute_ave_aug_loss(ds_posterior=ds_posterior, ds_prior=ds_prior, zs_sampled=zs_sampled, xs_partial_recon=xs_partial_recon, xs_targ=xs_targ)
+        aug_loss, logs_aug = self.hook_compute_ave_aug_loss(
+            ds_posterior=ds_posterior,
+            ds_prior=ds_prior,
+            zs_sampled=zs_sampled,
+            xs_partial_recon=xs_partial_recon,
+            xs_targ=xs_targ,
+        )
         # compute combined loss
         loss = 0
-        if not self.cfg.disable_rec_loss: loss += recon_loss
-        if not self.cfg.disable_aug_loss: loss += aug_loss
-        if not self.cfg.disable_reg_loss: loss += reg_loss
+        if not self.cfg.disable_rec_loss:
+            loss += recon_loss
+        if not self.cfg.disable_aug_loss:
+            loss += aug_loss
+        if not self.cfg.disable_reg_loss:
+            loss += reg_loss
         # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
         # log general
-        self.log_dict({
-            **logs_intercept_ds,
-            **logs_recon,
-            **logs_reg,
-            **logs_aug,
-        })
+        self.log_dict(
+            {
+                **logs_intercept_ds,
+                **logs_recon,
+                **logs_reg,
+                **logs_aug,
+            }
+        )
 
         # log progress bar
-        self.log_dict({
-            'recon_loss': float(recon_loss),
-            'reg_loss': float(reg_loss),
-            'aug_loss': float(aug_loss),
-        }, prog_bar=True)
+        self.log_dict(
+            {
+                "recon_loss": float(recon_loss),
+                "reg_loss": float(reg_loss),
+                "aug_loss": float(aug_loss),
+            },
+            prog_bar=True,
+        )
 
         # return values
         return loss
@@ -166,26 +181,37 @@ class Vae(_AeAndVaeMixin):
     # Overrideable Hooks                                                    #
     # --------------------------------------------------------------------- #
 
-    def hook_intercept_ds(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution]) -> Tuple[Sequence[Distribution], Sequence[Distribution], Dict[str, Any]]:
+    def hook_intercept_ds(
+        self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution]
+    ) -> Tuple[Sequence[Distribution], Sequence[Distribution], Dict[str, Any]]:
         return ds_posterior, ds_prior, {}
 
-    def hook_compute_ave_aug_loss(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
+    def hook_compute_ave_aug_loss(
+        self,
+        ds_posterior: Sequence[Distribution],
+        ds_prior: Sequence[Distribution],
+        zs_sampled: Sequence[torch.Tensor],
+        xs_partial_recon: Sequence[torch.Tensor],
+        xs_targ: Sequence[torch.Tensor],
+    ) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
         return 0, {}
 
-    def compute_ave_recon_loss(self, xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
+    def compute_ave_recon_loss(
+        self, xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]
+    ) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
         # compute reconstruction loss
         pixel_loss = self.recon_handler.compute_ave_loss_from_partial(xs_partial_recon, xs_targ)
         # return logs
-        return pixel_loss, {
-            'pixel_loss': pixel_loss
-        }
+        return pixel_loss, {"pixel_loss": pixel_loss}
 
-    def compute_ave_reg_loss(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
+    def compute_ave_reg_loss(
+        self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled: Sequence[torch.Tensor]
+    ) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
         # compute regularization loss (kl divergence)
         kl_loss = self.latents_handler.compute_ave_kl_loss(ds_posterior, ds_prior, zs_sampled)
         # return logs
         return kl_loss, {
-            'kl_loss': kl_loss,
+            "kl_loss": kl_loss,
         }
 
     # --------------------------------------------------------------------- #

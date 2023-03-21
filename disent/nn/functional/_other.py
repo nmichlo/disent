@@ -25,7 +25,6 @@
 import numpy as np
 import torch
 
-
 # ========================================================================= #
 # helper                                                                    #
 # ========================================================================= #
@@ -71,8 +70,8 @@ def torch_unsqueeze_l(input: torch.Tensor, n: int):
     eg. a tensor with shape (2, 3) passed to this function
         with n=2 will input in an output shape of (1, 1, 2, 3)
     """
-    assert n >= 0, f'number of new axis cannot be less than zero, given: {repr(n)}'
-    return input[((None,)*n) + (...,)]
+    assert n >= 0, f"number of new axis cannot be less than zero, given: {repr(n)}"
+    return input[((None,) * n) + (...,)]
 
 
 def torch_unsqueeze_r(input: torch.Tensor, n: int):
@@ -82,8 +81,8 @@ def torch_unsqueeze_r(input: torch.Tensor, n: int):
     eg. a tensor with shape (2, 3) passed to this function
         with n=2 will input in an output shape of (2, 3, 1, 1)
     """
-    assert n >= 0, f'number of new axis cannot be less than zero, given: {repr(n)}'
-    return input[(...,) + ((None,)*n)]
+    assert n >= 0, f"number of new axis cannot be less than zero, given: {repr(n)}"
+    return input[(...,) + ((None,) * n)]
 
 
 # ========================================================================= #

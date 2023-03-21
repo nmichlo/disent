@@ -31,20 +31,21 @@ module = BetaVae(
         decoder=DecoderConv64(x_shape=data.x_shape, z_size=10),
     ),
     cfg=BetaVae.cfg(
-        optimizer='adam',
+        optimizer="adam",
         optimizer_kwargs=dict(lr=1e-3),
-        loss_reduction='mean_sum',
+        loss_reduction="mean_sum",
         beta=4,
-    )
+    ),
 )
 
 # cyclic schedule for target 'beta' in the config/cfg. The initial value from the
 # config is saved and multiplied by the ratio from the schedule on each step.
 # - based on: https://arxiv.org/abs/1903.10145
 module.register_schedule(
-    'beta', CyclicSchedule(
+    "beta",
+    CyclicSchedule(
         period=1024,  # repeat every: trainer.global_step % period
-    )
+    ),
 )
 
 # train model
@@ -65,4 +66,4 @@ metrics = {
 }
 
 # evaluate
-print('metrics:', metrics)
+print("metrics:", metrics)

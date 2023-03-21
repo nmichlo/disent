@@ -36,12 +36,10 @@ from disent.dataset.data import XYObjectData
 from disent.dataset.util.formats.hdf5 import H5Builder
 from disent.dataset.util.formats.hdf5 import hdf5_resave_file
 from disent.dataset.util.formats.hdf5 import hdf5_test_speed
-from disent.util.inout.hashing import hash_file
 from disent.util.function import wrapped_partial
-
+from disent.util.inout.hashing import hash_file
 from tests.util import no_stderr
 from tests.util import no_stdout
-
 
 # ========================================================================= #
 # TESTS                                                                     #
@@ -49,7 +47,15 @@ from tests.util import no_stdout
 
 
 # factors=(3, 3, 2, 3), len=54
-TestXYObjectData = wrapped_partial(XYObjectData, grid_size=4, grid_spacing=1, min_square_size=1, max_square_size=2, square_size_spacing=1, palette='rgb_1')
+TestXYObjectData = wrapped_partial(
+    XYObjectData,
+    grid_size=4,
+    grid_spacing=1,
+    min_square_size=1,
+    max_square_size=2,
+    square_size_spacing=1,
+    palette="rgb_1",
+)
 _TEST_LEN = 54
 
 
@@ -65,10 +71,17 @@ def create_temp_h5data(track_times=False, **h5py_dataset_kwargs):
     # generate data
     data = np.stack([img for img in TestXYObjectData()], axis=0)
     # create temp file
-    with NamedTemporaryFile('r') as out_file:
+    with NamedTemporaryFile("r") as out_file:
         # create temp files
-        with h5py.File(out_file.name, 'w', libver='earliest') as file:
-            file.create_dataset(name='data', shape=(_TEST_LEN, 4, 4, 3), dtype='uint8', data=data, track_times=track_times, **h5py_dataset_kwargs)
+        with h5py.File(out_file.name, "w", libver="earliest") as file:
+            file.create_dataset(
+                name="data",
+                shape=(_TEST_LEN, 4, 4, 3),
+                dtype="uint8",
+                data=data,
+                track_times=track_times,
+                **h5py_dataset_kwargs,
+            )
         # return the data & file
         yield out_file.name, data
 
@@ -78,7 +91,7 @@ def test_hdf5_pickle_dataset():
         # load the data
         # - ideally we want to test this with a pytorch
         #   DataLoader, but that is quite slow to initialise
-        with Hdf5Dataset(tmp_path, 'data') as data:
+        with Hdf5Dataset(tmp_path, "data") as data:
             indices = list(range(len(data)))
             # test locally
             assert _iterate_over_data(data=data, indices=indices) == _TEST_LEN
@@ -89,31 +102,35 @@ def test_hdf5_pickle_dataset():
             assert future_0.result() == _TEST_LEN // 2
             assert future_1.result() == _TEST_LEN // 2
             # test multiprocessing on invalid data
-            with h5py.File(tmp_path, 'r', swmr=True) as file:
-                with pytest.raises(TypeError, match='h5py objects cannot be pickled'):
-                    future_2 = executor.submit(_iterate_over_data, data=file['data'], indices=indices)
+            with h5py.File(tmp_path, "r", swmr=True) as file:
+                with pytest.raises(TypeError, match="h5py objects cannot be pickled"):
+                    future_2 = executor.submit(_iterate_over_data, data=file["data"], indices=indices)
                     future_2.result()
 
 
-@pytest.mark.parametrize(['hash_mode', 'target_hash'], [
-    ('full', 'a3b60a9e248b4b66bdbf4f87a78bf7cc'),
-    ('fast', 'a20d554d4912a39e7654b4dc98207490'),
-])
+@pytest.mark.parametrize(
+    ["hash_mode", "target_hash"],
+    [
+        ("full", "a3b60a9e248b4b66bdbf4f87a78bf7cc"),
+        ("fast", "a20d554d4912a39e7654b4dc98207490"),
+    ],
+)
 def test_hdf5_determinism(hash_mode: str, target_hash: str):
     # check hashing a
     def make_and_hash(track_times=False, **h5py_dataset_kwargs):
         with create_temp_h5data(track_times=track_times, **h5py_dataset_kwargs) as (path_a, raw_data_a):
-            a = hash_file(path_a, hash_type='md5', hash_mode=hash_mode, missing_ok=False)
+            a = hash_file(path_a, hash_type="md5", hash_mode=hash_mode, missing_ok=False)
         # track times only has a resolution of 1 second
         # TODO: this test is slow ~4.4 seconds of sleeping...
         time.sleep(1.1)
         # redo the same task
         with create_temp_h5data(track_times=track_times, **h5py_dataset_kwargs) as (path_b, raw_data_b):
-            b = hash_file(path_b, hash_type='md5', hash_mode=hash_mode, missing_ok=False)
+            b = hash_file(path_b, hash_type="md5", hash_mode=hash_mode, missing_ok=False)
         return a, b
+
     # compute hashes
     deterministic_hash_a, deterministic_hash_b = make_and_hash(track_times=False)
-    stochastic_hash_a,    stochastic_hash_b    = make_and_hash(track_times=True)
+    stochastic_hash_a, stochastic_hash_b = make_and_hash(track_times=True)
     # check hashes
     assert deterministic_hash_a == deterministic_hash_b
     assert stochastic_hash_a != stochastic_hash_b
@@ -124,67 +141,69 @@ def test_hdf5_determinism(hash_mode: str, target_hash: str):
     assert stochastic_hash_b != target_hash
 
 
-@pytest.mark.parametrize(['chunk_shape', 'compression_lvl', 'target_hash'], [
-    ((1, 4, 4, 3), None, '0a60b3edc4e2d75f3d38de9f1a29700c'),
-    ('batch',         4, '88801fba75bc6eb53ccfcc145ab8a4f5'),
-])
+@pytest.mark.parametrize(
+    ["chunk_shape", "compression_lvl", "target_hash"],
+    [
+        ((1, 4, 4, 3), None, "0a60b3edc4e2d75f3d38de9f1a29700c"),
+        ("batch", 4, "88801fba75bc6eb53ccfcc145ab8a4f5"),
+    ],
+)
 def test_hdf5_resave_dataset(chunk_shape, compression_lvl, target_hash):
     with no_stdout(), no_stderr():
-        with \
-                create_temp_h5data(chunks=(_TEST_LEN, 4, 4, 3)) as (inp_path, raw_data),\
-                NamedTemporaryFile('r') as out_file,\
-                NamedTemporaryFile('r') as alt_file:
+        with create_temp_h5data(chunks=(_TEST_LEN, 4, 4, 3)) as (inp_path, raw_data), NamedTemporaryFile(
+            "r"
+        ) as out_file, NamedTemporaryFile("r") as alt_file:
             out_path = out_file.name
             alt_path = alt_file.name
             # convert dataset
             hdf5_resave_file(
                 inp_path=inp_path,
                 out_path=out_path,
-                dataset_name='data',
+                dataset_name="data",
                 chunk_size=(1, 4, 4, 3),
-                compression='gzip' if (compression_lvl is not None) else None,
+                compression="gzip" if (compression_lvl is not None) else None,
                 compression_lvl=compression_lvl,
                 batch_size=None,
                 out_dtype=None,
                 out_mutator=None,
                 obs_shape=None,
-                write_mode='w',
+                write_mode="w",
             )
             # check alt conversion
-            with h5py.File(inp_path, 'r') as inp, H5Builder(alt_path, mode='w') as builder:
+            with h5py.File(inp_path, "r") as inp, H5Builder(alt_path, mode="w") as builder:
                 builder.add_dataset_from_array(
-                    array=inp['data'],
-                    name='data',
+                    array=inp["data"],
+                    name="data",
                     chunk_shape=chunk_shape,
                     compression_lvl=compression_lvl,
-                    batch_size='auto',
+                    batch_size="auto",
                 )
             # check datasets
-            with h5py.File(inp_path, 'r') as inp:
-                assert np.all(inp['data'][...] == raw_data)
-                assert inp['data'].chunks == (_TEST_LEN, 4, 4, 3)
-            with h5py.File(out_path, 'r') as out:
-                assert np.all(out['data'][...] == raw_data)
-                assert out['data'].chunks == (1, 4, 4, 3)
-            with h5py.File(alt_path, 'r') as alt:
-                assert np.all(alt['data'][...] == raw_data)
-                assert alt['data'].chunks == (1, 4, 4, 3)
+            with h5py.File(inp_path, "r") as inp:
+                assert np.all(inp["data"][...] == raw_data)
+                assert inp["data"].chunks == (_TEST_LEN, 4, 4, 3)
+            with h5py.File(out_path, "r") as out:
+                assert np.all(out["data"][...] == raw_data)
+                assert out["data"].chunks == (1, 4, 4, 3)
+            with h5py.File(alt_path, "r") as alt:
+                assert np.all(alt["data"][...] == raw_data)
+                assert alt["data"].chunks == (1, 4, 4, 3)
             # check hashes
-            inp_hash = hash_file(inp_path, hash_type='md5', hash_mode='full', missing_ok=False)
-            out_hash = hash_file(out_path, hash_type='md5', hash_mode='full', missing_ok=False)
-            alt_hash = hash_file(alt_path, hash_type='md5', hash_mode='full', missing_ok=False)
-            assert inp_hash == '8f21382c20cd0230aac5b1105fee8b39'
+            inp_hash = hash_file(inp_path, hash_type="md5", hash_mode="full", missing_ok=False)
+            out_hash = hash_file(out_path, hash_type="md5", hash_mode="full", missing_ok=False)
+            alt_hash = hash_file(alt_path, hash_type="md5", hash_mode="full", missing_ok=False)
+            assert inp_hash == "8f21382c20cd0230aac5b1105fee8b39"
             assert out_hash == target_hash
             assert alt_hash == target_hash
 
 
 def test_hdf5_speed_test():
     with create_temp_h5data(chunks=(_TEST_LEN, 4, 4, 3)) as (path, _):
-        hdf5_test_speed(path, dataset_name='data', access_method='random')
+        hdf5_test_speed(path, dataset_name="data", access_method="random")
     with create_temp_h5data(chunks=(1, 4, 4, 3)) as (path, _):
-        hdf5_test_speed(path, dataset_name='data', access_method='sequential')
+        hdf5_test_speed(path, dataset_name="data", access_method="sequential")
     with create_temp_h5data(chunks=None) as (path, _):
-        hdf5_test_speed(path, dataset_name='data', access_method='sequential')
+        hdf5_test_speed(path, dataset_name="data", access_method="sequential")
 
 
 # ========================================================================= #

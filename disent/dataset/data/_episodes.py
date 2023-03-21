@@ -30,19 +30,17 @@ from torch.utils.data import Dataset
 
 from disent.util.iters import LengthIter
 
-
 # ========================================================================= #
 # custom episodes -- base                                                   #
 # ========================================================================= #
 
 
 class BaseEpisodesData(Dataset, LengthIter):
-
     def __init__(self, transform=None):
         self._transform = transform
         # load episodes
         self._episodes = self._load_episode_observations()
-        assert len(self._episodes) > 0, 'There must be at least one episode!'
+        assert len(self._episodes) > 0, "There must be at least one episode!"
         # total length
         self._lengths = np.array([len(episode) for episode in self._episodes])
         self._length = np.sum(self._lengths)
@@ -61,7 +59,7 @@ class BaseEpisodesData(Dataset, LengthIter):
         return obs
 
     def get_episode_and_idx(self, idx) -> Tuple[np.ndarray, int, int]:
-        assert idx >= 0, 'Negative indices are not supported.'
+        assert idx >= 0, "Negative indices are not supported."
         # linear search for episode & shift idx accordingly
         # TODO: This could be better...
         # TODO: add caching?

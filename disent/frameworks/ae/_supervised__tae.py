@@ -33,9 +33,8 @@ from typing import Union
 import torch
 
 from disent.frameworks.ae._unsupervised__ae import Ae
-from disent.nn.loss.triplet import compute_triplet_loss
 from disent.nn.loss.triplet import TripletLossConfig
-
+from disent.nn.loss.triplet import compute_triplet_loss
 
 # ========================================================================= #
 # triple ae                                                                 #
@@ -43,14 +42,15 @@ from disent.nn.loss.triplet import TripletLossConfig
 
 
 class TripletAe(Ae):
-
     REQUIRED_OBS = 3
 
     @dataclass
     class cfg(Ae.cfg, TripletLossConfig):
         pass
 
-    def hook_ae_compute_ave_aug_loss(self, zs: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
+    def hook_ae_compute_ave_aug_loss(
+        self, zs: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]
+    ) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
         return compute_triplet_loss(zs=zs, cfg=self.cfg)
 
 

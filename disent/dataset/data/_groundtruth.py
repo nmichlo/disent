@@ -35,12 +35,11 @@ from typing import Union
 import numpy as np
 from torch.utils.data import Dataset
 
+from disent.dataset.data._raw import Hdf5Dataset
 from disent.dataset.util.datafile import DataFile
 from disent.dataset.util.datafile import DataFileHashedDlH5
-from disent.dataset.data._raw import Hdf5Dataset
 from disent.dataset.util.state_space import StateSpace
 from disent.util.inout.paths import ensure_dir_exists
-
 
 log = logging.getLogger(__name__)
 
@@ -69,8 +68,8 @@ class GroundTruthData(Dataset, StateSpace):
     @property
     def name(self):
         name = self.__class__.__name__
-        if name.endswith('Data'):
-            name = name[:-len('Data')]
+        if name.endswith("Data"):
+            name = name[: -len("Data")]
         return name.lower()
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -114,7 +113,10 @@ class GroundTruthData(Dataset, StateSpace):
     @property
     def img_channels(self) -> int:
         channels = self.img_shape[-1]
-        assert channels in (1, 3), f'invalid number of channels for dataset: {self.__class__.__name__}, got: {repr(channels)}, required: 1 or 3'
+        assert channels in (
+            1,
+            3,
+        ), f"invalid number of channels for dataset: {self.__class__.__name__}, got: {repr(channels)}, required: 1 or 3"
         return channels
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -134,7 +136,9 @@ class GroundTruthData(Dataset, StateSpace):
     # EXTRAS                                                                #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def sample_random_obs_traversal(self, f_idx: int = None, base_factors=None, num: int = None, mode='interval', obs_collect_fn=None) -> Tuple[np.ndarray, np.ndarray, Union[List[Any], Any]]:
+    def sample_random_obs_traversal(
+        self, f_idx: int = None, base_factors=None, num: int = None, mode="interval", obs_collect_fn=None
+    ) -> Tuple[np.ndarray, np.ndarray, Union[List[Any], Any]]:
         """
         Same API as sample_random_factor_traversal, but also
         returns the corresponding indices and uncollated list of observations
@@ -153,8 +157,15 @@ class GroundTruthData(Dataset, StateSpace):
 
 
 class ArrayGroundTruthData(GroundTruthData):
-
-    def __init__(self, array, factor_names: Tuple[str, ...], factor_sizes: Tuple[int, ...], array_chn_is_last: bool = True, x_shape: Optional[Tuple[int, ...]] = None, transform=None):
+    def __init__(
+        self,
+        array,
+        factor_names: Tuple[str, ...],
+        factor_sizes: Tuple[int, ...],
+        array_chn_is_last: bool = True,
+        x_shape: Optional[Tuple[int, ...]] = None,
+        transform=None,
+    ):
         self.__factor_names = tuple(factor_names)
         self.__factor_sizes = tuple(factor_sizes)
         self._array = array
@@ -214,7 +225,6 @@ class ArrayGroundTruthData(GroundTruthData):
 
 
 class _DiskDataMixin(object):
-
     # attr this class defines in _mixin_disk_init
     _data_dir: str
 
@@ -226,11 +236,11 @@ class _DiskDataMixin(object):
             data_root = os.path.abspath(os.path.expanduser(data_root))
         # get class data folder
         self._data_dir = ensure_dir_exists(os.path.join(data_root, self.name))
-        log.info(f'{self.name}: data_dir_share={repr(self._data_dir)}')
+        log.info(f"{self.name}: data_dir_share={repr(self._data_dir)}")
         # prepare everything
         if prepare:
             for datafile in self.datafiles:
-                log.debug(f'[preparing]: {datafile} into data dir: {self._data_dir}')
+                log.debug(f"[preparing]: {datafile} into data dir: {self._data_dir}")
                 datafile.prepare(self.data_dir)
 
     @property
@@ -239,7 +249,7 @@ class _DiskDataMixin(object):
 
     @property
     def default_data_root(self):
-        return os.path.abspath(os.environ.get('DISENT_DATA_ROOT', 'data/dataset'))
+        return os.path.abspath(os.environ.get("DISENT_DATA_ROOT", "data/dataset"))
 
     @property
     def datafiles(self) -> Sequence[DataFile]:
@@ -273,9 +283,10 @@ class NumpyFileGroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
         super().__init__(data_root=data_root, prepare=prepare, transform=transform)
         # load dataset
         load_path = os.path.join(self.data_dir, self.datafile.out_name)
-        if load_path.endswith('.gz'):
+        if load_path.endswith(".gz"):
             import gzip
-            with gzip.GzipFile(load_path, 'r') as load_file:
+
+            with gzip.GzipFile(load_path, "r") as load_file:
                 self._data = np.load(load_file)
         else:
             self._data = np.load(load_path)
@@ -301,13 +312,12 @@ class NumpyFileGroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
 
 
 class _Hdf5DataMixin(object):
-
     # attrs this class defines in _mixin_hdf5_init
     _in_memory: bool
     _attrs: dict
     _data: Union[Hdf5Dataset, np.ndarray]
 
-    def _mixin_hdf5_init(self, h5_path: str, h5_dataset_name: str = 'data', in_memory: bool = False):
+    def _mixin_hdf5_init(self, h5_path: str, h5_dataset_name: str = "data", in_memory: bool = False):
         # variables
         self._in_memory = in_memory
         # load the h5py dataset
@@ -369,18 +379,17 @@ class Hdf5GroundTruthData(_Hdf5DataMixin, DiskGroundTruthData, metaclass=ABCMeta
 
 
 class SelfContainedHdf5GroundTruthData(_Hdf5DataMixin, GroundTruthData):
-
     def __init__(self, h5_path: str, in_memory=False, transform=None):
         # initialize mixin
         self._mixin_hdf5_init(
             h5_path=h5_path,
-            h5_dataset_name='data',
+            h5_dataset_name="data",
             in_memory=in_memory,
         )
         # load attrs
-        self._attr_name = self._attrs['dataset_name'].decode("utf-8")
-        self._attr_factor_names = tuple(name.decode("utf-8") for name in self._attrs['factor_names'])
-        self._attr_factor_sizes = tuple(int(size) for size in self._attrs['factor_sizes'])
+        self._attr_name = self._attrs["dataset_name"].decode("utf-8")
+        self._attr_factor_names = tuple(name.decode("utf-8") for name in self._attrs["factor_names"])
+        self._attr_factor_sizes = tuple(int(size) for size in self._attrs["factor_sizes"])
         # set size
         (B, H, W, C) = self._data.shape
         self._img_shape = (H, W, C)

@@ -25,12 +25,13 @@
 from typing import Optional
 
 import numpy as np
+
 from disent.dataset.data import GroundTruthData
 from disent.dataset.sampling._base import BaseDisentSampler
-from disent.dataset.sampling._groundtruth__triplet import normalise_range_pair, FactorSizeError
+from disent.dataset.sampling._groundtruth__triplet import FactorSizeError
+from disent.dataset.sampling._groundtruth__triplet import normalise_range_pair
 from disent.dataset.util.state_space import StateSpace
 from disent.util.math.random import sample_radius
-
 
 # ========================================================================= #
 # paired ground truth dataset                                               #
@@ -38,19 +39,18 @@ from disent.util.math.random import sample_radius
 
 
 class GroundTruthPairSampler(BaseDisentSampler):
-
-    def uninit_copy(self) -> 'GroundTruthPairSampler':
+    def uninit_copy(self) -> "GroundTruthPairSampler":
         return GroundTruthPairSampler(
             p_k_range=self.p_k_range,
             p_radius_range=self.p_radius_range,
         )
 
     def __init__(
-            self,
-            # factor sampling
-            p_k_range=(1, -1),
-            # radius sampling
-            p_radius_range=(1, -1),
+        self,
+        # factor sampling
+        p_k_range=(1, -1),
+        # radius sampling
+        p_radius_range=(1, -1),
     ):
         """
         Dataset that pairs together samples with at most k differing factors of variation.
@@ -66,12 +66,18 @@ class GroundTruthPairSampler(BaseDisentSampler):
         self._state_space: Optional[StateSpace]
 
     def _init(self, dataset):
-        assert isinstance(dataset, GroundTruthData), f'dataset must be an instance of {repr(GroundTruthData.__class__.__name__)}, got: {repr(dataset)}'
+        assert isinstance(
+            dataset, GroundTruthData
+        ), f"dataset must be an instance of {repr(GroundTruthData.__class__.__name__)}, got: {repr(dataset)}"
         self._state_space = dataset.state_space_copy()
         # DIFFERING FACTORS
-        self.p_k_min, self.p_k_max = self._min_max_from_range(p_range=self.p_k_range, max_values=self._state_space.num_factors)
+        self.p_k_min, self.p_k_max = self._min_max_from_range(
+            p_range=self.p_k_range, max_values=self._state_space.num_factors
+        )
         # RADIUS SAMPLING
-        self.p_radius_min, self.p_radius_max = self._min_max_from_range(p_range=self.p_radius_range, max_values=self._state_space.factor_sizes)
+        self.p_radius_min, self.p_radius_max = self._min_max_from_range(
+            p_range=self.p_radius_range, max_values=self._state_space.factor_sizes
+        )
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # CORE                                                                  #
@@ -118,9 +124,11 @@ class GroundTruthPairSampler(BaseDisentSampler):
         p_min, p_max = normalise_range_pair(p_range, max_values)
         # cross factor assertions
         if not np.all(p_max <= max_values):
-            raise FactorSizeError('Factor dimensions are too small for given range:'
-                                  f'\n\tUnsatisfied: p_max <= max_size'
-                                  f'\n\tUnsatisfied: {p_max} <= {np.array(max_values)}')
+            raise FactorSizeError(
+                "Factor dimensions are too small for given range:"
+                f"\n\tUnsatisfied: p_max <= max_size"
+                f"\n\tUnsatisfied: {p_max} <= {np.array(max_values)}"
+            )
         return p_min, p_max
 
     def _sample_num_factors(self):
@@ -128,11 +136,19 @@ class GroundTruthPairSampler(BaseDisentSampler):
         return p_k
 
     def _sample_shared_indices(self, p_k):
-        p_shared_indices = np.random.choice(self._state_space.num_factors, size=self._state_space.num_factors-p_k, replace=False)
+        p_shared_indices = np.random.choice(
+            self._state_space.num_factors, size=self._state_space.num_factors - p_k, replace=False
+        )
         return p_shared_indices
 
     def _resample_factors(self, anchor_factors):
-        positive_factors = sample_radius(anchor_factors, low=0, high=self._state_space.factor_sizes, r_low=self.p_radius_min, r_high=self.p_radius_max + 1)
+        positive_factors = sample_radius(
+            anchor_factors,
+            low=0,
+            high=self._state_space.factor_sizes,
+            r_low=self.p_radius_min,
+            r_high=self.p_radius_max + 1,
+        )
         return positive_factors
 
 

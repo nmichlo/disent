@@ -34,7 +34,6 @@ from omegaconf import OmegaConf
 
 from disent.util.deprecate import deprecated
 
-
 log = logging.getLogger(__name__)
 
 

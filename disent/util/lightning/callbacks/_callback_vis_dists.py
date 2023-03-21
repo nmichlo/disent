@@ -30,12 +30,11 @@ from typing import Sequence
 from typing import Tuple
 from typing import Union
 
+# TODO: wandb and matplotlib are not in requirements
+import matplotlib.pyplot as plt
 import numpy as np
 import pytorch_lightning as pl
 import torch
-
-# TODO: wandb and matplotlib are not in requirements
-import matplotlib.pyplot as plt
 import wandb
 
 import disent.util.strings.colors as c
@@ -51,7 +50,6 @@ from disent.util.lightning.logger_util import wb_log_metrics
 from disent.util.profiling import Timer
 from disent.util.seeds import TempNumpySeed
 from disent.util.visualize.plot import plt_subplots_imshow
-
 
 log = logging.getLogger(__name__)
 
@@ -75,14 +73,14 @@ def _to_dmat(
     assert i_a.shape == i_b.shape
     assert i_a.shape == dists.shape
     # compute
-    dmat = np.zeros([size, size], dtype='float32')
+    dmat = np.zeros([size, size], dtype="float32")
     dmat[i_a, i_b] = dists
     dmat[i_b, i_a] = dists
     return dmat
 
 
-_AE_DIST_NAMES = ('x', 'z', 'x_recon')
-_VAE_DIST_NAMES = ('x', 'z', 'kl', 'x_recon')
+_AE_DIST_NAMES = ("x", "z", "x_recon")
+_VAE_DIST_NAMES = ("x", "z", "kl", "x_recon")
 
 
 @torch.no_grad()
@@ -101,6 +99,7 @@ def _get_dists_ae(ae: Ae, x_a: torch.Tensor, x_b: torch.Tensor):
 @torch.no_grad()
 def _get_dists_vae(vae: Vae, x_a: torch.Tensor, x_b: torch.Tensor):
     from torch.distributions import kl_divergence
+
     # feed forward
     (z_post_a, z_prior_a), (z_post_b, z_prior_b) = vae.encode_dists(x_a), vae.encode_dists(x_b)
     z_a, z_b = z_post_a.mean, z_post_b.mean
@@ -116,7 +115,9 @@ def _get_dists_vae(vae: Vae, x_a: torch.Tensor, x_b: torch.Tensor):
     ]
 
 
-def _get_dists_fn(model: Ae) -> Tuple[Optional[Tuple[str, ...]], Optional[Callable[[object, object], Sequence[Sequence[float]]]]]:
+def _get_dists_fn(
+    model: Ae,
+) -> Tuple[Optional[Tuple[str, ...]], Optional[Callable[[object, object], Sequence[Sequence[float]]]]]:
     # get aggregate function
     if isinstance(model, Vae):
         dists_names, dists_fn = _VAE_DIST_NAMES, wrapped_partial(_get_dists_vae, model)
@@ -128,7 +129,13 @@ def _get_dists_fn(model: Ae) -> Tuple[Optional[Tuple[str, ...]], Optional[Callab
 
 
 @torch.no_grad()
-def _collect_dists_subbatches(dists_fn: Callable[[object, object], Sequence[Sequence[float]]], batch: torch.Tensor, i_a: np.ndarray, i_b: np.ndarray, batch_size: int = 64):
+def _collect_dists_subbatches(
+    dists_fn: Callable[[object, object], Sequence[Sequence[float]]],
+    batch: torch.Tensor,
+    i_a: np.ndarray,
+    i_b: np.ndarray,
+    batch_size: int = 64,
+):
     # feed forward
     results = []
     for idxs in chunked(np.stack([i_a, i_b], axis=-1), chunk_size=batch_size):
@@ -148,7 +155,7 @@ def _compute_and_collect_dists(
     batch_size: int = 32,
     include_gt_factor_dists: bool = True,
     transform_batch: Callable[[object], object] = None,
-    data_mode: str = 'input',
+    data_mode: str = "input",
 ) -> Tuple[Tuple[str, ...], List[List[np.ndarray]]]:
     assert traversal_repeats > 0
     gt_data = dataset.gt_data
@@ -187,7 +194,7 @@ def _compute_and_collect_dists(
         f_grid.append(f_dmats)
     # handle factors
     if include_gt_factor_dists:
-        dists_names = ('factors', *dists_names)
+        dists_names = ("factors", *dists_names)
     # done
     return tuple(dists_names), f_grid
 
@@ -201,11 +208,11 @@ def compute_factor_distances(
     include_gt_factor_dists: bool = True,
     transform_batch: Callable[[object], object] = None,
     seed: Optional[int] = 777,
-    data_mode: str = 'input',
+    data_mode: str = "input",
 ) -> Tuple[Tuple[str, ...], List[List[np.ndarray]]]:
     # log this callback
     gt_data = dataset.gt_data
-    log.info(f'| {gt_data.name} - computing factor distances...')
+    log.info(f"| {gt_data.name} - computing factor distances...")
     # compute various distances matrices for each factor
     with Timer() as timer, TempNumpySeed(seed):
         dists_names, f_grid = _compute_and_collect_dists(
@@ -219,7 +226,7 @@ def compute_factor_distances(
             data_mode=data_mode,
         )
     # log this callback!
-    log.info(f'| {gt_data.name} - computed factor distances! time{c.GRY}={c.lYLW}{timer.pretty:<9}{c.RST}')
+    log.info(f"| {gt_data.name} - computed factor distances! time{c.GRY}={c.lYLW}{timer.pretty:<9}{c.RST}")
     return dists_names, f_grid
 
 
@@ -230,16 +237,30 @@ def plt_factor_distances(
     title: str,
     plt_block_size: float = 1.25,
     plt_transpose: bool = False,
-    plt_cmap='Blues',
+    plt_cmap="Blues",
 ):
     # plot information
     imshow_kwargs = dict(cmap=plt_cmap)
-    figsize       = (plt_block_size*len(f_grid[0]), plt_block_size * gt_data.num_factors)
+    figsize = (plt_block_size * len(f_grid[0]), plt_block_size * gt_data.num_factors)
     # plot!
     if not plt_transpose:
-        fig, axs = plt_subplots_imshow(grid=f_grid,             col_labels=dists_names,          row_labels=gt_data.factor_names, figsize=figsize,       title=title, imshow_kwargs=imshow_kwargs)
+        fig, axs = plt_subplots_imshow(
+            grid=f_grid,
+            col_labels=dists_names,
+            row_labels=gt_data.factor_names,
+            figsize=figsize,
+            title=title,
+            imshow_kwargs=imshow_kwargs,
+        )
     else:
-        fig, axs = plt_subplots_imshow(grid=list(zip(*f_grid)), col_labels=gt_data.factor_names, row_labels=dists_names,          figsize=figsize[::-1], title=title, imshow_kwargs=imshow_kwargs)
+        fig, axs = plt_subplots_imshow(
+            grid=list(zip(*f_grid)),
+            col_labels=gt_data.factor_names,
+            row_labels=dists_names,
+            figsize=figsize[::-1],
+            title=title,
+            imshow_kwargs=imshow_kwargs,
+        )
     # done
     return fig, axs
 
@@ -250,7 +271,6 @@ def plt_factor_distances(
 
 
 class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
-
     def __init__(
         self,
         seed: Optional[int] = 7777,
@@ -279,18 +299,20 @@ class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
     def do_step(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         # exit early
         if not (self._plt_show or self._log_wandb):
-            log.warning(f'skipping {self.__class__.__name__} neither `plt_show` or `log_wandb` is `True`!')
+            log.warning(f"skipping {self.__class__.__name__} neither `plt_show` or `log_wandb` is `True`!")
             return
         # get dataset and vae framework from trainer and module
         dataset, vae = _get_dataset_and_ae_like(trainer, pl_module, unwrap_groundtruth=True)
         # exit early
         if not dataset.is_ground_truth:
-            log.warning(f'cannot run {self.__class__.__name__} over non-ground-truth data, skipping!')
+            log.warning(f"cannot run {self.__class__.__name__} over non-ground-truth data, skipping!")
             return
         # get aggregate function
         dists_names, dists_fn = _get_dists_fn(vae)
         if (dists_names is None) or (dists_fn is None):
-            log.warning(f'cannot run {self.__class__.__name__}, unsupported model type: {type(vae)}, must be {Ae.__name__} or {Vae.__name__}')
+            log.warning(
+                f"cannot run {self.__class__.__name__}, unsupported model type: {type(vae)}, must be {Ae.__name__} or {Vae.__name__}"
+            )
             return
         # compute various distances matrices for each factor
         dists_names, f_grid = compute_factor_distances(
@@ -302,26 +324,24 @@ class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
             include_gt_factor_dists=self._include_gt_factor_dists,
             transform_batch=lambda batch: batch.to(vae.device),
             seed=self._seed,
-            data_mode='input',
+            data_mode="input",
         )
         # plot these results
         fig, axs = plt_factor_distances(
             gt_data=dataset.gt_data,
             f_grid=f_grid,
             dists_names=dists_names,
-            title=f'{vae.__class__.__name__}: {dataset.gt_data.name.capitalize()} Distances',
+            title=f"{vae.__class__.__name__}: {dataset.gt_data.name.capitalize()} Distances",
             plt_block_size=self._plt_block_size,
             plt_transpose=self._transpose_plot,
-            plt_cmap='Blues',
+            plt_cmap="Blues",
         )
         # show the plot
         if self._plt_show:
             plt.show()
         # log the plot to wandb
         if self._log_wandb:
-            wb_log_metrics(trainer.logger, {
-                'factor_distances': wandb.Image(fig)
-            })
+            wb_log_metrics(trainer.logger, {"factor_distances": wandb.Image(fig)})
 
 
 # ========================================================================= #

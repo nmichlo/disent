@@ -26,7 +26,6 @@ from itertools import islice
 from typing import List
 from typing import Sequence
 
-
 # ========================================================================= #
 # Iterators                                                                 #
 # ========================================================================= #
@@ -38,7 +37,7 @@ def chunked(arr, chunk_size: int, include_remainder=True):
     This is NOT an iterable, and returns all the data.
     """
     size = (len(arr) + chunk_size - 1) if include_remainder else len(arr)
-    return [arr[chunk_size*i:chunk_size*(i+1)] for i in range(size // chunk_size)]
+    return [arr[chunk_size * i : chunk_size * (i + 1)] for i in range(size // chunk_size)]
 
 
 def iter_chunks(items, chunk_size: int, include_remainder=True):
@@ -48,7 +47,7 @@ def iter_chunks(items, chunk_size: int, include_remainder=True):
     """
     items = iter(items)
     for first in items:
-        chunk = [first, *islice(items, chunk_size-1)]
+        chunk = [first, *islice(items, chunk_size - 1)]
         if len(chunk) >= chunk_size or include_remainder:
             yield chunk
 
@@ -61,13 +60,13 @@ def iter_rechunk(chunks, chunk_size: int, include_remainder=True):
     return iter_chunks(
         (item for chunk in chunks for item in chunk),  # flatten chunks
         chunk_size=chunk_size,
-        include_remainder=include_remainder
+        include_remainder=include_remainder,
     )
 
 
 def map_all(fn, *arg_lists, starmap: bool = True, collect_returned: bool = False, common_kwargs: dict = None):
     # TODO: not actually an iterator
-    assert arg_lists, 'an empty list of args was passed'
+    assert arg_lists, "an empty list of args was passed"
     # check all lengths are the same
     num = len(arg_lists[0])
     assert num > 0
@@ -94,12 +93,10 @@ def collect_dicts(results: List[dict]):
     return {k: list(v) for k, v in zip(keys, values)}
 
 
-def aggregate_dict(results: dict, reduction='mean'):
+def aggregate_dict(results: dict, reduction="mean"):
     # TODO: this shouldn't be here
-    assert reduction == 'mean', 'mean is the only mode supported'
-    return {
-        k: sum(v) / len(v) for k, v in results.items()
-    }
+    assert reduction == "mean", "mean is the only mode supported"
+    return {k: sum(v) / len(v) for k, v in results.items()}
 
 
 # ========================================================================= #
@@ -108,7 +105,6 @@ def aggregate_dict(results: dict, reduction='mean'):
 
 
 class LengthIter(Sequence):
-
     def __iter__(self):
         # this takes priority over __getitem__, otherwise __getitem__ would need to
         # raise an IndexError if out of bounds to signal the end of iteration

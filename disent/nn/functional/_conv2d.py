@@ -25,21 +25,22 @@
 import numpy as np
 import torch
 
-
 # ========================================================================= #
 # convolve2d                                                                #
 # ========================================================================= #
 
 
 def _check_conv2d_inputs(signal, kernel):
-    assert signal.ndim == 4, f'signal has {repr(signal.ndim)} dimensions, must have 4 dimensions instead: BxCxHxW'
-    assert kernel.ndim == 2 or kernel.ndim == 4, f'kernel has {repr(kernel.ndim)} dimensions, must have 2 or 4 dimensions instead: HxW or BxCxHxW'
+    assert signal.ndim == 4, f"signal has {repr(signal.ndim)} dimensions, must have 4 dimensions instead: BxCxHxW"
+    assert (
+        kernel.ndim == 2 or kernel.ndim == 4
+    ), f"kernel has {repr(kernel.ndim)} dimensions, must have 2 or 4 dimensions instead: HxW or BxCxHxW"
     # increase kernel size
     if kernel.ndim == 2:
         kernel = kernel[None, None, ...]
     # check kernel is an odd size
     kh, kw = kernel.shape[-2:]
-    assert kh % 2 != 0 and kw % 2 != 0, f'kernel dimension sizes must be odd: ({kh}, {kw})'
+    assert kh % 2 != 0 and kw % 2 != 0, f"kernel dimension sizes must be odd: ({kh}, {kw})"
     # check that broadcasting does not adjust the signal shape... TODO: relax this limitation?
     assert torch.broadcast_shapes(signal.shape[:2], kernel.shape[:2]) == signal.shape[:2]
     # done!
@@ -79,7 +80,7 @@ def torch_conv2d_channel_wise_fft(signal, kernel):
     # crop final result
     s = (padded_shape - sig_shape) // 2
     f = s + sig_shape
-    crop = result[..., s[0]:f[0], s[1]:f[1]]
+    crop = result[..., s[0] : f[0], s[1] : f[1]]
     # done...
     return crop
 

@@ -33,7 +33,6 @@ from disent.dataset.data import BaseEpisodesData
 from disent.util.inout.files import download_file
 from disent.util.inout.paths import filename_from_url
 
-
 log = logging.getLogger(__name__)
 
 
@@ -43,9 +42,8 @@ log = logging.getLogger(__name__)
 
 
 class EpisodesPickledData(BaseEpisodesData):
-
     def __init__(self, required_file: str, transform=None):
-        assert os.path.isabs(required_file), f'{required_file=} must be an absolute path.'
+        assert os.path.isabs(required_file), f"{required_file=} must be an absolute path."
         self._required_file = required_file
         # load data
         super().__init__(transform=transform)
@@ -56,8 +54,9 @@ class EpisodesPickledData(BaseEpisodesData):
 
     def _load_episode_observations(self) -> List[np.ndarray]:
         import pickle
+
         # load the raw data!
-        with open(self._required_file, 'rb') as f:
+        with open(self._required_file, "rb") as f:
             # ~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
             # - Each element in the root list represents an episode
             # - An episode is a list containing many executed options
@@ -120,13 +119,14 @@ class EpisodesPickledData(BaseEpisodesData):
 
 
 class EpisodesDownloadZippedPickledData(EpisodesPickledData):
-
     # TODO: convert this to data files?
     # TODO: convert this to data files?
     # TODO: convert this to data files?
 
     def __init__(self, required_file: str, download_url=None, force_download=False, transform=None):
-        self._download_and_extract_if_needed(download_url=download_url, required_file=required_file, force_download=force_download)
+        self._download_and_extract_if_needed(
+            download_url=download_url, required_file=required_file, force_download=force_download
+        )
         super().__init__(required_file=required_file, transform=transform)
 
     def _download_and_extract_if_needed(self, download_url: str, required_file: str, force_download: bool):
@@ -138,24 +138,27 @@ class EpisodesDownloadZippedPickledData(EpisodesPickledData):
         # download file, but skip if file already exists
         save_path = os.path.join(os.path.dirname(required_file), filename_from_url(download_url))
         if force_download or not os.path.exists(save_path):
-            log.info(f'Downloading: {download_url=} to {save_path=}')
+            log.info(f"Downloading: {download_url=} to {save_path=}")
             download_file(download_url, save_path=save_path)
-            log.info(f'Downloaded!')
+            log.info(f"Downloaded!")
         # check that the downloaded file exists
-        assert os.path.exists(save_path), 'The file specified for download does not exist!'
+        assert os.path.exists(save_path), "The file specified for download does not exist!"
         # ~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
         # unzip data
         if (save_path != required_file) and not os.path.exists(required_file):
-            if save_path.endswith('.tar.xz'):
+            if save_path.endswith(".tar.xz"):
                 import tarfile
-                log.info(f'Extracting: {save_path=} to {required_file=}')
+
+                log.info(f"Extracting: {save_path=} to {required_file=}")
                 with tarfile.open(save_path) as f:
                     f.extractall(os.path.dirname(required_file))
-                log.info(f'Extracted!')
+                log.info(f"Extracted!")
             else:
-                raise IOError(f'Unsupported extension for: {save_path}')
+                raise IOError(f"Unsupported extension for: {save_path}")
         # check that everything exists
-        assert os.path.exists(required_file), 'The required file does not exist after downloading and extracting if necessary!'
+        assert os.path.exists(
+            required_file
+        ), "The required file does not exist after downloading and extracting if necessary!"
         # ~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
 
 

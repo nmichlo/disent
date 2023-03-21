@@ -24,17 +24,17 @@
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict
-from typing import final
+from typing import Any
+from typing import Dict
 from typing import Tuple
+from typing import final
 
 import torch
 
 from disent.frameworks import DisentFramework
-from disent.frameworks.helper.reconstructions import make_reconstruction_loss
 from disent.frameworks.helper.reconstructions import ReconLossHandler
+from disent.frameworks.helper.reconstructions import make_reconstruction_loss
 from disent.model import AutoEncoder
-
 
 log = logging.getLogger(__name__)
 
@@ -53,12 +53,12 @@ class _AeAndVaeMixin(DisentFramework):
 
     @dataclass
     class cfg(DisentFramework.cfg):
-        recon_loss: str = 'mse'
+        recon_loss: str = "mse"
         # multiple reduction modes exist for the various loss components.
         # - 'sum': sum over the entire batch
         # - 'mean': mean over the entire batch
         # - 'mean_sum': sum each observation, returning the mean sum over the batch
-        loss_reduction: str = 'mean'
+        loss_reduction: str = "mean"
         # disable various components
         detach_decoder: bool = False
         disable_rec_loss: bool = False
@@ -93,27 +93,37 @@ class _AeAndVaeMixin(DisentFramework):
         # vae model
         self._model = model
         # check the model
-        assert isinstance(self._model, AutoEncoder), f'model must be an instance of {AutoEncoder.__name__}, got: {type(model)}'
-        assert self._model.z_multiplier == self.REQUIRED_Z_MULTIPLIER, f'model z_multiplier is {repr(self._model.z_multiplier)} but {self.__class__.__name__} requires that it is: {repr(self.REQUIRED_Z_MULTIPLIER)}'
+        assert isinstance(
+            self._model, AutoEncoder
+        ), f"model must be an instance of {AutoEncoder.__name__}, got: {type(model)}"
+        assert (
+            self._model.z_multiplier == self.REQUIRED_Z_MULTIPLIER
+        ), f"model z_multiplier is {repr(self._model.z_multiplier)} but {self.__class__.__name__} requires that it is: {repr(self.REQUIRED_Z_MULTIPLIER)}"
         # recon loss & activation fn
-        self.__recon_handler: ReconLossHandler = make_reconstruction_loss(self.cfg.recon_loss, reduction=self.cfg.loss_reduction)
+        self.__recon_handler: ReconLossHandler = make_reconstruction_loss(
+            self.cfg.recon_loss, reduction=self.cfg.loss_reduction
+        )
 
     # --------------------------------------------------------------------- #
     # AE/VAE Training Step Helper                                           #
     # --------------------------------------------------------------------- #
 
     @final
-    def _get_xs_and_targs(self, batch: Dict[str, Tuple[torch.Tensor, ...]], batch_idx) -> Tuple[Tuple[torch.Tensor, ...], Tuple[torch.Tensor, ...]]:
-        xs_targ = batch['x_targ']
-        if 'x' not in batch:
+    def _get_xs_and_targs(
+        self, batch: Dict[str, Tuple[torch.Tensor, ...]], batch_idx
+    ) -> Tuple[Tuple[torch.Tensor, ...], Tuple[torch.Tensor, ...]]:
+        xs_targ = batch["x_targ"]
+        if "x" not in batch:
             # TODO: re-enable this warning but only ever print once!
             # warnings.warn('dataset does not have input: x -> x_targ using target as input: x_targ -> x_targ')
             xs = xs_targ
         else:
-            xs = batch['x']
+            xs = batch["x"]
         # check that we have the correct number of inputs
         if (len(xs) != self.REQUIRED_OBS) or (len(xs_targ) != self.REQUIRED_OBS):
-            log.warning(f'batch len(xs)={len(xs)} and len(xs_targ)={len(xs_targ)} observation count mismatch, requires: {self.REQUIRED_OBS}')
+            log.warning(
+                f"batch len(xs)={len(xs)} and len(xs_targ)={len(xs_targ)} observation count mismatch, requires: {self.REQUIRED_OBS}"
+            )
         # done
         return xs, xs_targ
 
@@ -142,12 +152,15 @@ class _AeAndVaeMixin(DisentFramework):
         raise NotImplementedError
 
     def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
-        if not checkpoint.get("hyper_parameters"):  # if the logger did not register hyperparameters they're set here manually
+        if not checkpoint.get(
+            "hyper_parameters"
+        ):  # if the logger did not register hyperparameters they're set here manually
             checkpoint["hyper_parameters"] = {}
         checkpoint["hyper_parameters"]["model"] = self._model
         checkpoint["hyper_parameters"]["cfg"] = self.cfg
         checkpoint["hyper_parameters"]["batch_augment"] = self._batch_augment
         return super().on_save_checkpoint(checkpoint)
+
 
 # ========================================================================= #
 # END                                                                       #

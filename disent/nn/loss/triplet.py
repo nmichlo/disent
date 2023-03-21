@@ -22,31 +22,32 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import warnings
 from dataclasses import dataclass
 from typing import Sequence
-from typing import Type, Union
-import torch
-import warnings
+from typing import Type
+from typing import Union
 
+import torch
 
 # ========================================================================= #
 # Triplet Modifications                                                     #
 # ========================================================================= #
 
 
-def triplet_loss(anc, pos, neg, margin_min=None, margin_max=1., p=1):
+def triplet_loss(anc, pos, neg, margin_min=None, margin_max=1.0, p=1):
     """
     Standard Triplet Loss
     """
     return dist_triplet_loss(anc - pos, anc - neg, margin_min=margin_min, margin_max=margin_max, p=p)
 
 
-def dist_triplet_loss(pos_delta, neg_delta, margin_min=None, margin_max=1., p=1):
+def dist_triplet_loss(pos_delta, neg_delta, margin_min=None, margin_max=1.0, p=1):
     """
     Standard Triplet Loss
     """
     if margin_min is not None:
-        warnings.warn('triplet_loss does not support margin_min')
+        warnings.warn("triplet_loss does not support margin_min")
     p_dist = torch.norm(pos_delta, p=p, dim=-1)
     n_dist = torch.norm(neg_delta, p=p, dim=-1)
     loss = torch.clamp_min(p_dist - n_dist + margin_max, 0)
@@ -56,7 +57,7 @@ def dist_triplet_loss(pos_delta, neg_delta, margin_min=None, margin_max=1., p=1)
 # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
 
-def triplet_sigmoid_loss(anc, pos, neg, margin_min=None, margin_max=1., p=1):
+def triplet_sigmoid_loss(anc, pos, neg, margin_min=None, margin_max=1.0, p=1):
     """
     Sigmoid Triplet Loss
     https://arxiv.org/pdf/2003.14021.pdf
@@ -64,16 +65,16 @@ def triplet_sigmoid_loss(anc, pos, neg, margin_min=None, margin_max=1., p=1):
     return dist_triplet_sigmoid_loss(anc - pos, anc - neg, margin_min=margin_min, margin_max=margin_max, p=p)
 
 
-def dist_triplet_sigmoid_loss(pos_delta, neg_delta, margin_min=None, margin_max=1., p=1):
+def dist_triplet_sigmoid_loss(pos_delta, neg_delta, margin_min=None, margin_max=1.0, p=1):
     """
     Sigmoid Triplet Loss
     https://arxiv.org/pdf/2003.14021.pdf
     """
     if margin_min is not None:
-        warnings.warn('triplet_sigmoid_loss does not support margin_min')
+        warnings.warn("triplet_sigmoid_loss does not support margin_min")
     p_dist = torch.norm(pos_delta, p=p, dim=-1)
     n_dist = torch.norm(neg_delta, p=p, dim=-1)
-    loss = torch.sigmoid((1/margin_max) * (p_dist - n_dist))
+    loss = torch.sigmoid((1 / margin_max) * (p_dist - n_dist))
     return loss.mean()
 
 
@@ -94,9 +95,9 @@ def dist_triplet_soft_loss(pos_delta, neg_delta, margin_min=None, margin_max=Non
     https://arxiv.org/pdf/1703.07737.pdf
     """
     if margin_min is not None:
-        warnings.warn('triplet_soft_loss does not support margin_min')
+        warnings.warn("triplet_soft_loss does not support margin_min")
     if margin_max is not None:
-        warnings.warn('triplet_soft_loss does not support margin_max')
+        warnings.warn("triplet_soft_loss does not support margin_max")
     p_dist = torch.norm(pos_delta, p=p, dim=-1)
     n_dist = torch.norm(neg_delta, p=p, dim=-1)
     loss = torch.log(1 + torch.exp(p_dist - n_dist))
@@ -154,7 +155,7 @@ def dist_triplet_soft_loss(pos_delta, neg_delta, margin_min=None, margin_max=Non
 # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
 
-def min_clamped_triplet_loss(anc, pos, neg, margin_min=0.01, margin_max=1., p=1):
+def min_clamped_triplet_loss(anc, pos, neg, margin_min=0.01, margin_max=1.0, p=1):
     """
     Min Margin Triplet Loss
     TODO: is this better, or clamped_triplet_loss?
@@ -163,7 +164,7 @@ def min_clamped_triplet_loss(anc, pos, neg, margin_min=0.01, margin_max=1., p=1)
     return dist_min_clamped_triplet_loss(anc - pos, anc - neg, margin_min=margin_min, margin_max=margin_max, p=p)
 
 
-def dist_min_clamped_triplet_loss(pos_delta, neg_delta, margin_min=0.01, margin_max=1., p=1):
+def dist_min_clamped_triplet_loss(pos_delta, neg_delta, margin_min=0.01, margin_max=1.0, p=1):
     """
     Min Margin Triplet Loss
     TODO: is this better, or dist_clamped_triplet_loss?
@@ -174,10 +175,11 @@ def dist_min_clamped_triplet_loss(pos_delta, neg_delta, margin_min=0.01, margin_
     loss = torch.clamp_min(torch.clamp_min(p_dist, margin_min) - n_dist + margin_max, 0)
     return loss.mean()
 
+
 # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
 
-def split_clamped_triplet_loss(anc, pos, neg, margin_min=0.01, margin_max=1., p=1):
+def split_clamped_triplet_loss(anc, pos, neg, margin_min=0.01, margin_max=1.0, p=1):
     """
     Min Margin Triplet Loss
     TODO: is this better, or min_clamp_triplet_loss?
@@ -186,7 +188,7 @@ def split_clamped_triplet_loss(anc, pos, neg, margin_min=0.01, margin_max=1., p=
     return dist_split_clamped_triplet_loss(anc - pos, anc - neg, margin_min=margin_min, margin_max=margin_max, p=p)
 
 
-def dist_split_clamped_triplet_loss(pos_delta, neg_delta, margin_min=0.01, margin_max=1., p=1):
+def dist_split_clamped_triplet_loss(pos_delta, neg_delta, margin_min=0.01, margin_max=1.0, p=1):
     """
     Min Margin Triplet Loss
     TODO: is this better, or dist_min_clamp_triplet_loss?
@@ -238,7 +240,7 @@ def dist_split_clamped_triplet_loss(pos_delta, neg_delta, margin_min=0.01, margi
 
 @dataclass
 class TripletLossConfig(object):
-    triplet_loss: str = 'triplet'
+    triplet_loss: str = "triplet"
     triplet_margin_min: float = 0.1
     triplet_margin_max: float = 10
     triplet_scale: float = 100
@@ -246,25 +248,25 @@ class TripletLossConfig(object):
 
 
 _TRIPLET_LOSSES = {
-    'triplet': triplet_loss,
-    'triplet_sigmoid': triplet_sigmoid_loss,
-    'triplet_soft': triplet_soft_loss,
+    "triplet": triplet_loss,
+    "triplet_sigmoid": triplet_sigmoid_loss,
+    "triplet_soft": triplet_soft_loss,
     # 'elem_triplet': elem_triplet_loss,
     # 'min_margin_triplet': min_margin_triplet_loss,
-    'min_clamped_triplet': min_clamped_triplet_loss,
-    'split_clamped_triplet': split_clamped_triplet_loss,
+    "min_clamped_triplet": min_clamped_triplet_loss,
+    "split_clamped_triplet": split_clamped_triplet_loss,
     # 'triplet_lossless': triplet_lossless,
 }
 
 
 _DIST_TRIPLET_LOSSES = {
-    'triplet': dist_triplet_loss,
-    'triplet_sigmoid': dist_triplet_sigmoid_loss,
-    'triplet_soft': dist_triplet_soft_loss,
+    "triplet": dist_triplet_loss,
+    "triplet_sigmoid": dist_triplet_sigmoid_loss,
+    "triplet_soft": dist_triplet_soft_loss,
     # 'elem_triplet': dist_elem_triplet_loss,
     # 'min_margin_triplet': dist_min_margin_triplet_loss,
-    'min_clamped_triplet': dist_min_clamped_triplet_loss,
-    'split_clamped_triplet': dist_split_clamped_triplet_loss,
+    "min_clamped_triplet": dist_min_clamped_triplet_loss,
+    "split_clamped_triplet": dist_split_clamped_triplet_loss,
     # 'triplet_lossless': dist_triplet_lossless,
 }
 
@@ -273,21 +275,30 @@ TripletConfigTypeHint = Union[TripletLossConfig, Type[TripletLossConfig]]
 
 
 def configured_triplet(anc, pos, neg, cfg: TripletConfigTypeHint):
-    return _TRIPLET_LOSSES[cfg.triplet_loss](
-        anc, pos, neg,
-        margin_min=cfg.triplet_margin_min,
-        margin_max=cfg.triplet_margin_max,
-        p=cfg.triplet_p,
-    ) * cfg.triplet_scale
+    return (
+        _TRIPLET_LOSSES[cfg.triplet_loss](
+            anc,
+            pos,
+            neg,
+            margin_min=cfg.triplet_margin_min,
+            margin_max=cfg.triplet_margin_max,
+            p=cfg.triplet_p,
+        )
+        * cfg.triplet_scale
+    )
 
 
 def configured_dist_triplet(pos_delta, neg_delta, cfg: TripletConfigTypeHint):
-    return _DIST_TRIPLET_LOSSES[cfg.triplet_loss](
-        pos_delta, neg_delta,
-        margin_min=cfg.triplet_margin_min,
-        margin_max=cfg.triplet_margin_max,
-        p=cfg.triplet_p,
-    ) * cfg.triplet_scale
+    return (
+        _DIST_TRIPLET_LOSSES[cfg.triplet_loss](
+            pos_delta,
+            neg_delta,
+            margin_min=cfg.triplet_margin_min,
+            margin_max=cfg.triplet_margin_max,
+            p=cfg.triplet_p,
+        )
+        * cfg.triplet_scale
+    )
 
 
 def compute_triplet_loss(zs: Sequence[torch.Tensor], cfg: TripletConfigTypeHint):
@@ -295,9 +306,7 @@ def compute_triplet_loss(zs: Sequence[torch.Tensor], cfg: TripletConfigTypeHint)
     # loss is scaled and everything
     loss = configured_triplet(anc, pos, neg, cfg=cfg)
     # return loss & log
-    return loss, {
-        f'{cfg.triplet_loss}_L{cfg.triplet_p}': loss
-    }
+    return loss, {f"{cfg.triplet_loss}_L{cfg.triplet_p}": loss}
 
 
 def compute_dist_triplet_loss(zs_deltas: Sequence[torch.Tensor], cfg: TripletConfigTypeHint):
@@ -305,9 +314,7 @@ def compute_dist_triplet_loss(zs_deltas: Sequence[torch.Tensor], cfg: TripletCon
     # loss is scaled and everything
     loss = configured_dist_triplet(pos_delta, neg_delta, cfg=cfg)
     # return loss & log
-    return loss, {
-        f'{cfg.triplet_loss}_L{cfg.triplet_p}': loss
-    }
+    return loss, {f"{cfg.triplet_loss}_L{cfg.triplet_p}": loss}
 
 
 # ========================================================================= #

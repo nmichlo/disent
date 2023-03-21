@@ -25,13 +25,12 @@
 import warnings
 from typing import Tuple
 
-from torch import nn
 from torch import Tensor
+from torch import nn
 
 from disent.model import DisentDecoder
 from disent.model import DisentEncoder
 from disent.nn.activations import Swish
-
 
 # ========================================================================= #
 # disentanglement_lib Conv models                                           #
@@ -44,23 +43,30 @@ class EncoderConv64Norm(DisentEncoder):
     selectable activations and norm layers
     """
 
-    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1, activation='leaky_relu', norm='layer', norm_pre_act=True):
+    def __init__(
+        self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1, activation="leaky_relu", norm="layer", norm_pre_act=True
+    ):
         # checks
         (C, H, W) = x_shape
-        assert (H, W) == (64, 64), 'This model only works with image size 64x64.'
+        assert (H, W) == (64, 64), "This model only works with image size 64x64."
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
         # warnings
-        warnings.warn(f'this model: {self.__class__.__name__} is non-standard in VAE research!')
+        warnings.warn(f"this model: {self.__class__.__name__} is non-standard in VAE research!")
 
         self.model = nn.Sequential(
-            nn.Conv2d(in_channels=C,  out_channels=32, kernel_size=4, stride=2, padding=2), *_make_activations(activation=activation, norm=norm, shape=(32, 33, 33), norm_pre_act=norm_pre_act),
-            nn.Conv2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=2), *_make_activations(activation=activation, norm=norm, shape=(32, 17, 17), norm_pre_act=norm_pre_act),
-            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=2, stride=2, padding=1), *_make_activations(activation=activation, norm=norm, shape=(64,  9,  9), norm_pre_act=norm_pre_act),
-            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=2, stride=2, padding=1), *_make_activations(activation=activation, norm=norm, shape=(64,  5,  5), norm_pre_act=norm_pre_act),
+            nn.Conv2d(in_channels=C, out_channels=32, kernel_size=4, stride=2, padding=2),
+            *_make_activations(activation=activation, norm=norm, shape=(32, 33, 33), norm_pre_act=norm_pre_act),
+            nn.Conv2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=2),
+            *_make_activations(activation=activation, norm=norm, shape=(32, 17, 17), norm_pre_act=norm_pre_act),
+            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=2, stride=2, padding=1),
+            *_make_activations(activation=activation, norm=norm, shape=(64, 9, 9), norm_pre_act=norm_pre_act),
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=2, stride=2, padding=1),
+            *_make_activations(activation=activation, norm=norm, shape=(64, 5, 5), norm_pre_act=norm_pre_act),
             nn.Flatten(),
-            nn.Linear(in_features=1600, out_features=256), *_make_activations(activation=activation, norm='none'),
-            nn.Linear(in_features=256,  out_features=self.z_total),
+            nn.Linear(in_features=1600, out_features=256),
+            *_make_activations(activation=activation, norm="none"),
+            nn.Linear(in_features=256, out_features=self.z_total),
         )
 
     def encode(self, x) -> (Tensor, Tensor):
@@ -73,23 +79,30 @@ class DecoderConv64Norm(DisentDecoder):
     selectable activations and norm layers
     """
 
-    def __init__(self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1, activation='leaky_relu', norm='layer', norm_pre_act=True):
+    def __init__(
+        self, x_shape=(3, 64, 64), z_size=6, z_multiplier=1, activation="leaky_relu", norm="layer", norm_pre_act=True
+    ):
         # checks
         (C, H, W) = x_shape
-        assert (H, W) == (64, 64), 'This model only works with image size 64x64.'
+        assert (H, W) == (64, 64), "This model only works with image size 64x64."
         super().__init__(x_shape=x_shape, z_size=z_size, z_multiplier=z_multiplier)
 
         # warnings
-        warnings.warn(f'this model: {self.__class__.__name__} is non-standard in VAE research!')
+        warnings.warn(f"this model: {self.__class__.__name__} is non-standard in VAE research!")
 
         self.model = nn.Sequential(
-            nn.Linear(in_features=self.z_size, out_features=256),  *_make_activations(activation=activation, norm='none'),
-            nn.Linear(in_features=256,         out_features=1024), *_make_activations(activation=activation, norm='none'),
+            nn.Linear(in_features=self.z_size, out_features=256),
+            *_make_activations(activation=activation, norm="none"),
+            nn.Linear(in_features=256, out_features=1024),
+            *_make_activations(activation=activation, norm="none"),
             nn.Unflatten(dim=1, unflattened_size=[64, 4, 4]),
-            nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=4, stride=2, padding=1), *_make_activations(activation=activation, norm=norm, shape=(64,  8,  8), norm_pre_act=norm_pre_act),
-            nn.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=4, stride=2, padding=1), *_make_activations(activation=activation, norm=norm, shape=(32, 16, 16), norm_pre_act=norm_pre_act),
-            nn.ConvTranspose2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=1), *_make_activations(activation=activation, norm=norm, shape=(32, 32, 32), norm_pre_act=norm_pre_act),
-            nn.ConvTranspose2d(in_channels=32, out_channels=C,  kernel_size=4, stride=2, padding=1),
+            nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=4, stride=2, padding=1),
+            *_make_activations(activation=activation, norm=norm, shape=(64, 8, 8), norm_pre_act=norm_pre_act),
+            nn.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=4, stride=2, padding=1),
+            *_make_activations(activation=activation, norm=norm, shape=(32, 16, 16), norm_pre_act=norm_pre_act),
+            nn.ConvTranspose2d(in_channels=32, out_channels=32, kernel_size=4, stride=2, padding=1),
+            *_make_activations(activation=activation, norm=norm, shape=(32, 32, 32), norm_pre_act=norm_pre_act),
+            nn.ConvTranspose2d(in_channels=32, out_channels=C, kernel_size=4, stride=2, padding=1),
         )
 
     def decode(self, z) -> Tensor:
@@ -101,35 +114,35 @@ class DecoderConv64Norm(DisentDecoder):
 # ========================================================================= #
 
 
-def _make_activations(activation='relu', inplace=True, norm='layer', shape: Tuple[int, ...] = None, norm_pre_act=True):
+def _make_activations(activation="relu", inplace=True, norm="layer", shape: Tuple[int, ...] = None, norm_pre_act=True):
     # get activation layer
-    if activation == 'relu':
+    if activation == "relu":
         a_layer = nn.ReLU(inplace=inplace)
-    elif activation == 'leaky_relu':
+    elif activation == "leaky_relu":
         a_layer = nn.LeakyReLU(inplace=inplace)
-    elif activation == 'swish':
+    elif activation == "swish":
         a_layer = Swish()
     else:
-        raise KeyError(f'invalid activation layer: {repr(activation)}')
+        raise KeyError(f"invalid activation layer: {repr(activation)}")
 
     # get norm layer
     # https://www.programmersought.com/article/41731094913/
     # TODO: nn.GroupNorm
 
-    if norm in (None, 'none'):
+    if norm in (None, "none"):
         n_layer = None
     else:
         C, H, W = shape
-        if norm == 'batch':
+        if norm == "batch":
             n_layer = nn.BatchNorm2d(num_features=C)
-        elif norm == 'instance':
+        elif norm == "instance":
             n_layer = nn.InstanceNorm2d(num_features=C)
-        elif norm == 'layer':
+        elif norm == "layer":
             n_layer = nn.LayerNorm(normalized_shape=[H, W])
-        elif norm == 'layer_chn':
+        elif norm == "layer_chn":
             n_layer = nn.LayerNorm(normalized_shape=[C, H, W])
         else:
-            raise KeyError(f'invalid norm layer: {repr(norm)}')
+            raise KeyError(f"invalid norm layer: {repr(norm)}")
     # order layers
     layers = (n_layer, a_layer) if norm_pre_act else (a_layer, n_layer)
     # return layers

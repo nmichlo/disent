@@ -23,14 +23,12 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from functools import lru_cache
-
 from typing import Tuple
 from typing import Union
 
 import numpy as np
 import torch
 import torch.nn.functional as F
-
 
 # ========================================================================= #
 # helper functions for moving dimensions                                    #
@@ -102,12 +100,13 @@ def torch_undo_dims_at_end_2d(tensor: torch.Tensor, moved_shape, moved_end_dims)
 def torch_soft_sort(
     tensor: torch.Tensor,
     dims: Union[int, Tuple[int, ...]] = -1,
-    regularization='l2',
+    regularization="l2",
     regularization_strength=1.0,
     leave_dims_at_end=False,
 ):
     # we import it locally so that we don't have to install this
     import torchsort
+
     # reorder the dimensions
     tensor, moved_shape, moved_end_dims = torch_dims_at_end_2d(tensor, dims=dims, return_undo_data=True)
     # sort the last dimension of the 2D tensors
@@ -121,12 +120,13 @@ def torch_soft_sort(
 def torch_soft_rank(
     tensor: torch.Tensor,
     dims: Union[int, Tuple[int, ...]] = -1,
-    regularization='l2',
+    regularization="l2",
     regularization_strength=1.0,
     leave_dims_at_end=False,
 ):
     # we import it locally so that we don't have to install this
     import torchsort
+
     # reorder the dimensions
     tensor, moved_shape, moved_end_dims = torch_dims_at_end_2d(tensor, dims=dims, return_undo_data=True)
     # sort the last dimension of the 2D tensors
@@ -146,8 +146,8 @@ def multi_spearman_rank_loss(
     pred: torch.Tensor,
     targ: torch.Tensor,
     dims: Union[int, Tuple[int, ...]] = -1,
-    reduction='mean',
-    regularization='l2',
+    reduction="mean",
+    regularization="l2",
     regularization_strength=1.0,
     nan_to_num=False,
 ) -> torch.Tensor:
@@ -164,15 +164,22 @@ def multi_spearman_rank_loss(
     pred = torch_dims_at_end_2d(pred, dims=dims, return_undo_data=False)
     targ = torch_dims_at_end_2d(targ, dims=dims, return_undo_data=False)
     # compute
-    assert reduction == 'mean', 'only supports reduction="mean"'
-    return spearman_rank_loss(pred=pred, targ=targ, reduction=reduction, regularization=regularization, regularization_strength=regularization_strength, nan_to_num=nan_to_num)
+    assert reduction == "mean", 'only supports reduction="mean"'
+    return spearman_rank_loss(
+        pred=pred,
+        targ=targ,
+        reduction=reduction,
+        regularization=regularization,
+        regularization_strength=regularization_strength,
+        nan_to_num=nan_to_num,
+    )
 
 
 def spearman_rank_loss(
     pred: torch.Tensor,
     targ: torch.Tensor,
-    reduction='mean',
-    regularization='l2',
+    reduction="mean",
+    regularization="l2",
     regularization_strength=1.0,
     nan_to_num=False,
 ):
@@ -190,13 +197,16 @@ def spearman_rank_loss(
     # TODO: I think something is wrong with this...
     # we import it locally so that we don't have to install this
     import torchsort
+
     # add missing dim
     if pred.ndim == 1:
         pred, targ = pred.reshape(1, -1), targ.reshape(1, -1)
     assert pred.shape == targ.shape
     assert pred.ndim == 2
     # sort the last dimension of the 2D tensors
-    assert regularization == 'l2', 'Only l2 regularization is currently supported for torchsort, others can result in memory leaks. See the torchsort github page for the bug report.'
+    assert (
+        regularization == "l2"
+    ), "Only l2 regularization is currently supported for torchsort, others can result in memory leaks. See the torchsort github page for the bug report."
     pred = torchsort.soft_rank(pred, regularization=regularization, regularization_strength=regularization_strength)
     targ = torchsort.soft_rank(targ, regularization=regularization, regularization_strength=regularization_strength)
     # compute individual losses
@@ -212,12 +222,12 @@ def spearman_rank_loss(
     # compute the final loss
     loss = (pred * targ).sum(dim=-1)
     # reduce the loss
-    if reduction == 'mean':
+    if reduction == "mean":
         return loss.mean()
-    elif reduction == 'none':
+    elif reduction == "none":
         return loss
     else:
-        raise KeyError(f'Invalid reduction mode: {repr(reduction)}')
+        raise KeyError(f"Invalid reduction mode: {repr(reduction)}")
 
 
 # ========================================================================= #
@@ -225,10 +235,22 @@ def spearman_rank_loss(
 # ========================================================================= #
 
 
-def torch_mse_rank_loss(pred, targ, dims=-1, regularization='l2', regularization_strength=1.0, reduction='mean'):
+def torch_mse_rank_loss(pred, targ, dims=-1, regularization="l2", regularization_strength=1.0, reduction="mean"):
     return F.mse_loss(
-        torch_soft_rank(pred, dims=dims, regularization=regularization, regularization_strength=regularization_strength, leave_dims_at_end=False),
-        torch_soft_rank(targ, dims=dims, regularization=regularization, regularization_strength=regularization_strength, leave_dims_at_end=False),
+        torch_soft_rank(
+            pred,
+            dims=dims,
+            regularization=regularization,
+            regularization_strength=regularization_strength,
+            leave_dims_at_end=False,
+        ),
+        torch_soft_rank(
+            targ,
+            dims=dims,
+            regularization=regularization,
+            regularization_strength=regularization_strength,
+            leave_dims_at_end=False,
+        ),
         reduction=reduction,
     )
 

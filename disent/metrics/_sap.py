@@ -35,7 +35,6 @@ from disent.dataset import DisentDataset
 from disent.metrics import utils
 from disent.metrics.utils import make_metric
 
-
 log = logging.getLogger(__name__)
 
 
@@ -44,14 +43,14 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-@make_metric('sap', fast_kwargs=dict(num_train=2000, num_test=1000))
+@make_metric("sap", fast_kwargs=dict(num_train=2000, num_test=1000))
 def metric_sap(
-        dataset: DisentDataset,
-        representation_function,
-        num_train=10000,
-        num_test=5000,
-        batch_size=16,
-        continuous_factors=False
+    dataset: DisentDataset,
+    representation_function,
+    num_train=10000,
+    num_test=5000,
+    batch_size=16,
+    continuous_factors=False,
 ):
     """Computes the SAP score.
     Args:
@@ -81,9 +80,7 @@ def _compute_sap(mus, ys, mus_test, ys_test, continuous_factors):
 
     sap_score = _compute_avg_diff_top_two(score_matrix)
     log.debug("SAP score: %.2g", sap_score)
-    return {
-        "sap.score": sap_score  # "compactness: SAP" -- Measuring Disentanglement: A Review of Metrics
-    }
+    return {"sap.score": sap_score}  # "compactness: SAP" -- Measuring Disentanglement: A Review of Metrics
 
 
 def _compute_score_matrix(mus, ys, mus_test, ys_test, continuous_factors):
@@ -102,9 +99,9 @@ def _compute_score_matrix(mus, ys, mus_test, ys_test, continuous_factors):
                 var_mu = cov_mu_i_y_j[0, 0]
                 var_y = cov_mu_i_y_j[1, 1]
                 if var_mu > 1e-12:
-                    score_matrix[i, j] = cov_mu_y * 1. / (var_mu * var_y)
+                    score_matrix[i, j] = cov_mu_y * 1.0 / (var_mu * var_y)
                 else:
-                    score_matrix[i, j] = 0.
+                    score_matrix[i, j] = 0.0
             else:
                 # Attribute is considered discrete.
                 mu_i_test = mus_test[i, :]

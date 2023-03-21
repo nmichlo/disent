@@ -32,7 +32,6 @@ from disent.nn.functional._util_generic import generic_min
 from disent.nn.functional._util_generic import generic_ndim
 from disent.nn.functional._util_generic import generic_shape
 
-
 # ========================================================================= #
 # Helper                                                                    #
 # ========================================================================= #
@@ -52,7 +51,7 @@ def _assert_type_and_value(input, target):
         assert input.device == target.device
         assert torch.all(input == target)
     else:  # pragma: no cover
-        raise NotImplementedError('This should never happen in tests!')
+        raise NotImplementedError("This should never happen in tests!")
 
 
 # ========================================================================= #
@@ -62,51 +61,61 @@ def _assert_type_and_value(input, target):
 
 def test_generic_as_int32():
     # scalars
-    _assert_type_and_value(input=generic_as_int32(-1),  target=-1)
-    _assert_type_and_value(input=generic_as_int32(-1.), target=-1)
+    _assert_type_and_value(input=generic_as_int32(-1), target=-1)
+    _assert_type_and_value(input=generic_as_int32(-1.0), target=-1)
     _assert_type_and_value(input=generic_as_int32(1.5), target=1)
     # torch
-    _assert_type_and_value(input=generic_as_int32(torch.as_tensor([-1.5, 0, 1.0])), target=torch.as_tensor([-1, 0, 1], dtype=torch.int32))
+    _assert_type_and_value(
+        input=generic_as_int32(torch.as_tensor([-1.5, 0, 1.0])), target=torch.as_tensor([-1, 0, 1], dtype=torch.int32)
+    )
     # numpy
-    _assert_type_and_value(input=generic_as_int32(np.array([-1.5, 0, 1.0])), target=np.array([-1, 0, 1], dtype=np.int32))
+    _assert_type_and_value(
+        input=generic_as_int32(np.array([-1.5, 0, 1.0])), target=np.array([-1, 0, 1], dtype=np.int32)
+    )
     # unsupported
-    with pytest.raises(TypeError, match='invalid type'):
+    with pytest.raises(TypeError, match="invalid type"):
         generic_as_int32(None)
 
 
 def test_generic_max():
     # scalars
-    _assert_type_and_value(input=generic_max(-1),  target=-1)
+    _assert_type_and_value(input=generic_max(-1), target=-1)
     _assert_type_and_value(input=generic_max(1.5), target=1.5)
     # torch
     _assert_type_and_value(input=generic_max(torch.as_tensor([-1, 0, 1])), target=torch.as_tensor(1, dtype=torch.int64))
-    _assert_type_and_value(input=generic_max(torch.as_tensor([-1.0, 0.0, 1.0])), target=torch.as_tensor(1.0, dtype=torch.float32))
+    _assert_type_and_value(
+        input=generic_max(torch.as_tensor([-1.0, 0.0, 1.0])), target=torch.as_tensor(1.0, dtype=torch.float32)
+    )
     # numpy
     _assert_type_and_value(input=generic_max(np.array([-1, 0, 1])), target=np.int64(1))
     _assert_type_and_value(input=generic_max(np.array([-1.0, 0.0, 1.0])), target=np.float64(1.0))
     # unsupported
-    with pytest.raises(TypeError, match='invalid type'):
+    with pytest.raises(TypeError, match="invalid type"):
         generic_max(None)
 
 
 def test_generic_min():
     # scalars
-    _assert_type_and_value(input=generic_min(-1),  target=-1)
+    _assert_type_and_value(input=generic_min(-1), target=-1)
     _assert_type_and_value(input=generic_min(1.5), target=1.5)
     # torch
-    _assert_type_and_value(input=generic_min(torch.as_tensor([-1, 0, 1])), target=torch.as_tensor(-1, dtype=torch.int64))
-    _assert_type_and_value(input=generic_min(torch.as_tensor([-1.0, 0.0, 1.0])), target=torch.as_tensor(-1.0, dtype=torch.float32))
+    _assert_type_and_value(
+        input=generic_min(torch.as_tensor([-1, 0, 1])), target=torch.as_tensor(-1, dtype=torch.int64)
+    )
+    _assert_type_and_value(
+        input=generic_min(torch.as_tensor([-1.0, 0.0, 1.0])), target=torch.as_tensor(-1.0, dtype=torch.float32)
+    )
     # numpy
     _assert_type_and_value(input=generic_min(np.array([-1, 0, 1])), target=np.int64(-1))
     _assert_type_and_value(input=generic_min(np.array([-1.0, 0.0, 1.0])), target=np.float64(-1.0))
     # unsupported
-    with pytest.raises(TypeError, match='invalid type'):
+    with pytest.raises(TypeError, match="invalid type"):
         generic_min(None)
 
 
 def test_generic_shape():
     # scalars
-    assert generic_shape(1.) == ()
+    assert generic_shape(1.0) == ()
     assert generic_shape(-1) == ()
     # torch
     assert generic_shape(torch.as_tensor([-1, 0, 1])) == (3,)
@@ -115,13 +124,13 @@ def test_generic_shape():
     assert generic_shape(np.array([-1, 0, 1])) == (3,)
     assert generic_shape(np.array([-1.0, 0.0, 1.0])) == (3,)
     # unsupported
-    with pytest.raises(TypeError, match='invalid type'):
+    with pytest.raises(TypeError, match="invalid type"):
         generic_shape(None)
 
 
 def test_generic_ndim():
     # scalars
-    assert generic_ndim(1.) == 0
+    assert generic_ndim(1.0) == 0
     assert generic_ndim(-1) == 0
     # torch
     assert generic_ndim(torch.as_tensor([-1, 0, 1])) == 1
@@ -130,7 +139,7 @@ def test_generic_ndim():
     assert generic_ndim(np.array([-1, 0, 1])) == 1
     assert generic_ndim(np.array([-1.0, 0.0, 1.0])) == 1
     # unsupported
-    with pytest.raises(TypeError, match='invalid type'):
+    with pytest.raises(TypeError, match="invalid type"):
         generic_ndim(None)
 
 

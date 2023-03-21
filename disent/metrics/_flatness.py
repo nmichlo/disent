@@ -35,14 +35,12 @@ from typing import Tuple
 from typing import Union
 
 import torch
-
-from disent.metrics.utils import make_metric
-from disent.util.deprecate import deprecated
 from torch.utils.data.dataloader import default_collate
 
 from disent.dataset import DisentDataset
+from disent.metrics.utils import make_metric
+from disent.util.deprecate import deprecated
 from disent.util.iters import iter_chunks
-
 
 log = logging.getLogger(__name__)
 
@@ -52,12 +50,12 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-@make_metric('flatness', fast_kwargs=dict(repeats=128))
+@make_metric("flatness", fast_kwargs=dict(repeats=128))
 def metric_flatness(
-        dataset: DisentDataset,
-        representation_function: callable,
-        repeats: int = 1024,
-        batch_size: int = 64,
+    dataset: DisentDataset,
+    representation_function: callable,
+    repeats: int = 1024,
+    batch_size: int = 64,
 ):
     """
     Michlo et al.
@@ -86,21 +84,43 @@ def metric_flatness(
       Dictionary with average disentanglement score, completeness and
         informativeness (train and test).
     """
-    p_fs_measures = aggregate_measure_distances_along_all_factors(dataset, representation_function, repeats=repeats, batch_size=batch_size, ps=(1, 2))
+    p_fs_measures = aggregate_measure_distances_along_all_factors(
+        dataset, representation_function, repeats=repeats, batch_size=batch_size, ps=(1, 2)
+    )
     # get info
     factor_sizes = dataset.gt_data.factor_sizes
     # aggregate data
     results = {
         # main metric -- also measures axis-alignment
-        'flatness.ave_flatness':    compute_flatness(widths=p_fs_measures[2]['fs_ave_widths'], lengths=p_fs_measures[1]['fs_ave_lengths'], factor_sizes=factor_sizes),
+        "flatness.ave_flatness": compute_flatness(
+            widths=p_fs_measures[2]["fs_ave_widths"],
+            lengths=p_fs_measures[1]["fs_ave_lengths"],
+            factor_sizes=factor_sizes,
+        ),
         # optional metrics
-        'flatness.ave_flatness_l1': compute_flatness(widths=p_fs_measures[1]['fs_ave_widths'], lengths=p_fs_measures[1]['fs_ave_lengths'], factor_sizes=factor_sizes),
-        'flatness.ave_flatness_l2': compute_flatness(widths=p_fs_measures[2]['fs_ave_widths'], lengths=p_fs_measures[2]['fs_ave_lengths'], factor_sizes=factor_sizes),
+        "flatness.ave_flatness_l1": compute_flatness(
+            widths=p_fs_measures[1]["fs_ave_widths"],
+            lengths=p_fs_measures[1]["fs_ave_lengths"],
+            factor_sizes=factor_sizes,
+        ),
+        "flatness.ave_flatness_l2": compute_flatness(
+            widths=p_fs_measures[2]["fs_ave_widths"],
+            lengths=p_fs_measures[2]["fs_ave_lengths"],
+            factor_sizes=factor_sizes,
+        ),
         # distances
-        'flatness.ave_width_l1':    torch.mean(filter_inactive_factors(p_fs_measures[1]['fs_ave_widths'], factor_sizes=factor_sizes)),
-        'flatness.ave_width_l2':    torch.mean(filter_inactive_factors(p_fs_measures[2]['fs_ave_widths'], factor_sizes=factor_sizes)),
-        'flatness.ave_length_l1':   torch.mean(filter_inactive_factors(p_fs_measures[1]['fs_ave_lengths'], factor_sizes=factor_sizes)),
-        'flatness.ave_length_l2':   torch.mean(filter_inactive_factors(p_fs_measures[2]['fs_ave_lengths'], factor_sizes=factor_sizes)),
+        "flatness.ave_width_l1": torch.mean(
+            filter_inactive_factors(p_fs_measures[1]["fs_ave_widths"], factor_sizes=factor_sizes)
+        ),
+        "flatness.ave_width_l2": torch.mean(
+            filter_inactive_factors(p_fs_measures[2]["fs_ave_widths"], factor_sizes=factor_sizes)
+        ),
+        "flatness.ave_length_l1": torch.mean(
+            filter_inactive_factors(p_fs_measures[1]["fs_ave_lengths"], factor_sizes=factor_sizes)
+        ),
+        "flatness.ave_length_l2": torch.mean(
+            filter_inactive_factors(p_fs_measures[2]["fs_ave_lengths"], factor_sizes=factor_sizes)
+        ),
     }
     # convert values from torch
     return {k: float(v) for k, v in results.items()}
@@ -124,21 +144,23 @@ def filter_inactive_factors(tensor, factor_sizes):
     factor_sizes = torch.tensor(factor_sizes, device=tensor.device)
     assert torch.all(factor_sizes >= 1)
     # remove
-    active_factors = torch.nonzero(factor_sizes-1, as_tuple=True)
+    active_factors = torch.nonzero(factor_sizes - 1, as_tuple=True)
     return tensor[active_factors]
 
 
 def aggregate_measure_distances_along_all_factors(
-        dataset: DisentDataset,
-        representation_function,
-        repeats: int,
-        batch_size: int,
-        ps: Iterable[Union[str, int]] = (1, 2),
+    dataset: DisentDataset,
+    representation_function,
+    repeats: int,
+    batch_size: int,
+    ps: Iterable[Union[str, int]] = (1, 2),
 ) -> dict:
     # COMPUTE AGGREGATES FOR EACH FACTOR
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     fs_p_measures = [
-        aggregate_measure_distances_along_factor(dataset, representation_function, f_idx=f_idx, repeats=repeats, batch_size=batch_size, ps=ps)
+        aggregate_measure_distances_along_factor(
+            dataset, representation_function, f_idx=f_idx, repeats=repeats, batch_size=batch_size, ps=ps
+        )
         for f_idx in range(dataset.gt_data.num_factors)
     ]
 
@@ -146,33 +168,35 @@ def aggregate_measure_distances_along_all_factors(
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     p_fs_measures = {}
     for p, fs_measures in default_collate(fs_p_measures).items():
-        fs_ave_widths = fs_measures['ave_width']
+        fs_ave_widths = fs_measures["ave_width"]
         # get number of spaces deltas (number of points minus 1)
         # compute length: estimated version of factors_ave_width = factors_num_deltas * factors_ave_delta
         _fs_num_deltas = torch.as_tensor(dataset.gt_data.factor_sizes, device=fs_ave_widths.device) - 1
-        _fs_ave_deltas = fs_measures['ave_delta']
+        _fs_ave_deltas = fs_measures["ave_delta"]
         fs_ave_lengths = _fs_num_deltas * _fs_ave_deltas
         # update
-        p_fs_measures[p] = {'fs_ave_widths': fs_ave_widths, 'fs_ave_lengths': fs_ave_lengths}
+        p_fs_measures[p] = {"fs_ave_widths": fs_ave_widths, "fs_ave_lengths": fs_ave_lengths}
     return p_fs_measures
 
 
 def aggregate_measure_distances_along_factor(
-        dataset: DisentDataset,
-        representation_function,
-        f_idx: int,
-        repeats: int,
-        batch_size: int,
-        ps: Iterable[Union[str, int]] = (1, 2),
-        cycle_fail: bool = False,
+    dataset: DisentDataset,
+    representation_function,
+    f_idx: int,
+    repeats: int,
+    batch_size: int,
+    ps: Iterable[Union[str, int]] = (1, 2),
+    cycle_fail: bool = False,
 ) -> dict:
     f_size = dataset.gt_data.factor_sizes[f_idx]
 
     if f_size == 1:
         if cycle_fail:
-            raise ValueError(f'dataset factor size is too small for flatness metric with cycle_normalize enabled! size={f_size} < 2')
-        zero = torch.as_tensor(0., device=get_device(dataset, representation_function))
-        return {p: {'ave_width': zero.clone(), 'ave_delta': zero.clone()} for p in ps}
+            raise ValueError(
+                f"dataset factor size is too small for flatness metric with cycle_normalize enabled! size={f_size} < 2"
+            )
+        zero = torch.as_tensor(0.0, device=get_device(dataset, representation_function))
+        return {p: {"ave_width": zero.clone(), "ave_delta": zero.clone()} for p in ps}
 
     # FEED FORWARD, COMPUTE ALL DELTAS & WIDTHS - For each distance measure
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -185,26 +209,33 @@ def aggregate_measure_distances_along_factor(
         # - deltas: calculating the distances of their representations to the next values.
         # - cycle_normalize: we cant get the ave next dist directly because of cycles, so we remove the largest dist
         for p in ps:
-            deltas_next = torch.norm(torch.roll(zs_traversal, -1, dims=0) - zs_traversal, dim=-1, p=p)  # next | shape: (factor_size, z_size)
-            deltas_prev = torch.norm(torch.roll(zs_traversal,  1, dims=0) - zs_traversal, dim=-1, p=p)  # prev | shape: (factor_size, z_size)
+            deltas_next = torch.norm(
+                torch.roll(zs_traversal, -1, dims=0) - zs_traversal, dim=-1, p=p
+            )  # next | shape: (factor_size, z_size)
+            deltas_prev = torch.norm(
+                torch.roll(zs_traversal, 1, dims=0) - zs_traversal, dim=-1, p=p
+            )  # prev | shape: (factor_size, z_size)
             # values needed for flatness
-            width  = knn(x=zs_traversal, y=zs_traversal, k=1, largest=True, p=p).values.max()           # shape: (,)
-            min_deltas = torch.topk(deltas_next, k=f_size-1, dim=-1, largest=False, sorted=False)       # shape: (factor_size-1, z_size)
+            width = knn(x=zs_traversal, y=zs_traversal, k=1, largest=True, p=p).values.max()  # shape: (,)
+            min_deltas = torch.topk(
+                deltas_next, k=f_size - 1, dim=-1, largest=False, sorted=False
+            )  # shape: (factor_size-1, z_size)
             # TODO: other measures can be added:
             #       1. multivariate skewness
             #       2. normality measure
             #       3. independence
             #       4. menger curvature (Cayley-Menger Determinant?)
             # save variables
-            measures[p] = {'widths': width, 'deltas': min_deltas.values}
+            measures[p] = {"widths": width, "deltas": min_deltas.values}
 
     # AGGREGATE DATA - For each distance measure
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     return {
         p: {
-            'ave_width': measures['widths'].mean(dim=0),       # shape: (repeats,) -> ()
-            'ave_delta': measures['deltas'].mean(dim=[0, 1]),  # shape: (repeats, factor_size - 1) -> ()
-        } for p, measures in default_collate(p_measures).items()
+            "ave_width": measures["widths"].mean(dim=0),  # shape: (repeats,) -> ()
+            "ave_delta": measures["deltas"].mean(dim=[0, 1]),  # shape: (repeats, factor_size - 1) -> ()
+        }
+        for p, measures in default_collate(p_measures).items()
     }
 
 
@@ -213,21 +244,27 @@ def aggregate_measure_distances_along_factor(
 # ========================================================================= #
 
 
-def encode_all_along_factor(dataset: DisentDataset, representation_function, f_idx: int, batch_size: int, return_batch: bool = False):
+def encode_all_along_factor(
+    dataset: DisentDataset, representation_function, f_idx: int, batch_size: int, return_batch: bool = False
+):
     # generate repeated factors, varying one factor over a range (f_size, f_dims)
     factors = dataset.gt_data.sample_random_factor_traversal(f_idx=f_idx)
     # get the representations of all the factors (f_size, z_size)
     # * if return_batch is False: return sequential_zs
     # * if return_batch is True: return (sequential_zs, sequential_batch)
-    return encode_all_factors(dataset, representation_function, factors=factors, batch_size=batch_size, return_batch=return_batch)
+    return encode_all_factors(
+        dataset, representation_function, factors=factors, batch_size=batch_size, return_batch=return_batch
+    )
 
 
-def encode_all_factors(dataset: DisentDataset, representation_function, factors, batch_size: int, return_batch: bool = False) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+def encode_all_factors(
+    dataset: DisentDataset, representation_function, factors, batch_size: int, return_batch: bool = False
+) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
     zs = []
     xs = []
     with torch.no_grad():
         for batch_factors in iter_chunks(factors, chunk_size=batch_size):
-            batch = dataset.dataset_batch_from_factors(batch_factors, mode='input')
+            batch = dataset.dataset_batch_from_factors(batch_factors, mode="input")
             z = representation_function(batch)
             zs.append(z)
             if return_batch:
@@ -242,7 +279,7 @@ def encode_all_factors(dataset: DisentDataset, representation_function, factors,
 
 def get_device(dataset: DisentDataset, representation_function):
     # this is a hack...
-    return representation_function(dataset.dataset_sample_batch(1, mode='input')).device
+    return representation_function(dataset.dataset_sample_batch(1, mode="input")).device
 
 
 # ========================================================================= #
@@ -250,7 +287,7 @@ def get_device(dataset: DisentDataset, representation_function):
 # ========================================================================= #
 
 
-def knn(x, y, k: int = None, largest=False, p='fro'):
+def knn(x, y, k: int = None, largest=False, p="fro"):
     assert 0 < k <= y.shape[0]
     # check input vectors, must be array of vectors
     assert 2 == x.ndim == y.ndim

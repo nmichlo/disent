@@ -24,9 +24,8 @@
 
 import logging
 
-from disent.dataset.util.datafile import DataFileHashedDlH5
 from disent.dataset.data._groundtruth import Hdf5GroundTruthData
-
+from disent.dataset.util.datafile import DataFileHashedDlH5
 
 # ========================================================================= #
 # dataset_dsprites                                                          #
@@ -49,23 +48,23 @@ class DSpritesData(Hdf5GroundTruthData):
     # reference implementation: https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/data/ground_truth/dsprites.py
     """
 
-    name = 'dsprites'
+    name = "dsprites"
 
     # TODO: reference implementation has colour variants
-    factor_names = ('shape', 'scale', 'orientation', 'position_x', 'position_y')
+    factor_names = ("shape", "scale", "orientation", "position_x", "position_y")
     factor_sizes = (3, 6, 40, 32, 32)  # TOTAL: 737280
     img_shape = (64, 64, 1)
 
     datafile = DataFileHashedDlH5(
         # download file/link
-        uri='https://raw.githubusercontent.com/deepmind/dsprites-dataset/master/dsprites_ndarray_co1sh3sc6or40x32y32_64x64.hdf5',
-        uri_hash={'fast': 'd6ee1e43db715c2f0de3c41e38863347', 'full': 'b331c4447a651c44bf5e8ae09022e230'},
+        uri="https://raw.githubusercontent.com/deepmind/dsprites-dataset/master/dsprites_ndarray_co1sh3sc6or40x32y32_64x64.hdf5",
+        uri_hash={"fast": "d6ee1e43db715c2f0de3c41e38863347", "full": "b331c4447a651c44bf5e8ae09022e230"},
         # processed dataset file
-        file_hash={'fast': '25013c85aebbf4b1023d72564f9413f0', 'full': '4611d1a03e709cd5d0f6fdcdc221ca0e'},
+        file_hash={"fast": "25013c85aebbf4b1023d72564f9413f0", "full": "4611d1a03e709cd5d0f6fdcdc221ca0e"},
         # h5 re-save settings
-        hdf5_dataset_name='imgs',
+        hdf5_dataset_name="imgs",
         hdf5_chunk_size=(1, 64, 64, 1),
-        hdf5_dtype='uint8',
+        hdf5_dtype="uint8",
         hdf5_mutator=lambda x: (x * 255)[..., None],  # data is of shape (-1, 64, 64), so we add the channel dimension
         hdf5_obs_shape=(64, 64, 1),
     )
@@ -76,6 +75,6 @@ class DSpritesData(Hdf5GroundTruthData):
 # ========================================================================= #
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     DSpritesData(prepare=True)

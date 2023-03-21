@@ -45,11 +45,11 @@ def is_test_run():
     This is used internally to test some scripts. There is no need
     to use this function in your own scripts.
     """
-    return bool(os.environ.get('DISENT_TEST_RUN', False))
+    return bool(os.environ.get("DISENT_TEST_RUN", False))
 
 
 def _set_test_run():
-    os.environ['DISENT_TEST_RUN'] = 'True'
+    os.environ["DISENT_TEST_RUN"] = "True"
 
 
 # ========================================================================= #

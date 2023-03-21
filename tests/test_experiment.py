@@ -33,29 +33,49 @@ from experiment.util.hydra_main import hydra_main
 from tests.util import temp_environ
 from tests.util import temp_sys_args
 
-
 # ========================================================================= #
 # TESTS                                                                     #
 # ========================================================================= #
 
 
-EXAMPLE_CFG_DIR = os.path.abspath(os.path.join(__file__, '../..', 'docs/examples/extend_experiment/config'))
+EXAMPLE_CFG_DIR = os.path.abspath(os.path.join(__file__, "../..", "docs/examples/extend_experiment/config"))
 
 
-@pytest.mark.parametrize(('env', 'args'), [
-    # test the standard configs
-    (dict(), ['run_action=skip']),
-    (dict(), ['run_action=prepare_data']),
-    (dict(), ['run_action=train']),
-    # test the configs with the research components
-    # -- we need to modify the search path
-    # -- we need to register all the components
-    (dict(DISENT_CONFIGS_PREPEND=EXAMPLE_CFG_DIR), ['run_action=train', 'dataset=E--xyblocks',                    'metrics=test', 'framework=E--si-betavae', 'schedule=adanegtvae_up_all']),
-    (dict(DISENT_CONFIGS_PREPEND=EXAMPLE_CFG_DIR), ['run_action=train', 'dataset=E--mask-dthr-pseudorandom.yaml', 'metrics=none', 'framework=adavae_os',     'schedule=beta_cyclic']),
-])
+@pytest.mark.parametrize(
+    ("env", "args"),
+    [
+        # test the standard configs
+        (dict(), ["run_action=skip"]),
+        (dict(), ["run_action=prepare_data"]),
+        (dict(), ["run_action=train"]),
+        # test the configs with the research components
+        # -- we need to modify the search path
+        # -- we need to register all the components
+        (
+            dict(DISENT_CONFIGS_PREPEND=EXAMPLE_CFG_DIR),
+            [
+                "run_action=train",
+                "dataset=E--xyblocks",
+                "metrics=test",
+                "framework=E--si-betavae",
+                "schedule=adanegtvae_up_all",
+            ],
+        ),
+        (
+            dict(DISENT_CONFIGS_PREPEND=EXAMPLE_CFG_DIR),
+            [
+                "run_action=train",
+                "dataset=E--mask-dthr-pseudorandom.yaml",
+                "metrics=none",
+                "framework=adavae_os",
+                "schedule=beta_cyclic",
+            ],
+        ),
+    ],
+)
 def test_experiment_run(env, args):
     # show full errors in hydra
-    os.environ['HYDRA_FULL_ERROR'] = '1'
+    os.environ["HYDRA_FULL_ERROR"] = "1"
 
     # temporarily set the environment and the arguments
     with temp_environ(env), temp_sys_args([experiment_run.__file__, *args]):
@@ -65,10 +85,9 @@ def test_experiment_run(env, args):
         # 3. enable the ${exit:<msg>} and various other resolvers for omegaconf/hydra
         hydra_main(
             callback=experiment_run.run_action,
-            config_name='config_test',
+            config_name="config_test",
             log_level=logging.DEBUG,
         )
-
 
 
 # ========================================================================= #

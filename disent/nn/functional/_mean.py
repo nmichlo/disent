@@ -29,7 +29,6 @@ from typing import Union
 
 import torch
 
-
 # ========================================================================= #
 # Types                                                                     #
 # ========================================================================= #
@@ -37,18 +36,18 @@ import torch
 
 _DimTypeHint = Optional[Union[int, List[int]]]
 
-_POS_INF = float('inf')
-_NEG_INF = float('-inf')
+_POS_INF = float("inf")
+_NEG_INF = float("-inf")
 
 _GENERALIZED_MEAN_MAP = {
-    'inf':       _POS_INF,
-    'maximum':   _POS_INF,
-    'quadratic':  2,
-    'arithmetic': 1,
-    'geometric':  0,
-    'harmonic':  -1,
-    'minimum':   _NEG_INF,
-    '-inf':      _NEG_INF,
+    "inf": _POS_INF,
+    "maximum": _POS_INF,
+    "quadratic": 2,
+    "arithmetic": 1,
+    "geometric": 0,
+    "harmonic": -1,
+    "minimum": _NEG_INF,
+    "-inf": _NEG_INF,
 }
 
 
@@ -81,7 +80,9 @@ def torch_mean_generalized(xs: torch.Tensor, dim: _DimTypeHint = None, p: Union[
     # warn if the type is wrong
     if p != 1:
         if xs.dtype != torch.float64:
-            warnings.warn(f'Input tensor to generalised mean might not have the required precision, type is {xs.dtype} not {torch.float64}.')
+            warnings.warn(
+                f"Input tensor to generalised mean might not have the required precision, type is {xs.dtype} not {torch.float64}."
+            )
     # compute the specific cases
     if p == 0:
         # geometric mean
@@ -92,19 +93,19 @@ def torch_mean_generalized(xs: torch.Tensor, dim: _DimTypeHint = None, p: Union[
         return torch.mean(xs, dim=dim, keepdim=keepdim)
     else:
         # generalised mean
-        return ((1/n) * torch.sum(xs ** p, dim=dim, keepdim=keepdim)) ** (1/p)
+        return ((1 / n) * torch.sum(xs**p, dim=dim, keepdim=keepdim)) ** (1 / p)
 
 
 def torch_mean_quadratic(xs, dim: _DimTypeHint = None, keepdim: bool = False):
-    return torch_mean_generalized(xs, dim=dim, p='quadratic', keepdim=keepdim)
+    return torch_mean_generalized(xs, dim=dim, p="quadratic", keepdim=keepdim)
 
 
 def torch_mean_geometric(xs, dim: _DimTypeHint = None, keepdim: bool = False):
-    return torch_mean_generalized(xs, dim=dim, p='geometric', keepdim=keepdim)
+    return torch_mean_generalized(xs, dim=dim, p="geometric", keepdim=keepdim)
 
 
 def torch_mean_harmonic(xs, dim: _DimTypeHint = None, keepdim: bool = False):
-    return torch_mean_generalized(xs, dim=dim, p='harmonic', keepdim=keepdim)
+    return torch_mean_generalized(xs, dim=dim, p="harmonic", keepdim=keepdim)
 
 
 # ========================================================================= #

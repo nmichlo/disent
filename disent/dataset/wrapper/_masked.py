@@ -33,7 +33,6 @@ from disent.dataset.data import GroundTruthData
 from disent.dataset.wrapper._base import WrappedDataset
 from disent.util.math.random import random_choice_prng
 
-
 log = logging.getLogger(__name__)
 
 
@@ -49,11 +48,11 @@ MaskTypeHint = Union[str, np.ndarray]
 def load_mask_indices(length: int, mask_or_indices: MaskTypeHint):
     # load as numpy mask if it is a string!
     if isinstance(mask_or_indices, str):
-        mask_or_indices = np.load(mask_or_indices)['mask']
+        mask_or_indices = np.load(mask_or_indices)["mask"]
     # load data
     assert isinstance(mask_or_indices, np.ndarray)
     # check inputs
-    if mask_or_indices.dtype == 'bool':
+    if mask_or_indices.dtype == "bool":
         # boolean values
         assert length == len(mask_or_indices)
         indices = np.arange(length)[mask_or_indices]
@@ -71,7 +70,6 @@ def load_mask_indices(length: int, mask_or_indices: MaskTypeHint):
 
 
 class MaskedDataset(WrappedDataset):
-
     def __init__(self, data: DataTypeHint, mask: MaskTypeHint, randomize: bool = False):
         assert isinstance(data, (GroundTruthData, torch.Tensor, np.ndarray))
         n = len(data)
@@ -83,7 +81,7 @@ class MaskedDataset(WrappedDataset):
             l = len(self._indices)
             self._indices = load_mask_indices(n, random_choice_prng(n, size=l, replace=False))
             assert len(self._indices) == l
-            log.info(f'replaced mask: {l}/{n} ({l/n:.3f}) with randomized mask!')
+            log.info(f"replaced mask: {l}/{n} ({l/n:.3f}) with randomized mask!")
 
     def __len__(self):
         return len(self._indices)

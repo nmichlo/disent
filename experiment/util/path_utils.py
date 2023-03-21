@@ -30,7 +30,6 @@ from typing import Optional
 from typing import Tuple
 from typing import Union
 
-
 log = logging.getLogger(__name__)
 
 
@@ -39,8 +38,8 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-_EXPERIMENT_SEP = '_'
-_EXPERIMENT_RGX = re.compile(f'^([0-9]+)({_EXPERIMENT_SEP}.+)?$')
+_EXPERIMENT_SEP = "_"
+_EXPERIMENT_RGX = re.compile(f"^([0-9]+)({_EXPERIMENT_SEP}.+)?$")
 
 
 def get_max_experiment_number(root_dir: str, return_path: bool = False) -> Union[int, Tuple[int, Optional[str]]]:
@@ -56,9 +55,13 @@ def get_max_experiment_number(root_dir: str, return_path: bool = False) -> Union
     """
     # check the dirs exist
     if not os.path.exists(root_dir):
-        raise FileNotFoundError(f'The given experiments directory does not exist: {repr(root_dir)} ({repr(os.path.abspath(root_dir))})')
+        raise FileNotFoundError(
+            f"The given experiments directory does not exist: {repr(root_dir)} ({repr(os.path.abspath(root_dir))})"
+        )
     elif not os.path.isdir(root_dir):
-        raise NotADirectoryError(f'The given experiments path exists, but is not a directory: {repr(root_dir)} ({repr(os.path.abspath(root_dir))})')
+        raise NotADirectoryError(
+            f"The given experiments path exists, but is not a directory: {repr(root_dir)} ({repr(os.path.abspath(root_dir))})"
+        )
     # linear search over each file in the dir
     max_num, max_path = 0, None
     for file in os.listdir(root_dir):
@@ -110,17 +113,19 @@ def get_current_experiment_dir(root_dir: str, name: Optional[str] = None) -> str
     error is thrown! This is to prevent experiments with duplicate numbers from being created!
     """
     if name is not None:
-        assert Path(name).name == name, f'The given name is not valid: {repr(name)}'
+        assert Path(name).name == name, f"The given name is not valid: {repr(name)}"
     # make the dirname & normalise the path
     num = get_current_experiment_number(root_dir)
-    dir_name = f'{num:05d}{_EXPERIMENT_SEP}{name}' if name else f'{num:05d}'
+    dir_name = f"{num:05d}{_EXPERIMENT_SEP}{name}" if name else f"{num:05d}"
     exp_dir = os.path.abspath(os.path.join(root_dir, dir_name))
     # cache the experiment name or check against the existing cache
     global _CURRENT_EXPERIMENT_DIR
     if _CURRENT_EXPERIMENT_DIR is None:
         _CURRENT_EXPERIMENT_DIR = exp_dir
     if exp_dir != _CURRENT_EXPERIMENT_DIR:
-        raise RuntimeError(f'Current experiment directory has already been set: {repr(_CURRENT_EXPERIMENT_DIR)} This does not match what was computed: {repr(exp_dir)}')
+        raise RuntimeError(
+            f"Current experiment directory has already been set: {repr(_CURRENT_EXPERIMENT_DIR)} This does not match what was computed: {repr(exp_dir)}"
+        )
     # done!
     return _CURRENT_EXPERIMENT_DIR
 
@@ -133,13 +138,13 @@ def make_current_experiment_dir(root_dir: str, name: Optional[str] = None) -> st
     root_dir = os.path.abspath(root_dir)
     # make the root directory if it does not exist!
     if not os.path.exists(root_dir):
-        log.info(f'root experiments directory does not exist, creating... {repr(root_dir)}')
+        log.info(f"root experiments directory does not exist, creating... {repr(root_dir)}")
         os.makedirs(root_dir, exist_ok=True)
     # get the current dir
     current_dir = get_current_experiment_dir(root_dir, name)
     # make the current dir
     if not os.path.exists(current_dir):
-        log.info(f'current experiment directory does not exist, creating... {repr(current_dir)}')
+        log.info(f"current experiment directory does not exist, creating... {repr(current_dir)}")
         os.makedirs(current_dir, exist_ok=True)
     # done!
     return current_dir

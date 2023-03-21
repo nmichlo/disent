@@ -22,12 +22,11 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import logging
+import signal
 import sys
 from multiprocessing import current_process
 from typing import Optional
-
-import signal
-import logging
 
 from pytorch_lightning import Trainer
 from pytorch_lightning.loggers import LoggerCollection
@@ -42,8 +41,8 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 _PL_SIGNALS_OLD_HANDLERS = {}
-_PL_SIGNALS = (      # we can't capture SIGKILL
-    signal.SIGINT,   # interrupted from the dialogue station
+_PL_SIGNALS = (  # we can't capture SIGKILL
+    signal.SIGINT,  # interrupted from the dialogue station
     signal.SIGTERM,  # terminate the process in a soft way
     signal.SIGABRT,  # abnormal termination
     signal.SIGSEGV,  # segmentation fault
@@ -61,7 +60,7 @@ def safe_unset_debug_trainer():
 
 def set_debug_trainer(trainer: Optional[Trainer]):
     global _PL_TRAINER
-    assert _PL_TRAINER is None, 'debug trainer has already been set'
+    assert _PL_TRAINER is None, "debug trainer has already been set"
     _PL_TRAINER = trainer
     return trainer
 
@@ -75,16 +74,18 @@ def _signal_handler_log_and_exit(signal_number, frame):
         _PL_TRAINER.callbacks.clear()
 
     # make sure that we only exit in the parent process
-    if current_process().name != 'MainProcess':
-        log.debug('Skipping signal handling for child process!')
+    if current_process().name != "MainProcess":
+        log.debug("Skipping signal handling for child process!")
         return
     # get the signal name
-    numbers_to_names = dict((k, v) for v, k in reversed(sorted(signal.__dict__.items())) if v.startswith('SIG') and not v.startswith('SIG_'))
+    numbers_to_names = dict(
+        (k, v) for v, k in reversed(sorted(signal.__dict__.items())) if v.startswith("SIG") and not v.startswith("SIG_")
+    )
     signal_name = numbers_to_names.get(signal_number, signal_number)
     # log everything!
     log_error_and_exit(
-        err_type=f'received exit signal',
-        err_msg=f'{signal_name}',
+        err_type=f"received exit signal",
+        err_msg=f"{signal_name}",
         exit_code=signal_number,
         exc_info=False,
     )
@@ -104,15 +105,17 @@ def safe_unset_debug_logger():
 
 def set_debug_logger(logger: Optional[LoggerCollection]):
     global _PL_LOGGER
-    assert _PL_LOGGER is None, 'debug logger has already been set'
+    assert _PL_LOGGER is None, "debug logger has already been set"
     _PL_LOGGER = logger
     # set initial messages
     if _PL_LOGGER is not None:
-        _PL_LOGGER.log_metrics({
-            'error_type': 'N/A',
-            'error_msg': 'N/A',
-            'error_occurred': False,
-        })
+        _PL_LOGGER.log_metrics(
+            {
+                "error_type": "N/A",
+                "error_msg": "N/A",
+                "error_occurred": False,
+            }
+        )
     # register signal listeners
     for signal_type in _PL_SIGNALS:
         # save the old handler
@@ -125,16 +128,18 @@ def set_debug_logger(logger: Optional[LoggerCollection]):
 
 def log_error_and_exit(err_type: str, err_msg: str, exit_code: int = 1, exc_info=True):
     # truncate error
-    err_msg = err_msg[:244] + ' <TRUNCATED>' if len(err_msg) > 244 else err_msg
+    err_msg = err_msg[:244] + " <TRUNCATED>" if len(err_msg) > 244 else err_msg
     # log something at least
-    log.error(f'exiting: {err_type} | {err_msg}', exc_info=exc_info)
+    log.error(f"exiting: {err_type} | {err_msg}", exc_info=exc_info)
     # try log to pytorch lightning & wandb
     if _PL_LOGGER is not None:
-        _PL_LOGGER.log_metrics({
-            'error_type': err_type,
-            'error_msg': err_msg,
-            'error_occurred': True,
-        })
+        _PL_LOGGER.log_metrics(
+            {
+                "error_type": err_type,
+                "error_msg": err_msg,
+                "error_occurred": True,
+            }
+        )
         for wb_logger in wb_yield_loggers(_PL_LOGGER):
             # so I dont have to scroll up... I'm lazy...
             run_url = wb_logger.experiment._get_run_url()

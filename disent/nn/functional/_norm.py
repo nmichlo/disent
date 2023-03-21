@@ -29,7 +29,6 @@ from typing import Union
 
 import torch
 
-
 # ========================================================================= #
 # Types                                                                     #
 # ========================================================================= #
@@ -37,18 +36,18 @@ import torch
 
 _DimTypeHint = Optional[Union[int, List[int]]]
 
-_POS_INF = float('inf')
-_NEG_INF = float('-inf')
+_POS_INF = float("inf")
+_NEG_INF = float("-inf")
 
 _P_NORM_MAP = {
-    'inf':       _POS_INF,
-    'maximum':   _POS_INF,
-    'euclidean': 2,
-    'manhattan': 1,
+    "inf": _POS_INF,
+    "maximum": _POS_INF,
+    "euclidean": 2,
+    "manhattan": 1,
     # p < 1 is not a valid norm! but allow it if we set `unbounded_p = True`
-    'hamming':   0,
-    'minimum':   _NEG_INF,
-    '-inf':      _NEG_INF,
+    "hamming": 0,
+    "minimum": _NEG_INF,
+    "-inf": _NEG_INF,
 }
 
 
@@ -81,7 +80,9 @@ def torch_dist(xs: torch.Tensor, dim: _DimTypeHint = -1, p: Union[float, str] = 
     # warn if the type is wrong
     if p != 1:
         if xs.dtype != torch.float64:
-            warnings.warn(f'Input tensor to p-norm might not have the required precision, type is {xs.dtype} not {torch.float64}.')
+            warnings.warn(
+                f"Input tensor to p-norm might not have the required precision, type is {xs.dtype} not {torch.float64}."
+            )
     # compute the specific cases
     if p == 0:
         # hamming distance -- number of non-zero entries of the vector
@@ -91,7 +92,7 @@ def torch_dist(xs: torch.Tensor, dim: _DimTypeHint = -1, p: Union[float, str] = 
         return torch.sum(xs, dim=dim, keepdim=keepdim)
     else:
         # p-norm (if p==2, then euclidean distance)
-        return torch.sum(xs ** p, dim=dim, keepdim=keepdim) ** (1/p)
+        return torch.sum(xs**p, dim=dim, keepdim=keepdim) ** (1 / p)
 
 
 def torch_norm(xs: torch.Tensor, dim: _DimTypeHint = -1, p: Union[float, str] = 1, keepdim: bool = False):
@@ -107,21 +108,23 @@ def torch_norm(xs: torch.Tensor, dim: _DimTypeHint = -1, p: Union[float, str] = 
         p = _P_NORM_MAP[p]
     # check values
     if p < 1:
-        raise ValueError(f'p-norm cannot have a p value less than 1, got: {repr(p)}, to bypass this error set `unbounded_p=True`.')
+        raise ValueError(
+            f"p-norm cannot have a p value less than 1, got: {repr(p)}, to bypass this error set `unbounded_p=True`."
+        )
     # return norm
     return torch_dist(xs=xs, dim=dim, p=p, keepdim=keepdim)
 
 
 def torch_norm_euclidean(xs, dim: _DimTypeHint = -1, keepdim: bool = False):
-    return torch_dist(xs, dim=dim, p='euclidean', keepdim=keepdim)
+    return torch_dist(xs, dim=dim, p="euclidean", keepdim=keepdim)
 
 
 def torch_norm_manhattan(xs, dim: _DimTypeHint = -1, keepdim: bool = False):
-    return torch_dist(xs, dim=dim, p='manhattan', keepdim=keepdim)
+    return torch_dist(xs, dim=dim, p="manhattan", keepdim=keepdim)
 
 
 def torch_dist_hamming(xs, dim: _DimTypeHint = -1, keepdim: bool = False):
-    return torch_dist(xs, dim=dim, p='hamming', keepdim=keepdim)
+    return torch_dist(xs, dim=dim, p="hamming", keepdim=keepdim)
 
 
 # ========================================================================= #

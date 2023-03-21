@@ -25,8 +25,8 @@
 
 import h5py
 from torch.utils.data import Dataset
-from disent.util.iters import LengthIter
 
+from disent.util.iters import LengthIter
 
 # ========================================================================= #
 # array utils                                                               #
@@ -34,7 +34,6 @@ from disent.util.iters import LengthIter
 
 
 class ArrayDataset(Dataset, LengthIter):
-
     def __init__(self, array, transform=None):
         self._array = array
         self._transform = transform
@@ -67,7 +66,7 @@ class Hdf5Dataset(Dataset, LengthIter):
     WARNING: this should probably not be used across multiple hosts...
     """
 
-    def __init__(self, h5_path: str, h5_dataset_name: str = 'data', transform=None):
+    def __init__(self, h5_path: str, h5_dataset_name: str = "data", transform=None):
         self._h5_path = h5_path
         self._h5_dataset_name = h5_dataset_name
         self._hdf5_file, self._hdf5_data = self._make_hdf5()
@@ -75,7 +74,7 @@ class Hdf5Dataset(Dataset, LengthIter):
 
     def _make_hdf5(self):
         # TODO: can this cause a memory leak if it is never closed?
-        hdf5_file = h5py.File(self._h5_path, 'r', swmr=True)
+        hdf5_file = h5py.File(self._h5_path, "r", swmr=True)
         hdf5_data = hdf5_file[self._h5_dataset_name]
         return hdf5_file, hdf5_data
 
@@ -110,8 +109,8 @@ class Hdf5Dataset(Dataset, LengthIter):
 
     def __getstate__(self):
         state = self.__dict__.copy()
-        state.pop('_hdf5_file', None)
-        state.pop('_hdf5_data', None)
+        state.pop("_hdf5_file", None)
+        state.pop("_hdf5_data", None)
         return state
 
     def __setstate__(self, state):

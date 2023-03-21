@@ -22,19 +22,18 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+from dataclasses import dataclass
 from typing import Any
 from typing import Dict
 from typing import Sequence
 from typing import Tuple
 
 import torch
-from dataclasses import dataclass
 from torch.distributions import Distribution
-from torch.distributions import kl_divergence
 from torch.distributions import Normal
+from torch.distributions import kl_divergence
 
 from disent.frameworks.vae._unsupervised__betavae import BetaVae
-
 
 # ========================================================================= #
 # Ada-GVAE                                                                  #
@@ -62,11 +61,13 @@ class AdaVae(BetaVae):
 
     @dataclass
     class cfg(BetaVae.cfg):
-        ada_average_mode: str = 'gvae'
-        ada_thresh_mode: str = 'symmetric_kl'  # kl, symmetric_kl, dist, sampled_dist
+        ada_average_mode: str = "gvae"
+        ada_thresh_mode: str = "symmetric_kl"  # kl, symmetric_kl, dist, sampled_dist
         ada_thresh_ratio: float = 0.5
 
-    def hook_intercept_ds(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution]) -> Tuple[Sequence[Distribution], Sequence[Distribution], Dict[str, Any]]:
+    def hook_intercept_ds(
+        self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution]
+    ) -> Tuple[Sequence[Distribution], Sequence[Distribution], Dict[str, Any]]:
         """
         Adaptive VAE Glue Method, putting the various components together
         1. find differences between deltas
@@ -79,13 +80,15 @@ class AdaVae(BetaVae):
         """
         d0_posterior, d1_posterior = ds_posterior
         # shared elements that need to be averaged, computed per pair in the batch.
-        share_mask = self.compute_shared_mask_from_posteriors(d0_posterior, d1_posterior, thresh_mode=self.cfg.ada_thresh_mode, ratio=self.cfg.ada_thresh_ratio)
+        share_mask = self.compute_shared_mask_from_posteriors(
+            d0_posterior, d1_posterior, thresh_mode=self.cfg.ada_thresh_mode, ratio=self.cfg.ada_thresh_ratio
+        )
         # compute average posteriors
-        new_ds_posterior = self.make_shared_posteriors(d0_posterior, d1_posterior, share_mask, average_mode=self.cfg.ada_average_mode)
+        new_ds_posterior = self.make_shared_posteriors(
+            d0_posterior, d1_posterior, share_mask, average_mode=self.cfg.ada_average_mode
+        )
         # return new args & generate logs
-        return new_ds_posterior, ds_prior, {
-            'shared': share_mask.sum(dim=1).float().mean()
-        }
+        return new_ds_posterior, ds_prior, {"shared": share_mask.sum(dim=1).float().mean()}
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # HELPER - POSTERIORS                                                   #
@@ -102,35 +105,50 @@ class AdaVae(BetaVae):
         """
         # shared elements that need to be averaged, computed per pair in the batch.
         # [𝛿_i ...]
-        if thresh_mode == 'kl':
+        if thresh_mode == "kl":
             # ORIGINAL
             deltas = kl_divergence(d1_posterior, d0_posterior)
-        elif thresh_mode == 'symmetric_kl':
+        elif thresh_mode == "symmetric_kl":
             # FROM: https://openreview.net/pdf?id=8VXvj1QNRl1
             kl_deltas_d1_d0 = kl_divergence(d1_posterior, d0_posterior)
             kl_deltas_d0_d1 = kl_divergence(d0_posterior, d1_posterior)
             deltas = (0.5 * kl_deltas_d1_d0) + (0.5 * kl_deltas_d0_d1)
-        elif thresh_mode == 'dist':
+        elif thresh_mode == "dist":
             deltas = cls.compute_deltas_from_zs(d1_posterior.mean, d0_posterior.mean)
-        elif thresh_mode == 'sampled_dist':
+        elif thresh_mode == "sampled_dist":
             deltas = cls.compute_deltas_from_zs(d1_posterior.rsample(), d0_posterior.rsample())
         else:
-            raise KeyError(f'invalid thresh_mode: {repr(thresh_mode)}')
+            raise KeyError(f"invalid thresh_mode: {repr(thresh_mode)}")
 
         # return values
         return deltas
 
     @classmethod
-    def compute_shared_mask_from_posteriors(cls, d0_posterior: Distribution, d1_posterior: Distribution, thresh_mode: str, ratio=0.5):
-        return cls.estimate_shared_mask(z_deltas=cls.compute_deltas_from_posteriors(d0_posterior, d1_posterior, thresh_mode=thresh_mode), ratio=ratio)
+    def compute_shared_mask_from_posteriors(
+        cls, d0_posterior: Distribution, d1_posterior: Distribution, thresh_mode: str, ratio=0.5
+    ):
+        return cls.estimate_shared_mask(
+            z_deltas=cls.compute_deltas_from_posteriors(d0_posterior, d1_posterior, thresh_mode=thresh_mode),
+            ratio=ratio,
+        )
 
     @classmethod
-    def make_shared_posteriors(cls, d0_posterior: Normal, d1_posterior: Normal, share_mask: torch.Tensor, average_mode: str) -> Tuple[Normal, Normal]:
+    def make_shared_posteriors(
+        cls, d0_posterior: Normal, d1_posterior: Normal, share_mask: torch.Tensor, average_mode: str
+    ) -> Tuple[Normal, Normal]:
         # compute average posterior
-        ave_posterior = AdaVae.compute_average_distribution(d0_posterior=d0_posterior, d1_posterior=d1_posterior, average_mode=average_mode)
+        ave_posterior = AdaVae.compute_average_distribution(
+            d0_posterior=d0_posterior, d1_posterior=d1_posterior, average_mode=average_mode
+        )
         # select shared elements
-        ave_d0_posterior = Normal(loc=torch.where(share_mask, ave_posterior.loc, d0_posterior.loc), scale=torch.where(share_mask, ave_posterior.scale, d0_posterior.scale))
-        ave_d1_posterior = Normal(loc=torch.where(share_mask, ave_posterior.loc, d1_posterior.loc), scale=torch.where(share_mask, ave_posterior.scale, d1_posterior.scale))
+        ave_d0_posterior = Normal(
+            loc=torch.where(share_mask, ave_posterior.loc, d0_posterior.loc),
+            scale=torch.where(share_mask, ave_posterior.scale, d0_posterior.scale),
+        )
+        ave_d1_posterior = Normal(
+            loc=torch.where(share_mask, ave_posterior.loc, d1_posterior.loc),
+            scale=torch.where(share_mask, ave_posterior.scale, d1_posterior.scale),
+        )
         # return values
         return ave_d0_posterior, ave_d1_posterior
 
@@ -147,7 +165,9 @@ class AdaVae(BetaVae):
         return cls.estimate_shared_mask(z_deltas=cls.compute_deltas_from_zs(z0, z1), ratio=ratio)
 
     @classmethod
-    def make_shared_zs(cls, z0: torch.Tensor, z1: torch.Tensor, share_mask: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def make_shared_zs(
+        cls, z0: torch.Tensor, z1: torch.Tensor, share_mask: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         # compute average values
         ave = 0.5 * z0 + 0.5 * z1
         # select shared elements
@@ -179,13 +199,13 @@ class AdaVae(BetaVae):
                     and enforce that each factor of variation is encoded in a single
                     dimension."
         """
-        assert 0 <= ratio <= 1, f'ratio must be in the range: 0 <= ratio <= 1, got: {repr(ratio)}'
+        assert 0 <= ratio <= 1, f"ratio must be in the range: 0 <= ratio <= 1, got: {repr(ratio)}"
         # threshold τ
-        maximums = z_deltas.max(axis=1, keepdim=True).values      # (B, 1)
-        minimums = z_deltas.min(axis=1, keepdim=True).values      # (B, 1)
+        maximums = z_deltas.max(axis=1, keepdim=True).values  # (B, 1)
+        minimums = z_deltas.min(axis=1, keepdim=True).values  # (B, 1)
         z_threshs = torch.lerp(minimums, maximums, weight=ratio)  # (B, 1)
         # true if 'unchanged' and should be average
-        shared_mask = z_deltas < z_threshs                        # broadcast (B, Z) and (B, 1) -> (B, Z)
+        shared_mask = z_deltas < z_threshs  # broadcast (B, Z) and (B, 1) -> (B, Z)
         # return
         return shared_mask
 
@@ -214,8 +234,12 @@ def compute_average_gvae_std(d0_posterior: Normal, d1_posterior: Normal) -> Norm
 
     *NB* this is un-official!
     """
-    assert isinstance(d0_posterior, Normal), f'posterior distributions must be {Normal.__name__} distributions, got: {type(d0_posterior)}'
-    assert isinstance(d1_posterior, Normal), f'posterior distributions must be {Normal.__name__} distributions, got: {type(d1_posterior)}'
+    assert isinstance(
+        d0_posterior, Normal
+    ), f"posterior distributions must be {Normal.__name__} distributions, got: {type(d0_posterior)}"
+    assert isinstance(
+        d1_posterior, Normal
+    ), f"posterior distributions must be {Normal.__name__} distributions, got: {type(d1_posterior)}"
     # averages
     ave_std = 0.5 * (d0_posterior.stddev + d1_posterior.stddev)
     ave_mean = 0.5 * (d0_posterior.mean + d1_posterior.mean)
@@ -231,8 +255,12 @@ def compute_average_gvae(d0_posterior: Normal, d1_posterior: Normal) -> Normal:
     (✓) Visual inspection against reference implementation:
         https://github.com/google-research/disentanglement_lib (GroupVAEBase.model_fn)
     """
-    assert isinstance(d0_posterior, Normal), f'posterior distributions must be {Normal.__name__} distributions, got: {type(d0_posterior)}'
-    assert isinstance(d1_posterior, Normal), f'posterior distributions must be {Normal.__name__} distributions, got: {type(d1_posterior)}'
+    assert isinstance(
+        d0_posterior, Normal
+    ), f"posterior distributions must be {Normal.__name__} distributions, got: {type(d0_posterior)}"
+    assert isinstance(
+        d1_posterior, Normal
+    ), f"posterior distributions must be {Normal.__name__} distributions, got: {type(d1_posterior)}"
     # averages
     ave_var = 0.5 * (d0_posterior.variance + d1_posterior.variance)
     ave_mean = 0.5 * (d0_posterior.mean + d1_posterior.mean)
@@ -250,8 +278,12 @@ def compute_average_ml_vae(d0_posterior: Normal, d1_posterior: Normal) -> Normal
 
     # TODO: recheck
     """
-    assert isinstance(d0_posterior, Normal), f'posterior distributions must be {Normal.__name__} distributions, got: {type(d0_posterior)}'
-    assert isinstance(d1_posterior, Normal), f'posterior distributions must be {Normal.__name__} distributions, got: {type(d1_posterior)}'
+    assert isinstance(
+        d0_posterior, Normal
+    ), f"posterior distributions must be {Normal.__name__} distributions, got: {type(d0_posterior)}"
+    assert isinstance(
+        d1_posterior, Normal
+    ), f"posterior distributions must be {Normal.__name__} distributions, got: {type(d1_posterior)}"
     # Diagonal matrix inverse: E^-1 = 1 / E
     # https://proofwiki.org/wiki/Inverse_of_Diagonal_Matrix
     z0_invvar, z1_invvar = d0_posterior.variance.reciprocal(), d1_posterior.variance.reciprocal()
@@ -260,15 +292,15 @@ def compute_average_ml_vae(d0_posterior: Normal, d1_posterior: Normal) -> Normal
     ave_var = 2 * (z0_invvar + z1_invvar).reciprocal()
     # average mean: u^T = (u1^T E1^-1 + u2^T E2^-1) E
     # disentanglement_lib: ave_mean = (z0_mean/z0_var + z1_mean/z1_var) * ave_var * 0.5
-    ave_mean = (d0_posterior.mean*z0_invvar + d1_posterior.mean*z1_invvar) * ave_var * 0.5
+    ave_mean = (d0_posterior.mean * z0_invvar + d1_posterior.mean * z1_invvar) * ave_var * 0.5
     # done!
     return Normal(loc=ave_mean, scale=torch.sqrt(ave_var))
 
 
 _COMPUTE_AVE_FNS = {
-    'gvae': compute_average_gvae,
-    'ml-vae': compute_average_ml_vae,
-    'gvae_std': compute_average_gvae_std,  # this is un-official!
+    "gvae": compute_average_gvae,
+    "ml-vae": compute_average_ml_vae,
+    "gvae_std": compute_average_gvae_std,  # this is un-official!
 }
 
 
@@ -291,7 +323,9 @@ class AdaGVaeMinimal(BetaVae):
 
     REQUIRED_OBS = 2
 
-    def hook_intercept_ds(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution]) -> Tuple[Sequence[Distribution], Sequence[Distribution], Dict[str, Any]]:
+    def hook_intercept_ds(
+        self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution]
+    ) -> Tuple[Sequence[Distribution], Sequence[Distribution], Dict[str, Any]]:
         """
         Adaptive VAE Method, putting the various components together
             1. compute differences between representations
@@ -303,8 +337,12 @@ class AdaGVaeMinimal(BetaVae):
             https://github.com/google-research/disentanglement_lib (aggregate_argmax)
         """
         d0_posterior, d1_posterior = ds_posterior
-        assert isinstance(d0_posterior, Normal), f'posterior distributions must be {Normal.__name__} distributions, got: {type(d0_posterior)}'
-        assert isinstance(d1_posterior, Normal), f'posterior distributions must be {Normal.__name__} distributions, got: {type(d1_posterior)}'
+        assert isinstance(
+            d0_posterior, Normal
+        ), f"posterior distributions must be {Normal.__name__} distributions, got: {type(d0_posterior)}"
+        assert isinstance(
+            d1_posterior, Normal
+        ), f"posterior distributions must be {Normal.__name__} distributions, got: {type(d1_posterior)}"
 
         # [1] symmetric KL Divergence FROM: https://openreview.net/pdf?id=8VXvj1QNRl1
         z_deltas = 0.5 * kl_divergence(d1_posterior, d0_posterior) + 0.5 * kl_divergence(d0_posterior, d1_posterior)
@@ -312,21 +350,21 @@ class AdaGVaeMinimal(BetaVae):
         # [2] estimate threshold from deltas
         z_deltas_min = z_deltas.min(axis=1, keepdim=True).values  # (B, 1)
         z_deltas_max = z_deltas.max(axis=1, keepdim=True).values  # (B, 1)
-        z_thresh     = (0.5 * z_deltas_min + 0.5 * z_deltas_max)  # (B, 1)
+        z_thresh = 0.5 * z_deltas_min + 0.5 * z_deltas_max  # (B, 1)
 
         # [3] shared elements that need to be averaged, computed per pair in the batch
         share_mask = z_deltas < z_thresh  # broadcast (B, Z) and (B, 1) to get (B, Z)
 
         # [4.a] compute average representations
         # - this is the only difference between the Ada-ML-VAE
-        ave_mean = (0.5 * d0_posterior.mean     + 0.5 * d1_posterior.mean)
-        ave_std  = (0.5 * d0_posterior.variance + 0.5 * d1_posterior.variance) ** 0.5
+        ave_mean = 0.5 * d0_posterior.mean + 0.5 * d1_posterior.mean
+        ave_std = (0.5 * d0_posterior.variance + 0.5 * d1_posterior.variance) ** 0.5
 
         # [4.b] select shared or original values based on mask
         z0_mean = torch.where(share_mask, ave_mean, d0_posterior.loc)
         z1_mean = torch.where(share_mask, ave_mean, d1_posterior.loc)
-        z0_std  = torch.where(share_mask, ave_std,  d0_posterior.scale)
-        z1_std  = torch.where(share_mask, ave_std,  d1_posterior.scale)
+        z0_std = torch.where(share_mask, ave_std, d0_posterior.scale)
+        z1_std = torch.where(share_mask, ave_std, d1_posterior.scale)
 
         # construct distributions
         ave_d0_posterior = Normal(loc=z0_mean, scale=z0_std)
@@ -334,9 +372,7 @@ class AdaGVaeMinimal(BetaVae):
         new_ds_posterior = (ave_d0_posterior, ave_d1_posterior)
 
         # [done] return new args & generate logs
-        return new_ds_posterior, ds_prior, {
-            'shared': share_mask.sum(dim=1).float().mean()
-        }
+        return new_ds_posterior, ds_prior, {"shared": share_mask.sum(dim=1).float().mean()}
 
 
 # ========================================================================= #

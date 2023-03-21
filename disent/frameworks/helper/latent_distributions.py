@@ -23,9 +23,9 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 
-from typing import final
 from typing import Sequence
 from typing import Tuple
+from typing import final
 
 import torch
 from torch.distributions import Distribution
@@ -37,7 +37,6 @@ from disent.frameworks.helper.util import compute_ave_loss
 from disent.nn.loss.kl import kl_loss
 from disent.nn.loss.reduction import loss_reduction
 
-
 # ========================================================================= #
 # Vae Distributions                                                         #
 # TODO: this should be moved into NNs                                       #
@@ -46,8 +45,7 @@ from disent.nn.loss.reduction import loss_reduction
 
 
 class LatentDistsHandler(object):
-
-    def __init__(self,  kl_mode: str = 'direct', reduction='mean'):
+    def __init__(self, kl_mode: str = "direct", reduction="mean"):
         self._kl_mode = kl_mode
         self._reduction = reduction
 
@@ -58,7 +56,9 @@ class LatentDistsHandler(object):
         raise NotImplementedError
 
     @final
-    def encoding_to_dists_and_sample(self, z_raw: Tuple[torch.Tensor, ...]) -> Tuple[Distribution, Distribution, torch.Tensor]:
+    def encoding_to_dists_and_sample(
+        self, z_raw: Tuple[torch.Tensor, ...]
+    ) -> Tuple[Distribution, Distribution, torch.Tensor]:
         """
         Return the parameterized prior and the approximate posterior distributions,
         as well as a sample from the approximate posterior using the 'reparameterization trick'.
@@ -71,7 +71,9 @@ class LatentDistsHandler(object):
         return posterior, prior, z_sampled
 
     @final
-    def compute_kl_loss(self, posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None) -> torch.Tensor:
+    def compute_kl_loss(
+        self, posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None
+    ) -> torch.Tensor:
         """
         Compute the kl divergence
         """
@@ -80,11 +82,15 @@ class LatentDistsHandler(object):
         return kl
 
     @final
-    def compute_unreduced_kl_loss(self, posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None) -> torch.Tensor:
+    def compute_unreduced_kl_loss(
+        self, posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None
+    ) -> torch.Tensor:
         return kl_loss(posterior, prior, z_sampled, mode=self._kl_mode)
 
     @final
-    def compute_ave_kl_loss(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled: Sequence[torch.Tensor]) -> torch.Tensor:
+    def compute_ave_kl_loss(
+        self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled: Sequence[torch.Tensor]
+    ) -> torch.Tensor:
         return compute_ave_loss(self.compute_kl_loss, ds_posterior, ds_prior, zs_sampled)
 
 

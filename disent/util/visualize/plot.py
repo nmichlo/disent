@@ -22,6 +22,7 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import logging
 from numbers import Number
 from typing import Any
 from typing import Dict
@@ -29,17 +30,15 @@ from typing import Optional
 
 import numpy as np
 import torch
-import logging
+
+# TODO: matplotlib is not in requirements
+from matplotlib import pyplot as plt
 
 from disent.dataset import DisentDataset
 from disent.dataset.util.state_space import NonNormalisedFactorIdxs
 from disent.util.seeds import TempNumpySeed
 from disent.util.visualize.vis_util import make_animated_image_grid
 from disent.util.visualize.vis_util import make_image_grid
-
-# TODO: matplotlib is not in requirements
-from matplotlib import pyplot as plt
-
 
 log = logging.getLogger(__name__)
 
@@ -52,7 +51,7 @@ log = logging.getLogger(__name__)
 _TORCH_NORMAL_TYPES = {torch.float16, torch.float32, torch.float64}
 
 # torch.complex32 exists in 1.10, but was disabled in 1.11, and planned to be added in 1.12 again
-if torch.version.__version__.startswith('1.11.'):
+if torch.version.__version__.startswith("1.11."):
     _TORCH_COMPLEX_TYPES = {torch.complex64}
 else:
     _TORCH_COMPLEX_TYPES = {torch.complex32, torch.complex64}
@@ -83,12 +82,13 @@ def plt_imshow(img, figsize=12, show=False, **kwargs):
 
 
 def _hide(hide, cond):
-    assert hide in {True, False, 'all', 'edges', 'none'}
-    return (hide is True) or (hide == 'all') or (hide == 'edges' and cond)
+    assert hide in {True, False, "all", "edges", "none"}
+    return (hide is True) or (hide == "all") or (hide == "edges" and cond)
 
 
 def plt_subplots(
-    nrows: int = 1, ncols: int = 1,
+    nrows: int = 1,
+    ncols: int = 1,
     # custom
     title=None,
     titles=None,
@@ -97,8 +97,8 @@ def plt_subplots(
     title_size: int = None,
     titles_size: int = None,
     label_size: int = None,
-    hide_labels='edges',  # none, edges, all
-    hide_axis='edges',    # none, edges, all
+    hide_labels="edges",  # none, edges, all
+    hide_axis="edges",  # none, edges, all
     # plt.subplots:
     sharex: str = False,
     sharey: str = False,
@@ -112,28 +112,37 @@ def plt_subplots(
     if titles is not None:
         titles = np.array(titles)
         if titles.ndim == 1:
-            titles = np.stack([titles] + ([[None]*ncols] * (nrows-1)), axis=0)
-        assert titles.ndim == 2, f'invalid titles shape, must have 2 dims: {titles.shape}'
+            titles = np.stack([titles] + ([[None] * ncols] * (nrows - 1)), axis=0)
+        assert titles.ndim == 2, f"invalid titles shape, must have 2 dims: {titles.shape}"
     # get labels
     if (row_labels is None) or isinstance(row_labels, str):
         row_labels = [row_labels] * nrows
     if (col_labels is None) or isinstance(col_labels, str):
         col_labels = [col_labels] * ncols
-    assert len(row_labels) == nrows, 'row_labels and nrows mismatch'
-    assert len(col_labels) == ncols, 'row_labels and nrows mismatch'
+    assert len(row_labels) == nrows, "row_labels and nrows mismatch"
+    assert len(col_labels) == ncols, "row_labels and nrows mismatch"
     # check titles
     if titles is not None:
         assert len(titles) == nrows
         assert len(titles[0]) == ncols
     # create subplots
-    fig, axs = plt.subplots(nrows=nrows, ncols=ncols, sharex=sharex, sharey=sharey, squeeze=False, subplot_kw=subplot_kw, gridspec_kw=gridspec_kw, **fig_kw)
+    fig, axs = plt.subplots(
+        nrows=nrows,
+        ncols=ncols,
+        sharex=sharex,
+        sharey=sharey,
+        squeeze=False,
+        subplot_kw=subplot_kw,
+        gridspec_kw=gridspec_kw,
+        **fig_kw,
+    )
     # generate
     for y in range(nrows):
         for x in range(ncols):
             ax = axs[y, x]
-            plt_hide_axis(ax, hide_xaxis=_hide(hide_axis, y != nrows-1), hide_yaxis=_hide(hide_axis, x != 0))
+            plt_hide_axis(ax, hide_xaxis=_hide(hide_axis, y != nrows - 1), hide_yaxis=_hide(hide_axis, x != 0))
             # modify ax
-            if not _hide(hide_labels, y != nrows-1):
+            if not _hide(hide_labels, y != nrows - 1):
                 ax.set_xlabel(col_labels[x], fontsize=label_size)
             if not _hide(hide_labels, x != 0):
                 ax.set_ylabel(row_labels[y], fontsize=label_size)
@@ -157,8 +166,8 @@ def plt_subplots_imshow(
     title_size: int = None,
     titles_size: int = None,
     label_size: int = None,
-    hide_labels='edges',  # none, edges, all
-    hide_axis='all',    # none, edges, all
+    hide_labels="edges",  # none, edges, all
+    hide_axis="all",  # none, edges, all
     # tight_layout:
     subplot_padding: Optional[float] = 1.08,
     # plt.subplots:
@@ -176,7 +185,8 @@ def plt_subplots_imshow(
 ):
     # TODO: add automatic height & width
     fig, axs = plt_subplots(
-        nrows=len(grid), ncols=len(grid[0]),
+        nrows=len(grid),
+        ncols=len(grid[0]),
         # custom
         title=title,
         titles=titles,
@@ -186,7 +196,7 @@ def plt_subplots_imshow(
         titles_size=titles_size,
         label_size=label_size,
         hide_labels=hide_labels,  # none, edges, all
-        hide_axis=hide_axis,      # none, edges, all
+        hide_axis=hide_axis,  # none, edges, all
         # plt.subplots:
         sharex=sharex,
         sharey=sharey,
@@ -204,7 +214,9 @@ def plt_subplots_imshow(
     return fig, axs
 
 
-def plt_hide_axis(ax, hide_xaxis=True, hide_yaxis=True, hide_border=True, hide_axis_labels=False, hide_axis_ticks=True, hide_grid=True):
+def plt_hide_axis(
+    ax, hide_xaxis=True, hide_yaxis=True, hide_border=True, hide_axis_labels=False, hide_axis_ticks=True, hide_grid=True
+):
     if hide_xaxis:
         if hide_axis_ticks:
             ax.set_xticks([])
@@ -218,10 +230,10 @@ def plt_hide_axis(ax, hide_xaxis=True, hide_yaxis=True, hide_border=True, hide_a
         if hide_axis_labels:
             ax.yaxis.label.set_visible(False)
     if hide_border:
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        ax.spines['bottom'].set_visible(False)
-        ax.spines['left'].set_visible(False)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.spines["bottom"].set_visible(False)
+        ax.spines["left"].set_visible(False)
     if hide_grid:
         ax.grid(False)
     return ax
@@ -239,14 +251,14 @@ def visualize_dataset_traversal(
     num_frames: int = 9,
     seed: int = 777,
     base_factors=None,
-    traverse_mode='cycle',
+    traverse_mode="cycle",
     # images & animations
     pad: int = 4,
     border: bool = True,
     bg_color: Number = None,
     # augment
     augment_fn: callable = None,
-    data_mode: str = 'raw',
+    data_mode: str = "raw",
     # output
     output_wandb: bool = False,
 ):
@@ -271,10 +283,15 @@ def visualize_dataset_traversal(
 
     # get factor traversals
     with TempNumpySeed(seed):
-        factors = np.stack([
-            dataset.gt_data.sample_random_factor_traversal(f_idx, base_factors=base_factors, num=num_frames, mode=traverse_mode)
-            for f_idx in factor_idxs
-        ], axis=0)
+        factors = np.stack(
+            [
+                dataset.gt_data.sample_random_factor_traversal(
+                    f_idx, base_factors=base_factors, num=num_frames, mode=traverse_mode
+                )
+                for f_idx in factor_idxs
+            ],
+            axis=0,
+        )
 
     # retrieve and augment image grid
     grid = [dataset.dataset_batch_from_factors(f, mode=data_mode) for f in factors]
@@ -285,20 +302,28 @@ def visualize_dataset_traversal(
     # TODO: this is kinda hacky, maybe rather add a check?
     # TODO: can this be moved into the `output_wandb` if statement?
     # - animations glitch out if they do not have 3 channels
-    assert grid.ndim == 5, f'invalid number of dimensions, must be 5, got: {grid.ndim}'
+    assert grid.ndim == 5, f"invalid number of dimensions, must be 5, got: {grid.ndim}"
     if grid.shape[-1] == 1:
         grid = grid.repeat(3, axis=-1)
-    assert grid.shape[-1] in (1, 3), f'invalid number of channels, must be 1 or 3, got shape: {grid.shape}. Note that the dataset or augment if specified should output HWC images, not CHW images!'
+    assert grid.shape[-1] in (
+        1,
+        3,
+    ), f"invalid number of channels, must be 1 or 3, got shape: {grid.shape}. Note that the dataset or augment if specified should output HWC images, not CHW images!"
 
     # generate visuals
-    image = make_image_grid(np.concatenate(grid, axis=0), pad=pad, border=border, bg_color=bg_color, num_cols=num_frames)
-    animation = make_animated_image_grid(np.stack(grid, axis=0), pad=pad, border=border, bg_color=bg_color, num_cols=None)
+    image = make_image_grid(
+        np.concatenate(grid, axis=0), pad=pad, border=border, bg_color=bg_color, num_cols=num_frames
+    )
+    animation = make_animated_image_grid(
+        np.stack(grid, axis=0), pad=pad, border=border, bg_color=bg_color, num_cols=None
+    )
 
     # convert to wandb
     if output_wandb:
         import wandb
+
         wandb_image = wandb.Image(image)
-        wandb_animation = wandb.Video(np.transpose(animation, [0, 3, 1, 2]), fps=4, format='mp4')
+        wandb_animation = wandb.Video(np.transpose(animation, [0, 3, 1, 2]), fps=4, format="mp4")
         return (
             wandb_image,
             wandb_animation,
@@ -306,8 +331,8 @@ def visualize_dataset_traversal(
 
     # return values
     return (
-        grid,       # (FACTORS, NUM_FRAMES, H, W, C)
-        image,      # ([[H+PAD]*[FACTORS+1]], [[W+PAD]*[NUM_FRAMES+1]], C)
+        grid,  # (FACTORS, NUM_FRAMES, H, W, C)
+        image,  # ([[H+PAD]*[FACTORS+1]], [[W+PAD]*[NUM_FRAMES+1]], C)
         animation,  # (NUM_FRAMES, [H & FACTORS], [W & FACTORS], C) -- size is auto-chosen
     )
 

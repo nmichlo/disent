@@ -41,9 +41,12 @@ def try_njit(*args, **kwargs):
         def njit(*args, **kwargs):
             def _wrapper(func):
                 import warnings
-                warnings.warn(f'failed to JIT compile: {func}, numba is not installed!')
+
+                warnings.warn(f"failed to JIT compile: {func}, numba is not installed!")
                 return func
+
             return _wrapper
+
     # try and JIT compile function!
     return njit(*args, **kwargs)
 

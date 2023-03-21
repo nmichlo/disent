@@ -25,18 +25,16 @@
 import pytorch_lightning as pl
 import torch
 
-
 # ========================================================================= #
 # Base Modules                                                              #
 # ========================================================================= #
 
 
 class DisentModule(torch.nn.Module):
-
     def _forward_unimplemented(self, *args):
         # Annoying fix applied by torch for Module.forward:
         # https://github.com/python/mypy/issues/8795
-        raise RuntimeError('This should never run!')
+        raise RuntimeError("This should never run!")
 
     def forward(self, *args, **kwargs):
         raise NotImplementedError

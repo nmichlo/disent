@@ -28,7 +28,6 @@ import numpy as np
 
 from disent.dataset.data._groundtruth__xysquares import XYSquaresData
 
-
 # ========================================================================= #
 # xy multi grid data                                                        #
 # ========================================================================= #
@@ -44,11 +43,11 @@ class XColumnsData(XYSquaresData):
     - This dataset is also adversarial!
     """
 
-    name = 'x_columns'
+    name = "x_columns"
 
     @property
     def factor_names(self) -> Tuple[str, ...]:
-        return ('x_R', 'x_G', 'x_B')[:self._num_squares]
+        return ("x_R", "x_G", "x_B")[: self._num_squares]
 
     @property
     def factor_sizes(self) -> Tuple[int, ...]:
@@ -63,9 +62,9 @@ class XColumnsData(XYSquaresData):
         for i, fx in enumerate(factors):
             x = offset + space * fx
             if self._rgb:
-                obs[:, x:x+size, i] = self._fill_value
+                obs[:, x : x + size, i] = self._fill_value
             else:
-                obs[:, x:x+size, :] = self._fill_value
+                obs[:, x : x + size, :] = self._fill_value
         return obs
 
 

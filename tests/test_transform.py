@@ -29,29 +29,29 @@ from disent.dataset.transform._augment import _expand_to_min_max_tuples
 from disent.nn.functional import torch_gaussian_kernel
 from disent.nn.functional import torch_gaussian_kernel_2d
 
-
 # ========================================================================= #
 # TESTS                                                                     #
 # ========================================================================= #
 
 
 def test_gaussian_kernels():
-
     r = lambda *shape: torch.stack(torch.meshgrid(*((torch.arange(s) + 1) for s in shape)), dim=-1).max(dim=-1).values
 
-    assert (9,)       == torch_gaussian_kernel(sigma=1.0,     truncate=4.0).shape
-    assert (5, 41)    == torch_gaussian_kernel(sigma=r(5),    truncate=4.0).shape
+    assert (9,) == torch_gaussian_kernel(sigma=1.0, truncate=4.0).shape
+    assert (5, 41) == torch_gaussian_kernel(sigma=r(5), truncate=4.0).shape
     assert (5, 3, 41) == torch_gaussian_kernel(sigma=r(5, 3), truncate=4.0).shape
     assert (5, 7, 71) == torch_gaussian_kernel(sigma=r(5, 1), truncate=r(1, 7)).shape
 
-    assert (9, 7)         == torch_gaussian_kernel_2d(sigma=1.0,     truncate=4.0, sigma_b=1.0,     truncate_b=3.0).shape
-    assert (5, 41, 9)     == torch_gaussian_kernel_2d(sigma=r(5),    truncate=4.0, sigma_b=1.0,     truncate_b=4.0).shape
-    assert (5, 7, 41, 57) == torch_gaussian_kernel_2d(sigma=r(5, 1), truncate=4.0, sigma_b=r(1, 7), truncate_b=4.0).shape
+    assert (9, 7) == torch_gaussian_kernel_2d(sigma=1.0, truncate=4.0, sigma_b=1.0, truncate_b=3.0).shape
+    assert (5, 41, 9) == torch_gaussian_kernel_2d(sigma=r(5), truncate=4.0, sigma_b=1.0, truncate_b=4.0).shape
+    assert (5, 7, 41, 57) == torch_gaussian_kernel_2d(
+        sigma=r(5, 1), truncate=4.0, sigma_b=r(1, 7), truncate_b=4.0
+    ).shape
 
 
 def test_fft_guassian_blur_sigmas():
-    assert _expand_to_min_max_tuples(1.0)                      == ((1.0, 1.0), (1.0, 1.0))
-    assert _expand_to_min_max_tuples([0.0, 1.0])               == ((0.0, 1.0), (0.0, 1.0))
+    assert _expand_to_min_max_tuples(1.0) == ((1.0, 1.0), (1.0, 1.0))
+    assert _expand_to_min_max_tuples([0.0, 1.0]) == ((0.0, 1.0), (0.0, 1.0))
     assert _expand_to_min_max_tuples([[0.0, 1.0], [1.0, 2.0]]) == ((0.0, 1.0), (1.0, 2.0))
     with pytest.raises(Exception):
         _expand_to_min_max_tuples([[0.0, 1.0], 1.0])
