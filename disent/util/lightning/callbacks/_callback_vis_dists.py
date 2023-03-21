@@ -31,12 +31,8 @@ from typing import Tuple
 from typing import Union
 
 import lightning as L
-
-# TODO: wandb and matplotlib are not in requirements
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import wandb
 
 import disent.util.strings.colors as c
 from disent.dataset import DisentDataset
@@ -339,9 +335,13 @@ class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
         )
         # show the plot
         if self._plt_show:
+            import matplotlib.pyplot as plt
+
             plt.show()
         # log the plot to wandb
         if self._log_wandb:
+            import wandb
+
             wb_log_metrics(trainer.logger, {"factor_distances": wandb.Image(fig)})
 
 

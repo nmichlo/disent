@@ -30,7 +30,6 @@ from typing import NoReturn
 from typing import Optional
 from typing import Tuple
 
-import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
 
@@ -257,6 +256,7 @@ class SpritesData(SpritesPartialData):
 if __name__ == "__main__":
 
     def main():
+        import matplotlib.pyplot as plt
         from tqdm import tqdm
 
         from disent.util.visualize.plot import plt_imshow
