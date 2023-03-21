@@ -26,10 +26,12 @@ import logging
 import signal
 import sys
 from multiprocessing import current_process
+from typing import List
 from typing import Optional
+from typing import Sequence
 
 from lightning.pytorch import Trainer
-from lightning.pytorch.loggers import LoggerCollection
+from lightning.pytorch.loggers import Logger
 
 from disent.util.lightning.logger_util import wb_yield_loggers
 
@@ -48,7 +50,7 @@ _PL_SIGNALS = (  # we can't capture SIGKILL
     signal.SIGSEGV,  # segmentation fault
 )
 
-_PL_LOGGER: Optional[LoggerCollection] = None
+_PL_LOGGERS: Optional[List[Logger]] = None
 _PL_TRAINER: Optional[Trainer] = None
 
 
@@ -91,11 +93,11 @@ def _signal_handler_log_and_exit(signal_number, frame):
     )
 
 
-def safe_unset_debug_logger():
-    global _PL_LOGGER
+def safe_unset_debug_loggers():
+    global _PL_LOGGERS
     # unset logger
-    if _PL_LOGGER is not None:
-        _PL_LOGGER = None
+    if _PL_LOGGERS is not None:
+        _PL_LOGGERS = None
         # return control to original handlers
         for signal_type in _PL_SIGNALS:
             if signal_type in _PL_SIGNALS_OLD_HANDLERS:
@@ -103,19 +105,20 @@ def safe_unset_debug_logger():
                 signal.signal(signal_type, handler)
 
 
-def set_debug_logger(logger: Optional[LoggerCollection]):
-    global _PL_LOGGER
-    assert _PL_LOGGER is None, "debug logger has already been set"
-    _PL_LOGGER = logger
+def set_debug_loggers(loggers: Optional[Sequence[Logger]]):
+    global _PL_LOGGERS
+    assert _PL_LOGGERS is None, "debug logger has already been set"
+    _PL_LOGGERS = loggers
     # set initial messages
-    if _PL_LOGGER is not None:
-        _PL_LOGGER.log_metrics(
-            {
-                "error_type": "N/A",
-                "error_msg": "N/A",
-                "error_occurred": False,
-            }
-        )
+    if _PL_LOGGERS is not None:
+        for logger in _PL_LOGGERS:
+            logger.log_metrics(
+                {
+                    "error_type": "N/A",
+                    "error_msg": "N/A",
+                    "error_occurred": False,
+                }
+            )
     # register signal listeners
     for signal_type in _PL_SIGNALS:
         # save the old handler
@@ -123,7 +126,7 @@ def set_debug_logger(logger: Optional[LoggerCollection]):
         # update the handler
         signal.signal(signal_type, _signal_handler_log_and_exit)
     # return the logger
-    return logger
+    return loggers
 
 
 def log_error_and_exit(err_type: str, err_msg: str, exit_code: int = 1, exc_info=True):
@@ -132,18 +135,19 @@ def log_error_and_exit(err_type: str, err_msg: str, exit_code: int = 1, exc_info
     # log something at least
     log.error(f"exiting: {err_type} | {err_msg}", exc_info=exc_info)
     # try log to pytorch lightning & wandb
-    if _PL_LOGGER is not None:
-        _PL_LOGGER.log_metrics(
-            {
-                "error_type": err_type,
-                "error_msg": err_msg,
-                "error_occurred": True,
-            }
-        )
-        for wb_logger in wb_yield_loggers(_PL_LOGGER):
+    if _PL_LOGGERS is not None:
+        for logger in _PL_LOGGERS:
+            logger.log_metrics(
+                {
+                    "error_type": err_type,
+                    "error_msg": err_msg,
+                    "error_occurred": True,
+                }
+            )
+        for wb_logger in wb_yield_loggers(_PL_LOGGERS):
             # so I dont have to scroll up... I'm lazy...
-            run_url = wb_logger.experiment._get_run_url()
-            project_url = wb_logger.experiment._get_project_url()
+            run_url = wb_logger.experiment.get_url()
+            project_url = wb_logger.experiment.get_project_url()
             log.error(f'wandb: run url: {run_url if run_url else "N/A"}')
             log.error(f'wandb: project url: {project_url if run_url else "N/A"}')
             # make sure we log everything online!

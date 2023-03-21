@@ -155,8 +155,9 @@ def test_framework_checkpointing(Framework, cfg_kwargs, Data, tmp_path):
     )
 
     framework.hparams.update(cfg_kwargs)
-    if trainer.logger:
-        trainer.logger.log_hyperparams(framework.hparams)
+    if trainer.loggers:
+        for logger in trainer.loggers:
+            logger.log_hyperparams(framework.hparams)
 
     trainer.fit(framework, dataloader)
 

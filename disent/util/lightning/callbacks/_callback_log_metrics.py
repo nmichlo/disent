@@ -107,11 +107,11 @@ class VaeMetricLoggingCallback(BaseCallbackPeriodic):
             # log to trainer
             prefix = "final_metric" if is_final else "epoch_metric"
             prefixed_scores = {f"{prefix}/{k}": v for k, v in scores.items()}
-            log_metrics(trainer.logger, _normalized_numeric_metrics(prefixed_scores))
+            log_metrics(trainer.loggers, _normalized_numeric_metrics(prefixed_scores))
 
             # log summary for WANDB
             # this is kinda hacky... the above should work for parallel coordinate plots
-            wb_log_reduced_summaries(trainer.logger, prefixed_scores, reduction="max")
+            wb_log_reduced_summaries(trainer.loggers, prefixed_scores, reduction="max")
 
     def do_step(self, trainer: L.Trainer, pl_module: L.LightningModule):
         if self.step_end_metrics:

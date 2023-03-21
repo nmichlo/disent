@@ -53,9 +53,9 @@ from disent.util.strings.fmt import make_box_str
 from experiment.util.hydra_data import HydraDataModule
 from experiment.util.hydra_main import EXP_CONFIG_DIR
 from experiment.util.hydra_main import hydra_main
-from experiment.util.run_utils import safe_unset_debug_logger
+from experiment.util.run_utils import safe_unset_debug_loggers
 from experiment.util.run_utils import safe_unset_debug_trainer
-from experiment.util.run_utils import set_debug_logger
+from experiment.util.run_utils import set_debug_loggers
 from experiment.util.run_utils import set_debug_trainer
 
 log = logging.getLogger(__name__)
@@ -132,13 +132,19 @@ def hydra_check_data_meta(cfg):
         log.info(f"* dataset.meta.vis_std:  {cfg.dataset.meta.vis_std}")
 
 
-def hydra_make_logger(cfg) -> Optional[Logger]:
-    logger = hydra.utils.instantiate(cfg.logging.logger)
-    if logger:
-        log.info(f"Initialised Logger: {logger}")
+def hydra_make_loggers(cfg) -> List[Logger]:
+    loggers = hydra.utils.instantiate(cfg.logging.loggers)
+    if loggers:
+        if isinstance(loggers, Logger):
+            loggers = [loggers]
+        for logger in loggers:
+            if not isinstance(logger, Logger):
+                raise TypeError(f"logger is not an instance of {Logger}, got type: {type(logger)} with value: {logger}")
+        log.info(f"Initialised Loggers: {loggers}")
     else:
+        loggers = []
         log.warning(f"No Logger Utilised!")
-    return logger
+    return loggers
 
 
 def hydra_get_callbacks(cfg) -> list:
@@ -299,7 +305,7 @@ def action_train(cfg: DictConfig):
 
     try:
         safe_unset_debug_trainer()
-        safe_unset_debug_logger()
+        safe_unset_debug_loggers()
         wandb.finish()
     except:
         pass
@@ -309,7 +315,7 @@ def action_train(cfg: DictConfig):
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
 
     # create trainer loggers & callbacks & initialise error messages
-    logger = set_debug_logger(hydra_make_logger(cfg))
+    loggers = set_debug_loggers(hydra_make_loggers(cfg))
 
     # deterministic seed
     seed(cfg.settings.job.seed)
@@ -336,7 +342,7 @@ def action_train(cfg: DictConfig):
     trainer = set_debug_trainer(
         L.Trainer(
             # cannot override these
-            logger=logger,
+            logger=loggers,
             gpus=gpus,
             callbacks=[
                 *hydra_get_callbacks(cfg),
@@ -380,10 +386,11 @@ def action_train(cfg: DictConfig):
 
     # save hparams
     framework.hparams.update(cfg)
-    if trainer.logger:
-        trainer.logger.log_hyperparams(
-            framework.hparams
-        )  # TODO: is this a pytorch lightning bug? The trainer should automatically save these if hparams is set?
+
+    # TODO: is this a pytorch lightning bug? The trainer should automatically save these if hparams is set?
+    if trainer.loggers:
+        for logger in trainer.loggers:
+            logger.log_hyperparams(framework.hparams)
 
     # fit the model
     # -- if an error/signal occurs while pytorch lightning is

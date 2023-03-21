@@ -120,12 +120,12 @@ def _get_dataset_and_ae_like(
 #         log.info(f'ave latent correlation: {ave_z_to_f_corr}')
 #         log.info(f'ave factor correlation: {ave_f_to_z_corr}')
 #         # log everything
-#         log_metrics(trainer.logger, {
+#         log_metrics(trainer.loggers, {
 #             'metric.ave_latent_correlation': ave_z_to_f_corr,
 #             'metric.ave_factor_correlation': ave_f_to_z_corr,
 #         })
 #         # make sure we only log the heatmap to WandB
-#         wb_log_metrics(trainer.logger, {
+#         wb_log_metrics(trainer.loggers, {
 #             'metric.correlation_heatmap': wandb.plots.HeatMap(
 #                 x_labels=[f'z{i}' for i in range(z_size)],
 #                 y_labels=list(dataset.ground_truth_data.factor_names),
@@ -149,7 +149,7 @@ def _get_dataset_and_ae_like(
 #
 #                 # wandb.log({f"chart.correlation.z{ix}-vs-z{iy}": plt})
 #                 # make sure we only log to WANDB
-#                 wb_log_metrics(trainer.logger, {f"chart.correlation.z{ix}-vs-max-corr": plt})
+#                 wb_log_metrics(trainer.loggers, {f"chart.correlation.z{ix}-vs-max-corr": plt})
 
 
 # ========================================================================= #

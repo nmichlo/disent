@@ -342,7 +342,7 @@ class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
         if self._log_wandb:
             import wandb
 
-            wb_log_metrics(trainer.logger, {"factor_distances": wandb.Image(fig)})
+            wb_log_metrics(trainer.loggers, {"factor_distances": wandb.Image(fig)})
 
 
 # ========================================================================= #
