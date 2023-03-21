@@ -28,7 +28,8 @@ jobs:
     - name: Install dependencies
       # torchsort needs torch first
       run: |
-        python3 -m pip install --upgrade pip "torch>=2.0.0"
+        python3 -m pip install --upgrade pip
+        python3 -m pip install "torch>=2.0.0"
         python3 -m pip install -r requirements-test.txt
 
     - name: Test with pytest
