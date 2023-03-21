@@ -18,6 +18,9 @@ jobs:
       with:
         python-version: '3.10'
 
+    - name: Update version in setup.py to ${{ vars.GITHUB_REF_NAME }}
+      run: sed -i "s/{{VERSION_PLACEHOLDER}}/${{ vars.GITHUB_REF_NAME }}/g" setup.py
+
     - name: Install dependencies
       run: |
         python3 -m pip install --upgrade pip
