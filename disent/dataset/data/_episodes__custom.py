@@ -32,6 +32,7 @@ import numpy as np
 from disent.dataset.data import BaseEpisodesData
 from disent.util.inout.files import download_file
 from disent.util.inout.paths import filename_from_url
+from disent.util.inout.tar import tar_safe_extract_all
 
 log = logging.getLogger(__name__)
 
@@ -147,11 +148,11 @@ class EpisodesDownloadZippedPickledData(EpisodesPickledData):
         # unzip data
         if (save_path != required_file) and not os.path.exists(required_file):
             if save_path.endswith(".tar.xz"):
-                import tarfile
-
                 log.info(f"Extracting: {save_path=} to {required_file=}")
-                with tarfile.open(save_path) as f:
-                    f.extractall(os.path.dirname(required_file))
+                tar_safe_extract_all(
+                    save_path,
+                    os.path.dirname(required_file),
+                )
                 log.info(f"Extracted!")
             else:
                 raise IOError(f"Unsupported extension for: {save_path}")
