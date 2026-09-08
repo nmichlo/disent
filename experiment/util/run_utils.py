@@ -117,13 +117,9 @@ def set_debug_loggers(loggers: Optional[Sequence[Logger]]):
     # set initial messages
     if _PL_LOGGERS is not None:
         for logger in _PL_LOGGERS:
-            logger.log_metrics(
-                {
-                    "error_type": "N/A",
-                    "error_msg": "N/A",
-                    "error_occurred": False,
-                }
-            )
+            # `log_metrics` only accepts numbers, the error strings go to `log_hyperparams`
+            logger.log_hyperparams({"error_type": "N/A", "error_msg": "N/A"})
+            logger.log_metrics({"error_occurred": False})
     # register signal listeners
     for signal_type in _PL_SIGNALS:
         # save the old handler
@@ -142,13 +138,9 @@ def log_error_and_exit(err_type: str, err_msg: str, exit_code: int = 1, exc_info
     # try log to pytorch lightning & wandb
     if _PL_LOGGERS is not None:
         for logger in _PL_LOGGERS:
-            logger.log_metrics(
-                {
-                    "error_type": err_type,
-                    "error_msg": err_msg,
-                    "error_occurred": True,
-                }
-            )
+            # `log_metrics` only accepts numbers, the error strings go to `log_hyperparams`
+            logger.log_hyperparams({"error_type": err_type, "error_msg": err_msg})
+            logger.log_metrics({"error_occurred": True})
         for wb_logger in wb_yield_loggers(_PL_LOGGERS):
             # so I dont have to scroll up... I'm lazy...
             run_url = wb_logger.experiment.get_url()

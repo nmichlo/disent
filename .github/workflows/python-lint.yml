@@ -1,19 +1,26 @@
-# make sure to update the corresponding configs:
-# - `pyproject.toml`  (the `[tool.ruff]` sections)
-# - `.pre-commit-config.yaml`
+# this runs `.pre-commit-config.yaml` verbatim, so `pre-commit run --all-files`
+# locally and CI can never disagree. tool config lives in `pyproject.toml`.
 
 name: lint
 
 on: [pull_request]
 
 jobs:
-  ruff:
+  pre-commit:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/ruff-action@v3
+
+      - uses: astral-sh/setup-uv@v5
         with:
-          args: "check --output-format=github"
-      - uses: astral-sh/ruff-action@v3
-        with:
-          args: "format --check --diff"
+          enable-cache: true
+
+      # `ty` needs the project dependencies resolvable to check anything useful.
+      # it auto-detects `.venv`, so install into one before running the hooks.
+      - name: Install project into .venv
+        run: |
+          uv venv --python 3.10 .venv
+          uv pip install --python .venv -e ".[extra]"
+
+      - name: Run pre-commit
+        run: uvx --from pre-commit pre-commit run --all-files --show-diff-on-failure

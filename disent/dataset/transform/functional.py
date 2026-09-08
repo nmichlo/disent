@@ -22,6 +22,12 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+# TODO: remove once torchvision types `resize` for PIL images.
+#       its stub declares `Tensor -> Tensor`, but it accepts and returns
+#       `PIL.Image.Image` at runtime, which is the path this module uses.
+# ty: ignore[invalid-assignment]
+# ty: ignore[invalid-argument-type]
+
 from typing import Optional
 from typing import Sequence
 from typing import Tuple

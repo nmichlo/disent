@@ -20,6 +20,11 @@
 # - uses disent objects and classes
 # - renamed functions
 
+# TODO: remove once xgboost and lightgbm ship type stubs we depend on.
+#       they are optional boosting backends, imported lazily and only when
+#       `boost_mode` selects them, so they are not installed by default.
+# ty: ignore[unresolved-import]
+
 """
 Implementation of Disentanglement, Completeness and Informativeness.
 Based on "A Framework for the Quantitative Evaluation of Disentangled
