@@ -119,11 +119,11 @@ def _compute_importance_gbt(x_train, y_train, x_test, y_test, boost_mode="sklear
 
             model = GradientBoostingClassifier()
         elif boost_mode == "xgboost":
-            from xgboost import XGBClassifier
+            from xgboost import XGBClassifier  # ty: ignore[unresolved-import]  # optional backend
 
             model = XGBClassifier()
         elif boost_mode == "lightgbm":
-            from lightgbm import LGBMClassifier
+            from lightgbm import LGBMClassifier  # ty: ignore[unresolved-import]  # optional backend
 
             model = LGBMClassifier()
         else:

@@ -50,9 +50,18 @@ from disent.registry._registry import RegexConstructor
 from disent.registry._registry import RegexRegistry
 
 if TYPE_CHECKING:
+    # only needed to resolve the dotted names in the registry type parameters below
     import torch
+    import torch.optim
+    import torch.utils.data
 
-    import disent
+    import disent.dataset.sampling
+    import disent.frameworks
+    import disent.frameworks.helper.latent_distributions
+    import disent.frameworks.helper.reconstructions
+    import disent.metrics.utils
+    import disent.model._base
+    import disent.schedule
 
 
 # ========================================================================= #
@@ -245,7 +254,7 @@ OPTIMIZERS["yogi"] = LazyImport(lr=_LR, import_path="torch_optimizer.Yogi")
 
 
 # TODO: this is not yet used in disent.util.lightning.callbacks or disent.metrics
-METRICS: RegistryImports["disent.metrics.utils._Metric"] = RegistryImports("METRICS")
+METRICS: RegistryImports["disent.metrics.utils.Metric"] = RegistryImports("METRICS")
 METRICS["dci"] = LazyImport("disent.metrics._dci.metric_dci")
 METRICS["factor_vae"] = LazyImport("disent.metrics._factor_vae.metric_factor_vae")
 METRICS["mig"] = LazyImport("disent.metrics._mig.metric_mig")
