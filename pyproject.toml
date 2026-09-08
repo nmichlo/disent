@@ -129,6 +129,12 @@ force-single-line = true
 # TY                                                                        #
 # ========================================================================= #
 
+# ty is deliberately NOT run by CI. the library is largely untyped and currently
+# reports ~750 diagnostics, so gating on it would block every PR. run it locally
+# while adding annotations:
+#     uvx ty check --python .venv
+# once the count is near zero, add a job to `.github/workflows/python-lint.yml`.
+
 [tool.ty.environment]
 python-version = "3.8"
 
