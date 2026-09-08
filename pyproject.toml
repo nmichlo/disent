@@ -14,15 +14,16 @@ name = "disent"
 version = "0.0.0.dev0"
 description = "Vae disentanglement framework built with pytorch lightning."
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.11"
 license = { file = "LICENSE.txt" }
 authors = [{ name = "Nathan Juraj Michlo", email = "NathanJMichlo@gmail.com" }]
 classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Intended Audience :: Science/Research",
 ]
 
@@ -31,7 +32,7 @@ dependencies = [
     "numpy>=1.19.0",
     "torch>=2.0.0",
     "torchvision>=0.15.0",
-    "lightning>=2.0.0",
+    "lightning>=2.6.0",
     "scipy>=1.7.0",
     "scikit-learn>=1.0.0",
     # -- INPUT & OUTPUT -- #
@@ -143,7 +144,7 @@ force-single-line = true
 # each says what has to land upstream before it can go.
 
 [tool.ty.environment]
-python-version = "3.8"
+python-version = "3.11"
 
 [tool.ty.src]
 exclude = ["data", "docs/examples/data"]
