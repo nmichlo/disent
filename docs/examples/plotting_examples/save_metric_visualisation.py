@@ -31,9 +31,9 @@ from typing import Tuple
 from typing import Union
 from typing import overload
 
+import matplotlib
 import numpy as np
 import torch
-from matplotlib import cm
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
@@ -349,8 +349,9 @@ def plot_scores(ax, axis_score, linear_score):
 
     assert 0 <= linear_score <= 1
     assert 0 <= axis_score <= 1
-    linear_rgb = cm.get_cmap("RdPu_r")(np.clip(linear_score, 0.0, 1.0))
-    axis_rgb = cm.get_cmap("GnBu_r")(np.clip(axis_score, 0.0, 1.0))
+    # `matplotlib.cm.get_cmap` was removed in matplotlib 3.9.
+    linear_rgb = matplotlib.colormaps["RdPu_r"](np.clip(linear_score, 0.0, 1.0))
+    axis_rgb = matplotlib.colormaps["GnBu_r"](np.clip(axis_score, 0.0, 1.0))
     ax.legend(
         handles=[
             Line2D(
