@@ -24,9 +24,12 @@
 
 import itertools
 import os
+from typing import Literal
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
+from typing import Union
+from typing import overload
 
 import numpy as np
 import torch
@@ -74,26 +77,31 @@ def make_2d_line_points(n: int = 100, deg: float = 30, std_x: float = 1.0, std_y
     return points
 
 
-def make_nd_line_points(n: int = 100, dims: int = 4, std_x: float = 1.0, std_y: float = 0.005):
+def make_nd_line_points(
+    n: int = 100,
+    dims: Union[int, Tuple[int, int]] = 4,
+    std_x: float = 1.0,
+    std_y: Union[float, Tuple[float, float]] = 0.005,
+):
     if not isinstance(dims, int):
         m, M = dims
-        dims = np.randint(m, M)
+        dims = np.random.randint(m, M)
     # generate numbers
     xs = torch.randn(n, dims, dtype=torch.float32)
     # axis standard deviations
     if isinstance(std_y, (float, int)):
-        std_y = torch.full((dims - 1,), fill_value=std_y, dtype=torch.float32)
+        std_y_t = torch.full((dims - 1,), fill_value=std_y, dtype=torch.float32)
     else:
         m, M = std_y
-        std_y = torch.rand(dims - 1, dtype=torch.float32) * (M - m) + m
+        std_y_t = torch.rand(dims - 1, dtype=torch.float32) * (M - m) + m
     # scale axes
-    std = torch.cat([torch.as_tensor([std_x]), std_y])
+    std = torch.cat([torch.as_tensor([std_x]), std_y_t])
     xs = xs * std[None, :]
     # rotate
     return xs @ _random_rotation_matrix(dims)
 
 
-def make_line_points(n: int = 100, deg: float = None, dims: int = 2, std_x: float = 1.0, std_y: float = 0.1):
+def make_line_points(n: int = 100, deg: Optional[float] = None, dims: int = 2, std_x: float = 1.0, std_y: float = 0.1):
     if deg is None:
         return make_nd_line_points(n=n, dims=dims, std_x=std_x, std_y=std_y)
     else:
@@ -141,9 +149,15 @@ def gaussian_2d_dy2(x, y, sx, sy):
     return gaussian_1d(x, sx) * gaussian_1d_dx2(y, sy)
 
 
+@overload
 def rotated_radius_meshgrid(
-    radius: float, num_points: int, deg: float = 0, device=None, return_orig=False
-) -> Tuple[torch.Tensor, torch.Tensor]:
+    radius: float, num_points: int, deg: float = 0, device=None, *, return_orig: Literal[True]
+) -> Tuple[Tuple[torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor]]: ...
+@overload
+def rotated_radius_meshgrid(
+    radius: float, num_points: int, deg: float = 0, device=None, return_orig: Literal[False] = False
+) -> Tuple[torch.Tensor, torch.Tensor]: ...
+def rotated_radius_meshgrid(radius: float, num_points: int, deg: float = 0, device=None, return_orig: bool = False):
     # x & y values centered around zero
     # p = torch.arange(size, device=device) - (size-1)/2
     p = torch.linspace(-radius, radius, num_points, device=device)
@@ -185,8 +199,8 @@ def plot_gaussian(
         ax = fig.gca()
     # set limits
     trunc_sigma = (2.05 * max(std_x, std_y)) if (contour_trunc_sigma is None) else contour_trunc_sigma
-    ax.set_xlim([-trunc_sigma, trunc_sigma])
-    ax.set_ylim([-trunc_sigma, trunc_sigma])
+    ax.set_xlim((-trunc_sigma, trunc_sigma))
+    ax.set_ylim((-trunc_sigma, trunc_sigma))
     # plot contour
     xs, ys, zs = rotated_guassian2d(
         std_x=std_x, std_y=std_y, deg=deg, trunc_sigma=trunc_sigma, num_points=contour_resolution
@@ -206,8 +220,8 @@ def plot_gaussian(
 
 
 def score_grid(
-    deg_rotations: Sequence[Optional[float]],
-    y_std_ratios: Sequence[float],
+    deg_rotations: Union[Sequence[Optional[float]], np.ndarray],
+    y_std_ratios: Union[Sequence[float], np.ndarray],
     x_std: float = 1.0,
     num_points: int = 1000,
     num_dims: int = 2,
@@ -237,8 +251,8 @@ def score_grid(
 
 
 def ave_score_grid(
-    deg_rotations: Sequence[Optional[float]],
-    y_std_ratios: Sequence[float],
+    deg_rotations: Union[Sequence[Optional[float]], np.ndarray],
+    y_std_ratios: Union[Sequence[float], np.ndarray],
     x_std: float = 1.0,
     num_points: int = 1000,
     num_dims: int = 2,

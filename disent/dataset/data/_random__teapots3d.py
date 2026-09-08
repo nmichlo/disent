@@ -25,7 +25,6 @@
 import logging
 import os
 from typing import Dict
-from typing import NoReturn
 from typing import Optional
 from typing import Union
 
@@ -76,7 +75,7 @@ def resave_teapots3d_as_uint8(orig_file: str, new_file: str, overwrite: bool = F
 class DataFileTeapots3dInt32(DataFileHashed):
     # TODO: add a version of this file that automatically unpacks the original zip file?
 
-    def _prepare(self, out_dir: str, out_file: str) -> NoReturn:
+    def _prepare(self, out_dir: str, out_file: str) -> None:
         if not os.path.exists(out_file):
             raise FileNotFoundError(
                 f"Please download the Teapots3D dataset to: {repr(out_file)}"
@@ -98,7 +97,7 @@ class DataFileTeapots3dUint8(DataFileHashed):
     ):
         self._teapots3dfile = teapots3d_datafile
         super().__init__(
-            file_name=modify_name_keep_ext(self._teapots3dfile.out_name, suffix="_uint8")
+            file_name=str(modify_name_keep_ext(self._teapots3dfile.out_name, suffix="_uint8"))
             if (out_name is None)
             else out_name,
             file_hash=out_hash,

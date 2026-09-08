@@ -25,14 +25,12 @@
 import inspect
 import re
 from abc import ABC
-from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import Generic
 from typing import Iterator
 from typing import List
 from typing import MutableMapping
-from typing import NoReturn
 from typing import Optional
 from typing import Protocol
 from typing import Set
@@ -52,12 +50,13 @@ from disent.util.imports import import_obj_partial
 
 K = TypeVar("K")
 V = TypeVar("V")
+V_co = TypeVar("V_co", covariant=True)
 T = TypeVar("T")
 AliasesHint = Union[str, Tuple[str, ...]]
 
 
-class _FactoryFn(Protocol[V]):
-    def __call__(self, *args) -> V: ...
+class _FactoryFn(Protocol[V_co]):
+    def __call__(self, *args) -> V_co: ...
 
 
 # ========================================================================= #
@@ -108,19 +107,19 @@ class LazyValue(ProvidedValue[V]):
     def __init__(self, generate_fn: Callable[[], V]):
         assert callable(generate_fn)
         self._generate_fn = generate_fn
-        self._is_generated = False
-        self._value = None
+        # a single-element list is used instead of an `Optional[V]` attribute so
+        # that `V` itself may legitimately be `None` without losing the ability
+        # to distinguish "not yet generated" from "generated as None"
+        self._cache: List[V] = []
 
     def get(self) -> V:
         # cache the value
-        if not self._is_generated:
-            self._is_generated = True
-            self._value = self._generate_fn()
-        return self._value
+        if not self._cache:
+            self._cache.append(self._generate_fn())
+        return self._cache[0]
 
     def clear(self):
-        self._is_generated = False
-        self._value = None
+        self._cache.clear()
 
     def __repr__(self):
         return f"{self.__class__.__name__}({repr(self._generate_fn)})"
@@ -148,11 +147,15 @@ class LazyImport(LazyValue[V]):
 # ========================================================================= #
 
 
-class DictProviders(MutableMapping[K, V]):
+class DictProviders(MutableMapping, Generic[K, V]):
     """
     A dictionary that only allows instances of
     provided values to be added to it.
     - The returned values are obtained directly from the providers
+    - NOTE: `__getitem__` returns the unwrapped `V`, while `__setitem__` accepts
+      a wrapped `ProvidedValue[V]`. This asymmetry means the class cannot be
+      honestly typed as `MutableMapping[K, V]` (which requires both to agree on
+      the same value type), so it is intentionally left unparameterized here.
     """
 
     def __init__(self):
@@ -161,13 +164,13 @@ class DictProviders(MutableMapping[K, V]):
     def __getitem__(self, k: K) -> V:
         return self._getitem(k)
 
-    def __contains__(self, k: K):
+    def __contains__(self, k: object) -> bool:
         return k in self._providers
 
-    def __setitem__(self, k: K, v: ProvidedValue[V]) -> NoReturn:
+    def __setitem__(self, k: K, v: ProvidedValue[V], /) -> None:
         self._setitem(k, v)
 
-    def __delitem__(self, k: K) -> NoReturn:
+    def __delitem__(self, k: K) -> None:
         del self._providers[k]
 
     def __len__(self) -> int:
@@ -182,7 +185,7 @@ class DictProviders(MutableMapping[K, V]):
         provider = self._providers[k]
         return provider.get()
 
-    def _setitem(self, k: K, v: ProvidedValue[V]) -> NoReturn:
+    def _setitem(self, k: K, v: ProvidedValue[V]) -> None:
         if not isinstance(v, ProvidedValue):
             raise TypeError(
                 f"Values stored in {self.__class__.__name__} must be instances of: {ProvidedValue.__name__}, got: {repr(v)}"
@@ -220,7 +223,7 @@ class Registry(DictProviders[str, V]):
 
     # --- CORE --- #
 
-    def __setitem__(self, aliases: AliasesHint, v: ProvidedValue[V]) -> NoReturn:
+    def __setitem__(self, aliases: AliasesHint, v: ProvidedValue[V]) -> None:
         self._setitems(aliases, v)
 
     def __getitem__(self, k: str) -> V:
@@ -235,7 +238,7 @@ class Registry(DictProviders[str, V]):
 
     # --- HELPER --- #
 
-    def _setitems(self, aliases: AliasesHint, v: Union[V, ProvidedValue[V]]) -> None:
+    def _setitems(self, aliases: AliasesHint, v: ProvidedValue[V]) -> None:
         aliases = self._normalise_aliases(aliases)
         # check all the aliases
         for k in aliases:
@@ -252,7 +255,7 @@ class Registry(DictProviders[str, V]):
         for k in aliases:
             self._setitem(k, v)
 
-    def _normalise_aliases(self, aliases: AliasesHint, check_nonempty: bool = True) -> Tuple[str]:
+    def _normalise_aliases(self, aliases: AliasesHint, check_nonempty: bool = True) -> Tuple[str, ...]:
         if isinstance(aliases, str):
             aliases = (aliases,)
         if not isinstance(aliases, tuple):
@@ -271,15 +274,15 @@ class Registry(DictProviders[str, V]):
     def _check_and_normalise_value(self, v: ProvidedValue[V]) -> ProvidedValue[V]:
         return v
 
-    def _check_provided_value(self, v: V) -> NoReturn:
+    def _check_provided_value(self, v: V) -> None:
         pass
 
-    def _check_key(self, k: str) -> NoReturn:
+    def _check_key(self, k: str) -> None:
         pass
 
     # --- MISSING VALUES --- #
 
-    def setmissing(self, alias: AliasesHint, value: V) -> NoReturn:
+    def setmissing(self, alias: AliasesHint, value: ProvidedValue[V]) -> None:
         # find missing keys
         aliases = self._normalise_aliases(alias)
         missing = tuple(alias for alias in aliases if (alias not in self))
@@ -300,7 +303,7 @@ class Registry(DictProviders[str, V]):
         def __init__(self, registry: "Registry"):
             self._registry = registry
 
-        def __setitem__(self, aliases: str, v: ProvidedValue[V]) -> NoReturn:
+        def __setitem__(self, aliases: str, v: ProvidedValue[V]) -> None:
             self._registry.setmissing(aliases, v)
 
 
@@ -320,8 +323,8 @@ class RegistryImports(Registry[V]):
         self,
         aliases: Optional[AliasesHint] = None,
         auto_alias: bool = True,
-        partial_args: Tuple[Any, ...] = None,
-        partial_kwargs: Dict[str, Any] = None,
+        partial_args: Optional[Tuple[object, ...]] = None,
+        partial_kwargs: Optional[Dict[str, object]] = None,
     ) -> Callable[[T], T]:
         """
         Register a function or object to this registry.
@@ -354,7 +357,7 @@ class RegistryImports(Registry[V]):
         auto_alias: bool = True,
         *partial_args,
         **partial_kwargs,
-    ) -> NoReturn:
+    ) -> None:
         """
         Register an import path and automatically obtain an alias from it.
         - This is the same as: registry[(import_name, *aliases)] = LazyImport(import_path, *partial_args, **partial_kwargs)
@@ -367,7 +370,7 @@ class RegistryImports(Registry[V]):
         (*_, alias) = _check_and_split_path(import_path)
         aliases = self._append_auto_alias(alias, aliases=aliases, auto_alias=auto_alias)
         # register the lazy import
-        self[aliases] = LazyImport(import_path=import_path, *partial_args, **partial_kwargs)
+        self[aliases] = LazyImport(import_path, *partial_args, **partial_kwargs)
 
     # --- ALIAS HELPER --- #
 
@@ -406,10 +409,10 @@ class RegistryImports(Registry[V]):
 
     # --- OVERRIDABLE --- #
 
-    def _check_provided_value(self, v: V) -> NoReturn:
+    def _check_provided_value(self, v: V) -> None:
         pass
 
-    def _check_key(self, k: str) -> NoReturn:
+    def _check_key(self, k: str) -> None:
         pass
 
 
@@ -422,7 +425,7 @@ class RegistryImports(Registry[V]):
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
 
-class RegexConstructor(object):
+class RegexConstructor(Generic[V]):
     def __init__(
         self,
         pattern: Union[str, re.Pattern],
@@ -524,10 +527,10 @@ class RegexProvidersSearch(object):
             f"could not construct an item from the given argument string: {repr(arg_str)}, valid patterns include: {[p.pattern for p in self._constructors]}"
         )
 
-    def can_construct(self, arg_str: str) -> bool:
+    def can_construct(self, arg_str: object) -> bool:
         return self.get_constructor(arg_str) is not None
 
-    def get_constructor(self, arg_str: str) -> Optional[RegexConstructor]:
+    def get_constructor(self, arg_str: object) -> Optional[RegexConstructor]:
         # TODO: clean up this cache!
         # check cache -- remove None entries if dirty
         if self._cache_dirty:
@@ -622,14 +625,14 @@ class RegexRegistry(Registry[V]):
             f"dynamic registry: {repr(self.name)} cannot construct item with key: {repr(k)}. Valid static values: {sorted(self._providers.keys())}. Valid dynamic examples: {[p.example for p in self._regex_providers]}"
         )
 
-    def __setitem__(self, aliases: AliasesHint, v: ProvidedValue[V]) -> NoReturn:
+    def __setitem__(self, aliases: AliasesHint, v: ProvidedValue[V]) -> None:
         if isinstance(aliases, re.Pattern) or isinstance(v, RegexConstructor):
             raise RuntimeError(
                 f"register dynamic values to the dynamic registry: {repr(self.name)} with the `register_regex` or `register_constructor` methods."
             )
         super().__setitem__(aliases, v)
 
-    def __contains__(self, k: K):
+    def __contains__(self, k: object) -> bool:
         if k in self._providers:
             return True
         if self._regex_providers.can_construct(k):
@@ -639,7 +642,7 @@ class RegexRegistry(Registry[V]):
     def __len__(self) -> int:
         return len(self._providers) + len(self._regex_providers)
 
-    def __iter__(self) -> Iterator[K]:
+    def __iter__(self) -> Iterator[str]:
         yield from self._providers
         yield from (p.example for p in self._regex_providers)
 
@@ -672,7 +675,7 @@ class RegexRegistry(Registry[V]):
         Register and create a regex constructor
         """
 
-        def _register_wrapper(fn: T) -> T:
+        def _register_wrapper(fn: Union[_FactoryFn[V], str]) -> Union[_FactoryFn[V], str]:
             self.register_constructor(RegexConstructor(pattern=pattern, example=example, factory_fn=fn))
             return fn
 

@@ -32,9 +32,10 @@ import os
 import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING
-from typing import Any
 from typing import Callable
+from typing import ContextManager
 from typing import Dict
+from typing import Generator
 from typing import Literal
 from typing import Optional
 from typing import Sequence
@@ -49,14 +50,14 @@ from tqdm import tqdm
 
 from disent.util.deprecate import deprecated
 from disent.util.inout.files import AtomicSaveFile
-
-if TYPE_CHECKING:
-    from disent.dataset import DisentDataset
-    from disent.dataset.data import GroundTruthData
 from disent.util.iters import iter_chunks
 from disent.util.profiling import Timer
 from disent.util.strings import colors as c
 from disent.util.strings.fmt import bytes_to_human
+
+if TYPE_CHECKING:
+    from disent.dataset import DisentDataset
+    from disent.dataset.data import GroundTruthData
 
 log = logging.getLogger(__name__)
 
@@ -138,7 +139,7 @@ def h5_assert_deterministic(h5_file: h5py.File) -> h5py.File:
 
 
 @contextlib.contextmanager
-def h5_open(path: str, mode: str = "r") -> h5py.File:
+def h5_open(path: str, mode: str = "r") -> Generator[h5py.File, None, None]:
     """
     MODES:
         | atomic_w | Create temp file, then move and overwrite existing when done
@@ -184,15 +185,16 @@ class H5Builder(object):
             raise TypeError(f"the given h5py path must be of type: `str`, `pathlib.Path`, got: {type(path)}")
         self._h5_path = path
         self._h5_mode = mode
-        self._context_manager = None
-        self._open_file = None
+        self._context_manager: Optional[ContextManager[h5py.File]] = None
+        self._open_file: Optional[h5py.File] = None
 
     def __enter__(self):
-        self._context_manager = h5_open(self._h5_path, self._h5_mode)
+        self._context_manager = h5_open(str(self._h5_path), self._h5_mode)
         self._open_file = h5_assert_deterministic(self._context_manager.__enter__())
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        assert self._context_manager is not None
         self._context_manager.__exit__(exc_type, exc_val, exc_tb)
         self._open_file = None
         self._context_manager = None
@@ -200,7 +202,9 @@ class H5Builder(object):
     @property
     def _h5_file(self) -> h5py.File:
         if self._open_file is None:
-            raise "The H5Builder has not been opened in a new context, use `with H5Builder(...) as builder: ...`"
+            raise RuntimeError(
+                "The H5Builder has not been opened in a new context, use `with H5Builder(...) as builder: ...`"
+            )
         return self._open_file
 
     def add_empty_dataset(
@@ -210,7 +214,7 @@ class H5Builder(object):
         dtype: AnyDType,
         chunk_shape: ChunksType = "batch",
         compression_lvl: Optional[int] = 9,
-        attrs: Optional[Dict[str, Any]] = None,
+        attrs: Optional[Dict[str, object]] = None,
     ) -> "H5Builder":
         # normalize chunk_shape
         compression, compression_lvl = _normalize_compression(compression_lvl=compression_lvl)
@@ -368,7 +372,7 @@ class H5Builder(object):
         batch_iter,
         batch_size: Union[int, Literal["auto"]] = "auto",
         show_progress: bool = False,
-        mutator: Optional[Callable[[Any], np.ndarray]] = None,
+        mutator: Optional[Callable[[object], np.ndarray]] = None,
     ) -> "H5Builder":
         try:
             batches = iter(batch_iter)
@@ -398,7 +402,7 @@ class H5Builder(object):
         name: str = "data",
         chunk_shape: ChunksType = "batch",
         compression_lvl: Optional[int] = 4,
-        attrs: Optional[Dict[str, Any]] = None,
+        attrs: Optional[Dict[str, object]] = None,
         batch_size: Union[int, Literal["auto"]] = "auto",
         show_progress: bool = False,
         # optional, discovered automatically from array otherwise
@@ -426,11 +430,11 @@ class H5Builder(object):
         self,
         data: Union["DisentDataset", "GroundTruthData"],
         name: str = "data",
-        mutator: Optional[Callable[[Any], np.ndarray]] = None,
+        mutator: Optional[Callable[[object], np.ndarray]] = None,
         img_shape: Tuple[Optional[int], ...] = (None, None, None),  # None items are automatically found
         batch_size: int = 32,
         compression_lvl: Optional[int] = 4,
-        num_workers: int = min(os.cpu_count(), 16),
+        num_workers: int = min(os.cpu_count() or 16, 16),
         show_progress: bool = True,
         chunk_shape: ChunksType = "batch",
         dtype: str = "uint8",
@@ -490,7 +494,7 @@ class H5Builder(object):
 #         # h5 re-save settings
 #         chunk_shape: ChunksType = 'batch',
 #         compression_lvl: Optional[int] = 4,
-#         attrs: Optional[Dict[str, Any]] = None,
+#         attrs: Optional[Dict[str, object]] = None,
 #         batch_size: Union[int, Literal['auto']] = 'auto',
 #         show_progress: bool = False,
 #         # optional, discovered automatically from array otherwise
@@ -622,7 +626,7 @@ def hdf5_save_array(
     hdf5_print_entry_data_stats(out_data, label="OUT")
     # choose batch size for copying data
     if batch_size is None:
-        batch_size = inp_data.chunks[0] if (hasattr(inp_data, "chunks") and inp_data.chunks) else 32
+        batch_size = inp_data.chunks[0] if (isinstance(inp_data, h5py.Dataset) and inp_data.chunks) else 32
         log.debug(f"saving h5 dataset using automatic batch size of: {batch_size}")
     # get default
     if out_mutator is None:

@@ -22,10 +22,10 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from typing import Any
 from typing import Dict
 from typing import Sequence
 from typing import Tuple
+from typing import Union
 
 import torch
 
@@ -38,7 +38,7 @@ from disent.util.iters import map_all
 # ========================================================================= #
 
 
-def detach_all(tensors: Sequence[torch.tensor], if_: bool = True):
+def detach_all(tensors: Sequence[torch.Tensor], if_: bool = True):
     if if_:
         return tuple(tensor.detach() for tensor in tensors)
     return tensors
@@ -58,7 +58,9 @@ def compute_ave_loss(loss_fn, *arg_list, **common_kwargs) -> torch.Tensor:
     return loss
 
 
-def compute_ave_loss_and_logs(loss_and_logs_fn, *arg_list, **common_kwargs) -> Tuple[torch.Tensor, Dict[str, Any]]:
+def compute_ave_loss_and_logs(
+    loss_and_logs_fn, *arg_list, **common_kwargs
+) -> Tuple[torch.Tensor, Dict[str, Union[torch.Tensor, float]]]:
     # compute all losses
     losses, logs = map_all(loss_and_logs_fn, *arg_list, collect_returned=True, common_kwargs=common_kwargs)
     # compute mean loss

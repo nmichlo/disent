@@ -23,6 +23,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import warnings
+from typing import Tuple
 from typing import Union
 
 import lightning as L
@@ -38,8 +39,8 @@ from disent.frameworks.vae import Vae
 
 
 def _get_dataset_and_ae_like(
-    trainer_or_dataset: L.Trainer, pl_module: L.LightningModule, unwrap_groundtruth: bool = False
-) -> (DisentDataset, Union[Ae, Vae]):
+    trainer_or_dataset: Union[L.Trainer, DisentDataset], pl_module: L.LightningModule, unwrap_groundtruth: bool = False
+) -> Tuple[DisentDataset, Union[Ae, Vae]]:
     assert isinstance(pl_module, (Ae, Vae)), f"{pl_module.__class__} is not an instance of {Ae} or {Vae}"
     # get dataset
     if isinstance(trainer_or_dataset, L.Trainer):
@@ -49,7 +50,7 @@ def _get_dataset_and_ae_like(
                 trainer.datamodule, "dataset_train_noaug"
             )  # TODO: this is for experiments, another way of handling this should be added
             dataset = trainer.datamodule.dataset_train_noaug
-        elif hasattr(trainer, "train_dataloader") and (trainer.train_dataloader is not None):
+        elif trainer.train_dataloader is not None:
             if isinstance(trainer.train_dataloader, CombinedLoader):
                 dataset = trainer.train_dataloader.loaders.dataset
             else:

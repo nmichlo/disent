@@ -26,7 +26,6 @@ import logging
 import signal
 import sys
 from multiprocessing import current_process
-from typing import List
 from typing import Optional
 from typing import Sequence
 
@@ -50,7 +49,7 @@ _PL_SIGNALS = (  # we can't capture SIGKILL
     signal.SIGSEGV,  # segmentation fault
 )
 
-_PL_LOGGERS: Optional[List[Logger]] = None
+_PL_LOGGERS: Optional[Sequence[Logger]] = None
 _PL_TRAINER: Optional[Trainer] = None
 
 
@@ -72,8 +71,14 @@ def _signal_handler_log_and_exit(signal_number, frame):
     # remove callbacks from trainer so we aren't stuck running forever!
     # TODO: this is a hack... there must be a better way to do this... could it be a pl bug?
     #       this logic is duplicated in the framework training_step
-    if _PL_TRAINER and _PL_TRAINER.callbacks:
-        _PL_TRAINER.callbacks.clear()
+    if _PL_TRAINER is not None:
+        # `Trainer.callbacks` is set dynamically by `_CallbackConnector.on_trainer_init` and is
+        # genuinely absent from the `Trainer` class body in lightning==2.6.5, so it cannot be
+        # statically declared on `Trainer` itself -- verified there is no attribute, property, or
+        # stub for it anywhere in the installed package.
+        callbacks = getattr(_PL_TRAINER, "callbacks", None)
+        if callbacks:
+            callbacks.clear()
 
     # make sure that we only exit in the parent process
     if current_process().name != "MainProcess":

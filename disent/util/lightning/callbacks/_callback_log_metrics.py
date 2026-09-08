@@ -25,6 +25,7 @@
 import logging
 import warnings
 from typing import Optional
+from typing import Protocol
 from typing import Sequence
 
 import lightning as L
@@ -39,6 +40,17 @@ from disent.util.profiling import Timer
 from disent.util.strings import colors as c
 
 log = logging.getLogger(__name__)
+
+
+class _NamedMetricFn(Protocol):
+    """
+    A metric callable as obtained from `disent.metrics.utils.Metric.compute`/`.compute_fast`
+    (via `wrapped_partial`, which copies over `__name__` from the wrapped function).
+    """
+
+    __name__: str
+
+    def __call__(self, dataset, encoder, *args, **kwargs) -> dict: ...
 
 
 # ========================================================================= #
@@ -69,8 +81,8 @@ def _normalized_numeric_metrics(items: dict):
 class VaeMetricLoggingCallback(BaseCallbackPeriodic):
     def __init__(
         self,
-        step_end_metrics: Optional[Sequence[str]] = None,
-        train_end_metrics: Optional[Sequence[str]] = None,
+        step_end_metrics: Optional[Sequence[_NamedMetricFn]] = None,
+        train_end_metrics: Optional[Sequence[_NamedMetricFn]] = None,
         every_n_steps: Optional[int] = None,
         begin_first_step: bool = False,
     ):
@@ -83,7 +95,9 @@ class VaeMetricLoggingCallback(BaseCallbackPeriodic):
             "No metrics given to step_end_metrics or train_end_metrics"
         )
 
-    def _compute_metrics_and_log(self, trainer: L.Trainer, pl_module: L.LightningModule, metrics: list, is_final=False):
+    def _compute_metrics_and_log(
+        self, trainer: L.Trainer, pl_module: L.LightningModule, metrics: Sequence[_NamedMetricFn], is_final=False
+    ):
         # get dataset and vae framework from trainer and module
         dataset, vae = _get_dataset_and_ae_like(trainer, pl_module, unwrap_groundtruth=True)
         # check if we need to skip

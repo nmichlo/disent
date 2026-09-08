@@ -23,9 +23,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from dataclasses import dataclass
-from numbers import Number
 from typing import TYPE_CHECKING
-from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -34,7 +32,7 @@ from typing import Tuple
 from typing import Union
 
 import torch
-import torchvision
+import torchvision.transforms.functional
 from torch import Tensor
 from torch.nn import functional as F
 from torchvision.models import vgg19_bn
@@ -73,8 +71,9 @@ class DfcVae(BetaVae):
         feature_layers: Optional[List[Union[str, int]]] = None
         feature_inputs_mode: str = "none"
 
-    def __init__(self, model: "AutoEncoder", cfg: cfg = None, batch_augment=None):
+    def __init__(self, model: "AutoEncoder", cfg: Optional[cfg] = None, batch_augment=None):
         super().__init__(model=model, cfg=cfg, batch_augment=batch_augment)
+        self.cfg: DfcVae.cfg
         # make dfc loss
         # TODO: this should be converted to a reconstruction loss handler that wraps another handler
         self._dfc_loss = DfcLossModule(feature_layers=self.cfg.feature_layers, input_mode=self.cfg.feature_inputs_mode)
@@ -85,7 +84,7 @@ class DfcVae(BetaVae):
 
     def compute_ave_recon_loss(
         self, xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]
-    ) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
+    ) -> Tuple[Union[torch.Tensor, float], Dict[str, Union[torch.Tensor, float]]]:
         # compute ave reconstruction loss
         pixel_loss = self.recon_handler.compute_ave_loss_from_partial(xs_partial_recon, xs_targ)  # (DIFFERENCE: 1)
         # compute ave deep features loss
@@ -157,6 +156,8 @@ class DfcLossModule(torch.nn.Module):
             loss = F.mse_loss(f_recon, f_targ, reduction="none")
             feature_loss += batch_loss_reduction(loss, reduction=reduction)
         # checks
+        # NOTE: `feature_layers` must be non-empty for `feature_loss` to become a `Tensor` here.
+        assert isinstance(feature_loss, torch.Tensor), "`feature_layers` must not be empty"
         assert (feature_loss.ndim == 1) and (len(feature_loss) == len(x_recon))
         return feature_loss
 

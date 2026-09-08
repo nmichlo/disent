@@ -113,8 +113,8 @@ def _get_dists_vae(vae: Vae, x_a: torch.Tensor, x_b: torch.Tensor):
 
 
 def _get_dists_fn(
-    model: Ae,
-) -> Tuple[Optional[Tuple[str, ...]], Optional[Callable[[object, object], Sequence[Sequence[float]]]]]:
+    model: Union[Ae, Vae],
+) -> Tuple[Optional[Tuple[str, ...]], Optional[Callable[[torch.Tensor, torch.Tensor], Sequence[torch.Tensor]]]]:
     # get aggregate function
     if isinstance(model, Vae):
         dists_names, dists_fn = _VAE_DIST_NAMES, wrapped_partial(_get_dists_vae, model)
@@ -127,7 +127,7 @@ def _get_dists_fn(
 
 @torch.no_grad()
 def _collect_dists_subbatches(
-    dists_fn: Callable[[object, object], Sequence[Sequence[float]]],
+    dists_fn: Callable[[torch.Tensor, torch.Tensor], Sequence[torch.Tensor]],
     batch: torch.Tensor,
     i_a: np.ndarray,
     i_b: np.ndarray,
@@ -151,7 +151,7 @@ def _compute_and_collect_dists(
     traversal_repeats: int = 100,
     batch_size: int = 32,
     include_gt_factor_dists: bool = True,
-    transform_batch: Callable[[object], object] = None,
+    transform_batch: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
     data_mode: str = "input",
 ) -> Tuple[Tuple[str, ...], List[List[np.ndarray]]]:
     assert traversal_repeats > 0
@@ -203,7 +203,7 @@ def compute_factor_distances(
     traversal_repeats: int = 100,
     batch_size: int = 32,
     include_gt_factor_dists: bool = True,
-    transform_batch: Callable[[object], object] = None,
+    transform_batch: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
     seed: Optional[int] = 777,
     data_mode: str = "input",
 ) -> Tuple[Tuple[str, ...], List[List[np.ndarray]]]:

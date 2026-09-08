@@ -138,7 +138,7 @@ class XYSquaresData(GroundTruthData):
         num_squares: int = 3,
         rgb: bool = True,
         fill_value: Optional[Union[float, int]] = None,
-        dtype: Union[np.dtype, str] = np.uint8,
+        dtype: Union[np.dtype, str] = np.dtype(np.uint8),
         no_warnings: bool = False,
         transform=None,
     ):

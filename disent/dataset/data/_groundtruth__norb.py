@@ -24,7 +24,6 @@
 
 import logging
 from typing import Dict
-from typing import NoReturn
 from typing import Optional
 from typing import Tuple
 from typing import Union
@@ -194,7 +193,7 @@ class DataFileSmallNorb(DataFileHashed):
         # initialize
         super().__init__(file_name=out_name, file_hash=out_hash, hash_type=hash_type, hash_mode=hash_mode)
 
-    def _prepare(self, out_dir: str, out_file: str) -> NoReturn:
+    def _prepare(self, out_dir: str, out_file: str) -> None:
         resave_norb_archive(
             in_dat_path=self._datafile_dat.prepare(out_dir),
             in_cat_path=self._datafile_cat.prepare(out_dir),
@@ -220,7 +219,7 @@ class DataFileSmallNorbResized(DataFileHashed):
         self._out_size = out_size
         self._norb_datafile = norb_datafile
         super().__init__(
-            file_name=modify_name_keep_ext(self._norb_datafile.out_name, suffix=f"_x{out_size}")
+            file_name=str(modify_name_keep_ext(self._norb_datafile.out_name, suffix=f"_x{out_size}"))
             if (out_name is None)
             else out_name,
             file_hash=out_hash,

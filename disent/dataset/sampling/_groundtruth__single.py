@@ -23,7 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
-from typing import Optional
 
 from disent.dataset.data import GroundTruthData
 from disent.dataset.sampling._base import BaseDisentSampler
@@ -43,7 +42,7 @@ class GroundTruthSingleSampler(BaseDisentSampler):
 
     def __init__(self):
         super().__init__(num_samples=1)
-        self._state_space: Optional[StateSpace] = None  # TODO: not actually needed
+        self._state_space: StateSpace  # TODO: not actually needed
 
     def _init(self, dataset):
         assert isinstance(dataset, GroundTruthData), (

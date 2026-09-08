@@ -52,7 +52,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-MinMaxHint = Optional[Union[int, Literal["auto"]]]
+MinMaxHint = Optional[Union[int, float, np.ndarray, Literal["auto"]]]
 MeanStdHint = Optional[Union[Tuple[float, ...], float]]
 
 
@@ -84,9 +84,10 @@ def get_vis_min_max(
         #  | TRANSFORM: (x - mean) / std         ->  [(0-mean)/std, (1-mean)/std]
         #  | REVERT:    (x - min) / (max - min)  ->  [0, 1]
         #  |            min=(0-mean)/std, max=(1-mean)/std
-        recon_mean, recon_std = np.array(recon_mean, dtype="float32"), np.array(recon_std, dtype="float32")
-        recon_min = np.divide(0 - recon_mean, recon_std)
-        recon_max = np.divide(1 - recon_mean, recon_std)
+        mean_arr = np.array(recon_mean, dtype="float32")
+        std_arr = np.array(recon_std, dtype="float32")
+        recon_min = np.divide(0 - mean_arr, std_arr)
+        recon_max = np.divide(1 - mean_arr, std_arr)
     # set defaults
     if recon_min is None:
         recon_min = 0.0
@@ -159,7 +160,11 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
             return
 
         # feed forward and visualise everything!
-        stills, animation, image = self.get_visualisations(trainer, pl_module)
+        visualisations = self.get_visualisations(trainer, pl_module)
+        if visualisations is None:
+            # `get_visualisations` already logged why it could not run
+            return
+        stills, animation, image = visualisations
 
         # log video -- none, img, vid, both
         # TODO: there might be a memory leak in making the video below? Or there could be one in the actual DSPRITES dataset? memory usage seems to be very high and increase on this dataset.
@@ -191,9 +196,7 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
         self,
         trainer_or_dataset: Union[L.Trainer, DisentDataset],
         pl_module: L.LightningModule,
-    ) -> Union[
-        Tuple[np.ndarray, np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, np.ndarray, torch.Tensor, torch.Tensor]
-    ]:
+    ) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray]]:
         return self.generate_visualisations(
             trainer_or_dataset,
             pl_module,
@@ -221,9 +224,7 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
         recon_max: MinMaxHint = None,
         recon_mean: MeanStdHint = None,
         recon_std: MeanStdHint = None,
-    ) -> Union[
-        Tuple[np.ndarray, np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, np.ndarray, torch.Tensor, torch.Tensor]
-    ]:
+    ) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray]]:
         # normalize
         recon_min, recon_max = get_vis_min_max(
             recon_min=recon_min,

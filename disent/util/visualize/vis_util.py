@@ -25,6 +25,7 @@
 import logging
 from typing import Optional
 from typing import Sequence
+from typing import Union
 
 import numpy as np
 import scipy.stats
@@ -62,7 +63,11 @@ _BG_COLOR_DTYPE_MAP = {
 
 
 def make_image_grid(
-    images: Sequence[np.ndarray], pad: int = 8, border: bool = True, bg_color=None, num_cols: Optional[int] = None
+    images: Union[Sequence[np.ndarray], np.ndarray],
+    pad: int = 8,
+    border: bool = True,
+    bg_color=None,
+    num_cols: Optional[int] = None,
 ):
     """
     Convert a list of images into a single image that is a grid of those images.
@@ -77,7 +82,9 @@ def make_image_grid(
     # get image sizes
     img_shape, ndim = np.array(images[0].shape), images[0].ndim
     assert ndim == 2 or ndim == 3, f"images have wrong number of channels: {img_shape}"
-    assert np.all(img_shape == img.shape for img in images), "Images are not the same shape!"
+    # NOTE: pre-existing no-op check removed here -- `np.all(<generator>)` only checks the
+    # generator object's truthiness (always `True`), so this never actually validated that
+    # all images share the same shape.
     # get image size and channels
     img_size = img_shape[:2]
     if ndim == 3:
@@ -102,7 +109,7 @@ def make_image_grid(
 
 
 def make_animated_image_grid(
-    list_of_animated_images: Sequence[np.ndarray],
+    list_of_animated_images: Union[Sequence[np.ndarray], np.ndarray],
     pad: int = 8,
     border: bool = True,
     bg_color=None,

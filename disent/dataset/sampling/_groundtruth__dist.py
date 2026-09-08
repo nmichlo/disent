@@ -79,7 +79,7 @@ class GroundTruthDistSampler(BaseDisentSampler):
         self._sample_mode = triplet_sample_mode
         self._swap_chance = triplet_swap_chance
         # dataset variable
-        self._state_space: Optional[StateSpace] = None
+        self._state_space: StateSpace
 
     def _init(self, dataset):
         assert isinstance(dataset, GroundTruthData), (
@@ -143,7 +143,7 @@ def factor_diff(f0: np.ndarray, f1: np.ndarray) -> int:
 
 
 # NOTE: scaling here should always be the same as `disentangle_loss`
-def factor_dist(f0: np.ndarray, f1: np.ndarray, scale: np.ndarray = None) -> Union[Fraction, int]:
+def factor_dist(f0: np.ndarray, f1: np.ndarray, scale: Optional[np.ndarray] = None) -> Union[Fraction, int]:
     # compute distances!
     if scale is None:
         # input types should all be np.int64

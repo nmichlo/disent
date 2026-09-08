@@ -23,10 +23,10 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from dataclasses import dataclass
-from typing import Any
 from typing import Dict
 from typing import Sequence
 from typing import Tuple
+from typing import Union
 
 import torch
 from torch.distributions import Distribution
@@ -67,7 +67,7 @@ class AdaVae(BetaVae):
 
     def hook_intercept_ds(
         self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution]
-    ) -> Tuple[Sequence[Distribution], Sequence[Distribution], Dict[str, Any]]:
+    ) -> Tuple[Sequence[Distribution], Sequence[Distribution], Dict[str, Union[torch.Tensor, float]]]:
         """
         Adaptive VAE Glue Method, putting the various components together
         1. find differences between deltas
@@ -78,7 +78,14 @@ class AdaVae(BetaVae):
         (✓) Visual inspection against reference implementation:
             https://github.com/google-research/disentanglement_lib (aggregate_argmax)
         """
+        self.cfg: AdaVae.cfg
         d0_posterior, d1_posterior = ds_posterior
+        assert isinstance(d0_posterior, Normal), (
+            f"posterior distributions must be {Normal.__name__} distributions, got: {type(d0_posterior)}"
+        )
+        assert isinstance(d1_posterior, Normal), (
+            f"posterior distributions must be {Normal.__name__} distributions, got: {type(d1_posterior)}"
+        )
         # shared elements that need to be averaged, computed per pair in the batch.
         share_mask = self.compute_shared_mask_from_posteriors(
             d0_posterior, d1_posterior, thresh_mode=self.cfg.ada_thresh_mode, ratio=self.cfg.ada_thresh_ratio
@@ -201,8 +208,8 @@ class AdaVae(BetaVae):
         """
         assert 0 <= ratio <= 1, f"ratio must be in the range: 0 <= ratio <= 1, got: {repr(ratio)}"
         # threshold τ
-        maximums = z_deltas.max(axis=1, keepdim=True).values  # (B, 1)
-        minimums = z_deltas.min(axis=1, keepdim=True).values  # (B, 1)
+        maximums = z_deltas.max(dim=1, keepdim=True).values  # (B, 1)
+        minimums = z_deltas.min(dim=1, keepdim=True).values  # (B, 1)
         z_threshs = torch.lerp(minimums, maximums, weight=ratio)  # (B, 1)
         # true if 'unchanged' and should be average
         shared_mask = z_deltas < z_threshs  # broadcast (B, Z) and (B, 1) -> (B, Z)
@@ -325,7 +332,7 @@ class AdaGVaeMinimal(BetaVae):
 
     def hook_intercept_ds(
         self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution]
-    ) -> Tuple[Sequence[Distribution], Sequence[Distribution], Dict[str, Any]]:
+    ) -> Tuple[Sequence[Distribution], Sequence[Distribution], Dict[str, Union[torch.Tensor, float]]]:
         """
         Adaptive VAE Method, putting the various components together
             1. compute differences between representations
@@ -348,8 +355,8 @@ class AdaGVaeMinimal(BetaVae):
         z_deltas = 0.5 * kl_divergence(d1_posterior, d0_posterior) + 0.5 * kl_divergence(d0_posterior, d1_posterior)
 
         # [2] estimate threshold from deltas
-        z_deltas_min = z_deltas.min(axis=1, keepdim=True).values  # (B, 1)
-        z_deltas_max = z_deltas.max(axis=1, keepdim=True).values  # (B, 1)
+        z_deltas_min = z_deltas.min(dim=1, keepdim=True).values  # (B, 1)
+        z_deltas_max = z_deltas.max(dim=1, keepdim=True).values  # (B, 1)
         z_thresh = 0.5 * z_deltas_min + 0.5 * z_deltas_max  # (B, 1)
 
         # [3] shared elements that need to be averaged, computed per pair in the batch

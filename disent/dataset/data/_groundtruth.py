@@ -25,8 +25,7 @@
 import logging
 import os
 from abc import ABCMeta
-from typing import Any
-from typing import List
+from typing import Callable
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
@@ -123,8 +122,8 @@ class GroundTruthData(Dataset, StateSpace):
     # Overrides                                                             #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def __getitem__(self, idx):
-        obs = self._get_observation(idx)
+    def __getitem__(self, index):
+        obs = self._get_observation(index)
         if self._transform is not None:
             obs = self._transform(obs)
         return obs
@@ -137,18 +136,25 @@ class GroundTruthData(Dataset, StateSpace):
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     def sample_random_obs_traversal(
-        self, f_idx: int = None, base_factors=None, num: int = None, mode="interval", obs_collect_fn=None
-    ) -> Tuple[np.ndarray, np.ndarray, Union[List[Any], Any]]:
+        self,
+        f_idx: Optional[int] = None,
+        base_factors=None,
+        num: Optional[int] = None,
+        mode="interval",
+        obs_collect_fn: Optional[Callable[[list], object]] = None,
+    ) -> Tuple[np.ndarray, np.ndarray, object]:
         """
         Same API as sample_random_factor_traversal, but also
         returns the corresponding indices and uncollated list of observations
         """
         factors = self.sample_random_factor_traversal(f_idx=f_idx, base_factors=base_factors, num=num, mode=mode)
+        assert isinstance(factors, np.ndarray)
         indices = self.pos_to_idx(factors)
         obs = [self[i] for i in indices]
+        collected_obs: object = obs
         if obs_collect_fn is not None:
-            obs = obs_collect_fn(obs)
-        return factors, indices, obs
+            collected_obs = obs_collect_fn(obs)
+        return factors, indices, collected_obs
 
 
 # ========================================================================= #
@@ -166,8 +172,8 @@ class ArrayGroundTruthData(GroundTruthData):
         x_shape: Optional[Tuple[int, ...]] = None,
         transform=None,
     ):
-        self.__factor_names = tuple(factor_names)
-        self.__factor_sizes = tuple(factor_sizes)
+        self.__array_factor_names = tuple(factor_names)
+        self.__array_factor_sizes = tuple(factor_sizes)
         self._array = array
         # get shape
         if x_shape is not None:
@@ -189,11 +195,11 @@ class ArrayGroundTruthData(GroundTruthData):
 
     @property
     def factor_names(self) -> Tuple[str, ...]:
-        return self.__factor_names
+        return self.__array_factor_names
 
     @property
     def factor_sizes(self) -> Tuple[int, ...]:
-        return self.__factor_sizes
+        return self.__array_factor_sizes
 
     @property
     def img_shape(self) -> Tuple[int, ...]:

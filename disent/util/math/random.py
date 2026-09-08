@@ -23,6 +23,8 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 
+from typing import Optional
+
 import numpy as np
 
 # ========================================================================= #
@@ -30,7 +32,7 @@ import numpy as np
 # ========================================================================= #
 
 
-def random_choice_prng(a, size=None, replace=True, seed: int = None):
+def random_choice_prng(a, size=None, replace=True, seed: Optional[int] = None):
     # generate a random seed
     if seed is None:
         seed = np.random.randint(0, 2**32)

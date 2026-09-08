@@ -49,8 +49,8 @@ from disent.registry._registry import RegistryImports
 from disent.registry._registry import RegexConstructor
 from disent.registry._registry import RegexRegistry
 
+# only needed to resolve the dotted names in the registry type parameters below
 if TYPE_CHECKING:
-    # only needed to resolve the dotted names in the registry type parameters below
     import torch
     import torch.optim
     import torch.utils.data

@@ -24,9 +24,9 @@
 
 import os
 from abc import ABCMeta
+from abc import abstractmethod
 from typing import Callable
 from typing import Dict
-from typing import NoReturn
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
@@ -61,9 +61,10 @@ class DataFile(object, metaclass=ABCMeta):
     def out_name(self) -> str:
         return self._file_name
 
+    @abstractmethod
     def prepare(self, out_dir: str) -> str:
         # TODO: maybe check that the file exists or not and raise a FileNotFoundError?
-        pass
+        raise NotImplementedError
 
     def __repr__(self):
         return f"{self.__class__.__name__}(out_name={repr(self.out_name)})"
@@ -101,7 +102,8 @@ class DataFileHashed(DataFile, metaclass=ABCMeta):
 
         return wrapped()
 
-    def _prepare(self, out_dir: str, out_file: str) -> NoReturn:
+    @abstractmethod
+    def _prepare(self, out_dir: str, out_file: str) -> None:
         # TODO: maybe raise a FileNotFoundError or a HashError instead?
         raise NotImplementedError
 
@@ -163,7 +165,7 @@ class DataFileHashedDlGen(DataFileHashed, metaclass=ABCMeta):
             hash_mode=hash_mode,
         )
         super().__init__(
-            file_name=modify_file_name(self._dl_obj.out_name, prefix="gen") if (file_name is None) else file_name,
+            file_name=str(modify_file_name(self._dl_obj.out_name, prefix="gen")) if (file_name is None) else file_name,
             file_hash=file_hash,
             hash_type=hash_type,
             hash_mode=hash_mode,

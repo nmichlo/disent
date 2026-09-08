@@ -27,6 +27,7 @@ Representations" (https://openreview.net/forum?id=By-7dz-AZ).
 """
 
 import logging
+from collections.abc import Callable
 
 import numpy as np
 import scipy
@@ -48,7 +49,7 @@ log = logging.getLogger(__name__)
 @make_metric("dci", fast_kwargs=dict(num_train=1000, num_test=500))
 def metric_dci(
     dataset: DisentDataset,
-    representation_function: callable,
+    representation_function: Callable,
     num_train: int = 10000,
     num_test: int = 5000,
     batch_size: int = 16,
@@ -119,11 +120,11 @@ def _compute_importance_gbt(x_train, y_train, x_test, y_test, boost_mode="sklear
 
             model = GradientBoostingClassifier()
         elif boost_mode == "xgboost":
-            from xgboost import XGBClassifier  # ty: ignore[unresolved-import]  # optional backend
+            from xgboost import XGBClassifier  # optional backend, not a hard dependency
 
             model = XGBClassifier()
         elif boost_mode == "lightgbm":
-            from lightgbm import LGBMClassifier  # ty: ignore[unresolved-import]  # optional backend
+            from lightgbm import LGBMClassifier  # optional backend, not a hard dependency
 
             model = LGBMClassifier()
         else:

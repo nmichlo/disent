@@ -24,7 +24,6 @@ Utility functions that are useful for the different metrics.
 """
 
 from numbers import Number
-from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import Generic
@@ -53,8 +52,8 @@ class Metric(Generic[T]):
         self,
         name: str,
         metric_fn: T,  # Callable[[...], Dict[str, Number]]
-        default_kwargs: Optional[Dict[str, Any]] = None,
-        fast_kwargs: Optional[Dict[str, Any]] = None,
+        default_kwargs: Optional[Dict[str, object]] = None,
+        fast_kwargs: Optional[Dict[str, object]] = None,
     ):
         self._name = name
         self._orig_fn = metric_fn
@@ -87,8 +86,8 @@ class Metric(Generic[T]):
 
 def make_metric(
     name: str,
-    default_kwargs: Optional[Dict[str, Any]] = None,
-    fast_kwargs: Optional[Dict[str, Any]] = None,
+    default_kwargs: Optional[Dict[str, object]] = None,
+    fast_kwargs: Optional[Dict[str, object]] = None,
 ) -> Callable[[T], Union[Metric[T], T]]:
     """
     Metrics should be decorated using this function to set defaults!
@@ -146,10 +145,12 @@ def generate_batch_factor_code(
                 factors = current_factors
                 representations = to_numpy(representation_function(current_observations))
             else:
+                assert factors is not None and representations is not None
                 factors = np.vstack((factors, current_factors))
                 representations = np.vstack((representations, to_numpy(representation_function(current_observations))))
             i += num_points_iter
             bar.update(num_points_iter)
+    assert factors is not None and representations is not None
     return np.transpose(representations), np.transpose(factors)
 
 
@@ -194,8 +195,10 @@ def obtain_representation(observations, representation_function, batch_size):
         if i == 0:
             representations = to_numpy(representation_function(current_observations))
         else:
+            assert representations is not None
             representations = np.vstack((representations, to_numpy(representation_function(current_observations))))
         i += num_points_iter
+    assert representations is not None
     return np.transpose(representations)
 
 

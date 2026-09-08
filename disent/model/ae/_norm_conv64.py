@@ -23,6 +23,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import warnings
+from typing import Optional
 from typing import Tuple
 
 from torch import Tensor
@@ -69,7 +70,7 @@ class EncoderConv64Norm(DisentEncoder):
             nn.Linear(in_features=256, out_features=self.z_total),
         )
 
-    def encode(self, x) -> (Tensor, Tensor):
+    def encode(self, x) -> Tensor:
         return self.model(x)
 
 
@@ -114,7 +115,9 @@ class DecoderConv64Norm(DisentDecoder):
 # ========================================================================= #
 
 
-def _make_activations(activation="relu", inplace=True, norm="layer", shape: Tuple[int, ...] = None, norm_pre_act=True):
+def _make_activations(
+    activation="relu", inplace=True, norm="layer", shape: Optional[Tuple[int, ...]] = None, norm_pre_act=True
+):
     # get activation layer
     if activation == "relu":
         a_layer = nn.ReLU(inplace=inplace)
@@ -132,6 +135,7 @@ def _make_activations(activation="relu", inplace=True, norm="layer", shape: Tupl
     if norm in (None, "none"):
         n_layer = None
     else:
+        assert shape is not None, "shape must be provided if norm is not None or 'none'"
         C, H, W = shape
         if norm == "batch":
             n_layer = nn.BatchNorm2d(num_features=C)

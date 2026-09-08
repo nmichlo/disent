@@ -23,6 +23,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import Optional
@@ -30,11 +31,13 @@ from typing import Sequence
 from typing import final
 
 import torch
+from torch.distributions import Distribution
 from torch.distributions import Normal
 
 from disent.frameworks.helper.reconstructions import ReconLossHandler
 from disent.frameworks.helper.reconstructions import make_reconstruction_loss
 from disent.frameworks.vae._supervised__adaneg_tvae import AdaNegTripletVae
+from disent.nn.loss.triplet_mining import SampledTripletMineCfgProto
 from disent.nn.loss.triplet_mining import configured_idx_mine
 
 log = logging.getLogger(__name__)
@@ -67,7 +70,7 @@ class DataOverlapMixin(object):
     # - since this class does not have a constructor, it
     #   provides the `init_data_overlap_mixin` method, which
     #   should be called inside the constructor of the child class
-    _augment: callable
+    _augment: Optional[Callable]
     _overlap_handler: ReconLossHandler
     _init: bool
 
@@ -150,17 +153,22 @@ class DataOverlapMixin(object):
         assert x_targ.shape == aug_x_targ.shape
         return aug_x_targ
 
-    def mine_triplets(self, x_targ, a_idxs, p_idxs, n_idxs):
+    def mine_triplets(self, x_targ, a_idxs, p_idxs, n_idxs, cfg: SampledTripletMineCfgProto):
+        # NOTE: `cfg` is accepted explicitly here (instead of using `self.cfg`) because this mixin's own
+        #       `cfg` only has the `DataOverlapMixin` fields, not the `triplet_margin_max` field required by
+        #       `SampledTripletMineCfgProto` -- that field is only present once combined with a triplet cfg
+        #       by a concrete subclass (e.g. `DataOverlapTripletAe`/`DataOverlapTripletVae`), so the caller
+        #       must pass its own fully-combined `self.cfg` through explicitly.
         return configured_idx_mine(
             x_targ=x_targ,
             a_idxs=a_idxs,
             p_idxs=p_idxs,
             n_idxs=n_idxs,
-            cfg=self.cfg,
+            cfg=cfg,
             pairwise_loss_fn=self.overlap_handler.compute_pairwise_loss,
         )
 
-    def random_mined_triplets(self, x_targ_orig: torch.Tensor):
+    def random_mined_triplets(self, x_targ_orig: torch.Tensor, cfg: SampledTripletMineCfgProto):
         # ++++++++++++++++++++++++++++++++++++++++++ #
         # 1. augment batch
         aug_x_targ = self.augment_batch(x_targ_orig)
@@ -175,7 +183,7 @@ class DataOverlapMixin(object):
         # 3. reorder random triples
         a_idxs, p_idxs, n_idxs = self.overlap_swap_triplet_idxs(aug_x_targ, a_idxs, p_idxs, n_idxs)
         # 4. mine random triples
-        a_idxs, p_idxs, n_idxs = self.mine_triplets(aug_x_targ, a_idxs, p_idxs, n_idxs)
+        a_idxs, p_idxs, n_idxs = self.mine_triplets(aug_x_targ, a_idxs, p_idxs, n_idxs, cfg=cfg)
         # ++++++++++++++++++++++++++++++++++++++++++ #
         return a_idxs, p_idxs, n_idxs
 
@@ -226,17 +234,26 @@ class DataOverlapTripletVae(AdaNegTripletVae, DataOverlapMixin):
     class cfg(AdaNegTripletVae.cfg, DataOverlapMixin.cfg):
         pass
 
-    def __init__(self, model: "AutoEncoder", cfg: cfg = None, batch_augment=None):
+    def __init__(self, model: "AutoEncoder", cfg: Optional[cfg] = None, batch_augment=None):
         super().__init__(model=model, cfg=cfg, batch_augment=batch_augment)
         # initialise mixin
         self.init_data_overlap_mixin()
+        self.cfg: DataOverlapTripletVae.cfg
 
     def hook_compute_ave_aug_loss(
-        self, ds_posterior: Sequence[Normal], ds_prior, zs_sampled, xs_partial_recon, xs_targ: Sequence[torch.Tensor]
+        self,
+        ds_posterior: Sequence[Distribution],
+        ds_prior,
+        zs_sampled,
+        xs_partial_recon,
+        xs_targ: Sequence[torch.Tensor],
     ):
         [d_posterior], [x_targ_orig] = ds_posterior, xs_targ
+        assert isinstance(d_posterior, Normal), (
+            f"posterior distributions must be {Normal.__name__} distributions, got: {type(d_posterior)}"
+        )
         # 1. randomly generate and mine triplets using augmented versions of the inputs
-        a_idxs, p_idxs, n_idxs = self.random_mined_triplets(x_targ_orig=x_targ_orig)
+        a_idxs, p_idxs, n_idxs = self.random_mined_triplets(x_targ_orig=x_targ_orig, cfg=self.cfg)
         # 2. compute triplet loss
         loss, loss_log = AdaNegTripletVae.estimate_ada_triplet_loss(
             ds_posterior=[Normal(d_posterior.loc[idxs], d_posterior.scale[idxs]) for idxs in (a_idxs, p_idxs, n_idxs)],

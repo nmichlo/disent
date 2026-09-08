@@ -26,7 +26,6 @@ import logging
 import os
 from tempfile import TemporaryDirectory
 from typing import List
-from typing import NoReturn
 from typing import Optional
 from typing import Tuple
 
@@ -48,7 +47,7 @@ SPRITES_REPO = "https://github.com/YingzhenLi/Sprites"
 SPRITES_REPO_COMMIT_SHA = "3ce4048c5227802bd8f1888e293fd3afdba91c0c"
 
 
-def fetch_sprite_components() -> Tuple[np.array, np.array]:
+def fetch_sprite_components() -> Tuple[np.ndarray, np.ndarray]:
     try:
         import git
     except ImportError:
@@ -81,7 +80,7 @@ def fetch_sprite_components() -> Tuple[np.array, np.array]:
     return np.array(component_sheets, dtype=object), np.array(component_names, dtype=object)
 
 
-def save_sprite_components(out_file: str, sheets, names) -> NoReturn:
+def save_sprite_components(out_file: str, sheets, names) -> None:
     # get the path and make the parant dirs
     out_file = os.path.abspath(out_file)
     log.debug(f"saving: {out_file}")
@@ -106,7 +105,7 @@ class DataFileSprites(DataFileHashed):
     to lists of arrays of images that are pickled.
     """
 
-    def _prepare(self, out_dir: str, out_file: str) -> NoReturn:
+    def _prepare(self, out_dir: str, out_file: str) -> None:
         sheets, names = fetch_sprite_components()
         save_sprite_components(out_file, sheets=sheets, names=names)
 
@@ -213,9 +212,8 @@ class SpritesPartialData(GroundTruthData):
             pos[1] += 1  # no missing shirt
         if pos[7] >= 0:
             pos[7] += 1  # no backwards facing man
-        idx = self._sprites.pos_to_idx(pos)
         # index in orig state space
-        return idx
+        return int(self._sprites.pos_to_idx(pos))
 
     def sample_random_frames(self, alpha: bool = True, combined: bool = False) -> List[np.ndarray]:
         return self._sprites.sample_random_frames(alpha=alpha, combined=combined)
@@ -243,9 +241,8 @@ class SpritesData(SpritesPartialData):
         # convert to orig state space
         if pos[7] >= 0:
             pos[7] += 1  # no backwards facing man
-        idx = self._sprites.pos_to_idx(pos)
         # index in orig state space
-        return idx
+        return int(self._sprites.pos_to_idx(pos))
 
 
 # ========================================================================= #

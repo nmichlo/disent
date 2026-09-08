@@ -24,6 +24,7 @@
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+from typing import Optional
 
 import numpy as np
 
@@ -49,14 +50,16 @@ class SwappedInputBetaVae(BetaVae):
     class cfg(BetaVae.cfg):
         swap_chance: float = 0.1
 
-    def __init__(self, model: "AutoEncoder", cfg: cfg = None, batch_augment=None):
+    def __init__(self, model: "AutoEncoder", cfg: Optional[cfg] = None, batch_augment=None):
         super().__init__(model=model, cfg=cfg, batch_augment=batch_augment)
-        assert cfg.swap_chance >= 0
+        assert isinstance(self.cfg, SwappedInputBetaVae.cfg)
+        assert self.cfg.swap_chance >= 0
 
     def do_training_step(self, batch, batch_idx):
         (x0, x1), (x0_targ, x1_targ) = self._get_xs_and_targs(batch, batch_idx)
 
         # random change for the target not to be equal to the input
+        assert isinstance(self.cfg, SwappedInputBetaVae.cfg)
         if np.random.random() < self.cfg.swap_chance:
             x0, x1 = x1, x0
 

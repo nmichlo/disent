@@ -24,12 +24,13 @@
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+from typing import Optional
 from typing import Sequence
 
 import numpy as np
 import torch
 from torch import Tensor
-from torch.distributions import Normal
+from torch.distributions import Distribution
 
 from disent.frameworks.vae._unsupervised__vae import Vae
 
@@ -66,8 +67,9 @@ class InfoVae(Vae):
         # this is optional
         maintain_reg_ratio: bool = True
 
-    def __init__(self, model: "AutoEncoder", cfg: cfg = None, batch_augment=None):
+    def __init__(self, model: "AutoEncoder", cfg: Optional[cfg] = None, batch_augment=None):
         super().__init__(model=model, cfg=cfg, batch_augment=batch_augment)
+        self.cfg: InfoVae.cfg
         # checks
         assert self.cfg.info_alpha <= 0, f"cfg.info_alpha must be <= zero, current value is: {self.cfg.info_alpha}"
         assert self.cfg.loss_reduction == "mean", 'InfoVAE only supports cfg.loss_reduction == "mean"'
@@ -76,7 +78,7 @@ class InfoVae(Vae):
     # Overrides                                                             #
     # --------------------------------------------------------------------- #
 
-    def compute_ave_reg_loss(self, ds_posterior: Sequence[Normal], ds_prior: Sequence[Normal], zs_sampled):
+    def compute_ave_reg_loss(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled):
         """
         TODO: This could be wrong?
         """

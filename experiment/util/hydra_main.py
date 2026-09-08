@@ -56,7 +56,7 @@ PLUGIN_NAMESPACE = os.path.abspath(os.path.join(__file__, "..", "_hydra_searchpa
 EXP_CONFIG_DIR = os.path.abspath(os.path.join(__file__, "../..", "config"))
 
 # list of configs
-_DISENT_CONFIG_DIRS: List[str] = None
+_DISENT_CONFIG_DIRS: Optional[List[str]] = None
 
 
 # ========================================================================= #
@@ -173,22 +173,26 @@ def register_hydra_resolvers():
     if not OmegaConf.has_resolver("rsync_dir"):
 
         def rsync_dir(src: str, dst: str) -> str:
-            src, dst = Path(src), Path(dst)
+            src_path, dst_path = Path(src), Path(dst)
             # checks
-            assert src.name and src.is_absolute(), f"src path must be absolute and not the root: {repr(str(src))}"
-            assert dst.name and dst.is_absolute(), f"dst path must be absolute and not the root: {repr(str(dst))}"
-            assert src.name == dst.name, (
-                f"src and dst paths must point to dirs with the same names: src.name={repr(src.name)}, dst.name={repr(dst.name)}"
+            assert src_path.name and src_path.is_absolute(), (
+                f"src path must be absolute and not the root: {repr(str(src_path))}"
+            )
+            assert dst_path.name and dst_path.is_absolute(), (
+                f"dst path must be absolute and not the root: {repr(str(dst_path))}"
+            )
+            assert src_path.name == dst_path.name, (
+                f"src and dst paths must point to dirs with the same names: src.name={repr(src_path.name)}, dst.name={repr(dst_path.name)}"
             )
             # synchronize dirs
-            logging.info(f"rsync files:\n- src={repr(str(src))}\n- dst={repr(str(dst))}")
+            logging.info(f"rsync files:\n- src={repr(str(src_path))}\n- dst={repr(str(dst_path))}")
             # create the parent dir and copy files into the parent
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            returncode = subprocess.Popen(["rsync", "-avh", str(src), str(dst.parent)]).wait()
+            dst_path.parent.mkdir(parents=True, exist_ok=True)
+            returncode = subprocess.Popen(["rsync", "-avh", str(src_path), str(dst_path.parent)]).wait()
             if returncode != 0:
                 raise RuntimeError("Failed to rsync files!")
             # return the destination dir
-            return str(dst)
+            return str(dst_path)
 
         # REGISTER
         OmegaConf.register_new_resolver("rsync_dir", rsync_dir)

@@ -23,10 +23,9 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from dataclasses import dataclass
-from numbers import Number
 from typing import TYPE_CHECKING
-from typing import Any
 from typing import Dict
+from typing import Optional
 from typing import Sequence
 from typing import Tuple
 from typing import Union
@@ -99,11 +98,12 @@ class Vae(_AeAndVaeMixin):
         # disable various components
         disable_reg_loss: bool = False
 
-    def __init__(self, model: "AutoEncoder", cfg: cfg = None, batch_augment=None):
+    def __init__(self, model: "AutoEncoder", cfg: Optional[cfg] = None, batch_augment=None):
         # required_z_multiplier
         super().__init__(cfg=cfg, batch_augment=batch_augment)
         # initialise the auto-encoder mixin (recon handler, model, enc, dec, etc.)
         self._init_ae_mixin(model=model)
+        self.cfg: Vae.cfg
         # vae distribution
         self.__latents_handler = make_latent_distribution(
             self.cfg.latent_distribution, kl_mode=self.cfg.kl_loss_mode, reduction=self.cfg.loss_reduction
@@ -118,7 +118,6 @@ class Vae(_AeAndVaeMixin):
     # VAE Training Step                                                     #
     # --------------------------------------------------------------------- #
 
-    @final
     def do_training_step(self, batch, batch_idx):
         xs, xs_targ = self._get_xs_and_targs(batch, batch_idx)
 
@@ -187,7 +186,7 @@ class Vae(_AeAndVaeMixin):
 
     def hook_intercept_ds(
         self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution]
-    ) -> Tuple[Sequence[Distribution], Sequence[Distribution], Dict[str, Any]]:
+    ) -> Tuple[Sequence[Distribution], Sequence[Distribution], Dict[str, Union[torch.Tensor, float]]]:
         return ds_posterior, ds_prior, {}
 
     def hook_compute_ave_aug_loss(
@@ -197,12 +196,12 @@ class Vae(_AeAndVaeMixin):
         zs_sampled: Sequence[torch.Tensor],
         xs_partial_recon: Sequence[torch.Tensor],
         xs_targ: Sequence[torch.Tensor],
-    ) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
+    ) -> Tuple[Union[torch.Tensor, float], Dict[str, Union[torch.Tensor, float]]]:
         return 0, {}
 
     def compute_ave_recon_loss(
         self, xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]
-    ) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
+    ) -> Tuple[Union[torch.Tensor, float], Dict[str, Union[torch.Tensor, float]]]:
         # compute reconstruction loss
         pixel_loss = self.recon_handler.compute_ave_loss_from_partial(xs_partial_recon, xs_targ)
         # return logs
@@ -210,7 +209,7 @@ class Vae(_AeAndVaeMixin):
 
     def compute_ave_reg_loss(
         self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled: Sequence[torch.Tensor]
-    ) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
+    ) -> Tuple[Union[torch.Tensor, float], Dict[str, Union[torch.Tensor, float]]]:
         # compute regularization loss (kl divergence)
         kl_loss = self.latents_handler.compute_ave_kl_loss(ds_posterior, ds_prior, zs_sampled)
         # return logs

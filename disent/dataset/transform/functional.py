@@ -22,7 +22,6 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from typing import Any
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
@@ -59,10 +58,10 @@ def noop(obs: _T) -> _T:
 
 
 def check_tensor(
-    obs: Any,
+    obs: torch.Tensor,
     low: Optional[float] = 0.0,
     high: Optional[float] = 1.0,
-    dtype: torch.dtype = torch.float32,
+    dtype: Optional[torch.dtype] = torch.float32,
 ) -> torch.Tensor:
     """
     Check that the input is a tensor, its datatype matches, and
@@ -107,23 +106,23 @@ def to_img_tensor_u8(
     """
     # resize image
     if (size is not None) and _is_size_different(obs, size):
-        if not isinstance(obs, Image):
-            obs = F_tv.to_pil_image(obs)
-        obs = F_tv.resize(obs, size=size)
+        img = obs if isinstance(obs, Image) else F_tv.to_pil_image(obs)
+        # NOTE: torchvision's `resize` is typed as `Tensor -> Tensor`, but it also accepts/returns
+        #       a `PIL.Image.Image` at runtime, which is what happens here.
+        obs = F_tv.resize(img, size=[size, size] if isinstance(size, int) else list(size))
     # to numpy
-    if isinstance(obs, Image):
-        obs = np.array(obs)
+    arr = np.array(obs) if isinstance(obs, Image) else obs
     # add missing axis
-    if obs.ndim == 2:
-        obs = obs[:, :, None]
+    if arr.ndim == 2:
+        arr = arr[:, :, None]
     # to tensor & move axis
-    obs = torch.from_numpy(obs)
-    obs = torch.moveaxis(obs, -1, -3)
+    tensor = torch.from_numpy(arr)
+    tensor = torch.moveaxis(tensor, -1, -3)
     # checks
-    assert obs.ndim == 3
-    assert obs.dtype == torch.uint8
+    assert tensor.ndim == 3
+    assert tensor.dtype == torch.uint8
     # done!
-    return obs
+    return tensor
 
 
 def to_img_tensor_f32(
@@ -145,9 +144,10 @@ def to_img_tensor_f32(
     """
     # resize image
     if (size is not None) and _is_size_different(obs, size):
-        if not isinstance(obs, Image):
-            obs = F_tv.to_pil_image(obs)
-        obs = F_tv.resize(obs, size=size)
+        img = obs if isinstance(obs, Image) else F_tv.to_pil_image(obs)
+        # NOTE: torchvision's `resize` is typed as `Tensor -> Tensor`, but it also accepts/returns
+        #       a `PIL.Image.Image` at runtime, which is what happens here.
+        obs = F_tv.resize(img, size=[size, size] if isinstance(size, int) else list(size))
     # transform to tensor, add missing dims & move channel dim to front
     # TODO: this should be replaced with custom logic, this is quite slow...
     #       - benchmarks show that doing conversions as numpy first, and then using torch.from_numpy is faster!
@@ -165,18 +165,20 @@ def to_img_tensor_f32(
     #             `torch.from_numpy(item.transpose([2, 0, 1]).astype('float32') / 255)      # 32883.32it/s
     #       - INVESTIGATE: if transpose is used, and then from_numpy is called, that references the original memory? It
     #            might then be slower to convolve this data? Speed benefits could be negated? A copy might be better?
-    obs = F_tv.to_tensor(obs)
+    tensor = F_tv.to_tensor(obs)
     # checks
-    assert obs.ndim == 3, f"obs has does not have 3 dimensions, got: {obs.ndim} for shape: {obs.shape}"
-    assert obs.dtype == torch.float32, f"obs is not dtype torch.float32, got: {obs.dtype}"
+    assert tensor.ndim == 3, f"obs has does not have 3 dimensions, got: {tensor.ndim} for shape: {tensor.shape}"
+    assert tensor.dtype == torch.float32, f"obs is not dtype torch.float32, got: {tensor.dtype}"
     # apply mean and std, we obs is of the shape (C, H, W)
     if (mean is not None) or (std is not None):
-        obs = F_tv.normalize(obs, mean=0.0 if (mean is None) else mean, std=1.0 if (std is None) else std, inplace=True)
-        assert obs.dtype == torch.float32, (
-            f"after normalization, tensor should remain as dtype torch.float32, got: {obs.dtype}"
+        mean_list = [0.0] if (mean is None) else list(mean)
+        std_list = [1.0] if (std is None) else list(std)
+        tensor = F_tv.normalize(tensor, mean=mean_list, std=std_list, inplace=True)
+        assert tensor.dtype == torch.float32, (
+            f"after normalization, tensor should remain as dtype torch.float32, got: {tensor.dtype}"
         )
     # done!
-    return obs
+    return tensor
 
 
 # ========================================================================= #

@@ -67,6 +67,9 @@ def torch_dist(xs: torch.Tensor, dim: _DimTypeHint = -1, p: Union[float, str] = 
         p = _P_NORM_MAP[p]
     # get absolute values
     xs = torch.abs(xs)
+    # get the dimensions
+    if dim is None:
+        dim = list(range(xs.ndim))
     # compute the specific extreme cases
     # -- its kind of odd that the p-norm and generalised mean converge to the
     #    same values, just from different directions!
@@ -74,9 +77,6 @@ def torch_dist(xs: torch.Tensor, dim: _DimTypeHint = -1, p: Union[float, str] = 
         return torch.amax(xs, dim=dim, keepdim=keepdim)
     elif p == _NEG_INF:
         return torch.amin(xs, dim=dim, keepdim=keepdim)
-    # get the dimensions
-    if dim is None:
-        dim = list(range(xs.ndim))
     # warn if the type is wrong
     if p != 1:
         if xs.dtype != torch.float64:

@@ -23,7 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
-from typing import Optional
 from typing import Tuple
 from typing import Union
 
@@ -98,7 +97,7 @@ class GroundTruthTripleSampler(BaseDisentSampler):
         if swap_chance is not None:
             assert 0 <= swap_chance <= 1, f"{swap_chance=} must be in range 0 to 1."
         # dataset variable
-        self._state_space: Optional[StateSpace]
+        self._state_space: StateSpace
 
     def _init(self, dataset):
         assert isinstance(dataset, GroundTruthData), (
@@ -327,14 +326,15 @@ def normalise_range(mins, maxs, sizes):
 
 
 def normalise_range_pair(min_max: Union[int, Tuple[int, int]], sizes):
-    min_max = np.array(min_max)
+    arr = np.array(min_max)
     # if not a 2 tuple, repeat. This fixes the min == max.
-    if min_max.shape == ():
-        min_max = min_max.repeat(2)
+    if arr.shape == ():
+        arr = arr.repeat(2)
     # check final shape
-    assert min_max.shape == (2,)
+    assert arr.shape == (2,)
     # get values
-    return normalise_range(*min_max, sizes)
+    mn, mx = arr
+    return normalise_range(mn, mx, sizes)
 
 
 # ========================================================================= #

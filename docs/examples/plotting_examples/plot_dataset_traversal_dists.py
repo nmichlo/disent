@@ -24,7 +24,6 @@
 
 import os
 from collections import defaultdict
-from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import List
@@ -58,6 +57,7 @@ from disent.util.visualize.vis_util import make_image_grid
 
 
 SampleModeHint = Union[Literal["random"], Literal["near"], Literal["combinations"]]
+StatValue = Union[np.ndarray, torch.Tensor]
 
 
 @torch.no_grad()
@@ -65,7 +65,7 @@ def sample_factor_traversal_info(
     gt_data: GroundTruthData,
     f_idx: Optional[int] = None,
     sample_mode: SampleModeHint = "random",
-) -> dict:
+) -> Dict[str, StatValue]:
     # load traversal
     factors, indices = gt_data.sample_random_factor_traversal(f_idx=f_idx, return_indices=True)
     obs = torch.stack([gt_data[i] for i in indices])  # TODO: this is the bottleneck! not threaded
@@ -91,7 +91,7 @@ def sample_factor_traversal_info(
 def sample_factor_traversal_info_and_distmat(
     gt_data: GroundTruthData,
     f_idx: Optional[int] = None,
-) -> dict:
+) -> Dict[str, StatValue]:
     dat = sample_factor_traversal_info(gt_data=gt_data, f_idx=f_idx, sample_mode="combinations")
     # extract
     factors, idxs_a, idxs_b, deltas, fdists = dat["factors"], dat["idxs_a"], dat["idxs_b"], dat["deltas"], dat["fdists"]
@@ -114,22 +114,22 @@ def sample_factor_traversal_info_and_distmat(
 
 def _collect_stats_for_factors(
     gt_data: GroundTruthData,
-    f_idxs: Sequence[int],
-    stats_fn: Callable[[GroundTruthData, int, int], Dict[str, Any]],
+    f_idxs: NonNormalisedFactorIdxs,
+    stats_fn: Callable[[GroundTruthData, int, int], Dict[str, StatValue]],
     keep_keys: Sequence[str],
-    stats_callback: Optional[Callable[[Dict[str, List[Any]], int, int], None]] = None,
+    stats_callback: Optional[Callable[[Dict[str, List[StatValue]], int, int], None]] = None,
     return_stats: bool = True,
     num_traversal_sample: int = 100,
-) -> List[Dict[str, List[Any]]]:
+) -> Optional[List[Dict[str, List[StatValue]]]]:
     # prepare
-    f_idxs = gt_data.normalise_factor_idxs(f_idxs)
+    f_idxs_norm = gt_data.normalise_factor_idxs(f_idxs)
     # generate data per factor
     f_stats = []
-    for i, f_idx in enumerate(f_idxs):
+    for i, f_idx in enumerate(f_idxs_norm):
         factor_name = gt_data.factor_names[f_idx]
         _factor_size = gt_data.factor_sizes[f_idx]
         # repeatedly generate stats per factor
-        stats = defaultdict(list)
+        stats: Dict[str, List[StatValue]] = defaultdict(list)
         for _ in tqdm(range(num_traversal_sample), desc=f"{gt_data.name}: {factor_name}"):
             data = stats_fn(gt_data, i, f_idx)
             for key in keep_keys:
@@ -142,6 +142,7 @@ def _collect_stats_for_factors(
     # done!
     if return_stats:
         return f_stats
+    return None
 
 
 # ========================================================================= #
@@ -167,13 +168,13 @@ def plot_traversal_stats(
 ):
     # - - - - - - - - - - - - - - - - - #
 
-    def stats_fn(gt_data, i, f_idx):
+    def stats_fn(gt_data: GroundTruthData, i: int, f_idx: int) -> Dict[str, StatValue]:
         return sample_factor_traversal_info_and_distmat(gt_data=gt_data, f_idx=f_idx)
 
     grid_t = []
     grid_titles = []
 
-    def plot_ax(stats: dict, i: int, f_idx: int):
+    def plot_ax(stats: Dict[str, List[StatValue]], i: int, f_idx: int):
         fdists_matrix = np.mean(stats["fdists_matrix"], axis=0)
         deltas_matrix = np.mean(stats["deltas_matrix"], axis=0)
         grid_t.append([fdists_matrix, deltas_matrix])
@@ -186,7 +187,7 @@ def plot_traversal_stats(
 
     # initialize
     gt_data: GroundTruthData = H.make_data(dataset_or_name) if isinstance(dataset_or_name, str) else dataset_or_name
-    f_idxs = gt_data.normalise_factor_idxs(f_idxs)
+    f_idxs_norm = gt_data.normalise_factor_idxs(f_idxs)
 
     # get title
     if isinstance(plot_title, str):
@@ -199,7 +200,7 @@ def plot_traversal_stats(
     # generate plot
     _collect_stats_for_factors(
         gt_data=gt_data,
-        f_idxs=f_idxs,
+        f_idxs=f_idxs_norm,
         stats_fn=stats_fn,
         keep_keys=["deltas", "fdists", "deltas_matrix", "fdists_matrix"],
         stats_callback=plot_ax,
@@ -219,7 +220,10 @@ def plot_traversal_stats(
         col_labels=labels if bottom_labels else None,
         label_size=label_size,
         subplot_padding=None,
-        figsize=((1 / 2.54) * len(f_idxs) * plt_scale + x_size_offset, (1 / 2.54) * (2) * plt_scale + y_size_offset),
+        figsize=(
+            (1 / 2.54) * len(f_idxs_norm) * plt_scale + x_size_offset,
+            (1 / 2.54) * (2) * plt_scale + y_size_offset,
+        ),
     )
 
     # recolor axes
@@ -253,21 +257,21 @@ def plot_traversal_stats(
 @torch.no_grad()
 def factor_stats(
     gt_data: GroundTruthData,
-    f_idxs=None,
+    f_idxs: Optional[NonNormalisedFactorIdxs] = None,
     min_samples: int = 100_000,
     min_repeats: int = 5000,
     recon_loss: str = "mse",
     sample_mode: str = "random",
-) -> Tuple[Sequence[int], List[np.ndarray]]:
+) -> Tuple[np.ndarray, List[np.ndarray]]:
     from disent.frameworks.helper.reconstructions import ReconLossHandler
     from disent.registry import RECON_LOSSES
 
     recon_loss: ReconLossHandler = RECON_LOSSES[recon_loss](reduction="mean")
 
     f_dists = []
-    f_idxs = gt_data.normalise_factor_idxs(f_idxs)
+    f_idxs_norm = gt_data.normalise_factor_idxs(f_idxs)
     # for each factor
-    for f_idx in f_idxs:
+    for f_idx in f_idxs_norm:
         dists = []
         with tqdm(desc=gt_data.factor_names[f_idx], total=min_samples) as p:
             # for multiple random factor traversals along the factor
@@ -287,7 +291,7 @@ def factor_stats(
         # aggregate the average distances
         f_dists.append(np.array(dists)[:min_samples])
 
-    return f_idxs, f_dists
+    return f_idxs_norm, f_dists
 
 
 def get_random_dists(gt_data: GroundTruthData, num_samples: int = 100_000, recon_loss: str = "mse"):
@@ -320,14 +324,14 @@ def print_ave_dists(gt_data: GroundTruthData, num_samples: int = 100_000, recon_
 
 def print_ave_factor_stats(
     gt_data: GroundTruthData,
-    f_idxs=None,
+    f_idxs: Optional[NonNormalisedFactorIdxs] = None,
     min_samples: int = 100_000,
     min_repeats: int = 5000,
     recon_loss: str = "mse",
     sample_mode: str = "random",
 ):
     # compute average distances
-    f_idxs, f_dists = factor_stats(
+    f_idxs_norm, f_dists = factor_stats(
         gt_data=gt_data,
         f_idxs=f_idxs,
         min_repeats=min_repeats,
@@ -342,7 +346,7 @@ def print_ave_factor_stats(
     order = np.argsort(f_means)[::-1]
     # print information
     for i in order:
-        f_idx, f_mean, f_std = f_idxs[i], f_means[i], f_stds[i]
+        f_idx, f_mean, f_std = f_idxs_norm[i], f_means[i], f_stds[i]
         print(
             f"[{gt_data.name}] {gt_data.factor_names[f_idx]} ({gt_data.factor_sizes[f_idx]}, {len(f_dists[f_idx])}) - mean: {f_mean:7.4f}  std: {f_std:7.4f}"
         )

@@ -22,7 +22,10 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+import functools
 import os
+from typing import Callable
+from typing import List
 from typing import Tuple
 
 import numpy as np
@@ -38,7 +41,7 @@ from torch.utils.data import DataLoader
 def compute_data_mean_std(
     data,
     batch_size: int = 256,
-    num_workers: int = min(os.cpu_count(), 16),
+    num_workers: int = min(os.cpu_count() or 16, 16),
     progress: bool = False,
     chn_is_last: bool = False,
 ) -> Tuple[np.ndarray, np.ndarray]:
@@ -89,7 +92,9 @@ if __name__ == "__main__":
         from disent.dataset.transform import ToImgTensorF32
         from docs.examples.extend_experiment.code import groundtruth__xyblocks as edat
 
-        for data_cls in [
+        # each entry is a zero-(extra-)arg factory returning a `GroundTruthData`, any fixed
+        # constructor kwargs (eg. `grid_size=8`) are bound ahead of time via `functools.partial`
+        entries: List[Callable[..., data.GroundTruthData]] = [
             # groundtruth -- impl
             data.Cars3dData,
             data.Cars3d64Data,
@@ -107,33 +112,29 @@ if __name__ == "__main__":
             data.XYSquaresMinimalData,
             data.XColumnsData,
             # groundtruth -- increasing overlap
-            (data.XYSquaresData, dict(grid_size=8, grid_spacing=8)),
-            (data.XYSquaresData, dict(grid_size=8, grid_spacing=7)),
-            (data.XYSquaresData, dict(grid_size=8, grid_spacing=6)),
-            (data.XYSquaresData, dict(grid_size=8, grid_spacing=5)),
-            (data.XYSquaresData, dict(grid_size=8, grid_spacing=4)),
-            (data.XYSquaresData, dict(grid_size=8, grid_spacing=3)),
-            (data.XYSquaresData, dict(grid_size=8, grid_spacing=2)),
-            (data.XYSquaresData, dict(grid_size=8, grid_spacing=1)),
-            (data.XYSquaresData, dict(rgb=False)),
+            functools.partial(data.XYSquaresData, grid_size=8, grid_spacing=8),
+            functools.partial(data.XYSquaresData, grid_size=8, grid_spacing=7),
+            functools.partial(data.XYSquaresData, grid_size=8, grid_spacing=6),
+            functools.partial(data.XYSquaresData, grid_size=8, grid_spacing=5),
+            functools.partial(data.XYSquaresData, grid_size=8, grid_spacing=4),
+            functools.partial(data.XYSquaresData, grid_size=8, grid_spacing=3),
+            functools.partial(data.XYSquaresData, grid_size=8, grid_spacing=2),
+            functools.partial(data.XYSquaresData, grid_size=8, grid_spacing=1),
+            functools.partial(data.XYSquaresData, rgb=False),
             # large datasets
-            (data.Mpi3dData, dict(subset="toy", in_memory=True)),
-            (data.Mpi3dData, dict(subset="realistic", in_memory=True)),
-            (data.Mpi3dData, dict(subset="real", in_memory=True)),
-        ]:
-            # get arguments
-            if isinstance(data_cls, tuple):
-                data_cls, kwargs = data_cls
-            else:
-                data_cls, kwargs = data_cls, {}
+            functools.partial(data.Mpi3dData, subset="toy", in_memory=True),
+            functools.partial(data.Mpi3dData, subset="realistic", in_memory=True),
+            functools.partial(data.Mpi3dData, subset="real", in_memory=True),
+        ]
+        for make_data in entries:
             # Most common standardized way of computing the mean and std over observations
             # resized to 64px in size of dtype float32 in the range [0, 1].
-            data = data_cls(transform=ToImgTensorF32(size=64), **kwargs)
-            mean, std = compute_data_mean_std(data, progress=progress, num_workers=num_workers, batch_size=batch_size)
-            # results!
-            print(
-                f"{data.__class__.__name__} - {data.name} - {kwargs}:\n    mean: {mean.tolist()}\n    std: {std.tolist()}"
+            gt_data = make_data(transform=ToImgTensorF32(size=64))
+            mean, std = compute_data_mean_std(
+                gt_data, progress=progress, num_workers=num_workers, batch_size=batch_size
             )
+            # results!
+            print(f"{gt_data.__class__.__name__} - {gt_data.name}:\n    mean: {mean.tolist()}\n    std: {std.tolist()}")
 
     # RUN!
     main()

@@ -72,8 +72,8 @@ class DitheredDataset(WrappedDataset):
     def __len__(self):
         return len(self._indices)
 
-    def __getitem__(self, item):
-        return self._gt_data[self._indices[item]]
+    def __getitem__(self, index):
+        return self._gt_data[self._indices[index]]
 
     @property
     def data(self) -> Dataset:

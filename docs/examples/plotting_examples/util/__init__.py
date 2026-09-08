@@ -36,6 +36,7 @@
 #
 import inspect
 import os
+from typing import Callable
 from typing import Literal
 from typing import Optional
 from typing import Tuple
@@ -77,7 +78,7 @@ from docs.examples.extend_experiment.code.groundtruth__xyblocks import XYBlocksD
 TransformTypeHint = Union[Literal["uint8"], Literal["float32"], Literal["none"]]
 
 
-def make_transform(mode: Optional[str]) -> Optional[callable]:
+def make_transform(mode: Optional[str]) -> Optional[Callable]:
     if mode == "uint8":
         return ToImgTensorU8()
     elif mode == "float32":
@@ -273,7 +274,7 @@ def make_dataset(
     data_root: str = "data/dataset",
     try_in_memory: bool = False,
     transform_mode: TransformTypeHint = "float32",
-    sampler: BaseDisentSampler = None,
+    sampler: Optional[BaseDisentSampler] = None,
 ) -> DisentDataset:
     # make data
     data = make_data(
@@ -369,6 +370,7 @@ def _make_rel_path(*path_segments, is_file=True, _calldepth=0):
     # get source
     stack = inspect.stack()
     module = inspect.getmodule(stack[_calldepth + 1].frame)
+    assert module is not None and module.__file__ is not None, "could not determine the calling module's file path"
     reldir = os.path.dirname(module.__file__)
     # make everything
     path = os.path.join(reldir, *path_segments)

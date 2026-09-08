@@ -24,7 +24,11 @@
 
 import logging
 from numbers import Number
+from typing import Callable
+from typing import Literal
 from typing import Optional
+from typing import Tuple
+from typing import Union
 
 import numpy as np
 import torch
@@ -92,14 +96,14 @@ def plt_subplots(
     titles=None,
     row_labels=None,
     col_labels=None,
-    title_size: int = None,
-    titles_size: int = None,
-    label_size: int = None,
+    title_size: Optional[int] = None,
+    titles_size: Optional[int] = None,
+    label_size: Optional[int] = None,
     hide_labels="edges",  # none, edges, all
     hide_axis="edges",  # none, edges, all
     # plt.subplots:
-    sharex: str = False,
-    sharey: str = False,
+    sharex: Union[bool, Literal["none", "all", "row", "col"]] = False,
+    sharey: Union[bool, Literal["none", "all", "row", "col"]] = False,
     subplot_kw=None,
     gridspec_kw=None,
     **fig_kw,
@@ -149,7 +153,10 @@ def plt_subplots(
                 if titles[y][x] is not None:
                     ax.set_title(titles[y][x], fontsize=titles_size)
     # set title
-    fig.suptitle(title, fontsize=title_size)
+    # NOTE: matplotlib's `Text.set_text` treats `None` and `""` identically (converts `None`
+    # to `""` internally), so this is equivalent to the previous `fig.suptitle(title, ...)`
+    # call while satisfying the (overly strict) `str`-only stub for `suptitle`.
+    fig.suptitle("" if (title is None) else title, fontsize=title_size)
     # done!
     return fig, axs
 
@@ -161,24 +168,24 @@ def plt_subplots_imshow(
     titles=None,
     row_labels=None,
     col_labels=None,
-    title_size: int = None,
-    titles_size: int = None,
-    label_size: int = None,
+    title_size: Optional[int] = None,
+    titles_size: Optional[int] = None,
+    label_size: Optional[int] = None,
     hide_labels="edges",  # none, edges, all
     hide_axis="all",  # none, edges, all
     # tight_layout:
     subplot_padding: Optional[float] = 1.08,
     # plt.subplots:
-    sharex: str = False,
-    sharey: str = False,
+    sharex: Union[bool, Literal["none", "all", "row", "col"]] = False,
+    sharey: Union[bool, Literal["none", "all", "row", "col"]] = False,
     subplot_kw=None,
     gridspec_kw=None,
     # imshow
-    vmin: float = None,
-    vmax: float = None,
+    vmin: Optional[float] = None,
+    vmax: Optional[float] = None,
     # extra
     show: bool = False,
-    imshow_kwargs: dict = None,
+    imshow_kwargs: Optional[dict] = None,
     **fig_kw,
 ):
     # TODO: add automatic height & width
@@ -253,9 +260,9 @@ def visualize_dataset_traversal(
     # images & animations
     pad: int = 4,
     border: bool = True,
-    bg_color: Number = None,
+    bg_color: Optional[Union[int, float, Tuple[float, ...]]] = None,
     # augment
-    augment_fn: callable = None,
+    augment_fn: Optional[Callable] = None,
     data_mode: str = "raw",
     # output
     output_wandb: bool = False,
@@ -315,7 +322,7 @@ def visualize_dataset_traversal(
         np.concatenate(grid, axis=0), pad=pad, border=border, bg_color=bg_color, num_cols=num_frames
     )
     animation = make_animated_image_grid(
-        np.stack(grid, axis=0), pad=pad, border=border, bg_color=bg_color, num_cols=None
+        np.stack(list(grid), axis=0), pad=pad, border=border, bg_color=bg_color, num_cols=None
     )
 
     # convert to wandb

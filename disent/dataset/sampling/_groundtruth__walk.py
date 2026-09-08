@@ -22,8 +22,6 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from typing import NoReturn
-from typing import Optional
 from typing import Sequence
 from typing import Tuple
 
@@ -61,7 +59,7 @@ class GroundTruthRandomWalkSampler(BaseDisentSampler):
         self._p_dist_max = p_dist_max
         self._n_dist_max = n_dist_max
         # dataset variable
-        self._state_space: Optional[StateSpace] = None
+        self._state_space: StateSpace
 
     def _init(self, dataset: GroundTruthData):
         assert isinstance(dataset, GroundTruthData), (
@@ -102,13 +100,15 @@ def _random_walk(idx: int, dist: int, factor_sizes: np.ndarray) -> int:
     )  # much faster than StateSpace.idx_to_pos, we don't need checks!
     for _ in range(dist):
         _walk_nearby_inplace(pos, factor_sizes)
-    idx = np.ravel_multi_index(pos, factor_sizes)  # much faster than StateSpace.pos_to_idx, we don't need checks!
+    idx = np.ravel_multi_index(
+        tuple(pos), tuple(factor_sizes)
+    )  # much faster than StateSpace.pos_to_idx, we don't need checks!
     # done!
     return int(idx)
 
 
 @try_njit()
-def _walk_nearby_inplace(pos: np.ndarray, factor_sizes: Sequence[int]) -> NoReturn:
+def _walk_nearby_inplace(pos: np.ndarray, factor_sizes: Sequence[int]) -> None:
     # try to shift any single factor by 1 or -1
     while True:
         f_idx = np.random.randint(0, len(factor_sizes))

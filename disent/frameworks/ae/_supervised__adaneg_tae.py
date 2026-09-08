@@ -24,8 +24,6 @@
 
 import logging
 from dataclasses import dataclass
-from numbers import Number
-from typing import Any
 from typing import Dict
 from typing import Sequence
 from typing import Tuple
@@ -64,7 +62,8 @@ class AdaNegTripletAe(TripletAe):
 
     def hook_ae_compute_ave_aug_loss(
         self, zs: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]
-    ) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
+    ) -> Tuple[Union[torch.Tensor, float], Dict[str, Union[torch.Tensor, float]]]:
+        self.cfg: AdaNegTripletAe.cfg
         return AdaNegTripletVae.estimate_ada_triplet_loss_from_zs(
             zs=zs,
             cfg=self.cfg,

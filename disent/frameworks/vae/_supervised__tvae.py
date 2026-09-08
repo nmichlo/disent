@@ -23,15 +23,13 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from dataclasses import dataclass
-from numbers import Number
-from typing import Any
 from typing import Dict
 from typing import Sequence
 from typing import Tuple
 from typing import Union
 
 import torch
-from torch.distributions import Normal
+from torch.distributions import Distribution
 
 from disent.frameworks.vae._unsupervised__betavae import BetaVae
 from disent.nn.loss.triplet import TripletLossConfig
@@ -51,12 +49,13 @@ class TripletVae(BetaVae):
 
     def hook_compute_ave_aug_loss(
         self,
-        ds_posterior: Sequence[Normal],
-        ds_prior: Sequence[Normal],
+        ds_posterior: Sequence[Distribution],
+        ds_prior: Sequence[Distribution],
         zs_sampled: Sequence[torch.Tensor],
         xs_partial_recon: Sequence[torch.Tensor],
         xs_targ: Sequence[torch.Tensor],
-    ) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
+    ) -> Tuple[Union[torch.Tensor, float], Dict[str, Union[torch.Tensor, float]]]:
+        self.cfg: TripletVae.cfg
         return compute_triplet_loss(zs=[d.mean for d in ds_posterior], cfg=self.cfg)
 
 

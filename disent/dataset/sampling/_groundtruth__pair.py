@@ -22,7 +22,6 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from typing import Optional
 
 import numpy as np
 
@@ -63,7 +62,7 @@ class GroundTruthPairSampler(BaseDisentSampler):
         self.p_k_range = p_k_range
         self.p_radius_range = p_radius_range
         # dataset variable
-        self._state_space: Optional[StateSpace]
+        self._state_space: StateSpace
 
     def _init(self, dataset):
         assert isinstance(dataset, GroundTruthData), (

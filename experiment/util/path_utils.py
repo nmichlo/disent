@@ -26,9 +26,11 @@ import logging
 import os
 import re
 from pathlib import Path
+from typing import Literal
 from typing import Optional
 from typing import Tuple
 from typing import Union
+from typing import overload
 
 log = logging.getLogger(__name__)
 
@@ -42,6 +44,10 @@ _EXPERIMENT_SEP = "_"
 _EXPERIMENT_RGX = re.compile(f"^([0-9]+)({_EXPERIMENT_SEP}.+)?$")
 
 
+@overload
+def get_max_experiment_number(root_dir: str, return_path: Literal[False] = False) -> int: ...
+@overload
+def get_max_experiment_number(root_dir: str, return_path: Literal[True]) -> Tuple[int, Optional[str]]: ...
 def get_max_experiment_number(root_dir: str, return_path: bool = False) -> Union[int, Tuple[int, Optional[str]]]:
     """
     Get the next experiment number in the specified directory. Experiment directories

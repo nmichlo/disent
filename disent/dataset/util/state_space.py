@@ -38,8 +38,8 @@ from disent.util.visualize.vis_util import get_idx_traversal
 # ========================================================================= #
 
 
-NonNormalisedFactorIdx = Union[Sequence[Union[int, str]], Union[int, str]]
-NonNormalisedFactorIdxs = Union[Sequence[NonNormalisedFactorIdx], NonNormalisedFactorIdx]
+NonNormalisedFactorIdx = Union[int, str]
+NonNormalisedFactorIdxs = Union[np.ndarray, Sequence[NonNormalisedFactorIdx], NonNormalisedFactorIdx]
 NonNormalisedFactors = Union[np.ndarray, Sequence[Union[int, Sequence]]]
 
 
@@ -84,9 +84,9 @@ class StateSpace(LengthIter):
         """Same as self.size"""
         return self.size
 
-    def __getitem__(self, idx):
+    def __getitem__(self, item):
         """Data returned based on the idx"""
-        return self.idx_to_pos(idx)
+        return self.idx_to_pos(item)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Properties                                                            #
@@ -180,7 +180,7 @@ class StateSpace(LengthIter):
         TODO: can factor_multipliers be used to speed this up?
         """
         positions = np.moveaxis(positions, source=-1, destination=0)
-        return np.ravel_multi_index(positions, self.__factor_sizes)
+        return np.ravel_multi_index(tuple(positions), tuple(self.__factor_sizes))
 
     def idx_to_pos(self, indices) -> np.ndarray:
         """
@@ -392,7 +392,7 @@ def _get_step_size(factor_sizes, f_idx: int):
     # return factor size
     pos = np.zeros(len(factor_sizes), dtype="uint8")
     pos[f_idx] = 1
-    return int(np.ravel_multi_index(pos, factor_sizes))
+    return int(np.ravel_multi_index(tuple(pos), factor_sizes))
 
 
 def _dims_multipliers(factor_sizes: np.ndarray) -> np.ndarray:

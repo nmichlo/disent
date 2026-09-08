@@ -25,8 +25,10 @@
 import logging
 import os
 from pathlib import Path
+from typing import Optional
 from typing import Tuple
 from typing import Union
+from typing import overload
 
 log = logging.getLogger(__name__)
 
@@ -36,7 +38,13 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def modify_file_name(file: Union[str, Path], prefix: str = None, suffix: str = None, sep=".") -> Union[str, Path]:
+@overload
+def modify_file_name(file: str, prefix: Optional[str] = ..., suffix: Optional[str] = ..., sep: str = ...) -> str: ...
+@overload
+def modify_file_name(file: Path, prefix: Optional[str] = ..., suffix: Optional[str] = ..., sep: str = ...) -> Path: ...
+def modify_file_name(
+    file: Union[str, Path], prefix: Optional[str] = None, suffix: Optional[str] = None, sep="."
+) -> Union[str, Path]:
     # get path components
     path = Path(file)
     assert path.name, f"file name cannot be empty: {repr(path)}, for name: {repr(path.name)}"
@@ -49,7 +57,7 @@ def modify_file_name(file: Union[str, Path], prefix: str = None, suffix: str = N
 
 
 def modify_name_keep_ext(
-    file: Union[str, Path], prefix: str = None, suffix: str = None, name_contains_sep: bool = False
+    file: Union[str, Path], prefix: Optional[str] = None, suffix: Optional[str] = None, name_contains_sep: bool = False
 ) -> Union[str, Path]:
     # get path components
     path = Path(file)

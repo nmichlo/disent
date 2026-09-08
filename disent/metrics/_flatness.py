@@ -29,6 +29,7 @@ Flatness Metric
 """
 
 import logging
+from collections.abc import Callable
 from typing import Iterable
 from typing import Tuple
 from typing import Union
@@ -51,7 +52,7 @@ log = logging.getLogger(__name__)
 @make_metric("flatness", fast_kwargs=dict(repeats=128))
 def metric_flatness(
     dataset: DisentDataset,
-    representation_function: callable,
+    representation_function: Callable,
     repeats: int = 1024,
     batch_size: int = 64,
 ):
@@ -285,7 +286,7 @@ def get_device(dataset: DisentDataset, representation_function):
 # ========================================================================= #
 
 
-def knn(x, y, k: int = None, largest=False, p="fro"):
+def knn(x, y, k: int, largest=False, p="fro"):
     assert 0 < k <= y.shape[0]
     # check input vectors, must be array of vectors
     assert 2 == x.ndim == y.ndim

@@ -24,6 +24,7 @@
 
 import logging
 from typing import Tuple
+from typing import Union
 
 import numpy as np
 
@@ -103,7 +104,7 @@ class XYBlocksData(GroundTruthData):
     def __init__(
         self,
         grid_size: int = 64,
-        grid_levels: Tuple[int, ...] = (1, 2, 3),
+        grid_levels: Union[int, Tuple[int, ...]] = (1, 2, 3),
         rgb: bool = True,
         palette: str = "rgb",
         invert_bg: bool = False,
@@ -131,12 +132,14 @@ class XYBlocksData(GroundTruthData):
         )
 
         # grid
-        grid_levels = np.arange(1, grid_levels + 1) if isinstance(grid_levels, int) else np.array(grid_levels)
-        assert np.all(grid_size % (2**grid_levels) == 0), f"{grid_size=} is not divisible by pow(2, {grid_levels=})"
-        assert np.all(grid_levels[:-1] <= grid_levels[1:])
+        grid_levels_arr = np.arange(1, grid_levels + 1) if isinstance(grid_levels, int) else np.array(grid_levels)
+        assert np.all(grid_size % (2**grid_levels_arr) == 0), (
+            f"{grid_size=} is not divisible by pow(2, {grid_levels_arr=})"
+        )
+        assert np.all(grid_levels_arr[:-1] <= grid_levels_arr[1:])
         self._grid_size = grid_size
-        self._grid_levels = grid_levels
-        self._grid_dims = len(grid_levels)
+        self._grid_levels = grid_levels_arr
+        self._grid_dims = len(grid_levels_arr)
 
         # axis sizes
         self._axis_divisions = 2**self._grid_levels

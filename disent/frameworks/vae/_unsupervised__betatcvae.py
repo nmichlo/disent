@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from typing import Sequence
 
 import torch
-from torch.distributions import Normal
+from torch.distributions import Distribution
 
 from disent.frameworks.helper.util import compute_ave_loss_and_logs
 from disent.frameworks.vae._unsupervised__betavae import BetaVae
@@ -59,7 +59,7 @@ class BetaTcVae(BetaVae):
     # Overrides                                                             #
     # --------------------------------------------------------------------- #
 
-    def compute_ave_reg_loss(self, ds_posterior: Sequence[Normal], ds_prior: Sequence[Normal], zs_sampled):
+    def compute_ave_reg_loss(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled):
         # compute kl loss
         # TODO: this should be KL instead? not KL Reg?
         kl_reg_loss, logs_kl_reg = super().compute_ave_reg_loss(ds_posterior, ds_prior, zs_sampled)
@@ -77,7 +77,8 @@ class BetaTcVae(BetaVae):
     # Helper                                                                #
     # --------------------------------------------------------------------- #
 
-    def _betatc_compute_loss(self, d_posterior: Normal, z_sampled):
+    def _betatc_compute_loss(self, d_posterior: Distribution, z_sampled):
+        self.cfg: BetaTcVae.cfg
         tc_loss = BetaTcVae._betatc_compute_total_correlation(
             z_sampled=z_sampled,
             z_mean=d_posterior.mean,

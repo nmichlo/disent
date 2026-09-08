@@ -25,6 +25,7 @@
 import logging
 import os
 from typing import List
+from typing import Optional
 from typing import Tuple
 
 import numpy as np
@@ -124,13 +125,13 @@ class EpisodesDownloadZippedPickledData(EpisodesPickledData):
     # TODO: convert this to data files?
     # TODO: convert this to data files?
 
-    def __init__(self, required_file: str, download_url=None, force_download=False, transform=None):
+    def __init__(self, required_file: str, download_url: Optional[str] = None, force_download=False, transform=None):
         self._download_and_extract_if_needed(
             download_url=download_url, required_file=required_file, force_download=force_download
         )
         super().__init__(required_file=required_file, transform=transform)
 
-    def _download_and_extract_if_needed(self, download_url: str, required_file: str, force_download: bool):
+    def _download_and_extract_if_needed(self, download_url: Optional[str], required_file: str, force_download: bool):
         # TODO: this function should probably be moved to the io file.
         # ~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
         # skip if no download url

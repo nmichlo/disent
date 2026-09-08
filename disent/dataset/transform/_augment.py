@@ -23,7 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import os
-from numbers import Number
 from typing import List
 from typing import Tuple
 from typing import Union
@@ -42,12 +41,15 @@ from disent.nn.modules import DisentModule
 # ========================================================================= #
 
 
-TorLorN = Union[Number, Tuple[Number, Number], List[Number], np.ndarray]
+# NOTE: `numbers.Number` is not recognised by static type checkers as a supertype of `int`/`float`
+#       (it is only a virtual/runtime ABC registration), so we use an explicit union instead.
+Num = Union[int, float]
+TorLorN = Union[Num, Tuple[Num, Num], List[Num], np.ndarray]
 MmTuple = Union[TorLorN, Tuple[TorLorN, TorLorN], List[TorLorN], np.ndarray]
 
 
-def _expand_to_min_max_tuples(input: MmTuple) -> Tuple[Tuple[Number, Number], Tuple[Number, Number]]:
-    (xm, xM), (ym, yM) = np.broadcast_to(input, (2, 2)).tolist()
+def _expand_to_min_max_tuples(input: MmTuple) -> Tuple[Tuple[Num, Num], Tuple[Num, Num]]:
+    (xm, xM), (ym, yM) = np.broadcast_to(np.array(input), (2, 2)).tolist()
     if not all(isinstance(n, (float, int)) for n in [xm, xM, ym, yM]):
         raise ValueError(
             "only scalars, tuples with shape (2,): [m, M] or tuples with shape (2, 2): [[xm, xM], [ym, yM]] are supported"
@@ -145,14 +147,15 @@ class FftBoxBlur(_BaseFftBlur):
 
     def __init__(self, radius: MmTuple = 1, p: float = 0.5, random_mode="batch", random_same_xy=True):
         super().__init__(p=p, random_mode=random_mode, random_same_xy=random_same_xy)
-        self.radius: Tuple[Tuple[int, int], Tuple[int, int]] = _expand_to_min_max_tuples(radius)
+        (xm, xM), (ym, yM) = _expand_to_min_max_tuples(radius)
         # same random value for x and y
         if random_same_xy:
-            assert self.radius[0] == self.radius[1]
+            assert (xm, xM) == (ym, yM)
         # check values
-        values = np.array(self.radius).flatten().tolist()
+        values = [xm, xM, ym, yM]
         assert all(isinstance(x, int) for x in values), "radius values must be integers"
         assert all((0 <= x) for x in values), "radius values must be >= 0, resulting in diameter: 2*r+1"
+        self.radius: Tuple[Tuple[int, int], Tuple[int, int]] = ((int(xm), int(xM)), (int(ym), int(yM)))
 
     def _make_kernel(self, shape, device):
         B, C, H, W = shape
@@ -176,7 +179,13 @@ class FftBoxBlur(_BaseFftBlur):
 # ========================================================================= #
 
 
-_NO_ARG = object()
+class _NoArg:
+    """Sentinel for `FftKernel.__init__`: detects that `normalize_mode` was not explicitly given."""
+
+    __slots__ = ()
+
+
+_NO_ARG = _NoArg()
 
 
 class FftKernel(DisentModule):
@@ -184,10 +193,10 @@ class FftKernel(DisentModule):
     2D Convolve an image
     """
 
-    def __init__(self, kernel: Union[torch.Tensor, str], normalize_mode: str = _NO_ARG):
+    def __init__(self, kernel: Union[torch.Tensor, str], normalize_mode: Union[str, _NoArg] = _NO_ARG):
         super().__init__()
         # deprecation error
-        if normalize_mode is _NO_ARG:
+        if isinstance(normalize_mode, _NoArg):
             raise ValueError(
                 'default argument for normalize_mode was "sum", this has been deprecated and will change to "none" in future. Please manually override this value!'
             )

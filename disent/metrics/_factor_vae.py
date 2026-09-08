@@ -26,6 +26,8 @@ Based on "Disentangling by Factorising" (https://arxiv.org/abs/1802.05983).
 """
 
 import logging
+from collections.abc import Callable
+from typing import Tuple
 
 import numpy as np
 from tqdm import tqdm
@@ -48,7 +50,7 @@ log = logging.getLogger(__name__)
 )  # may not be accurate, but it just takes waay too long otherwise 20+ seconds
 def metric_factor_vae(
     dataset: DisentDataset,
-    representation_function: callable,
+    representation_function: Callable,
     batch_size: int = 64,
     num_train: int = 10000,
     num_eval: int = 5000,
@@ -152,7 +154,7 @@ def _prune_dims(variances, threshold=0.0):
 
 
 def _compute_variances(
-    dataset: DisentDataset, representation_function: callable, batch_size: int, eval_batch_size: int = 64
+    dataset: DisentDataset, representation_function: Callable, batch_size: int, eval_batch_size: int = 64
 ):
     """Computes the variance for each dimension of the representation.
     Args:
@@ -172,11 +174,11 @@ def _compute_variances(
 
 def _generate_training_sample(
     dataset: DisentDataset,
-    representation_function: callable,
+    representation_function: Callable,
     batch_size: int,
     global_variances: np.ndarray,
     active_dims: list,
-) -> (int, int):
+) -> Tuple[int, np.intp]:
     """Sample a single training sample based on a mini-batch of ground-truth data.
     Args:
       dataset: DisentDataset to be sampled from.
@@ -205,7 +207,7 @@ def _generate_training_sample(
 
 def _generate_training_batch(
     dataset: DisentDataset,
-    representation_function: callable,
+    representation_function: Callable,
     batch_size: int,
     num_points: int,
     global_variances: np.ndarray,

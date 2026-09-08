@@ -24,10 +24,11 @@
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+from typing import Optional
 from typing import Sequence
 
 import torch
-from torch.distributions import Normal
+from torch.distributions import Distribution
 
 from disent.frameworks.helper.util import compute_ave_loss_and_logs
 from disent.frameworks.vae._unsupervised__betavae import BetaVae
@@ -58,8 +59,9 @@ class DipVae(BetaVae):
         lambda_d: float = 10.0
         lambda_od: float = 5.0
 
-    def __init__(self, model: "AutoEncoder", cfg: cfg = None, batch_augment=None):
+    def __init__(self, model: "AutoEncoder", cfg: Optional[cfg] = None, batch_augment=None):
         super().__init__(model=model, cfg=cfg, batch_augment=batch_augment)
+        self.cfg: DipVae.cfg
         # checks
         assert self.cfg.dip_mode in {
             "i",
@@ -75,7 +77,8 @@ class DipVae(BetaVae):
     # Overrides                                                             #
     # --------------------------------------------------------------------- #
 
-    def compute_ave_reg_loss(self, ds_posterior: Sequence[Normal], ds_prior: Sequence[Normal], zs_sampled):
+    def compute_ave_reg_loss(self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution], zs_sampled):
+        self.cfg: DipVae.cfg
         # compute kl loss
         kl_reg_loss, logs_kl_reg = super().compute_ave_reg_loss(ds_posterior, ds_prior, zs_sampled)
         # compute dip loss
@@ -92,7 +95,7 @@ class DipVae(BetaVae):
     # Helper                                                                #
     # --------------------------------------------------------------------- #
 
-    def _dip_compute_loss(self, d_posterior: Normal):
+    def _dip_compute_loss(self, d_posterior: Distribution):
         cov_matrix = self._dip_estimate_cov_matrix(d_posterior)
         return self._dip_compute_regulariser(cov_matrix)
 
@@ -120,7 +123,7 @@ class DipVae(BetaVae):
             "dip_reg_loss": dip_reg_loss,
         }
 
-    def _dip_estimate_cov_matrix(self, d_posterior: Normal):
+    def _dip_estimate_cov_matrix(self, d_posterior: Distribution):
         z_mean, z_var = d_posterior.mean, d_posterior.variance
         # compute covariance over batch
         cov_z_mean = torch_cov_matrix(z_mean)

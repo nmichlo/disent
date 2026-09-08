@@ -23,6 +23,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 
+from typing import Optional
 from typing import Sequence
 from typing import Tuple
 from typing import final
@@ -72,7 +73,7 @@ class LatentDistsHandler(object):
 
     @final
     def compute_kl_loss(
-        self, posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None
+        self, posterior: Distribution, prior: Distribution, z_sampled: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """
         Compute the kl divergence
@@ -83,7 +84,7 @@ class LatentDistsHandler(object):
 
     @final
     def compute_unreduced_kl_loss(
-        self, posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None
+        self, posterior: Distribution, prior: Distribution, z_sampled: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         return kl_loss(posterior, prior, z_sampled, mode=self._kl_mode)
 
@@ -111,11 +112,11 @@ class LatentDistsHandlerNormal(LatentDistsHandler):
     # assert mode == 'direct', f'legacy reference implementation of KL loss only supports mode="direct", not {repr(mode)}'
     # assert reduction == 'mean_sum', f'legacy reference implementation of KL loss only supports reduction="mean_sum", not {repr(reduction)}'
 
-    def encoding_to_representation(self, raw_z: Tuple[torch.Tensor, ...]) -> torch.Tensor:
-        z_mean, z_logvar = raw_z
+    def encoding_to_representation(self, z_raw: Tuple[torch.Tensor, ...]) -> torch.Tensor:
+        z_mean, z_logvar = z_raw
         return z_mean
 
-    def encoding_to_dists(self, raw_z: Tuple[torch.Tensor, ...]) -> Tuple[Normal, Normal]:
+    def encoding_to_dists(self, z_raw: Tuple[torch.Tensor, ...]) -> Tuple[Normal, Normal]:
         """
         Return the parameterized prior and the approximate posterior distributions.
         - The standard VAE parameterizes the gaussian normal with diagonal covariance.
@@ -126,7 +127,7 @@ class LatentDistsHandlerNormal(LatentDistsHandler):
             https://github.com/google-research/disentanglement_lib (sample_from_latent_distribution)
             https://github.com/PyTorchLightning/pytorch-lightning-bolts/blob/master/pl_bolts/models/autoencoders/basic_vae/basic_vae_module.py
         """
-        z_mean, z_logvar = raw_z
+        z_mean, z_logvar = z_raw
         # compute required values
         z_std = torch.exp(0.5 * z_logvar)
         # q: approximate posterior distribution
@@ -147,12 +148,12 @@ class LatentDistsHandlerLaplace(LatentDistsHandler):
     NOTE: Expanding parameters results in something akin to an L1 regularizer, with extra terms?
     """
 
-    def encoding_to_representation(self, raw_z: Tuple[torch.Tensor, ...]) -> torch.Tensor:
-        z_loc, z_logscale = raw_z
+    def encoding_to_representation(self, z_raw: Tuple[torch.Tensor, ...]) -> torch.Tensor:
+        z_loc, z_logscale = z_raw
         return z_loc
 
-    def encoding_to_dists(self, raw_z: Tuple[torch.Tensor, ...]) -> Tuple[Laplace, Laplace]:
-        z_loc, z_logscale = raw_z
+    def encoding_to_dists(self, z_raw: Tuple[torch.Tensor, ...]) -> Tuple[Laplace, Laplace]:
+        z_loc, z_logscale = z_raw
         # compute required values
         z_scale = torch.exp(z_logscale)
         # q: approximate posterior distribution
@@ -170,8 +171,15 @@ class LatentDistsHandlerLaplace(LatentDistsHandler):
 
 def make_latent_distribution(name: str, kl_mode: str, reduction: str) -> LatentDistsHandler:
     cls = R.LATENT_HANDLERS[name]
+    # check that we can call the handler
+    if not callable(cls):
+        raise TypeError(f"unsupported latent distribution handler type: {type(cls)}")
     # make instance
-    return cls(kl_mode=kl_mode, reduction=reduction)
+    instance = cls(kl_mode=kl_mode, reduction=reduction)
+    # check instance
+    if not isinstance(instance, LatentDistsHandler):
+        raise TypeError(f"returned object is not an instance of {LatentDistsHandler.__name__}, got: {type(instance)}")
+    return instance
 
 
 # ========================================================================= #

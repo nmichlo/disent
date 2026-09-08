@@ -123,7 +123,7 @@ class DataFileCars3dResized(DataFileHashed):
         self._out_size = out_size
         self._cars3dfile = cars3d_datafile
         super().__init__(
-            file_name=modify_name_keep_ext(self._cars3dfile.out_name, suffix=f"_x{out_size}")
+            file_name=str(modify_name_keep_ext(self._cars3dfile.out_name, suffix=f"_x{out_size}"))
             if (out_name is None)
             else out_name,
             file_hash=out_hash,

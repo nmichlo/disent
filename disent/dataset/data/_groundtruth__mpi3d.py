@@ -74,7 +74,7 @@ class DataFileMpi3dResaved(DataFileHashed):
     ):
         self._mpi3d_datafile = mpi3d_datafile
         super().__init__(
-            file_name=modify_ext(self._mpi3d_datafile.out_name, "h5") if (out_name is None) else out_name,
+            file_name=str(modify_ext(self._mpi3d_datafile.out_name, "h5")) if (out_name is None) else out_name,
             file_hash=out_hash,
             hash_type=hash_type,
             hash_mode=hash_mode,

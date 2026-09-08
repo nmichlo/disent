@@ -41,9 +41,9 @@ class ArrayDataset(Dataset, LengthIter):
     def __len__(self):
         return self._array.shape[0]
 
-    def __getitem__(self, item):
-        assert isinstance(item, int)  # disable smart array accesses
-        elem = self._array[item]
+    def __getitem__(self, index):
+        assert isinstance(index, int)  # disable smart array accesses
+        elem = self._array[index]
         if self._transform is not None:
             elem = self._transform(elem)
         return elem
@@ -81,8 +81,8 @@ class Hdf5Dataset(Dataset, LengthIter):
     def __len__(self):
         return self._hdf5_data.shape[0]
 
-    def __getitem__(self, item):
-        elem = self._hdf5_data[item]
+    def __getitem__(self, index):
+        elem = self._hdf5_data[index]
         if self._transform is not None:
             elem = self._transform(elem)
         return elem

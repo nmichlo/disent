@@ -34,7 +34,7 @@ dataloader_train = DataLoader(dataset=dataset_train, batch_size=4, shuffle=True,
 dataloader_val = DataLoader(dataset=dataset_val, batch_size=4, shuffle=True, num_workers=0)
 
 # create the pytorch lightning system
-module: L.LightningModule = BetaVae(
+module = BetaVae(
     model=AutoEncoder(
         encoder=EncoderConv64(x_shape=gt_data.x_shape, z_size=6, z_multiplier=2),
         decoder=DecoderConv64(x_shape=gt_data.x_shape, z_size=6),

@@ -29,9 +29,12 @@ Factored Components Metric
 """
 
 import logging
+from collections.abc import Callable
 from typing import Dict
 from typing import List
+from typing import Mapping
 from typing import Optional
+from typing import Sequence
 from typing import Tuple
 from typing import Union
 
@@ -71,7 +74,7 @@ _SAMPLES_MULTIPLIER_FACTOR = 2
 
 def _metric_factored_components(
     dataset: DisentDataset,
-    representation_function: callable,
+    representation_function: Callable,
     num_samples: int = 64,
     global_subset_size: int = 32,
     repeats: int = 1024,
@@ -209,7 +212,7 @@ def _compute_factored_metric_components(
     batch_size: int,
     compute_distances: bool,
     compute_linearity: bool,
-) -> (dict, dict):
+) -> Tuple[dict, dict]:
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     # COMPUTE FOR EACH FACTOR
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -357,11 +360,13 @@ def _torch_stack_all_dicts(dists_list: List[Dict[str, torch.Tensor]]) -> Dict[st
     return {k: torch.stack([dists_dict[k] for dists_dict in dists_list], dim=0) for k in dists_list[0].keys()}
 
 
-def _numpy_concat_all_dicts(dists_list: List[Dict[str, Union[np.ndarray, float, int]]]) -> Dict[str, np.ndarray]:
+def _numpy_concat_all_dicts(
+    dists_list: Sequence[Mapping[str, Union[np.ndarray, float, int]]],
+) -> Dict[str, np.ndarray]:
     return {k: np.concatenate([dists_dict[k] for dists_dict in dists_list], axis=0) for k in dists_list[0].keys()}
 
 
-def _numpy_stack_all_dicts(dists_list: List[Dict[str, Union[np.ndarray, float, int]]]) -> Dict[str, np.ndarray]:
+def _numpy_stack_all_dicts(dists_list: Sequence[Mapping[str, Union[np.ndarray, float, int]]]) -> Dict[str, np.ndarray]:
     return {k: np.stack([dists_dict[k] for dists_dict in dists_list], axis=0) for k in dists_list[0].keys()}
 
 
@@ -464,7 +469,7 @@ def _compute_dists(
         return distances
 
 
-def _compute_scores_from_dists(dists: Dict[str, np.array]) -> Dict[str, float]:
+def _compute_scores_from_dists(dists: Dict[str, np.ndarray]) -> Dict[str, float]:
     # [DATA & GROUND DISTS]:
     # extract the distances -- shape: (num,)
     ap_ground_dists = dists["ap_ground_dists"]

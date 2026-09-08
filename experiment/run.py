@@ -80,7 +80,7 @@ def hydra_register_disent_plugins(cfg):
         )
 
 
-def hydra_get_accelerator_and_devices(cfg) -> Tuple[str, Optional[int]]:
+def hydra_get_accelerator_and_devices(cfg) -> Tuple[str, Union[int, str]]:
     # TODO: rather specify accelerator and devices directly in config...
     #       this is redundant with the new pytorch lightning auto system.
     #       - we should also allow different accelerators like mps for apple silicon
@@ -174,6 +174,7 @@ def hydra_get_checkpoint_callbacks(cfg) -> list:
         hydra_checkpoint = ModelCheckpoint(dirpath=hydra_ckp_dir, verbose=True, save_last=True)
         callbacks.append(hydra_checkpoint)
         if cfg.logging.wandb.enabled:
+            assert wandb.run is not None, "`wandb.run` is not set, has `wandb.init` been called yet?"
             wandb_ckp_dir = os.path.join(wandb.run.dir, "checkpoints")
             wandb_checkpoint = ModelCheckpoint(dirpath=wandb_ckp_dir, save_last=True)
             callbacks.append(wandb_checkpoint)
@@ -237,6 +238,7 @@ def hydra_create_framework(
     )
 
     # check if some cfg variables were not overridden
+    assert isinstance(framework.cfg, DisentFramework.cfg)
     missing_keys = sorted(set(framework.cfg.get_keys()) - (set(cfg.framework.cfg.keys())))
     if missing_keys:
         log.warning(f"{c.RED}Framework {repr(cfg.framework.name)} is missing config keys for:{c.RST}")
@@ -351,11 +353,13 @@ def action_train(cfg: DictConfig):
         ModelSummary(max_depth=2),  # override default ModelSummary set by trainer
     ]
 
-    # - trainer: default kwargs
-    trainer_default_kwargs = dict(
-        detect_anomaly=False,  # this should only be enabled for debugging torch and finding NaN values, slows down execution, not by much though?
-        enable_checkpointing=cfg.settings.checkpoint.save_checkpoint,
-    )
+    # - trainer: config kwargs, pop out the keys that have defaults below so that
+    #   the config can still override them without a duplicate keyword argument.
+    trainer_config_kwargs = dict(cfg.trainer)
+    detect_anomaly = trainer_config_kwargs.pop(
+        "detect_anomaly", False
+    )  # this should only be enabled for debugging torch and finding NaN values, slows down execution, not by much though?
+    enable_checkpointing = trainer_config_kwargs.pop("enable_checkpointing", cfg.settings.checkpoint.save_checkpoint)
 
     # - trainer: init
     trainer = set_debug_trainer(
@@ -365,8 +369,11 @@ def action_train(cfg: DictConfig):
             accelerator=accelerator,
             devices=devices,
             callbacks=trainer_callbacks,
-            # additional kwargs from the config, overrides the defaults
-            **{**trainer_default_kwargs, **cfg.trainer},
+            # defaults, overridable from the config
+            detect_anomaly=detect_anomaly,
+            enable_checkpointing=enable_checkpointing,
+            # additional kwargs from the config
+            **trainer_config_kwargs,
         )
     )
 

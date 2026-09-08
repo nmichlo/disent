@@ -77,7 +77,7 @@ class EncoderConv64(DisentEncoder):
             ),  # we combine the two networks in the reference implementation and use torch.chunk(2, dim=-1) to get mu & logvar
         )
 
-    def encode(self, x) -> (Tensor, Tensor):
+    def encode(self, x) -> Tensor:
         return self.model(x)
 
 

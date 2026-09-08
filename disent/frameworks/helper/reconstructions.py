@@ -236,7 +236,11 @@ class ReconLossHandlerNormal(ReconLossHandlerMse):
 # ========================================================================= #
 
 
-_NO_ARG = object()
+class _NoArgType:
+    """Unique sentinel type used to detect that `normalize_mode` was not explicitly passed."""
+
+
+_NO_ARG = _NoArgType()
 
 
 class AugmentedReconLossHandler(ReconLossHandler):
@@ -246,7 +250,7 @@ class AugmentedReconLossHandler(ReconLossHandler):
         kernel: Union[str, torch.Tensor],
         wrap_weight: float = 1.0,
         aug_weight: float = 1.0,
-        normalize_mode: str = _NO_ARG,
+        normalize_mode: Union[str, _NoArgType] = _NO_ARG,
     ):
         super().__init__(reduction=recon_loss_handler._reduction)
         # save variables
@@ -255,7 +259,7 @@ class AugmentedReconLossHandler(ReconLossHandler):
         assert isinstance(recon_loss_handler, ReconLossHandler)
         assert not isinstance(recon_loss_handler, AugmentedReconLossHandler)
         # deprecation error
-        if normalize_mode is _NO_ARG:
+        if isinstance(normalize_mode, _NoArgType):
             raise ValueError(
                 'default argument for normalize_mode was "sum", this has been deprecated and will change to "none" in future. Please manually override this value!'
             )

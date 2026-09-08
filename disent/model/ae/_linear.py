@@ -42,7 +42,7 @@ class EncoderLinear(DisentEncoder):
             nn.Flatten(), nn.Linear(in_features=int(np.prod(self.x_shape)), out_features=self.z_total)
         )
 
-    def encode(self, x) -> (Tensor, Tensor):
+    def encode(self, x) -> Tensor:
         return self.model(x)
 
 

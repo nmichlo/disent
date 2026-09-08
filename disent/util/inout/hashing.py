@@ -24,6 +24,7 @@
 
 import os
 from typing import Dict
+from typing import Optional
 from typing import Union
 
 # ========================================================================= #
@@ -105,7 +106,7 @@ class HashError(Exception):
     """
 
 
-def normalise_hash(hash: Union[str, Dict[str, str]], hash_mode: str) -> str:
+def normalise_hash(hash: Optional[Union[str, Dict[str, str]]], hash_mode: str) -> Optional[str]:
     """
     file hashes depend on the mode.
     - Allow hashes to be dictionaries that map the hash_mode to the hash.
@@ -122,7 +123,7 @@ def normalise_hash(hash: Union[str, Dict[str, str]], hash_mode: str) -> str:
 
 def validate_file_hash(
     file: str,
-    hash: Union[str, Dict[str, str]],
+    hash: Optional[Union[str, Dict[str, str]]],
     hash_type: str = "md5",
     hash_mode: str = "full",
     missing_ok: bool = False,
@@ -142,7 +143,7 @@ def validate_file_hash(
 
 def is_valid_file_hash(
     file: str,
-    hash: Union[str, Dict[str, str]],
+    hash: Optional[Union[str, Dict[str, str]]],
     hash_type: str = "md5",
     hash_mode: str = "full",
     missing_ok: bool = False,

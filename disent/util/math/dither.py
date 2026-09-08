@@ -141,16 +141,16 @@ def nd_dither_matrix_like(
       with the original matrix, unless `expand=False`
     - `n` is the size of the underlying dither matrix which is tiled
     """
-    axis = _normalize_axis(arr.ndim, tuple(axis))
-    sizes = np.array(arr.shape)[axis]
+    axis_arr = _normalize_axis(arr.ndim, tuple(axis) if (axis is not None) else None)
+    sizes = np.array(arr.shape)[axis_arr]
     # get dither values
-    d_mat = nd_dither_matrix(n=n, d=len(axis), norm=norm)
+    d_mat = nd_dither_matrix(n=n, d=len(axis_arr), norm=norm)
     # repeat values across array, rounding up and then trimming dims
-    dd = np.tile(d_mat, (sizes + n - 1) // n)
+    dd = np.tile(d_mat, ((sizes + n - 1) // n).tolist())
     dd = dd[tuple(slice(0, size) for size in sizes)]
     # create missing dims
     if expand:
-        dd = np.expand_dims(dd, axis=tuple(set(range(arr.ndim)) - set(axis)))
+        dd = np.expand_dims(dd, axis=tuple(set(range(arr.ndim)) - set(axis_arr.tolist())))
     # done
     return dd
 
@@ -178,24 +178,21 @@ def _normalize_axis(ndim: int, axis: Optional[Sequence[int]]) -> np.ndarray:
     # TODO: this functionality may be duplicated
     #       -- similar to np.normalize_axis_tuple(...)
     # defaults
-    if axis is None:
-        axis = np.arange(ndim)
-    # convert
-    axis = np.array(axis)
-    if axis.ndim == 0:
-        axis = axis[None]
+    axis_arr = np.arange(ndim) if (axis is None) else np.array(axis)
+    if axis_arr.ndim == 0:
+        axis_arr = axis_arr[None]
     # checks
-    assert axis.ndim == 1
-    assert axis.dtype in ("int", "int32", "int64")
+    assert axis_arr.ndim == 1
+    assert axis_arr.dtype in ("int", "int32", "int64")
     # convert
-    axis = np.where(axis < 0, ndim + axis, axis)
-    axis = np.sort(axis)
+    axis_arr = np.where(axis_arr < 0, ndim + axis_arr, axis_arr)
+    axis_arr = np.sort(axis_arr)
     # checks
-    assert np.unique(axis).shape == axis.shape
-    assert np.all(0 <= axis)
-    assert np.all(axis < ndim)
+    assert np.unique(axis_arr).shape == axis_arr.shape
+    assert np.all(0 <= axis_arr)
+    assert np.all(axis_arr < ndim)
     # done!
-    return _np_immutable_copy(axis)  # shape: [d]
+    return _np_immutable_copy(axis_arr)  # shape: [d]
 
 
 # ========================================================================= #

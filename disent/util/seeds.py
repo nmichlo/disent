@@ -24,6 +24,7 @@
 
 import contextlib
 import logging
+from typing import Optional
 
 log = logging.getLogger(__name__)
 
@@ -62,7 +63,7 @@ def seed(long=777):
 
 
 class TempNumpySeed(contextlib.ContextDecorator):
-    def __init__(self, seed: int = None):
+    def __init__(self, seed: Optional[int] = None):
         # check and normalize seed
         if seed is not None:
             try:
@@ -81,7 +82,7 @@ class TempNumpySeed(contextlib.ContextDecorator):
             np.random.seed(self._seed)
 
     def __exit__(self, *args, **kwargs):
-        if self._seed is not None:
+        if self._state is not None:
             import numpy as np
 
             np.random.set_state(self._state)

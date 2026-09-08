@@ -55,7 +55,7 @@ class LoggerProgressCallback(BaseCallbackTimed):
         # get vars
         global_step = trainer.global_step + 1
         epoch = trainer.current_epoch + 1
-        if hasattr(trainer, "batch_idx"):
+        if hasattr(trainer, "batch_idx") and isinstance(trainer.batch_idx, int):
             batch = trainer.batch_idx + 1
         else:
             # warnings.warn('batch_idx missing on L.Trainer')  # TODO: re-enable this warning but only ever print once!

@@ -69,24 +69,24 @@ def plot_dataset_traversals(
     pad: int = 8,
     bg_color: int = 127,
     border: bool = False,
-    rel_path: str = None,
+    rel_path: Optional[str] = None,
     save: bool = True,
     seed: int = 777,
     plt_scale: float = 4.5,
     offset: float = 0.75,
     transpose: bool = False,
-    title: Union[bool, str] = True,
+    title: Optional[Union[bool, str]] = True,
     label_size: int = 22,
     title_size: int = 26,
     labels_at_top: bool = False,
     img_ext: str = ".jpg",
 ):
+    num_cols = num_cols if (num_cols is not None) else min(max(gt_data.factor_sizes), 32)
     if take_cols is not None:
         assert take_cols >= num_cols
     # convert
     dataset = DisentDataset(gt_data)
     f_idxs = gt_data.normalise_factor_idxs(f_idxs)
-    num_cols = num_cols if (num_cols is not None) else min(max(gt_data.factor_sizes), 32)
     # get traversal grid
     row_labels = [gt_data.factor_names[i] for i in f_idxs]
     grid, _, _ = H.visualize_dataset_traversal(

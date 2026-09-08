@@ -25,11 +25,12 @@
 
 import warnings
 from functools import lru_cache
-from numbers import Number
 from typing import List
+from typing import Literal
 from typing import Optional
 from typing import Tuple
 from typing import Union
+from typing import overload
 
 import numpy as np
 import torch
@@ -57,7 +58,11 @@ _NP_TO_TORCH_DTYPE = {
 }
 
 
-MinMaxHint = Union[Number, Tuple[Number, ...], np.ndarray]
+# `numbers.Number` is not supported for static type checking (it is a virtual ABC
+# that concrete types like `float`/`int` do not nominally subclass), so the numeric
+# tower is spelled out explicitly here instead.
+Num = Union[int, float]
+MinMaxHint = Union[Num, Tuple[Num, ...], np.ndarray]
 
 
 @lru_cache()
@@ -156,8 +161,8 @@ def torch_image_to_dtype(tensor: torch.Tensor, out_dtype: torch.dtype):
 @torch.no_grad()
 def torch_image_normalize_channels(
     tensor: torch.Tensor,
-    in_min: MinMaxHint,
-    in_max: MinMaxHint,
+    in_min: Optional[MinMaxHint],
+    in_max: Optional[MinMaxHint],
     channel_dim: int = -1,
     out_dtype: Optional[torch.dtype] = None,
 ):
@@ -167,23 +172,23 @@ def torch_image_normalize_channels(
     _check_image_dtype(out_dtype)
     assert out_dtype.is_floating_point, f"out_dtype must be a floating point, got: {repr(out_dtype)}"
     # get norm values padded to the dimension of the channel
-    in_min, in_max = _torch_channel_broadcast_scale_values(
+    min_list, max_list = _torch_channel_broadcast_scale_values(
         in_min, in_max, in_dtype=tensor.dtype, dim=channel_dim, ndim=tensor.ndim
     )
     # convert
     tensor = tensor.to(out_dtype)
-    in_min = torch.as_tensor(in_min, dtype=tensor.dtype, device=tensor.device)
-    in_max = torch.as_tensor(in_max, dtype=tensor.dtype, device=tensor.device)
+    min_t = torch.as_tensor(min_list, dtype=tensor.dtype, device=tensor.device)
+    max_t = torch.as_tensor(max_list, dtype=tensor.dtype, device=tensor.device)
     # warn if the values are the same
-    if torch.any(in_min == in_max):
-        m = in_min.cpu().detach().numpy()
-        M = in_min.cpu().detach().numpy()
+    if torch.any(min_t == max_t):
+        m = min_t.cpu().detach().numpy()
+        M = min_t.cpu().detach().numpy()
         warnings.warn(f"minimum: {m} and maximum: {M} values are the same, scaling values to zero.")
     # handle equal values
-    divisor = in_max - in_min
+    divisor = max_t - min_t
     divisor[divisor == 0] = 1
     # normalize
-    return (tensor - in_min) / divisor
+    return (tensor - min_t) / divisor
 
 
 # ========================================================================= #
@@ -258,12 +263,12 @@ def _torch_to_images_normalise_args(
 
 
 def _torch_channel_broadcast_scale_values(
-    in_min: MinMaxHint,
-    in_max: MinMaxHint,
+    in_min: Optional[MinMaxHint],
+    in_max: Optional[MinMaxHint],
     in_dtype: torch.dtype,
     dim: int,
     ndim: int,
-) -> Tuple[List[Number], List[Number]]:
+) -> Tuple[List[Num], List[Num]]:
     return __torch_channel_broadcast_scale_values(
         in_min=tuple(np.array(in_min).reshape(-1).tolist()),  # TODO: this is slow?
         in_max=tuple(np.array(in_max).reshape(-1).tolist()),  # TODO: this is slow?
@@ -276,33 +281,33 @@ def _torch_channel_broadcast_scale_values(
 @lru_cache()
 @torch.no_grad()
 def __torch_channel_broadcast_scale_values(
-    in_min: MinMaxHint,
-    in_max: MinMaxHint,
+    in_min: Optional[MinMaxHint],
+    in_max: Optional[MinMaxHint],
     in_dtype: torch.dtype,
     dim: int,
     ndim: int,
-) -> Tuple[List[Number], List[Number]]:
+) -> Tuple[List[Num], List[Num]]:
     # get the default values
-    in_min: np.ndarray = np.array((0.0 if in_dtype.is_floating_point else 0.0) if (in_min is None) else in_min)
-    in_max: np.ndarray = np.array((1.0 if in_dtype.is_floating_point else 255.0) if (in_max is None) else in_max)
+    in_min_arr: np.ndarray = np.array((0.0 if in_dtype.is_floating_point else 0.0) if (in_min is None) else in_min)
+    in_max_arr: np.ndarray = np.array((1.0 if in_dtype.is_floating_point else 255.0) if (in_max is None) else in_max)
     # add missing axes
-    if in_min.ndim == 0:
-        in_min = in_min[None]
-    if in_max.ndim == 0:
-        in_max = in_max[None]
+    if in_min_arr.ndim == 0:
+        in_min_arr = in_min_arr[None]
+    if in_max_arr.ndim == 0:
+        in_max_arr = in_max_arr[None]
     # checks
-    assert in_min.ndim == 1
-    assert in_max.ndim == 1
-    assert np.all(in_min <= in_max), f"min values are not <= the max values: {in_min} !<= {in_max}"
+    assert in_min_arr.ndim == 1
+    assert in_max_arr.ndim == 1
+    assert np.all(in_min_arr <= in_max_arr), f"min values are not <= the max values: {in_min_arr} !<= {in_max_arr}"
     # normalize dim
     dim = normalize_axis_index(dim, ndim=ndim)
     # pad dim
     r_pad = ndim - (dim + 1)
     if r_pad > 0:
-        in_min = in_min[(...,) + ((None,) * r_pad)]
-        in_max = in_max[(...,) + ((None,) * r_pad)]
+        in_min_arr = in_min_arr[(...,) + ((None,) * r_pad)]
+        in_max_arr = in_max_arr[(...,) + ((None,) * r_pad)]
     # done!
-    return in_min.tolist(), in_max.tolist()
+    return in_min_arr.tolist(), in_max_arr.tolist()
 
 
 # ========================================================================= #
@@ -310,6 +315,33 @@ def __torch_channel_broadcast_scale_values(
 # ========================================================================= #
 
 
+@overload
+def torch_to_images(
+    tensor: torch.Tensor,
+    in_dims: str = ...,
+    out_dims: str = ...,
+    in_dtype: Optional[torch.dtype] = ...,
+    out_dtype: Optional[torch.dtype] = ...,
+    clamp_mode: str = ...,
+    always_rgb: bool = ...,
+    in_min: Optional[MinMaxHint] = ...,
+    in_max: Optional[MinMaxHint] = ...,
+    to_numpy: Literal[False] = ...,
+) -> torch.Tensor: ...
+@overload
+def torch_to_images(
+    tensor: torch.Tensor,
+    in_dims: str = ...,
+    out_dims: str = ...,
+    in_dtype: Optional[torch.dtype] = ...,
+    out_dtype: Optional[torch.dtype] = ...,
+    clamp_mode: str = ...,
+    always_rgb: bool = ...,
+    in_min: Optional[MinMaxHint] = ...,
+    in_max: Optional[MinMaxHint] = ...,
+    *,
+    to_numpy: Literal[True],
+) -> np.ndarray: ...
 @torch.no_grad()
 def torch_to_images(
     tensor: torch.Tensor,
@@ -409,17 +441,15 @@ def numpy_to_images(
     - See the docs for: torch_to_images(...)
     """
     # convert numpy dtypes to torch
-    if in_dtype is not None:
-        in_dtype = _NP_TO_TORCH_DTYPE[np.dtype(in_dtype)]
-    if out_dtype is not None:
-        out_dtype = _NP_TO_TORCH_DTYPE[np.dtype(out_dtype)]
+    torch_in_dtype = _NP_TO_TORCH_DTYPE[np.dtype(in_dtype)] if (in_dtype is not None) else None
+    torch_out_dtype = _NP_TO_TORCH_DTYPE[np.dtype(out_dtype)] if (out_dtype is not None) else None
     # convert back
     array = torch_to_images(
         tensor=torch.from_numpy(ndarray),
         in_dims=in_dims,
         out_dims=out_dims,
-        in_dtype=in_dtype,
-        out_dtype=out_dtype,
+        in_dtype=torch_in_dtype,
+        out_dtype=torch_out_dtype,
         clamp_mode=clamp_mode,
         always_rgb=always_rgb,
         in_min=in_min,

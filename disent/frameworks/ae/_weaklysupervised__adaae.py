@@ -23,10 +23,10 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from dataclasses import dataclass
-from typing import Any
 from typing import Dict
 from typing import Sequence
 from typing import Tuple
+from typing import Union
 
 import torch
 
@@ -54,7 +54,9 @@ class AdaAe(Ae):
     class cfg(Ae.cfg):
         ada_thresh_ratio: float = 0.5
 
-    def hook_ae_intercept_zs(self, zs: Sequence[torch.Tensor]) -> Tuple[Sequence[torch.Tensor], Dict[str, Any]]:
+    def hook_ae_intercept_zs(
+        self, zs: Sequence[torch.Tensor]
+    ) -> Tuple[Sequence[torch.Tensor], Dict[str, Union[torch.Tensor, float]]]:
         """
         Adaptive VAE Glue Method, putting the various components together
         1. find differences between deltas
@@ -65,6 +67,7 @@ class AdaAe(Ae):
         TODO: the methods used in this function should probably be moved here
         TODO: this function could be turned into a torch.nn.Module!
         """
+        self.cfg: AdaAe.cfg
         z0, z1 = zs
         # shared elements that need to be averaged, computed per pair in the batch.
         share_mask = AdaVae.compute_shared_mask_from_zs(z0, z1, ratio=self.cfg.ada_thresh_ratio)

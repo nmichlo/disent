@@ -27,7 +27,6 @@ from typing import Union
 
 import numpy as np
 import torch
-from torch.utils.data import Dataset
 
 from disent.dataset.data import GroundTruthData
 from disent.dataset.wrapper._base import WrappedDataset
@@ -86,11 +85,11 @@ class MaskedDataset(WrappedDataset):
     def __len__(self):
         return len(self._indices)
 
-    def __getitem__(self, idx):
-        return self._data[self._indices[idx]]
+    def __getitem__(self, index):
+        return self._data[self._indices[index]]
 
     @property
-    def data(self) -> Dataset:
+    def data(self) -> DataTypeHint:
         return self._data
 
 

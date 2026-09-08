@@ -56,9 +56,9 @@ def _get_2d_reshape_info(shape: Tuple[int, ...], dims: Union[int, Tuple[int, ...
     dims_X = sorted(dims_X)
     dims_B = sorted(dims_B)
     # compute shape
-    shape = np.array(shape)
-    size_B = int(np.prod(shape[dims_B]))
-    size_X = int(np.prod(shape[dims_X]))
+    shape_arr = np.array(shape)
+    size_B = int(np.prod(shape_arr[dims_B]))
+    size_X = int(np.prod(shape_arr[dims_X]))
     # variables
     moved_end_dims = tuple(dims_X[::-1])
     reshape_size = (size_B, size_X)

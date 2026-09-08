@@ -24,6 +24,7 @@
 
 from itertools import islice
 from typing import List
+from typing import Optional
 from typing import Sequence
 
 # ========================================================================= #
@@ -64,7 +65,7 @@ def iter_rechunk(chunks, chunk_size: int, include_remainder=True):
     )
 
 
-def map_all(fn, *arg_lists, starmap: bool = True, collect_returned: bool = False, common_kwargs: dict = None):
+def map_all(fn, *arg_lists, starmap: bool = True, collect_returned: bool = False, common_kwargs: Optional[dict] = None):
     # TODO: not actually an iterator
     assert arg_lists, "an empty list of args was passed"
     # check all lengths are the same

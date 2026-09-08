@@ -53,8 +53,8 @@ log = logging.getLogger(__name__)
 
 
 class NumpyFolder(ImageFolder):
-    def __getitem__(self, idx):
-        img, cls = super().__getitem__(idx)
+    def __getitem__(self, index):
+        img, cls = super().__getitem__(index)
         return np.array(img)
 
 
@@ -66,7 +66,7 @@ def load_imagenet_tiny_data(raw_data_dir):
     # load the data
     data = NumpyFolder(os.path.join(raw_data_dir, "train"))
     data = DataLoader(
-        data, batch_size=64, num_workers=min(16, os.cpu_count()), shuffle=False, drop_last=False, collate_fn=_noop
+        data, batch_size=64, num_workers=min(16, os.cpu_count() or 16), shuffle=False, drop_last=False, collate_fn=_noop
     )
     # load data - this is a bit memory inefficient doing it like this instead of with a loop into a pre-allocated array
     imgs = np.concatenate(list(tqdm(data, "loading")), axis=0)
@@ -147,8 +147,8 @@ class ImageNetTinyData(_Hdf5DataMixin, _DiskDataMixin, Dataset, LengthIter):
             in_memory=in_memory,
         )
 
-    def __getitem__(self, idx: int):
-        obs = self._data[idx]
+    def __getitem__(self, index):
+        obs = self._data[index]
         if self._transform is not None:
             obs = self._transform(obs)
         return obs
