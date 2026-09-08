@@ -127,7 +127,7 @@ def _collect_stats_for_factors(
     f_stats = []
     for i, f_idx in enumerate(f_idxs):
         factor_name = gt_data.factor_names[f_idx]
-        factor_size = gt_data.factor_sizes[f_idx]
+        _factor_size = gt_data.factor_sizes[f_idx]
         # repeatedly generate stats per factor
         stats = defaultdict(list)
         for _ in tqdm(range(num_traversal_sample), desc=f"{gt_data.name}: {factor_name}"):

@@ -23,10 +23,14 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from disent.frameworks.vae._weaklysupervised__adavae import AdaVae
+
+if TYPE_CHECKING:
+    from disent.model import AutoEncoder
 
 # ========================================================================= #
 # Swapped Target AdaVae                                                     #

@@ -210,7 +210,7 @@ def aggregate_measure_distances_along_factor(
             deltas_next = torch.norm(
                 torch.roll(zs_traversal, -1, dims=0) - zs_traversal, dim=-1, p=p
             )  # next | shape: (factor_size, z_size)
-            deltas_prev = torch.norm(
+            _deltas_prev = torch.norm(
                 torch.roll(zs_traversal, 1, dims=0) - zs_traversal, dim=-1, p=p
             )  # prev | shape: (factor_size, z_size)
             # values needed for flatness

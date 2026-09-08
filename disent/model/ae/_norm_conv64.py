@@ -146,7 +146,7 @@ def _make_activations(activation="relu", inplace=True, norm="layer", shape: Tupl
     # order layers
     layers = (n_layer, a_layer) if norm_pre_act else (a_layer, n_layer)
     # return layers
-    return tuple(l for l in layers if l is not None)
+    return tuple(layer for layer in layers if layer is not None)
 
 
 # ========================================================================= #

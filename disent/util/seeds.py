@@ -67,7 +67,7 @@ class TempNumpySeed(contextlib.ContextDecorator):
         if seed is not None:
             try:
                 seed = int(seed)
-            except:
+            except Exception:
                 raise ValueError(f"seed={seed} is not int-like!")
         # save values
         self._seed = seed

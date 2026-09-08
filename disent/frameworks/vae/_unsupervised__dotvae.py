@@ -24,6 +24,7 @@
 
 import logging
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 from typing import Optional
 from typing import Sequence
 from typing import final
@@ -38,6 +39,9 @@ from disent.nn.loss.triplet_mining import configured_idx_mine
 
 log = logging.getLogger(__name__)
 
+
+if TYPE_CHECKING:
+    from disent.model import AutoEncoder
 
 # ========================================================================= #
 # Mixin                                                                     #

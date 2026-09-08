@@ -24,6 +24,7 @@
 
 from dataclasses import dataclass
 from numbers import Number
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import List
@@ -43,6 +44,9 @@ from disent.frameworks.helper.util import compute_ave_loss
 from disent.frameworks.vae._unsupervised__betavae import BetaVae
 from disent.nn.loss.reduction import batch_loss_reduction
 from disent.nn.loss.reduction import get_mean_loss_scale
+
+if TYPE_CHECKING:
+    from disent.model import AutoEncoder
 
 # ========================================================================= #
 # Dfc Vae                                                                   #
@@ -125,7 +129,7 @@ class DfcLossModule(torch.nn.Module):
         super().__init__()
         # feature layers to use
         self.feature_layers = set(
-            ["14", "24", "34", "43"] if (feature_layers is None) else [str(l) for l in feature_layers]
+            ["14", "24", "34", "43"] if (feature_layers is None) else [str(layer) for layer in feature_layers]
         )
         # feature network
         self.feature_network = vgg19_bn(pretrained=True)

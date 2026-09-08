@@ -354,7 +354,7 @@ _PAIR_INDICES_FNS = {
 def pair_indices(max_idx: int, mode: str) -> Tuple[np.ndarray, np.ndarray]:
     try:
         fn = _PAIR_INDICES_FNS[mode]
-    except:
+    except Exception:
         raise KeyError(f"invalid mode: {repr(mode)}")
     return fn(max_idx=max_idx)
 

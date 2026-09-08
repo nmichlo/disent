@@ -24,6 +24,7 @@
 
 from dataclasses import dataclass
 from numbers import Number
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import Sequence
@@ -34,6 +35,9 @@ import torch
 from torch.distributions import Distribution
 
 from disent.frameworks.vae._unsupervised__vae import Vae
+
+if TYPE_CHECKING:
+    from disent.model import AutoEncoder
 
 # ========================================================================= #
 # Beta-VAE Loss                                                             #

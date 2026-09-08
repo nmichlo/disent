@@ -23,6 +23,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 from typing import Sequence
 
 import numpy as np
@@ -31,6 +32,9 @@ from torch import Tensor
 from torch.distributions import Normal
 
 from disent.frameworks.vae._unsupervised__vae import Vae
+
+if TYPE_CHECKING:
+    from disent.model import AutoEncoder
 
 # ========================================================================= #
 # InfoVae                                                                   #
@@ -78,7 +82,7 @@ class InfoVae(Vae):
         """
 
         # only supports one input observation at the moment
-        (d_posterior,), (d_prior,), (z_sampled,) = ds_posterior, ds_prior, zs_sampled
+        (_d_posterior,), (d_prior,), (z_sampled,) = ds_posterior, ds_prior, zs_sampled
 
         # compute kl divergence
         # compute maximum-mean discrepancy

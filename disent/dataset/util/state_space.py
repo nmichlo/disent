@@ -136,7 +136,7 @@ class StateSpace(LengthIter):
         if isinstance(factor, str):
             try:
                 f_idx = self.factor_names.index(factor)
-            except:
+            except Exception:
                 raise KeyError(f"invalid factor name: {repr(factor)} must be one of: {self.factor_names}")
         else:
             f_idx = int(factor)

@@ -54,7 +54,7 @@ def _normalized_numeric_metrics(items: dict):
         else:
             try:
                 results[k] = float(v)
-            except:
+            except Exception:
                 log.warning(
                     f"SKIPPED: metric with key: {repr(k)}, result has invalid type: {type(v)} with value: {repr(v)}"
                 )

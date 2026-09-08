@@ -147,7 +147,7 @@ def nd_dither_matrix_like(
     d_mat = nd_dither_matrix(n=n, d=len(axis), norm=norm)
     # repeat values across array, rounding up and then trimming dims
     dd = np.tile(d_mat, (sizes + n - 1) // n)
-    dd = dd[tuple(slice(0, l) for l in sizes)]
+    dd = dd[tuple(slice(0, size) for size in sizes)]
     # create missing dims
     if expand:
         dd = np.expand_dims(dd, axis=tuple(set(range(arr.ndim)) - set(axis)))

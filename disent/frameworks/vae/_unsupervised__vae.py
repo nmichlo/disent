@@ -24,6 +24,7 @@
 
 from dataclasses import dataclass
 from numbers import Number
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import Sequence
@@ -39,6 +40,9 @@ from disent.frameworks.helper.latent_distributions import LatentDistsHandler
 from disent.frameworks.helper.latent_distributions import make_latent_distribution
 from disent.frameworks.helper.util import detach_all
 from disent.util.iters import map_all
+
+if TYPE_CHECKING:
+    from disent.model import AutoEncoder
 
 # ========================================================================= #
 # framework_vae                                                             #

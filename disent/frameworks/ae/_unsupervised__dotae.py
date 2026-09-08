@@ -24,6 +24,7 @@
 
 import logging
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import Sequence
@@ -37,6 +38,9 @@ from disent.frameworks.vae._unsupervised__dotvae import DataOverlapMixin
 
 log = logging.getLogger(__name__)
 
+
+if TYPE_CHECKING:
+    from disent.model import AutoEncoder
 
 # ========================================================================= #
 # Data Overlap Triplet AE                                                  #

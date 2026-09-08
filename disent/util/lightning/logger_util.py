@@ -53,7 +53,7 @@ def log_metrics(loggers: Optional[Sequence[Logger]], metrics_dct: dict):
         for logger in loggers:
             try:
                 logger.log_metrics(metrics_dct)
-            except:
+            except Exception:
                 warnings.warn(f"Failed to log metrics: {repr(metrics_dct)}")
     else:
         warnings.warn("no trainer.loggers found!")
@@ -75,7 +75,7 @@ def wb_yield_loggers(loggers: Optional[Sequence[Logger]]) -> Iterable[WandbLogge
 
 
 def wb_has_logger(loggers: Optional[Sequence[Logger]]) -> bool:
-    for l in wb_yield_loggers(loggers):
+    for _logger in wb_yield_loggers(loggers):
         return True
     return False
 
@@ -115,7 +115,7 @@ def wb_log_reduced_summaries(loggers: Optional[Sequence[Logger]], summary_dct: d
                 val_prev = wb_logger.experiment.summary.get(key, val_current)
                 val_next = reduce_fn(val_prev, val_current)
                 wb_logger.experiment.summary[key] = val_next
-            except:
+            except Exception:
                 log.error(f"W&B failed to update summary for: {repr(key)}", exc_info=True)
     # warn if nothing logged!
     if wb_logger is None:

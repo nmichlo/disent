@@ -62,7 +62,7 @@ _TEST_LEN = 54
 def _iterate_over_data(data, indices):
     i = -1
     for i, idx in enumerate(indices):
-        img = data[i]
+        _img = data[i]  # read for its side effect only
     return i + 1
 
 

@@ -55,10 +55,13 @@ trainer = L.Trainer(
 )
 trainer.fit(module, dataloader)
 
+
 # compute disentanglement metrics
 # - we cannot guarantee which device the representation is on
 # - this will take a while to run
-get_repr = lambda x: module.encode(x.to(module.device))
+def get_repr(x):
+    return module.encode(x.to(module.device))
+
 
 metrics = {
     **metric_dci(dataset, get_repr, num_train=1000, num_test=500, show_progress=True),

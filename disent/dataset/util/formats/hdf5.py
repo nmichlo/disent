@@ -31,6 +31,7 @@ import logging
 import os
 import warnings
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -48,6 +49,10 @@ from tqdm import tqdm
 
 from disent.util.deprecate import deprecated
 from disent.util.inout.files import AtomicSaveFile
+
+if TYPE_CHECKING:
+    from disent.dataset import DisentDataset
+    from disent.dataset.data import GroundTruthData
 from disent.util.iters import iter_chunks
 from disent.util.profiling import Timer
 from disent.util.strings import colors as c
@@ -317,7 +322,7 @@ class H5Builder(object):
             # last ditch effort, try as an iterator
             try:
                 array = iter(array)
-            except:
+            except Exception:
                 raise TypeError(
                     "`fill_dataset_from_array` only supports arrays of type: `np.ndarray` or `torch.Tensor`"
                 )
@@ -367,7 +372,7 @@ class H5Builder(object):
     ) -> "H5Builder":
         try:
             batches = iter(batch_iter)
-        except:
+        except Exception:
             raise TypeError(f"`fill_dataset_from_batches` must have iterable `batch_iter`, got: {type(batch_iter)}")
 
         # produce items
@@ -621,7 +626,10 @@ def hdf5_save_array(
         log.debug(f"saving h5 dataset using automatic batch size of: {batch_size}")
     # get default
     if out_mutator is None:
-        out_mutator = lambda x: x
+
+        def out_mutator(x):
+            return x
+
     # save data
     with tqdm(total=len(inp_data)) as progress:
         for i in range(0, len(inp_data), batch_size):
@@ -722,7 +730,7 @@ def hdf5_test_entries_per_second(
     for chunk in iter_chunks(enumerate(indices), chunk_size=batch_size):
         with t:
             for i, idx in chunk:
-                entry = h5_dataset[idx]
+                _entry = h5_dataset[idx]  # timed read, value unused
         if t.elapsed > timeout:
             break
     # calculate score

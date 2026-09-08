@@ -98,7 +98,7 @@ def _get_dists_vae(vae: Vae, x_a: torch.Tensor, x_b: torch.Tensor):
     from torch.distributions import kl_divergence
 
     # feed forward
-    (z_post_a, z_prior_a), (z_post_b, z_prior_b) = vae.encode_dists(x_a), vae.encode_dists(x_b)
+    (z_post_a, _z_prior_a), (z_post_b, _z_prior_b) = vae.encode_dists(x_a), vae.encode_dists(x_b)
     z_a, z_b = z_post_a.mean, z_post_b.mean
     r_a, r_b = vae.decode(z_a), vae.decode(z_b)
     # dists

@@ -239,7 +239,7 @@ def hydra_main(
             callback(cfg)
         except Exception as e:
             log_error_and_exit(err_type="experiment error", err_msg=str(e), exc_info=log_exc_info_callback)
-        except:
+        except BaseException:
             log_error_and_exit(err_type="experiment error", err_msg="<UNKNOWN>", exc_info=log_exc_info_callback)
 
     try:
@@ -248,7 +248,7 @@ def hydra_main(
         log_error_and_exit(err_type="interrupted", err_msg=str(e), exc_info=False)
     except Exception as e:
         log_error_and_exit(err_type="hydra error", err_msg=str(e), exc_info=log_exc_info_hydra)
-    except:
+    except BaseException:
         log_error_and_exit(err_type="hydra error", err_msg="<UNKNOWN>", exc_info=log_exc_info_hydra)
 
 

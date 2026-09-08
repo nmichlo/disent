@@ -39,7 +39,7 @@ from disent.nn.functional._util_generic import generic_shape
 
 def _assert_type_and_value(input, target):
     # check types are the same
-    assert type(input) == type(target)
+    assert type(input) is type(target)
     # specific checks
     if isinstance(target, (int, float)):
         assert input == target

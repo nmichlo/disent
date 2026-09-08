@@ -81,7 +81,7 @@ def make_separator_str(text, header=None, width=100, char_v="#", char_h="=", cha
     if header:
         append_wrapped(header)
         lines.append(sep)
-    if type(text) != str:
+    if type(text) is not str:
         text = pprint.pformat(text, width=w)
     append_wrapped(text)
     lines.append(f"{sep}\n")

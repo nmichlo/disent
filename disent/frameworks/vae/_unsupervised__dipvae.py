@@ -23,6 +23,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 from typing import Sequence
 
 import torch
@@ -31,6 +32,9 @@ from torch.distributions import Normal
 from disent.frameworks.helper.util import compute_ave_loss_and_logs
 from disent.frameworks.vae._unsupervised__betavae import BetaVae
 from disent.nn.functional import torch_cov_matrix
+
+if TYPE_CHECKING:
+    from disent.model import AutoEncoder
 
 # ========================================================================= #
 # Dfc Vae                                                                   #

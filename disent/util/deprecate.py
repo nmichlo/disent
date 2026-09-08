@@ -106,7 +106,7 @@ def deprecated(msg: str, traceback_mode: Optional[str] = None, fn=None):
                 elif traceback_mode == "mini":
                     lines = _get_stack_file_strings()[:-2]
                 elif traceback_mode == "traceback":
-                    lines = (l[2:] for g in _get_traceback_file_groups()[:-3] for l in g)
+                    lines = (line[2:] for g in _get_traceback_file_groups()[:-3] for line in g)
                 else:
                     lines = []
                 # print lines

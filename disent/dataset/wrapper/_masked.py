@@ -78,10 +78,10 @@ class MaskedDataset(WrappedDataset):
         self._indices = load_mask_indices(n, mask)
         # randomize
         if randomize:
-            l = len(self._indices)
-            self._indices = load_mask_indices(n, random_choice_prng(n, size=l, replace=False))
-            assert len(self._indices) == l
-            log.info(f"replaced mask: {l}/{n} ({l / n:.3f}) with randomized mask!")
+            num_indices = len(self._indices)
+            self._indices = load_mask_indices(n, random_choice_prng(n, size=num_indices, replace=False))
+            assert len(self._indices) == num_indices
+            log.info(f"replaced mask: {num_indices}/{n} ({num_indices / n:.3f}) with randomized mask!")
 
     def __len__(self):
         return len(self._indices)

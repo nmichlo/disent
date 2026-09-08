@@ -71,7 +71,7 @@ def plot_dataset_overlap(
         # choose an f_idx
         f_idx = np.random.choice(gt_data.normalise_factor_idxs(f_idxs))
         f_name = gt_data.factor_names[f_idx]
-        num_cols = gt_data.factor_sizes[f_idx]
+        _num_cols = gt_data.factor_sizes[f_idx]
         # get a traversal
         obs = [gt_data[i] for i in gt_data.pos_to_idx(gt_data.sample_random_factor_traversal(f_idx=f_idx))]
         # get subset

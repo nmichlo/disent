@@ -32,7 +32,15 @@ import pytest
 from disent.dataset import DisentDataset
 from disent.dataset.data import BaseEpisodesData
 from disent.dataset.data import XYObjectData
-from disent.dataset.sampling import *
+from disent.dataset.sampling import BaseDisentSampler
+from disent.dataset.sampling import GroundTruthDistSampler
+from disent.dataset.sampling import GroundTruthPairOrigSampler
+from disent.dataset.sampling import GroundTruthPairSampler
+from disent.dataset.sampling import GroundTruthSingleSampler
+from disent.dataset.sampling import GroundTruthTripleSampler
+from disent.dataset.sampling import RandomEpisodeSampler
+from disent.dataset.sampling import RandomSampler
+from disent.dataset.sampling import SingleSampler
 
 
 class DummyEpisodesData(BaseEpisodesData):

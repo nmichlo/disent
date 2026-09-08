@@ -287,7 +287,7 @@ class DisentDataset(Dataset, LengthIter):
         """
         try:
             idx = int(idx)
-        except:
+        except Exception:
             raise TypeError(f"Indices must be integer-like ({type(idx)}): {idx}")
         # we do not support indexing by lists
         x_raw = self._dataset[idx]

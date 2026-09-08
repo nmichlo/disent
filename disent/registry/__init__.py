@@ -39,6 +39,8 @@ eg. `DATASET.register(...options...)(your_function_or_class)`
 # from disent.registry._registry import DictProviders
 # from disent.registry._registry import RegexProvidersSearch
 
+from typing import TYPE_CHECKING
+
 from disent.registry._registry import StaticValue
 from disent.registry._registry import LazyValue
 from disent.registry._registry import LazyImport
@@ -46,6 +48,11 @@ from disent.registry._registry import Registry
 from disent.registry._registry import RegistryImports
 from disent.registry._registry import RegexConstructor
 from disent.registry._registry import RegexRegistry
+
+if TYPE_CHECKING:
+    import torch
+
+    import disent
 
 
 # ========================================================================= #

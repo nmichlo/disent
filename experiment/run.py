@@ -312,7 +312,7 @@ def action_train(cfg: DictConfig):
         safe_unset_debug_trainer()
         safe_unset_debug_loggers()
         wandb.finish()
-    except:
+    except Exception:
         pass
 
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -413,7 +413,7 @@ def action_train(cfg: DictConfig):
 
     try:
         wandb.finish()
-    except:
+    except Exception:
         pass
 
 
