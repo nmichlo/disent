@@ -1,0 +1,145 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+# ========================================================================= #
+# PROJECT                                                                   #
+# ========================================================================= #
+
+[project]
+name = "disent"
+# replaced by `.github/workflows/python-publish.yml` at release time.
+# a valid PEP-440 version is used as the placeholder so that local
+# `pip install -e .` builds keep working.
+version = "0.0.0.dev0"
+description = "Vae disentanglement framework built with pytorch lightning."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { file = "LICENSE.txt" }
+authors = [{ name = "Nathan Juraj Michlo", email = "NathanJMichlo@gmail.com" }]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Intended Audience :: Science/Research",
+]
+
+dependencies = [
+    # -- DATA SCIENCE & ML -- #
+    "numpy>=1.19.0",
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    "lightning>=2.0.0",
+    "scipy>=1.7.0",
+    "scikit-learn>=1.0.0",
+    # -- INPUT & OUTPUT -- #
+    "Pillow>=8.2.0",
+    "h5py>=2.10.0",
+    "requests",
+    # -- UTILITY -- #
+    "tqdm>=4.60.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/nmichlo/disent"
+Documentation = "https://disent.michlo.dev"
+Repository = "https://github.com/nmichlo/disent"
+
+# OPTIONAL DEPS INCLUDING
+# - those referenced or imported in disent, but are optional.
+# - those used in documentation examples
+# - those used in experiment code or hydra config targets
+[project.optional-dependencies]
+extra = [
+    # -- INPUT / OUTPUT -- #
+    "GitPython>=3.0.0", # dataset downloads
+    "imageio>=2.9.0",   # required for wandb video logging
+    "moviepy>=1.0.3",   # required for wandb video logging
+    "psutil>=5.8.0",
+    # -- GRAPHING & LOGGING -- #
+    "matplotlib>=3",
+    "wandb>=0.10.32",
+    # -- CONFIGS -- #
+    "omegaconf>=2.1.0",             # only 2.1.0 supports nested variable interpolation eg. ${group.${group.key}}
+    "hydra-core==1.1.1",            # needs omegaconf
+    "hydra-colorlog==1.1.0",
+    "hydra-submitit-launcher==1.1.6",
+    # -- CONFIG TARGETS -- #
+    "torch_optimizer>=0.3.0",
+    # -- TORCH EXTENSIONS -- #
+    # requires pytorch to be installed first.
+    # - we need `nvcc` to be installed first, otherwise GPU kernel extensions will not be
+    #   compiled and this error will silently be skipped. If you get an error such as
+    #   $ conda install -c nvidia cuda-nvcc
+    # - Make sure that the version of torch corresponds to the version of `nvcc`, torch needs
+    #   to be compiled with the same version! Install the correct version from:
+    #   https://pytorch.org/get-started/locally/
+    # - I personally just manage my cuda version manually, installing the correct cudatoolkit
+    #   from: https://developer.nvidia.com/cuda-toolkit-archive
+    #   Then making sure that:
+    #       PATH contains:            "/usr/local/cuda/bin"
+    #       LD_LIBRARY_PATH contains: "/usr/local/cuda/lib64"
+    "torchsort>=0.1.4",
+    # -- JIT -- #
+    "numba>=0.50.0", # optimised sampling
+]
+
+test = [
+    "disent[extra]",
+    "pytest>=6.2.4",
+    "pytest-cov>=2.12.1",
+]
+
+docs = [
+    "mkdocs==1.1.2",
+    "mkdocstrings==0.14.0",
+    "mkdocs-material==6.2.5",
+    "mkdocs-git-revision-date-localized-plugin==0.8",
+]
+
+# `experiment/` and `tests/` are intentionally NOT shipped -- they only exist
+# in the git checkout. See the "Architecture" section of the README.
+[tool.setuptools.packages.find]
+include = ["disent*"]
+
+# ========================================================================= #
+# RUFF                                                                      #
+# ========================================================================= #
+
+[tool.ruff]
+line-length = 120
+target-version = "py38"
+
+[tool.ruff.lint]
+# `E4/E7/E9 + F` is the ruff default, `I` adds import sorting (previously isort).
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.ruff.lint.isort]
+# previously `isort --profile=black --force-single-line-imports`
+force-single-line = true
+
+[tool.ruff.lint.per-file-ignores]
+# `__init__.py` files are re-export hubs -- unsorted and "unused" imports are the point.
+# previously `isort --skip-glob='disent/**__init__.py'`
+"**/__init__.py" = ["F401", "I001"]
+
+# ========================================================================= #
+# TY                                                                        #
+# ========================================================================= #
+
+[tool.ty.environment]
+python-version = "3.8"
+
+[tool.ty.src]
+exclude = ["data", "docs/examples/data"]
+
+# ========================================================================= #
+# PYTEST                                                                    #
+# ========================================================================= #
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+testpaths = ["tests", "disent"]
+python_files = ["test_*.py", "__test__*.py"]

@@ -484,14 +484,14 @@ which pip
 pip install --upgrade pip
 
 # install minimal requirements
-pip install -r requirements.txt
+pip install -e .
 
 # (optional) install extra requirements
 # - first do the above because torch is required to compile torchsort while installing
-pip install -r requirements-extra.txt
+pip install -e ".[extra]"
 
 # (optional) install test requirements
-pip install -r requirements-test.txt
+pip install -e ".[test]"
 ```
 
 </details>
@@ -500,8 +500,7 @@ pip install -r requirements-test.txt
 
 ### Development
 
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![Imports: isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336)](https://pycqa.github.io/isort/)
+[![Code style: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
 Make sure to install `pre-commit` hooks to ensure code is automatically formatted
 correctly when committing or pushing changes to `disent`.
@@ -519,9 +518,9 @@ To run tests locally, make sure to install all the test and extra dependencies i
 environment.
 
 ```bash
-pip install -r requirements.txt
 # torchsort first requires torch to be installed
-pip install -r requirements-extra.txt -r requirements-test.txt
+pip install "torch>=2.0.0"
+pip install -e ".[test]"
 ```
 
 ----------------------

@@ -1,8 +1,0 @@
--r requirements.txt
--r requirements-extra.txt
-
-# OTHER REQUIREMENTS:
-# ==================
-
-pytest>=6.2.4
-pytest-cov>=2.12.1

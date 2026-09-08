@@ -14,29 +14,28 @@ jobs:
         python-version: ["3.8", "3.9", "3.10"]
 
     steps:
-    - uses: actions/checkout@v3
-    
+    - uses: actions/checkout@v4
+
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
         # -- caching actually slows down the action!
         # cache: 'pip'
-        # cache-dependency-path: |
-        #   requirements*.txt
+        # cache-dependency-path: pyproject.toml
 
     - name: Install dependencies
-      # torchsort needs torch first
+      # torchsort (pulled in by the `extra` group) needs torch to already be installed
       run: |
         python3 -m pip install --upgrade pip
         python3 -m pip install "torch>=2.0.0"
-        python3 -m pip install -r requirements-test.txt
+        python3 -m pip install -e ".[test]"
 
     - name: Test with pytest
       run: |
         python3 -m pytest --cov=disent tests/
 
-    - uses: codecov/codecov-action@v3
+    - uses: codecov/codecov-action@v4
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         fail_ci_if_error: false

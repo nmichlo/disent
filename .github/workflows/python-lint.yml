@@ -1,24 +1,19 @@
 # make sure to update the corresponding configs:
+# - `pyproject.toml`  (the `[tool.ruff]` sections)
 # - `.pre-commit-config.yaml`
-# - `requirements-dev.txt`
 
 name: lint
 
 on: [pull_request]
 
 jobs:
-  black:
+  ruff:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: psf/black@23.1.0
+      - uses: actions/checkout@v4
+      - uses: astral-sh/ruff-action@v3
         with:
-          options: "--check --verbose --diff --color --target-version=py38 --line-length=120"
-          src: "."
-  isort:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: isort/isort-action@v1.1.0
+          args: "check --output-format=github"
+      - uses: astral-sh/ruff-action@v3
         with:
-          configuration: "--check --verbose --diff --color --py=38 --profile=black --line-length=120 --force-single-line-imports --skip-glob='disent/**__init__.py'"
+          args: "format --check --diff"
