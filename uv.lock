@@ -157,9 +157,9 @@ wheels = [
 
 [[package]]
 name = "antlr4-python3-runtime"
-version = "4.8"
+version = "4.9.3"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/56/02/789a0bddf9c9b31b14c3e79ec22b9656185a803dc31c15f006f9855ece0d/antlr4-python3-runtime-4.8.tar.gz", hash = "sha256:15793f5d0512a372b4e7d2284058ad32ce7dd27126b105fb0b2245130445db33", size = 112404, upload-time = "2020-01-16T20:51:03.44Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/3e/38/7859ff46355f76f8d19459005ca000b6e7012f2f1ca597746cbcd1fbfe5e/antlr4-python3-runtime-4.9.3.tar.gz", hash = "sha256:f224469b4168294902bb1efa80a8bf7855f24c99aef99cbefc1bcd3cce77881b", size = 117034, upload-time = "2021-11-06T17:52:23.524Z" }
 
 [[package]]
 name = "attrs"
@@ -744,9 +744,9 @@ requires-dist = [
     { name = "disent", extras = ["extra"], marker = "extra == 'test'" },
     { name = "gitpython", marker = "extra == 'extra'", specifier = ">=3.0.0" },
     { name = "h5py", specifier = ">=2.10.0" },
-    { name = "hydra-colorlog", marker = "extra == 'extra'", specifier = "==1.1.0" },
-    { name = "hydra-core", marker = "extra == 'extra'", specifier = "==1.1.1" },
-    { name = "hydra-submitit-launcher", marker = "extra == 'extra'", specifier = "==1.1.6" },
+    { name = "hydra-colorlog", marker = "extra == 'extra'", specifier = ">=1.2" },
+    { name = "hydra-core", marker = "extra == 'extra'", specifier = ">=1.3,<1.4" },
+    { name = "hydra-submitit-launcher", marker = "extra == 'extra'", specifier = ">=1.2" },
     { name = "imageio", marker = "extra == 'extra'", specifier = ">=2.9.0" },
     { name = "lightning", specifier = ">=2.6.0" },
     { name = "matplotlib", marker = "extra == 'extra'", specifier = ">=3" },
@@ -757,7 +757,7 @@ requires-dist = [
     { name = "moviepy", marker = "extra == 'extra'", specifier = ">=1.0.3" },
     { name = "numba", marker = "extra == 'extra'", specifier = ">=0.50.0" },
     { name = "numpy", specifier = ">=1.19.0" },
-    { name = "omegaconf", marker = "extra == 'extra'", specifier = ">=2.1.0" },
+    { name = "omegaconf", marker = "extra == 'extra'", specifier = ">=2.2" },
     { name = "pillow", specifier = ">=8.2.0" },
     { name = "psutil", marker = "extra == 'extra'", specifier = ">=5.8.0" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=6.2.4" },
@@ -1054,41 +1054,42 @@ wheels = [
 
 [[package]]
 name = "hydra-colorlog"
-version = "1.1.0"
+version = "1.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "colorlog" },
     { name = "hydra-core" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8e/e4/7be4ac0c009649524395b099464b3ba14e9ecfcba7434af402dae778fe3f/hydra-colorlog-1.1.0.tar.gz", hash = "sha256:f575f90f2400d46b779b773b53a270df5371a9fff377b04f5665afc42e0c3f9d", size = 3124, upload-time = "2021-06-10T18:58:21.498Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2b/fc/ab5ca078d5184ae3280d5654734860198c643cd2caaaaaece63283d9f76d/hydra-colorlog-1.2.0.tar.gz", hash = "sha256:d44f85008fabd2448c7e3b496c31b44d7610560f6fff74f3673afaa949870899", size = 3060, upload-time = "2022-05-17T22:16:25.407Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ab/58/aa807ce573bbbb9646ee46c9728ef31e76a5bf5af9e007ba94ac7ee32714/hydra_colorlog-1.1.0-py3-none-any.whl", hash = "sha256:177e8ee7046898e70bf4acfbed88c149c590c8bf7f9e57160ac4016b2addc8d1", size = 3631, upload-time = "2021-06-10T18:58:10.776Z" },
+    { url = "https://files.pythonhosted.org/packages/40/50/a08b0453c18088da369991d015ef3902a9ab532b515a41f1bfbe1394854d/hydra_colorlog-1.2.0-py3-none-any.whl", hash = "sha256:33d05fc11ca9bc7a5d69cfb3c8fb395a1bc52fa1dfe7aca6a6f5ffb57f6e7c4b", size = 3638, upload-time = "2022-05-17T22:16:23.598Z" },
 ]
 
 [[package]]
 name = "hydra-core"
-version = "1.1.1"
+version = "1.3.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "antlr4-python3-runtime" },
     { name = "omegaconf" },
+    { name = "packaging" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8e/88/a3ced07b2872104b70967cc5dbb887ab1e3ae419054d9e7abcc4c5e62c57/hydra-core-1.1.1.tar.gz", hash = "sha256:d396d4d979ff66e2d654b8ef5435ad3b6bbd093c4330f3ed316c339d5d741269", size = 108880, upload-time = "2021-08-19T20:48:41.434Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/78/03/adfa2bf3a9eef568a85f2e7cf18ce1938e7aa0b5257c432e5eb48f89960a/hydra_core-1.3.6.tar.gz", hash = "sha256:8c4c215b6cfba68e9a4e76f565bd7399fc2a86b93cfe8cb7328b046834dfbee5", size = 3272413, upload-time = "2026-08-29T14:36:08.092Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/24/27/c8f0ccc24512fadfa53d30ea26a588c04de962e9670b3c28fe51595a9b7a/hydra_core-1.1.1-py3-none-any.whl", hash = "sha256:928b154d8105db4ee67d768e3cd0f74ca9373121fc99dee54488393b17a31929", size = 145769, upload-time = "2021-08-19T20:48:39.528Z" },
+    { url = "https://files.pythonhosted.org/packages/d5/fd/612cc7905787100dc9225ae6ad71b42b60cbc23cd56ca55afcdd1e000f81/hydra_core-1.3.6-py3-none-any.whl", hash = "sha256:55951f49c7e19c29f4281cce2eeaa6e73ef6c5620093a4efb402a7e4b839fc38", size = 163055, upload-time = "2026-08-29T14:36:06.385Z" },
 ]
 
 [[package]]
 name = "hydra-submitit-launcher"
-version = "1.1.6"
+version = "1.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "hydra-core" },
     { name = "submitit" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/dd/8a/7bcc87617e780b939ff1e183224d1062f811bf84ad0f52b835868311b5d8/hydra-submitit-launcher-1.1.6.tar.gz", hash = "sha256:9bd9d60663b163d2fbac044359f0fe80d575a75eeb68247a1aac67d5fd4b0224", size = 4892, upload-time = "2021-10-15T19:40:33.381Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/4f/93/8f19eba16318fe79f17ae5a86ed4efc9641c33151f67a0f172fbd15ddd41/hydra-submitit-launcher-1.2.0.tar.gz", hash = "sha256:e14c8eb46d020fac60ba25f82bcc368dc55851d2683dc95c88631ffcf15e4a34", size = 4875, upload-time = "2022-05-17T22:19:47.548Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/33/fd/a9896f30c43b785bec6f1282a6b3dd29c98e1bc5cafddbf75c5aa0dd59a7/hydra_submitit_launcher-1.1.6-py3-none-any.whl", hash = "sha256:42739ae2fd658ad3f070345934f9c908c381a0e465202cb959b4cb7307541c4f", size = 5159, upload-time = "2021-10-15T19:40:31.107Z" },
+    { url = "https://files.pythonhosted.org/packages/d1/9b/0ea17f1780004c52f83566b5ca78a0844c93f5abdbbf625e40962af1ffcc/hydra_submitit_launcher-1.2.0-py3-none-any.whl", hash = "sha256:51ce468fbc91211c3a46677eefde94bbb9f721c9545af0be6dd0a95658515613", size = 5207, upload-time = "2022-05-17T22:19:45.664Z" },
 ]
 
 [[package]]
@@ -2062,15 +2063,15 @@ wheels = [
 
 [[package]]
 name = "omegaconf"
-version = "2.1.2"
+version = "2.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "antlr4-python3-runtime" },
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ff/38/f1d627a840f851875bab05ad5f3048969ac325b448810302661413f98519/omegaconf-2.1.2.tar.gz", hash = "sha256:35b347cda95e8ced224179a7059c216b1f38f363812847bd6c856be76936151d", size = 2084659, upload-time = "2022-04-12T19:10:14.132Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ce/3d/e4b57b8d9008c6ebe0d5eff901f91d5700cf7bdb8c8863df817463a7fd5e/omegaconf-2.3.1.tar.gz", hash = "sha256:e5e7de64aeebeddaf8e6d3f7a783b32ac2a01c0fbd9c878012caecb891a1f42a", size = 3298472, upload-time = "2026-06-11T05:05:12.885Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2f/ae/5fd6ba3e3ef122bc5acf51e58a0dce03c9aa90e69069993133aa190be768/omegaconf-2.1.2-py3-none-any.whl", hash = "sha256:2ae9cbbc1105991da5301b7a0ac8b960958c311239bb2dfd4e3f5e60d2a51029", size = 74700, upload-time = "2022-04-12T19:10:05.853Z" },
+    { url = "https://files.pythonhosted.org/packages/a4/0e/152509871bf30df6fc38569f52a2db9b55dd41aae957adae50a053ac7778/omegaconf-2.3.1-py3-none-any.whl", hash = "sha256:3d701d14e9a8828f1edd28bb70b725908b34277cdd72cf7d6a83f94dadc6b6a0", size = 79502, upload-time = "2026-06-11T05:05:09.954Z" },
 ]
 
 [[package]]

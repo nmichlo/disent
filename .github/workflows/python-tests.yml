@@ -11,11 +11,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest] # [ubuntu-latest, windows-latest, macos-latest]
-        # the library itself runs on 3.11-3.14, but this job installs `.[test]`,
-        # which pulls `hydra-core==1.1.1` -> `omegaconf 2.1.x` -> `antlr4-python3-runtime 4.8`.
-        # that antlr release imports `typing.io`, removed in python 3.13, so pytest cannot
-        # even start. raise this to 3.14 once hydra is unpinned.
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
 
     steps:
     - uses: actions/checkout@v4

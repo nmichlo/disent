@@ -63,10 +63,10 @@ extra = [
     "matplotlib>=3",
     "wandb>=0.10.32",
     # -- CONFIGS -- #
-    "omegaconf>=2.1.0",             # only 2.1.0 supports nested variable interpolation eg. ${group.${group.key}}
-    "hydra-core==1.1.1",            # needs omegaconf
-    "hydra-colorlog==1.1.0",
-    "hydra-submitit-launcher==1.1.6",
+    "omegaconf>=2.2",               # 2.1 pins antlr4 4.8, which imports `typing.io`, removed in python 3.13
+    "hydra-core>=1.3,<1.4",         # <1.4 -- 1.4 removes the `version_base="1.1"` compatibility level
+    "hydra-colorlog>=1.2",          # 1.1 targets hydra 1.1
+    "hydra-submitit-launcher>=1.2", # 1.1 targets hydra 1.1
     # -- CONFIG TARGETS -- #
     "torch_optimizer>=0.3.0",
     # -- TORCH EXTENSIONS -- #

@@ -237,7 +237,10 @@ def hydra_main(
         search_dir_main=search_dir_main, search_dirs_prepend=search_dirs_prepend, search_dirs_append=search_dirs_append
     )
 
-    @hydra.main(config_path=None, config_name=config_name)
+    # `version_base="1.1"` keeps hydra 1.1 semantics, notably `hydra.job.chdir=True`,
+    # which `hydra_get_checkpoint_callbacks` relies on via `os.getcwd()`. hydra 1.4
+    # removes this compatibility level -- see the `<1.4` pin in `pyproject.toml`.
+    @hydra.main(config_path=None, config_name=config_name, version_base="1.1")
     def _hydra_main(cfg: DictConfig):
         try:
             callback(cfg)
