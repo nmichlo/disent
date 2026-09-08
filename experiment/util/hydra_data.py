@@ -199,9 +199,9 @@ class HydraDataModule(L.LightningDataModule):
         assert dataset is not None, "dataset is not initialised, has `setup()` been called yet?"
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         # get config kwargs
-        kwargs = self._hp.dataloader_kwargs
-        if not kwargs:
-            kwargs = {}
+        # copy into a plain dict: `dataloader_kwargs` is an omegaconf `DictConfig` in
+        # struct mode, which supports neither `pop` nor mutation.
+        kwargs = dict(self._hp.dataloader_kwargs) if self._hp.dataloader_kwargs else {}
         # check required keys
         if ("batch_size" not in kwargs) or ("num_workers" not in kwargs):
             raise KeyError(
