@@ -155,7 +155,7 @@ def download_file(url: str, save_path: str, overwrite_existing: bool = False, ch
             total_length = int(total_length)
         # download with progress bar
         log.info(f"Downloading: {url} to: {save_path}")
-        with tqdm(total=total_length, desc=f"Downloading", unit="B", unit_scale=True, unit_divisor=1024) as progress:
+        with tqdm(total=total_length, desc="Downloading", unit="B", unit_scale=True, unit_divisor=1024) as progress:
             for data in response.iter_content(chunk_size=chunk_size):
                 file.write(data)
                 progress.update(chunk_size)

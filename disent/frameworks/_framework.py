@@ -26,7 +26,6 @@ import logging
 from dataclasses import asdict
 from dataclasses import dataclass
 from dataclasses import fields
-from numbers import Number
 from pprint import pformat
 from typing import Any
 from typing import Dict
@@ -80,9 +79,9 @@ class DisentFramework(DisentConfigurable, DisentLightningModule):
     @dataclass
     class cfg(DisentConfigurable.cfg):
         # optimizer config
-        optimizer: Union[
-            str
-        ] = "adam"  # name in the registry, eg. `adam` OR the path to an optimizer eg. `torch.optim.Adam`
+        optimizer: Union[str] = (
+            "adam"  # name in the registry, eg. `adam` OR the path to an optimizer eg. `torch.optim.Adam`
+        )
         optimizer_kwargs: Optional[Dict[str, Union[str, float, int]]] = None
 
     def __init__(
@@ -98,9 +97,9 @@ class DisentFramework(DisentConfigurable, DisentLightningModule):
         self.cfg.optimizer_kwargs = self._check_optimizer_kwargs(self.cfg.optimizer_kwargs)
         # batch augmentations may not be implemented as dataset
         # transforms so we can apply these on the GPU instead
-        assert callable(batch_augment) or (
-            batch_augment is None
-        ), f"invalid batch_augment: {repr(batch_augment)}, must be callable or `None`"
+        assert callable(batch_augment) or (batch_augment is None), (
+            f"invalid batch_augment: {repr(batch_augment)}, must be callable or `None`"
+        )
         self._batch_augment = batch_augment
         # schedules
         # - maybe add support for schedules in the config?
@@ -126,9 +125,9 @@ class DisentFramework(DisentConfigurable, DisentLightningModule):
     @staticmethod
     def _check_optimizer_kwargs(optimizer_kwargs: Optional[dict]):
         # check the optimizer kwargs
-        assert isinstance(optimizer_kwargs, dict) or (
-            optimizer_kwargs is None
-        ), f"invalid optimizer_kwargs type, got: {type(optimizer_kwargs)}"
+        assert isinstance(optimizer_kwargs, dict) or (optimizer_kwargs is None), (
+            f"invalid optimizer_kwargs type, got: {type(optimizer_kwargs)}"
+        )
         # get default kwargs OR copy
         optimizer_kwargs = dict() if (optimizer_kwargs is None) else dict(optimizer_kwargs)
         # set default values
@@ -212,7 +211,7 @@ class DisentFramework(DisentConfigurable, DisentLightningModule):
         if torch.isnan(loss) or torch.isinf(loss):
             raise ValueError("The returned loss is nan or inf")
         if loss > 1e20:
-            raise ValueError(f"The returned loss: {loss:.2e} is out of bounds: > {1e+20:.0e}")
+            raise ValueError(f"The returned loss: {loss:.2e} is out of bounds: > {1e20:.0e}")
 
     def forward(self, batch) -> torch.Tensor:  # pragma: no cover
         """this function should return the single final output of the model, including the final activation"""

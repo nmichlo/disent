@@ -127,9 +127,9 @@ class XYObjectData(GroundTruthData):
         # generation
         self._rgb = rgb
         # check the pallete name
-        assert (
-            len(str.split(palette, "_")) == 2
-        ), f"palette name must follow format: `<palette-name>_<brightness-levels>`, got: {repr(palette)}"
+        assert len(str.split(palette, "_")) == 2, (
+            f"palette name must follow format: `<palette-name>_<brightness-levels>`, got: {repr(palette)}"
+        )
         # get the color palette
         color_palettes = XYObjectData.COLOR_PALETTES_3 if rgb else XYObjectData.COLOR_PALETTES_1
         if palette not in color_palettes:
@@ -215,9 +215,9 @@ class XYObjectShadedData(XYObjectData):
                     f"palette ends with brightness_levels integer: {repr(b_levels)} (ignoring) but actual brightness_levels parameter was already specified: {repr(brightness_levels)} (using)"
                 )
         # check the brightness_levels
-        assert isinstance(
-            brightness_levels, int
-        ), f"brightness_levels must be an integer, got: {type(brightness_levels)}"
+        assert isinstance(brightness_levels, int), (
+            f"brightness_levels must be an integer, got: {type(brightness_levels)}"
+        )
         assert 1 <= brightness_levels, f"brightness_levels must be >= 1, got: {repr(brightness_levels)}"
         self._brightness_levels = brightness_levels
         # initialize parent

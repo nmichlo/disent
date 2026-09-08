@@ -80,9 +80,9 @@ def deprecated(msg: str, traceback_mode: Optional[str] = None, fn=None):
     assert isinstance(msg, str), f"msg must be a str, got type: {type(msg)}"
     if traceback_mode is None:
         traceback_mode = DEFAULT_TRACEBACK_MODE
-    assert (
-        traceback_mode in _TRACEBACK_MODES
-    ), f"invalid traceback_mode, got: {repr(traceback_mode)}, must be one of: {sorted(_TRACEBACK_MODES)}"
+    assert traceback_mode in _TRACEBACK_MODES, (
+        f"invalid traceback_mode, got: {repr(traceback_mode)}, must be one of: {sorted(_TRACEBACK_MODES)}"
+    )
 
     def _decorator(fn):
         # we need to handle classes and function separately

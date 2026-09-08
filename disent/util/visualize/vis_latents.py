@@ -117,9 +117,9 @@ def make_latent_zs_cycle(
     assert base_z.shape == z_means.shape[1:]
     assert z_means.ndim == z_logvars.ndim == 2
     assert z_means.shape == z_logvars.shape
-    assert (
-        len(z_means) > 1
-    ), f"not enough representations to average, number of z_means should be greater than 1, got: {z_means.shape}"
+    assert len(z_means) > 1, (
+        f"not enough representations to average, number of z_means should be greater than 1, got: {z_means.shape}"
+    )
     # make cycle
     z_cycle = z_gen_func(to_numpy(base_z), to_numpy(z_means), to_numpy(z_logvars), z_idx, num_frames)
     return torch.from_numpy(z_cycle)

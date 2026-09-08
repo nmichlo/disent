@@ -60,7 +60,9 @@ class DipVae(BetaVae):
         assert self.cfg.dip_mode in {
             "i",
             "ii",
-        }, f'unsupported dip_mode={repr(self.cfg.dip_mode)} for {self.__class__.__name__}. Must be one of: {{"i", "ii"}}'
+        }, (
+            f'unsupported dip_mode={repr(self.cfg.dip_mode)} for {self.__class__.__name__}. Must be one of: {{"i", "ii"}}'
+        )
         assert self.cfg.dip_beta >= 0, "dip_beta must be >= 0"
         assert self.cfg.lambda_d >= 0, "lambda_d must be >= 0"
         assert self.cfg.lambda_od >= 0, "lambda_od must be >= 0"

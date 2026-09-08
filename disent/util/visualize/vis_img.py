@@ -73,9 +73,9 @@ def _check_image_dtype(dtype: torch.dtype):
     # check that the datatype is within the right range -- this is not actually necessary if the below is correct!
     dmin, dmax = _dtype_min_max(dtype)
     imin, imax = (0, 1) if dtype.is_floating_point else (0, 255)
-    assert (dmin <= imin) and (
-        imax <= dmax
-    ), f"The dtype: {repr(dtype)} with range [{dmin}, {dmax}] cannot store image values in the range [{imin}, {imax}]"
+    assert (dmin <= imin) and (imax <= dmax), (
+        f"The dtype: {repr(dtype)} with range [{dmin}, {dmax}] cannot store image values in the range [{imin}, {imax}]"
+    )
     # check the datatype is allowed
     if dtype not in _ALLOWED_DTYPES:
         raise TypeError(f"The dtype: {repr(dtype)} is not allowed, must be one of: {list(_ALLOWED_DTYPES)}")
@@ -224,11 +224,11 @@ def _torch_to_images_normalise_args(
     # check dim values
     if sorted(in_dims) != sorted("CHW"):
         raise KeyError(
-            f'in_dims contains the symbols: {repr(in_dims)}, must contain only permutations of: {repr("CHW")}'
+            f"in_dims contains the symbols: {repr(in_dims)}, must contain only permutations of: {repr('CHW')}"
         )
     if sorted(out_dims) != sorted("CHW"):
         raise KeyError(
-            f'out_dims contains the symbols: {repr(out_dims)}, must contain only permutations of: {repr("CHW")}'
+            f"out_dims contains the symbols: {repr(out_dims)}, must contain only permutations of: {repr('CHW')}"
         )
     # get dimension indices
     in_c_dim = in_dims.index("C") - len(in_dims)
@@ -237,7 +237,7 @@ def _torch_to_images_normalise_args(
     # check image tensor
     if len(in_tensor_shape) < 3:
         raise ValueError(
-            f'images must have 3 or more dimensions corresponding to: (..., {", ".join(in_dims)}), but got shape: {in_tensor_shape}'
+            f"images must have 3 or more dimensions corresponding to: (..., {', '.join(in_dims)}), but got shape: {in_tensor_shape}"
         )
     if in_tensor_shape[in_c_dim] not in (1, 3):
         raise ValueError(

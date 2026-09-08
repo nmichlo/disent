@@ -38,7 +38,7 @@ def seed(long=777):
     https://pytorch.org/docs/stable/notes/randomness.html
     """
     if long is None:
-        log.warning(f"[SEEDING]: no seed was specified. Seeding skipped!")
+        log.warning("[SEEDING]: no seed was specified. Seeding skipped!")
         return
     # seed python
     import random
@@ -56,7 +56,7 @@ def seed(long=777):
         torch.backends.cudnn.benchmark = False
         torch.manual_seed(long)  # also calls: torch.cuda.manual_seed_all
     except ImportError:
-        log.warning(f"[SEEDING]: torch is not installed. Skipped seeding torch methods!")
+        log.warning("[SEEDING]: torch is not installed. Skipped seeding torch methods!")
     # done!
     log.info(f"[SEEDED]: {long}")
 

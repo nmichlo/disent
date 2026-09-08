@@ -44,7 +44,6 @@ from disent.model import AutoEncoder
 from disent.model.ae import DecoderLinear
 from disent.model.ae import EncoderLinear
 from disent.util.function import wrapped_partial
-from disent.util.seeds import TempNumpySeed
 from disent.util.seeds import seed
 from docs.examples.extend_experiment.code.weaklysupervised__si_adavae import SwappedInputAdaVae
 from docs.examples.extend_experiment.code.weaklysupervised__si_betavae import SwappedInputBetaVae

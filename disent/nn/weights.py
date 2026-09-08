@@ -25,7 +25,6 @@
 import logging
 from typing import Optional
 
-import torch
 from torch import nn
 
 from disent.util.strings import colors as c
@@ -83,7 +82,7 @@ def init_model_weights(model: nn.Module, mode: Optional[str] = "xavier_normal", 
                 init = True
         else:
             raise KeyError(
-                f'Unknown init mode: {repr(mode)}, valid modes are: {["default"] + sorted(_WEIGHT_INIT_FNS)}'
+                f"Unknown init mode: {repr(mode)}, valid modes are: {['default'] + sorted(_WEIGHT_INIT_FNS)}"
             )
 
         # print messages

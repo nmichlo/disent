@@ -23,18 +23,12 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
-import warnings
-from functools import lru_cache
-from typing import List
 from typing import Optional
 from typing import Sequence
-from typing import Tuple
-from typing import Union
 
 import numpy as np
 import scipy.stats
 import torch
-from PIL import Image
 
 from disent.util import to_numpy
 

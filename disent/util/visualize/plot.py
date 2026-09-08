@@ -24,8 +24,6 @@
 
 import logging
 from numbers import Number
-from typing import Any
-from typing import Dict
 from typing import Optional
 
 import numpy as np
@@ -308,7 +306,9 @@ def visualize_dataset_traversal(
     assert grid.shape[-1] in (
         1,
         3,
-    ), f"invalid number of channels, must be 1 or 3, got shape: {grid.shape}. Note that the dataset or augment if specified should output HWC images, not CHW images!"
+    ), (
+        f"invalid number of channels, must be 1 or 3, got shape: {grid.shape}. Note that the dataset or augment if specified should output HWC images, not CHW images!"
+    )
 
     # generate visuals
     image = make_image_grid(

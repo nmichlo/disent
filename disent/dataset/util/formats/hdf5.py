@@ -262,25 +262,25 @@ class H5Builder(object):
                         f"batch_size={batch_size} is not divisible by the first dimension of the dataset chunk size: {dataset.chunks[0]} {tuple(dataset.chunks)}"
                     )
         # check batch size!
-        assert isinstance(batch_size, int) and (
-            batch_size >= 1
-        ), f'invalid batch_size: {repr(batch_size)}, expected: "auto" or an integer `>= 1`'
+        assert isinstance(batch_size, int) and (batch_size >= 1), (
+            f'invalid batch_size: {repr(batch_size)}, expected: "auto" or an integer `>= 1`'
+        )
         # loop variables
         n = len(dataset)
         # save data
         with tqdm(total=n, disable=not show_progress, desc=f"saving {name}") as progress:
             for i in range(0, n, batch_size):
                 j = min(i + batch_size, n)
-                assert (
-                    j > i
-                ), f"this is a bug! {repr(j)} > {repr(i)}, len(dataset)={repr(n)}, batch_size={repr(batch_size)}"
+                assert j > i, (
+                    f"this is a bug! {repr(j)} > {repr(i)}, len(dataset)={repr(n)}, batch_size={repr(batch_size)}"
+                )
                 # load and modify the batch
                 batch = get_batch_fn(i, j)  # i_start, i_end
                 assert isinstance(batch, np.ndarray), f"returned batch is not an `np.ndarray`, got: {repr(type(batch))}"
                 assert batch.shape == (
                     j - i,
                     *dataset.shape[1:],
-                ), f"returned batch has incorrect shape: {tuple(batch.shape)}, expected: {(j-i, *dataset.shape[1:])}"
+                ), f"returned batch has incorrect shape: {tuple(batch.shape)}, expected: {(j - i, *dataset.shape[1:])}"
                 # save the batch & update progress
                 dataset[i:j] = batch
                 progress.update(j - i)
@@ -319,7 +319,7 @@ class H5Builder(object):
                 array = iter(array)
             except:
                 raise TypeError(
-                    f"`fill_dataset_from_array` only supports arrays of type: `np.ndarray` or `torch.Tensor`"
+                    "`fill_dataset_from_array` only supports arrays of type: `np.ndarray` or `torch.Tensor`"
                 )
 
             # get iterator function
@@ -613,8 +613,8 @@ def hdf5_save_array(
     )
     # print stats
     tqdm.write("")
-    hdf5_print_entry_data_stats(inp_data, label=f"IN")
-    hdf5_print_entry_data_stats(out_data, label=f"OUT")
+    hdf5_print_entry_data_stats(inp_data, label="IN")
+    hdf5_print_entry_data_stats(out_data, label="OUT")
     # choose batch size for copying data
     if batch_size is None:
         batch_size = inp_data.chunks[0] if (hasattr(inp_data, "chunks") and inp_data.chunks) else 32
@@ -629,9 +629,9 @@ def hdf5_save_array(
             batch = inp_data[i : i + batch_size]
             batch = _normalize_out_array(batch)
             batch = out_mutator(batch)
-            assert (
-                batch.shape[1:] == obs_shape
-            ), f"obs shape: {tuple(batch.shape[1:])} from processed input data does not match required obs shape: {tuple(obs_shape)}, try changing the `obs_shape` or resizing the batch in the `out_mutator`."
+            assert batch.shape[1:] == obs_shape, (
+                f"obs shape: {tuple(batch.shape[1:])} from processed input data does not match required obs shape: {tuple(obs_shape)}, try changing the `obs_shape` or resizing the batch in the `out_mutator`."
+            )
             # save the batch
             out_data[i : i + batch_size] = batch
             progress.update(batch_size)
@@ -693,7 +693,7 @@ def hdf5_resave_file(
                 )
     # file size:
     log.info(
-        f'[FILE SIZES] IN: {bytes_to_human(os.path.getsize(inp_path)) if isinstance(inp_path, str) else "N/A"} OUT: {bytes_to_human(os.path.getsize(out_path))}'
+        f"[FILE SIZES] IN: {bytes_to_human(os.path.getsize(inp_path)) if isinstance(inp_path, str) else 'N/A'} OUT: {bytes_to_human(os.path.getsize(out_path))}"
     )
 
 

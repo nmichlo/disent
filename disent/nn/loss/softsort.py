@@ -204,9 +204,9 @@ def spearman_rank_loss(
     assert pred.shape == targ.shape
     assert pred.ndim == 2
     # sort the last dimension of the 2D tensors
-    assert (
-        regularization == "l2"
-    ), "Only l2 regularization is currently supported for torchsort, others can result in memory leaks. See the torchsort github page for the bug report."
+    assert regularization == "l2", (
+        "Only l2 regularization is currently supported for torchsort, others can result in memory leaks. See the torchsort github page for the bug report."
+    )
     pred = torchsort.soft_rank(pred, regularization=regularization, regularization_strength=regularization_strength)
     targ = torchsort.soft_rank(targ, regularization=regularization, regularization_strength=regularization_strength)
     # compute individual losses

@@ -79,9 +79,9 @@ class VaeMetricLoggingCallback(BaseCallbackPeriodic):
         self.train_end_metrics = train_end_metrics if train_end_metrics else []
         assert isinstance(self.step_end_metrics, list)
         assert isinstance(self.train_end_metrics, list)
-        assert (
-            self.step_end_metrics or self.train_end_metrics
-        ), "No metrics given to step_end_metrics or train_end_metrics"
+        assert self.step_end_metrics or self.train_end_metrics, (
+            "No metrics given to step_end_metrics or train_end_metrics"
+        )
 
     def _compute_metrics_and_log(self, trainer: L.Trainer, pl_module: L.LightningModule, metrics: list, is_final=False):
         # get dataset and vae framework from trainer and module

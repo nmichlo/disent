@@ -81,7 +81,7 @@ def resave_imagenet_tiny_archive(orig_zipped_file, new_save_file, overwrite=Fals
     loading the images, then converting.
     """
     _, ext = os.path.splitext(new_save_file)
-    assert ext in {".npz", ".h5"}, f'unsupported save extension: {repr(ext)}, must be one of: {[".npz", ".h5"]}'
+    assert ext in {".npz", ".h5"}, f"unsupported save extension: {repr(ext)}, must be one of: {['.npz', '.h5']}"
     # extract zipfile into temp dir
     with TemporaryDirectory(prefix="unzip_imagenet_tiny_", dir=os.path.dirname(orig_zipped_file)) as temp_dir:
         log.info(f"Extracting into temporary directory: {temp_dir}")
@@ -189,12 +189,12 @@ class DSpritesImagenetData(GroundTruthData):
     ):
         super().__init__(transform=transform)
         # check visibility and convert to ratio
-        assert isinstance(
-            visibility, int
-        ), f"incorrect visibility percentage type, expected int, got: {type(visibility)}"
-        assert (
-            0 <= visibility <= 100
-        ), f"incorrect visibility percentage: {repr(visibility)}, must be in range [0, 100]. "
+        assert isinstance(visibility, int), (
+            f"incorrect visibility percentage type, expected int, got: {type(visibility)}"
+        )
+        assert 0 <= visibility <= 100, (
+            f"incorrect visibility percentage: {repr(visibility)}, must be in range [0, 100]. "
+        )
         self._visibility = visibility / 100
         # check mode and convert to foreground boolean
         assert mode in {"bg", "fg"}, f'incorrect mode: {repr(mode)}, must be one of: ["bg", "fg"]'
@@ -326,7 +326,7 @@ if __name__ == "__main__":
                 if is_imgnet
                 else f"{DSpritesData.name}"
             )
-            data_name = f"dsprites_{mode}_{visibility}" if is_imgnet else f"dsprites"
+            data_name = f"dsprites_{mode}_{visibility}" if is_imgnet else "dsprites"
             # plot images
             data = data_cls(prepare=True)
             grid = np.array([data[i * 24733] for i in np.arange(16)]).reshape([4, 4, *data.img_shape])

@@ -183,10 +183,10 @@ if __name__ == "__main__":
     seed = 48
 
     for gt_data_cls, name in [
-        (wrapped_partial(XYSquaresData, grid_spacing=1, grid_size=8, no_warnings=True), f"xy-squares-spacing1"),
-        (wrapped_partial(XYSquaresData, grid_spacing=2, grid_size=8, no_warnings=True), f"xy-squares-spacing2"),
-        (wrapped_partial(XYSquaresData, grid_spacing=4, grid_size=8, no_warnings=True), f"xy-squares-spacing4"),
-        (wrapped_partial(XYSquaresData, grid_spacing=8, grid_size=8, no_warnings=True), f"xy-squares-spacing8"),
+        (wrapped_partial(XYSquaresData, grid_spacing=1, grid_size=8, no_warnings=True), "xy-squares-spacing1"),
+        (wrapped_partial(XYSquaresData, grid_spacing=2, grid_size=8, no_warnings=True), "xy-squares-spacing2"),
+        (wrapped_partial(XYSquaresData, grid_spacing=4, grid_size=8, no_warnings=True), "xy-squares-spacing4"),
+        (wrapped_partial(XYSquaresData, grid_spacing=8, grid_size=8, no_warnings=True), "xy-squares-spacing8"),
     ]:
         plot_dataset_overlap(
             gt_data_cls(), rel_path=f"plots/overlap/overlap__{name}", obs_max=3, obs_spacing=4, seed=seed - 40
@@ -196,15 +196,15 @@ if __name__ == "__main__":
     Mpi3dData.factor_names = ("color", "shape", "size", "elevation", "bg_color", "first_dof", "second_dof")
 
     for gt_data_cls, name in [
-        (XYObjectData, f"xyobject"),
-        (XYObjectShadedData, f"xyobject_shaded"),
-        (DSpritesData, f"dsprites"),
-        (Shapes3dData, f"shapes3d"),
-        (Cars3d64Data, f"cars3d"),
-        (SmallNorb64Data, f"smallnorb"),
-        (wrapped_partial(Mpi3dData, in_memory=True, subset="toy"), f"mpi3d_toy"),
-        (wrapped_partial(Mpi3dData, in_memory=True, subset="realistic"), f"mpi3d_realistic"),
-        (wrapped_partial(Mpi3dData, in_memory=True, subset="real"), f"mpi3d_real"),
+        (XYObjectData, "xyobject"),
+        (XYObjectShadedData, "xyobject_shaded"),
+        (DSpritesData, "dsprites"),
+        (Shapes3dData, "shapes3d"),
+        (Cars3d64Data, "cars3d"),
+        (SmallNorb64Data, "smallnorb"),
+        (wrapped_partial(Mpi3dData, in_memory=True, subset="toy"), "mpi3d_toy"),
+        (wrapped_partial(Mpi3dData, in_memory=True, subset="realistic"), "mpi3d_realistic"),
+        (wrapped_partial(Mpi3dData, in_memory=True, subset="real"), "mpi3d_real"),
     ]:
         gt_data = gt_data_cls()
         for f_idx, f_name in enumerate(gt_data.factor_names):

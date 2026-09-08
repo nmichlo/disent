@@ -62,7 +62,7 @@ class GroundTruthDistSampler(BaseDisentSampler):
             "manhattan_scaled",
             "combined",
             "combined_scaled",
-        }, f'sample_mode ({repr(triplet_sample_mode)}) must be one of {["random", "factors", "manhattan", "combined"]}'
+        }, f"sample_mode ({repr(triplet_sample_mode)}) must be one of {['random', 'factors', 'manhattan', 'combined']}"
         # save hparams
         self._num_samples = num_samples
         self._triplet_sample_mode = triplet_sample_mode
@@ -82,9 +82,9 @@ class GroundTruthDistSampler(BaseDisentSampler):
         self._state_space: Optional[StateSpace] = None
 
     def _init(self, dataset):
-        assert isinstance(
-            dataset, GroundTruthData
-        ), f"dataset must be an instance of {repr(GroundTruthData.__class__.__name__)}, got: {repr(dataset)}"
+        assert isinstance(dataset, GroundTruthData), (
+            f"dataset must be an instance of {repr(GroundTruthData.__class__.__name__)}, got: {repr(dataset)}"
+        )
         self._state_space = dataset.state_space_copy()
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #

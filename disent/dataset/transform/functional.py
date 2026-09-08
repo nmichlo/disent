@@ -172,9 +172,9 @@ def to_img_tensor_f32(
     # apply mean and std, we obs is of the shape (C, H, W)
     if (mean is not None) or (std is not None):
         obs = F_tv.normalize(obs, mean=0.0 if (mean is None) else mean, std=1.0 if (std is None) else std, inplace=True)
-        assert (
-            obs.dtype == torch.float32
-        ), f"after normalization, tensor should remain as dtype torch.float32, got: {obs.dtype}"
+        assert obs.dtype == torch.float32, (
+            f"after normalization, tensor should remain as dtype torch.float32, got: {obs.dtype}"
+        )
     # done!
     return obs
 

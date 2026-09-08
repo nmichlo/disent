@@ -121,8 +121,6 @@ if __name__ == "__main__":
             (data.Mpi3dData, dict(subset="realistic", in_memory=True)),
             (data.Mpi3dData, dict(subset="real", in_memory=True)),
         ]:
-            from disent.dataset.transform import ToImgTensorF32
-
             # get arguments
             if isinstance(data_cls, tuple):
                 data_cls, kwargs = data_cls

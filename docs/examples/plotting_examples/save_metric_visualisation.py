@@ -307,8 +307,8 @@ def make_ave_scores_plot(
         nrows=1 + int(vertical),
         ncols=1 + int(not vertical),
         titles=["Linear", "Axis"],
-        row_labels=f"$σ_y$ - Standard Deviation",
-        col_labels=f"θ - Rotation Degrees",
+        row_labels="$σ_y$ - Standard Deviation",
+        col_labels="θ - Rotation Degrees",
         figsize=(subplot_size + 0.5, subplot_size * 2 * (deg_num / std_num) + 0.75)[:: 1 if vertical else -1],
     )
     (ax0, ax1) = axs.flatten()

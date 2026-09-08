@@ -38,7 +38,6 @@ log = logging.getLogger(__name__)
 
 
 class XYBlocksData(GroundTruthData):
-
     """
     Dataset that generates all possible permutations of xor'd squares of
     different scales moving across the grid.
@@ -115,21 +114,21 @@ class XYBlocksData(GroundTruthData):
         if palette != "rgb":
             log.warning("rgb palette is not being used, might overlap for the reconstruction loss.")
         if rgb:
-            assert (
-                palette in XYBlocksData.COLOR_PALETTES_3
-            ), f"{palette=} must be one of {list(XYBlocksData.COLOR_PALETTES_3.keys())}"
+            assert palette in XYBlocksData.COLOR_PALETTES_3, (
+                f"{palette=} must be one of {list(XYBlocksData.COLOR_PALETTES_3.keys())}"
+            )
             self._colors = np.array(XYBlocksData.COLOR_PALETTES_3[palette])
         else:
-            assert (
-                palette in XYBlocksData.COLOR_PALETTES_1
-            ), f"{palette=} must be one of {list(XYBlocksData.COLOR_PALETTES_1.keys())}"
+            assert palette in XYBlocksData.COLOR_PALETTES_1, (
+                f"{palette=} must be one of {list(XYBlocksData.COLOR_PALETTES_1.keys())}"
+            )
             self._colors = np.array(XYBlocksData.COLOR_PALETTES_1[palette])
 
         # bg colors
         self._bg_color = 255 if invert_bg else 0  # we dont need rgb for this
-        assert not np.any(
-            [np.all(self._bg_color == color) for color in self._colors]
-        ), f"Color conflict with background: {self._bg_color} ({invert_bg=}) in {self._colors}"
+        assert not np.any([np.all(self._bg_color == color) for color in self._colors]), (
+            f"Color conflict with background: {self._bg_color} ({invert_bg=}) in {self._colors}"
+        )
 
         # grid
         grid_levels = np.arange(1, grid_levels + 1) if isinstance(grid_levels, int) else np.array(grid_levels)
@@ -141,9 +140,9 @@ class XYBlocksData(GroundTruthData):
 
         # axis sizes
         self._axis_divisions = 2**self._grid_levels
-        assert (
-            len(self._axis_divisions) == self._grid_dims and np.all(grid_size % self._axis_divisions) == 0
-        ), "This should never happen"
+        assert len(self._axis_divisions) == self._grid_dims and np.all(grid_size % self._axis_divisions) == 0, (
+            "This should never happen"
+        )
         self._axis_division_sizes = grid_size // self._axis_divisions
 
         # info

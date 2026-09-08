@@ -25,7 +25,6 @@
 import warnings
 from functools import wraps
 from typing import Callable
-from typing import Iterator
 from typing import Optional
 from typing import Sequence
 from typing import TypeVar
@@ -112,9 +111,9 @@ class DisentDataset(Dataset, LengthIter):
         self._return_indices = return_indices
         self._return_factors = return_factors
         # check sampler
-        assert isinstance(
-            self._sampler, BaseDisentSampler
-        ), f"{DisentDataset.__name__} got an invalid {BaseDisentSampler.__name__}: {type(self._sampler)}"
+        assert isinstance(self._sampler, BaseDisentSampler), (
+            f"{DisentDataset.__name__} got an invalid {BaseDisentSampler.__name__}: {type(self._sampler)}"
+        )
         # initialize sampler
         if not self._sampler.is_init:
             self._sampler.init(dataset)
@@ -126,9 +125,9 @@ class DisentDataset(Dataset, LengthIter):
                 )
         # check the dataset if we are returning the factors
         if self._return_factors:
-            assert isinstance(
-                self._dataset, GroundTruthData
-            ), f"If `return_factors` is `True`, then the dataset must be an instance of: {GroundTruthData.__name__}, got: {type(dataset)}"
+            assert isinstance(self._dataset, GroundTruthData), (
+                f"If `return_factors` is `True`, then the dataset must be an instance of: {GroundTruthData.__name__}, got: {type(dataset)}"
+            )
 
     def shallow_copy(
         self,
@@ -419,7 +418,9 @@ def _batch_to_observation(batch, obs_shape):
         assert batch.shape == (
             1,
             *obs_shape,
-        ), f"batch.shape={repr(batch.shape)} does not correspond to obs_shape={repr(obs_shape)} with batch dimension added"
+        ), (
+            f"batch.shape={repr(batch.shape)} does not correspond to obs_shape={repr(obs_shape)} with batch dimension added"
+        )
         return batch.reshape(obs_shape)
     return batch
 

@@ -23,8 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import os
-import re
-import warnings
 from numbers import Number
 from typing import List
 from typing import Tuple
@@ -191,7 +189,7 @@ class FftKernel(DisentModule):
         # deprecation error
         if normalize_mode is _NO_ARG:
             raise ValueError(
-                f'default argument for normalize_mode was "sum", this has been deprecated and will change to "none" in future. Please manually override this value!'
+                'default argument for normalize_mode was "sum", this has been deprecated and will change to "none" in future. Please manually override this value!'
             )
         # load & save the kernel -- no gradients allowed
         self._kernel: torch.Tensor
@@ -249,9 +247,9 @@ def _check_kernel(kernel: torch.Tensor) -> torch.Tensor:
     assert isinstance(kernel, torch.Tensor)
     assert kernel.dtype == torch.float32
     assert kernel.ndim == 4, f"invalid number of kernel dims, required 4, given: {repr(kernel.ndim)}"  # B, C, H, W
-    assert (
-        kernel.shape[0] == 1
-    ), f"invalid size of first kernel dim, required (1, ?, ?, ?), given: {repr(kernel.shape)}"  # B
+    assert kernel.shape[0] == 1, (
+        f"invalid size of first kernel dim, required (1, ?, ?, ?), given: {repr(kernel.shape)}"
+    )  # B
     assert kernel.shape[0] in (
         1,
         3,

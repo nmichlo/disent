@@ -32,7 +32,6 @@ from typing import Optional
 import hydra
 import lightning as L
 import torch.utils.data
-from omegaconf import DictConfig
 
 from disent.dataset import DisentDataset
 from disent.dataset.transform import DisentDatasetTransform
@@ -139,12 +138,12 @@ class HydraDataModule(L.LightningDataModule):
         # - we instantiate the data twice, once here and once in setup otherwise
         #   things could go wrong. We try be efficient about it by removing the
         #   in_memory argument if it exists.
-        log.info(f"Data - Preparation & Downloading")
+        log.info("Data - Preparation & Downloading")
         hydra.utils.instantiate(data)
 
     def setup(self, stage=None) -> None:
         # ground truth data
-        log.info(f"Data - Instance")
+        log.info("Data - Instance")
         data = hydra.utils.instantiate(self.hparams.data)
         # Wrap the data for the framework some datasets need triplets, pairs, etc.
         # Augmentation is done inside the frameworks so that it can be done on the GPU, otherwise things are very slow.

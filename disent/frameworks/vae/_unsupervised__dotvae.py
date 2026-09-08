@@ -78,9 +78,9 @@ class DataOverlapMixin(object):
             import hydra
 
             self._augment = hydra.utils.instantiate(self.cfg.overlap_augment)
-            assert (self._augment is None) or callable(
-                self._augment
-            ), f"augment is not None or callable: {repr(self._augment)}, obtained from `overlap_augment={repr(self.cfg.overlap_augment)}`"
+            assert (self._augment is None) or callable(self._augment), (
+                f"augment is not None or callable: {repr(self._augment)}, obtained from `overlap_augment={repr(self.cfg.overlap_augment)}`"
+            )
         else:
             self._augment = None
         # get overlap loss

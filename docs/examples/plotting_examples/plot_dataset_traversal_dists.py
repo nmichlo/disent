@@ -192,7 +192,7 @@ def plot_traversal_stats(
     if isinstance(plot_title, str):
         suptitle = f"{plot_title}"
     elif plot_title:
-        suptitle = f'{gt_data.name} {f" {suffix}" if suffix else ""}'
+        suptitle = f"{gt_data.name} {f' {suffix}' if suffix else ''}"
     else:
         suptitle = None
 
@@ -475,11 +475,11 @@ def main_plotting(print_mean_std: bool = True):
 
     # plot xysquares with increasing overlap -- combined into one image
     _grid_plot_save(
-        path=sp(f"xysquares_8x8_all"),
+        path=sp("xysquares_8x8_all"),
         imgs=[imageio.imread(sp(f"xysquares_8x8_s{s}"))[:, 2:-2, :3] for s in range(1, 9)],
     )
     _grid_plot_save(
-        path=sp(f"xysquares_8x8_some"),
+        path=sp("xysquares_8x8_some"),
         imgs=[imageio.imread(sp(f"xysquares_8x8_s{s}"))[:, 2:-2, :3] for s in [1, 2, 4, 8]],
     )
 
@@ -511,7 +511,7 @@ def main_plotting(print_mean_std: bool = True):
     # plot adversarial dsprites datasets
     for fg in [True, False]:
         for vis in [100, 75, 50, 25, 0]:
-            name = f'dsprites_imagenet_{"fg" if fg else "bg"}_{vis}'
+            name = f"dsprites_imagenet_{'fg' if fg else 'bg'}_{vis}"
             plot_traversal_stats(save_path=sp(name), dataset_or_name=name, x_size_offset=0.4)
             _print_data_mean_std(name, print_mean_std)
 

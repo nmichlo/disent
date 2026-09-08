@@ -216,7 +216,7 @@ if __name__ == "__main__":
 
     # plot increasing levels of overlap
     plot_incr_overlap(
-        rel_path=f"plots/traversals/traversal-incr-overlap__xy-squares", save=True, show=True, traversal_lim=None
+        rel_path="plots/traversals/traversal-incr-overlap__xy-squares", save=True, show=True, traversal_lim=None
     )
 
     # replace the factor names!
@@ -225,7 +225,7 @@ if __name__ == "__main__":
     # mini versions
     plot_dataset_traversals(
         XYSingleSquareData(),
-        rel_path=f"plots/traversals/traversal-mini__xy-single-square__spacing8",
+        rel_path="plots/traversals/traversal-mini__xy-single-square__spacing8",
         title=TITLE_MINI,
         seed=seed,
         transpose=False,
@@ -234,7 +234,7 @@ if __name__ == "__main__":
     )
     plot_dataset_traversals(
         XYSquaresData(),
-        rel_path=f"plots/traversals/traversal-mini__xy-squares__spacing8",
+        rel_path="plots/traversals/traversal-mini__xy-squares__spacing8",
         title=TITLE_MINI,
         seed=seed,
         transpose=False,
@@ -243,7 +243,7 @@ if __name__ == "__main__":
     )
     plot_dataset_traversals(
         Shapes3dData(),
-        rel_path=f"plots/traversals/traversal-mini__shapes3d",
+        rel_path="plots/traversals/traversal-mini__shapes3d",
         title=TITLE_MINI,
         seed=seed,
         transpose=False,
@@ -252,7 +252,7 @@ if __name__ == "__main__":
     )
     plot_dataset_traversals(
         DSpritesData(),
-        rel_path=f"plots/traversals/traversal-mini__dsprites",
+        rel_path="plots/traversals/traversal-mini__dsprites",
         title=TITLE_MINI,
         seed=seed,
         transpose=False,
@@ -261,7 +261,7 @@ if __name__ == "__main__":
     )
     plot_dataset_traversals(
         SmallNorb64Data(),
-        rel_path=f"plots/traversals/traversal-mini__smallnorb",
+        rel_path="plots/traversals/traversal-mini__smallnorb",
         title=TITLE_MINI,
         seed=seed,
         transpose=False,
@@ -270,7 +270,7 @@ if __name__ == "__main__":
     )
     plot_dataset_traversals(
         Cars3d64Data(),
-        rel_path=f"plots/traversals/traversal-mini__cars3d",
+        rel_path="plots/traversals/traversal-mini__cars3d",
         title=TITLE_MINI,
         seed=seed,
         transpose=False,
@@ -280,7 +280,7 @@ if __name__ == "__main__":
     )
     plot_dataset_traversals(
         SpritesData(),
-        rel_path=f"plots/traversals/traversal-mini__sprites",
+        rel_path="plots/traversals/traversal-mini__sprites",
         title=TITLE_MINI,
         seed=seed,
         transpose=False,
@@ -290,7 +290,7 @@ if __name__ == "__main__":
     )
     plot_dataset_traversals(
         Mpi3dData(subset="toy"),
-        rel_path=f"plots/traversals/traversal-mini__mpi3d-toy",
+        rel_path="plots/traversals/traversal-mini__mpi3d-toy",
         title=TITLE_MINI,
         seed=seed,
         transpose=False,
@@ -299,7 +299,7 @@ if __name__ == "__main__":
     )
     plot_dataset_traversals(
         Mpi3dData(subset="realistic"),
-        rel_path=f"plots/traversals/traversal-mini__mpi3d-realistic",
+        rel_path="plots/traversals/traversal-mini__mpi3d-realistic",
         title=TITLE_MINI,
         seed=seed,
         transpose=False,
@@ -308,7 +308,7 @@ if __name__ == "__main__":
     )
     plot_dataset_traversals(
         Mpi3dData(subset="real"),
-        rel_path=f"plots/traversals/traversal-mini__mpi3d-real",
+        rel_path="plots/traversals/traversal-mini__mpi3d-real",
         title=TITLE_MINI,
         seed=seed,
         transpose=False,
@@ -319,7 +319,7 @@ if __name__ == "__main__":
     # transpose versions
     plot_dataset_traversals(
         XYSingleSquareData(),
-        rel_path=f"plots/traversals/traversal-transpose__xy-single-square__spacing8",
+        rel_path="plots/traversals/traversal-transpose__xy-single-square__spacing8",
         title=TITLE_TRANSPOSE,
         offset=0.95,
         label_size=23,
@@ -331,7 +331,7 @@ if __name__ == "__main__":
     )
     plot_dataset_traversals(
         XYSquaresData(),
-        rel_path=f"plots/traversals/traversal-transpose__xy-squares__spacing8",
+        rel_path="plots/traversals/traversal-transpose__xy-squares__spacing8",
         title=TITLE_TRANSPOSE,
         offset=0.95,
         label_size=23,
@@ -343,7 +343,7 @@ if __name__ == "__main__":
     )
     plot_dataset_traversals(
         Shapes3dData(),
-        rel_path=f"plots/traversals/traversal-transpose__shapes3d",
+        rel_path="plots/traversals/traversal-transpose__shapes3d",
         title=TITLE_TRANSPOSE,
         offset=0.95,
         label_size=23,
@@ -355,7 +355,7 @@ if __name__ == "__main__":
     )
     plot_dataset_traversals(
         DSpritesData(),
-        rel_path=f"plots/traversals/traversal-transpose__dsprites",
+        rel_path="plots/traversals/traversal-transpose__dsprites",
         title=TITLE_TRANSPOSE,
         offset=0.95,
         label_size=23,
@@ -367,7 +367,7 @@ if __name__ == "__main__":
     )
     plot_dataset_traversals(
         SmallNorb64Data(),
-        rel_path=f"plots/traversals/traversal-transpose__smallnorb",
+        rel_path="plots/traversals/traversal-transpose__smallnorb",
         title=TITLE_TRANSPOSE,
         offset=0.95,
         label_size=23,
@@ -379,7 +379,7 @@ if __name__ == "__main__":
     )
     plot_dataset_traversals(
         Cars3d64Data(),
-        rel_path=f"plots/traversals/traversal-transpose__cars3d",
+        rel_path="plots/traversals/traversal-transpose__cars3d",
         title=TITLE_TRANSPOSE,
         offset=0.95,
         label_size=23,
@@ -392,7 +392,7 @@ if __name__ == "__main__":
     )
     plot_dataset_traversals(
         SpritesData(),
-        rel_path=f"plots/traversals/traversal-transpose__sprites",
+        rel_path="plots/traversals/traversal-transpose__sprites",
         title=TITLE_TRANSPOSE,
         offset=0.95,
         label_size=23,
@@ -405,7 +405,7 @@ if __name__ == "__main__":
     )
     plot_dataset_traversals(
         Mpi3dData(subset="toy"),
-        rel_path=f"plots/traversals/traversal-transpose__mpi3d-toy",
+        rel_path="plots/traversals/traversal-transpose__mpi3d-toy",
         title=TITLE_TRANSPOSE,
         offset=0.95,
         label_size=23,
@@ -417,7 +417,7 @@ if __name__ == "__main__":
     )
     plot_dataset_traversals(
         Mpi3dData(subset="realistic"),
-        rel_path=f"plots/traversals/traversal-transpose__mpi3d-realistic",
+        rel_path="plots/traversals/traversal-transpose__mpi3d-realistic",
         title=TITLE_TRANSPOSE,
         offset=0.95,
         label_size=23,
@@ -429,7 +429,7 @@ if __name__ == "__main__":
     )
     plot_dataset_traversals(
         Mpi3dData(subset="real"),
-        rel_path=f"plots/traversals/traversal-transpose__mpi3d-real",
+        rel_path="plots/traversals/traversal-transpose__mpi3d-real",
         title=TITLE_TRANSPOSE,
         offset=0.95,
         label_size=23,
@@ -537,7 +537,7 @@ if __name__ == "__main__":
     # mini versions
     plot_dataset_traversals(
         XYObjectData(),
-        rel_path=f"plots/traversals/traversal-mini__xy-object",
+        rel_path="plots/traversals/traversal-mini__xy-object",
         title=TITLE_MINI,
         seed=seed,
         transpose=False,
@@ -546,7 +546,7 @@ if __name__ == "__main__":
     )
     plot_dataset_traversals(
         XYObjectShadedData(),
-        rel_path=f"plots/traversals/traversal-mini__xy-object-shaded",
+        rel_path="plots/traversals/traversal-mini__xy-object-shaded",
         title=TITLE_MINI,
         seed=seed,
         transpose=False,
@@ -555,7 +555,7 @@ if __name__ == "__main__":
     )
     plot_dataset_traversals(
         XYBlocksData(),
-        rel_path=f"plots/traversals/traversal-mini__xy-blocks",
+        rel_path="plots/traversals/traversal-mini__xy-blocks",
         title=TITLE_MINI,
         seed=seed,
         transpose=False,
@@ -565,7 +565,7 @@ if __name__ == "__main__":
 
     plot_dataset_traversals(
         DSpritesImagenetData(100, "bg"),
-        rel_path=f"plots/traversals/traversal-mini__dsprites-imagenet-bg-100",
+        rel_path="plots/traversals/traversal-mini__dsprites-imagenet-bg-100",
         title=TITLE_MINI,
         seed=seed - 6,
         transpose=False,
@@ -574,7 +574,7 @@ if __name__ == "__main__":
     )
     plot_dataset_traversals(
         DSpritesImagenetData(50, "bg"),
-        rel_path=f"plots/traversals/traversal-mini__dsprites-imagenet-bg-50",
+        rel_path="plots/traversals/traversal-mini__dsprites-imagenet-bg-50",
         title=TITLE_MINI,
         seed=seed - 6,
         transpose=False,
@@ -583,7 +583,7 @@ if __name__ == "__main__":
     )
     plot_dataset_traversals(
         DSpritesImagenetData(100, "fg"),
-        rel_path=f"plots/traversals/traversal-mini__dsprites-imagenet-fg-100",
+        rel_path="plots/traversals/traversal-mini__dsprites-imagenet-fg-100",
         title=TITLE_MINI,
         seed=seed - 6,
         transpose=False,
@@ -592,7 +592,7 @@ if __name__ == "__main__":
     )
     plot_dataset_traversals(
         DSpritesImagenetData(50, "fg"),
-        rel_path=f"plots/traversals/traversal-mini__dsprites-imagenet-fg-50",
+        rel_path="plots/traversals/traversal-mini__dsprites-imagenet-fg-50",
         title=TITLE_MINI,
         seed=seed - 6,
         transpose=False,
@@ -603,7 +603,7 @@ if __name__ == "__main__":
     # transpose versions
     plot_dataset_traversals(
         XYObjectData(),
-        rel_path=f"plots/traversals/traversal-transpose__xy-object",
+        rel_path="plots/traversals/traversal-transpose__xy-object",
         title=TITLE_TRANSPOSE,
         offset=0.95,
         label_size=23,
@@ -615,7 +615,7 @@ if __name__ == "__main__":
     )
     plot_dataset_traversals(
         XYObjectShadedData(),
-        rel_path=f"plots/traversals/traversal-transpose__xy-object-shaded",
+        rel_path="plots/traversals/traversal-transpose__xy-object-shaded",
         title=TITLE_TRANSPOSE,
         offset=0.95,
         label_size=23,
@@ -627,7 +627,7 @@ if __name__ == "__main__":
     )
     plot_dataset_traversals(
         XYBlocksData(),
-        rel_path=f"plots/traversals/traversal-transpose__xy-blocks",
+        rel_path="plots/traversals/traversal-transpose__xy-blocks",
         title=TITLE_TRANSPOSE,
         offset=0.95,
         label_size=23,
@@ -640,7 +640,7 @@ if __name__ == "__main__":
 
     plot_dataset_traversals(
         DSpritesImagenetData(100, "bg"),
-        rel_path=f"plots/traversals/traversal-transpose__dsprites-imagenet-bg-100",
+        rel_path="plots/traversals/traversal-transpose__dsprites-imagenet-bg-100",
         title=TITLE_TRANSPOSE,
         offset=0.95,
         label_size=23,
@@ -652,7 +652,7 @@ if __name__ == "__main__":
     )
     plot_dataset_traversals(
         DSpritesImagenetData(50, "bg"),
-        rel_path=f"plots/traversals/traversal-transpose__dsprites-imagenet-bg-50",
+        rel_path="plots/traversals/traversal-transpose__dsprites-imagenet-bg-50",
         title=TITLE_TRANSPOSE,
         offset=0.95,
         label_size=23,
@@ -664,7 +664,7 @@ if __name__ == "__main__":
     )
     plot_dataset_traversals(
         DSpritesImagenetData(100, "fg"),
-        rel_path=f"plots/traversals/traversal-transpose__dsprites-imagenet-fg-100",
+        rel_path="plots/traversals/traversal-transpose__dsprites-imagenet-fg-100",
         title=TITLE_TRANSPOSE,
         offset=0.95,
         label_size=23,
@@ -676,7 +676,7 @@ if __name__ == "__main__":
     )
     plot_dataset_traversals(
         DSpritesImagenetData(50, "fg"),
-        rel_path=f"plots/traversals/traversal-transpose__dsprites-imagenet-fg-50",
+        rel_path="plots/traversals/traversal-transpose__dsprites-imagenet-fg-50",
         title=TITLE_TRANSPOSE,
         offset=0.95,
         label_size=23,

@@ -64,9 +64,9 @@ class GroundTruthRandomWalkSampler(BaseDisentSampler):
         self._state_space: Optional[StateSpace] = None
 
     def _init(self, dataset: GroundTruthData):
-        assert isinstance(
-            dataset, GroundTruthData
-        ), f"dataset must be an instance of {repr(GroundTruthData.__class__.__name__)}, got: {repr(dataset)}"
+        assert isinstance(dataset, GroundTruthData), (
+            f"dataset must be an instance of {repr(GroundTruthData.__class__.__name__)}, got: {repr(dataset)}"
+        )
         self._state_space = dataset.state_space_copy()
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #

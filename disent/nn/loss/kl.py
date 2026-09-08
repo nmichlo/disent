@@ -45,9 +45,9 @@ def kl_loss_approx_reverse(posterior: Distribution, prior: Distribution, z_sampl
     # - kl(post|prior)
     # See issue: https://github.com/PyTorchLightning/pytorch-lightning-bolts/issues/565
     # - we approximate the reverse kl divergence instead of computing it analytically
-    assert (
-        z_sampled is not None
-    ), 'to compute the approximate kl loss, z_sampled needs to be defined (cfg.kl_mode="approx")'
+    assert z_sampled is not None, (
+        'to compute the approximate kl loss, z_sampled needs to be defined (cfg.kl_mode="approx")'
+    )
     return posterior.log_prob(z_sampled) - prior.log_prob(z_sampled)
 
 
@@ -60,9 +60,9 @@ def kl_loss_direct_forward(posterior: Distribution, prior: Distribution, z_sampl
 def kl_loss_approx_forward(posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor = None):
     # compute the approximate forward kl
     # - kl(prior|post)
-    assert (
-        z_sampled is not None
-    ), 'to compute the approximate kl loss, z_sampled needs to be defined (cfg.kl_mode="approx")'
+    assert z_sampled is not None, (
+        'to compute the approximate kl loss, z_sampled needs to be defined (cfg.kl_mode="approx")'
+    )
     return prior.log_prob(z_sampled) - posterior.log_prob(z_sampled)
 
 

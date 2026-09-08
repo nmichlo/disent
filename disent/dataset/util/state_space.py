@@ -260,12 +260,12 @@ class StateSpace(LengthIter):
         # normalize shapes
         known_factors = np.array(known_factors)
         # checks
-        assert (
-            known_factors.ndim >= 1
-        ), f"known_factors must have at least one dimension, got shape: {known_factors.shape}"
-        assert known_factors.shape[-1] == len(
-            f_idxs
-        ), f"last dimension of factors must be the same size as the number of f_idxs ({len(f_idxs)}), got shape: {known_factors.shape}"
+        assert known_factors.ndim >= 1, (
+            f"known_factors must have at least one dimension, got shape: {known_factors.shape}"
+        )
+        assert known_factors.shape[-1] == len(f_idxs), (
+            f"last dimension of factors must be the same size as the number of f_idxs ({len(f_idxs)}), got shape: {known_factors.shape}"
+        )
         # replace the specified factors
         new_factors = np.empty([*known_factors.shape[:-1], self.num_factors], dtype="int")
         new_factors[..., f_idxs] = known_factors
@@ -287,9 +287,9 @@ class StateSpace(LengthIter):
         new_factors = np.copy(factors)
         # checks
         assert new_factors.ndim >= 1, f"factors must have at least one dimension, got shape: {new_factors.shape}"
-        assert (
-            new_factors.shape[-1] == self.num_factors
-        ), f"last dimension of factors must be the same size as the number of factors ({self.num_factors}), got shape: {new_factors.shape}"
+        assert new_factors.shape[-1] == self.num_factors, (
+            f"last dimension of factors must be the same size as the number of factors ({self.num_factors}), got shape: {new_factors.shape}"
+        )
         # replace the specified factors
         new_factors[..., f_idxs] = self.sample_factors(size=new_factors.shape[:-1], f_idxs=f_idxs)
         # done!

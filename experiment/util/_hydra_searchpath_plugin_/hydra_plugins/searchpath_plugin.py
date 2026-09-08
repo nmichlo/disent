@@ -25,7 +25,7 @@ class DisentExperimentSearchPathPlugin(SearchPathPlugin):
         # print information
         log.info(f" [disent-search-path-plugin]: Activated hydra plugin: {self.__class__.__name__}")
         log.info(
-            f" [disent-search-path-plugin]: To register more search paths, adjust the `DISENT_CONFIGS_PREPEND` and `DISENT_CONFIGS_APPEND` environment variables!"
+            " [disent-search-path-plugin]: To register more search paths, adjust the `DISENT_CONFIGS_PREPEND` and `DISENT_CONFIGS_APPEND` environment variables!"
         )
         # add paths
         for path in paths:

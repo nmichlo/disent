@@ -101,9 +101,9 @@ class GroundTruthTripleSampler(BaseDisentSampler):
         self._state_space: Optional[StateSpace]
 
     def _init(self, dataset):
-        assert isinstance(
-            dataset, GroundTruthData
-        ), f"dataset must be an instance of {repr(GroundTruthData.__class__.__name__)}, got: {repr(dataset)}"
+        assert isinstance(dataset, GroundTruthData), (
+            f"dataset must be an instance of {repr(GroundTruthData.__class__.__name__)}, got: {repr(dataset)}"
+        )
         self._state_space = dataset.state_space_copy()
         # DIFFERING FACTORS
         self.p_k_min, self.p_k_max, self.n_k_min, self.n_k_max = self._min_max_from_range(
@@ -181,9 +181,7 @@ class GroundTruthTripleSampler(BaseDisentSampler):
         elif n_sample_mode == "bounded_below":
             if not (np.all(p_max <= n_max)):
                 raise FactorSizeError(
-                    f"Ranges are not staggered."
-                    f"\n\tUnsatisfied: p_max <= n_max"
-                    f"\n\tUnsatisfied: {p_max} <= {n_max}"
+                    f"Ranges are not staggered.\n\tUnsatisfied: p_max <= n_max\n\tUnsatisfied: {p_max} <= {n_max}"
                 )
             if not (np.all(p_max <= max_values) and np.all(n_max <= max_values)):
                 raise FactorSizeError(

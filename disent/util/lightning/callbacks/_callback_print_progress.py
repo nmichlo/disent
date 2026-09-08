@@ -86,7 +86,7 @@ class LoggerProgressCallback(BaseCallbackTimed):
             + f"EPOCH: {epoch}/{max_epochs} - {int(global_step):0{len(str(max_steps))}d}/{max_steps} "
             + f"({int(train_pct * 100):02d}%) [rem. {int(train_remain_time)}s] "
             + f"STEP: {int(batch):{len(str(max_batches))}d}/{max_batches} ({int(batch / max_batches * 100):02d}%) "
-            + f'| {" ".join(f"{k}={info_dict[k]}" for k in sorted_k)}',
+            + f"| {' '.join(f'{k}={info_dict[k]}' for k in sorted_k)}",
         )
 
 

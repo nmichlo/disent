@@ -128,11 +128,11 @@ def hydra_check_data_paths(cfg):
 def hydra_check_data_meta(cfg):
     # checks
     if (cfg.dataset.meta.vis_mean is None) or (cfg.dataset.meta.vis_std is None):
-        log.warning(f"Dataset has no normalisation values... Are you sure this is correct?")
+        log.warning("Dataset has no normalisation values... Are you sure this is correct?")
         log.warning(f"* dataset.meta.vis_mean: {cfg.dataset.meta.vis_mean}")
         log.warning(f"* dataset.meta.vis_std:  {cfg.dataset.meta.vis_std}")
     else:
-        log.info(f"Dataset has normalisation values!")
+        log.info("Dataset has normalisation values!")
         log.info(f"* dataset.meta.vis_mean: {cfg.dataset.meta.vis_mean}")
         log.info(f"* dataset.meta.vis_std:  {cfg.dataset.meta.vis_std}")
 
@@ -148,7 +148,7 @@ def hydra_make_loggers(cfg) -> List[Logger]:
         log.info(f"Initialised Loggers: {loggers}")
     else:
         loggers = []
-        log.warning(f"No Logger Utilised!")
+        log.warning("No Logger Utilised!")
     return loggers
 
 
@@ -158,9 +158,9 @@ def hydra_get_callbacks(cfg) -> list:
     for name, item in cfg.callbacks.items():
         # custom callback handling vs instantiation
         callback = hydra.utils.instantiate(item)
-        assert isinstance(
-            callback, Callback
-        ), f"instantiated callback is not an instance of {Callback}, got: {callback}"
+        assert isinstance(callback, Callback), (
+            f"instantiated callback is not an instance of {Callback}, got: {callback}"
+        )
         # add to callbacks list
         log.info(f"made callback: {name} ({item._target_})")
         callbacks.append(callback)
@@ -193,17 +193,17 @@ def hydra_get_metric_callbacks(cfg) -> list:
     assert isinstance(metric_list, (list, ListConfig)), f"`metrics.metric_list` is not a list, got: {type(metric_list)}"
     # get metrics
     for metric in metric_list:
-        assert isinstance(
-            metric, (dict, DictConfig)
-        ), f"entry in metric list is not a dictionary, got type: {type(metric)} or value: {repr(metric)}"
+        assert isinstance(metric, (dict, DictConfig)), (
+            f"entry in metric list is not a dictionary, got type: {type(metric)} or value: {repr(metric)}"
+        )
         # fix the values
         if isinstance(metric, str):
             metric = {metric: {}}
         ((name, settings),) = metric.items()
         # check values
-        assert isinstance(
-            metric, (dict, DictConfig)
-        ), f"settings for entry in metric list is not a dictionary, got type: {type(settings)} or value: {repr(settings)}"
+        assert isinstance(metric, (dict, DictConfig)), (
+            f"settings for entry in metric list is not a dictionary, got type: {type(settings)} or value: {repr(settings)}"
+        )
         # make metrics
         train_metric = [R.METRICS[name].compute_fast] if settings.get("on_train", default_on_train) else None
         final_metric = [R.METRICS[name].compute] if settings.get("on_final", default_on_final) else None
@@ -224,9 +224,9 @@ def hydra_create_framework(
     cfg, gpu_batch_augment: Optional[Callable[[torch.Tensor], torch.Tensor]] = None
 ) -> DisentFramework:
     # create framework
-    assert str.endswith(
-        cfg.framework.cfg["_target_"], ".cfg"
-    ), f'`cfg.framework.cfg._target_` does not end with ".cfg", got: {repr(cfg.framework.cfg["_target_"])}'
+    assert str.endswith(cfg.framework.cfg["_target_"], ".cfg"), (
+        f'`cfg.framework.cfg._target_` does not end with ".cfg", got: {repr(cfg.framework.cfg["_target_"])}'
+    )
     framework_cls = hydra.utils.get_class(cfg.framework.cfg["_target_"][: -len(".cfg")])
     framework: DisentFramework = framework_cls(
         model=hydra.utils.instantiate(cfg.model.model_cls),
@@ -245,11 +245,11 @@ def hydra_create_framework(
 
     # register schedules to the framework
     schedule_items = cfg.schedule.schedule_items
-    assert isinstance(
-        schedule_items, (dict, DictConfig)
-    ), f"`schedule.schedule_items` must be a dictionary, got type: {type(schedule_items)} with value: {repr(schedule_items)}"
+    assert isinstance(schedule_items, (dict, DictConfig)), (
+        f"`schedule.schedule_items` must be a dictionary, got type: {type(schedule_items)} with value: {repr(schedule_items)}"
+    )
     if schedule_items:
-        log.info(f"Registering Schedules:")
+        log.info("Registering Schedules:")
         for target, schedule in schedule_items.items():
             framework.register_schedule(target, hydra.utils.instantiate(schedule), logging=True)
 
@@ -293,7 +293,7 @@ def action_prepare_data(cfg: DictConfig):
     hydra_check_data_paths(cfg)
     hydra_check_data_meta(cfg)
     # print the config
-    log.info(f'Dataset Config Is:\n{make_box_str(OmegaConf.to_yaml({"dataset": cfg.dataset}))}')
+    log.info(f"Dataset Config Is:\n{make_box_str(OmegaConf.to_yaml({'dataset': cfg.dataset}))}")
     # prepare data
     datamodule = hydra_make_datamodule(cfg)
     datamodule.prepare_data()
@@ -375,8 +375,9 @@ def action_train(cfg: DictConfig):
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
 
     # get config sections
-    print_cfg, boxed_pop = dict(cfg), lambda *keys: make_box_str(
-        OmegaConf.to_yaml({k: print_cfg.pop(k) for k in keys} if keys else print_cfg)
+    print_cfg, boxed_pop = (
+        dict(cfg),
+        lambda *keys: make_box_str(OmegaConf.to_yaml({k: print_cfg.pop(k) for k in keys} if keys else print_cfg)),
     )
     cfg_str_exp = boxed_pop("action", "experiment")
     cfg_str_logging = boxed_pop("logging", "callbacks", "metrics")

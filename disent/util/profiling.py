@@ -57,7 +57,6 @@ def get_memory_usage(pretty: bool = False):
 
 
 class Timer(ContextDecorator):
-
     """
     Timer class, can be used with a with statement to
     measure the execution time of a block of code!

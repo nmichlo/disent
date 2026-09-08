@@ -89,13 +89,17 @@ def register_searchpath_plugin(
         search_dirs_append = [search_dirs_append]
     assert isinstance(search_dirs_prepend, (tuple, list)) and all(
         (isinstance(d, str) and d) for d in search_dirs_prepend
-    ), f"`search_dirs_prepend` must be a list or tuple of non-empty path strings to directories, got: {repr(search_dirs_prepend)}"
+    ), (
+        f"`search_dirs_prepend` must be a list or tuple of non-empty path strings to directories, got: {repr(search_dirs_prepend)}"
+    )
     assert isinstance(search_dirs_append, (tuple, list)) and all(
         (isinstance(d, str) and d) for d in search_dirs_append
-    ), f"`search_dirs_append` must be a list or tuple of non-empty path strings to directories, got: {repr(search_dirs_append)}"
-    assert (
-        isinstance(search_dir_main, str) and search_dir_main
-    ), f"`search_dir_main` must be a non-empty path string to a directory, got: {repr(search_dir_main)}"
+    ), (
+        f"`search_dirs_append` must be a list or tuple of non-empty path strings to directories, got: {repr(search_dirs_append)}"
+    )
+    assert isinstance(search_dir_main, str) and search_dir_main, (
+        f"`search_dir_main` must be a non-empty path string to a directory, got: {repr(search_dir_main)}"
+    )
     # get dirs
     config_dirs = [*search_dirs_prepend, search_dir_main, *search_dirs_append]
 
@@ -104,9 +108,9 @@ def register_searchpath_plugin(
     if _DISENT_CONFIG_DIRS is None:
         _DISENT_CONFIG_DIRS = config_dirs
     else:
-        assert (
-            _DISENT_CONFIG_DIRS == config_dirs
-        ), f"Config dirs have already been registered, on additional calls, registered dirs must be the same as previously values!\n- existing: {_DISENT_CONFIG_DIRS}\n- registered: {config_dirs}"
+        assert _DISENT_CONFIG_DIRS == config_dirs, (
+            f"Config dirs have already been registered, on additional calls, registered dirs must be the same as previously values!\n- existing: {_DISENT_CONFIG_DIRS}\n- registered: {config_dirs}"
+        )
 
     # register the experiment's search path plugin with disent, using hydras auto-detection
     # of folders named `hydra_plugins` contained insided `namespace packages` or rather
@@ -173,9 +177,9 @@ def register_hydra_resolvers():
             # checks
             assert src.name and src.is_absolute(), f"src path must be absolute and not the root: {repr(str(src))}"
             assert dst.name and dst.is_absolute(), f"dst path must be absolute and not the root: {repr(str(dst))}"
-            assert (
-                src.name == dst.name
-            ), f"src and dst paths must point to dirs with the same names: src.name={repr(src.name)}, dst.name={repr(dst.name)}"
+            assert src.name == dst.name, (
+                f"src and dst paths must point to dirs with the same names: src.name={repr(src.name)}, dst.name={repr(dst.name)}"
+            )
             # synchronize dirs
             logging.info(f"rsync files:\n- src={repr(str(src))}\n- dst={repr(str(dst))}")
             # create the parent dir and copy files into the parent

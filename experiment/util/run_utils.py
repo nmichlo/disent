@@ -86,7 +86,7 @@ def _signal_handler_log_and_exit(signal_number, frame):
     signal_name = numbers_to_names.get(signal_number, signal_number)
     # log everything!
     log_error_and_exit(
-        err_type=f"received exit signal",
+        err_type="received exit signal",
         err_msg=f"{signal_name}",
         exit_code=signal_number,
         exc_info=False,
@@ -148,8 +148,8 @@ def log_error_and_exit(err_type: str, err_msg: str, exit_code: int = 1, exc_info
             # so I dont have to scroll up... I'm lazy...
             run_url = wb_logger.experiment.get_url()
             project_url = wb_logger.experiment.get_project_url()
-            log.error(f'wandb: run url: {run_url if run_url else "N/A"}')
-            log.error(f'wandb: project url: {project_url if run_url else "N/A"}')
+            log.error(f"wandb: run url: {run_url if run_url else 'N/A'}")
+            log.error(f"wandb: project url: {project_url if run_url else 'N/A'}")
             # make sure we log everything online!
             wb_logger.experiment.finish(exit_code=exit_code)
     # EXIT!

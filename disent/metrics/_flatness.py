@@ -29,7 +29,6 @@ Flatness Metric
 """
 
 import logging
-import math
 from typing import Iterable
 from typing import Tuple
 from typing import Union
@@ -39,7 +38,6 @@ from torch.utils.data.dataloader import default_collate
 
 from disent.dataset import DisentDataset
 from disent.metrics.utils import make_metric
-from disent.util.deprecate import deprecated
 from disent.util.iters import iter_chunks
 
 log = logging.getLogger(__name__)

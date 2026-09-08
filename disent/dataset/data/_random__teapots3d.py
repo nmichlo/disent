@@ -80,8 +80,8 @@ class DataFileTeapots3dInt32(DataFileHashed):
         if not os.path.exists(out_file):
             raise FileNotFoundError(
                 f"Please download the Teapots3D dataset to: {repr(out_file)}"
-                f'\nThe original repository is: {repr("https://github.com/cianeastwood/qedr")}'
-                f'\nThe original download link is: {repr("https://www.dropbox.com/s/woeyomxuylqu7tx/edinburgh_teapots.zip?dl=0")}'
+                f"\nThe original repository is: {repr('https://github.com/cianeastwood/qedr')}"
+                f"\nThe original download link is: {repr('https://www.dropbox.com/s/woeyomxuylqu7tx/edinburgh_teapots.zip?dl=0')}"
             )
 
 
@@ -98,7 +98,7 @@ class DataFileTeapots3dUint8(DataFileHashed):
     ):
         self._teapots3dfile = teapots3d_datafile
         super().__init__(
-            file_name=modify_name_keep_ext(self._teapots3dfile.out_name, suffix=f"_uint8")
+            file_name=modify_name_keep_ext(self._teapots3dfile.out_name, suffix="_uint8")
             if (out_name is None)
             else out_name,
             file_hash=out_hash,

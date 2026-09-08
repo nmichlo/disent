@@ -24,8 +24,6 @@
 
 from typing import Tuple
 
-import numpy as np
-
 from disent.dataset.sampling._base import BaseDisentSampler
 
 # ========================================================================= #

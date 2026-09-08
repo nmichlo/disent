@@ -19,11 +19,8 @@
     <a href="https://github.com/nmichlo/disent/actions?query=workflow%3Atests">
         <img alt="tests status" src="https://github.com/nmichlo/disent/actions/workflows/python-tests.yml/badge.svg"/>
     </a>
-    <a href="https://github.com/psf/black" target="_blank">
-        <img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"/>
-    </a>
-    <a href="https://pycqa.github.io/isort" target="_blank">
-        <img alt="Imports: isort" src="https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336"/>
+    <a href="https://github.com/astral-sh/ruff" target="_blank">
+        <img alt="Code style: ruff" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json"/>
     </a>
 <!--     <a href="https://codecov.io/gh/nmichlo/disent/"> -->
 <!--         <img alt="code coverage" src="https://img.shields.io/codecov/c/gh/nmichlo/disent?token=86IZK3J038&style=flat-square"/> -->
@@ -356,20 +353,21 @@ module = BetaVae(
         decoder=DecoderConv64(x_shape=data.x_shape, z_size=10),
     ),
     cfg=BetaVae.cfg(
-        optimizer='adam',
+        optimizer="adam",
         optimizer_kwargs=dict(lr=1e-3),
-        loss_reduction='mean_sum',
+        loss_reduction="mean_sum",
         beta=4,
-    )
+    ),
 )
 
 # cyclic schedule for target 'beta' in the config/cfg. The initial value from the
 # config is saved and multiplied by the ratio from the schedule on each step.
 # - based on: https://arxiv.org/abs/1903.10145
 module.register_schedule(
-    'beta', CyclicSchedule(
+    "beta",
+    CyclicSchedule(
         period=1024,  # repeat every: trainer.global_step % period
-    )
+    ),
 )
 
 # train model
@@ -390,7 +388,7 @@ metrics = {
 }
 
 # evaluate
-print('metrics:', metrics)
+print("metrics:", metrics)
 ```
 
 </p>

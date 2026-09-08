@@ -234,12 +234,12 @@ def compute_average_gvae_std(d0_posterior: Normal, d1_posterior: Normal) -> Norm
 
     *NB* this is un-official!
     """
-    assert isinstance(
-        d0_posterior, Normal
-    ), f"posterior distributions must be {Normal.__name__} distributions, got: {type(d0_posterior)}"
-    assert isinstance(
-        d1_posterior, Normal
-    ), f"posterior distributions must be {Normal.__name__} distributions, got: {type(d1_posterior)}"
+    assert isinstance(d0_posterior, Normal), (
+        f"posterior distributions must be {Normal.__name__} distributions, got: {type(d0_posterior)}"
+    )
+    assert isinstance(d1_posterior, Normal), (
+        f"posterior distributions must be {Normal.__name__} distributions, got: {type(d1_posterior)}"
+    )
     # averages
     ave_std = 0.5 * (d0_posterior.stddev + d1_posterior.stddev)
     ave_mean = 0.5 * (d0_posterior.mean + d1_posterior.mean)
@@ -255,12 +255,12 @@ def compute_average_gvae(d0_posterior: Normal, d1_posterior: Normal) -> Normal:
     (✓) Visual inspection against reference implementation:
         https://github.com/google-research/disentanglement_lib (GroupVAEBase.model_fn)
     """
-    assert isinstance(
-        d0_posterior, Normal
-    ), f"posterior distributions must be {Normal.__name__} distributions, got: {type(d0_posterior)}"
-    assert isinstance(
-        d1_posterior, Normal
-    ), f"posterior distributions must be {Normal.__name__} distributions, got: {type(d1_posterior)}"
+    assert isinstance(d0_posterior, Normal), (
+        f"posterior distributions must be {Normal.__name__} distributions, got: {type(d0_posterior)}"
+    )
+    assert isinstance(d1_posterior, Normal), (
+        f"posterior distributions must be {Normal.__name__} distributions, got: {type(d1_posterior)}"
+    )
     # averages
     ave_var = 0.5 * (d0_posterior.variance + d1_posterior.variance)
     ave_mean = 0.5 * (d0_posterior.mean + d1_posterior.mean)
@@ -278,12 +278,12 @@ def compute_average_ml_vae(d0_posterior: Normal, d1_posterior: Normal) -> Normal
 
     # TODO: recheck
     """
-    assert isinstance(
-        d0_posterior, Normal
-    ), f"posterior distributions must be {Normal.__name__} distributions, got: {type(d0_posterior)}"
-    assert isinstance(
-        d1_posterior, Normal
-    ), f"posterior distributions must be {Normal.__name__} distributions, got: {type(d1_posterior)}"
+    assert isinstance(d0_posterior, Normal), (
+        f"posterior distributions must be {Normal.__name__} distributions, got: {type(d0_posterior)}"
+    )
+    assert isinstance(d1_posterior, Normal), (
+        f"posterior distributions must be {Normal.__name__} distributions, got: {type(d1_posterior)}"
+    )
     # Diagonal matrix inverse: E^-1 = 1 / E
     # https://proofwiki.org/wiki/Inverse_of_Diagonal_Matrix
     z0_invvar, z1_invvar = d0_posterior.variance.reciprocal(), d1_posterior.variance.reciprocal()
@@ -337,12 +337,12 @@ class AdaGVaeMinimal(BetaVae):
             https://github.com/google-research/disentanglement_lib (aggregate_argmax)
         """
         d0_posterior, d1_posterior = ds_posterior
-        assert isinstance(
-            d0_posterior, Normal
-        ), f"posterior distributions must be {Normal.__name__} distributions, got: {type(d0_posterior)}"
-        assert isinstance(
-            d1_posterior, Normal
-        ), f"posterior distributions must be {Normal.__name__} distributions, got: {type(d1_posterior)}"
+        assert isinstance(d0_posterior, Normal), (
+            f"posterior distributions must be {Normal.__name__} distributions, got: {type(d0_posterior)}"
+        )
+        assert isinstance(d1_posterior, Normal), (
+            f"posterior distributions must be {Normal.__name__} distributions, got: {type(d1_posterior)}"
+        )
 
         # [1] symmetric KL Divergence FROM: https://openreview.net/pdf?id=8VXvj1QNRl1
         z_deltas = 0.5 * kl_divergence(d1_posterior, d0_posterior) + 0.5 * kl_divergence(d0_posterior, d1_posterior)

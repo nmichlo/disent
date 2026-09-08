@@ -133,7 +133,7 @@ def _metric_factored_components(
     # checks
     if not (compute_distances or compute_linearity):
         raise ValueError(
-            f"Metric will not compute any values! At least one of: `compute_distances` or `compute_linearity` must be `True`"
+            "Metric will not compute any values! At least one of: `compute_distances` or `compute_linearity` must be `True`"
         )
 
     # compute actual metric values

@@ -57,8 +57,7 @@ AliasesHint = Union[str, Tuple[str, ...]]
 
 
 class _FactoryFn(Protocol[V]):
-    def __call__(self, *args) -> V:
-        ...
+    def __call__(self, *args) -> V: ...
 
 
 # ========================================================================= #
@@ -581,7 +580,6 @@ class RegexProvidersSearch(object):
 
 
 class RegexRegistry(Registry[V]):
-
     """
     Registry that allows registering of regex expressions that can be used to
     construct values if there is no static value found!

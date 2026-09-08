@@ -113,9 +113,9 @@ class _Mpi3dMixin:
 
     @property
     def datafile(self) -> DataFile:
-        assert (
-            self.subset in self.MPI3D_DATAFILES
-        ), f"Invalid MPI3D subset: {repr(self.subset)} must be one of: {set(self.MPI3D_DATAFILES.keys())}"
+        assert self.subset in self.MPI3D_DATAFILES, (
+            f"Invalid MPI3D subset: {repr(self.subset)} must be one of: {set(self.MPI3D_DATAFILES.keys())}"
+        )
         return self.MPI3D_DATAFILES[self.subset]
 
     # not implemented

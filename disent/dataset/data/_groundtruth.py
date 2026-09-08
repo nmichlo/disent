@@ -261,7 +261,6 @@ class _DiskDataMixin(object):
 
 
 class DiskGroundTruthData(_DiskDataMixin, GroundTruthData, metaclass=ABCMeta):
-
     """
     Dataset that prepares a list DataObjects into some local directory.
     - This directory can be

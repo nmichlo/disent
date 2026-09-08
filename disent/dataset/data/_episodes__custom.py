@@ -141,7 +141,7 @@ class EpisodesDownloadZippedPickledData(EpisodesPickledData):
         if force_download or not os.path.exists(save_path):
             log.info(f"Downloading: {download_url=} to {save_path=}")
             download_file(download_url, save_path=save_path)
-            log.info(f"Downloaded!")
+            log.info("Downloaded!")
         # check that the downloaded file exists
         assert os.path.exists(save_path), "The file specified for download does not exist!"
         # ~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
@@ -153,13 +153,13 @@ class EpisodesDownloadZippedPickledData(EpisodesPickledData):
                     save_path,
                     os.path.dirname(required_file),
                 )
-                log.info(f"Extracted!")
+                log.info("Extracted!")
             else:
                 raise IOError(f"Unsupported extension for: {save_path}")
         # check that everything exists
-        assert os.path.exists(
-            required_file
-        ), "The required file does not exist after downloading and extracting if necessary!"
+        assert os.path.exists(required_file), (
+            "The required file does not exist after downloading and extracting if necessary!"
+        )
         # ~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
 
 

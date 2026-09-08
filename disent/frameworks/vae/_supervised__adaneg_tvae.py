@@ -25,7 +25,6 @@
 import logging
 from dataclasses import dataclass
 from typing import Sequence
-from typing import Tuple
 
 import torch
 from torch.distributions import Distribution

@@ -99,9 +99,9 @@ _TRIPLET_MINE_MODES = {
 @torch.no_grad()
 def mine(mode: str, dist_ap: torch.Tensor, dist_an: torch.Tensor, top_k: int, margin_max: float) -> torch.Tensor:
     # check arrays
-    assert (dist_ap.ndim == 1) and (
-        dist_an.ndim == 1
-    ), f"dist arrays must only have one dimension: dist_ap: {dist_ap.shape} & dist_an: {dist_an.shape}"
+    assert (dist_ap.ndim == 1) and (dist_an.ndim == 1), (
+        f"dist arrays must only have one dimension: dist_ap: {dist_ap.shape} & dist_an: {dist_an.shape}"
+    )
     assert dist_ap.shape == dist_an.shape, f"dist array shapes do not match: {dist_ap.shape} & dist_an: {dist_an.shape}"
     # get mining function
     try:

@@ -34,7 +34,6 @@ from disent.dataset.data._groundtruth__xysquares import XYSquaresData
 
 
 class XColumnsData(XYSquaresData):
-
     """
     Michlo et al.
     https://github.com/nmichlo/msc-research
