@@ -162,6 +162,19 @@ class _AeAndVaeMixin(DisentFramework):
         checkpoint["hyper_parameters"] = hyper_parameters
         return super().on_save_checkpoint(checkpoint)
 
+    @classmethod
+    def load_from_checkpoint(cls, *args, **kwargs):
+        """
+        Load a framework from a checkpoint written by `on_save_checkpoint` above.
+
+        That hook stores the `AutoEncoder` instance and the `cfg` dataclass in the
+        checkpoint, so restoring one requires unpickling arbitrary objects. `torch.load`
+        defaults to `weights_only=True` since torch 2.6, which refuses to do that, so
+        opt out here. Only load checkpoints you trust.
+        """
+        kwargs.setdefault("weights_only", False)
+        return super().load_from_checkpoint(*args, **kwargs)
+
 
 # ========================================================================= #
 # END                                                                       #

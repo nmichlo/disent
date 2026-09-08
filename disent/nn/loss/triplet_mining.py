@@ -40,7 +40,7 @@ log = logging.getLogger(__name__)
 
 def _delta_mine_none(dist_ap: torch.Tensor, dist_an: torch.Tensor, top_k: int, margin_max: float):
     assert len(dist_ap) == len(dist_an)
-    return torch.arange(len(dist_ap))
+    return torch.arange(len(dist_ap), device=dist_ap.device)
 
 
 def _delta_mine_semi_hard_neg(dist_ap: torch.Tensor, dist_an: torch.Tensor, top_k: int, margin_max: float):
@@ -48,7 +48,7 @@ def _delta_mine_semi_hard_neg(dist_ap: torch.Tensor, dist_an: torch.Tensor, top_
     # "choose an anchor-negative pair that is farther than the anchor-positive pair, but within the margin, and so still contributes a positive loss"
     # -- triples satisfy d(a, p) < d(a, n) < alpha
     semi_hard_mask = (dist_ap < dist_an) & (dist_an < margin_max)
-    semi_hard_idxs = torch.arange(len(semi_hard_mask))[semi_hard_mask]
+    semi_hard_idxs = torch.arange(len(semi_hard_mask), device=semi_hard_mask.device)[semi_hard_mask]
     return semi_hard_idxs
 
 

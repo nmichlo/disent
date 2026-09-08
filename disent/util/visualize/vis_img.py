@@ -483,8 +483,13 @@ def numpy_to_pil_images(
         in_max=in_max,
     )
     # all the cases (even ndim == 3)... bravo numpy, bravo!
-    images = [Image.fromarray(imgs[idx]) for idx in np.ndindex(imgs.shape[:-3])]
-    images = np.array(images, dtype=object).reshape(imgs.shape[:-3])
+    # numpy >= 2 reads the buffer protocol off each PIL image inside
+    # `np.array(..., dtype=object)`, producing a pixel array instead of an array of
+    # images. allocate the object array up front and assign into it instead.
+    pil_images = [Image.fromarray(imgs[idx]) for idx in np.ndindex(imgs.shape[:-3])]
+    images = np.empty(len(pil_images), dtype=object)
+    images[:] = pil_images
+    images = images.reshape(imgs.shape[:-3])
     # done
     return images
 

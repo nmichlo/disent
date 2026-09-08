@@ -142,7 +142,7 @@ def generate_batch_factor_code(
                 num_points_iter, mode="input"
             )
             if i == 0:
-                factors = current_factors
+                factors = to_numpy(current_factors)
                 representations = to_numpy(representation_function(current_observations))
             else:
                 assert factors is not None and representations is not None
