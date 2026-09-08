@@ -23,8 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import warnings
-from typing import Optional
-from typing import Tuple
 
 import numpy as np
 
@@ -106,11 +104,11 @@ class XYObjectData(GroundTruthData):
     factor_names = ("x", "y", "scale", "color")
 
     @property
-    def factor_sizes(self) -> Tuple[int, ...]:
+    def factor_sizes(self) -> tuple[int, ...]:
         return self._placements, self._placements, len(self._square_scales), len(self._colors)
 
     @property
-    def img_shape(self) -> Tuple[int, ...]:
+    def img_shape(self) -> tuple[int, ...]:
         return self._width, self._width, (3 if self._rgb else 1)
 
     def __init__(
@@ -183,11 +181,11 @@ class XYObjectShadedData(XYObjectData):
     factor_names = ("x", "y", "scale", "intensity", "color")
 
     @property
-    def factor_sizes(self) -> Tuple[int, ...]:
+    def factor_sizes(self) -> tuple[int, ...]:
         return self._placements, self._placements, len(self._square_scales), self._brightness_levels, len(self._colors)
 
     @property
-    def img_shape(self) -> Tuple[int, ...]:
+    def img_shape(self) -> tuple[int, ...]:
         return self._width, self._width, (3 if self._rgb else 1)
 
     def __init__(
@@ -199,7 +197,7 @@ class XYObjectShadedData(XYObjectData):
         square_size_spacing: int = 2,
         rgb: bool = True,
         palette: str = "rainbow_4",
-        brightness_levels: Optional[int] = None,
+        brightness_levels: int | None = None,
         transform=None,
     ):
         parts = palette.split("_")

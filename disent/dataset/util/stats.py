@@ -24,9 +24,7 @@
 
 import functools
 import os
-from typing import Callable
-from typing import List
-from typing import Tuple
+from collections.abc import Callable
 
 import numpy as np
 import torch
@@ -44,7 +42,7 @@ def compute_data_mean_std(
     num_workers: int = min(os.cpu_count() or 16, 16),
     progress: bool = False,
     chn_is_last: bool = False,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Input data when collected using a DataLoader should return
     `torch.Tensor`s, output mean and std are an `np.ndarray`s
@@ -94,7 +92,7 @@ if __name__ == "__main__":
 
         # each entry is a zero-(extra-)arg factory returning a `GroundTruthData`, any fixed
         # constructor kwargs (eg. `grid_size=8`) are bound ahead of time via `functools.partial`
-        entries: List[Callable[..., data.GroundTruthData]] = [
+        entries: list[Callable[..., data.GroundTruthData]] = [
             # groundtruth -- impl
             data.Cars3dData,
             data.Cars3d64Data,

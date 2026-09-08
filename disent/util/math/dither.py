@@ -24,8 +24,7 @@
 
 
 import functools
-from typing import Optional
-from typing import Sequence
+from collections.abc import Sequence
 
 import numpy as np
 
@@ -115,7 +114,7 @@ def nd_dither_matrix(n: int = 2, d: int = 2, norm: bool = True) -> np.ndarray:
 # ========================================================================= #
 
 
-def nd_dither(arr: np.ndarray, n: int = 2, axis: Optional[Sequence[int]] = None) -> np.ndarray:
+def nd_dither(arr: np.ndarray, n: int = 2, axis: Sequence[int] | None = None) -> np.ndarray:
     """
     Apply ordered dithering along the specified axes of an array.
     The array must be floats with values in the range [0, 1]
@@ -130,7 +129,7 @@ def nd_dither(arr: np.ndarray, n: int = 2, axis: Optional[Sequence[int]] = None)
 
 
 def nd_dither_matrix_like(
-    arr: np.ndarray, n: int = 2, axis: Optional[Sequence[int]] = None, norm: bool = True, expand: bool = True
+    arr: np.ndarray, n: int = 2, axis: Sequence[int] | None = None, norm: bool = True, expand: bool = True
 ) -> np.ndarray:
     """
     Tile the dither matrix across an array.
@@ -173,8 +172,8 @@ def _is_power_2(num: int):
     return not bool(num & (num - 1))
 
 
-@functools.lru_cache()
-def _normalize_axis(ndim: int, axis: Optional[Sequence[int]]) -> np.ndarray:
+@functools.lru_cache
+def _normalize_axis(ndim: int, axis: Sequence[int] | None) -> np.ndarray:
     # TODO: this functionality may be duplicated
     #       -- similar to np.normalize_axis_tuple(...)
     # defaults

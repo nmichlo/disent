@@ -23,8 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import warnings
-from typing import Tuple
-from typing import Union
 
 import lightning as L
 from lightning.pytorch.utilities import CombinedLoader
@@ -39,8 +37,8 @@ from disent.frameworks.vae import Vae
 
 
 def _get_dataset_and_ae_like(
-    trainer_or_dataset: Union[L.Trainer, DisentDataset], pl_module: L.LightningModule, unwrap_groundtruth: bool = False
-) -> Tuple[DisentDataset, Union[Ae, Vae]]:
+    trainer_or_dataset: L.Trainer | DisentDataset, pl_module: L.LightningModule, unwrap_groundtruth: bool = False
+) -> tuple[DisentDataset, Ae | Vae]:
     assert isinstance(pl_module, (Ae, Vae)), f"{pl_module.__class__} is not an instance of {Ae} or {Vae}"
     # get dataset
     if isinstance(trainer_or_dataset, L.Trainer):

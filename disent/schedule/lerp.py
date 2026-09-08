@@ -24,8 +24,6 @@
 
 
 import math
-from typing import Optional
-from typing import Union
 
 import numpy as np
 
@@ -81,13 +79,13 @@ _END_VALUES = {
 
 
 def cyclical_anneal(
-    step: Union[int, float, np.ndarray],
+    step: int | float | np.ndarray,
     period: float = 3600,
     low_ratio: float = 0.0,
     high_ratio: float = 0.0,
-    repeats: Optional[int] = None,
+    repeats: int | None = None,
     start_low: bool = True,
-    end_value: Union[str, int, float] = "high",
+    end_value: str | int | float = "high",
     mode: str = "linear",
 ):
     # check values

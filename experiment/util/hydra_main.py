@@ -26,12 +26,9 @@ import logging
 import os
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
-from typing import List
 from typing import NoReturn
-from typing import Optional
-from typing import Union
 
 import hydra
 from omegaconf import DictConfig
@@ -56,7 +53,7 @@ PLUGIN_NAMESPACE = os.path.abspath(os.path.join(__file__, "..", "_hydra_searchpa
 EXP_CONFIG_DIR = os.path.abspath(os.path.join(__file__, "../..", "config"))
 
 # list of configs
-_DISENT_CONFIG_DIRS: Optional[List[str]] = None
+_DISENT_CONFIG_DIRS: list[str] | None = None
 
 
 # ========================================================================= #
@@ -66,8 +63,8 @@ _DISENT_CONFIG_DIRS: Optional[List[str]] = None
 
 def register_searchpath_plugin(
     search_dir_main: str = EXP_CONFIG_DIR,
-    search_dirs_prepend: Optional[Union[str, List[str]]] = None,
-    search_dirs_append: Optional[Union[str, List[str]]] = None,
+    search_dirs_prepend: str | list[str] | None = None,
+    search_dirs_append: str | list[str] | None = None,
 ):
     """
      Patch Hydra:
@@ -206,8 +203,8 @@ def register_hydra_resolvers():
 def patch_hydra(
     # config search path
     search_dir_main: str = EXP_CONFIG_DIR,
-    search_dirs_prepend: Optional[Union[str, List[str]]] = None,
-    search_dirs_append: Optional[Union[str, List[str]]] = None,
+    search_dirs_prepend: str | list[str] | None = None,
+    search_dirs_append: str | list[str] | None = None,
 ):
     # Patch Hydra and OmegaConf:
     register_searchpath_plugin(
@@ -221,10 +218,10 @@ def hydra_main(
     config_name: str = "config",
     # config search path
     search_dir_main: str = EXP_CONFIG_DIR,
-    search_dirs_prepend: Optional[Union[str, List[str]]] = None,
-    search_dirs_append: Optional[Union[str, List[str]]] = None,
+    search_dirs_prepend: str | list[str] | None = None,
+    search_dirs_append: str | list[str] | None = None,
     # logging
-    log_level: Optional[int] = logging.INFO,
+    log_level: int | None = logging.INFO,
     log_exc_info_callback: bool = True,
     log_exc_info_hydra: bool = False,
 ):

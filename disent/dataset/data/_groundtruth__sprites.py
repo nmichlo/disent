@@ -25,9 +25,6 @@
 import logging
 import os
 from tempfile import TemporaryDirectory
-from typing import List
-from typing import Optional
-from typing import Tuple
 
 import numpy as np
 from PIL import Image
@@ -47,7 +44,7 @@ SPRITES_REPO = "https://github.com/YingzhenLi/Sprites"
 SPRITES_REPO_COMMIT_SHA = "3ce4048c5227802bd8f1888e293fd3afdba91c0c"
 
 
-def fetch_sprite_components() -> Tuple[np.ndarray, np.ndarray]:
+def fetch_sprite_components() -> tuple[np.ndarray, np.ndarray]:
     try:
         import git
     except ImportError:
@@ -60,7 +57,7 @@ def fetch_sprite_components() -> Tuple[np.ndarray, np.ndarray]:
         repo = git.Repo.clone_from(SPRITES_REPO, temp_dir, no_checkout=True)
         repo.git.checkout(SPRITES_REPO_COMMIT_SHA)
         # get all the components!
-        component_sheets: List[np.ndarray] = []
+        component_sheets: list[np.ndarray] = []
         component_names = ["bottomwear", "topwear", "hair", "eyes", "shoes", "body"]
         for sprites_folder in component_names:
             # append all sprite sheets for the current component
@@ -89,7 +86,7 @@ def save_sprite_components(out_file: str, sheets, names) -> None:
     np.savez_compressed(out_file, sheets=sheets, names=names)
 
 
-def load_sprite_components(in_file: str) -> Tuple[Tuple[np.ndarray, ...], Tuple[str, ...]]:
+def load_sprite_components(in_file: str) -> tuple[tuple[np.ndarray, ...], tuple[str, ...]]:
     dat = np.load(in_file, allow_pickle=True)
     return dat["sheets"], dat["names"]
 
@@ -142,17 +139,17 @@ class SpritesAllData(DiskGroundTruthData):
         "hurt": {"front": range(260, 266)},
     }
 
-    def __init__(self, data_root: Optional[str] = None, prepare: bool = False, transform=None):
+    def __init__(self, data_root: str | None = None, prepare: bool = False, transform=None):
         super().__init__(data_root=data_root, prepare=prepare, transform=transform)
         # load the data
         dat = np.load(os.path.join(self._data_dir, self.datafile.out_name), allow_pickle=True)
         self._names = dat["names"]
         self._sheets = dat["sheets"]
 
-    def sample_random_frames(self, alpha: bool = True, combined: bool = False) -> List[np.ndarray]:
+    def sample_random_frames(self, alpha: bool = True, combined: bool = False) -> list[np.ndarray]:
         return self.get_frames(idx=self.sample_indices(), alpha=alpha, combined=combined)
 
-    def get_frames(self, idx: Optional[int], alpha: bool = True, combined: bool = False) -> List[np.ndarray]:
+    def get_frames(self, idx: int | None, alpha: bool = True, combined: bool = False) -> list[np.ndarray]:
         *sheet_idxs, act, rot, frame = self.idx_to_pos(idx)
         # extract the individual sheets
         sheets = (sheets[i] for i, sheets in zip(sheet_idxs, self._sheets))
@@ -199,7 +196,7 @@ class SpritesPartialData(GroundTruthData):
     factor_names = SpritesAllData.factor_names
     factor_sizes = (6, 6, 10, 5, 3, 7, 5, 3, 6)  # 3_402_000
 
-    def __init__(self, data_root: Optional[str] = None, prepare: bool = False, transform=None):
+    def __init__(self, data_root: str | None = None, prepare: bool = False, transform=None):
         super().__init__(transform=transform)
         self._sprites = SpritesAllData(data_root=data_root, prepare=prepare, transform=None)
 
@@ -215,10 +212,10 @@ class SpritesPartialData(GroundTruthData):
         # index in orig state space
         return int(self._sprites.pos_to_idx(pos))
 
-    def sample_random_frames(self, alpha: bool = True, combined: bool = False) -> List[np.ndarray]:
+    def sample_random_frames(self, alpha: bool = True, combined: bool = False) -> list[np.ndarray]:
         return self._sprites.sample_random_frames(alpha=alpha, combined=combined)
 
-    def get_frames(self, idx: int, alpha: bool = True, combined: bool = False) -> List[np.ndarray]:
+    def get_frames(self, idx: int, alpha: bool = True, combined: bool = False) -> list[np.ndarray]:
         return self._sprites.get_frames(idx=self._offset_idx(idx), alpha=alpha, combined=combined)
 
     def combine_frames(self, frames_rgba, alpha: bool = True):

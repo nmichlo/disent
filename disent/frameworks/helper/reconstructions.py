@@ -23,8 +23,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import warnings
-from typing import Sequence
-from typing import Union
+from collections.abc import Sequence
 from typing import final
 
 import torch
@@ -247,10 +246,10 @@ class AugmentedReconLossHandler(ReconLossHandler):
     def __init__(
         self,
         recon_loss_handler: ReconLossHandler,
-        kernel: Union[str, torch.Tensor],
+        kernel: str | torch.Tensor,
         wrap_weight: float = 1.0,
         aug_weight: float = 1.0,
-        normalize_mode: Union[str, _NoArgType] = _NO_ARG,
+        normalize_mode: str | _NoArgType = _NO_ARG,
     ):
         super().__init__(reduction=recon_loss_handler._reduction)
         # save variables

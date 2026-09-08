@@ -26,7 +26,6 @@ import logging
 import time
 from contextlib import ContextDecorator
 from math import log10
-from typing import Optional
 
 log = logging.getLogger(__name__)
 
@@ -89,9 +88,9 @@ class Timer(ContextDecorator):
         ```
     """
 
-    def __init__(self, name: Optional[str] = None, log_level: int = logging.INFO):
-        self._start_time: Optional[int] = None
-        self._end_time: Optional[int] = None
+    def __init__(self, name: str | None = None, log_level: int = logging.INFO):
+        self._start_time: int | None = None
+        self._end_time: int | None = None
         self._total_time = 0
         self.name = name
         self._log_level = log_level

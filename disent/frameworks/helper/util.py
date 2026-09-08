@@ -22,10 +22,7 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from typing import Dict
-from typing import Sequence
-from typing import Tuple
-from typing import Union
+from collections.abc import Sequence
 
 import torch
 
@@ -60,7 +57,7 @@ def compute_ave_loss(loss_fn, *arg_list, **common_kwargs) -> torch.Tensor:
 
 def compute_ave_loss_and_logs(
     loss_and_logs_fn, *arg_list, **common_kwargs
-) -> Tuple[torch.Tensor, Dict[str, Union[torch.Tensor, float]]]:
+) -> tuple[torch.Tensor, dict[str, torch.Tensor | float]]:
     # compute all losses
     losses, logs = map_all(loss_and_logs_fn, *arg_list, collect_returned=True, common_kwargs=common_kwargs)
     # compute mean loss

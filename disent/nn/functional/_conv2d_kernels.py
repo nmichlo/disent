@@ -23,8 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 
-from typing import Optional
-
 import numpy as np
 import torch
 
@@ -61,7 +59,7 @@ def get_kernel_size(sigma: TypeGenericTensor = 1.0, truncate: TypeGenericTensor 
 def torch_gaussian_kernel(
     sigma: TypeGenericTorch = 1.0,
     truncate: TypeGenericTorch = 4.0,
-    size: Optional[int] = None,
+    size: int | None = None,
     dtype=torch.float32,
     device=None,
 ):
@@ -84,10 +82,10 @@ def torch_gaussian_kernel(
 def torch_gaussian_kernel_2d(
     sigma: TypeGenericTorch = 1.0,
     truncate: TypeGenericTorch = 4.0,
-    size: Optional[int] = None,
-    sigma_b: Optional[TypeGenericTorch] = None,
-    truncate_b: Optional[TypeGenericTorch] = None,
-    size_b: Optional[int] = None,
+    size: int | None = None,
+    sigma_b: TypeGenericTorch | None = None,
+    truncate_b: TypeGenericTorch | None = None,
+    size_b: int | None = None,
     dtype=torch.float32,
     device=None,
 ):
@@ -120,7 +118,7 @@ def torch_box_kernel(radius: TypeGenericTorch = 1, dtype=torch.float32, device=N
 
 
 def torch_box_kernel_2d(
-    radius: TypeGenericTorch = 1, radius_b: Optional[TypeGenericTorch] = None, dtype=torch.float32, device=None
+    radius: TypeGenericTorch = 1, radius_b: TypeGenericTorch | None = None, dtype=torch.float32, device=None
 ):
     # set default values
     if radius_b is None:

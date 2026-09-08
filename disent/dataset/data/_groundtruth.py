@@ -25,11 +25,8 @@
 import logging
 import os
 from abc import ABCMeta
-from typing import Callable
-from typing import Optional
-from typing import Sequence
-from typing import Tuple
-from typing import Union
+from collections.abc import Callable
+from collections.abc import Sequence
 
 import numpy as np
 from torch.utils.data import Dataset
@@ -76,11 +73,11 @@ class GroundTruthData(Dataset, StateSpace):
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     @property
-    def factor_names(self) -> Tuple[str, ...]:
+    def factor_names(self) -> tuple[str, ...]:
         raise NotImplementedError()
 
     @property
-    def factor_sizes(self) -> Tuple[int, ...]:
+    def factor_sizes(self) -> tuple[int, ...]:
         raise NotImplementedError()
 
     def state_space_copy(self) -> StateSpace:
@@ -97,14 +94,14 @@ class GroundTruthData(Dataset, StateSpace):
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     @property
-    def x_shape(self) -> Tuple[int, ...]:
+    def x_shape(self) -> tuple[int, ...]:
         # shape as would be for a single observation in a torch batch
         # eg. C x H x W
         H, W, C = self.img_shape
         return (C, H, W)
 
     @property
-    def img_shape(self) -> Tuple[int, ...]:
+    def img_shape(self) -> tuple[int, ...]:
         # shape as would be for an original image
         # eg. H x W x C
         raise NotImplementedError()
@@ -137,12 +134,12 @@ class GroundTruthData(Dataset, StateSpace):
 
     def sample_random_obs_traversal(
         self,
-        f_idx: Optional[int] = None,
+        f_idx: int | None = None,
         base_factors=None,
-        num: Optional[int] = None,
+        num: int | None = None,
         mode="interval",
-        obs_collect_fn: Optional[Callable[[list], object]] = None,
-    ) -> Tuple[np.ndarray, np.ndarray, object]:
+        obs_collect_fn: Callable[[list], object] | None = None,
+    ) -> tuple[np.ndarray, np.ndarray, object]:
         """
         Same API as sample_random_factor_traversal, but also
         returns the corresponding indices and uncollated list of observations
@@ -166,10 +163,10 @@ class ArrayGroundTruthData(GroundTruthData):
     def __init__(
         self,
         array,
-        factor_names: Tuple[str, ...],
-        factor_sizes: Tuple[int, ...],
+        factor_names: tuple[str, ...],
+        factor_sizes: tuple[int, ...],
         array_chn_is_last: bool = True,
-        x_shape: Optional[Tuple[int, ...]] = None,
+        x_shape: tuple[int, ...] | None = None,
         transform=None,
     ):
         self.__array_factor_names = tuple(factor_names)
@@ -194,15 +191,15 @@ class ArrayGroundTruthData(GroundTruthData):
         return self._array
 
     @property
-    def factor_names(self) -> Tuple[str, ...]:
+    def factor_names(self) -> tuple[str, ...]:
         return self.__array_factor_names
 
     @property
-    def factor_sizes(self) -> Tuple[int, ...]:
+    def factor_sizes(self) -> tuple[int, ...]:
         return self.__array_factor_sizes
 
     @property
-    def img_shape(self) -> Tuple[int, ...]:
+    def img_shape(self) -> tuple[int, ...]:
         return self.__img_shape
 
     def _get_observation(self, idx):
@@ -230,11 +227,11 @@ class ArrayGroundTruthData(GroundTruthData):
 # ========================================================================= #
 
 
-class _DiskDataMixin(object):
+class _DiskDataMixin:
     # attr this class defines in _mixin_disk_init
     _data_dir: str
 
-    def _mixin_disk_init(self, data_root: Optional[str] = None, prepare: bool = False):
+    def _mixin_disk_init(self, data_root: str | None = None, prepare: bool = False):
         # get root data folder
         if data_root is None:
             data_root = self.default_data_root
@@ -272,7 +269,7 @@ class DiskGroundTruthData(_DiskDataMixin, GroundTruthData, metaclass=ABCMeta):
     - This directory can be
     """
 
-    def __init__(self, data_root: Optional[str] = None, prepare: bool = False, transform=None):
+    def __init__(self, data_root: str | None = None, prepare: bool = False, transform=None):
         super().__init__(transform=transform)
         # get root data folder
         self._mixin_disk_init(data_root=data_root, prepare=prepare)
@@ -284,7 +281,7 @@ class NumpyFileGroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
     - if the dataset is contained in a key, set the `data_key` property
     """
 
-    def __init__(self, data_root: Optional[str] = None, prepare: bool = False, transform=None):
+    def __init__(self, data_root: str | None = None, prepare: bool = False, transform=None):
         super().__init__(data_root=data_root, prepare=prepare, transform=transform)
         # load dataset
         load_path = os.path.join(self.data_dir, self.datafile.out_name)
@@ -311,16 +308,16 @@ class NumpyFileGroundTruthData(DiskGroundTruthData, metaclass=ABCMeta):
         raise NotImplementedError
 
     @property
-    def data_key(self) -> Optional[str]:
+    def data_key(self) -> str | None:
         # can override this!
         return None
 
 
-class _Hdf5DataMixin(object):
+class _Hdf5DataMixin:
     # attrs this class defines in _mixin_hdf5_init
     _in_memory: bool
     _attrs: dict
-    _data: Union[Hdf5Dataset, np.ndarray]
+    _data: Hdf5Dataset | np.ndarray
 
     def _mixin_hdf5_init(self, h5_path: str, h5_dataset_name: str = "data", in_memory: bool = False):
         # variables
@@ -365,7 +362,7 @@ class Hdf5GroundTruthData(_Hdf5DataMixin, DiskGroundTruthData, metaclass=ABCMeta
       that points to the hdf5 dataset in the file to load.
     """
 
-    def __init__(self, data_root: Optional[str] = None, prepare: bool = False, in_memory=False, transform=None):
+    def __init__(self, data_root: str | None = None, prepare: bool = False, in_memory=False, transform=None):
         super().__init__(data_root=data_root, prepare=prepare, transform=transform)
         # initialize mixin
         self._mixin_hdf5_init(
@@ -406,15 +403,15 @@ class SelfContainedHdf5GroundTruthData(_Hdf5DataMixin, GroundTruthData):
         return self._attr_name
 
     @property
-    def factor_names(self) -> Tuple[str, ...]:
+    def factor_names(self) -> tuple[str, ...]:
         return self._attr_factor_names
 
     @property
-    def factor_sizes(self) -> Tuple[int, ...]:
+    def factor_sizes(self) -> tuple[int, ...]:
         return self._attr_factor_sizes
 
     @property
-    def img_shape(self) -> Tuple[int, ...]:
+    def img_shape(self) -> tuple[int, ...]:
         return self._img_shape
 
 

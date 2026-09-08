@@ -24,9 +24,8 @@
 
 import logging
 import warnings
-from typing import Optional
+from collections.abc import Sequence
 from typing import Protocol
-from typing import Sequence
 
 import lightning as L
 
@@ -81,9 +80,9 @@ def _normalized_numeric_metrics(items: dict):
 class VaeMetricLoggingCallback(BaseCallbackPeriodic):
     def __init__(
         self,
-        step_end_metrics: Optional[Sequence[_NamedMetricFn]] = None,
-        train_end_metrics: Optional[Sequence[_NamedMetricFn]] = None,
-        every_n_steps: Optional[int] = None,
+        step_end_metrics: Sequence[_NamedMetricFn] | None = None,
+        train_end_metrics: Sequence[_NamedMetricFn] | None = None,
+        every_n_steps: int | None = None,
         begin_first_step: bool = False,
     ):
         super().__init__(every_n_steps, begin_first_step)

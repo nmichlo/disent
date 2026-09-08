@@ -22,8 +22,7 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from typing import Sequence
-from typing import Tuple
+from collections.abc import Sequence
 
 import numpy as np
 
@@ -71,7 +70,7 @@ class GroundTruthRandomWalkSampler(BaseDisentSampler):
     # Sampling                                                              #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def _sample_idx(self, idx) -> Tuple[int, ...]:
+    def _sample_idx(self, idx) -> tuple[int, ...]:
         if self._num_samples == 1:
             return (idx,)
         elif self._num_samples == 2:

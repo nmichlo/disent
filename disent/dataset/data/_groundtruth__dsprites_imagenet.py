@@ -26,7 +26,6 @@ import logging
 import os
 import shutil
 from tempfile import TemporaryDirectory
-from typing import Optional
 
 import numpy as np
 from torch.utils.data import DataLoader
@@ -133,7 +132,7 @@ class ImageNetTinyData(_Hdf5DataMixin, _DiskDataMixin, Dataset, LengthIter):
 
     datafiles = (datafile_imagenet_h5,)
 
-    def __init__(self, data_root: Optional[str] = None, prepare: bool = False, in_memory=False, transform=None):
+    def __init__(self, data_root: str | None = None, prepare: bool = False, in_memory=False, transform=None):
         super().__init__()
         self._transform = transform
         # initialize mixin
@@ -182,7 +181,7 @@ class DSpritesImagenetData(GroundTruthData):
         self,
         visibility: int = 100,
         mode: str = "bg",
-        data_root: Optional[str] = None,
+        data_root: str | None = None,
         prepare: bool = False,
         in_memory=False,
         transform=None,
@@ -313,7 +312,7 @@ if __name__ == "__main__":
         from disent.util.function import wrapped_partial
         from disent.util.visualize.plot import plt_subplots_imshow
 
-        def compute_stats(visibility: Optional[int], mode: Optional[str]):
+        def compute_stats(visibility: int | None, mode: str | None):
             import psutil
 
             # get class

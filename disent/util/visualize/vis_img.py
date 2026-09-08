@@ -25,11 +25,7 @@
 
 import warnings
 from functools import lru_cache
-from typing import List
 from typing import Literal
-from typing import Optional
-from typing import Tuple
-from typing import Union
 from typing import overload
 
 import numpy as np
@@ -61,18 +57,18 @@ _NP_TO_TORCH_DTYPE = {
 # `numbers.Number` is not supported for static type checking (it is a virtual ABC
 # that concrete types like `float`/`int` do not nominally subclass), so the numeric
 # tower is spelled out explicitly here instead.
-Num = Union[int, float]
-MinMaxHint = Union[Num, Tuple[Num, ...], np.ndarray]
+type Num = int | float
+type MinMaxHint = Num | tuple[Num, ...] | np.ndarray
 
 
-@lru_cache()
-def _dtype_min_max(dtype: torch.dtype) -> Tuple[Union[float, int], Union[float, int]]:
+@lru_cache
+def _dtype_min_max(dtype: torch.dtype) -> tuple[float | int, float | int]:
     """Get the min and max values for a dtype"""
     dinfo = torch.finfo(dtype) if dtype.is_floating_point else torch.iinfo(dtype)
     return dinfo.min, dinfo.max
 
 
-@lru_cache()
+@lru_cache
 def _check_image_dtype(dtype: torch.dtype):
     """Check that a dtype can hold image values"""
     # check that the datatype is within the right range -- this is not actually necessary if the below is correct!
@@ -93,7 +89,7 @@ def _check_image_dtype(dtype: torch.dtype):
 # ========================================================================= #
 
 
-def torch_image_has_valid_range(tensor: torch.Tensor, check_mode: Optional[str] = None) -> bool:
+def torch_image_has_valid_range(tensor: torch.Tensor, check_mode: str | None = None) -> bool:
     """
     Check that the range of values in the image is correct!
     """
@@ -161,10 +157,10 @@ def torch_image_to_dtype(tensor: torch.Tensor, out_dtype: torch.dtype):
 @torch.no_grad()
 def torch_image_normalize_channels(
     tensor: torch.Tensor,
-    in_min: Optional[MinMaxHint],
-    in_max: Optional[MinMaxHint],
+    in_min: MinMaxHint | None,
+    in_max: MinMaxHint | None,
     channel_dim: int = -1,
-    out_dtype: Optional[torch.dtype] = None,
+    out_dtype: torch.dtype | None = None,
 ):
     if out_dtype is None:
         out_dtype = tensor.dtype
@@ -209,14 +205,14 @@ _ALLOWED_DTYPES = {
 }
 
 
-@lru_cache()
+@lru_cache
 def _torch_to_images_normalise_args(
-    in_tensor_shape: Tuple[int, ...],
+    in_tensor_shape: tuple[int, ...],
     in_tensor_dtype: torch.dtype,
     in_dims: str,
     out_dims: str,
-    in_dtype: Optional[torch.dtype],
-    out_dtype: Optional[torch.dtype],
+    in_dtype: torch.dtype | None,
+    out_dtype: torch.dtype | None,
 ):
     # check types
     if not isinstance(in_dims, str):
@@ -263,12 +259,12 @@ def _torch_to_images_normalise_args(
 
 
 def _torch_channel_broadcast_scale_values(
-    in_min: Optional[MinMaxHint],
-    in_max: Optional[MinMaxHint],
+    in_min: MinMaxHint | None,
+    in_max: MinMaxHint | None,
     in_dtype: torch.dtype,
     dim: int,
     ndim: int,
-) -> Tuple[List[Num], List[Num]]:
+) -> tuple[list[Num], list[Num]]:
     return __torch_channel_broadcast_scale_values(
         in_min=tuple(np.array(in_min).reshape(-1).tolist()),  # TODO: this is slow?
         in_max=tuple(np.array(in_max).reshape(-1).tolist()),  # TODO: this is slow?
@@ -278,15 +274,15 @@ def _torch_channel_broadcast_scale_values(
     )
 
 
-@lru_cache()
+@lru_cache
 @torch.no_grad()
 def __torch_channel_broadcast_scale_values(
-    in_min: Optional[MinMaxHint],
-    in_max: Optional[MinMaxHint],
+    in_min: MinMaxHint | None,
+    in_max: MinMaxHint | None,
     in_dtype: torch.dtype,
     dim: int,
     ndim: int,
-) -> Tuple[List[Num], List[Num]]:
+) -> tuple[list[Num], list[Num]]:
     # get the default values
     in_min_arr: np.ndarray = np.array((0.0 if in_dtype.is_floating_point else 0.0) if (in_min is None) else in_min)
     in_max_arr: np.ndarray = np.array((1.0 if in_dtype.is_floating_point else 255.0) if (in_max is None) else in_max)
@@ -320,12 +316,12 @@ def torch_to_images(
     tensor: torch.Tensor,
     in_dims: str = ...,
     out_dims: str = ...,
-    in_dtype: Optional[torch.dtype] = ...,
-    out_dtype: Optional[torch.dtype] = ...,
+    in_dtype: torch.dtype | None = ...,
+    out_dtype: torch.dtype | None = ...,
     clamp_mode: str = ...,
     always_rgb: bool = ...,
-    in_min: Optional[MinMaxHint] = ...,
-    in_max: Optional[MinMaxHint] = ...,
+    in_min: MinMaxHint | None = ...,
+    in_max: MinMaxHint | None = ...,
     to_numpy: Literal[False] = ...,
 ) -> torch.Tensor: ...
 @overload
@@ -333,12 +329,12 @@ def torch_to_images(
     tensor: torch.Tensor,
     in_dims: str = ...,
     out_dims: str = ...,
-    in_dtype: Optional[torch.dtype] = ...,
-    out_dtype: Optional[torch.dtype] = ...,
+    in_dtype: torch.dtype | None = ...,
+    out_dtype: torch.dtype | None = ...,
     clamp_mode: str = ...,
     always_rgb: bool = ...,
-    in_min: Optional[MinMaxHint] = ...,
-    in_max: Optional[MinMaxHint] = ...,
+    in_min: MinMaxHint | None = ...,
+    in_max: MinMaxHint | None = ...,
     *,
     to_numpy: Literal[True],
 ) -> np.ndarray: ...
@@ -347,14 +343,14 @@ def torch_to_images(
     tensor: torch.Tensor,
     in_dims: str = "CHW",  # we always treat numpy by default as HWC, and torch.Tensor as CHW
     out_dims: str = "HWC",
-    in_dtype: Optional[torch.dtype] = None,
-    out_dtype: Optional[torch.dtype] = torch.uint8,
+    in_dtype: torch.dtype | None = None,
+    out_dtype: torch.dtype | None = torch.uint8,
     clamp_mode: str = "warn",  # clamp, warn, error
     always_rgb: bool = False,
-    in_min: Optional[MinMaxHint] = None,
-    in_max: Optional[MinMaxHint] = None,
+    in_min: MinMaxHint | None = None,
+    in_max: MinMaxHint | None = None,
     to_numpy: bool = False,
-) -> Union[torch.Tensor, np.ndarray]:
+) -> torch.Tensor | np.ndarray:
     """
     Convert a batch of image-like tensors to images.
     A batch in this case consists of an arbitrary number of dimensions of a tensor,
@@ -427,12 +423,12 @@ def numpy_to_images(
     ndarray: np.ndarray,
     in_dims: str = "HWC",  # we always treat numpy by default as HWC, and torch.Tensor as CHW
     out_dims: str = "HWC",
-    in_dtype: Optional[Union[str, np.dtype]] = None,
-    out_dtype: Optional[Union[str, np.dtype]] = np.dtype("uint8"),
+    in_dtype: str | np.dtype | None = None,
+    out_dtype: str | np.dtype | None = np.dtype("uint8"),
     clamp_mode: str = "warn",  # clamp, warn, error
     always_rgb: bool = False,
-    in_min: Optional[MinMaxHint] = None,
-    in_max: Optional[MinMaxHint] = None,
+    in_min: MinMaxHint | None = None,
+    in_max: MinMaxHint | None = None,
 ) -> np.ndarray:
     """
     Convert a batch of image-like arrays to images.
@@ -465,9 +461,9 @@ def numpy_to_pil_images(
     in_dims: str = "HWC",  # we always treat numpy by default as HWC, and torch.Tensor as CHW
     clamp_mode: str = "warn",
     always_rgb: bool = False,
-    in_min: Optional[MinMaxHint] = None,
-    in_max: Optional[MinMaxHint] = None,
-) -> Union[np.ndarray]:
+    in_min: MinMaxHint | None = None,
+    in_max: MinMaxHint | None = None,
+) -> np.ndarray:
     """
     Convert a numpy array containing images (..., C, H, W) to an array of PIL images (...,)
     """

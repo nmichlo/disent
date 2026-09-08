@@ -23,12 +23,8 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
-from typing import Callable
-from typing import List
-from typing import Optional
-from typing import Sequence
-from typing import Tuple
-from typing import Union
+from collections.abc import Callable
+from collections.abc import Sequence
 
 import lightning as L
 import numpy as np
@@ -61,7 +57,7 @@ def _to_dmat(
     size: int,
     i_a: np.ndarray,
     i_b: np.ndarray,
-    dists: Union[torch.Tensor, np.ndarray],
+    dists: torch.Tensor | np.ndarray,
 ) -> np.ndarray:
     if isinstance(dists, torch.Tensor):
         dists = dists.detach().cpu().numpy()
@@ -113,8 +109,8 @@ def _get_dists_vae(vae: Vae, x_a: torch.Tensor, x_b: torch.Tensor):
 
 
 def _get_dists_fn(
-    model: Union[Ae, Vae],
-) -> Tuple[Optional[Tuple[str, ...]], Optional[Callable[[torch.Tensor, torch.Tensor], Sequence[torch.Tensor]]]]:
+    model: Ae | Vae,
+) -> tuple[tuple[str, ...] | None, Callable[[torch.Tensor, torch.Tensor], Sequence[torch.Tensor]] | None]:
     # get aggregate function
     if isinstance(model, Vae):
         dists_names, dists_fn = _VAE_DIST_NAMES, wrapped_partial(_get_dists_vae, model)
@@ -151,9 +147,9 @@ def _compute_and_collect_dists(
     traversal_repeats: int = 100,
     batch_size: int = 32,
     include_gt_factor_dists: bool = True,
-    transform_batch: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
+    transform_batch: Callable[[torch.Tensor], torch.Tensor] | None = None,
     data_mode: str = "input",
-) -> Tuple[Tuple[str, ...], List[List[np.ndarray]]]:
+) -> tuple[tuple[str, ...], list[list[np.ndarray]]]:
     assert traversal_repeats > 0
     gt_data = dataset.gt_data
     # generate
@@ -203,10 +199,10 @@ def compute_factor_distances(
     traversal_repeats: int = 100,
     batch_size: int = 32,
     include_gt_factor_dists: bool = True,
-    transform_batch: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
-    seed: Optional[int] = 777,
+    transform_batch: Callable[[torch.Tensor], torch.Tensor] | None = None,
+    seed: int | None = 777,
     data_mode: str = "input",
-) -> Tuple[Tuple[str, ...], List[List[np.ndarray]]]:
+) -> tuple[tuple[str, ...], list[list[np.ndarray]]]:
     # log this callback
     gt_data = dataset.gt_data
     log.info(f"| {gt_data.name} - computing factor distances...")
@@ -229,7 +225,7 @@ def compute_factor_distances(
 
 def plt_factor_distances(
     gt_data: GroundTruthData,
-    f_grid: List[List[np.ndarray]],
+    f_grid: list[list[np.ndarray]],
     dists_names: Sequence[str],
     title: str,
     plt_block_size: float = 1.25,
@@ -270,8 +266,8 @@ def plt_factor_distances(
 class VaeGtDistsLoggingCallback(BaseCallbackPeriodic):
     def __init__(
         self,
-        seed: Optional[int] = 7777,
-        every_n_steps: Optional[int] = None,
+        seed: int | None = 7777,
+        every_n_steps: int | None = None,
         traversal_repeats: int = 100,
         begin_first_step: bool = False,
         plt_block_size: float = 1.25,

@@ -24,9 +24,6 @@
 
 import logging
 import os
-from typing import List
-from typing import Optional
-from typing import Tuple
 
 import numpy as np
 
@@ -54,7 +51,7 @@ class EpisodesPickledData(BaseEpisodesData):
     # TODO: convert this to data files?
     # TODO: convert this to data files?
 
-    def _load_episode_observations(self) -> List[np.ndarray]:
+    def _load_episode_observations(self) -> list[np.ndarray]:
         import pickle
 
         # load the raw data!
@@ -87,7 +84,7 @@ class EpisodesPickledData(BaseEpisodesData):
             rollout = []
             for j, raw_option in enumerate(raw_episode):
                 # GET: option info
-                raw_option: Tuple[str, int, List[dict], List[np.ndarray]]
+                raw_option: tuple[str, int, list[dict], list[np.ndarray]]
                 option_name, option_id, ground_truth_states, observed_states = raw_option
                 # CHECK: number of observations
                 assert len(ground_truth_states) == len(observed_states)
@@ -125,13 +122,13 @@ class EpisodesDownloadZippedPickledData(EpisodesPickledData):
     # TODO: convert this to data files?
     # TODO: convert this to data files?
 
-    def __init__(self, required_file: str, download_url: Optional[str] = None, force_download=False, transform=None):
+    def __init__(self, required_file: str, download_url: str | None = None, force_download=False, transform=None):
         self._download_and_extract_if_needed(
             download_url=download_url, required_file=required_file, force_download=force_download
         )
         super().__init__(required_file=required_file, transform=transform)
 
-    def _download_and_extract_if_needed(self, download_url: Optional[str], required_file: str, force_download: bool):
+    def _download_and_extract_if_needed(self, download_url: str | None, required_file: str, force_download: bool):
         # TODO: this function should probably be moved to the io file.
         # ~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
         # skip if no download url
@@ -156,7 +153,7 @@ class EpisodesDownloadZippedPickledData(EpisodesPickledData):
                 )
                 log.info("Extracted!")
             else:
-                raise IOError(f"Unsupported extension for: {save_path}")
+                raise OSError(f"Unsupported extension for: {save_path}")
         # check that everything exists
         assert os.path.exists(required_file), (
             "The required file does not exist after downloading and extracting if necessary!"

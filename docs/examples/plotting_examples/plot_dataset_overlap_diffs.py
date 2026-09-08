@@ -23,7 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import os
-from typing import Optional
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -56,7 +55,7 @@ def ensure_rgb(img: np.ndarray) -> np.ndarray:
 def plot_dataset_overlap(
     gt_data: GroundTruthData,
     f_idxs=None,
-    obs_max: Optional[int] = None,
+    obs_max: int | None = None,
     obs_spacing: int = 1,
     rel_path=None,
     plot_base: bool = False,

@@ -22,11 +22,8 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Dict
-from typing import Sequence
-from typing import Tuple
-from typing import Union
 
 import torch
 from torch.distributions import Distribution
@@ -67,7 +64,7 @@ class AdaVae(BetaVae):
 
     def hook_intercept_ds(
         self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution]
-    ) -> Tuple[Sequence[Distribution], Sequence[Distribution], Dict[str, Union[torch.Tensor, float]]]:
+    ) -> tuple[Sequence[Distribution], Sequence[Distribution], dict[str, torch.Tensor | float]]:
         """
         Adaptive VAE Glue Method, putting the various components together
         1. find differences between deltas
@@ -142,7 +139,7 @@ class AdaVae(BetaVae):
     @classmethod
     def make_shared_posteriors(
         cls, d0_posterior: Normal, d1_posterior: Normal, share_mask: torch.Tensor, average_mode: str
-    ) -> Tuple[Normal, Normal]:
+    ) -> tuple[Normal, Normal]:
         # compute average posterior
         ave_posterior = AdaVae.compute_average_distribution(
             d0_posterior=d0_posterior, d1_posterior=d1_posterior, average_mode=average_mode
@@ -174,7 +171,7 @@ class AdaVae(BetaVae):
     @classmethod
     def make_shared_zs(
         cls, z0: torch.Tensor, z1: torch.Tensor, share_mask: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         # compute average values
         ave = 0.5 * z0 + 0.5 * z1
         # select shared elements
@@ -332,7 +329,7 @@ class AdaGVaeMinimal(BetaVae):
 
     def hook_intercept_ds(
         self, ds_posterior: Sequence[Distribution], ds_prior: Sequence[Distribution]
-    ) -> Tuple[Sequence[Distribution], Sequence[Distribution], Dict[str, Union[torch.Tensor, float]]]:
+    ) -> tuple[Sequence[Distribution], Sequence[Distribution], dict[str, torch.Tensor | float]]:
         """
         Adaptive VAE Method, putting the various components together
             1. compute differences between representations

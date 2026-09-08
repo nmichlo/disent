@@ -24,11 +24,8 @@
 
 import itertools
 import os
+from collections.abc import Sequence
 from typing import Literal
-from typing import Optional
-from typing import Sequence
-from typing import Tuple
-from typing import Union
 from typing import overload
 
 import matplotlib
@@ -79,9 +76,9 @@ def make_2d_line_points(n: int = 100, deg: float = 30, std_x: float = 1.0, std_y
 
 def make_nd_line_points(
     n: int = 100,
-    dims: Union[int, Tuple[int, int]] = 4,
+    dims: int | tuple[int, int] = 4,
     std_x: float = 1.0,
-    std_y: Union[float, Tuple[float, float]] = 0.005,
+    std_y: float | tuple[float, float] = 0.005,
 ):
     if not isinstance(dims, int):
         m, M = dims
@@ -101,7 +98,7 @@ def make_nd_line_points(
     return xs @ _random_rotation_matrix(dims)
 
 
-def make_line_points(n: int = 100, deg: Optional[float] = None, dims: int = 2, std_x: float = 1.0, std_y: float = 0.1):
+def make_line_points(n: int = 100, deg: float | None = None, dims: int = 2, std_x: float = 1.0, std_y: float = 0.1):
     if deg is None:
         return make_nd_line_points(n=n, dims=dims, std_x=std_x, std_y=std_y)
     else:
@@ -152,11 +149,11 @@ def gaussian_2d_dy2(x, y, sx, sy):
 @overload
 def rotated_radius_meshgrid(
     radius: float, num_points: int, deg: float = 0, device=None, *, return_orig: Literal[True]
-) -> Tuple[Tuple[torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor]]: ...
+) -> tuple[tuple[torch.Tensor, torch.Tensor], tuple[torch.Tensor, torch.Tensor]]: ...
 @overload
 def rotated_radius_meshgrid(
     radius: float, num_points: int, deg: float = 0, device=None, return_orig: Literal[False] = False
-) -> Tuple[torch.Tensor, torch.Tensor]: ...
+) -> tuple[torch.Tensor, torch.Tensor]: ...
 def rotated_radius_meshgrid(radius: float, num_points: int, deg: float = 0, device=None, return_orig: bool = False):
     # x & y values centered around zero
     # p = torch.arange(size, device=device) - (size-1)/2
@@ -170,9 +167,7 @@ def rotated_radius_meshgrid(radius: float, num_points: int, deg: float = 0, devi
     return rx, ry
 
 
-def rotated_guassian2d(
-    std_x: float, std_y: float, deg: float, trunc_sigma: Optional[float] = None, num_points: int = 511
-):
+def rotated_guassian2d(std_x: float, std_y: float, deg: float, trunc_sigma: float | None = None, num_points: int = 511):
     radius = (2.25 * max(std_x, std_y)) if (trunc_sigma is None) else trunc_sigma
     (xs_r, ys_r), (xs, ys) = rotated_radius_meshgrid(radius=radius, num_points=num_points, deg=deg, return_orig=True)
     zs = gaussian_2d(xs_r, ys_r, sx=std_x, sy=std_y)
@@ -186,11 +181,11 @@ def plot_gaussian(
     std_y: float = 0.1,
     # contour
     contour_resolution: int = 255,
-    contour_trunc_sigma: Optional[float] = None,
-    contour_kwargs: Optional[dict] = None,
+    contour_trunc_sigma: float | None = None,
+    contour_kwargs: dict | None = None,
     # dots
-    dots_num: Optional[int] = None,
-    dots_kwargs: Optional[dict] = None,
+    dots_num: int | None = None,
+    dots_kwargs: dict | None = None,
     # axis
     ax=None,
 ):
@@ -220,8 +215,8 @@ def plot_gaussian(
 
 
 def score_grid(
-    deg_rotations: Union[Sequence[Optional[float]], np.ndarray],
-    y_std_ratios: Union[Sequence[float], np.ndarray],
+    deg_rotations: Sequence[float | None] | np.ndarray,
+    y_std_ratios: Sequence[float] | np.ndarray,
     x_std: float = 1.0,
     num_points: int = 1000,
     num_dims: int = 2,
@@ -251,8 +246,8 @@ def score_grid(
 
 
 def ave_score_grid(
-    deg_rotations: Union[Sequence[Optional[float]], np.ndarray],
-    y_std_ratios: Union[Sequence[float], np.ndarray],
+    deg_rotations: Sequence[float | None] | np.ndarray,
+    y_std_ratios: Sequence[float] | np.ndarray,
     x_std: float = 1.0,
     num_points: int = 1000,
     num_dims: int = 2,
@@ -287,7 +282,7 @@ def ave_score_grid(
 def make_ave_scores_plot(
     std_num: int = 21,
     deg_num: int = 21,
-    ndim: Optional[int] = None,
+    ndim: int | None = None,
     # extra
     num_points: int = 1000,
     repeats: int = 25,
@@ -396,7 +391,7 @@ def make_grid_gaussian_score_plot(
         157.5,
     ),  # (0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165),
     # plot dot options
-    dots_num: Optional[int] = None,
+    dots_num: int | None = None,
     # score options
     num_points: int = 10000,
     repeats: int = 100,
@@ -406,8 +401,8 @@ def make_grid_gaussian_score_plot(
     # grid options
     subplot_size: float = 2.125,
     subplot_padding: float = 0.5,
-    subplot_contour_kwargs: Optional[dict] = None,
-    subplot_dots_kwargs: Optional[dict] = None,
+    subplot_contour_kwargs: dict | None = None,
+    subplot_dots_kwargs: dict | None = None,
 ):
     # defaults
     if subplot_contour_kwargs is None:

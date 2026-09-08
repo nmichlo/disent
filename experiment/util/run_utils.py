@@ -25,9 +25,8 @@
 import logging
 import signal
 import sys
+from collections.abc import Sequence
 from multiprocessing import current_process
-from typing import Optional
-from typing import Sequence
 
 from lightning.pytorch import Trainer
 from lightning.pytorch.loggers import Logger
@@ -49,8 +48,8 @@ _PL_SIGNALS = (  # we can't capture SIGKILL
     signal.SIGSEGV,  # segmentation fault
 )
 
-_PL_LOGGERS: Optional[Sequence[Logger]] = None
-_PL_TRAINER: Optional[Trainer] = None
+_PL_LOGGERS: Sequence[Logger] | None = None
+_PL_TRAINER: Trainer | None = None
 
 
 def safe_unset_debug_trainer():
@@ -59,7 +58,7 @@ def safe_unset_debug_trainer():
         _PL_TRAINER = None
 
 
-def set_debug_trainer(trainer: Optional[Trainer]):
+def set_debug_trainer(trainer: Trainer | None):
     global _PL_TRAINER
     assert _PL_TRAINER is None, "debug trainer has already been set"
     _PL_TRAINER = trainer
@@ -110,7 +109,7 @@ def safe_unset_debug_loggers():
                 signal.signal(signal_type, handler)
 
 
-def set_debug_loggers(loggers: Optional[Sequence[Logger]]):
+def set_debug_loggers(loggers: Sequence[Logger] | None):
     global _PL_LOGGERS
     assert _PL_LOGGERS is None, "debug logger has already been set"
     _PL_LOGGERS = loggers

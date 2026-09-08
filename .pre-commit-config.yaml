@@ -18,5 +18,5 @@ repos:
     rev: v0.0.79
     hooks:
       # `ty` needs the project dependencies resolvable. it auto-detects `.venv`,
-      # so create one first: `uv venv --python 3.11 && uv pip install -e ".[extra]"`
+      # so create one first: `uv venv --python 3.12 && uv pip install -e ".[extra]"`
       - id: ty

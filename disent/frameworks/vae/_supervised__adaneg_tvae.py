@@ -23,11 +23,9 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
-from typing import Sequence
-from typing import Type
-from typing import Union
 
 import torch
 from torch.distributions import Distribution
@@ -97,7 +95,7 @@ class AdaNegTripletVae(TripletVae):
     @staticmethod
     def estimate_ada_triplet_loss_from_zs(
         zs: Sequence[torch.Tensor],
-        cfg: "Union[AdaNegTripletVae.cfg, Type[AdaNegTripletVae.cfg], AdaNegTripletAe.cfg, Type[AdaNegTripletAe.cfg]]",
+        cfg: "AdaNegTripletVae.cfg | type[AdaNegTripletVae.cfg] | AdaNegTripletAe.cfg | type[AdaNegTripletAe.cfg]",
     ):
         # compute shared masks, shared embeddings & averages over shared embeddings
         share_masks, share_logs = compute_triplet_shared_masks_from_zs(zs=zs, cfg=cfg)
@@ -112,7 +110,7 @@ class AdaNegTripletVae(TripletVae):
         }
 
     @staticmethod
-    def estimate_ada_triplet_loss(ds_posterior: Sequence[Distribution], cfg: "Union[cfg, Type[cfg]]"):
+    def estimate_ada_triplet_loss(ds_posterior: Sequence[Distribution], cfg: "cfg | type[cfg]"):
         # compute shared masks, shared embeddings & averages over shared embeddings
         share_masks, share_logs = compute_triplet_shared_masks(ds_posterior, cfg=cfg)
         # compute loss
@@ -129,7 +127,7 @@ class AdaNegTripletVae(TripletVae):
     def compute_ada_triplet_loss(
         share_masks,
         zs,
-        cfg: "Union[AdaNegTripletVae.cfg, Type[AdaNegTripletVae.cfg], AdaNegTripletAe.cfg, Type[AdaNegTripletAe.cfg]]",
+        cfg: "AdaNegTripletVae.cfg | type[AdaNegTripletVae.cfg] | AdaNegTripletAe.cfg | type[AdaNegTripletAe.cfg]",
     ):
         # Normal Triplet Loss
         (a_z, p_z, n_z) = zs
@@ -174,7 +172,7 @@ def compute_triplet_shared_masks_from_zs(zs: Sequence[torch.Tensor], cfg):
 
 
 def compute_triplet_shared_masks(
-    ds_posterior: Sequence[Distribution], cfg: Union[AdaTripletVae_cfg, Type[AdaTripletVae_cfg]]
+    ds_posterior: Sequence[Distribution], cfg: AdaTripletVae_cfg | type[AdaTripletVae_cfg]
 ):
     """
     required config params:

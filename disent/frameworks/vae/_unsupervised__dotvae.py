@@ -24,10 +24,9 @@
 
 import logging
 from collections.abc import Callable
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
-from typing import Optional
-from typing import Sequence
 from typing import final
 
 import torch
@@ -51,26 +50,26 @@ if TYPE_CHECKING:
 # ========================================================================= #
 
 
-class DataOverlapMixin(object):
+class DataOverlapMixin:
     # should be inherited by the config on the child class
     @dataclass
     class cfg:
         # override from AE
         recon_loss: str = "mse"
         # OVERLAP VAE
-        overlap_loss: Optional[str] = None  # if None, use the value from recon_loss
+        overlap_loss: str | None = None  # if None, use the value from recon_loss
         overlap_num: int = 1024
         overlap_mine_ratio: float = 0.1
         overlap_mine_triplet_mode: str = "none"
         # AUGMENT
         overlap_augment_mode: str = "augment"
-        overlap_augment: Optional[dict] = None
+        overlap_augment: dict | None = None
 
     # private properties
     # - since this class does not have a constructor, it
     #   provides the `init_data_overlap_mixin` method, which
     #   should be called inside the constructor of the child class
-    _augment: Optional[Callable]
+    _augment: Callable | None
     _overlap_handler: ReconLossHandler
     _init: bool
 
@@ -234,7 +233,7 @@ class DataOverlapTripletVae(AdaNegTripletVae, DataOverlapMixin):
     class cfg(AdaNegTripletVae.cfg, DataOverlapMixin.cfg):
         pass
 
-    def __init__(self, model: "AutoEncoder", cfg: Optional[cfg] = None, batch_augment=None):
+    def __init__(self, model: "AutoEncoder", cfg: cfg | None = None, batch_augment=None):
         super().__init__(model=model, cfg=cfg, batch_augment=batch_augment)
         # initialise mixin
         self.init_data_overlap_mixin()

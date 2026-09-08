@@ -23,8 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
-from typing import Tuple
-from typing import Union
 
 import numpy as np
 
@@ -325,7 +323,7 @@ def normalise_range(mins, maxs, sizes):
     return mins, maxs
 
 
-def normalise_range_pair(min_max: Union[int, Tuple[int, int]], sizes):
+def normalise_range_pair(min_max: int | tuple[int, int], sizes):
     arr = np.array(min_max)
     # if not a 2 tuple, repeat. This fixes the min == max.
     if arr.shape == ():

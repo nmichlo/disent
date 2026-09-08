@@ -25,12 +25,8 @@
 import os
 from abc import ABCMeta
 from abc import abstractmethod
-from typing import Callable
-from typing import Dict
-from typing import Optional
-from typing import Sequence
-from typing import Tuple
-from typing import Union
+from collections.abc import Callable
+from collections.abc import Sequence
 from typing import final
 
 import numpy as np
@@ -47,7 +43,7 @@ from disent.util.inout.paths import modify_file_name
 # ========================================================================= #
 
 
-class DataFile(object, metaclass=ABCMeta):
+class DataFile(metaclass=ABCMeta):
     """
     base DataFile that does nothing, if the file does
     not exist or it has the incorrect hash, then that's your problem!
@@ -81,7 +77,7 @@ class DataFileHashed(DataFile, metaclass=ABCMeta):
     def __init__(
         self,
         file_name: str,
-        file_hash: Optional[Union[str, Dict[str, str]]],
+        file_hash: str | dict[str, str] | None,
         hash_type: str = "md5",
         hash_mode: str = "fast",
     ):
@@ -118,8 +114,8 @@ class DataFileHashedDl(DataFileHashed):
     def __init__(
         self,
         uri: str,
-        uri_hash: Optional[Union[str, Dict[str, str]]],
-        uri_name: Optional[str] = None,
+        uri_hash: str | dict[str, str] | None,
+        uri_name: str | None = None,
         hash_type: str = "md5",
         hash_mode: str = "fast",
     ):
@@ -148,11 +144,11 @@ class DataFileHashedDlGen(DataFileHashed, metaclass=ABCMeta):
         self,
         # download & save files
         uri: str,
-        uri_hash: Optional[Union[str, Dict[str, str]]],
-        file_hash: Optional[Union[str, Dict[str, str]]],
+        uri_hash: str | dict[str, str] | None,
+        file_hash: str | dict[str, str] | None,
         # save paths
-        uri_name: Optional[str] = None,
-        file_name: Optional[str] = None,
+        uri_name: str | None = None,
+        file_name: str | None = None,
         # hash settings
         hash_type: str = "md5",
         hash_mode: str = "fast",
@@ -191,19 +187,19 @@ class DataFileHashedDlH5(DataFileHashedDlGen):
         self,
         # download & save files
         uri: str,
-        uri_hash: Optional[Union[str, Dict[str, str]]],
-        file_hash: Optional[Union[str, Dict[str, str]]],
+        uri_hash: str | dict[str, str] | None,
+        file_hash: str | dict[str, str] | None,
         # h5 re-save settings
         hdf5_dataset_name: str,
-        hdf5_chunk_size: Tuple[int, ...],
-        hdf5_compression: Optional[str] = "gzip",
-        hdf5_compression_lvl: Optional[int] = 4,
-        hdf5_dtype: Optional[Union[np.dtype, str]] = None,
-        hdf5_mutator: Optional[Callable[[np.ndarray], np.ndarray]] = None,
-        hdf5_obs_shape: Optional[Sequence[int]] = None,
+        hdf5_chunk_size: tuple[int, ...],
+        hdf5_compression: str | None = "gzip",
+        hdf5_compression_lvl: int | None = 4,
+        hdf5_dtype: np.dtype | str | None = None,
+        hdf5_mutator: Callable[[np.ndarray], np.ndarray] | None = None,
+        hdf5_obs_shape: Sequence[int] | None = None,
         # save paths
-        uri_name: Optional[str] = None,
-        file_name: Optional[str] = None,
+        uri_name: str | None = None,
+        file_name: str | None = None,
         # hash settings
         hash_type: str = "md5",
         hash_mode: str = "fast",

@@ -25,8 +25,6 @@
 import logging
 import os
 from pathlib import Path
-from typing import Optional
-from typing import Union
 from uuid import uuid4
 
 from disent.util.inout.paths import modify_file_name
@@ -40,7 +38,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class AtomicSaveFile(object):
+class AtomicSaveFile:
     """
     Within the context, data must be written to a temporary file.
     Once data has been successfully written, the temporary file
@@ -59,12 +57,12 @@ class AtomicSaveFile(object):
 
     def __init__(
         self,
-        file: Union[str, Path],
-        open_mode: Optional[str] = None,
+        file: str | Path,
+        open_mode: str | None = None,
         overwrite: bool = False,
         makedirs: bool = True,
-        tmp_prefix: Optional[str] = ".temp.",
-        tmp_suffix: Optional[str] = None,
+        tmp_prefix: str | None = ".temp.",
+        tmp_suffix: str | None = None,
     ):
         # check files
         if not file or not Path(file).name:

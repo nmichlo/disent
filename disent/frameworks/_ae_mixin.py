@@ -24,8 +24,6 @@
 
 import logging
 from dataclasses import dataclass
-from typing import Dict
-from typing import Tuple
 from typing import final
 
 import torch
@@ -110,8 +108,8 @@ class _AeAndVaeMixin(DisentFramework):
 
     @final
     def _get_xs_and_targs(
-        self, batch: Dict[str, Tuple[torch.Tensor, ...]], batch_idx
-    ) -> Tuple[Tuple[torch.Tensor, ...], Tuple[torch.Tensor, ...]]:
+        self, batch: dict[str, tuple[torch.Tensor, ...]], batch_idx
+    ) -> tuple[tuple[torch.Tensor, ...], tuple[torch.Tensor, ...]]:
         xs_targ = batch["x_targ"]
         if "x" not in batch:
             # TODO: re-enable this warning but only ever print once!
@@ -151,7 +149,7 @@ class _AeAndVaeMixin(DisentFramework):
         """Decode latent vector z into partial reconstructions that exclude the final activation if there is one."""
         raise NotImplementedError
 
-    def on_save_checkpoint(self, checkpoint: Dict[str, object]) -> None:
+    def on_save_checkpoint(self, checkpoint: dict[str, object]) -> None:
         hyper_parameters = checkpoint.get("hyper_parameters")
         if not hyper_parameters:  # if the logger did not register hyperparameters they're set here manually
             hyper_parameters = {}

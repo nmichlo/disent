@@ -23,8 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
-from typing import Tuple
-from typing import Union
 
 import numpy as np
 
@@ -90,21 +88,21 @@ class XYBlocksData(GroundTruthData):
     }
 
     @property
-    def factor_names(self) -> Tuple[str, ...]:
+    def factor_names(self) -> tuple[str, ...]:
         return self._factor_names
 
     @property
-    def factor_sizes(self) -> Tuple[int, ...]:
+    def factor_sizes(self) -> tuple[int, ...]:
         return self._factor_sizes
 
     @property
-    def img_shape(self) -> Tuple[int, ...]:
+    def img_shape(self) -> tuple[int, ...]:
         return self._img_shape
 
     def __init__(
         self,
         grid_size: int = 64,
-        grid_levels: Union[int, Tuple[int, ...]] = (1, 2, 3),
+        grid_levels: int | tuple[int, ...] = (1, 2, 3),
         rgb: bool = True,
         palette: str = "rgb",
         invert_bg: bool = False,

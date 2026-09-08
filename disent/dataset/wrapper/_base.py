@@ -23,7 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
-from typing import Union
 
 import numpy as np
 import torch
@@ -47,7 +46,7 @@ class WrappedDataset(Dataset):
         raise NotImplementedError
 
     @property
-    def data(self) -> Union[Dataset, np.ndarray, torch.Tensor]:
+    def data(self) -> Dataset | np.ndarray | torch.Tensor:
         raise NotImplementedError
 
     @property

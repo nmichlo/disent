@@ -25,7 +25,6 @@
 import logging
 import os
 import warnings
-from typing import Optional
 
 import hydra
 import lightning as L
@@ -86,11 +85,11 @@ class HydraDataModule(L.LightningDataModule):
         self,
         data: DictConfig,  # = dataset.data
         sampler: DictConfig,  # = sampling._sampler_.sampler_cls
-        transform: Optional[DictConfig] = None,  # = dataset.transform
-        augment: Optional[DictConfig] = None,  # = augment.augment_cls
-        dataloader_kwargs: Optional[DictConfig] = None,  # = dataloader
+        transform: DictConfig | None = None,  # = dataset.transform
+        augment: DictConfig | None = None,  # = augment.augment_cls
+        dataloader_kwargs: DictConfig | None = None,  # = dataloader
         augment_on_gpu: bool = False,  # = dsettings.dataset.gpu_augment
-        using_cuda: Optional[bool] = False,  # = self.hparams.dsettings.trainer.cuda
+        using_cuda: bool | None = False,  # = self.hparams.dsettings.trainer.cuda
         prepare_data_per_node: bool = True,  # DataHooks.prepare_data_per_node
         return_indices: bool = False,  # = framework.meta.requires_indices
         return_factors: bool = False,  # = framework.meta.requires_factors
@@ -120,11 +119,11 @@ class HydraDataModule(L.LightningDataModule):
             self._gpu_batch_augment = None
         # ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~ #
         # datasets initialised in setup()
-        self.dataset_train_noaug: Optional[DisentDataset] = None
-        self.dataset_train_aug: Optional[DisentDataset] = None
+        self.dataset_train_noaug: DisentDataset | None = None
+        self.dataset_train_aug: DisentDataset | None = None
 
     @property
-    def gpu_batch_augment(self) -> Optional[DisentDatasetTransform]:
+    def gpu_batch_augment(self) -> DisentDatasetTransform | None:
         return self._gpu_batch_augment
 
     @property

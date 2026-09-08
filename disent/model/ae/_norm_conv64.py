@@ -23,8 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import warnings
-from typing import Optional
-from typing import Tuple
 
 from torch import Tensor
 from torch import nn
@@ -116,7 +114,7 @@ class DecoderConv64Norm(DisentDecoder):
 
 
 def _make_activations(
-    activation="relu", inplace=True, norm="layer", shape: Optional[Tuple[int, ...]] = None, norm_pre_act=True
+    activation="relu", inplace=True, norm="layer", shape: tuple[int, ...] | None = None, norm_pre_act=True
 ):
     # get activation layer
     if activation == "relu":

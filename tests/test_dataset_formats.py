@@ -150,9 +150,11 @@ def test_hdf5_determinism(hash_mode: str, target_hash: str):
 )
 def test_hdf5_resave_dataset(chunk_shape, compression_lvl):
     with no_stdout(), no_stderr():
-        with create_temp_h5data(chunks=(_TEST_LEN, 4, 4, 3)) as (inp_path, raw_data), NamedTemporaryFile(
-            "r"
-        ) as out_file, NamedTemporaryFile("r") as alt_file:
+        with (
+            create_temp_h5data(chunks=(_TEST_LEN, 4, 4, 3)) as (inp_path, raw_data),
+            NamedTemporaryFile("r") as out_file,
+            NamedTemporaryFile("r") as alt_file,
+        ):
             out_path = out_file.name
             alt_path = alt_file.name
             # convert dataset

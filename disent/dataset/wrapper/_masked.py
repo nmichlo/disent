@@ -23,7 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
-from typing import Union
 
 import numpy as np
 import torch
@@ -40,8 +39,8 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-DataTypeHint = Union[GroundTruthData, np.ndarray, torch.Tensor]
-MaskTypeHint = Union[str, np.ndarray]
+type DataTypeHint = GroundTruthData | np.ndarray | torch.Tensor
+type MaskTypeHint = str | np.ndarray
 
 
 def load_mask_indices(length: int, mask_or_indices: MaskTypeHint):

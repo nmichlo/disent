@@ -22,7 +22,6 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from typing import Tuple
 
 import numpy as np
 
@@ -45,11 +44,11 @@ class XColumnsData(XYSquaresData):
     name = "x_columns"
 
     @property
-    def factor_names(self) -> Tuple[str, ...]:
+    def factor_names(self) -> tuple[str, ...]:
         return ("x_R", "x_G", "x_B")[: self._num_squares]
 
     @property
-    def factor_sizes(self) -> Tuple[int, ...]:
+    def factor_sizes(self) -> tuple[int, ...]:
         return (self._placements,) * self._num_squares
 
     def _get_observation(self, idx):

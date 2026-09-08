@@ -24,7 +24,6 @@
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
-from typing import Optional
 
 import numpy as np
 
@@ -50,7 +49,7 @@ class SwappedInputAdaVae(AdaVae):
     class cfg(AdaVae.cfg):
         swap_chance: float = 0.1
 
-    def __init__(self, model: "AutoEncoder", cfg: Optional[cfg] = None, batch_augment=None):
+    def __init__(self, model: "AutoEncoder", cfg: cfg | None = None, batch_augment=None):
         super().__init__(model=model, cfg=cfg, batch_augment=batch_augment)
         assert isinstance(self.cfg, SwappedInputAdaVae.cfg)
         assert self.cfg.swap_chance >= 0
@@ -63,7 +62,7 @@ class SwappedInputAdaVae(AdaVae):
         if np.random.random() < self.cfg.swap_chance:
             x0, x1 = x1, x0
 
-        return super(SwappedInputAdaVae, self).do_training_step(
+        return super().do_training_step(
             {
                 "x": (x0, x1),
                 "x_targ": (x0_targ, x1_targ),

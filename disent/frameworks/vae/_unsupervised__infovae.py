@@ -22,10 +22,9 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
-from typing import Optional
-from typing import Sequence
 
 import numpy as np
 import torch
@@ -67,7 +66,7 @@ class InfoVae(Vae):
         # this is optional
         maintain_reg_ratio: bool = True
 
-    def __init__(self, model: "AutoEncoder", cfg: Optional[cfg] = None, batch_augment=None):
+    def __init__(self, model: "AutoEncoder", cfg: cfg | None = None, batch_augment=None):
         super().__init__(model=model, cfg=cfg, batch_augment=batch_augment)
         self.cfg: InfoVae.cfg
         # checks

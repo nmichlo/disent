@@ -28,11 +28,7 @@
 # ty: ignore[invalid-assignment]
 # ty: ignore[invalid-argument-type]
 
-from typing import Optional
-from typing import Sequence
-from typing import Tuple
-from typing import TypeVar
-from typing import Union
+from collections.abc import Sequence
 
 import numpy as np
 import torch
@@ -44,11 +40,9 @@ from PIL.Image import Image
 # ========================================================================= #
 
 
-_T = TypeVar("_T")
+type Obs = np.ndarray | Image
 
-Obs = Union[np.ndarray, Image]
-
-SizeType = Union[int, Tuple[int, int]]
+type SizeType = int | tuple[int, int]
 
 
 # ========================================================================= #
@@ -56,7 +50,7 @@ SizeType = Union[int, Tuple[int, int]]
 # ========================================================================= #
 
 
-def noop(obs: _T) -> _T:
+def noop[T](obs: T) -> T:
     """
     Transform that does absolutely nothing!
     """
@@ -65,9 +59,9 @@ def noop(obs: _T) -> _T:
 
 def check_tensor(
     obs: torch.Tensor,
-    low: Optional[float] = 0.0,
-    high: Optional[float] = 1.0,
-    dtype: Optional[torch.dtype] = torch.float32,
+    low: float | None = 0.0,
+    high: float | None = 1.0,
+    dtype: torch.dtype | None = torch.float32,
 ) -> torch.Tensor:
     """
     Check that the input is a tensor, its datatype matches, and
@@ -100,7 +94,7 @@ def _is_size_different(obs: Obs, size: SizeType):
 
 def to_img_tensor_u8(
     obs: Obs,
-    size: Optional[SizeType] = None,
+    size: SizeType | None = None,
 ) -> torch.Tensor:
     """
     Basic transform that makes sure the image tensor is uint8 and a specified size.
@@ -133,9 +127,9 @@ def to_img_tensor_u8(
 
 def to_img_tensor_f32(
     obs: Obs,
-    size: Optional[SizeType] = None,
-    mean: Optional[Sequence[float]] = None,
-    std: Optional[Sequence[float]] = None,
+    size: SizeType | None = None,
+    mean: Sequence[float] | None = None,
+    std: Sequence[float] | None = None,
 ) -> torch.Tensor:
     """
     Basic transform that should be applied to most datasets, making sure

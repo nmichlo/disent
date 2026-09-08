@@ -23,9 +23,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
-from typing import Optional
-from typing import Sequence
-from typing import Union
+from collections.abc import Sequence
 
 import numpy as np
 import scipy.stats
@@ -63,11 +61,11 @@ _BG_COLOR_DTYPE_MAP = {
 
 
 def make_image_grid(
-    images: Union[Sequence[np.ndarray], np.ndarray],
+    images: Sequence[np.ndarray] | np.ndarray,
     pad: int = 8,
     border: bool = True,
     bg_color=None,
-    num_cols: Optional[int] = None,
+    num_cols: int | None = None,
 ):
     """
     Convert a list of images into a single image that is a grid of those images.
@@ -109,11 +107,11 @@ def make_image_grid(
 
 
 def make_animated_image_grid(
-    list_of_animated_images: Union[Sequence[np.ndarray], np.ndarray],
+    list_of_animated_images: Sequence[np.ndarray] | np.ndarray,
     pad: int = 8,
     border: bool = True,
     bg_color=None,
-    num_cols: Optional[int] = None,
+    num_cols: int | None = None,
 ):
     """
     :param list_of_animated_images: list of input images, with the second dimension the number of frames: : (I, F, H, W, C) or (I, F, H, W)
@@ -138,7 +136,7 @@ def make_animated_image_grid(
 # ========================================================================= #
 
 
-def _get_grid_size(n: int, num_cols: Optional[int] = None):
+def _get_grid_size(n: int, num_cols: int | None = None):
     """
     Determine the number of rows and columns, given the total number of elements n.
     - if num_cols is None:     rows x cols is as square as possible

@@ -23,9 +23,8 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
-from typing import Callable
+from collections.abc import Callable
 from typing import Protocol
-from typing import Tuple
 
 import numpy as np
 import torch
@@ -159,7 +158,7 @@ def configured_idx_mine(
     n_idxs: torch.Tensor,
     cfg: SampledTripletMineCfgProto,
     pairwise_loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],  # should return arrays with ndim == 1
-) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     # TODO: SIMPLIFY THIS FUNCTION HIERARCHY, THERE ARE A LOT OF UNNECESSARY CALLS!
     # TODO: this function is quite useless, its easier to just use configured_mine_random_mode
     # skip mining if mode is None!

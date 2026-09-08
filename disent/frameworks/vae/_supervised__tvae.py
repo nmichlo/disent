@@ -22,11 +22,8 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Dict
-from typing import Sequence
-from typing import Tuple
-from typing import Union
 
 import torch
 from torch.distributions import Distribution
@@ -54,7 +51,7 @@ class TripletVae(BetaVae):
         zs_sampled: Sequence[torch.Tensor],
         xs_partial_recon: Sequence[torch.Tensor],
         xs_targ: Sequence[torch.Tensor],
-    ) -> Tuple[Union[torch.Tensor, float], Dict[str, Union[torch.Tensor, float]]]:
+    ) -> tuple[torch.Tensor | float, dict[str, torch.Tensor | float]]:
         self.cfg: TripletVae.cfg
         return compute_triplet_loss(zs=[d.mean for d in ds_posterior], cfg=self.cfg)
 

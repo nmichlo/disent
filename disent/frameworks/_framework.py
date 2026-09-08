@@ -28,12 +28,7 @@ from dataclasses import asdict
 from dataclasses import dataclass
 from dataclasses import fields
 from pprint import pformat
-from typing import Dict
-from typing import List
-from typing import Optional
 from typing import Protocol
-from typing import Tuple
-from typing import Union
 from typing import final
 from typing import runtime_checkable
 
@@ -55,7 +50,7 @@ class _TrainerWithCallbacks(Protocol):
     it is invisible to the type checker. This protocol documents the attribute we rely on.
     """
 
-    callbacks: List[object]
+    callbacks: list[object]
 
 
 # ========================================================================= #
@@ -63,9 +58,9 @@ class _TrainerWithCallbacks(Protocol):
 # ========================================================================= #
 
 
-class DisentConfigurable(object):
+class DisentConfigurable:
     @dataclass
-    class cfg(object):
+    class cfg:
         def get_keys(self) -> list:
             return list(self.to_dict().keys())
 
@@ -75,7 +70,7 @@ class DisentConfigurable(object):
         def __str__(self):
             return pformat(self.to_dict(), sort_dicts=False)
 
-    def __init__(self, cfg: Optional[cfg] = cfg()):
+    def __init__(self, cfg: cfg | None = cfg()):
         if cfg is None:
             cfg = self.__class__.cfg()
             log.info(f"Initialised default config {cfg=} for {self.__class__.__name__}")
@@ -93,16 +88,14 @@ class DisentFramework(DisentConfigurable, DisentLightningModule):
     @dataclass
     class cfg(DisentConfigurable.cfg):
         # optimizer config
-        optimizer: Union[str] = (
-            "adam"  # name in the registry, eg. `adam` OR the path to an optimizer eg. `torch.optim.Adam`
-        )
-        optimizer_kwargs: Optional[Dict[str, Union[str, float, int]]] = None
+        optimizer: str = "adam"  # name in the registry, eg. `adam` OR the path to an optimizer eg. `torch.optim.Adam`
+        optimizer_kwargs: dict[str, str | float | int] | None = None
 
     def __init__(
         self,
-        cfg: Optional[cfg] = None,
+        cfg: cfg | None = None,
         # apply the batch augmentations on the GPU instead
-        batch_augment: Optional[Callable] = None,
+        batch_augment: Callable | None = None,
     ):
         # save the config values to the class
         super().__init__(cfg=cfg)
@@ -119,7 +112,7 @@ class DisentFramework(DisentConfigurable, DisentLightningModule):
         # schedules
         # - maybe add support for schedules in the config?
         self._registered_schedules = set()
-        self._active_schedules: Dict[str, Tuple[object, Schedule]] = {}
+        self._active_schedules: dict[str, tuple[object, Schedule]] = {}
 
     @staticmethod
     def _check_optimizer(optimizer: str):
@@ -138,7 +131,7 @@ class DisentFramework(DisentConfigurable, DisentLightningModule):
         return optimizer
 
     @staticmethod
-    def _check_optimizer_kwargs(optimizer_kwargs: Optional[dict]) -> Dict[str, Union[str, float, int]]:
+    def _check_optimizer_kwargs(optimizer_kwargs: dict | None) -> dict[str, str | float | int]:
         # check the optimizer kwargs
         assert isinstance(optimizer_kwargs, dict) or (optimizer_kwargs is None), (
             f"invalid optimizer_kwargs type, got: {type(optimizer_kwargs)}"

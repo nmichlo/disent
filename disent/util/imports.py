@@ -23,14 +23,12 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 
-from typing import Tuple
-
 # ========================================================================= #
 # Import Helper                                                             #
 # ========================================================================= #
 
 
-def _check_and_split_path(import_path: str) -> Tuple[str, ...]:
+def _check_and_split_path(import_path: str) -> tuple[str, ...]:
     segments = import_path.split(".")
     # make sure each segment is a valid python identifier
     if not all(map(str.isidentifier, segments)):

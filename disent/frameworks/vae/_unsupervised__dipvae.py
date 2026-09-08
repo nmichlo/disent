@@ -22,10 +22,9 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
-from typing import Optional
-from typing import Sequence
 
 import torch
 from torch.distributions import Distribution
@@ -59,7 +58,7 @@ class DipVae(BetaVae):
         lambda_d: float = 10.0
         lambda_od: float = 5.0
 
-    def __init__(self, model: "AutoEncoder", cfg: Optional[cfg] = None, batch_augment=None):
+    def __init__(self, model: "AutoEncoder", cfg: cfg | None = None, batch_augment=None):
         super().__init__(model=model, cfg=cfg, batch_augment=batch_augment)
         self.cfg: DipVae.cfg
         # checks

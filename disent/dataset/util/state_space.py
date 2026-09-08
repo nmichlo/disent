@@ -22,11 +22,8 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+from collections.abc import Sequence
 from functools import lru_cache
-from typing import Optional
-from typing import Sequence
-from typing import Tuple
-from typing import Union
 
 import numpy as np
 
@@ -38,9 +35,9 @@ from disent.util.visualize.vis_util import get_idx_traversal
 # ========================================================================= #
 
 
-NonNormalisedFactorIdx = Union[int, str]
-NonNormalisedFactorIdxs = Union[np.ndarray, Sequence[NonNormalisedFactorIdx], NonNormalisedFactorIdx]
-NonNormalisedFactors = Union[np.ndarray, Sequence[Union[int, Sequence]]]
+type NonNormalisedFactorIdx = int | str
+type NonNormalisedFactorIdxs = np.ndarray | Sequence[NonNormalisedFactorIdx] | NonNormalisedFactorIdx
+type NonNormalisedFactors = np.ndarray | Sequence[int | Sequence]
 
 
 # ========================================================================= #
@@ -54,7 +51,7 @@ class StateSpace(LengthIter):
     ie. State space with multiple factors of variation, where each factor can be a different size.
     """
 
-    def __init__(self, factor_sizes: Sequence[int], factor_names: Optional[Sequence[str]] = None):
+    def __init__(self, factor_sizes: Sequence[int], factor_names: Sequence[str] | None = None):
         super().__init__()
         # dimension: [read only]
         self.__factor_sizes = np.array(factor_sizes)
@@ -108,7 +105,7 @@ class StateSpace(LengthIter):
         return self.__factor_sizes
 
     @property
-    def factor_names(self) -> Tuple[str, ...]:
+    def factor_names(self) -> tuple[str, ...]:
         """A list of names of factors handled by this state space"""
         return self.__factor_names
 
@@ -146,7 +143,7 @@ class StateSpace(LengthIter):
         # return the resulting values
         return f_idx
 
-    def normalise_factor_idxs(self, f_idxs: Optional[NonNormalisedFactorIdxs]) -> np.ndarray:
+    def normalise_factor_idxs(self, f_idxs: NonNormalisedFactorIdxs | None) -> np.ndarray:
         # return the default list of factor indices
         if f_idxs is None:
             return np.arange(self.num_factors)
@@ -159,7 +156,7 @@ class StateSpace(LengthIter):
         assert len(set(f_idxs)) == len(f_idxs), "duplicate factors were found!"
         return f_idxs
 
-    def invert_factor_idxs(self, f_idxs: Optional[NonNormalisedFactorIdxs]) -> np.ndarray:
+    def invert_factor_idxs(self, f_idxs: NonNormalisedFactorIdxs | None) -> np.ndarray:
         f_idxs = self.normalise_factor_idxs(f_idxs)
         # create a mask of factors
         f_mask = np.ones(self.num_factors, dtype="bool")
@@ -211,7 +208,7 @@ class StateSpace(LengthIter):
     def sample_indices(self, size=None):
         return np.random.randint(0, len(self), size=size)
 
-    def sample_factors(self, size=None, f_idxs: Optional[NonNormalisedFactorIdxs] = None) -> np.ndarray:
+    def sample_factors(self, size=None, f_idxs: NonNormalisedFactorIdxs | None = None) -> np.ndarray:
         """
         sample randomly from all factors, otherwise the given factor_indices.
         returned values must appear in the same order as factor_indices.
@@ -297,9 +294,9 @@ class StateSpace(LengthIter):
 
     def _get_f_idx_and_factors_and_size(
         self,
-        f_idx: Optional[int] = None,
-        base_factors: Optional[NonNormalisedFactors] = None,
-        num: Optional[int] = None,
+        f_idx: int | None = None,
+        base_factors: NonNormalisedFactors | None = None,
+        num: int | None = None,
     ):
         """
         :param f_idx: Sampled randomly in the range [0, num_factors) if not given.
@@ -327,13 +324,13 @@ class StateSpace(LengthIter):
 
     def sample_random_factor_traversal(
         self,
-        f_idx: Optional[int] = None,
-        base_factors: Optional[NonNormalisedFactors] = None,
-        num: Optional[int] = None,
+        f_idx: int | None = None,
+        base_factors: NonNormalisedFactors | None = None,
+        num: int | None = None,
         mode: str = "interval",
         start_index: int = 0,
         return_indices: bool = False,
-    ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
+    ) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
         """
         Sample a single random factor traversal along the
         given factor index, starting from some random base sample.
@@ -350,12 +347,12 @@ class StateSpace(LengthIter):
 
     def sample_random_factor_traversal_grid(
         self,
-        num: Optional[int] = None,
-        base_factors: Optional[NonNormalisedFactors] = None,
+        num: int | None = None,
+        base_factors: NonNormalisedFactors | None = None,
         mode: str = "interval",
-        factor_indices: Optional[NonNormalisedFactorIdxs] = None,
+        factor_indices: NonNormalisedFactorIdxs | None = None,
         return_indices: bool = False,
-    ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
+    ) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
         # default values
         if num is None:
             num = int(np.ceil(np.mean(self.factor_sizes)))
@@ -382,7 +379,7 @@ class StateSpace(LengthIter):
 # ========================================================================= #
 
 
-@lru_cache()
+@lru_cache
 def _get_step_size(factor_sizes, f_idx: int):
     # check values
     assert f_idx >= 0

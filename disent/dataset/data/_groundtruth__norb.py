@@ -23,10 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
-from typing import Dict
-from typing import Optional
-from typing import Tuple
-from typing import Union
 
 import numpy as np
 
@@ -99,7 +95,7 @@ def read_binary_matrix_file(file, gzipped: bool = True):
 
 def read_norb_dataset(
     dat_path: str, cat_path: str, info_path: str, gzipped=True, sort=True, add_channel_dim: bool = True
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Load The Normalised Dataset
     * dat:
@@ -183,7 +179,7 @@ class DataFileSmallNorb(DataFileHashed):
         datafile_cat: DataFile,
         datafile_info: DataFile,
         out_name: str,
-        out_hash: Optional[Union[str, Dict[str, str]]],
+        out_hash: str | dict[str, str] | None,
         hash_type: str = "md5",
         hash_mode: str = "fast",
     ):
@@ -209,8 +205,8 @@ class DataFileSmallNorbResized(DataFileHashed):
         self,
         norb_datafile: DataFileSmallNorb,
         # - convert file name
-        out_hash: Optional[Union[str, Dict[str, str]]],
-        out_name: Optional[str] = None,
+        out_hash: str | dict[str, str] | None,
+        out_name: str | None = None,
         out_size: int = 64,
         # - hash settings
         hash_type: str = "md5",
@@ -295,7 +291,7 @@ class SmallNorbData(NumpyFileGroundTruthData):
     # override
     data_key = "images"
 
-    def __init__(self, data_root: Optional[str] = None, prepare: bool = False, is_test: bool = False, transform=None):
+    def __init__(self, data_root: str | None = None, prepare: bool = False, is_test: bool = False, transform=None):
         self._is_test = is_test
         # initialize
         super().__init__(data_root=data_root, prepare=prepare, transform=transform)

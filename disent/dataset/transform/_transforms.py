@@ -22,8 +22,7 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from typing import Optional
-from typing import Sequence
+from collections.abc import Sequence
 
 import torch
 
@@ -35,7 +34,7 @@ import disent.dataset.transform.functional as F_d
 from disent.util.deprecate import deprecated
 
 
-class Noop(object):
+class Noop:
     """
     Transform that does absolutely nothing!
 
@@ -49,7 +48,7 @@ class Noop(object):
         return f"{self.__class__.__name__}()"
 
 
-class CheckTensor(object):
+class CheckTensor:
     """
     Check that the data is a tensor, the right dtype, and in the required range.
 
@@ -58,9 +57,9 @@ class CheckTensor(object):
 
     def __init__(
         self,
-        low: Optional[float] = 0.0,
-        high: Optional[float] = 1.0,
-        dtype: Optional[torch.dtype] = torch.float32,
+        low: float | None = 0.0,
+        high: float | None = 1.0,
+        dtype: torch.dtype | None = torch.float32,
     ):
         self._low = low
         self._high = high
@@ -75,7 +74,7 @@ class CheckTensor(object):
         return f"{self.__class__.__name__}({kwargs})"
 
 
-class ToImgTensorF32(object):
+class ToImgTensorF32:
     """
     Basic transform that should be applied to most datasets, making sure
     the image tensor is float32 and a specified size.
@@ -92,9 +91,9 @@ class ToImgTensorF32(object):
 
     def __init__(
         self,
-        size: Optional[F_d.SizeType] = None,
-        mean: Optional[Sequence[float]] = None,
-        std: Optional[Sequence[float]] = None,
+        size: F_d.SizeType | None = None,
+        mean: Sequence[float] | None = None,
+        std: Sequence[float] | None = None,
     ):
         self._size = size
         self._mean = tuple(mean) if (mean is not None) else None
@@ -109,7 +108,7 @@ class ToImgTensorF32(object):
         return f"{self.__class__.__name__}({kwargs})"
 
 
-class ToImgTensorU8(object):
+class ToImgTensorU8:
     """
     Basic transform that makes sure the image tensor is uint8 and a specified size.
 
@@ -123,7 +122,7 @@ class ToImgTensorU8(object):
 
     def __init__(
         self,
-        size: Optional[F_d.SizeType] = None,
+        size: F_d.SizeType | None = None,
     ):
         self._size = size
 

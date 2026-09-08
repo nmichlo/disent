@@ -25,10 +25,8 @@
 import contextlib
 import os
 import sys
+from collections.abc import Callable
 from contextlib import contextmanager
-from typing import Callable
-from typing import Dict
-from typing import Type
 
 import pytest
 
@@ -71,7 +69,7 @@ def temp_sys_args(new_argv):
 
 
 @contextmanager
-def temp_environ(environment: Dict[str, str]):
+def temp_environ(environment: dict[str, str]):
     # TODO: should this copy values? -- could use unittest.mock.patch.dict(...)
     # save the old environment
     existing_env = {}
@@ -94,7 +92,7 @@ def temp_environ(environment: Dict[str, str]):
 
 def assert_rejects(
     fn: Callable[..., object],
-    exception: Type[BaseException],
+    exception: type[BaseException],
     match: str,
     *args: object,
     **kwargs: object,

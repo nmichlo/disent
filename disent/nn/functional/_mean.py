@@ -23,9 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import warnings
-from typing import List
-from typing import Optional
-from typing import Union
 
 import torch
 
@@ -34,7 +31,7 @@ import torch
 # ========================================================================= #
 
 
-_DimTypeHint = Optional[Union[int, List[int]]]
+type _DimTypeHint = int | list[int] | None
 
 _POS_INF = float("inf")
 _NEG_INF = float("-inf")
@@ -56,7 +53,7 @@ _GENERALIZED_MEAN_MAP = {
 # ========================================================================= #
 
 
-def torch_mean_generalized(xs: torch.Tensor, dim: _DimTypeHint = None, p: Union[float, str] = 1, keepdim: bool = False):
+def torch_mean_generalized(xs: torch.Tensor, dim: _DimTypeHint = None, p: float | str = 1, keepdim: bool = False):
     """
     Compute the generalised mean.
     - p is the power

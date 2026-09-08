@@ -24,14 +24,9 @@
 
 import os
 from collections import defaultdict
-from typing import Callable
-from typing import Dict
-from typing import List
+from collections.abc import Callable
+from collections.abc import Sequence
 from typing import Literal
-from typing import Optional
-from typing import Sequence
-from typing import Tuple
-from typing import Union
 
 import imageio
 import matplotlib.pyplot as plt
@@ -56,16 +51,16 @@ from disent.util.visualize.vis_util import make_image_grid
 # ========================================================================= #
 
 
-SampleModeHint = Union[Literal["random"], Literal["near"], Literal["combinations"]]
-StatValue = Union[np.ndarray, torch.Tensor]
+type SampleModeHint = Literal["random"] | Literal["near"] | Literal["combinations"]
+type StatValue = np.ndarray | torch.Tensor
 
 
 @torch.no_grad()
 def sample_factor_traversal_info(
     gt_data: GroundTruthData,
-    f_idx: Optional[int] = None,
+    f_idx: int | None = None,
     sample_mode: SampleModeHint = "random",
-) -> Dict[str, StatValue]:
+) -> dict[str, StatValue]:
     # load traversal
     factors, indices = gt_data.sample_random_factor_traversal(f_idx=f_idx, return_indices=True)
     obs = torch.stack([gt_data[i] for i in indices])  # TODO: this is the bottleneck! not threaded
@@ -90,8 +85,8 @@ def sample_factor_traversal_info(
 
 def sample_factor_traversal_info_and_distmat(
     gt_data: GroundTruthData,
-    f_idx: Optional[int] = None,
-) -> Dict[str, StatValue]:
+    f_idx: int | None = None,
+) -> dict[str, StatValue]:
     dat = sample_factor_traversal_info(gt_data=gt_data, f_idx=f_idx, sample_mode="combinations")
     # extract
     factors, idxs_a, idxs_b, deltas, fdists = dat["factors"], dat["idxs_a"], dat["idxs_b"], dat["deltas"], dat["fdists"]
@@ -115,12 +110,12 @@ def sample_factor_traversal_info_and_distmat(
 def _collect_stats_for_factors(
     gt_data: GroundTruthData,
     f_idxs: NonNormalisedFactorIdxs,
-    stats_fn: Callable[[GroundTruthData, int, int], Dict[str, StatValue]],
+    stats_fn: Callable[[GroundTruthData, int, int], dict[str, StatValue]],
     keep_keys: Sequence[str],
-    stats_callback: Optional[Callable[[Dict[str, List[StatValue]], int, int], None]] = None,
+    stats_callback: Callable[[dict[str, list[StatValue]], int, int], None] | None = None,
     return_stats: bool = True,
     num_traversal_sample: int = 100,
-) -> Optional[List[Dict[str, List[StatValue]]]]:
+) -> list[dict[str, list[StatValue]]] | None:
     # prepare
     f_idxs_norm = gt_data.normalise_factor_idxs(f_idxs)
     # generate data per factor
@@ -129,7 +124,7 @@ def _collect_stats_for_factors(
         factor_name = gt_data.factor_names[f_idx]
         _factor_size = gt_data.factor_sizes[f_idx]
         # repeatedly generate stats per factor
-        stats: Dict[str, List[StatValue]] = defaultdict(list)
+        stats: dict[str, list[StatValue]] = defaultdict(list)
         for _ in tqdm(range(num_traversal_sample), desc=f"{gt_data.name}: {factor_name}"):
             data = stats_fn(gt_data, i, f_idx)
             for key in keep_keys:
@@ -151,14 +146,14 @@ def _collect_stats_for_factors(
 
 
 def plot_traversal_stats(
-    dataset_or_name: Union[str, GroundTruthData],
+    dataset_or_name: str | GroundTruthData,
     num_repeats: int = 256,
-    f_idxs: Optional[NonNormalisedFactorIdxs] = None,
-    suffix: Optional[str] = None,
-    save_path: Optional[str] = None,
-    plot_title: Union[bool, str] = False,
+    f_idxs: NonNormalisedFactorIdxs | None = None,
+    suffix: str | None = None,
+    save_path: str | None = None,
+    plot_title: bool | str = False,
     plt_scale: float = 6,
-    col_titles: Union[bool, List[str]] = True,
+    col_titles: bool | list[str] = True,
     y_size_offset: float = 0.45,
     x_size_offset: float = 0.75,
     disable_labels: bool = False,
@@ -168,13 +163,13 @@ def plot_traversal_stats(
 ):
     # - - - - - - - - - - - - - - - - - #
 
-    def stats_fn(gt_data: GroundTruthData, i: int, f_idx: int) -> Dict[str, StatValue]:
+    def stats_fn(gt_data: GroundTruthData, i: int, f_idx: int) -> dict[str, StatValue]:
         return sample_factor_traversal_info_and_distmat(gt_data=gt_data, f_idx=f_idx)
 
     grid_t = []
     grid_titles = []
 
-    def plot_ax(stats: Dict[str, List[StatValue]], i: int, f_idx: int):
+    def plot_ax(stats: dict[str, list[StatValue]], i: int, f_idx: int):
         fdists_matrix = np.mean(stats["fdists_matrix"], axis=0)
         deltas_matrix = np.mean(stats["deltas_matrix"], axis=0)
         grid_t.append([fdists_matrix, deltas_matrix])
@@ -257,12 +252,12 @@ def plot_traversal_stats(
 @torch.no_grad()
 def factor_stats(
     gt_data: GroundTruthData,
-    f_idxs: Optional[NonNormalisedFactorIdxs] = None,
+    f_idxs: NonNormalisedFactorIdxs | None = None,
     min_samples: int = 100_000,
     min_repeats: int = 5000,
     recon_loss: str = "mse",
     sample_mode: str = "random",
-) -> Tuple[np.ndarray, List[np.ndarray]]:
+) -> tuple[np.ndarray, list[np.ndarray]]:
     from disent.frameworks.helper.reconstructions import ReconLossHandler
     from disent.registry import RECON_LOSSES
 
@@ -324,7 +319,7 @@ def print_ave_dists(gt_data: GroundTruthData, num_samples: int = 100_000, recon_
 
 def print_ave_factor_stats(
     gt_data: GroundTruthData,
-    f_idxs: Optional[NonNormalisedFactorIdxs] = None,
+    f_idxs: NonNormalisedFactorIdxs | None = None,
     min_samples: int = 100_000,
     min_repeats: int = 5000,
     recon_loss: str = "mse",

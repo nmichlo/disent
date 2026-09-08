@@ -24,9 +24,6 @@
 
 import logging
 from typing import Literal
-from typing import Optional
-from typing import Tuple
-from typing import Union
 
 import lightning as L
 import numpy as np
@@ -52,8 +49,8 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-MinMaxHint = Optional[Union[int, float, np.ndarray, Literal["auto"]]]
-MeanStdHint = Optional[Union[Tuple[float, ...], float]]
+type MinMaxHint = int | float | np.ndarray | Literal["auto"] | None
+type MeanStdHint = tuple[float, ...] | float | None
 
 
 def get_vis_min_max(
@@ -61,7 +58,7 @@ def get_vis_min_max(
     recon_max: MinMaxHint = None,
     recon_mean: MeanStdHint = None,
     recon_std: MeanStdHint = None,
-) -> Union[Tuple[None, None], Tuple[np.ndarray, np.ndarray]]:
+) -> tuple[None, None] | tuple[np.ndarray, np.ndarray]:
     # check recon_min and recon_max
     if (recon_min is not None) or (recon_max is not None):
         if (recon_mean is not None) or (recon_std is not None):
@@ -111,8 +108,8 @@ def get_vis_min_max(
 class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
     def __init__(
         self,
-        seed: Optional[int] = 7777,
-        every_n_steps: Optional[int] = None,
+        seed: int | None = 7777,
+        every_n_steps: int | None = None,
         begin_first_step: bool = False,
         num_frames: int = 17,
         mode: str = "minmax_interval_cycle",
@@ -194,9 +191,9 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
 
     def get_visualisations(
         self,
-        trainer_or_dataset: Union[L.Trainer, DisentDataset],
+        trainer_or_dataset: L.Trainer | DisentDataset,
         pl_module: L.LightningModule,
-    ) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray]]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
         return self.generate_visualisations(
             trainer_or_dataset,
             pl_module,
@@ -213,9 +210,9 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
     @classmethod
     def generate_visualisations(
         cls,
-        trainer_or_dataset: Union[L.Trainer, DisentDataset],
+        trainer_or_dataset: L.Trainer | DisentDataset,
         pl_module: L.LightningModule,
-        seed: Optional[int] = 7777,
+        seed: int | None = 7777,
         num_frames: int = 17,
         mode: str = "fitted_gaussian_cycle",
         num_stats_samples: int = 64,
@@ -224,7 +221,7 @@ class VaeLatentCycleLoggingCallback(BaseCallbackPeriodic):
         recon_max: MinMaxHint = None,
         recon_mean: MeanStdHint = None,
         recon_std: MeanStdHint = None,
-    ) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray]]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
         # normalize
         recon_min, recon_max = get_vis_min_max(
             recon_min=recon_min,

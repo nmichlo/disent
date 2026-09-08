@@ -22,7 +22,6 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from typing import Tuple
 
 import numpy as np
 
@@ -43,7 +42,7 @@ class RandomSampler(BaseDisentSampler):
     def _init(self, dataset):
         self._len = len(dataset)
 
-    def _sample_idx(self, idx: int) -> Tuple[int, ...]:
+    def _sample_idx(self, idx: int) -> tuple[int, ...]:
         # sample indices
         return (idx, *np.random.randint(0, self._len, size=self._num_samples - 1))
 

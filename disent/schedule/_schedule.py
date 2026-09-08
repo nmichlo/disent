@@ -22,8 +22,6 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from typing import Optional
-from typing import Union
 
 import numpy as np
 
@@ -36,7 +34,7 @@ from disent.schedule.lerp import lerp_step
 # ========================================================================= #
 
 
-class Schedule(object):
+class Schedule:
     def __call__(self, step: int, value):
         return self.compute_value(step=step, value=value)
 
@@ -82,7 +80,7 @@ class FixedValueSchedule(Schedule):
     def __init__(
         self,
         value: float,
-        schedule: Optional[Schedule] = None,
+        schedule: Schedule | None = None,
     ):
         """
         :param schedule: The wrapped schedule that is passed the new constant value
@@ -175,8 +173,8 @@ class CyclicSchedule(Schedule):
     def __init__(
         self,
         period: int,
-        start_step: Optional[int] = None,
-        repeats: Optional[int] = None,
+        start_step: int | None = None,
+        repeats: int | None = None,
         r_start: float = 0.0,
         r_end: float = 1.0,
         end_mode: str = "end",
@@ -319,11 +317,11 @@ class ClipSchedule(Schedule):
     def __init__(
         self,
         schedule: Schedule,
-        min_step: Optional[int] = None,
-        max_step: Optional[int] = None,
-        shift_step: Union[bool, int] = True,
-        min_value: Optional[float] = None,
-        max_value: Optional[float] = None,
+        min_step: int | None = None,
+        max_step: int | None = None,
+        shift_step: bool | int = True,
+        min_value: float | None = None,
+        max_value: float | None = None,
     ):
         """
         :param schedule:

@@ -22,9 +22,7 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 import random
-from typing import List
 from typing import Literal
-from typing import Union
 
 import numpy as np
 import pytest
@@ -44,7 +42,7 @@ from disent.dataset.sampling import SingleSampler
 
 
 class DummyEpisodesData(BaseEpisodesData):
-    def _load_episode_observations(self) -> List[np.ndarray]:
+    def _load_episode_observations(self) -> list[np.ndarray]:
         return [
             np.random.randn(57, 3, 64, 64),
             np.random.randn(42, 3, 64, 64),
@@ -102,9 +100,7 @@ class DummyEpisodesData(BaseEpisodesData):
         [DummyEpisodesData(), 3, "any", RandomEpisodeSampler(num_samples=3, sample_radius=-1)],
     ],
 )
-def test_samplers(
-    dataset, num_samples: int, check_mode: Union[Literal["first"], Literal["any"]], sampler: BaseDisentSampler
-):
+def test_samplers(dataset, num_samples: int, check_mode: Literal["first"] | Literal["any"], sampler: BaseDisentSampler):
     # check dataset
     wrapper = DisentDataset(dataset, sampler)
     assert len(wrapper) == len(dataset)

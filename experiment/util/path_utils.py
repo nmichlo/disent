@@ -27,9 +27,6 @@ import os
 import re
 from pathlib import Path
 from typing import Literal
-from typing import Optional
-from typing import Tuple
-from typing import Union
 from typing import overload
 
 log = logging.getLogger(__name__)
@@ -47,8 +44,8 @@ _EXPERIMENT_RGX = re.compile(f"^([0-9]+)({_EXPERIMENT_SEP}.+)?$")
 @overload
 def get_max_experiment_number(root_dir: str, return_path: Literal[False] = False) -> int: ...
 @overload
-def get_max_experiment_number(root_dir: str, return_path: Literal[True]) -> Tuple[int, Optional[str]]: ...
-def get_max_experiment_number(root_dir: str, return_path: bool = False) -> Union[int, Tuple[int, Optional[str]]]:
+def get_max_experiment_number(root_dir: str, return_path: Literal[True]) -> tuple[int, str | None]: ...
+def get_max_experiment_number(root_dir: str, return_path: bool = False) -> int | tuple[int, str | None]:
     """
     Get the next experiment number in the specified directory. Experiment directories
     all start with a numerical value.
@@ -89,8 +86,8 @@ def get_max_experiment_number(root_dir: str, return_path: bool = False) -> Union
     return max_num
 
 
-_CURRENT_EXPERIMENT_NUM: Optional[int] = None
-_CURRENT_EXPERIMENT_DIR: Optional[str] = None
+_CURRENT_EXPERIMENT_NUM: int | None = None
+_CURRENT_EXPERIMENT_DIR: str | None = None
 
 
 def get_current_experiment_number(root_dir: str) -> int:
@@ -109,7 +106,7 @@ def get_current_experiment_number(root_dir: str) -> int:
     return _CURRENT_EXPERIMENT_NUM
 
 
-def get_current_experiment_dir(root_dir: str, name: Optional[str] = None) -> str:
+def get_current_experiment_dir(root_dir: str, name: str | None = None) -> str:
     """
     Like `get_current_experiment_number` which computes the next experiment number, this
     function computes the next experiment path, which appends a name to the computed number.
@@ -136,7 +133,7 @@ def get_current_experiment_dir(root_dir: str, name: Optional[str] = None) -> str
     return _CURRENT_EXPERIMENT_DIR
 
 
-def make_current_experiment_dir(root_dir: str, name: Optional[str] = None) -> str:
+def make_current_experiment_dir(root_dir: str, name: str | None = None) -> str:
     """
     Like `get_current_experiment_dir`, but create any of the directories if needed.
     - Both the `root_dir` and the computed subdir for the current experiment will be created.

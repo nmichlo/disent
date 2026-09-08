@@ -23,9 +23,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 
-from typing import Optional
-from typing import Sequence
-from typing import Tuple
+from collections.abc import Sequence
 from typing import final
 
 import torch
@@ -45,21 +43,21 @@ from disent.nn.loss.reduction import loss_reduction
 # ========================================================================= #
 
 
-class LatentDistsHandler(object):
+class LatentDistsHandler:
     def __init__(self, kl_mode: str = "direct", reduction="mean"):
         self._kl_mode = kl_mode
         self._reduction = reduction
 
-    def encoding_to_representation(self, z_raw: Tuple[torch.Tensor, ...]) -> torch.Tensor:
+    def encoding_to_representation(self, z_raw: tuple[torch.Tensor, ...]) -> torch.Tensor:
         raise NotImplementedError
 
-    def encoding_to_dists(self, z_raw: Tuple[torch.Tensor, ...]) -> Tuple[Distribution, Distribution]:
+    def encoding_to_dists(self, z_raw: tuple[torch.Tensor, ...]) -> tuple[Distribution, Distribution]:
         raise NotImplementedError
 
     @final
     def encoding_to_dists_and_sample(
-        self, z_raw: Tuple[torch.Tensor, ...]
-    ) -> Tuple[Distribution, Distribution, torch.Tensor]:
+        self, z_raw: tuple[torch.Tensor, ...]
+    ) -> tuple[Distribution, Distribution, torch.Tensor]:
         """
         Return the parameterized prior and the approximate posterior distributions,
         as well as a sample from the approximate posterior using the 'reparameterization trick'.
@@ -73,7 +71,7 @@ class LatentDistsHandler(object):
 
     @final
     def compute_kl_loss(
-        self, posterior: Distribution, prior: Distribution, z_sampled: Optional[torch.Tensor] = None
+        self, posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor | None = None
     ) -> torch.Tensor:
         """
         Compute the kl divergence
@@ -84,7 +82,7 @@ class LatentDistsHandler(object):
 
     @final
     def compute_unreduced_kl_loss(
-        self, posterior: Distribution, prior: Distribution, z_sampled: Optional[torch.Tensor] = None
+        self, posterior: Distribution, prior: Distribution, z_sampled: torch.Tensor | None = None
     ) -> torch.Tensor:
         return kl_loss(posterior, prior, z_sampled, mode=self._kl_mode)
 
@@ -112,11 +110,11 @@ class LatentDistsHandlerNormal(LatentDistsHandler):
     # assert mode == 'direct', f'legacy reference implementation of KL loss only supports mode="direct", not {repr(mode)}'
     # assert reduction == 'mean_sum', f'legacy reference implementation of KL loss only supports reduction="mean_sum", not {repr(reduction)}'
 
-    def encoding_to_representation(self, z_raw: Tuple[torch.Tensor, ...]) -> torch.Tensor:
+    def encoding_to_representation(self, z_raw: tuple[torch.Tensor, ...]) -> torch.Tensor:
         z_mean, z_logvar = z_raw
         return z_mean
 
-    def encoding_to_dists(self, z_raw: Tuple[torch.Tensor, ...]) -> Tuple[Normal, Normal]:
+    def encoding_to_dists(self, z_raw: tuple[torch.Tensor, ...]) -> tuple[Normal, Normal]:
         """
         Return the parameterized prior and the approximate posterior distributions.
         - The standard VAE parameterizes the gaussian normal with diagonal covariance.
@@ -148,11 +146,11 @@ class LatentDistsHandlerLaplace(LatentDistsHandler):
     NOTE: Expanding parameters results in something akin to an L1 regularizer, with extra terms?
     """
 
-    def encoding_to_representation(self, z_raw: Tuple[torch.Tensor, ...]) -> torch.Tensor:
+    def encoding_to_representation(self, z_raw: tuple[torch.Tensor, ...]) -> torch.Tensor:
         z_loc, z_logscale = z_raw
         return z_loc
 
-    def encoding_to_dists(self, z_raw: Tuple[torch.Tensor, ...]) -> Tuple[Laplace, Laplace]:
+    def encoding_to_dists(self, z_raw: tuple[torch.Tensor, ...]) -> tuple[Laplace, Laplace]:
         z_loc, z_logscale = z_raw
         # compute required values
         z_scale = torch.exp(z_logscale)

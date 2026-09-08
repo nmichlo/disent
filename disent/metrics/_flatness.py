@@ -30,9 +30,7 @@ Flatness Metric
 
 import logging
 from collections.abc import Callable
-from typing import Iterable
-from typing import Tuple
-from typing import Union
+from collections.abc import Iterable
 
 import torch
 from torch.utils.data.dataloader import default_collate
@@ -152,7 +150,7 @@ def aggregate_measure_distances_along_all_factors(
     representation_function,
     repeats: int,
     batch_size: int,
-    ps: Iterable[Union[str, int]] = (1, 2),
+    ps: Iterable[str | int] = (1, 2),
 ) -> dict:
     # COMPUTE AGGREGATES FOR EACH FACTOR
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -184,7 +182,7 @@ def aggregate_measure_distances_along_factor(
     f_idx: int,
     repeats: int,
     batch_size: int,
-    ps: Iterable[Union[str, int]] = (1, 2),
+    ps: Iterable[str | int] = (1, 2),
     cycle_fail: bool = False,
 ) -> dict:
     f_size = dataset.gt_data.factor_sizes[f_idx]
@@ -258,7 +256,7 @@ def encode_all_along_factor(
 
 def encode_all_factors(
     dataset: DisentDataset, representation_function, factors, batch_size: int, return_batch: bool = False
-) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
     zs = []
     xs = []
     with torch.no_grad():

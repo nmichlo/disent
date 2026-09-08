@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2018 The DisentanglementLib Authors.  All rights reserved.
 # https://github.com/google-research/disentanglement_lib
 #
@@ -27,7 +26,6 @@ Based on "Disentangling by Factorising" (https://arxiv.org/abs/1802.05983).
 
 import logging
 from collections.abc import Callable
-from typing import Tuple
 
 import numpy as np
 from tqdm import tqdm
@@ -178,7 +176,7 @@ def _generate_training_sample(
     batch_size: int,
     global_variances: np.ndarray,
     active_dims: list,
-) -> Tuple[int, np.intp]:
+) -> tuple[int, np.intp]:
     """Sample a single training sample based on a mini-batch of ground-truth data.
     Args:
       dataset: DisentDataset to be sampled from.

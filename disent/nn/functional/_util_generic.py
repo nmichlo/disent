@@ -22,7 +22,6 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from typing import Union
 
 import numpy as np
 import torch
@@ -34,9 +33,9 @@ import torch
 # ========================================================================= #
 
 
-TypeGenericTensor = Union[float, int, torch.Tensor, np.ndarray]
-TypeGenericTorch = Union[float, int, torch.Tensor]
-TypeGenericNumpy = Union[float, int, np.ndarray]
+type TypeGenericTensor = float | int | torch.Tensor | np.ndarray
+type TypeGenericTorch = float | int | torch.Tensor
+type TypeGenericNumpy = float | int | np.ndarray
 
 
 def generic_as_int32(input: TypeGenericTensor):

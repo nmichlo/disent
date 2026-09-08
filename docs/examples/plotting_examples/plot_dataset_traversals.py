@@ -23,9 +23,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import os
-from typing import Optional
-from typing import Sequence
-from typing import Union
+from collections.abc import Sequence
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -62,20 +60,20 @@ def ensure_rgb(img: np.ndarray) -> np.ndarray:
 def plot_dataset_traversals(
     gt_data: GroundTruthData,
     f_idxs=None,
-    num_cols: Optional[int] = 8,
-    take_cols: Optional[int] = None,
+    num_cols: int | None = 8,
+    take_cols: int | None = None,
     base_factors=None,
     add_random_traversal: bool = True,
     pad: int = 8,
     bg_color: int = 127,
     border: bool = False,
-    rel_path: Optional[str] = None,
+    rel_path: str | None = None,
     save: bool = True,
     seed: int = 777,
     plt_scale: float = 4.5,
     offset: float = 0.75,
     transpose: bool = False,
-    title: Optional[Union[bool, str]] = True,
+    title: bool | str | None = True,
     label_size: int = 22,
     title_size: int = 26,
     labels_at_top: bool = False,
@@ -154,12 +152,12 @@ def plot_dataset_traversals(
 
 
 def plot_incr_overlap(
-    rel_path: Optional[str] = None,
-    spacings: Union[Sequence[int], bool] = False,
+    rel_path: str | None = None,
+    spacings: Sequence[int] | bool = False,
     seed: int = 777,
     fidx: int = 1,
     traversal_size: int = 8,
-    traversal_lim: Optional[int] = None,
+    traversal_lim: int | None = None,
     save: bool = True,
     show: bool = True,
     img_ext: str = ".jpg",

@@ -25,9 +25,6 @@
 import logging
 import os
 from pathlib import Path
-from typing import Optional
-from typing import Tuple
-from typing import Union
 from typing import overload
 
 log = logging.getLogger(__name__)
@@ -39,12 +36,10 @@ log = logging.getLogger(__name__)
 
 
 @overload
-def modify_file_name(file: str, prefix: Optional[str] = ..., suffix: Optional[str] = ..., sep: str = ...) -> str: ...
+def modify_file_name(file: str, prefix: str | None = ..., suffix: str | None = ..., sep: str = ...) -> str: ...
 @overload
-def modify_file_name(file: Path, prefix: Optional[str] = ..., suffix: Optional[str] = ..., sep: str = ...) -> Path: ...
-def modify_file_name(
-    file: Union[str, Path], prefix: Optional[str] = None, suffix: Optional[str] = None, sep="."
-) -> Union[str, Path]:
+def modify_file_name(file: Path, prefix: str | None = ..., suffix: str | None = ..., sep: str = ...) -> Path: ...
+def modify_file_name(file: str | Path, prefix: str | None = None, suffix: str | None = None, sep=".") -> str | Path:
     # get path components
     path = Path(file)
     assert path.name, f"file name cannot be empty: {repr(path)}, for name: {repr(path.name)}"
@@ -57,8 +52,8 @@ def modify_file_name(
 
 
 def modify_name_keep_ext(
-    file: Union[str, Path], prefix: Optional[str] = None, suffix: Optional[str] = None, name_contains_sep: bool = False
-) -> Union[str, Path]:
+    file: str | Path, prefix: str | None = None, suffix: str | None = None, name_contains_sep: bool = False
+) -> str | Path:
     # get path components
     path = Path(file)
     name = path.name
@@ -81,7 +76,7 @@ def modify_name_keep_ext(
     return str(new_path) if isinstance(file, str) else new_path
 
 
-def modify_ext(file: Union[str, Path], ext: str, name_contains_sep: bool = True) -> Union[str, Path]:
+def modify_ext(file: str | Path, ext: str, name_contains_sep: bool = True) -> str | Path:
     assert not ext.startswith("."), f"please specify the extension without the starting period: {repr(ext)}"
     # get path components
     path = Path(file)
@@ -113,7 +108,7 @@ def ensure_dir_exists(*join_paths: str, is_file=False, absolute=False):
     # create missing directory
     if os.path.exists(dirs):
         if not os.path.isdir(dirs):
-            raise IOError(f"path is not a directory: {dirs}")
+            raise OSError(f"path is not a directory: {dirs}")
     else:
         os.makedirs(dirs, exist_ok=True)
         log.info(f"created missing directories: {dirs}")
@@ -137,7 +132,7 @@ def filename_from_url(url: str):
     return os.path.basename(urlparse(url).path)
 
 
-def uri_parse_file_or_url(inp_uri: str) -> Tuple[str, bool]:
+def uri_parse_file_or_url(inp_uri: str) -> tuple[str, bool]:
     from urllib.parse import urlparse
 
     result = urlparse(inp_uri)

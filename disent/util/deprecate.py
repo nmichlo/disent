@@ -24,7 +24,6 @@
 
 import logging
 from functools import wraps
-from typing import Optional
 
 # ========================================================================= #
 # Deprecate                                                                 #
@@ -70,7 +69,7 @@ _TRACEBACK_MODES = {"none", "first", "mini", "traceback"}
 DEFAULT_TRACEBACK_MODE = "first"
 
 
-def deprecated(msg: str, traceback_mode: Optional[str] = None, fn=None):
+def deprecated(msg: str, traceback_mode: str | None = None, fn=None):
     """
     Mark a function or class as deprecated, and print a warning the
     first time it is used.

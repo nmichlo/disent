@@ -24,9 +24,6 @@
 
 import logging
 import os
-from typing import Dict
-from typing import Optional
-from typing import Union
 
 import numpy as np
 
@@ -89,8 +86,8 @@ class DataFileTeapots3dUint8(DataFileHashed):
         self,
         teapots3d_datafile: DataFileTeapots3dInt32,
         # - convert file name
-        out_hash: Optional[Union[str, Dict[str, str]]],
-        out_name: Optional[str] = None,
+        out_hash: str | dict[str, str] | None,
+        out_name: str | None = None,
         # - hash settings
         hash_type: str = "md5",
         hash_mode: str = "fast",

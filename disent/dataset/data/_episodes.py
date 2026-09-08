@@ -22,8 +22,6 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from typing import List
-from typing import Tuple
 
 import numpy as np
 from torch.utils.data import Dataset
@@ -58,7 +56,7 @@ class BaseEpisodesData(Dataset, LengthIter):
             obs = self._transform(obs)
         return obs
 
-    def get_episode_and_idx(self, idx: int) -> Tuple[np.ndarray, int, int]:
+    def get_episode_and_idx(self, idx: int) -> tuple[np.ndarray, int, int]:
         assert idx >= 0, "Negative indices are not supported."
         # linear search for episode & shift idx accordingly
         # TODO: This could be better...
@@ -75,7 +73,7 @@ class BaseEpisodesData(Dataset, LengthIter):
         assert episode is not None
         return episode, idx, offset
 
-    def _load_episode_observations(self) -> List[np.ndarray]:
+    def _load_episode_observations(self) -> list[np.ndarray]:
         raise NotImplementedError
 
 

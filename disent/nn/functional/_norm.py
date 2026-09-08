@@ -23,9 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import warnings
-from typing import List
-from typing import Optional
-from typing import Union
 
 import torch
 
@@ -34,7 +31,7 @@ import torch
 # ========================================================================= #
 
 
-_DimTypeHint = Optional[Union[int, List[int]]]
+type _DimTypeHint = int | list[int] | None
 
 _POS_INF = float("inf")
 _NEG_INF = float("-inf")
@@ -57,7 +54,7 @@ _P_NORM_MAP = {
 # ========================================================================= #
 
 
-def torch_dist(xs: torch.Tensor, dim: _DimTypeHint = -1, p: Union[float, str] = 1, keepdim: bool = False):
+def torch_dist(xs: torch.Tensor, dim: _DimTypeHint = -1, p: float | str = 1, keepdim: bool = False):
     """
     Like torch_norm, but allows arbitrary p values that may
     result in the returned values not being a valid norm.
@@ -95,7 +92,7 @@ def torch_dist(xs: torch.Tensor, dim: _DimTypeHint = -1, p: Union[float, str] = 
         return torch.sum(xs**p, dim=dim, keepdim=keepdim) ** (1 / p)
 
 
-def torch_norm(xs: torch.Tensor, dim: _DimTypeHint = -1, p: Union[float, str] = 1, keepdim: bool = False):
+def torch_norm(xs: torch.Tensor, dim: _DimTypeHint = -1, p: float | str = 1, keepdim: bool = False):
     """
     Compute the generalised p-norm over the given dimension of a vector!
     - p values must be >= 1

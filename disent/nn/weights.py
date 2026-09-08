@@ -23,7 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
-from typing import Optional
 
 from torch import nn
 
@@ -61,7 +60,7 @@ _WEIGHT_INIT_FNS = {
 
 
 # TODO: clean this up! this is terrible...
-def init_model_weights(model: nn.Module, mode: Optional[str] = "xavier_normal", log_level=logging.INFO) -> nn.Module:
+def init_model_weights(model: nn.Module, mode: str | None = "xavier_normal", log_level=logging.INFO) -> nn.Module:
     count = 0
 
     # get default mode

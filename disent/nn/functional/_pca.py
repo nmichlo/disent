@@ -23,8 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 
-from typing import Tuple
-
 import torch
 
 # ========================================================================= #
@@ -83,7 +81,7 @@ def torch_pca_svd(X, center=True):
     return components, explained_variance
 
 
-def torch_pca(X, center=True, mode="svd") -> Tuple[torch.Tensor, torch.Tensor]:
+def torch_pca(X, center=True, mode="svd") -> tuple[torch.Tensor, torch.Tensor]:
     # number of values returned may differ depending on the method!
     # -- svd returns: min(num, z_size)
     # -- eig returns: num

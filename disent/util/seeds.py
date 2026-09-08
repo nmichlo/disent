@@ -24,7 +24,6 @@
 
 import contextlib
 import logging
-from typing import Optional
 
 log = logging.getLogger(__name__)
 
@@ -63,7 +62,7 @@ def seed(long=777):
 
 
 class TempNumpySeed(contextlib.ContextDecorator):
-    def __init__(self, seed: Optional[int] = None):
+    def __init__(self, seed: int | None = None):
         # check and normalize seed
         if seed is not None:
             try:

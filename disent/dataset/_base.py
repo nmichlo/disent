@@ -25,14 +25,11 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Callable
+from collections.abc import Sequence
+from collections.abc import Sized
 from functools import wraps
-from typing import TYPE_CHECKING
-from typing import Callable
-from typing import Optional
-from typing import Sequence
-from typing import Sized
-from typing import TypeVar
-from typing import Union
+from typing import Concatenate
 
 import numpy as np
 from torch.utils.data import Dataset
@@ -46,15 +43,6 @@ from disent.dataset.wrapper import WrappedDataset
 from disent.util.deprecate import deprecated
 from disent.util.iters import LengthIter
 from disent.util.math.random import random_choice_prng
-
-# `ParamSpec`/`Concatenate` require Python >= 3.10 and this package supports >= 3.8.
-# `from __future__ import annotations` means annotations referencing them are never
-# evaluated at runtime, so guarding the import here keeps 3.8 working.
-if TYPE_CHECKING:
-    from typing import Concatenate
-    from typing import ParamSpec
-
-    _P = ParamSpec("_P")
 
 # ========================================================================= #
 # Helper                                                                    #
@@ -70,14 +58,11 @@ class NotGroundTruthDataError(Exception):
     """
 
 
-_R = TypeVar("_R")
-
-
-def groundtruth_only(
-    func: Callable[Concatenate["DisentDataset", _P], _R],
-) -> Callable[Concatenate["DisentDataset", _P], _R]:
+def groundtruth_only[**P, R](
+    func: Callable[Concatenate[DisentDataset, P], R],
+) -> Callable[Concatenate[DisentDataset, P], R]:
     @wraps(func)
-    def wrapper(self: "DisentDataset", *args: _P.args, **kwargs: _P.kwargs) -> _R:
+    def wrapper(self: DisentDataset, *args: P.args, **kwargs: P.kwargs) -> R:
         if not self.is_ground_truth:
             raise NotGroundTruthDataError(
                 f"Check `is_ground_truth` first before calling `{getattr(func, '__name__', func)}`, the dataset wrapped by {repr(self.__class__.__name__)} is not a {repr(GroundTruthData.__name__)}, instead got: {repr(self._dataset)}."
@@ -89,7 +74,7 @@ def groundtruth_only(
 
 def wrapped_only(func):
     @wraps(func)
-    def wrapper(self: "DisentDataset", *args, **kwargs):
+    def wrapper(self: DisentDataset, *args, **kwargs):
         if not self.is_wrapped_data:
             raise NotGroundTruthDataError(
                 f"Check `is_data_wrapped` first before calling `{func.__name__}`, the dataset wrapped by {repr(self.__class__.__name__)} is not a {repr(WrappedDataset.__name__)}, instead got: {repr(self._dataset)}."
@@ -119,10 +104,10 @@ _REF_ = _Ref()
 class DisentDataset(Dataset, LengthIter):
     def __init__(
         self,
-        dataset: Union[Dataset, GroundTruthData],  # TODO: this should be renamed to data
-        sampler: Optional[BaseDisentSampler] = None,
-        transform: Optional[Callable] = None,
-        augment: Optional[Callable] = None,
+        dataset: Dataset | GroundTruthData,  # TODO: this should be renamed to data
+        sampler: BaseDisentSampler | None = None,
+        transform: Callable | None = None,
+        augment: Callable | None = None,
         return_indices: bool = False,  # doesn't really hurt performance, might as well leave enabled by default?
         return_factors: bool = False,
     ):
@@ -155,13 +140,13 @@ class DisentDataset(Dataset, LengthIter):
 
     def shallow_copy(
         self,
-        dataset: Union[Dataset, GroundTruthData, _Ref] = _REF_,  # TODO: this should be renamed to data
-        sampler: Union[BaseDisentSampler, None, _Ref] = _REF_,
-        transform: Union[Callable, None, _Ref] = _REF_,
-        augment: Union[Callable, None, _Ref] = _REF_,
-        return_indices: Union[bool, _Ref] = _REF_,
-        return_factors: Union[bool, _Ref] = _REF_,
-    ) -> "DisentDataset":
+        dataset: Dataset | GroundTruthData | _Ref = _REF_,  # TODO: this should be renamed to data
+        sampler: BaseDisentSampler | None | _Ref = _REF_,
+        transform: Callable | None | _Ref = _REF_,
+        augment: Callable | None | _Ref = _REF_,
+        return_indices: bool | _Ref = _REF_,
+        return_factors: bool | _Ref = _REF_,
+    ) -> DisentDataset:
         # instantiate shallow dataset copy, overwriting elements if specified
         return DisentDataset(
             dataset=self._dataset if isinstance(dataset, _Ref) else dataset,
@@ -185,11 +170,11 @@ class DisentDataset(Dataset, LengthIter):
         return self._sampler
 
     @property
-    def transform(self) -> Optional[Callable[[object], object]]:
+    def transform(self) -> Callable[[object], object] | None:
         return self._transform
 
     @property
-    def augment(self) -> Optional[Callable[[object], object]]:
+    def augment(self) -> Callable[[object], object] | None:
         return self._augment
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -244,12 +229,12 @@ class DisentDataset(Dataset, LengthIter):
     @wrapped_only
     def unwrapped_shallow_copy(
         self,
-        sampler: Union[BaseDisentSampler, None, _Ref] = _REF_,
-        transform: Union[Callable, None, _Ref] = _REF_,
-        augment: Union[Callable, None, _Ref] = _REF_,
-        return_indices: Union[bool, _Ref] = _REF_,
-        return_factors: Union[bool, _Ref] = _REF_,
-    ) -> "DisentDataset":
+        sampler: BaseDisentSampler | None | _Ref = _REF_,
+        transform: Callable | None | _Ref = _REF_,
+        augment: Callable | None | _Ref = _REF_,
+        return_indices: bool | _Ref = _REF_,
+        return_factors: bool | _Ref = _REF_,
+    ) -> DisentDataset:
         # like shallow_copy, but unwrap the dataset instead!
         return self.shallow_copy(
             dataset=self.wrapped_data,
@@ -366,7 +351,7 @@ class DisentDataset(Dataset, LengthIter):
     # TODO: default_collate should be replaced with a function
     #      that can handle tensors and nd.arrays, and return accordingly
 
-    def dataset_batch_from_indices(self, indices: Union[Sequence[int], np.ndarray], mode: str, collate: bool = True):
+    def dataset_batch_from_indices(self, indices: Sequence[int] | np.ndarray, mode: str, collate: bool = True):
         """Get a batch of observations X from a batch of factors Y."""
         batch = [self.dataset_get(idx, mode=mode) for idx in indices]
         return default_collate(batch) if collate else batch
@@ -378,7 +363,7 @@ class DisentDataset(Dataset, LengthIter):
         replace: bool = False,
         return_indices: bool = False,
         collate: bool = True,
-        seed: Optional[int] = None,
+        seed: int | None = None,
     ):
         """Sample a batch of observations X."""
         # built in np.random.choice cannot handle large values: https://github.com/numpy/numpy/issues/5299#issuecomment-497915672
@@ -392,9 +377,7 @@ class DisentDataset(Dataset, LengthIter):
         else:
             return batch
 
-    def dataset_sample_elems(
-        self, num_samples: int, mode: str, return_indices: bool = False, seed: Optional[int] = None
-    ):
+    def dataset_sample_elems(self, num_samples: int, mode: str, return_indices: bool = False, seed: int | None = None):
         """Sample uncollated elements with replacement, like `dataset_sample_batch`"""
         return self.dataset_sample_batch(
             num_samples=num_samples, mode=mode, replace=True, return_indices=return_indices, collate=False, seed=seed

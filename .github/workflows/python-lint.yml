@@ -19,7 +19,7 @@ jobs:
       # it auto-detects `.venv`, so install into one before running the hooks.
       - name: Install project into .venv
         run: |
-          uv venv --python 3.11 .venv
+          uv venv --python 3.12 .venv
           uv pip install --python .venv -e ".[extra]"
 
       - name: Run pre-commit

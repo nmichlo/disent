@@ -23,9 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from fractions import Fraction
-from typing import List
-from typing import Optional
-from typing import Union
 
 import numpy as np
 
@@ -143,7 +140,7 @@ def factor_diff(f0: np.ndarray, f1: np.ndarray) -> int:
 
 
 # NOTE: scaling here should always be the same as `disentangle_loss`
-def factor_dist(f0: np.ndarray, f1: np.ndarray, scale: Optional[np.ndarray] = None) -> Union[Fraction, int]:
+def factor_dist(f0: np.ndarray, f1: np.ndarray, scale: np.ndarray | None = None) -> Fraction | int:
     # compute distances!
     if scale is None:
         # input types should all be np.int64
@@ -159,9 +156,9 @@ def factor_dist(f0: np.ndarray, f1: np.ndarray, scale: Optional[np.ndarray] = No
         #    - https://shlegeris.com/2018/10/23/sqrt.html
         #    - https://cstheory.stackexchange.com/a/4010
         # 1. first we need to convert numbers to python arbitrary precision values:
-        f0: List[int] = f0.tolist()
-        f1: List[int] = f1.tolist()
-        scale: List[int] = scale.tolist()
+        f0: list[int] = f0.tolist()
+        f1: list[int] = f1.tolist()
+        scale: list[int] = scale.tolist()
         # 2. we need to sum values in the form of fractions
         total = Fraction(0)
         for y0, y1, s in zip(f0, f1, scale):

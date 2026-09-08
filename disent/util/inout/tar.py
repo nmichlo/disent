@@ -24,10 +24,9 @@
 
 import os
 from pathlib import Path
-from typing import Union
 
 
-def tar_safe_extract_all(in_file: Union[Path, str], out_dir: Union[Path, str]):
+def tar_safe_extract_all(in_file: Path | str, out_dir: Path | str):
     import tarfile
 
     in_file = str(in_file)

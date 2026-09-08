@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2018 The DisentanglementLib Authors.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,13 +22,8 @@
 Utility functions that are useful for the different metrics.
 """
 
+from collections.abc import Callable
 from numbers import Number
-from typing import Callable
-from typing import Dict
-from typing import Generic
-from typing import Optional
-from typing import TypeVar
-from typing import Union
 
 import numpy as np
 import sklearn
@@ -44,16 +38,13 @@ from disent.util.function import wrapped_partial
 # ========================================================================= #
 
 
-T = TypeVar("T")
-
-
-class Metric(Generic[T]):
+class Metric[T]:
     def __init__(
         self,
         name: str,
         metric_fn: T,  # Callable[[...], Dict[str, Number]]
-        default_kwargs: Optional[Dict[str, object]] = None,
-        fast_kwargs: Optional[Dict[str, object]] = None,
+        default_kwargs: dict[str, object] | None = None,
+        fast_kwargs: dict[str, object] | None = None,
     ):
         self._name = name
         self._orig_fn = metric_fn
@@ -61,7 +52,7 @@ class Metric(Generic[T]):
         self._metric_fn_fast = wrapped_partial(self._orig_fn, **(fast_kwargs if fast_kwargs else {}))
 
     # How do we get a type hint for `__call__` so that its signature matches `T`?
-    def __call__(self, *args, **kwargs) -> Dict[str, Number]:
+    def __call__(self, *args, **kwargs) -> dict[str, Number]:
         return self._metric_fn_default(*args, **kwargs)
 
     @property
@@ -84,11 +75,11 @@ class Metric(Generic[T]):
         return f"metric-{self.name}"
 
 
-def make_metric(
+def make_metric[T](
     name: str,
-    default_kwargs: Optional[Dict[str, object]] = None,
-    fast_kwargs: Optional[Dict[str, object]] = None,
-) -> Callable[[T], Union[Metric[T], T]]:
+    default_kwargs: dict[str, object] | None = None,
+    fast_kwargs: dict[str, object] | None = None,
+) -> Callable[[T], Metric[T] | T]:
     """
     Metrics should be decorated using this function to set defaults!
     Two versions of the metric should exist.
@@ -101,7 +92,7 @@ def make_metric(
     """
 
     # `Union[Metric[T], T]` is hack to get type hint on `__call__`
-    def _wrap_fn_as_metric(metric_fn: T) -> Union[Metric[T], T]:
+    def _wrap_fn_as_metric(metric_fn: T) -> Metric[T] | T:
         return Metric(name=name, metric_fn=metric_fn, default_kwargs=default_kwargs, fast_kwargs=fast_kwargs)
 
     return _wrap_fn_as_metric

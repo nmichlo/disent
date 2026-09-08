@@ -23,9 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import os
-from typing import List
-from typing import Tuple
-from typing import Union
 
 import numpy as np
 import torch
@@ -43,12 +40,12 @@ from disent.nn.modules import DisentModule
 
 # NOTE: `numbers.Number` is not recognised by static type checkers as a supertype of `int`/`float`
 #       (it is only a virtual/runtime ABC registration), so we use an explicit union instead.
-Num = Union[int, float]
-TorLorN = Union[Num, Tuple[Num, Num], List[Num], np.ndarray]
-MmTuple = Union[TorLorN, Tuple[TorLorN, TorLorN], List[TorLorN], np.ndarray]
+type Num = int | float
+type TorLorN = Num | tuple[Num, Num] | list[Num] | np.ndarray
+type MmTuple = TorLorN | tuple[TorLorN, TorLorN] | list[TorLorN] | np.ndarray
 
 
-def _expand_to_min_max_tuples(input: MmTuple) -> Tuple[Tuple[Num, Num], Tuple[Num, Num]]:
+def _expand_to_min_max_tuples(input: MmTuple) -> tuple[tuple[Num, Num], tuple[Num, Num]]:
     (xm, xM), (ym, yM) = np.broadcast_to(np.array(input), (2, 2)).tolist()
     if not all(isinstance(n, (float, int)) for n in [xm, xM, ym, yM]):
         raise ValueError(
@@ -155,7 +152,7 @@ class FftBoxBlur(_BaseFftBlur):
         values = [xm, xM, ym, yM]
         assert all(isinstance(x, int) for x in values), "radius values must be integers"
         assert all((0 <= x) for x in values), "radius values must be >= 0, resulting in diameter: 2*r+1"
-        self.radius: Tuple[Tuple[int, int], Tuple[int, int]] = ((int(xm), int(xM)), (int(ym), int(yM)))
+        self.radius: tuple[tuple[int, int], tuple[int, int]] = ((int(xm), int(xM)), (int(ym), int(yM)))
 
     def _make_kernel(self, shape, device):
         B, C, H, W = shape
@@ -193,7 +190,7 @@ class FftKernel(DisentModule):
     2D Convolve an image
     """
 
-    def __init__(self, kernel: Union[torch.Tensor, str], normalize_mode: Union[str, _NoArg] = _NO_ARG):
+    def __init__(self, kernel: torch.Tensor | str, normalize_mode: str | _NoArg = _NO_ARG):
         super().__init__()
         # deprecation error
         if isinstance(normalize_mode, _NoArg):
@@ -225,7 +222,7 @@ class FftKernel(DisentModule):
 
 
 @torch.no_grad()
-def _scale_kernel(kernel: torch.Tensor, mode: Union[bool, str] = "abssum"):
+def _scale_kernel(kernel: torch.Tensor, mode: bool | str = "abssum"):
     # old normalize mode
     if isinstance(mode, bool):
         raise ValueError(
@@ -288,7 +285,7 @@ def _get_kernel(name_or_path: str) -> torch.Tensor:
     )
 
 
-def get_kernel(kernel: Union[str, torch.Tensor], normalize_mode: str = "none"):
+def get_kernel(kernel: str | torch.Tensor, normalize_mode: str = "none"):
     kernel = _get_kernel(kernel) if isinstance(kernel, str) else torch.clone(kernel)
     kernel = _scale_kernel(kernel, mode=normalize_mode)
     kernel = _check_kernel(kernel)

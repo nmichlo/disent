@@ -16,7 +16,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.10'
+        python-version: '3.12'
 
     # tags are of the form `v0.8.0`, PEP-440 versions are of the form `0.8.0`
     - name: Update version in pyproject.toml to ${{ github.ref_name }}

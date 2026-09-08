@@ -22,11 +22,8 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Dict
-from typing import Sequence
-from typing import Tuple
-from typing import Union
 
 import torch
 
@@ -56,7 +53,7 @@ class AdaAe(Ae):
 
     def hook_ae_intercept_zs(
         self, zs: Sequence[torch.Tensor]
-    ) -> Tuple[Sequence[torch.Tensor], Dict[str, Union[torch.Tensor, float]]]:
+    ) -> tuple[Sequence[torch.Tensor], dict[str, torch.Tensor | float]]:
         """
         Adaptive VAE Glue Method, putting the various components together
         1. find differences between deltas

@@ -22,7 +22,6 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from typing import Tuple
 from typing import final
 
 # ========================================================================= #
@@ -30,7 +29,7 @@ from typing import final
 # ========================================================================= #
 
 
-class BaseDisentSampler(object):
+class BaseDisentSampler:
     def uninit_copy(self) -> "BaseDisentSampler":
         raise NotImplementedError
 
@@ -64,10 +63,10 @@ class BaseDisentSampler(object):
     def is_init(self) -> bool:
         return self.__initialized
 
-    def _sample_idx(self, idx: int) -> Tuple[int, ...]:
+    def _sample_idx(self, idx: int) -> tuple[int, ...]:
         raise NotImplementedError
 
-    def sample(self, idx: int) -> Tuple[int, ...]:
+    def sample(self, idx: int) -> tuple[int, ...]:
         # check that we have been initialized!
         if not self.is_init:
             raise RuntimeError(f"{self.__class__.__name__} has not been initialized! call `sampler.init(gt_data)`")
@@ -81,7 +80,7 @@ class BaseDisentSampler(object):
         # return values
         return idxs
 
-    def __call__(self, idx: int) -> Tuple[int, ...]:
+    def __call__(self, idx: int) -> tuple[int, ...]:
         return self.sample(idx)
 
 

@@ -24,13 +24,9 @@
 
 import logging
 import os
+from collections.abc import Callable
 from datetime import datetime
-from typing import Callable
-from typing import List
 from typing import NoReturn
-from typing import Optional
-from typing import Tuple
-from typing import Union
 
 import hydra
 import lightning as L
@@ -80,7 +76,7 @@ def hydra_register_disent_plugins(cfg):
         )
 
 
-def hydra_get_accelerator_and_devices(cfg) -> Tuple[str, Union[int, str]]:
+def hydra_get_accelerator_and_devices(cfg) -> tuple[str, int | str]:
     # TODO: rather specify accelerator and devices directly in config...
     #       this is redundant with the new pytorch lightning auto system.
     #       - we should also allow different accelerators like mps for apple silicon
@@ -137,7 +133,7 @@ def hydra_check_data_meta(cfg):
         log.info(f"* dataset.meta.vis_std:  {cfg.dataset.meta.vis_std}")
 
 
-def hydra_make_loggers(cfg) -> List[Logger]:
+def hydra_make_loggers(cfg) -> list[Logger]:
     loggers = hydra.utils.instantiate(cfg.logging.loggers)
     if loggers:
         if isinstance(loggers, Logger):
@@ -222,7 +218,7 @@ def hydra_get_metric_callbacks(cfg) -> list:
 
 
 def hydra_create_framework(
-    cfg, gpu_batch_augment: Optional[Callable[[torch.Tensor], torch.Tensor]] = None
+    cfg, gpu_batch_augment: Callable[[torch.Tensor], torch.Tensor] | None = None
 ) -> DisentFramework:
     # create framework
     assert str.endswith(cfg.framework.cfg["_target_"], ".cfg"), (
@@ -452,10 +448,10 @@ def hydra_experiment(
     config_name: str = "config",
     # config search path
     search_dir_main: str = EXP_CONFIG_DIR,
-    search_dirs_prepend: Optional[Union[str, List[str]]] = None,
-    search_dirs_append: Optional[Union[str, List[str]]] = None,
+    search_dirs_prepend: str | list[str] | None = None,
+    search_dirs_append: str | list[str] | None = None,
     # logging
-    log_level: Optional[int] = logging.INFO,
+    log_level: int | None = logging.INFO,
     log_exc_info_callback: bool = True,
     log_exc_info_hydra: bool = False,
 ):

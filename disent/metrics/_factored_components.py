@@ -30,13 +30,8 @@ Factored Components Metric
 
 import logging
 from collections.abc import Callable
-from typing import Dict
-from typing import List
-from typing import Mapping
-from typing import Optional
-from typing import Sequence
-from typing import Tuple
-from typing import Union
+from collections.abc import Mapping
+from collections.abc import Sequence
 
 import numpy as np
 import torch
@@ -188,7 +183,7 @@ metric_linearity = make_metric(
 # ========================================================================= #
 
 
-def _filtered_mean(values: torch.Tensor, p: Union[str, int], factor_sizes: Tuple[int, ...]):
+def _filtered_mean(values: torch.Tensor, p: str | int, factor_sizes: tuple[int, ...]):
     # increase precision
     values = values.to(torch.float64)
     # check size
@@ -212,13 +207,13 @@ def _compute_factored_metric_components(
     batch_size: int,
     compute_distances: bool,
     compute_linearity: bool,
-) -> Tuple[dict, dict]:
+) -> tuple[dict, dict]:
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     # COMPUTE FOR EACH FACTOR
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
     # shapes: (num_factors,)
-    factor_values: Dict[str, np.ndarray] = _numpy_stack_all_dicts(
+    factor_values: dict[str, np.ndarray] = _numpy_stack_all_dicts(
         [
             _compute_factored_metric_components_along_factor(
                 dataset,
@@ -247,7 +242,7 @@ def _compute_factored_metric_components(
 
     if compute_distances:
         # storage
-        distance_measures: List[Dict[str, np.ndarray]] = []
+        distance_measures: list[dict[str, np.ndarray]] = []
 
         # was: `iter_chunks(range(int(repeats * np.mean(dataset.gt_data.factor_sizes))), batch_size)`
         for _ in range(repeats):
@@ -266,11 +261,11 @@ def _compute_factored_metric_components(
         # [AGGREGATE]
         # concatenate all into arrays: <shape: (repeats*num_samples,)>
         # then aggregate over first dimension: <shape: (,)>
-        distance_measures: Dict[str, np.ndarray] = _numpy_concat_all_dicts(distance_measures)
-        distance_measures: Dict[str, float] = _compute_scores_from_dists(distance_measures)
-        distance_measures: Dict[str, float] = {f"distances.{k}.global": v for k, v in distance_measures.items()}
+        distance_measures: dict[str, np.ndarray] = _numpy_concat_all_dicts(distance_measures)
+        distance_measures: dict[str, float] = _compute_scores_from_dists(distance_measures)
+        distance_measures: dict[str, float] = {f"distances.{k}.global": v for k, v in distance_measures.items()}
     else:
-        distance_measures: Dict[str, float] = {}
+        distance_measures: dict[str, float] = {}
 
     # update global scores
     global_scores = distance_measures
@@ -352,21 +347,21 @@ def compute_linear_score(zs_traversal: torch.Tensor, use_std: bool = True, top_2
 # ========================================================================= #
 
 
-def _torch_concat_all_dicts(dists_list: List[Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:
+def _torch_concat_all_dicts(dists_list: list[dict[str, torch.Tensor]]) -> dict[str, torch.Tensor]:
     return {k: torch.cat([dists_dict[k] for dists_dict in dists_list], dim=0) for k in dists_list[0].keys()}
 
 
-def _torch_stack_all_dicts(dists_list: List[Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:
+def _torch_stack_all_dicts(dists_list: list[dict[str, torch.Tensor]]) -> dict[str, torch.Tensor]:
     return {k: torch.stack([dists_dict[k] for dists_dict in dists_list], dim=0) for k in dists_list[0].keys()}
 
 
 def _numpy_concat_all_dicts(
-    dists_list: Sequence[Mapping[str, Union[np.ndarray, float, int]]],
-) -> Dict[str, np.ndarray]:
+    dists_list: Sequence[Mapping[str, np.ndarray | float | int]],
+) -> dict[str, np.ndarray]:
     return {k: np.concatenate([dists_dict[k] for dists_dict in dists_list], axis=0) for k in dists_list[0].keys()}
 
 
-def _numpy_stack_all_dicts(dists_list: Sequence[Mapping[str, Union[np.ndarray, float, int]]]) -> Dict[str, np.ndarray]:
+def _numpy_stack_all_dicts(dists_list: Sequence[Mapping[str, np.ndarray | float | int]]) -> dict[str, np.ndarray]:
     return {k: np.stack([dists_dict[k] for dists_dict in dists_list], axis=0) for k in dists_list[0].keys()}
 
 
@@ -395,11 +390,11 @@ def _unswapped_ratio_numpy(ap0: np.ndarray, an0: np.ndarray, ap1: np.ndarray, an
 
 def _compute_dists(
     num_triplets: int,
-    zs_traversal: Optional[torch.Tensor],
+    zs_traversal: torch.Tensor | None,
     xs_traversal: torch.Tensor,
-    factors: Optional[torch.Tensor],
+    factors: torch.Tensor | None,
     recon_loss_fn=F.mse_loss,
-) -> Dict[str, np.ndarray]:
+) -> dict[str, np.ndarray]:
     assert (factors is None) or (len(factors) == len(xs_traversal))
     assert (zs_traversal is None) or (len(zs_traversal) == len(xs_traversal))
 
@@ -469,7 +464,7 @@ def _compute_dists(
         return distances
 
 
-def _compute_scores_from_dists(dists: Dict[str, np.ndarray]) -> Dict[str, float]:
+def _compute_scores_from_dists(dists: dict[str, np.ndarray]) -> dict[str, float]:
     # [DATA & GROUND DISTS]:
     # extract the distances -- shape: (num,)
     ap_ground_dists = dists["ap_ground_dists"]
@@ -551,15 +546,15 @@ def _compute_factored_metric_components_along_factor(
     batch_size: int,
     compute_distances: bool,
     compute_linearity: bool,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     # NOTE: what to do if the factor size is too small?
 
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     # FEED FORWARD, COMPUTE ALL
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
 
-    distance_measures: List[Dict[str, np.ndarray]] = []
-    linear_measures: List[Dict[str, torch.Tensor]] = []
+    distance_measures: list[dict[str, np.ndarray]] = []
+    linear_measures: list[dict[str, torch.Tensor]] = []
 
     for i in range(repeats):
         # [ENCODE TRAVERSAL]:
@@ -607,11 +602,11 @@ def _compute_factored_metric_components_along_factor(
     if compute_distances:
         # concatenate all into arrays: <shape: (repeats*num_samples,)>
         # then aggregate over first dimension: <shape: (,)>
-        distance_measures: Dict[str, np.ndarray] = _numpy_concat_all_dicts(distance_measures)
-        distance_measures: Dict[str, float] = _compute_scores_from_dists(distance_measures)
-        distance_measures: Dict[str, float] = {f"distances.{k}.factor": v for k, v in distance_measures.items()}
+        distance_measures: dict[str, np.ndarray] = _numpy_concat_all_dicts(distance_measures)
+        distance_measures: dict[str, float] = _compute_scores_from_dists(distance_measures)
+        distance_measures: dict[str, float] = {f"distances.{k}.factor": v for k, v in distance_measures.items()}
     else:
-        distance_measures: Dict[str, float] = {}
+        distance_measures: dict[str, float] = {}
 
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
     # AGGREGATE DATA - For each linearity measure
@@ -622,16 +617,16 @@ def _compute_factored_metric_components_along_factor(
         # then aggregate over first dimension: <shape: (...)>
         # - eg: axis_ratio  (repeats,)        -> ()
         # - eg: axis_values (repeats, z_size) -> (z_size,)
-        linear_measures: Dict[str, torch.Tensor] = _torch_stack_all_dicts(linear_measures)
-        linear_measures: Dict[str, torch.Tensor] = {k: v.mean(dim=0) for k, v in linear_measures.items()}
+        linear_measures: dict[str, torch.Tensor] = _torch_stack_all_dicts(linear_measures)
+        linear_measures: dict[str, torch.Tensor] = {k: v.mean(dim=0) for k, v in linear_measures.items()}
         # compute average scores & remove keys
         linear_measures["linearity.axis_ratio_ave.var"] = _score_from_unsorted(
             linear_measures.pop("_TEMP_.axis_values.var"), top_2=False, norm=True
         )  # shape: (z_size,) -> ()
         # convert values
-        linear_measures: Dict[str, float] = {k: float(v) for k, v in linear_measures.items()}
+        linear_measures: dict[str, float] = {k: float(v) for k, v in linear_measures.items()}
     else:
-        linear_measures: Dict[str, float] = {}
+        linear_measures: dict[str, float] = {}
 
     # done!
     return {
