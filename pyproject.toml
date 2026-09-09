@@ -1,6 +1,9 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=64", "setuptools-scm>=8", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+fallback_version = "0.0.0" # error
 
 # ========================================================================= #
 # PROJECT                                                                   #
@@ -8,10 +11,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "disent"
-# replaced by `.github/workflows/python-publish.yml` at release time.
-# a valid PEP-440 version is used as the placeholder so that local
-# `pip install -e .` builds keep working.
-version = "0.0.0.dev0"
+dynamic = ["version"]  # Version is managed by setuptools_scm
 description = "Vae disentanglement framework built with pytorch lightning."
 readme = "README.md"
 requires-python = ">=3.12"
