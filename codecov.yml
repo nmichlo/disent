@@ -1,0 +1,11 @@
+# coverage is a report, not a gate. the workflow already uploads with
+# `fail_ci_if_error: false`; this stops codecov's own status checks from
+# blocking a PR when coverage moves a little.
+coverage:
+  status:
+    project:
+      default:
+        informational: true
+    patch:
+      default:
+        informational: true
