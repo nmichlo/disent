@@ -61,7 +61,8 @@ def test_cov_corr():
             xs = torch.randn(i, j, dtype=torch.float64)
 
             np_cov = torch.from_numpy(np.cov(to_numpy(xs), rowvar=False, ddof=0)).to(xs.dtype)
-            np_cor = torch.from_numpy(np.corrcoef(to_numpy(xs), rowvar=False, ddof=0)).to(xs.dtype)
+            # `ddof` has no effect on `np.corrcoef` and is deprecated as of numpy>=1.10
+            np_cor = torch.from_numpy(np.corrcoef(to_numpy(xs), rowvar=False)).to(xs.dtype)
 
             cov = torch_cov_matrix(xs)
             cor = torch_corr_matrix(xs)
@@ -201,6 +202,7 @@ def test_fft_conv2d():
     dataset = DisentDataset(data, RandomSampler(), transform=ToImgTensorF32(), augment=None)
     # sample data
     factors = dataset.gt_data.sample_random_factor_traversal(f_idx=2)
+    assert isinstance(factors, np.ndarray)  # `return_indices=False` (default) always returns an array
     batch = dataset.dataset_batch_from_factors(factors=factors, mode="input")
     # test torch_conv2d_channel_wise variants
     for i in range(1, 5):

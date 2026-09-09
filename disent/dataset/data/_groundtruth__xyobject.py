@@ -23,8 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import warnings
-from typing import Optional
-from typing import Tuple
 
 import numpy as np
 
@@ -106,11 +104,11 @@ class XYObjectData(GroundTruthData):
     factor_names = ("x", "y", "scale", "color")
 
     @property
-    def factor_sizes(self) -> Tuple[int, ...]:
+    def factor_sizes(self) -> tuple[int, ...]:
         return self._placements, self._placements, len(self._square_scales), len(self._colors)
 
     @property
-    def img_shape(self) -> Tuple[int, ...]:
+    def img_shape(self) -> tuple[int, ...]:
         return self._width, self._width, (3 if self._rgb else 1)
 
     def __init__(
@@ -127,9 +125,9 @@ class XYObjectData(GroundTruthData):
         # generation
         self._rgb = rgb
         # check the pallete name
-        assert (
-            len(str.split(palette, "_")) == 2
-        ), f"palette name must follow format: `<palette-name>_<brightness-levels>`, got: {repr(palette)}"
+        assert len(str.split(palette, "_")) == 2, (
+            f"palette name must follow format: `<palette-name>_<brightness-levels>`, got: {repr(palette)}"
+        )
         # get the color palette
         color_palettes = XYObjectData.COLOR_PALETTES_3 if rgb else XYObjectData.COLOR_PALETTES_1
         if palette not in color_palettes:
@@ -183,11 +181,11 @@ class XYObjectShadedData(XYObjectData):
     factor_names = ("x", "y", "scale", "intensity", "color")
 
     @property
-    def factor_sizes(self) -> Tuple[int, ...]:
+    def factor_sizes(self) -> tuple[int, ...]:
         return self._placements, self._placements, len(self._square_scales), self._brightness_levels, len(self._colors)
 
     @property
-    def img_shape(self) -> Tuple[int, ...]:
+    def img_shape(self) -> tuple[int, ...]:
         return self._width, self._width, (3 if self._rgb else 1)
 
     def __init__(
@@ -199,7 +197,7 @@ class XYObjectShadedData(XYObjectData):
         square_size_spacing: int = 2,
         rgb: bool = True,
         palette: str = "rainbow_4",
-        brightness_levels: Optional[int] = None,
+        brightness_levels: int | None = None,
         transform=None,
     ):
         parts = palette.split("_")
@@ -215,9 +213,9 @@ class XYObjectShadedData(XYObjectData):
                     f"palette ends with brightness_levels integer: {repr(b_levels)} (ignoring) but actual brightness_levels parameter was already specified: {repr(brightness_levels)} (using)"
                 )
         # check the brightness_levels
-        assert isinstance(
-            brightness_levels, int
-        ), f"brightness_levels must be an integer, got: {type(brightness_levels)}"
+        assert isinstance(brightness_levels, int), (
+            f"brightness_levels must be an integer, got: {type(brightness_levels)}"
+        )
         assert 1 <= brightness_levels, f"brightness_levels must be >= 1, got: {repr(brightness_levels)}"
         self._brightness_levels = brightness_levels
         # initialize parent

@@ -22,6 +22,7 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+
 import numpy as np
 import torch
 
@@ -58,7 +59,7 @@ def get_kernel_size(sigma: TypeGenericTensor = 1.0, truncate: TypeGenericTensor 
 def torch_gaussian_kernel(
     sigma: TypeGenericTorch = 1.0,
     truncate: TypeGenericTorch = 4.0,
-    size: int = None,
+    size: int | None = None,
     dtype=torch.float32,
     device=None,
 ):
@@ -81,10 +82,10 @@ def torch_gaussian_kernel(
 def torch_gaussian_kernel_2d(
     sigma: TypeGenericTorch = 1.0,
     truncate: TypeGenericTorch = 4.0,
-    size: int = None,
-    sigma_b: TypeGenericTorch = None,
-    truncate_b: TypeGenericTorch = None,
-    size_b: int = None,
+    size: int | None = None,
+    sigma_b: TypeGenericTorch | None = None,
+    truncate_b: TypeGenericTorch | None = None,
+    size_b: int | None = None,
     dtype=torch.float32,
     device=None,
 ):
@@ -106,7 +107,7 @@ def torch_box_kernel(radius: TypeGenericTorch = 1, dtype=torch.float32, device=N
     assert radius.dtype in {torch.int32, torch.int64}, f"box kernel radius must be of integer type: {radius.dtype}"
     # box kernel values
     radius_max = radius.max()
-    crange = torch.abs(torch.arange(radius_max * 2 + 1, dtype=dtype, device=device) - radius_max)
+    crange = torch.abs(torch.arange(int(radius_max.item()) * 2 + 1, dtype=dtype, device=device) - radius_max)
     # pad everything
     radius = radius[..., None]
     crange = crange[None, ...]
@@ -117,7 +118,7 @@ def torch_box_kernel(radius: TypeGenericTorch = 1, dtype=torch.float32, device=N
 
 
 def torch_box_kernel_2d(
-    radius: TypeGenericTorch = 1, radius_b: TypeGenericTorch = None, dtype=torch.float32, device=None
+    radius: TypeGenericTorch = 1, radius_b: TypeGenericTorch | None = None, dtype=torch.float32, device=None
 ):
     # set default values
     if radius_b is None:

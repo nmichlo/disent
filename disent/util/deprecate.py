@@ -24,7 +24,6 @@
 
 import logging
 from functools import wraps
-from typing import Optional
 
 # ========================================================================= #
 # Deprecate                                                                 #
@@ -70,7 +69,7 @@ _TRACEBACK_MODES = {"none", "first", "mini", "traceback"}
 DEFAULT_TRACEBACK_MODE = "first"
 
 
-def deprecated(msg: str, traceback_mode: Optional[str] = None, fn=None):
+def deprecated(msg: str, traceback_mode: str | None = None, fn=None):
     """
     Mark a function or class as deprecated, and print a warning the
     first time it is used.
@@ -80,9 +79,9 @@ def deprecated(msg: str, traceback_mode: Optional[str] = None, fn=None):
     assert isinstance(msg, str), f"msg must be a str, got type: {type(msg)}"
     if traceback_mode is None:
         traceback_mode = DEFAULT_TRACEBACK_MODE
-    assert (
-        traceback_mode in _TRACEBACK_MODES
-    ), f"invalid traceback_mode, got: {repr(traceback_mode)}, must be one of: {sorted(_TRACEBACK_MODES)}"
+    assert traceback_mode in _TRACEBACK_MODES, (
+        f"invalid traceback_mode, got: {repr(traceback_mode)}, must be one of: {sorted(_TRACEBACK_MODES)}"
+    )
 
     def _decorator(fn):
         # we need to handle classes and function separately
@@ -106,7 +105,7 @@ def deprecated(msg: str, traceback_mode: Optional[str] = None, fn=None):
                 elif traceback_mode == "mini":
                     lines = _get_stack_file_strings()[:-2]
                 elif traceback_mode == "traceback":
-                    lines = (l[2:] for g in _get_traceback_file_groups()[:-3] for l in g)
+                    lines = (line[2:] for g in _get_traceback_file_groups()[:-3] for line in g)
                 else:
                     lines = []
                 # print lines

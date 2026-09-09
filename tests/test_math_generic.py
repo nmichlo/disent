@@ -23,7 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import numpy as np
-import pytest
 import torch
 
 from disent.nn.functional._util_generic import generic_as_int32
@@ -31,6 +30,7 @@ from disent.nn.functional._util_generic import generic_max
 from disent.nn.functional._util_generic import generic_min
 from disent.nn.functional._util_generic import generic_ndim
 from disent.nn.functional._util_generic import generic_shape
+from tests.util import assert_rejects
 
 # ========================================================================= #
 # Helper                                                                    #
@@ -39,7 +39,7 @@ from disent.nn.functional._util_generic import generic_shape
 
 def _assert_type_and_value(input, target):
     # check types are the same
-    assert type(input) == type(target)
+    assert type(input) is type(target)
     # specific checks
     if isinstance(target, (int, float)):
         assert input == target
@@ -73,8 +73,7 @@ def test_generic_as_int32():
         input=generic_as_int32(np.array([-1.5, 0, 1.0])), target=np.array([-1, 0, 1], dtype=np.int32)
     )
     # unsupported
-    with pytest.raises(TypeError, match="invalid type"):
-        generic_as_int32(None)
+    assert_rejects(generic_as_int32, TypeError, "invalid type", None)
 
 
 def test_generic_max():
@@ -90,8 +89,7 @@ def test_generic_max():
     _assert_type_and_value(input=generic_max(np.array([-1, 0, 1])), target=np.int64(1))
     _assert_type_and_value(input=generic_max(np.array([-1.0, 0.0, 1.0])), target=np.float64(1.0))
     # unsupported
-    with pytest.raises(TypeError, match="invalid type"):
-        generic_max(None)
+    assert_rejects(generic_max, TypeError, "invalid type", None)
 
 
 def test_generic_min():
@@ -109,8 +107,7 @@ def test_generic_min():
     _assert_type_and_value(input=generic_min(np.array([-1, 0, 1])), target=np.int64(-1))
     _assert_type_and_value(input=generic_min(np.array([-1.0, 0.0, 1.0])), target=np.float64(-1.0))
     # unsupported
-    with pytest.raises(TypeError, match="invalid type"):
-        generic_min(None)
+    assert_rejects(generic_min, TypeError, "invalid type", None)
 
 
 def test_generic_shape():
@@ -124,8 +121,7 @@ def test_generic_shape():
     assert generic_shape(np.array([-1, 0, 1])) == (3,)
     assert generic_shape(np.array([-1.0, 0.0, 1.0])) == (3,)
     # unsupported
-    with pytest.raises(TypeError, match="invalid type"):
-        generic_shape(None)
+    assert_rejects(generic_shape, TypeError, "invalid type", None)
 
 
 def test_generic_ndim():
@@ -139,8 +135,7 @@ def test_generic_ndim():
     assert generic_ndim(np.array([-1, 0, 1])) == 1
     assert generic_ndim(np.array([-1.0, 0.0, 1.0])) == 1
     # unsupported
-    with pytest.raises(TypeError, match="invalid type"):
-        generic_ndim(None)
+    assert_rejects(generic_ndim, TypeError, "invalid type", None)
 
 
 # ========================================================================= #

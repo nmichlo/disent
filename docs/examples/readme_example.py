@@ -51,14 +51,21 @@ module.register_schedule(
 # train model
 # - for 2048 batches/steps
 trainer = L.Trainer(
-    max_steps=2048, gpus=1 if torch.cuda.is_available() else None, logger=False, enable_checkpointing=False
+    max_steps=2048,
+    accelerator="gpu" if torch.cuda.is_available() else "cpu",
+    devices=1,
+    logger=False,
+    enable_checkpointing=False,
 )
 trainer.fit(module, dataloader)
+
 
 # compute disentanglement metrics
 # - we cannot guarantee which device the representation is on
 # - this will take a while to run
-get_repr = lambda x: module.encode(x.to(module.device))
+def get_repr(x):
+    return module.encode(x.to(module.device))
+
 
 metrics = {
     **metric_dci(dataset, get_repr, num_train=1000, num_test=500, show_progress=True),

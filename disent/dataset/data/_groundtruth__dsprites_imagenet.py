@@ -26,7 +26,6 @@ import logging
 import os
 import shutil
 from tempfile import TemporaryDirectory
-from typing import Optional
 
 import numpy as np
 from torch.utils.data import DataLoader
@@ -53,8 +52,8 @@ log = logging.getLogger(__name__)
 
 
 class NumpyFolder(ImageFolder):
-    def __getitem__(self, idx):
-        img, cls = super().__getitem__(idx)
+    def __getitem__(self, index):
+        img, cls = super().__getitem__(index)
         return np.array(img)
 
 
@@ -66,7 +65,7 @@ def load_imagenet_tiny_data(raw_data_dir):
     # load the data
     data = NumpyFolder(os.path.join(raw_data_dir, "train"))
     data = DataLoader(
-        data, batch_size=64, num_workers=min(16, os.cpu_count()), shuffle=False, drop_last=False, collate_fn=_noop
+        data, batch_size=64, num_workers=min(16, os.cpu_count() or 16), shuffle=False, drop_last=False, collate_fn=_noop
     )
     # load data - this is a bit memory inefficient doing it like this instead of with a loop into a pre-allocated array
     imgs = np.concatenate(list(tqdm(data, "loading")), axis=0)
@@ -81,7 +80,7 @@ def resave_imagenet_tiny_archive(orig_zipped_file, new_save_file, overwrite=Fals
     loading the images, then converting.
     """
     _, ext = os.path.splitext(new_save_file)
-    assert ext in {".npz", ".h5"}, f'unsupported save extension: {repr(ext)}, must be one of: {[".npz", ".h5"]}'
+    assert ext in {".npz", ".h5"}, f"unsupported save extension: {repr(ext)}, must be one of: {['.npz', '.h5']}"
     # extract zipfile into temp dir
     with TemporaryDirectory(prefix="unzip_imagenet_tiny_", dir=os.path.dirname(orig_zipped_file)) as temp_dir:
         log.info(f"Extracting into temporary directory: {temp_dir}")
@@ -133,7 +132,7 @@ class ImageNetTinyData(_Hdf5DataMixin, _DiskDataMixin, Dataset, LengthIter):
 
     datafiles = (datafile_imagenet_h5,)
 
-    def __init__(self, data_root: Optional[str] = None, prepare: bool = False, in_memory=False, transform=None):
+    def __init__(self, data_root: str | None = None, prepare: bool = False, in_memory=False, transform=None):
         super().__init__()
         self._transform = transform
         # initialize mixin
@@ -147,8 +146,8 @@ class ImageNetTinyData(_Hdf5DataMixin, _DiskDataMixin, Dataset, LengthIter):
             in_memory=in_memory,
         )
 
-    def __getitem__(self, idx: int):
-        obs = self._data[idx]
+    def __getitem__(self, index):
+        obs = self._data[index]
         if self._transform is not None:
             obs = self._transform(obs)
         return obs
@@ -182,19 +181,19 @@ class DSpritesImagenetData(GroundTruthData):
         self,
         visibility: int = 100,
         mode: str = "bg",
-        data_root: Optional[str] = None,
+        data_root: str | None = None,
         prepare: bool = False,
         in_memory=False,
         transform=None,
     ):
         super().__init__(transform=transform)
         # check visibility and convert to ratio
-        assert isinstance(
-            visibility, int
-        ), f"incorrect visibility percentage type, expected int, got: {type(visibility)}"
-        assert (
-            0 <= visibility <= 100
-        ), f"incorrect visibility percentage: {repr(visibility)}, must be in range [0, 100]. "
+        assert isinstance(visibility, int), (
+            f"incorrect visibility percentage type, expected int, got: {type(visibility)}"
+        )
+        assert 0 <= visibility <= 100, (
+            f"incorrect visibility percentage: {repr(visibility)}, must be in range [0, 100]. "
+        )
         self._visibility = visibility / 100
         # check mode and convert to foreground boolean
         assert mode in {"bg", "fg"}, f'incorrect mode: {repr(mode)}, must be one of: ["bg", "fg"]'
@@ -313,7 +312,7 @@ if __name__ == "__main__":
         from disent.util.function import wrapped_partial
         from disent.util.visualize.plot import plt_subplots_imshow
 
-        def compute_stats(visibility: Optional[int], mode: Optional[str]):
+        def compute_stats(visibility: int | None, mode: str | None):
             import psutil
 
             # get class
@@ -326,7 +325,7 @@ if __name__ == "__main__":
                 if is_imgnet
                 else f"{DSpritesData.name}"
             )
-            data_name = f"dsprites_{mode}_{visibility}" if is_imgnet else f"dsprites"
+            data_name = f"dsprites_{mode}_{visibility}" if is_imgnet else "dsprites"
             # plot images
             data = data_cls(prepare=True)
             grid = np.array([data[i * 24733] for i in np.arange(16)]).reshape([4, 4, *data.img_shape])

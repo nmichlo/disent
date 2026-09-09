@@ -22,9 +22,6 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from typing import Tuple
-
-import numpy as np
 
 from disent.dataset.sampling._base import BaseDisentSampler
 
@@ -43,7 +40,7 @@ class SingleSampler(BaseDisentSampler):
     def _init(self, dataset):
         pass
 
-    def _sample_idx(self, idx: int) -> Tuple[int, ...]:
+    def _sample_idx(self, idx: int) -> tuple[int, ...]:
         return (idx,)
 
 

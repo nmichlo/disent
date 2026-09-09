@@ -24,8 +24,7 @@
 
 
 import functools
-from typing import Optional
-from typing import Sequence
+from collections.abc import Sequence
 
 import numpy as np
 
@@ -115,7 +114,7 @@ def nd_dither_matrix(n: int = 2, d: int = 2, norm: bool = True) -> np.ndarray:
 # ========================================================================= #
 
 
-def nd_dither(arr: np.ndarray, n: int = 2, axis: Optional[Sequence[int]] = None) -> np.ndarray:
+def nd_dither(arr: np.ndarray, n: int = 2, axis: Sequence[int] | None = None) -> np.ndarray:
     """
     Apply ordered dithering along the specified axes of an array.
     The array must be floats with values in the range [0, 1]
@@ -130,7 +129,7 @@ def nd_dither(arr: np.ndarray, n: int = 2, axis: Optional[Sequence[int]] = None)
 
 
 def nd_dither_matrix_like(
-    arr: np.ndarray, n: int = 2, axis: Optional[Sequence[int]] = None, norm: bool = True, expand: bool = True
+    arr: np.ndarray, n: int = 2, axis: Sequence[int] | None = None, norm: bool = True, expand: bool = True
 ) -> np.ndarray:
     """
     Tile the dither matrix across an array.
@@ -141,16 +140,16 @@ def nd_dither_matrix_like(
       with the original matrix, unless `expand=False`
     - `n` is the size of the underlying dither matrix which is tiled
     """
-    axis = _normalize_axis(arr.ndim, tuple(axis))
-    sizes = np.array(arr.shape)[axis]
+    axis_arr = _normalize_axis(arr.ndim, tuple(axis) if (axis is not None) else None)
+    sizes = np.array(arr.shape)[axis_arr]
     # get dither values
-    d_mat = nd_dither_matrix(n=n, d=len(axis), norm=norm)
+    d_mat = nd_dither_matrix(n=n, d=len(axis_arr), norm=norm)
     # repeat values across array, rounding up and then trimming dims
-    dd = np.tile(d_mat, (sizes + n - 1) // n)
-    dd = dd[tuple(slice(0, l) for l in sizes)]
+    dd = np.tile(d_mat, ((sizes + n - 1) // n).tolist())
+    dd = dd[tuple(slice(0, size) for size in sizes)]
     # create missing dims
     if expand:
-        dd = np.expand_dims(dd, axis=tuple(set(range(arr.ndim)) - set(axis)))
+        dd = np.expand_dims(dd, axis=tuple(set(range(arr.ndim)) - set(axis_arr.tolist())))
     # done
     return dd
 
@@ -173,29 +172,26 @@ def _is_power_2(num: int):
     return not bool(num & (num - 1))
 
 
-@functools.lru_cache()
-def _normalize_axis(ndim: int, axis: Optional[Sequence[int]]) -> np.ndarray:
+@functools.lru_cache
+def _normalize_axis(ndim: int, axis: Sequence[int] | None) -> np.ndarray:
     # TODO: this functionality may be duplicated
     #       -- similar to np.normalize_axis_tuple(...)
     # defaults
-    if axis is None:
-        axis = np.arange(ndim)
-    # convert
-    axis = np.array(axis)
-    if axis.ndim == 0:
-        axis = axis[None]
+    axis_arr = np.arange(ndim) if (axis is None) else np.array(axis)
+    if axis_arr.ndim == 0:
+        axis_arr = axis_arr[None]
     # checks
-    assert axis.ndim == 1
-    assert axis.dtype in ("int", "int32", "int64")
+    assert axis_arr.ndim == 1
+    assert axis_arr.dtype in ("int", "int32", "int64")
     # convert
-    axis = np.where(axis < 0, ndim + axis, axis)
-    axis = np.sort(axis)
+    axis_arr = np.where(axis_arr < 0, ndim + axis_arr, axis_arr)
+    axis_arr = np.sort(axis_arr)
     # checks
-    assert np.unique(axis).shape == axis.shape
-    assert np.all(0 <= axis)
-    assert np.all(axis < ndim)
+    assert np.unique(axis_arr).shape == axis_arr.shape
+    assert np.all(0 <= axis_arr)
+    assert np.all(axis_arr < ndim)
     # done!
-    return _np_immutable_copy(axis)  # shape: [d]
+    return _np_immutable_copy(axis_arr)  # shape: [d]
 
 
 # ========================================================================= #

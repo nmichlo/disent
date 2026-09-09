@@ -23,18 +23,11 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
-import warnings
-from functools import lru_cache
-from typing import List
-from typing import Optional
-from typing import Sequence
-from typing import Tuple
-from typing import Union
+from collections.abc import Sequence
 
 import numpy as np
 import scipy.stats
 import torch
-from PIL import Image
 
 from disent.util import to_numpy
 
@@ -68,7 +61,11 @@ _BG_COLOR_DTYPE_MAP = {
 
 
 def make_image_grid(
-    images: Sequence[np.ndarray], pad: int = 8, border: bool = True, bg_color=None, num_cols: Optional[int] = None
+    images: Sequence[np.ndarray] | np.ndarray,
+    pad: int = 8,
+    border: bool = True,
+    bg_color=None,
+    num_cols: int | None = None,
 ):
     """
     Convert a list of images into a single image that is a grid of those images.
@@ -83,7 +80,9 @@ def make_image_grid(
     # get image sizes
     img_shape, ndim = np.array(images[0].shape), images[0].ndim
     assert ndim == 2 or ndim == 3, f"images have wrong number of channels: {img_shape}"
-    assert np.all(img_shape == img.shape for img in images), "Images are not the same shape!"
+    # NOTE: pre-existing no-op check removed here -- `np.all(<generator>)` only checks the
+    # generator object's truthiness (always `True`), so this never actually validated that
+    # all images share the same shape.
     # get image size and channels
     img_size = img_shape[:2]
     if ndim == 3:
@@ -108,11 +107,11 @@ def make_image_grid(
 
 
 def make_animated_image_grid(
-    list_of_animated_images: Sequence[np.ndarray],
+    list_of_animated_images: Sequence[np.ndarray] | np.ndarray,
     pad: int = 8,
     border: bool = True,
     bg_color=None,
-    num_cols: Optional[int] = None,
+    num_cols: int | None = None,
 ):
     """
     :param list_of_animated_images: list of input images, with the second dimension the number of frames: : (I, F, H, W, C) or (I, F, H, W)
@@ -137,7 +136,7 @@ def make_animated_image_grid(
 # ========================================================================= #
 
 
-def _get_grid_size(n: int, num_cols: Optional[int] = None):
+def _get_grid_size(n: int, num_cols: int | None = None):
     """
     Determine the number of rows and columns, given the total number of elements n.
     - if num_cols is None:     rows x cols is as square as possible

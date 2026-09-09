@@ -26,9 +26,6 @@ import logging
 import os
 import shutil
 from tempfile import TemporaryDirectory
-from typing import Dict
-from typing import Optional
-from typing import Union
 
 import numpy as np
 
@@ -57,7 +54,7 @@ def load_cars3d_folder(raw_data_dir):
     from scipy.io import loadmat
 
     # load image paths
-    with open(os.path.join(raw_data_dir, "cars/list.txt"), "r") as img_names:
+    with open(os.path.join(raw_data_dir, "cars/list.txt")) as img_names:
         img_paths = [os.path.join(raw_data_dir, f"cars/{name.strip()}.mat") for name in img_names.readlines()]
     # load images
     images = np.stack([loadmat(img_path)["im"] for img_path in img_paths], axis=0)
@@ -113,8 +110,8 @@ class DataFileCars3dResized(DataFileHashed):
         self,
         cars3d_datafile: DataFileCars3d,
         # - convert file name
-        out_hash: Optional[Union[str, Dict[str, str]]],
-        out_name: Optional[str] = None,
+        out_hash: str | dict[str, str] | None,
+        out_name: str | None = None,
         out_size: int = 64,
         # - hash settings
         hash_type: str = "md5",
@@ -123,7 +120,7 @@ class DataFileCars3dResized(DataFileHashed):
         self._out_size = out_size
         self._cars3dfile = cars3d_datafile
         super().__init__(
-            file_name=modify_name_keep_ext(self._cars3dfile.out_name, suffix=f"_x{out_size}")
+            file_name=str(modify_name_keep_ext(self._cars3dfile.out_name, suffix=f"_x{out_size}"))
             if (out_name is None)
             else out_name,
             file_hash=out_hash,

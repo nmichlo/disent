@@ -25,9 +25,10 @@
 import contextlib
 import os
 import sys
+from collections.abc import Callable
 from contextlib import contextmanager
-from typing import Any
-from typing import Dict
+
+import pytest
 
 # ========================================================================= #
 # TEST UTILS                                                                #
@@ -68,7 +69,7 @@ def temp_sys_args(new_argv):
 
 
 @contextmanager
-def temp_environ(environment: Dict[str, Any]):
+def temp_environ(environment: dict[str, str]):
     # TODO: should this copy values? -- could use unittest.mock.patch.dict(...)
     # save the old environment
     existing_env = {}
@@ -87,6 +88,25 @@ def temp_environ(environment: Dict[str, Any]):
                 os.environ[k] = existing_env[k]
             else:
                 del os.environ[k]
+
+
+def assert_rejects(
+    fn: Callable[..., object],
+    exception: type[BaseException],
+    match: str,
+    *args: object,
+    **kwargs: object,
+) -> None:
+    """
+    Assert that `fn` rejects `args`/`kwargs` at RUNTIME.
+
+    These arguments deliberately violate `fn`'s signature -- the point of the test is
+    that the runtime guard fires. `fn` is taken as a `Callable[..., object]` parameter
+    so the arguments cross a boundary the type checker cannot see through, which keeps
+    the test honest without an ignore comment.
+    """
+    with pytest.raises(exception, match=match):
+        fn(*args, **kwargs)
 
 
 # ========================================================================= #

@@ -34,7 +34,7 @@ dataloader_train = DataLoader(dataset=dataset_train, batch_size=4, shuffle=True,
 dataloader_val = DataLoader(dataset=dataset_val, batch_size=4, shuffle=True, num_workers=0)
 
 # create the pytorch lightning system
-module: L.LightningModule = BetaVae(
+module = BetaVae(
     model=AutoEncoder(
         encoder=EncoderConv64(x_shape=gt_data.x_shape, z_size=6, z_multiplier=2),
         decoder=DecoderConv64(x_shape=gt_data.x_shape, z_size=6),
@@ -46,9 +46,13 @@ module: L.LightningModule = BetaVae(
 trainer = L.Trainer(logger=False, enable_checkpointing=False, fast_dev_run=is_test_run())
 trainer.fit(module, dataloader_train, dataloader_val)
 
+
 # compute metrics
 # - we cannot guarantee which device the representation is on
-get_repr = lambda x: module.encode(x.to(module.device))
+def get_repr(x):
+    return module.encode(x.to(module.device))
+
+
 # - We cannot compute disentanglement metrics over the split datasets `dataset_train` & `dataset_val`
 #   because they are no longer ground-truth datasets, we can only use `gt_dataset`
 print(metric_dci(gt_dataset, get_repr, num_train=10 if is_test_run() else 1000, num_test=5 if is_test_run() else 500))

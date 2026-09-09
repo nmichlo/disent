@@ -24,13 +24,9 @@
 
 import logging
 import os
+from collections.abc import Callable
 from datetime import datetime
-from typing import Callable
-from typing import List
 from typing import NoReturn
-from typing import Optional
-from typing import Tuple
-from typing import Union
 
 import hydra
 import lightning as L
@@ -80,7 +76,7 @@ def hydra_register_disent_plugins(cfg):
         )
 
 
-def hydra_get_accelerator_and_devices(cfg) -> Tuple[str, Optional[int]]:
+def hydra_get_accelerator_and_devices(cfg) -> tuple[str, int | str]:
     # TODO: rather specify accelerator and devices directly in config...
     #       this is redundant with the new pytorch lightning auto system.
     #       - we should also allow different accelerators like mps for apple silicon
@@ -128,16 +124,16 @@ def hydra_check_data_paths(cfg):
 def hydra_check_data_meta(cfg):
     # checks
     if (cfg.dataset.meta.vis_mean is None) or (cfg.dataset.meta.vis_std is None):
-        log.warning(f"Dataset has no normalisation values... Are you sure this is correct?")
+        log.warning("Dataset has no normalisation values... Are you sure this is correct?")
         log.warning(f"* dataset.meta.vis_mean: {cfg.dataset.meta.vis_mean}")
         log.warning(f"* dataset.meta.vis_std:  {cfg.dataset.meta.vis_std}")
     else:
-        log.info(f"Dataset has normalisation values!")
+        log.info("Dataset has normalisation values!")
         log.info(f"* dataset.meta.vis_mean: {cfg.dataset.meta.vis_mean}")
         log.info(f"* dataset.meta.vis_std:  {cfg.dataset.meta.vis_std}")
 
 
-def hydra_make_loggers(cfg) -> List[Logger]:
+def hydra_make_loggers(cfg) -> list[Logger]:
     loggers = hydra.utils.instantiate(cfg.logging.loggers)
     if loggers:
         if isinstance(loggers, Logger):
@@ -148,7 +144,7 @@ def hydra_make_loggers(cfg) -> List[Logger]:
         log.info(f"Initialised Loggers: {loggers}")
     else:
         loggers = []
-        log.warning(f"No Logger Utilised!")
+        log.warning("No Logger Utilised!")
     return loggers
 
 
@@ -158,9 +154,9 @@ def hydra_get_callbacks(cfg) -> list:
     for name, item in cfg.callbacks.items():
         # custom callback handling vs instantiation
         callback = hydra.utils.instantiate(item)
-        assert isinstance(
-            callback, Callback
-        ), f"instantiated callback is not an instance of {Callback}, got: {callback}"
+        assert isinstance(callback, Callback), (
+            f"instantiated callback is not an instance of {Callback}, got: {callback}"
+        )
         # add to callbacks list
         log.info(f"made callback: {name} ({item._target_})")
         callbacks.append(callback)
@@ -174,6 +170,7 @@ def hydra_get_checkpoint_callbacks(cfg) -> list:
         hydra_checkpoint = ModelCheckpoint(dirpath=hydra_ckp_dir, verbose=True, save_last=True)
         callbacks.append(hydra_checkpoint)
         if cfg.logging.wandb.enabled:
+            assert wandb.run is not None, "`wandb.run` is not set, has `wandb.init` been called yet?"
             wandb_ckp_dir = os.path.join(wandb.run.dir, "checkpoints")
             wandb_checkpoint = ModelCheckpoint(dirpath=wandb_ckp_dir, save_last=True)
             callbacks.append(wandb_checkpoint)
@@ -193,17 +190,17 @@ def hydra_get_metric_callbacks(cfg) -> list:
     assert isinstance(metric_list, (list, ListConfig)), f"`metrics.metric_list` is not a list, got: {type(metric_list)}"
     # get metrics
     for metric in metric_list:
-        assert isinstance(
-            metric, (dict, DictConfig)
-        ), f"entry in metric list is not a dictionary, got type: {type(metric)} or value: {repr(metric)}"
+        assert isinstance(metric, (dict, DictConfig)), (
+            f"entry in metric list is not a dictionary, got type: {type(metric)} or value: {repr(metric)}"
+        )
         # fix the values
         if isinstance(metric, str):
             metric = {metric: {}}
         ((name, settings),) = metric.items()
         # check values
-        assert isinstance(
-            metric, (dict, DictConfig)
-        ), f"settings for entry in metric list is not a dictionary, got type: {type(settings)} or value: {repr(settings)}"
+        assert isinstance(metric, (dict, DictConfig)), (
+            f"settings for entry in metric list is not a dictionary, got type: {type(settings)} or value: {repr(settings)}"
+        )
         # make metrics
         train_metric = [R.METRICS[name].compute_fast] if settings.get("on_train", default_on_train) else None
         final_metric = [R.METRICS[name].compute] if settings.get("on_final", default_on_final) else None
@@ -221,12 +218,12 @@ def hydra_get_metric_callbacks(cfg) -> list:
 
 
 def hydra_create_framework(
-    cfg, gpu_batch_augment: Optional[Callable[[torch.Tensor], torch.Tensor]] = None
+    cfg, gpu_batch_augment: Callable[[torch.Tensor], torch.Tensor] | None = None
 ) -> DisentFramework:
     # create framework
-    assert str.endswith(
-        cfg.framework.cfg["_target_"], ".cfg"
-    ), f'`cfg.framework.cfg._target_` does not end with ".cfg", got: {repr(cfg.framework.cfg["_target_"])}'
+    assert str.endswith(cfg.framework.cfg["_target_"], ".cfg"), (
+        f'`cfg.framework.cfg._target_` does not end with ".cfg", got: {repr(cfg.framework.cfg["_target_"])}'
+    )
     framework_cls = hydra.utils.get_class(cfg.framework.cfg["_target_"][: -len(".cfg")])
     framework: DisentFramework = framework_cls(
         model=hydra.utils.instantiate(cfg.model.model_cls),
@@ -237,6 +234,7 @@ def hydra_create_framework(
     )
 
     # check if some cfg variables were not overridden
+    assert isinstance(framework.cfg, DisentFramework.cfg)
     missing_keys = sorted(set(framework.cfg.get_keys()) - (set(cfg.framework.cfg.keys())))
     if missing_keys:
         log.warning(f"{c.RED}Framework {repr(cfg.framework.name)} is missing config keys for:{c.RST}")
@@ -245,11 +243,11 @@ def hydra_create_framework(
 
     # register schedules to the framework
     schedule_items = cfg.schedule.schedule_items
-    assert isinstance(
-        schedule_items, (dict, DictConfig)
-    ), f"`schedule.schedule_items` must be a dictionary, got type: {type(schedule_items)} with value: {repr(schedule_items)}"
+    assert isinstance(schedule_items, (dict, DictConfig)), (
+        f"`schedule.schedule_items` must be a dictionary, got type: {type(schedule_items)} with value: {repr(schedule_items)}"
+    )
     if schedule_items:
-        log.info(f"Registering Schedules:")
+        log.info("Registering Schedules:")
         for target, schedule in schedule_items.items():
             framework.register_schedule(target, hydra.utils.instantiate(schedule), logging=True)
 
@@ -293,7 +291,7 @@ def action_prepare_data(cfg: DictConfig):
     hydra_check_data_paths(cfg)
     hydra_check_data_meta(cfg)
     # print the config
-    log.info(f'Dataset Config Is:\n{make_box_str(OmegaConf.to_yaml({"dataset": cfg.dataset}))}')
+    log.info(f"Dataset Config Is:\n{make_box_str(OmegaConf.to_yaml({'dataset': cfg.dataset}))}")
     # prepare data
     datamodule = hydra_make_datamodule(cfg)
     datamodule.prepare_data()
@@ -312,7 +310,7 @@ def action_train(cfg: DictConfig):
         safe_unset_debug_trainer()
         safe_unset_debug_loggers()
         wandb.finish()
-    except:
+    except Exception:
         pass
 
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -351,11 +349,13 @@ def action_train(cfg: DictConfig):
         ModelSummary(max_depth=2),  # override default ModelSummary set by trainer
     ]
 
-    # - trainer: default kwargs
-    trainer_default_kwargs = dict(
-        detect_anomaly=False,  # this should only be enabled for debugging torch and finding NaN values, slows down execution, not by much though?
-        enable_checkpointing=cfg.settings.checkpoint.save_checkpoint,
-    )
+    # - trainer: config kwargs, pop out the keys that have defaults below so that
+    #   the config can still override them without a duplicate keyword argument.
+    trainer_config_kwargs = dict(cfg.trainer)
+    detect_anomaly = trainer_config_kwargs.pop(
+        "detect_anomaly", False
+    )  # this should only be enabled for debugging torch and finding NaN values, slows down execution, not by much though?
+    enable_checkpointing = trainer_config_kwargs.pop("enable_checkpointing", cfg.settings.checkpoint.save_checkpoint)
 
     # - trainer: init
     trainer = set_debug_trainer(
@@ -365,8 +365,11 @@ def action_train(cfg: DictConfig):
             accelerator=accelerator,
             devices=devices,
             callbacks=trainer_callbacks,
-            # additional kwargs from the config, overrides the defaults
-            **{**trainer_default_kwargs, **cfg.trainer},
+            # defaults, overridable from the config
+            detect_anomaly=detect_anomaly,
+            enable_checkpointing=enable_checkpointing,
+            # additional kwargs from the config
+            **trainer_config_kwargs,
         )
     )
 
@@ -375,8 +378,9 @@ def action_train(cfg: DictConfig):
     # -~-~-~-~-~-~-~-~-~-~-~-~- #
 
     # get config sections
-    print_cfg, boxed_pop = dict(cfg), lambda *keys: make_box_str(
-        OmegaConf.to_yaml({k: print_cfg.pop(k) for k in keys} if keys else print_cfg)
+    print_cfg, boxed_pop = (
+        dict(cfg),
+        lambda *keys: make_box_str(OmegaConf.to_yaml({k: print_cfg.pop(k) for k in keys} if keys else print_cfg)),
     )
     cfg_str_exp = boxed_pop("action", "experiment")
     cfg_str_logging = boxed_pop("logging", "callbacks", "metrics")
@@ -412,7 +416,7 @@ def action_train(cfg: DictConfig):
 
     try:
         wandb.finish()
-    except:
+    except Exception:
         pass
 
 
@@ -444,10 +448,10 @@ def hydra_experiment(
     config_name: str = "config",
     # config search path
     search_dir_main: str = EXP_CONFIG_DIR,
-    search_dirs_prepend: Optional[Union[str, List[str]]] = None,
-    search_dirs_append: Optional[Union[str, List[str]]] = None,
+    search_dirs_prepend: str | list[str] | None = None,
+    search_dirs_append: str | list[str] | None = None,
     # logging
-    log_level: Optional[int] = logging.INFO,
+    log_level: int | None = logging.INFO,
     log_exc_info_callback: bool = True,
     log_exc_info_hydra: bool = False,
 ):

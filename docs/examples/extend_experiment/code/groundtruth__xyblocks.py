@@ -23,7 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
-from typing import Tuple
 
 import numpy as np
 
@@ -38,7 +37,6 @@ log = logging.getLogger(__name__)
 
 
 class XYBlocksData(GroundTruthData):
-
     """
     Dataset that generates all possible permutations of xor'd squares of
     different scales moving across the grid.
@@ -90,21 +88,21 @@ class XYBlocksData(GroundTruthData):
     }
 
     @property
-    def factor_names(self) -> Tuple[str, ...]:
+    def factor_names(self) -> tuple[str, ...]:
         return self._factor_names
 
     @property
-    def factor_sizes(self) -> Tuple[int, ...]:
+    def factor_sizes(self) -> tuple[int, ...]:
         return self._factor_sizes
 
     @property
-    def img_shape(self) -> Tuple[int, ...]:
+    def img_shape(self) -> tuple[int, ...]:
         return self._img_shape
 
     def __init__(
         self,
         grid_size: int = 64,
-        grid_levels: Tuple[int, ...] = (1, 2, 3),
+        grid_levels: int | tuple[int, ...] = (1, 2, 3),
         rgb: bool = True,
         palette: str = "rgb",
         invert_bg: bool = False,
@@ -115,35 +113,37 @@ class XYBlocksData(GroundTruthData):
         if palette != "rgb":
             log.warning("rgb palette is not being used, might overlap for the reconstruction loss.")
         if rgb:
-            assert (
-                palette in XYBlocksData.COLOR_PALETTES_3
-            ), f"{palette=} must be one of {list(XYBlocksData.COLOR_PALETTES_3.keys())}"
+            assert palette in XYBlocksData.COLOR_PALETTES_3, (
+                f"{palette=} must be one of {list(XYBlocksData.COLOR_PALETTES_3.keys())}"
+            )
             self._colors = np.array(XYBlocksData.COLOR_PALETTES_3[palette])
         else:
-            assert (
-                palette in XYBlocksData.COLOR_PALETTES_1
-            ), f"{palette=} must be one of {list(XYBlocksData.COLOR_PALETTES_1.keys())}"
+            assert palette in XYBlocksData.COLOR_PALETTES_1, (
+                f"{palette=} must be one of {list(XYBlocksData.COLOR_PALETTES_1.keys())}"
+            )
             self._colors = np.array(XYBlocksData.COLOR_PALETTES_1[palette])
 
         # bg colors
         self._bg_color = 255 if invert_bg else 0  # we dont need rgb for this
-        assert not np.any(
-            [np.all(self._bg_color == color) for color in self._colors]
-        ), f"Color conflict with background: {self._bg_color} ({invert_bg=}) in {self._colors}"
+        assert not np.any([np.all(self._bg_color == color) for color in self._colors]), (
+            f"Color conflict with background: {self._bg_color} ({invert_bg=}) in {self._colors}"
+        )
 
         # grid
-        grid_levels = np.arange(1, grid_levels + 1) if isinstance(grid_levels, int) else np.array(grid_levels)
-        assert np.all(grid_size % (2**grid_levels) == 0), f"{grid_size=} is not divisible by pow(2, {grid_levels=})"
-        assert np.all(grid_levels[:-1] <= grid_levels[1:])
+        grid_levels_arr = np.arange(1, grid_levels + 1) if isinstance(grid_levels, int) else np.array(grid_levels)
+        assert np.all(grid_size % (2**grid_levels_arr) == 0), (
+            f"{grid_size=} is not divisible by pow(2, {grid_levels_arr=})"
+        )
+        assert np.all(grid_levels_arr[:-1] <= grid_levels_arr[1:])
         self._grid_size = grid_size
-        self._grid_levels = grid_levels
-        self._grid_dims = len(grid_levels)
+        self._grid_levels = grid_levels_arr
+        self._grid_dims = len(grid_levels_arr)
 
         # axis sizes
         self._axis_divisions = 2**self._grid_levels
-        assert (
-            len(self._axis_divisions) == self._grid_dims and np.all(grid_size % self._axis_divisions) == 0
-        ), "This should never happen"
+        assert len(self._axis_divisions) == self._grid_dims and np.all(grid_size % self._axis_divisions) == 0, (
+            "This should never happen"
+        )
         self._axis_division_sizes = grid_size // self._axis_divisions
 
         # info

@@ -24,15 +24,9 @@
 
 import logging
 from copy import deepcopy
-from typing import Optional
-from typing import Sequence
 
-import hydra
 from omegaconf import DictConfig
-from omegaconf import ListConfig
 from omegaconf import OmegaConf
-
-from disent.util.deprecate import deprecated
 
 log = logging.getLogger(__name__)
 

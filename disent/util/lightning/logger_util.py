@@ -24,9 +24,8 @@
 
 import logging
 import warnings
-from typing import Iterable
-from typing import Optional
-from typing import Sequence
+from collections.abc import Iterable
+from collections.abc import Sequence
 
 from lightning.pytorch.loggers import Logger
 from lightning.pytorch.loggers import WandbLogger
@@ -44,7 +43,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-def log_metrics(loggers: Optional[Sequence[Logger]], metrics_dct: dict):
+def log_metrics(loggers: Sequence[Logger] | None, metrics_dct: dict):
     """
     Log the given values to the given logger.
     - warn the user if something goes wrong
@@ -53,7 +52,7 @@ def log_metrics(loggers: Optional[Sequence[Logger]], metrics_dct: dict):
         for logger in loggers:
             try:
                 logger.log_metrics(metrics_dct)
-            except:
+            except Exception:
                 warnings.warn(f"Failed to log metrics: {repr(metrics_dct)}")
     else:
         warnings.warn("no trainer.loggers found!")
@@ -64,7 +63,7 @@ def log_metrics(loggers: Optional[Sequence[Logger]], metrics_dct: dict):
 # ========================================================================= #
 
 
-def wb_yield_loggers(loggers: Optional[Sequence[Logger]]) -> Iterable[WandbLogger]:
+def wb_yield_loggers(loggers: Sequence[Logger] | None) -> Iterable[WandbLogger]:
     """
     Recursively yield all the loggers or sub-loggers that are an instance of WandbLogger
     """
@@ -74,13 +73,13 @@ def wb_yield_loggers(loggers: Optional[Sequence[Logger]]) -> Iterable[WandbLogge
                 yield logger
 
 
-def wb_has_logger(loggers: Optional[Sequence[Logger]]) -> bool:
-    for l in wb_yield_loggers(loggers):
+def wb_has_logger(loggers: Sequence[Logger] | None) -> bool:
+    for _logger in wb_yield_loggers(loggers):
         return True
     return False
 
 
-def wb_log_metrics(loggers: Optional[Sequence[Logger]], metrics_dct: dict):
+def wb_log_metrics(loggers: Sequence[Logger] | None, metrics_dct: dict):
     """
     Log the given values only to loggers that are an instance of WandbLogger
     """
@@ -100,7 +99,7 @@ _SUMMARY_REDICTIONS = {
 }
 
 
-def wb_log_reduced_summaries(loggers: Optional[Sequence[Logger]], summary_dct: dict, reduction="max"):
+def wb_log_reduced_summaries(loggers: Sequence[Logger] | None, summary_dct: dict, reduction="max"):
     """
     Aggregate the given values only to loggers that are an instance of WandbLogger
     - supported reduction modes are `"max"` and `"min"`
@@ -115,7 +114,7 @@ def wb_log_reduced_summaries(loggers: Optional[Sequence[Logger]], summary_dct: d
                 val_prev = wb_logger.experiment.summary.get(key, val_current)
                 val_next = reduce_fn(val_prev, val_current)
                 wb_logger.experiment.summary[key] = val_next
-            except:
+            except Exception:
                 log.error(f"W&B failed to update summary for: {repr(key)}", exc_info=True)
     # warn if nothing logged!
     if wb_logger is None:

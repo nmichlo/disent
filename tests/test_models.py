@@ -27,7 +27,14 @@ import torch
 from disent.model import AutoEncoder
 from disent.model import DisentDecoder
 from disent.model import DisentEncoder
-from disent.model.ae import *
+from disent.model.ae import DecoderConv64
+from disent.model.ae import DecoderConv64Norm
+from disent.model.ae import DecoderFC
+from disent.model.ae import DecoderLinear
+from disent.model.ae import EncoderConv64
+from disent.model.ae import EncoderConv64Norm
+from disent.model.ae import EncoderFC
+from disent.model.ae import EncoderLinear
 
 
 @pytest.mark.parametrize(

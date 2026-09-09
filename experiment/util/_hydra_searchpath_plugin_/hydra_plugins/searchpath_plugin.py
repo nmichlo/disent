@@ -16,6 +16,8 @@ class DisentExperimentSearchPathPlugin(SearchPathPlugin):
     def manipulate_search_path(self, search_path: ConfigSearchPath) -> None:
         from experiment.util.hydra_main import _DISENT_CONFIG_DIRS
 
+        assert _DISENT_CONFIG_DIRS is not None, "`register_searchpath_plugin` has not been called yet"
+
         # find paths
         paths = [
             *os.environ.get("DISENT_CONFIGS_PREPEND", "").split(";"),
@@ -25,7 +27,7 @@ class DisentExperimentSearchPathPlugin(SearchPathPlugin):
         # print information
         log.info(f" [disent-search-path-plugin]: Activated hydra plugin: {self.__class__.__name__}")
         log.info(
-            f" [disent-search-path-plugin]: To register more search paths, adjust the `DISENT_CONFIGS_PREPEND` and `DISENT_CONFIGS_APPEND` environment variables!"
+            " [disent-search-path-plugin]: To register more search paths, adjust the `DISENT_CONFIGS_PREPEND` and `DISENT_CONFIGS_APPEND` environment variables!"
         )
         # add paths
         for path in paths:

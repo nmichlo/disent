@@ -67,7 +67,7 @@ def test_registry_loading(registry_key):
     # load everything and check the counts
     count = 0
     for example in R.REGISTRIES[registry_key]:
-        loaded = R.REGISTRIES[registry_key][example]
+        _loaded = R.REGISTRIES[registry_key][example]  # triggers the lazy import
         count += 1
     assert count == COUNTS[registry_key], f"invalid count for: {registry_key}"
 

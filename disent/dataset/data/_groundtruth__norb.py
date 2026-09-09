@@ -23,11 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
-from typing import Dict
-from typing import NoReturn
-from typing import Optional
-from typing import Tuple
-from typing import Union
 
 import numpy as np
 
@@ -100,7 +95,7 @@ def read_binary_matrix_file(file, gzipped: bool = True):
 
 def read_norb_dataset(
     dat_path: str, cat_path: str, info_path: str, gzipped=True, sort=True, add_channel_dim: bool = True
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Load The Normalised Dataset
     * dat:
@@ -184,7 +179,7 @@ class DataFileSmallNorb(DataFileHashed):
         datafile_cat: DataFile,
         datafile_info: DataFile,
         out_name: str,
-        out_hash: Optional[Union[str, Dict[str, str]]],
+        out_hash: str | dict[str, str] | None,
         hash_type: str = "md5",
         hash_mode: str = "fast",
     ):
@@ -194,7 +189,7 @@ class DataFileSmallNorb(DataFileHashed):
         # initialize
         super().__init__(file_name=out_name, file_hash=out_hash, hash_type=hash_type, hash_mode=hash_mode)
 
-    def _prepare(self, out_dir: str, out_file: str) -> NoReturn:
+    def _prepare(self, out_dir: str, out_file: str) -> None:
         resave_norb_archive(
             in_dat_path=self._datafile_dat.prepare(out_dir),
             in_cat_path=self._datafile_cat.prepare(out_dir),
@@ -210,8 +205,8 @@ class DataFileSmallNorbResized(DataFileHashed):
         self,
         norb_datafile: DataFileSmallNorb,
         # - convert file name
-        out_hash: Optional[Union[str, Dict[str, str]]],
-        out_name: Optional[str] = None,
+        out_hash: str | dict[str, str] | None,
+        out_name: str | None = None,
         out_size: int = 64,
         # - hash settings
         hash_type: str = "md5",
@@ -220,7 +215,7 @@ class DataFileSmallNorbResized(DataFileHashed):
         self._out_size = out_size
         self._norb_datafile = norb_datafile
         super().__init__(
-            file_name=modify_name_keep_ext(self._norb_datafile.out_name, suffix=f"_x{out_size}")
+            file_name=str(modify_name_keep_ext(self._norb_datafile.out_name, suffix=f"_x{out_size}"))
             if (out_name is None)
             else out_name,
             file_hash=out_hash,
@@ -296,7 +291,7 @@ class SmallNorbData(NumpyFileGroundTruthData):
     # override
     data_key = "images"
 
-    def __init__(self, data_root: Optional[str] = None, prepare: bool = False, is_test: bool = False, transform=None):
+    def __init__(self, data_root: str | None = None, prepare: bool = False, is_test: bool = False, transform=None):
         self._is_test = is_test
         # initialize
         super().__init__(data_root=data_root, prepare=prepare, transform=transform)

@@ -23,8 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from functools import lru_cache
-from typing import Tuple
-from typing import Union
 
 import numpy as np
 import torch
@@ -36,7 +34,7 @@ import torch.nn.functional as F
 
 
 @lru_cache(maxsize=32)
-def _get_2d_reshape_info(shape: Tuple[int, ...], dims: Union[int, Tuple[int, ...]] = -1):
+def _get_2d_reshape_info(shape: tuple[int, ...], dims: int | tuple[int, ...] = -1):
     if isinstance(dims, int):
         dims = (dims,)
     # number of dimensions & remove negatives
@@ -56,9 +54,9 @@ def _get_2d_reshape_info(shape: Tuple[int, ...], dims: Union[int, Tuple[int, ...
     dims_X = sorted(dims_X)
     dims_B = sorted(dims_B)
     # compute shape
-    shape = np.array(shape)
-    size_B = int(np.prod(shape[dims_B]))
-    size_X = int(np.prod(shape[dims_X]))
+    shape_arr = np.array(shape)
+    size_B = int(np.prod(shape_arr[dims_B]))
+    size_X = int(np.prod(shape_arr[dims_X]))
     # variables
     moved_end_dims = tuple(dims_X[::-1])
     reshape_size = (size_B, size_X)
@@ -66,7 +64,7 @@ def _get_2d_reshape_info(shape: Tuple[int, ...], dims: Union[int, Tuple[int, ...
     return moved_end_dims, reshape_size
 
 
-def torch_dims_at_end_2d(tensor: torch.Tensor, dims: Union[int, Tuple[int, ...]] = -1, return_undo_data=True):
+def torch_dims_at_end_2d(tensor: torch.Tensor, dims: int | tuple[int, ...] = -1, return_undo_data=True):
     # get dim info
     moved_end_dims, reshape_size = _get_2d_reshape_info(tensor.shape, dims=dims)
     # move all axes
@@ -99,7 +97,7 @@ def torch_undo_dims_at_end_2d(tensor: torch.Tensor, moved_shape, moved_end_dims)
 
 def torch_soft_sort(
     tensor: torch.Tensor,
-    dims: Union[int, Tuple[int, ...]] = -1,
+    dims: int | tuple[int, ...] = -1,
     regularization="l2",
     regularization_strength=1.0,
     leave_dims_at_end=False,
@@ -119,7 +117,7 @@ def torch_soft_sort(
 
 def torch_soft_rank(
     tensor: torch.Tensor,
-    dims: Union[int, Tuple[int, ...]] = -1,
+    dims: int | tuple[int, ...] = -1,
     regularization="l2",
     regularization_strength=1.0,
     leave_dims_at_end=False,
@@ -145,7 +143,7 @@ def torch_soft_rank(
 def multi_spearman_rank_loss(
     pred: torch.Tensor,
     targ: torch.Tensor,
-    dims: Union[int, Tuple[int, ...]] = -1,
+    dims: int | tuple[int, ...] = -1,
     reduction="mean",
     regularization="l2",
     regularization_strength=1.0,
@@ -204,9 +202,9 @@ def spearman_rank_loss(
     assert pred.shape == targ.shape
     assert pred.ndim == 2
     # sort the last dimension of the 2D tensors
-    assert (
-        regularization == "l2"
-    ), "Only l2 regularization is currently supported for torchsort, others can result in memory leaks. See the torchsort github page for the bug report."
+    assert regularization == "l2", (
+        "Only l2 regularization is currently supported for torchsort, others can result in memory leaks. See the torchsort github page for the bug report."
+    )
     pred = torchsort.soft_rank(pred, regularization=regularization, regularization_strength=regularization_strength)
     targ = torchsort.soft_rank(targ, regularization=regularization, regularization_strength=regularization_strength)
     # compute individual losses

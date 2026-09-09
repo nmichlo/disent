@@ -23,8 +23,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import warnings
-from typing import Sequence
-from typing import Union
+from collections.abc import Sequence
 from typing import final
 
 import torch
@@ -36,7 +35,6 @@ from disent.frameworks.helper.util import compute_ave_loss
 from disent.nn.loss.reduction import batch_loss_reduction
 from disent.nn.loss.reduction import loss_reduction
 from disent.nn.modules import DisentModule
-from disent.util.deprecate import deprecated
 
 # ========================================================================= #
 # Reconstruction Loss Base                                                  #
@@ -79,9 +77,9 @@ class ReconLossHandler(DisentModule):
         as well as an original target from the dataset.
         :return: The computed reduced loss
         """
-        assert (
-            x_partial_recon.shape == x_targ.shape
-        ), f"x_partial_recon.shape={x_partial_recon.shape} x_targ.shape={x_targ.shape}"
+        assert x_partial_recon.shape == x_targ.shape, (
+            f"x_partial_recon.shape={x_partial_recon.shape} x_targ.shape={x_targ.shape}"
+        )
         batch_loss = self.compute_unreduced_loss_from_partial(x_partial_recon, x_targ)
         loss = loss_reduction(batch_loss, reduction=self._reduction)
         return loss
@@ -121,7 +119,7 @@ class ReconLossHandler(DisentModule):
         raise NotImplementedError
 
     def _pairwise_reduce(self, unreduced_loss: torch.Tensor):
-        assert self._reduction in ("mean", "sum"), f'pairwise losses only support "mean" and "sum" reduction modes.'
+        assert self._reduction in ("mean", "sum"), 'pairwise losses only support "mean" and "sum" reduction modes.'
         return batch_loss_reduction(unreduced_loss, reduction_dtype=None, reduction=self._reduction)
 
     def compute_pairwise_loss(self, x_recon: torch.Tensor, x_targ: torch.Tensor) -> torch.Tensor:
@@ -237,17 +235,21 @@ class ReconLossHandlerNormal(ReconLossHandlerMse):
 # ========================================================================= #
 
 
-_NO_ARG = object()
+class _NoArgType:
+    """Unique sentinel type used to detect that `normalize_mode` was not explicitly passed."""
+
+
+_NO_ARG = _NoArgType()
 
 
 class AugmentedReconLossHandler(ReconLossHandler):
     def __init__(
         self,
         recon_loss_handler: ReconLossHandler,
-        kernel: Union[str, torch.Tensor],
+        kernel: str | torch.Tensor,
         wrap_weight: float = 1.0,
         aug_weight: float = 1.0,
-        normalize_mode: str = _NO_ARG,
+        normalize_mode: str | _NoArgType = _NO_ARG,
     ):
         super().__init__(reduction=recon_loss_handler._reduction)
         # save variables
@@ -256,9 +258,9 @@ class AugmentedReconLossHandler(ReconLossHandler):
         assert isinstance(recon_loss_handler, ReconLossHandler)
         assert not isinstance(recon_loss_handler, AugmentedReconLossHandler)
         # deprecation error
-        if normalize_mode is _NO_ARG:
+        if isinstance(normalize_mode, _NoArgType):
             raise ValueError(
-                f'default argument for normalize_mode was "sum", this has been deprecated and will change to "none" in future. Please manually override this value!'
+                'default argument for normalize_mode was "sum", this has been deprecated and will change to "none" in future. Please manually override this value!'
             )
         # load the kernel
         self._kernel = FftKernel(kernel=kernel, normalize_mode=normalize_mode)

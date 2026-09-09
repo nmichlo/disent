@@ -23,9 +23,8 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
-from typing import Callable
+from collections.abc import Callable
 from typing import Protocol
-from typing import Tuple
 
 import numpy as np
 import torch
@@ -40,7 +39,7 @@ log = logging.getLogger(__name__)
 
 def _delta_mine_none(dist_ap: torch.Tensor, dist_an: torch.Tensor, top_k: int, margin_max: float):
     assert len(dist_ap) == len(dist_an)
-    return torch.arange(len(dist_ap))
+    return torch.arange(len(dist_ap), device=dist_ap.device)
 
 
 def _delta_mine_semi_hard_neg(dist_ap: torch.Tensor, dist_an: torch.Tensor, top_k: int, margin_max: float):
@@ -48,7 +47,7 @@ def _delta_mine_semi_hard_neg(dist_ap: torch.Tensor, dist_an: torch.Tensor, top_
     # "choose an anchor-negative pair that is farther than the anchor-positive pair, but within the margin, and so still contributes a positive loss"
     # -- triples satisfy d(a, p) < d(a, n) < alpha
     semi_hard_mask = (dist_ap < dist_an) & (dist_an < margin_max)
-    semi_hard_idxs = torch.arange(len(semi_hard_mask))[semi_hard_mask]
+    semi_hard_idxs = torch.arange(len(semi_hard_mask), device=semi_hard_mask.device)[semi_hard_mask]
     return semi_hard_idxs
 
 
@@ -99,9 +98,9 @@ _TRIPLET_MINE_MODES = {
 @torch.no_grad()
 def mine(mode: str, dist_ap: torch.Tensor, dist_an: torch.Tensor, top_k: int, margin_max: float) -> torch.Tensor:
     # check arrays
-    assert (dist_ap.ndim == 1) and (
-        dist_an.ndim == 1
-    ), f"dist arrays must only have one dimension: dist_ap: {dist_ap.shape} & dist_an: {dist_an.shape}"
+    assert (dist_ap.ndim == 1) and (dist_an.ndim == 1), (
+        f"dist arrays must only have one dimension: dist_ap: {dist_ap.shape} & dist_an: {dist_an.shape}"
+    )
     assert dist_ap.shape == dist_an.shape, f"dist array shapes do not match: {dist_ap.shape} & dist_an: {dist_an.shape}"
     # get mining function
     try:
@@ -159,7 +158,7 @@ def configured_idx_mine(
     n_idxs: torch.Tensor,
     cfg: SampledTripletMineCfgProto,
     pairwise_loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],  # should return arrays with ndim == 1
-) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     # TODO: SIMPLIFY THIS FUNCTION HIERARCHY, THERE ARE A LOT OF UNNECESSARY CALLS!
     # TODO: this function is quite useless, its easier to just use configured_mine_random_mode
     # skip mining if mode is None!

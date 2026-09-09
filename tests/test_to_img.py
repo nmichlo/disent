@@ -33,6 +33,7 @@ from disent.util.visualize.vis_img import _torch_to_images_normalise_args
 from disent.util.visualize.vis_img import numpy_to_images
 from disent.util.visualize.vis_img import numpy_to_pil_images
 from disent.util.visualize.vis_img import torch_to_images
+from tests.util import assert_rejects
 
 # ========================================================================= #
 # Tests                                                                     #
@@ -62,6 +63,7 @@ def test_torch_to_images_permutations():
         float_results, int_results = [], []
         for out_dtype in _ALLOWED_DTYPES:
             out = torch_to_images(inputs, in_dtype=in_dtype, out_dtype=out_dtype)
+            assert isinstance(out, torch.Tensor)  # `to_numpy=False` (default) always returns a tensor
             stats = torch.stack(
                 [out.min().to(torch.float64), out.max().to(torch.float64), out.to(dtype=torch.float64).mean()]
             )
@@ -102,8 +104,7 @@ def test_torch_to_images_invalid_args():
     inp_float = torch.rand(8, 3, 64, 64, dtype=torch.float32)
 
     # check tensor
-    with pytest.raises(TypeError, match="images must be of type"):
-        torch_to_images(tensor=None)
+    assert_rejects(torch_to_images, TypeError, "images must be of type", tensor=None)
     with pytest.raises(ValueError, match='dim "C", required: 1 or 3'):
         torch_to_images(tensor=torch.rand(8, 2, 16, 16, dtype=torch.float32))
     with pytest.raises(ValueError, match='dim "C", required: 1 or 3'):
@@ -112,10 +113,8 @@ def test_torch_to_images_invalid_args():
         torch_to_images(tensor=torch.rand(16, 16, dtype=torch.float32))
 
     # check dims
-    with pytest.raises(TypeError, match="in_dims must be of type"):
-        torch_to_images(inp_float, in_dims=None)
-    with pytest.raises(TypeError, match="out_dims must be of type"):
-        torch_to_images(inp_float, out_dims=None)
+    assert_rejects(torch_to_images, TypeError, "in_dims must be of type", inp_float, in_dims=None)
+    assert_rejects(torch_to_images, TypeError, "out_dims must be of type", inp_float, out_dims=None)
     with pytest.raises(
         KeyError, match="in_dims contains the symbols: 'INVALID', must contain only permutations of: 'CHW'"
     ):

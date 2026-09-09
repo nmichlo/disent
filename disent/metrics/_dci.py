@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2018 The DisentanglementLib Authors.  All rights reserved.
 # https://github.com/google-research/disentanglement_lib
 #
@@ -20,6 +19,11 @@
 # - uses disent objects and classes
 # - renamed functions
 
+# TODO: remove once xgboost and lightgbm ship type stubs we depend on.
+#       they are optional boosting backends, imported lazily and only when
+#       `boost_mode` selects them, so they are not installed by default.
+# ty: ignore[unresolved-import]
+
 """
 Implementation of Disentanglement, Completeness and Informativeness.
 Based on "A Framework for the Quantitative Evaluation of Disentangled
@@ -27,6 +31,7 @@ Representations" (https://openreview.net/forum?id=By-7dz-AZ).
 """
 
 import logging
+from collections.abc import Callable
 
 import numpy as np
 import scipy
@@ -48,7 +53,7 @@ log = logging.getLogger(__name__)
 @make_metric("dci", fast_kwargs=dict(num_train=1000, num_test=500))
 def metric_dci(
     dataset: DisentDataset,
-    representation_function: callable,
+    representation_function: Callable,
     num_train: int = 10000,
     num_test: int = 5000,
     batch_size: int = 16,
@@ -119,11 +124,11 @@ def _compute_importance_gbt(x_train, y_train, x_test, y_test, boost_mode="sklear
 
             model = GradientBoostingClassifier()
         elif boost_mode == "xgboost":
-            from xgboost import XGBClassifier
+            from xgboost import XGBClassifier  # optional backend, not a hard dependency
 
             model = XGBClassifier()
         elif boost_mode == "lightgbm":
-            from lightgbm import LGBMClassifier
+            from lightgbm import LGBMClassifier  # optional backend, not a hard dependency
 
             model = LGBMClassifier()
         else:

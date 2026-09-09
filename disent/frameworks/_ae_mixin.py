@@ -24,9 +24,6 @@
 
 import logging
 from dataclasses import dataclass
-from typing import Any
-from typing import Dict
-from typing import Tuple
 from typing import final
 
 import torch
@@ -90,15 +87,16 @@ class _AeAndVaeMixin(DisentFramework):
     __recon_handler: ReconLossHandler
 
     def _init_ae_mixin(self, model: AutoEncoder):
+        self.cfg: _AeAndVaeMixin.cfg
         # vae model
         self._model = model
         # check the model
-        assert isinstance(
-            self._model, AutoEncoder
-        ), f"model must be an instance of {AutoEncoder.__name__}, got: {type(model)}"
-        assert (
-            self._model.z_multiplier == self.REQUIRED_Z_MULTIPLIER
-        ), f"model z_multiplier is {repr(self._model.z_multiplier)} but {self.__class__.__name__} requires that it is: {repr(self.REQUIRED_Z_MULTIPLIER)}"
+        assert isinstance(self._model, AutoEncoder), (
+            f"model must be an instance of {AutoEncoder.__name__}, got: {type(model)}"
+        )
+        assert self._model.z_multiplier == self.REQUIRED_Z_MULTIPLIER, (
+            f"model z_multiplier is {repr(self._model.z_multiplier)} but {self.__class__.__name__} requires that it is: {repr(self.REQUIRED_Z_MULTIPLIER)}"
+        )
         # recon loss & activation fn
         self.__recon_handler: ReconLossHandler = make_reconstruction_loss(
             self.cfg.recon_loss, reduction=self.cfg.loss_reduction
@@ -110,8 +108,8 @@ class _AeAndVaeMixin(DisentFramework):
 
     @final
     def _get_xs_and_targs(
-        self, batch: Dict[str, Tuple[torch.Tensor, ...]], batch_idx
-    ) -> Tuple[Tuple[torch.Tensor, ...], Tuple[torch.Tensor, ...]]:
+        self, batch: dict[str, tuple[torch.Tensor, ...]], batch_idx
+    ) -> tuple[tuple[torch.Tensor, ...], tuple[torch.Tensor, ...]]:
         xs_targ = batch["x_targ"]
         if "x" not in batch:
             # TODO: re-enable this warning but only ever print once!
@@ -151,15 +149,29 @@ class _AeAndVaeMixin(DisentFramework):
         """Decode latent vector z into partial reconstructions that exclude the final activation if there is one."""
         raise NotImplementedError
 
-    def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
-        if not checkpoint.get(
-            "hyper_parameters"
-        ):  # if the logger did not register hyperparameters they're set here manually
-            checkpoint["hyper_parameters"] = {}
-        checkpoint["hyper_parameters"]["model"] = self._model
-        checkpoint["hyper_parameters"]["cfg"] = self.cfg
-        checkpoint["hyper_parameters"]["batch_augment"] = self._batch_augment
+    def on_save_checkpoint(self, checkpoint: dict[str, object]) -> None:
+        hyper_parameters = checkpoint.get("hyper_parameters")
+        if not hyper_parameters:  # if the logger did not register hyperparameters they're set here manually
+            hyper_parameters = {}
+        assert isinstance(hyper_parameters, dict)
+        hyper_parameters["model"] = self._model
+        hyper_parameters["cfg"] = self.cfg
+        hyper_parameters["batch_augment"] = self._batch_augment
+        checkpoint["hyper_parameters"] = hyper_parameters
         return super().on_save_checkpoint(checkpoint)
+
+    @classmethod
+    def load_from_checkpoint(cls, *args, **kwargs):
+        """
+        Load a framework from a checkpoint written by `on_save_checkpoint` above.
+
+        That hook stores the `AutoEncoder` instance and the `cfg` dataclass in the
+        checkpoint, so restoring one requires unpickling arbitrary objects. `torch.load`
+        defaults to `weights_only=True` since torch 2.6, which refuses to do that, so
+        opt out here. Only load checkpoints you trust.
+        """
+        kwargs.setdefault("weights_only", False)
+        return super().load_from_checkpoint(*args, **kwargs)
 
 
 # ========================================================================= #

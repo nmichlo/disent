@@ -22,6 +22,11 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+# TODO: remove once numpy types `savez_compressed`'s `**kwds` properly.
+#       the array name is supplied by the caller, so the stub cannot prove
+#       it never collides with the reserved `allow_pickle` keyword.
+# ty: ignore[invalid-argument-type]
+
 import numpy as np
 from tqdm import tqdm
 

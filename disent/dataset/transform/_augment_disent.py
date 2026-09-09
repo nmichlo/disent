@@ -22,8 +22,7 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from typing import Callable
-from typing import Optional
+from collections.abc import Callable
 
 import torch
 
@@ -32,7 +31,7 @@ import torch
 # ========================================================================= #
 
 
-class DisentDatasetTransform(object):
+class DisentDatasetTransform:
     """
     Applies transforms to batches generated from dataloaders of
     datasets from: disent.dataset.groundtruth
@@ -40,8 +39,8 @@ class DisentDatasetTransform(object):
 
     def __init__(
         self,
-        transform: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
-        transform_targ: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
+        transform: Callable[[torch.Tensor], torch.Tensor] | None = None,
+        transform_targ: Callable[[torch.Tensor], torch.Tensor] | None = None,
     ):
         self.transform = transform
         self.transform_targ = transform_targ

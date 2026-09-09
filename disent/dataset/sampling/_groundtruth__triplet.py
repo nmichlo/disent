@@ -23,9 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
-from typing import Optional
-from typing import Tuple
-from typing import Union
 
 import numpy as np
 
@@ -98,12 +95,12 @@ class GroundTruthTripleSampler(BaseDisentSampler):
         if swap_chance is not None:
             assert 0 <= swap_chance <= 1, f"{swap_chance=} must be in range 0 to 1."
         # dataset variable
-        self._state_space: Optional[StateSpace]
+        self._state_space: StateSpace
 
     def _init(self, dataset):
-        assert isinstance(
-            dataset, GroundTruthData
-        ), f"dataset must be an instance of {repr(GroundTruthData.__class__.__name__)}, got: {repr(dataset)}"
+        assert isinstance(dataset, GroundTruthData), (
+            f"dataset must be an instance of {repr(GroundTruthData.__class__.__name__)}, got: {repr(dataset)}"
+        )
         self._state_space = dataset.state_space_copy()
         # DIFFERING FACTORS
         self.p_k_min, self.p_k_max, self.n_k_min, self.n_k_max = self._min_max_from_range(
@@ -181,9 +178,7 @@ class GroundTruthTripleSampler(BaseDisentSampler):
         elif n_sample_mode == "bounded_below":
             if not (np.all(p_max <= n_max)):
                 raise FactorSizeError(
-                    f"Ranges are not staggered."
-                    f"\n\tUnsatisfied: p_max <= n_max"
-                    f"\n\tUnsatisfied: {p_max} <= {n_max}"
+                    f"Ranges are not staggered.\n\tUnsatisfied: p_max <= n_max\n\tUnsatisfied: {p_max} <= {n_max}"
                 )
             if not (np.all(p_max <= max_values) and np.all(n_max <= max_values)):
                 raise FactorSizeError(
@@ -328,15 +323,16 @@ def normalise_range(mins, maxs, sizes):
     return mins, maxs
 
 
-def normalise_range_pair(min_max: Union[int, Tuple[int, int]], sizes):
-    min_max = np.array(min_max)
+def normalise_range_pair(min_max: int | tuple[int, int], sizes):
+    arr = np.array(min_max)
     # if not a 2 tuple, repeat. This fixes the min == max.
-    if min_max.shape == ():
-        min_max = min_max.repeat(2)
+    if arr.shape == ():
+        arr = arr.repeat(2)
     # check final shape
-    assert min_max.shape == (2,)
+    assert arr.shape == (2,)
     # get values
-    return normalise_range(*min_max, sizes)
+    mn, mx = arr
+    return normalise_range(mn, mx, sizes)
 
 
 # ========================================================================= #

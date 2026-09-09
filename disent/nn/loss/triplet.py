@@ -23,10 +23,8 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import warnings
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Sequence
-from typing import Type
-from typing import Union
 
 import torch
 
@@ -239,7 +237,7 @@ def dist_split_clamped_triplet_loss(pos_delta, neg_delta, margin_min=0.01, margi
 
 
 @dataclass
-class TripletLossConfig(object):
+class TripletLossConfig:
     triplet_loss: str = "triplet"
     triplet_margin_min: float = 0.1
     triplet_margin_max: float = 10
@@ -271,7 +269,7 @@ _DIST_TRIPLET_LOSSES = {
 }
 
 
-TripletConfigTypeHint = Union[TripletLossConfig, Type[TripletLossConfig]]
+type TripletConfigTypeHint = TripletLossConfig | type[TripletLossConfig]
 
 
 def configured_triplet(anc, pos, neg, cfg: TripletConfigTypeHint):

@@ -24,8 +24,8 @@
 
 import logging
 import warnings
-from typing import Optional
-from typing import Sequence
+from collections.abc import Sequence
+from typing import Protocol
 
 import lightning as L
 
@@ -41,6 +41,17 @@ from disent.util.strings import colors as c
 log = logging.getLogger(__name__)
 
 
+class _NamedMetricFn(Protocol):
+    """
+    A metric callable as obtained from `disent.metrics.utils.Metric.compute`/`.compute_fast`
+    (via `wrapped_partial`, which copies over `__name__` from the wrapped function).
+    """
+
+    __name__: str
+
+    def __call__(self, dataset, encoder, *args, **kwargs) -> dict: ...
+
+
 # ========================================================================= #
 # Helper                                                                    #
 # ========================================================================= #
@@ -54,7 +65,7 @@ def _normalized_numeric_metrics(items: dict):
         else:
             try:
                 results[k] = float(v)
-            except:
+            except Exception:
                 log.warning(
                     f"SKIPPED: metric with key: {repr(k)}, result has invalid type: {type(v)} with value: {repr(v)}"
                 )
@@ -69,9 +80,9 @@ def _normalized_numeric_metrics(items: dict):
 class VaeMetricLoggingCallback(BaseCallbackPeriodic):
     def __init__(
         self,
-        step_end_metrics: Optional[Sequence[str]] = None,
-        train_end_metrics: Optional[Sequence[str]] = None,
-        every_n_steps: Optional[int] = None,
+        step_end_metrics: Sequence[_NamedMetricFn] | None = None,
+        train_end_metrics: Sequence[_NamedMetricFn] | None = None,
+        every_n_steps: int | None = None,
         begin_first_step: bool = False,
     ):
         super().__init__(every_n_steps, begin_first_step)
@@ -79,11 +90,13 @@ class VaeMetricLoggingCallback(BaseCallbackPeriodic):
         self.train_end_metrics = train_end_metrics if train_end_metrics else []
         assert isinstance(self.step_end_metrics, list)
         assert isinstance(self.train_end_metrics, list)
-        assert (
-            self.step_end_metrics or self.train_end_metrics
-        ), "No metrics given to step_end_metrics or train_end_metrics"
+        assert self.step_end_metrics or self.train_end_metrics, (
+            "No metrics given to step_end_metrics or train_end_metrics"
+        )
 
-    def _compute_metrics_and_log(self, trainer: L.Trainer, pl_module: L.LightningModule, metrics: list, is_final=False):
+    def _compute_metrics_and_log(
+        self, trainer: L.Trainer, pl_module: L.LightningModule, metrics: Sequence[_NamedMetricFn], is_final=False
+    ):
         # get dataset and vae framework from trainer and module
         dataset, vae = _get_dataset_and_ae_like(trainer, pl_module, unwrap_groundtruth=True)
         # check if we need to skip

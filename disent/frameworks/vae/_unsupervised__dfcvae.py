@@ -22,18 +22,12 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from numbers import Number
-from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Sequence
-from typing import Tuple
-from typing import Union
+from typing import TYPE_CHECKING
 
 import torch
-import torchvision
+import torchvision.transforms.functional
 from torch import Tensor
 from torch.nn import functional as F
 from torchvision.models import vgg19_bn
@@ -43,6 +37,9 @@ from disent.frameworks.helper.util import compute_ave_loss
 from disent.frameworks.vae._unsupervised__betavae import BetaVae
 from disent.nn.loss.reduction import batch_loss_reduction
 from disent.nn.loss.reduction import get_mean_loss_scale
+
+if TYPE_CHECKING:
+    from disent.model import AutoEncoder
 
 # ========================================================================= #
 # Dfc Vae                                                                   #
@@ -66,11 +63,12 @@ class DfcVae(BetaVae):
 
     @dataclass
     class cfg(BetaVae.cfg):
-        feature_layers: Optional[List[Union[str, int]]] = None
+        feature_layers: list[str | int] | None = None
         feature_inputs_mode: str = "none"
 
-    def __init__(self, model: "AutoEncoder", cfg: cfg = None, batch_augment=None):
+    def __init__(self, model: "AutoEncoder", cfg: cfg | None = None, batch_augment=None):
         super().__init__(model=model, cfg=cfg, batch_augment=batch_augment)
+        self.cfg: DfcVae.cfg
         # make dfc loss
         # TODO: this should be converted to a reconstruction loss handler that wraps another handler
         self._dfc_loss = DfcLossModule(feature_layers=self.cfg.feature_layers, input_mode=self.cfg.feature_inputs_mode)
@@ -81,7 +79,7 @@ class DfcVae(BetaVae):
 
     def compute_ave_recon_loss(
         self, xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]
-    ) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
+    ) -> tuple[torch.Tensor | float, dict[str, torch.Tensor | float]]:
         # compute ave reconstruction loss
         pixel_loss = self.recon_handler.compute_ave_loss_from_partial(xs_partial_recon, xs_targ)  # (DIFFERENCE: 1)
         # compute ave deep features loss
@@ -118,14 +116,14 @@ class DfcLossModule(torch.nn.Module):
     # TODO: this should be converted to a reconstruction loss handler
     """
 
-    def __init__(self, feature_layers: Optional[List[Union[str, int]]] = None, input_mode: str = "none"):
+    def __init__(self, feature_layers: list[str | int] | None = None, input_mode: str = "none"):
         """
         :param feature_layers: List of string of IDs of feature layers in pretrained model
         """
         super().__init__()
         # feature layers to use
         self.feature_layers = set(
-            ["14", "24", "34", "43"] if (feature_layers is None) else [str(l) for l in feature_layers]
+            ["14", "24", "34", "43"] if (feature_layers is None) else [str(layer) for layer in feature_layers]
         )
         # feature network
         self.feature_network = vgg19_bn(pretrained=True)
@@ -153,6 +151,8 @@ class DfcLossModule(torch.nn.Module):
             loss = F.mse_loss(f_recon, f_targ, reduction="none")
             feature_loss += batch_loss_reduction(loss, reduction=reduction)
         # checks
+        # NOTE: `feature_layers` must be non-empty for `feature_loss` to become a `Tensor` here.
+        assert isinstance(feature_loss, torch.Tensor), "`feature_layers` must not be empty"
         assert (feature_loss.ndim == 1) and (len(feature_loss) == len(x_recon))
         return feature_loss
 
@@ -172,7 +172,7 @@ class DfcLossModule(torch.nn.Module):
         # (DIFFERENCE: 2)
         return feature_loss * get_mean_loss_scale(x_targ, reduction=reduction)
 
-    def _extract_features(self, inputs: Tensor) -> List[Tensor]:
+    def _extract_features(self, inputs: Tensor) -> list[Tensor]:
         """
         Extracts the features from the pretrained model
         at the layers indicated by feature_layers.

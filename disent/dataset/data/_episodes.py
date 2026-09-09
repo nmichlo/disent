@@ -22,8 +22,6 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from typing import List
-from typing import Tuple
 
 import numpy as np
 from torch.utils.data import Dataset
@@ -49,16 +47,16 @@ class BaseEpisodesData(Dataset, LengthIter):
     def __len__(self):
         return self._length
 
-    def __getitem__(self, idx):
+    def __getitem__(self, index):
         # this can be slow!
         # linear search is conducted!
-        episode, idx, _ = self.get_episode_and_idx(idx)
+        episode, idx, _ = self.get_episode_and_idx(index)
         obs = episode[idx]
         if self._transform is not None:
             obs = self._transform(obs)
         return obs
 
-    def get_episode_and_idx(self, idx) -> Tuple[np.ndarray, int, int]:
+    def get_episode_and_idx(self, idx: int) -> tuple[np.ndarray, int, int]:
         assert idx >= 0, "Negative indices are not supported."
         # linear search for episode & shift idx accordingly
         # TODO: This could be better...
@@ -71,10 +69,11 @@ class BaseEpisodesData(Dataset, LengthIter):
             else:
                 offset += length
                 idx -= length
-        # return found
+        # return found -- `self._episodes` is asserted non-empty in `__init__`, so the loop always runs
+        assert episode is not None
         return episode, idx, offset
 
-    def _load_episode_observations(self) -> List[np.ndarray]:
+    def _load_episode_observations(self) -> list[np.ndarray]:
         raise NotImplementedError
 
 

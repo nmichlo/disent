@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2018 The DisentanglementLib Authors.  All rights reserved.
 # https://github.com/google-research/disentanglement_lib
 #

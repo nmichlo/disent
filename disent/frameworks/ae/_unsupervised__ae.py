@@ -22,13 +22,8 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from numbers import Number
-from typing import Any
-from typing import Dict
-from typing import Sequence
-from typing import Tuple
-from typing import Union
 from typing import final
 
 import torch
@@ -73,10 +68,11 @@ class Ae(_AeAndVaeMixin):
     class cfg(_AeAndVaeMixin.cfg):
         pass
 
-    def __init__(self, model: AutoEncoder, cfg: cfg = None, batch_augment=None):
+    def __init__(self, model: AutoEncoder, cfg: cfg | None = None, batch_augment=None):
         super().__init__(cfg=cfg, batch_augment=batch_augment)
         # initialise the auto-encoder mixin (recon handler, model, enc, dec, etc.)
         self._init_ae_mixin(model=model)
+        self.cfg: Ae.cfg
 
     # --------------------------------------------------------------------- #
     # AE Training Step -- Overridable                                       #
@@ -137,17 +133,19 @@ class Ae(_AeAndVaeMixin):
     # Overrideable                                                          #
     # --------------------------------------------------------------------- #
 
-    def hook_ae_intercept_zs(self, zs: Sequence[torch.Tensor]) -> Tuple[Sequence[torch.Tensor], Dict[str, Any]]:
+    def hook_ae_intercept_zs(
+        self, zs: Sequence[torch.Tensor]
+    ) -> tuple[Sequence[torch.Tensor], dict[str, torch.Tensor | float]]:
         return zs, {}
 
     def hook_ae_compute_ave_aug_loss(
         self, zs: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]
-    ) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
+    ) -> tuple[torch.Tensor | float, dict[str, torch.Tensor | float]]:
         return 0, {}
 
     def compute_ave_recon_loss(
         self, xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]
-    ) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
+    ) -> tuple[torch.Tensor | float, dict[str, torch.Tensor | float]]:
         # compute reconstruction loss
         pixel_loss = self.recon_handler.compute_ave_loss_from_partial(xs_partial_recon, xs_targ)
         # return logs

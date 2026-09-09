@@ -24,13 +24,13 @@
 
 import itertools
 import os
-from typing import Optional
-from typing import Sequence
-from typing import Tuple
+from collections.abc import Sequence
+from typing import Literal
+from typing import overload
 
+import matplotlib
 import numpy as np
 import torch
-from matplotlib import cm
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
@@ -74,26 +74,31 @@ def make_2d_line_points(n: int = 100, deg: float = 30, std_x: float = 1.0, std_y
     return points
 
 
-def make_nd_line_points(n: int = 100, dims: int = 4, std_x: float = 1.0, std_y: float = 0.005):
+def make_nd_line_points(
+    n: int = 100,
+    dims: int | tuple[int, int] = 4,
+    std_x: float = 1.0,
+    std_y: float | tuple[float, float] = 0.005,
+):
     if not isinstance(dims, int):
         m, M = dims
-        dims = np.randint(m, M)
+        dims = np.random.randint(m, M)
     # generate numbers
     xs = torch.randn(n, dims, dtype=torch.float32)
     # axis standard deviations
     if isinstance(std_y, (float, int)):
-        std_y = torch.full((dims - 1,), fill_value=std_y, dtype=torch.float32)
+        std_y_t = torch.full((dims - 1,), fill_value=std_y, dtype=torch.float32)
     else:
         m, M = std_y
-        std_y = torch.rand(dims - 1, dtype=torch.float32) * (M - m) + m
+        std_y_t = torch.rand(dims - 1, dtype=torch.float32) * (M - m) + m
     # scale axes
-    std = torch.cat([torch.as_tensor([std_x]), std_y])
+    std = torch.cat([torch.as_tensor([std_x]), std_y_t])
     xs = xs * std[None, :]
     # rotate
     return xs @ _random_rotation_matrix(dims)
 
 
-def make_line_points(n: int = 100, deg: float = None, dims: int = 2, std_x: float = 1.0, std_y: float = 0.1):
+def make_line_points(n: int = 100, deg: float | None = None, dims: int = 2, std_x: float = 1.0, std_y: float = 0.1):
     if deg is None:
         return make_nd_line_points(n=n, dims=dims, std_x=std_x, std_y=std_y)
     else:
@@ -141,9 +146,15 @@ def gaussian_2d_dy2(x, y, sx, sy):
     return gaussian_1d(x, sx) * gaussian_1d_dx2(y, sy)
 
 
+@overload
 def rotated_radius_meshgrid(
-    radius: float, num_points: int, deg: float = 0, device=None, return_orig=False
-) -> Tuple[torch.Tensor, torch.Tensor]:
+    radius: float, num_points: int, deg: float = 0, device=None, *, return_orig: Literal[True]
+) -> tuple[tuple[torch.Tensor, torch.Tensor], tuple[torch.Tensor, torch.Tensor]]: ...
+@overload
+def rotated_radius_meshgrid(
+    radius: float, num_points: int, deg: float = 0, device=None, return_orig: Literal[False] = False
+) -> tuple[torch.Tensor, torch.Tensor]: ...
+def rotated_radius_meshgrid(radius: float, num_points: int, deg: float = 0, device=None, return_orig: bool = False):
     # x & y values centered around zero
     # p = torch.arange(size, device=device) - (size-1)/2
     p = torch.linspace(-radius, radius, num_points, device=device)
@@ -156,9 +167,7 @@ def rotated_radius_meshgrid(
     return rx, ry
 
 
-def rotated_guassian2d(
-    std_x: float, std_y: float, deg: float, trunc_sigma: Optional[float] = None, num_points: int = 511
-):
+def rotated_guassian2d(std_x: float, std_y: float, deg: float, trunc_sigma: float | None = None, num_points: int = 511):
     radius = (2.25 * max(std_x, std_y)) if (trunc_sigma is None) else trunc_sigma
     (xs_r, ys_r), (xs, ys) = rotated_radius_meshgrid(radius=radius, num_points=num_points, deg=deg, return_orig=True)
     zs = gaussian_2d(xs_r, ys_r, sx=std_x, sy=std_y)
@@ -172,11 +181,11 @@ def plot_gaussian(
     std_y: float = 0.1,
     # contour
     contour_resolution: int = 255,
-    contour_trunc_sigma: Optional[float] = None,
-    contour_kwargs: Optional[dict] = None,
+    contour_trunc_sigma: float | None = None,
+    contour_kwargs: dict | None = None,
     # dots
-    dots_num: Optional[int] = None,
-    dots_kwargs: Optional[dict] = None,
+    dots_num: int | None = None,
+    dots_kwargs: dict | None = None,
     # axis
     ax=None,
 ):
@@ -185,8 +194,8 @@ def plot_gaussian(
         ax = fig.gca()
     # set limits
     trunc_sigma = (2.05 * max(std_x, std_y)) if (contour_trunc_sigma is None) else contour_trunc_sigma
-    ax.set_xlim([-trunc_sigma, trunc_sigma])
-    ax.set_ylim([-trunc_sigma, trunc_sigma])
+    ax.set_xlim((-trunc_sigma, trunc_sigma))
+    ax.set_ylim((-trunc_sigma, trunc_sigma))
     # plot contour
     xs, ys, zs = rotated_guassian2d(
         std_x=std_x, std_y=std_y, deg=deg, trunc_sigma=trunc_sigma, num_points=contour_resolution
@@ -206,8 +215,8 @@ def plot_gaussian(
 
 
 def score_grid(
-    deg_rotations: Sequence[Optional[float]],
-    y_std_ratios: Sequence[float],
+    deg_rotations: Sequence[float | None] | np.ndarray,
+    y_std_ratios: Sequence[float] | np.ndarray,
     x_std: float = 1.0,
     num_points: int = 1000,
     num_dims: int = 2,
@@ -237,8 +246,8 @@ def score_grid(
 
 
 def ave_score_grid(
-    deg_rotations: Sequence[Optional[float]],
-    y_std_ratios: Sequence[float],
+    deg_rotations: Sequence[float | None] | np.ndarray,
+    y_std_ratios: Sequence[float] | np.ndarray,
     x_std: float = 1.0,
     num_points: int = 1000,
     num_dims: int = 2,
@@ -273,7 +282,7 @@ def ave_score_grid(
 def make_ave_scores_plot(
     std_num: int = 21,
     deg_num: int = 21,
-    ndim: Optional[int] = None,
+    ndim: int | None = None,
     # extra
     num_points: int = 1000,
     repeats: int = 25,
@@ -307,8 +316,8 @@ def make_ave_scores_plot(
         nrows=1 + int(vertical),
         ncols=1 + int(not vertical),
         titles=["Linear", "Axis"],
-        row_labels=f"$σ_y$ - Standard Deviation",
-        col_labels=f"θ - Rotation Degrees",
+        row_labels="$σ_y$ - Standard Deviation",
+        col_labels="θ - Rotation Degrees",
         figsize=(subplot_size + 0.5, subplot_size * 2 * (deg_num / std_num) + 0.75)[:: 1 if vertical else -1],
     )
     (ax0, ax1) = axs.flatten()
@@ -335,8 +344,9 @@ def plot_scores(ax, axis_score, linear_score):
 
     assert 0 <= linear_score <= 1
     assert 0 <= axis_score <= 1
-    linear_rgb = cm.get_cmap("RdPu_r")(np.clip(linear_score, 0.0, 1.0))
-    axis_rgb = cm.get_cmap("GnBu_r")(np.clip(axis_score, 0.0, 1.0))
+    # `matplotlib.cm.get_cmap` was removed in matplotlib 3.9.
+    linear_rgb = matplotlib.colormaps["RdPu_r"](np.clip(linear_score, 0.0, 1.0))
+    axis_rgb = matplotlib.colormaps["GnBu_r"](np.clip(axis_score, 0.0, 1.0))
     ax.legend(
         handles=[
             Line2D(
@@ -381,7 +391,7 @@ def make_grid_gaussian_score_plot(
         157.5,
     ),  # (0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165),
     # plot dot options
-    dots_num: Optional[int] = None,
+    dots_num: int | None = None,
     # score options
     num_points: int = 10000,
     repeats: int = 100,
@@ -391,8 +401,8 @@ def make_grid_gaussian_score_plot(
     # grid options
     subplot_size: float = 2.125,
     subplot_padding: float = 0.5,
-    subplot_contour_kwargs: Optional[dict] = None,
-    subplot_dots_kwargs: Optional[dict] = None,
+    subplot_contour_kwargs: dict | None = None,
+    subplot_dots_kwargs: dict | None = None,
 ):
     # defaults
     if subplot_contour_kwargs is None:

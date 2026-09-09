@@ -35,7 +35,8 @@ from disent.nn.functional import torch_gaussian_kernel_2d
 
 
 def test_gaussian_kernels():
-    r = lambda *shape: torch.stack(torch.meshgrid(*((torch.arange(s) + 1) for s in shape)), dim=-1).max(dim=-1).values
+    def r(*shape):
+        return torch.stack(torch.meshgrid(*((torch.arange(s) + 1) for s in shape)), dim=-1).max(dim=-1).values
 
     assert (9,) == torch_gaussian_kernel(sigma=1.0, truncate=4.0).shape
     assert (5, 41) == torch_gaussian_kernel(sigma=r(5), truncate=4.0).shape

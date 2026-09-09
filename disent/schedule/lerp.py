@@ -24,7 +24,6 @@
 
 
 import math
-from typing import Union
 
 import numpy as np
 
@@ -80,13 +79,13 @@ _END_VALUES = {
 
 
 def cyclical_anneal(
-    step: Union[int, float, np.ndarray],
+    step: int | float | np.ndarray,
     period: float = 3600,
     low_ratio: float = 0.0,
     high_ratio: float = 0.0,
-    repeats: int = None,
+    repeats: int | None = None,
     start_low: bool = True,
-    end_value: str = "high",
+    end_value: str | int | float = "high",
     mode: str = "linear",
 ):
     # check values
@@ -110,7 +109,9 @@ def cyclical_anneal(
     r = np.where(high_mask, 1, r)
     # repeats
     if repeats is not None:
-        end_value = _END_VALUES.get(end_value, end_value)
+        if isinstance(end_value, str):
+            end_value = _END_VALUES.get(end_value, end_value)
+        assert isinstance(end_value, (int, float)), f"end_value must resolve to a number, got: {repr(end_value)}"
         assert 0 <= end_value <= 1
         assert repeats > 0
         # compute

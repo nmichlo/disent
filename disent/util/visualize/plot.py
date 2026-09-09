@@ -23,10 +23,9 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
+from collections.abc import Callable
 from numbers import Number
-from typing import Any
-from typing import Dict
-from typing import Optional
+from typing import Literal
 
 import numpy as np
 import torch
@@ -94,14 +93,14 @@ def plt_subplots(
     titles=None,
     row_labels=None,
     col_labels=None,
-    title_size: int = None,
-    titles_size: int = None,
-    label_size: int = None,
+    title_size: int | None = None,
+    titles_size: int | None = None,
+    label_size: int | None = None,
     hide_labels="edges",  # none, edges, all
     hide_axis="edges",  # none, edges, all
     # plt.subplots:
-    sharex: str = False,
-    sharey: str = False,
+    sharex: bool | Literal["none", "all", "row", "col"] = False,
+    sharey: bool | Literal["none", "all", "row", "col"] = False,
     subplot_kw=None,
     gridspec_kw=None,
     **fig_kw,
@@ -151,7 +150,10 @@ def plt_subplots(
                 if titles[y][x] is not None:
                     ax.set_title(titles[y][x], fontsize=titles_size)
     # set title
-    fig.suptitle(title, fontsize=title_size)
+    # NOTE: matplotlib's `Text.set_text` treats `None` and `""` identically (converts `None`
+    # to `""` internally), so this is equivalent to the previous `fig.suptitle(title, ...)`
+    # call while satisfying the (overly strict) `str`-only stub for `suptitle`.
+    fig.suptitle("" if (title is None) else title, fontsize=title_size)
     # done!
     return fig, axs
 
@@ -163,24 +165,24 @@ def plt_subplots_imshow(
     titles=None,
     row_labels=None,
     col_labels=None,
-    title_size: int = None,
-    titles_size: int = None,
-    label_size: int = None,
+    title_size: int | None = None,
+    titles_size: int | None = None,
+    label_size: int | None = None,
     hide_labels="edges",  # none, edges, all
     hide_axis="all",  # none, edges, all
     # tight_layout:
-    subplot_padding: Optional[float] = 1.08,
+    subplot_padding: float | None = 1.08,
     # plt.subplots:
-    sharex: str = False,
-    sharey: str = False,
+    sharex: bool | Literal["none", "all", "row", "col"] = False,
+    sharey: bool | Literal["none", "all", "row", "col"] = False,
     subplot_kw=None,
     gridspec_kw=None,
     # imshow
-    vmin: float = None,
-    vmax: float = None,
+    vmin: float | None = None,
+    vmax: float | None = None,
     # extra
     show: bool = False,
-    imshow_kwargs: dict = None,
+    imshow_kwargs: dict | None = None,
     **fig_kw,
 ):
     # TODO: add automatic height & width
@@ -247,7 +249,7 @@ def plt_hide_axis(
 def visualize_dataset_traversal(
     dataset: DisentDataset,
     # inputs
-    factor_names: Optional[NonNormalisedFactorIdxs] = None,
+    factor_names: NonNormalisedFactorIdxs | None = None,
     num_frames: int = 9,
     seed: int = 777,
     base_factors=None,
@@ -255,9 +257,9 @@ def visualize_dataset_traversal(
     # images & animations
     pad: int = 4,
     border: bool = True,
-    bg_color: Number = None,
+    bg_color: int | float | tuple[float, ...] | None = None,
     # augment
-    augment_fn: callable = None,
+    augment_fn: Callable | None = None,
     data_mode: str = "raw",
     # output
     output_wandb: bool = False,
@@ -308,14 +310,16 @@ def visualize_dataset_traversal(
     assert grid.shape[-1] in (
         1,
         3,
-    ), f"invalid number of channels, must be 1 or 3, got shape: {grid.shape}. Note that the dataset or augment if specified should output HWC images, not CHW images!"
+    ), (
+        f"invalid number of channels, must be 1 or 3, got shape: {grid.shape}. Note that the dataset or augment if specified should output HWC images, not CHW images!"
+    )
 
     # generate visuals
     image = make_image_grid(
         np.concatenate(grid, axis=0), pad=pad, border=border, bg_color=bg_color, num_cols=num_frames
     )
     animation = make_animated_image_grid(
-        np.stack(grid, axis=0), pad=pad, border=border, bg_color=bg_color, num_cols=None
+        np.stack(list(grid), axis=0), pad=pad, border=border, bg_color=bg_color, num_cols=None
     )
 
     # convert to wandb

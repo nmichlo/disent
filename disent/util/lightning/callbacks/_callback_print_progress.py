@@ -55,7 +55,7 @@ class LoggerProgressCallback(BaseCallbackTimed):
         # get vars
         global_step = trainer.global_step + 1
         epoch = trainer.current_epoch + 1
-        if hasattr(trainer, "batch_idx"):
+        if hasattr(trainer, "batch_idx") and isinstance(trainer.batch_idx, int):
             batch = trainer.batch_idx + 1
         else:
             # warnings.warn('batch_idx missing on L.Trainer')  # TODO: re-enable this warning but only ever print once!
@@ -86,7 +86,7 @@ class LoggerProgressCallback(BaseCallbackTimed):
             + f"EPOCH: {epoch}/{max_epochs} - {int(global_step):0{len(str(max_steps))}d}/{max_steps} "
             + f"({int(train_pct * 100):02d}%) [rem. {int(train_remain_time)}s] "
             + f"STEP: {int(batch):{len(str(max_batches))}d}/{max_batches} ({int(batch / max_batches * 100):02d}%) "
-            + f'| {" ".join(f"{k}={info_dict[k]}" for k in sorted_k)}',
+            + f"| {' '.join(f'{k}={info_dict[k]}' for k in sorted_k)}",
         )
 
 

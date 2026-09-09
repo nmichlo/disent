@@ -23,11 +23,9 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
-from typing import Union
 
 import numpy as np
 import torch
-from torch.utils.data import Dataset
 
 from disent.dataset.data import GroundTruthData
 from disent.dataset.wrapper._base import WrappedDataset
@@ -41,8 +39,8 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-DataTypeHint = Union[GroundTruthData, np.ndarray, torch.Tensor]
-MaskTypeHint = Union[str, np.ndarray]
+type DataTypeHint = GroundTruthData | np.ndarray | torch.Tensor
+type MaskTypeHint = str | np.ndarray
 
 
 def load_mask_indices(length: int, mask_or_indices: MaskTypeHint):
@@ -78,19 +76,19 @@ class MaskedDataset(WrappedDataset):
         self._indices = load_mask_indices(n, mask)
         # randomize
         if randomize:
-            l = len(self._indices)
-            self._indices = load_mask_indices(n, random_choice_prng(n, size=l, replace=False))
-            assert len(self._indices) == l
-            log.info(f"replaced mask: {l}/{n} ({l/n:.3f}) with randomized mask!")
+            num_indices = len(self._indices)
+            self._indices = load_mask_indices(n, random_choice_prng(n, size=num_indices, replace=False))
+            assert len(self._indices) == num_indices
+            log.info(f"replaced mask: {num_indices}/{n} ({num_indices / n:.3f}) with randomized mask!")
 
     def __len__(self):
         return len(self._indices)
 
-    def __getitem__(self, idx):
-        return self._data[self._indices[idx]]
+    def __getitem__(self, index):
+        return self._data[self._indices[index]]
 
     @property
-    def data(self) -> Dataset:
+    def data(self) -> DataTypeHint:
         return self._data
 
 

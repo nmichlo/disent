@@ -23,9 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import warnings
-from typing import List
-from typing import Optional
-from typing import Union
 
 import torch
 
@@ -34,7 +31,7 @@ import torch
 # ========================================================================= #
 
 
-_DimTypeHint = Optional[Union[int, List[int]]]
+type _DimTypeHint = int | list[int] | None
 
 _POS_INF = float("inf")
 _NEG_INF = float("-inf")
@@ -56,7 +53,7 @@ _GENERALIZED_MEAN_MAP = {
 # ========================================================================= #
 
 
-def torch_mean_generalized(xs: torch.Tensor, dim: _DimTypeHint = None, p: Union[float, str] = 1, keepdim: bool = False):
+def torch_mean_generalized(xs: torch.Tensor, dim: _DimTypeHint = None, p: float | str = 1, keepdim: bool = False):
     """
     Compute the generalised mean.
     - p is the power
@@ -68,14 +65,14 @@ def torch_mean_generalized(xs: torch.Tensor, dim: _DimTypeHint = None, p: Union[
     """
     if isinstance(p, str):
         p = _GENERALIZED_MEAN_MAP[p]
+    # compute the number of elements being averaged
+    if dim is None:
+        dim = list(range(xs.ndim))
     # compute the specific extreme cases
     if p == _POS_INF:
         return torch.amax(xs, dim=dim, keepdim=keepdim)
     elif p == _NEG_INF:
         return torch.amin(xs, dim=dim, keepdim=keepdim)
-    # compute the number of elements being averaged
-    if dim is None:
-        dim = list(range(xs.ndim))
     n = torch.prod(torch.as_tensor(xs.shape)[dim])
     # warn if the type is wrong
     if p != 1:

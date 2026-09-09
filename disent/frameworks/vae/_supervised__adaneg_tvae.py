@@ -23,20 +23,35 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Sequence
-from typing import Tuple
+from typing import TYPE_CHECKING
 
 import torch
 from torch.distributions import Distribution
-from torch.distributions import Normal
 
 from disent.frameworks.vae._supervised__tvae import TripletVae
 from disent.frameworks.vae._weaklysupervised__adavae import AdaVae
 from disent.nn.loss.triplet import configured_dist_triplet
 from disent.nn.loss.triplet import configured_triplet
 
+if TYPE_CHECKING:
+    from disent.frameworks.ae._supervised__adaneg_tae import AdaNegTripletAe
+
 log = logging.getLogger(__name__)
+
+
+# ========================================================================= #
+# AveAda-TVAE                                                               #
+# ========================================================================= #
+
+
+@dataclass
+class AdaTripletVae_cfg(TripletVae.cfg, AdaVae.cfg):
+    # adavae
+    ada_thresh_mode: str = "dist"  # only works for: adat_share_mask_mode == "posterior"
+    # ada_tvae - averaging
+    adat_share_mask_mode: str = "posterior"
 
 
 # ========================================================================= #
@@ -57,31 +72,31 @@ class AdaNegTripletVae(TripletVae):
     REQUIRED_OBS = 3
 
     @dataclass
-    class cfg(TripletVae.cfg, AdaVae.cfg):
-        # adavae
-        ada_thresh_mode: str = "dist"  # only works for: adat_share_mask_mode == "posterior"
+    class cfg(AdaTripletVae_cfg):
         # ada_tvae - loss
         # * this should be used with a schedule, slowly decrease from 1.0 down to 0.5 or less
         # * a similar schedule should also be used on `ada_thresh_ratio`, slowly increasing from 0.0 to 0.5
         adat_triplet_share_scale: float = 0.95
-        # ada_tvae - averaging
-        adat_share_mask_mode: str = "posterior"
 
     def hook_compute_ave_aug_loss(
         self,
-        ds_posterior: Sequence[Normal],
-        ds_prior: Sequence[Normal],
+        ds_posterior: Sequence[Distribution],
+        ds_prior: Sequence[Distribution],
         zs_sampled: Sequence[torch.Tensor],
         xs_partial_recon: Sequence[torch.Tensor],
         xs_targ: Sequence[torch.Tensor],
     ):
+        self.cfg: AdaNegTripletVae.cfg
         return self.estimate_ada_triplet_loss(
             ds_posterior=ds_posterior,
             cfg=self.cfg,
         )
 
     @staticmethod
-    def estimate_ada_triplet_loss_from_zs(zs: Sequence[torch.Tensor], cfg: cfg):
+    def estimate_ada_triplet_loss_from_zs(
+        zs: Sequence[torch.Tensor],
+        cfg: "AdaNegTripletVae.cfg | type[AdaNegTripletVae.cfg] | AdaNegTripletAe.cfg | type[AdaNegTripletAe.cfg]",
+    ):
         # compute shared masks, shared embeddings & averages over shared embeddings
         share_masks, share_logs = compute_triplet_shared_masks_from_zs(zs=zs, cfg=cfg)
         # compute loss
@@ -95,7 +110,7 @@ class AdaNegTripletVae(TripletVae):
         }
 
     @staticmethod
-    def estimate_ada_triplet_loss(ds_posterior: Sequence[Normal], cfg: cfg):
+    def estimate_ada_triplet_loss(ds_posterior: Sequence[Distribution], cfg: "cfg | type[cfg]"):
         # compute shared masks, shared embeddings & averages over shared embeddings
         share_masks, share_logs = compute_triplet_shared_masks(ds_posterior, cfg=cfg)
         # compute loss
@@ -109,7 +124,11 @@ class AdaNegTripletVae(TripletVae):
         }
 
     @staticmethod
-    def compute_ada_triplet_loss(share_masks, zs, cfg: cfg):
+    def compute_ada_triplet_loss(
+        share_masks,
+        zs,
+        cfg: "AdaNegTripletVae.cfg | type[AdaNegTripletVae.cfg] | AdaNegTripletAe.cfg | type[AdaNegTripletAe.cfg]",
+    ):
         # Normal Triplet Loss
         (a_z, p_z, n_z) = zs
         trip_loss = configured_triplet(a_z, p_z, n_z, cfg=cfg)
@@ -129,16 +148,8 @@ class AdaNegTripletVae(TripletVae):
 
 
 # ========================================================================= #
-# AveAda-TVAE                                                               #
+# Shared Mask Helpers                                                       #
 # ========================================================================= #
-
-
-@dataclass
-class AdaTripletVae_cfg(TripletVae.cfg, AdaVae.cfg):
-    # adavae
-    ada_thresh_mode: str = "dist"  # only works for: adat_share_mask_mode == "posterior"
-    # ada_tvae - averaging
-    adat_share_mask_mode: str = "posterior"
 
 
 def compute_triplet_shared_masks_from_zs(zs: Sequence[torch.Tensor], cfg):
@@ -160,7 +171,9 @@ def compute_triplet_shared_masks_from_zs(zs: Sequence[torch.Tensor], cfg):
     }
 
 
-def compute_triplet_shared_masks(ds_posterior: Sequence[Distribution], cfg: AdaTripletVae_cfg):
+def compute_triplet_shared_masks(
+    ds_posterior: Sequence[Distribution], cfg: AdaTripletVae_cfg | type[AdaTripletVae_cfg]
+):
     """
     required config params:
     - cfg.ada_thresh_ratio:

@@ -32,7 +32,8 @@ def train(module):
     trainer.fit(module, dataloader)
 
     # we cannot guarantee which device the representation is on
-    get_repr = lambda x: module.encode(x.to(module.device))
+    def get_repr(x):
+        return module.encode(x.to(module.device))
 
     # evaluate
     return {

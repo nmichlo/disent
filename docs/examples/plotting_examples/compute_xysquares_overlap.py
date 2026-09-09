@@ -57,9 +57,7 @@ if __name__ == "__main__":
     for ss, gs in [(8, 8), (9, 7), (17, 6), (25, 5), (33, 4), (41, 3), (49, 2), (57, 1)][::-1]:
         d = XYSquaresSampler(square_size=ss, grid_spacing=gs, grid_size=8, no_warnings=True)
         print(
-            "ss={:2d} gs={:1d} overlap={:7.4f} delta={:7.4f}".format(
-                ss, gs, d.sample_1d_overlap(size=1_000_000).mean(), d.sample_1d_delta(size=1_000_000).mean()
-            )
+            f"ss={ss:2d} gs={gs:1d} overlap={d.sample_1d_overlap(size=1_000_000).mean():7.4f} delta={d.sample_1d_delta(size=1_000_000).mean():7.4f}"
         )
 
     print("\nDecreasing Spacing")
@@ -67,9 +65,7 @@ if __name__ == "__main__":
         ss, gs = 8, 8 - i
         d = XYSquaresSampler(square_size=ss, grid_spacing=gs, grid_size=8, no_warnings=True)
         print(
-            "ss={:2d} gs={:1d} overlap={:7.4f} delta={:7.4f}".format(
-                ss, gs, d.sample_1d_overlap(size=1_000_000).mean(), d.sample_1d_delta(size=1_000_000).mean()
-            )
+            f"ss={ss:2d} gs={gs:1d} overlap={d.sample_1d_overlap(size=1_000_000).mean():7.4f} delta={d.sample_1d_delta(size=1_000_000).mean():7.4f}"
         )
 
     print("\nDecreasing Spacing & Keeping Dimension Size Constant")
@@ -77,7 +73,5 @@ if __name__ == "__main__":
         ss, gs = 8, 8 - i
         d = XYSquaresSampler(square_size=ss, grid_spacing=gs, grid_size=None, no_warnings=True)
         print(
-            "ss={:2d} gs={:1d} overlap={:7.4f} delta={:7.4f}".format(
-                ss, gs, d.sample_1d_overlap(size=1_000_000).mean(), d.sample_1d_delta(size=1_000_000).mean()
-            )
+            f"ss={ss:2d} gs={gs:1d} overlap={d.sample_1d_overlap(size=1_000_000).mean():7.4f} delta={d.sample_1d_delta(size=1_000_000).mean():7.4f}"
         )

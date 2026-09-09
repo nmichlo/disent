@@ -29,17 +29,14 @@ Flatness Metric
 """
 
 import logging
-import math
-from typing import Iterable
-from typing import Tuple
-from typing import Union
+from collections.abc import Callable
+from collections.abc import Iterable
 
 import torch
 from torch.utils.data.dataloader import default_collate
 
 from disent.dataset import DisentDataset
 from disent.metrics.utils import make_metric
-from disent.util.deprecate import deprecated
 from disent.util.iters import iter_chunks
 
 log = logging.getLogger(__name__)
@@ -53,7 +50,7 @@ log = logging.getLogger(__name__)
 @make_metric("flatness", fast_kwargs=dict(repeats=128))
 def metric_flatness(
     dataset: DisentDataset,
-    representation_function: callable,
+    representation_function: Callable,
     repeats: int = 1024,
     batch_size: int = 64,
 ):
@@ -153,7 +150,7 @@ def aggregate_measure_distances_along_all_factors(
     representation_function,
     repeats: int,
     batch_size: int,
-    ps: Iterable[Union[str, int]] = (1, 2),
+    ps: Iterable[str | int] = (1, 2),
 ) -> dict:
     # COMPUTE AGGREGATES FOR EACH FACTOR
     # -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~- #
@@ -185,7 +182,7 @@ def aggregate_measure_distances_along_factor(
     f_idx: int,
     repeats: int,
     batch_size: int,
-    ps: Iterable[Union[str, int]] = (1, 2),
+    ps: Iterable[str | int] = (1, 2),
     cycle_fail: bool = False,
 ) -> dict:
     f_size = dataset.gt_data.factor_sizes[f_idx]
@@ -212,7 +209,7 @@ def aggregate_measure_distances_along_factor(
             deltas_next = torch.norm(
                 torch.roll(zs_traversal, -1, dims=0) - zs_traversal, dim=-1, p=p
             )  # next | shape: (factor_size, z_size)
-            deltas_prev = torch.norm(
+            _deltas_prev = torch.norm(
                 torch.roll(zs_traversal, 1, dims=0) - zs_traversal, dim=-1, p=p
             )  # prev | shape: (factor_size, z_size)
             # values needed for flatness
@@ -259,7 +256,7 @@ def encode_all_along_factor(
 
 def encode_all_factors(
     dataset: DisentDataset, representation_function, factors, batch_size: int, return_batch: bool = False
-) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
+) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
     zs = []
     xs = []
     with torch.no_grad():
@@ -287,7 +284,7 @@ def get_device(dataset: DisentDataset, representation_function):
 # ========================================================================= #
 
 
-def knn(x, y, k: int = None, largest=False, p="fro"):
+def knn(x, y, k: int, largest=False, p="fro"):
     assert 0 < k <= y.shape[0]
     # check input vectors, must be array of vectors
     assert 2 == x.ndim == y.ndim

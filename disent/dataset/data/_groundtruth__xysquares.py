@@ -23,9 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
-from typing import Optional
-from typing import Tuple
-from typing import Union
 
 import numpy as np
 
@@ -68,15 +65,15 @@ class XYSquaresMinimalData(GroundTruthData):
     name = "xy_squares_minimal"
 
     @property
-    def factor_names(self) -> Tuple[str, ...]:
+    def factor_names(self) -> tuple[str, ...]:
         return "x_R", "y_R", "x_G", "y_G", "x_B", "y_B"
 
     @property
-    def factor_sizes(self) -> Tuple[int, ...]:
+    def factor_sizes(self) -> tuple[int, ...]:
         return 8, 8, 8, 8, 8, 8  # R, G, B squares
 
     @property
-    def img_shape(self) -> Tuple[int, ...]:
+    def img_shape(self) -> tuple[int, ...]:
         return 64, 64, 3
 
     def _get_observation(self, idx):
@@ -118,27 +115,27 @@ class XYSquaresData(GroundTruthData):
     name = "xy_squares"
 
     @property
-    def factor_names(self) -> Tuple[str, ...]:
+    def factor_names(self) -> tuple[str, ...]:
         return ("x_R", "y_R", "x_G", "y_G", "x_B", "y_B")[: self._num_squares * 2]
 
     @property
-    def factor_sizes(self) -> Tuple[int, ...]:
+    def factor_sizes(self) -> tuple[int, ...]:
         return (self._placements, self._placements) * self._num_squares  # R, G, B squares
 
     @property
-    def img_shape(self) -> Tuple[int, ...]:
+    def img_shape(self) -> tuple[int, ...]:
         return self._width, self._width, (3 if self._rgb else 1)
 
     def __init__(
         self,
         square_size: int = 8,
         image_size: int = 64,
-        grid_size: Optional[int] = None,
-        grid_spacing: Optional[int] = None,
+        grid_size: int | None = None,
+        grid_spacing: int | None = None,
         num_squares: int = 3,
         rgb: bool = True,
-        fill_value: Optional[Union[float, int]] = None,
-        dtype: Union[np.dtype, str] = np.uint8,
+        fill_value: float | int | None = None,
+        dtype: np.dtype | str = np.dtype(np.uint8),
         no_warnings: bool = False,
         transform=None,
     ):
@@ -233,23 +230,21 @@ class XYSingleSquareData(GroundTruthData):
     factor_names = ("x", "y")
 
     @property
-    def factor_sizes(self) -> Tuple[int, ...]:
+    def factor_sizes(self) -> tuple[int, ...]:
         return (self._placements, self._placements)
 
     @property
-    def img_shape(self) -> Tuple[int, ...]:
+    def img_shape(self) -> tuple[int, ...]:
         return self._width, self._width, 1
 
     def __init__(
         self,
         square_size: int = 8,  # square width and height
         image_size: int = 64,  # image width and height
-        grid_size: Optional[
-            int
-        ] = None,  # limit the number of square placements along an axis, automatically set as the maximum valid
-        grid_spacing: Optional[
-            int
-        ] = None,  # how far apart the square is spaced, buy default this is the square size, meaning no overlap!
+        grid_size: int
+        | None = None,  # limit the number of square placements along an axis, automatically set as the maximum valid
+        grid_spacing: int
+        | None = None,  # how far apart the square is spaced, buy default this is the square size, meaning no overlap!
         no_warnings: bool = False,
         transform=None,
     ):

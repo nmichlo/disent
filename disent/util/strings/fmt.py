@@ -49,7 +49,7 @@ def bytes_to_human(size_bytes: int, decimals: int = 3, color: bool = True, mul: 
     # generate string
     name = f"{_BYTES_COLR[i]}{_BYTES_NAME[mul][i]}{c.RST}" if color else f"{_BYTES_NAME[mul][i]}"
     # format string
-    return f"{s:{4+decimals}.{decimals}f} {name}"
+    return f"{s:{4 + decimals}.{decimals}f} {name}"
 
 
 # ========================================================================= #
@@ -76,12 +76,12 @@ def make_separator_str(text, header=None, width=100, char_v="#", char_h="=", cha
 
     w = width - 4
     lines = []
-    sep = f"{char_corners} {char_h*w} {char_corners}"
+    sep = f"{char_corners} {char_h * w} {char_corners}"
     lines.append(f"\n{sep}")
     if header:
         append_wrapped(header)
         lines.append(sep)
-    if type(text) != str:
+    if type(text) is not str:
         text = pprint.pformat(text, width=w)
     append_wrapped(text)
     lines.append(f"{sep}\n")

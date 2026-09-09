@@ -22,9 +22,8 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+from collections.abc import Sequence
 from itertools import islice
-from typing import List
-from typing import Sequence
 
 # ========================================================================= #
 # Iterators                                                                 #
@@ -64,7 +63,7 @@ def iter_rechunk(chunks, chunk_size: int, include_remainder=True):
     )
 
 
-def map_all(fn, *arg_lists, starmap: bool = True, collect_returned: bool = False, common_kwargs: dict = None):
+def map_all(fn, *arg_lists, starmap: bool = True, collect_returned: bool = False, common_kwargs: dict | None = None):
     # TODO: not actually an iterator
     assert arg_lists, "an empty list of args was passed"
     # check all lengths are the same
@@ -86,7 +85,7 @@ def map_all(fn, *arg_lists, starmap: bool = True, collect_returned: bool = False
         return tuple(results)
 
 
-def collect_dicts(results: List[dict]):
+def collect_dicts(results: list[dict]):
     # collect everything
     keys = results[0].keys()
     values = zip(*([result[k] for k in keys] for result in results))
@@ -104,7 +103,10 @@ def aggregate_dict(results: dict, reduction="mean"):
 # ========================================================================= #
 
 
-class LengthIter(Sequence):
+# generic on purpose: `typing.Sequence` used to put `Generic` in the MRO here, and
+# subclasses like `DisentIterDataset(IterableDataset, DisentDataset)` need it to
+# linearise against torch's generic `Dataset`/`IterableDataset`.
+class LengthIter[T](Sequence[T]):
     def __iter__(self):
         # this takes priority over __getitem__, otherwise __getitem__ would need to
         # raise an IndexError if out of bounds to signal the end of iteration

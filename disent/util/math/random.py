@@ -30,7 +30,7 @@ import numpy as np
 # ========================================================================= #
 
 
-def random_choice_prng(a, size=None, replace=True, seed: int = None):
+def random_choice_prng(a, size=None, replace=True, seed: int | None = None):
     # generate a random seed
     if seed is None:
         seed = np.random.randint(0, 2**32)
@@ -68,9 +68,9 @@ def randint2(a_low, a_high, b_low, b_high, size=None):
     da = a_high - a_low
     db = b_high - b_low
     d = da + db
-    assert np.all(
-        d > 0
-    ), f"(a_high - a_low) + (b_high - b_low) > 0 | {d} = ({a_high} - {a_low}) + ({b_high} - {b_low}) > 0"
+    assert np.all(d > 0), (
+        f"(a_high - a_low) + (b_high - b_low) > 0 | {d} = ({a_high} - {a_low}) + ({b_high} - {b_low}) > 0"
+    )
     # sampled
     offset = np.random.randint(0, d, size=size)
     offset += (da <= offset) * (b_low - a_high)

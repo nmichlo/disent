@@ -23,11 +23,9 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any
-from typing import Dict
-from typing import Sequence
-from typing import Tuple
+from typing import TYPE_CHECKING
 
 import torch
 
@@ -37,6 +35,9 @@ from disent.frameworks.vae._unsupervised__dotvae import DataOverlapMixin
 
 log = logging.getLogger(__name__)
 
+
+if TYPE_CHECKING:
+    from disent.model import AutoEncoder
 
 # ========================================================================= #
 # Data Overlap Triplet AE                                                  #
@@ -60,17 +61,18 @@ class DataOverlapTripletAe(AdaNegTripletAe, DataOverlapMixin):
     class cfg(AdaNegTripletAe.cfg, DataOverlapMixin.cfg):
         pass
 
-    def __init__(self, model: "AutoEncoder", cfg: cfg = None, batch_augment=None):
+    def __init__(self, model: "AutoEncoder", cfg: cfg | None = None, batch_augment=None):
         super().__init__(model=model, cfg=cfg, batch_augment=batch_augment)
         # initialise mixin
         self.init_data_overlap_mixin()
+        self.cfg: DataOverlapTripletAe.cfg
 
     def hook_ae_compute_ave_aug_loss(
         self, zs: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]
-    ) -> Tuple[torch.Tensor, Dict[str, Any]]:
+    ) -> tuple[torch.Tensor, dict[str, torch.Tensor | float]]:
         [z], [x_targ_orig] = zs, xs_targ
         # 1. randomly generate and mine triplets using augmented versions of the inputs
-        a_idxs, p_idxs, n_idxs = self.random_mined_triplets(x_targ_orig=x_targ_orig)
+        a_idxs, p_idxs, n_idxs = self.random_mined_triplets(x_targ_orig=x_targ_orig, cfg=self.cfg)
         # 2. compute triplet loss
         loss, loss_log = AdaNegTripletVae.estimate_ada_triplet_loss_from_zs(
             zs=[z[idxs] for idxs in (a_idxs, p_idxs, n_idxs)],

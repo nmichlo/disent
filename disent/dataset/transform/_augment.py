@@ -23,12 +23,6 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import os
-import re
-import warnings
-from numbers import Number
-from typing import List
-from typing import Tuple
-from typing import Union
 
 import numpy as np
 import torch
@@ -44,12 +38,15 @@ from disent.nn.modules import DisentModule
 # ========================================================================= #
 
 
-TorLorN = Union[Number, Tuple[Number, Number], List[Number], np.ndarray]
-MmTuple = Union[TorLorN, Tuple[TorLorN, TorLorN], List[TorLorN], np.ndarray]
+# NOTE: `numbers.Number` is not recognised by static type checkers as a supertype of `int`/`float`
+#       (it is only a virtual/runtime ABC registration), so we use an explicit union instead.
+type Num = int | float
+type TorLorN = Num | tuple[Num, Num] | list[Num] | np.ndarray
+type MmTuple = TorLorN | tuple[TorLorN, TorLorN] | list[TorLorN] | np.ndarray
 
 
-def _expand_to_min_max_tuples(input: MmTuple) -> Tuple[Tuple[Number, Number], Tuple[Number, Number]]:
-    (xm, xM), (ym, yM) = np.broadcast_to(input, (2, 2)).tolist()
+def _expand_to_min_max_tuples(input: MmTuple) -> tuple[tuple[Num, Num], tuple[Num, Num]]:
+    (xm, xM), (ym, yM) = np.broadcast_to(np.array(input), (2, 2)).tolist()
     if not all(isinstance(n, (float, int)) for n in [xm, xM, ym, yM]):
         raise ValueError(
             "only scalars, tuples with shape (2,): [m, M] or tuples with shape (2, 2): [[xm, xM], [ym, yM]] are supported"
@@ -147,14 +144,15 @@ class FftBoxBlur(_BaseFftBlur):
 
     def __init__(self, radius: MmTuple = 1, p: float = 0.5, random_mode="batch", random_same_xy=True):
         super().__init__(p=p, random_mode=random_mode, random_same_xy=random_same_xy)
-        self.radius: Tuple[Tuple[int, int], Tuple[int, int]] = _expand_to_min_max_tuples(radius)
+        (xm, xM), (ym, yM) = _expand_to_min_max_tuples(radius)
         # same random value for x and y
         if random_same_xy:
-            assert self.radius[0] == self.radius[1]
+            assert (xm, xM) == (ym, yM)
         # check values
-        values = np.array(self.radius).flatten().tolist()
+        values = [xm, xM, ym, yM]
         assert all(isinstance(x, int) for x in values), "radius values must be integers"
         assert all((0 <= x) for x in values), "radius values must be >= 0, resulting in diameter: 2*r+1"
+        self.radius: tuple[tuple[int, int], tuple[int, int]] = ((int(xm), int(xM)), (int(ym), int(yM)))
 
     def _make_kernel(self, shape, device):
         B, C, H, W = shape
@@ -178,7 +176,13 @@ class FftBoxBlur(_BaseFftBlur):
 # ========================================================================= #
 
 
-_NO_ARG = object()
+class _NoArg:
+    """Sentinel for `FftKernel.__init__`: detects that `normalize_mode` was not explicitly given."""
+
+    __slots__ = ()
+
+
+_NO_ARG = _NoArg()
 
 
 class FftKernel(DisentModule):
@@ -186,12 +190,12 @@ class FftKernel(DisentModule):
     2D Convolve an image
     """
 
-    def __init__(self, kernel: Union[torch.Tensor, str], normalize_mode: str = _NO_ARG):
+    def __init__(self, kernel: torch.Tensor | str, normalize_mode: str | _NoArg = _NO_ARG):
         super().__init__()
         # deprecation error
-        if normalize_mode is _NO_ARG:
+        if isinstance(normalize_mode, _NoArg):
             raise ValueError(
-                f'default argument for normalize_mode was "sum", this has been deprecated and will change to "none" in future. Please manually override this value!'
+                'default argument for normalize_mode was "sum", this has been deprecated and will change to "none" in future. Please manually override this value!'
             )
         # load & save the kernel -- no gradients allowed
         self._kernel: torch.Tensor
@@ -218,7 +222,7 @@ class FftKernel(DisentModule):
 
 
 @torch.no_grad()
-def _scale_kernel(kernel: torch.Tensor, mode: Union[bool, str] = "abssum"):
+def _scale_kernel(kernel: torch.Tensor, mode: bool | str = "abssum"):
     # old normalize mode
     if isinstance(mode, bool):
         raise ValueError(
@@ -249,9 +253,9 @@ def _check_kernel(kernel: torch.Tensor) -> torch.Tensor:
     assert isinstance(kernel, torch.Tensor)
     assert kernel.dtype == torch.float32
     assert kernel.ndim == 4, f"invalid number of kernel dims, required 4, given: {repr(kernel.ndim)}"  # B, C, H, W
-    assert (
-        kernel.shape[0] == 1
-    ), f"invalid size of first kernel dim, required (1, ?, ?, ?), given: {repr(kernel.shape)}"  # B
+    assert kernel.shape[0] == 1, (
+        f"invalid size of first kernel dim, required (1, ?, ?, ?), given: {repr(kernel.shape)}"
+    )  # B
     assert kernel.shape[0] in (
         1,
         3,
@@ -281,7 +285,7 @@ def _get_kernel(name_or_path: str) -> torch.Tensor:
     )
 
 
-def get_kernel(kernel: Union[str, torch.Tensor], normalize_mode: str = "none"):
+def get_kernel(kernel: str | torch.Tensor, normalize_mode: str = "none"):
     kernel = _get_kernel(kernel) if isinstance(kernel, str) else torch.clone(kernel)
     kernel = _scale_kernel(kernel, mode=normalize_mode)
     kernel = _check_kernel(kernel)

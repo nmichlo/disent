@@ -24,10 +24,6 @@
 
 import logging
 import os
-from typing import Dict
-from typing import NoReturn
-from typing import Optional
-from typing import Union
 
 import numpy as np
 
@@ -76,12 +72,12 @@ def resave_teapots3d_as_uint8(orig_file: str, new_file: str, overwrite: bool = F
 class DataFileTeapots3dInt32(DataFileHashed):
     # TODO: add a version of this file that automatically unpacks the original zip file?
 
-    def _prepare(self, out_dir: str, out_file: str) -> NoReturn:
+    def _prepare(self, out_dir: str, out_file: str) -> None:
         if not os.path.exists(out_file):
             raise FileNotFoundError(
                 f"Please download the Teapots3D dataset to: {repr(out_file)}"
-                f'\nThe original repository is: {repr("https://github.com/cianeastwood/qedr")}'
-                f'\nThe original download link is: {repr("https://www.dropbox.com/s/woeyomxuylqu7tx/edinburgh_teapots.zip?dl=0")}'
+                f"\nThe original repository is: {repr('https://github.com/cianeastwood/qedr')}"
+                f"\nThe original download link is: {repr('https://www.dropbox.com/s/woeyomxuylqu7tx/edinburgh_teapots.zip?dl=0')}"
             )
 
 
@@ -90,15 +86,15 @@ class DataFileTeapots3dUint8(DataFileHashed):
         self,
         teapots3d_datafile: DataFileTeapots3dInt32,
         # - convert file name
-        out_hash: Optional[Union[str, Dict[str, str]]],
-        out_name: Optional[str] = None,
+        out_hash: str | dict[str, str] | None,
+        out_name: str | None = None,
         # - hash settings
         hash_type: str = "md5",
         hash_mode: str = "fast",
     ):
         self._teapots3dfile = teapots3d_datafile
         super().__init__(
-            file_name=modify_name_keep_ext(self._teapots3dfile.out_name, suffix=f"_uint8")
+            file_name=str(modify_name_keep_ext(self._teapots3dfile.out_name, suffix="_uint8"))
             if (out_name is None)
             else out_name,
             file_hash=out_hash,

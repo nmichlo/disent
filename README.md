@@ -19,11 +19,8 @@
     <a href="https://github.com/nmichlo/disent/actions?query=workflow%3Atests">
         <img alt="tests status" src="https://github.com/nmichlo/disent/actions/workflows/python-tests.yml/badge.svg"/>
     </a>
-    <a href="https://github.com/psf/black" target="_blank">
-        <img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"/>
-    </a>
-    <a href="https://pycqa.github.io/isort" target="_blank">
-        <img alt="Imports: isort" src="https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336"/>
+    <a href="https://github.com/astral-sh/ruff" target="_blank">
+        <img alt="Code style: ruff" src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json"/>
     </a>
 <!--     <a href="https://codecov.io/gh/nmichlo/disent/"> -->
 <!--         <img alt="code coverage" src="https://img.shields.io/codecov/c/gh/nmichlo/disent?token=86IZK3J038&style=flat-square"/> -->
@@ -356,26 +353,31 @@ module = BetaVae(
         decoder=DecoderConv64(x_shape=data.x_shape, z_size=10),
     ),
     cfg=BetaVae.cfg(
-        optimizer='adam',
+        optimizer="adam",
         optimizer_kwargs=dict(lr=1e-3),
-        loss_reduction='mean_sum',
+        loss_reduction="mean_sum",
         beta=4,
-    )
+    ),
 )
 
 # cyclic schedule for target 'beta' in the config/cfg. The initial value from the
 # config is saved and multiplied by the ratio from the schedule on each step.
 # - based on: https://arxiv.org/abs/1903.10145
 module.register_schedule(
-    'beta', CyclicSchedule(
+    "beta",
+    CyclicSchedule(
         period=1024,  # repeat every: trainer.global_step % period
-    )
+    ),
 )
 
 # train model
 # - for 2048 batches/steps
 trainer = L.Trainer(
-    max_steps=2048, gpus=1 if torch.cuda.is_available() else None, logger=False, enable_checkpointing=False
+    max_steps=2048,
+    accelerator="gpu" if torch.cuda.is_available() else "cpu",
+    devices=1,
+    logger=False,
+    enable_checkpointing=False,
 )
 trainer.fit(module, dataloader)
 
@@ -390,7 +392,7 @@ metrics = {
 }
 
 # evaluate
-print('metrics:', metrics)
+print("metrics:", metrics)
 ```
 
 </p>
@@ -484,14 +486,14 @@ which pip
 pip install --upgrade pip
 
 # install minimal requirements
-pip install -r requirements.txt
+pip install -e .
 
 # (optional) install extra requirements
 # - first do the above because torch is required to compile torchsort while installing
-pip install -r requirements-extra.txt
+pip install -e ".[extra]"
 
 # (optional) install test requirements
-pip install -r requirements-test.txt
+pip install -e ".[test]"
 ```
 
 </details>
@@ -500,8 +502,7 @@ pip install -r requirements-test.txt
 
 ### Development
 
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![Imports: isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336)](https://pycqa.github.io/isort/)
+[![Code style: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
 Make sure to install `pre-commit` hooks to ensure code is automatically formatted
 correctly when committing or pushing changes to `disent`.
@@ -519,9 +520,9 @@ To run tests locally, make sure to install all the test and extra dependencies i
 environment.
 
 ```bash
-pip install -r requirements.txt
 # torchsort first requires torch to be installed
-pip install -r requirements-extra.txt -r requirements-test.txt
+pip install "torch>=2.0.0"
+pip install -e ".[test]"
 ```
 
 ----------------------

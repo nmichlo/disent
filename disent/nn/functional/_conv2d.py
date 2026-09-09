@@ -32,9 +32,9 @@ import torch
 
 def _check_conv2d_inputs(signal, kernel):
     assert signal.ndim == 4, f"signal has {repr(signal.ndim)} dimensions, must have 4 dimensions instead: BxCxHxW"
-    assert (
-        kernel.ndim == 2 or kernel.ndim == 4
-    ), f"kernel has {repr(kernel.ndim)} dimensions, must have 2 or 4 dimensions instead: HxW or BxCxHxW"
+    assert kernel.ndim == 2 or kernel.ndim == 4, (
+        f"kernel has {repr(kernel.ndim)} dimensions, must have 2 or 4 dimensions instead: HxW or BxCxHxW"
+    )
     # increase kernel size
     if kernel.ndim == 2:
         kernel = kernel[None, None, ...]

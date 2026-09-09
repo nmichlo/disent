@@ -24,7 +24,6 @@
 
 import logging
 import time
-from typing import Optional
 
 import lightning as L
 
@@ -37,11 +36,11 @@ log = logging.getLogger(__name__)
 
 
 class BaseCallbackPeriodic(L.Callback):
-    def __init__(self, every_n_steps: Optional[int] = None, begin_first_step: bool = False):
-        assert (every_n_steps is None) or (
-            isinstance(every_n_steps, int) and every_n_steps > 0
-        ), f"`every_n_steps` must be None or an integer greater than zero, got: {repr(every_n_steps)}"
-        self.every_n_steps = every_n_steps
+    def __init__(self, every_n_steps: int | None = None, begin_first_step: bool = False):
+        assert (every_n_steps is None) or (isinstance(every_n_steps, int) and every_n_steps > 0), (
+            f"`every_n_steps` must be None or an integer greater than zero, got: {repr(every_n_steps)}"
+        )
+        self.every_n_steps: int | float | None = every_n_steps
         self.begin_first_step = begin_first_step
 
     def on_train_start(self, trainer: L.Trainer, pl_module: L.LightningModule):
@@ -50,6 +49,8 @@ class BaseCallbackPeriodic(L.Callback):
             self.every_n_steps = trainer.num_training_batches
 
     def on_batch_end(self, trainer: L.Trainer, pl_module: L.LightningModule):
+        # `every_n_steps` is always set by `on_train_start`, which lightning calls before `on_batch_end`
+        assert self.every_n_steps is not None
         if 0 == trainer.global_step % self.every_n_steps:
             # skip on the first step if required
             if trainer.global_step == 0 and not self.begin_first_step:

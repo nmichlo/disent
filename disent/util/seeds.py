@@ -38,7 +38,7 @@ def seed(long=777):
     https://pytorch.org/docs/stable/notes/randomness.html
     """
     if long is None:
-        log.warning(f"[SEEDING]: no seed was specified. Seeding skipped!")
+        log.warning("[SEEDING]: no seed was specified. Seeding skipped!")
         return
     # seed python
     import random
@@ -56,18 +56,18 @@ def seed(long=777):
         torch.backends.cudnn.benchmark = False
         torch.manual_seed(long)  # also calls: torch.cuda.manual_seed_all
     except ImportError:
-        log.warning(f"[SEEDING]: torch is not installed. Skipped seeding torch methods!")
+        log.warning("[SEEDING]: torch is not installed. Skipped seeding torch methods!")
     # done!
     log.info(f"[SEEDED]: {long}")
 
 
 class TempNumpySeed(contextlib.ContextDecorator):
-    def __init__(self, seed: int = None):
+    def __init__(self, seed: int | None = None):
         # check and normalize seed
         if seed is not None:
             try:
                 seed = int(seed)
-            except:
+            except Exception:
                 raise ValueError(f"seed={seed} is not int-like!")
         # save values
         self._seed = seed
@@ -81,7 +81,7 @@ class TempNumpySeed(contextlib.ContextDecorator):
             np.random.seed(self._seed)
 
     def __exit__(self, *args, **kwargs):
-        if self._seed is not None:
+        if self._state is not None:
             import numpy as np
 
             np.random.set_state(self._state)

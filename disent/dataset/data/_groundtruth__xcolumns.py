@@ -22,7 +22,6 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
-from typing import Tuple
 
 import numpy as np
 
@@ -34,7 +33,6 @@ from disent.dataset.data._groundtruth__xysquares import XYSquaresData
 
 
 class XColumnsData(XYSquaresData):
-
     """
     Michlo et al.
     https://github.com/nmichlo/msc-research
@@ -46,11 +44,11 @@ class XColumnsData(XYSquaresData):
     name = "x_columns"
 
     @property
-    def factor_names(self) -> Tuple[str, ...]:
+    def factor_names(self) -> tuple[str, ...]:
         return ("x_R", "x_G", "x_B")[: self._num_squares]
 
     @property
-    def factor_sizes(self) -> Tuple[int, ...]:
+    def factor_sizes(self) -> tuple[int, ...]:
         return (self._placements,) * self._num_squares
 
     def _get_observation(self, idx):

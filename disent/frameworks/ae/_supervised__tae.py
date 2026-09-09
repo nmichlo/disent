@@ -22,13 +22,8 @@
 #  SOFTWARE.
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from numbers import Number
-from typing import Any
-from typing import Dict
-from typing import Sequence
-from typing import Tuple
-from typing import Union
 
 import torch
 
@@ -50,7 +45,8 @@ class TripletAe(Ae):
 
     def hook_ae_compute_ave_aug_loss(
         self, zs: Sequence[torch.Tensor], xs_partial_recon: Sequence[torch.Tensor], xs_targ: Sequence[torch.Tensor]
-    ) -> Tuple[Union[torch.Tensor, Number], Dict[str, Any]]:
+    ) -> tuple[torch.Tensor | float, dict[str, torch.Tensor | float]]:
+        self.cfg: TripletAe.cfg
         return compute_triplet_loss(zs=zs, cfg=self.cfg)
 
 

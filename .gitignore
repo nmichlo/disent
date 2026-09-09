@@ -3,6 +3,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+.DS_Store
+
 # C extensions
 *.so
 
@@ -136,4 +138,9 @@ logs/
 # custom - root folder only
 /data/dataset
 /docs/examples/data
-*.pkl
+*.pal
+
+# custom
+.claude/
+CLAUDE.md
+CLAUDE.local.md

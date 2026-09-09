@@ -62,7 +62,7 @@ _TEST_LEN = 54
 def _iterate_over_data(data, indices):
     i = -1
     for i, idx in enumerate(indices):
-        img = data[i]
+        _img = data[i]  # read for its side effect only
     return i + 1
 
 
@@ -142,17 +142,19 @@ def test_hdf5_determinism(hash_mode: str, target_hash: str):
 
 
 @pytest.mark.parametrize(
-    ["chunk_shape", "compression_lvl", "target_hash"],
+    ["chunk_shape", "compression_lvl"],
     [
-        ((1, 4, 4, 3), None, "0a60b3edc4e2d75f3d38de9f1a29700c"),
-        ("batch", 4, "88801fba75bc6eb53ccfcc145ab8a4f5"),
+        ((1, 4, 4, 3), None),
+        ("batch", 4),
     ],
 )
-def test_hdf5_resave_dataset(chunk_shape, compression_lvl, target_hash):
+def test_hdf5_resave_dataset(chunk_shape, compression_lvl):
     with no_stdout(), no_stderr():
-        with create_temp_h5data(chunks=(_TEST_LEN, 4, 4, 3)) as (inp_path, raw_data), NamedTemporaryFile(
-            "r"
-        ) as out_file, NamedTemporaryFile("r") as alt_file:
+        with (
+            create_temp_h5data(chunks=(_TEST_LEN, 4, 4, 3)) as (inp_path, raw_data),
+            NamedTemporaryFile("r") as out_file,
+            NamedTemporaryFile("r") as alt_file,
+        ):
             out_path = out_file.name
             alt_path = alt_file.name
             # convert dataset
@@ -189,12 +191,12 @@ def test_hdf5_resave_dataset(chunk_shape, compression_lvl, target_hash):
                 assert np.all(alt["data"][...] == raw_data)
                 assert alt["data"].chunks == (1, 4, 4, 3)
             # check hashes
-            inp_hash = hash_file(inp_path, hash_type="md5", hash_mode="full", missing_ok=False)
+            # the absolute value of a hash over an hdf5 file is a property of the HDF5
+            # C library, which rewrites its chunk index metadata between releases, so
+            # only assert what disent actually controls: the two writers must agree.
             out_hash = hash_file(out_path, hash_type="md5", hash_mode="full", missing_ok=False)
             alt_hash = hash_file(alt_path, hash_type="md5", hash_mode="full", missing_ok=False)
-            assert inp_hash == "8f21382c20cd0230aac5b1105fee8b39"
-            assert out_hash == target_hash
-            assert alt_hash == target_hash
+            assert out_hash == alt_hash
 
 
 def test_hdf5_speed_test():

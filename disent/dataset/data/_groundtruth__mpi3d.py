@@ -23,10 +23,7 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
-from typing import Dict
-from typing import Optional
-from typing import Sequence
-from typing import Union
+from collections.abc import Sequence
 
 import numpy as np
 from tqdm import tqdm
@@ -66,15 +63,15 @@ class DataFileMpi3dResaved(DataFileHashed):
         self,
         mpi3d_datafile: DataFileHashedDl,
         # # - convert file name
-        out_hash: Optional[Union[str, Dict[str, str]]],
-        out_name: Optional[str] = None,
+        out_hash: str | dict[str, str] | None,
+        out_name: str | None = None,
         # # - hash settings
         hash_type: str = "md5",
         hash_mode: str = "fast",
     ):
         self._mpi3d_datafile = mpi3d_datafile
         super().__init__(
-            file_name=modify_ext(self._mpi3d_datafile.out_name, "h5") if (out_name is None) else out_name,
+            file_name=str(modify_ext(self._mpi3d_datafile.out_name, "h5")) if (out_name is None) else out_name,
             file_hash=out_hash,
             hash_type=hash_type,
             hash_mode=hash_mode,
@@ -113,16 +110,16 @@ class _Mpi3dMixin:
 
     @property
     def datafile(self) -> DataFile:
-        assert (
-            self.subset in self.MPI3D_DATAFILES
-        ), f"Invalid MPI3D subset: {repr(self.subset)} must be one of: {set(self.MPI3D_DATAFILES.keys())}"
+        assert self.subset in self.MPI3D_DATAFILES, (
+            f"Invalid MPI3D subset: {repr(self.subset)} must be one of: {set(self.MPI3D_DATAFILES.keys())}"
+        )
         return self.MPI3D_DATAFILES[self.subset]
 
     # not implemented
     _subset: str
 
     @property
-    def MPI3D_DATAFILES(self) -> Dict[str, DataFile]:
+    def MPI3D_DATAFILES(self) -> dict[str, DataFile]:
         raise NotImplementedError
 
     @property
@@ -157,9 +154,7 @@ class Mpi3dNumpyData(_Mpi3dMixin, NumpyFileGroundTruthData):
         ),
     }
 
-    def __init__(
-        self, data_root: Optional[str] = None, prepare: bool = False, subset: str = "realistic", transform=None
-    ):
+    def __init__(self, data_root: str | None = None, prepare: bool = False, subset: str = "realistic", transform=None):
         self._subset = subset
         log.warning("[WARNING]: mpi3d files are extremely large (over 11GB), you are trying to load these into memory.")
         super().__init__(data_root=data_root, prepare=prepare, transform=transform)
@@ -190,7 +185,7 @@ class Mpi3dHdf5Data(_Mpi3dMixin, Hdf5GroundTruthData):
 
     def __init__(
         self,
-        data_root: Optional[str] = None,
+        data_root: str | None = None,
         prepare: bool = False,
         subset: str = "realistic",
         in_memory: bool = False,
@@ -213,7 +208,7 @@ class Mpi3dData(DiskGroundTruthData):
 
     def __init__(
         self,
-        data_root: Optional[str] = None,
+        data_root: str | None = None,
         prepare: bool = False,
         subset: str = "realistic",
         in_memory: bool = False,

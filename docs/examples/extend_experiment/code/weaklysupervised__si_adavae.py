@@ -23,10 +23,14 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from disent.frameworks.vae._weaklysupervised__adavae import AdaVae
+
+if TYPE_CHECKING:
+    from disent.model import AutoEncoder
 
 # ========================================================================= #
 # Swapped Target AdaVae                                                     #
@@ -45,18 +49,20 @@ class SwappedInputAdaVae(AdaVae):
     class cfg(AdaVae.cfg):
         swap_chance: float = 0.1
 
-    def __init__(self, model: "AutoEncoder", cfg: cfg = None, batch_augment=None):
+    def __init__(self, model: "AutoEncoder", cfg: cfg | None = None, batch_augment=None):
         super().__init__(model=model, cfg=cfg, batch_augment=batch_augment)
-        assert cfg.swap_chance >= 0
+        assert isinstance(self.cfg, SwappedInputAdaVae.cfg)
+        assert self.cfg.swap_chance >= 0
 
     def do_training_step(self, batch, batch_idx):
         (x0, x1), (x0_targ, x1_targ) = self._get_xs_and_targs(batch, batch_idx)
 
         # random chance to swap the inputs
+        assert isinstance(self.cfg, SwappedInputAdaVae.cfg)
         if np.random.random() < self.cfg.swap_chance:
             x0, x1 = x1, x0
 
-        return super(SwappedInputAdaVae, self).do_training_step(
+        return super().do_training_step(
             {
                 "x": (x0, x1),
                 "x_targ": (x0_targ, x1_targ),

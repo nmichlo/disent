@@ -23,12 +23,9 @@
 #  ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
 import logging
+from collections.abc import Callable
 from functools import wraps
-from typing import Callable
-from typing import Dict
 from typing import NoReturn
-from typing import Optional
-from typing import Union
 
 from disent.util.inout.hashing import hash_file
 from disent.util.inout.hashing import normalise_hash
@@ -42,7 +39,7 @@ log = logging.getLogger(__name__)
 # ========================================================================= #
 
 
-class stalefile(object):
+class stalefile:
     """
     decorator that only runs the wrapped function if a
     file does not exist, or its hash does not match.
@@ -51,7 +48,7 @@ class stalefile(object):
     def __init__(
         self,
         file: str,
-        hash: Optional[Union[str, Dict[str, str]]],
+        hash: str | dict[str, str] | None,
         hash_type: str = "md5",
         hash_mode: str = "fast",
     ):

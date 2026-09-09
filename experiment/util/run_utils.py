@@ -25,10 +25,8 @@
 import logging
 import signal
 import sys
+from collections.abc import Sequence
 from multiprocessing import current_process
-from typing import List
-from typing import Optional
-from typing import Sequence
 
 from lightning.pytorch import Trainer
 from lightning.pytorch.loggers import Logger
@@ -50,8 +48,8 @@ _PL_SIGNALS = (  # we can't capture SIGKILL
     signal.SIGSEGV,  # segmentation fault
 )
 
-_PL_LOGGERS: Optional[List[Logger]] = None
-_PL_TRAINER: Optional[Trainer] = None
+_PL_LOGGERS: Sequence[Logger] | None = None
+_PL_TRAINER: Trainer | None = None
 
 
 def safe_unset_debug_trainer():
@@ -60,7 +58,7 @@ def safe_unset_debug_trainer():
         _PL_TRAINER = None
 
 
-def set_debug_trainer(trainer: Optional[Trainer]):
+def set_debug_trainer(trainer: Trainer | None):
     global _PL_TRAINER
     assert _PL_TRAINER is None, "debug trainer has already been set"
     _PL_TRAINER = trainer
@@ -72,8 +70,14 @@ def _signal_handler_log_and_exit(signal_number, frame):
     # remove callbacks from trainer so we aren't stuck running forever!
     # TODO: this is a hack... there must be a better way to do this... could it be a pl bug?
     #       this logic is duplicated in the framework training_step
-    if _PL_TRAINER and _PL_TRAINER.callbacks:
-        _PL_TRAINER.callbacks.clear()
+    if _PL_TRAINER is not None:
+        # `Trainer.callbacks` is set dynamically by `_CallbackConnector.on_trainer_init` and is
+        # genuinely absent from the `Trainer` class body in lightning==2.6.5, so it cannot be
+        # statically declared on `Trainer` itself -- verified there is no attribute, property, or
+        # stub for it anywhere in the installed package.
+        callbacks = getattr(_PL_TRAINER, "callbacks", None)
+        if callbacks:
+            callbacks.clear()
 
     # make sure that we only exit in the parent process
     if current_process().name != "MainProcess":
@@ -86,7 +90,7 @@ def _signal_handler_log_and_exit(signal_number, frame):
     signal_name = numbers_to_names.get(signal_number, signal_number)
     # log everything!
     log_error_and_exit(
-        err_type=f"received exit signal",
+        err_type="received exit signal",
         err_msg=f"{signal_name}",
         exit_code=signal_number,
         exc_info=False,
@@ -105,20 +109,16 @@ def safe_unset_debug_loggers():
                 signal.signal(signal_type, handler)
 
 
-def set_debug_loggers(loggers: Optional[Sequence[Logger]]):
+def set_debug_loggers(loggers: Sequence[Logger] | None):
     global _PL_LOGGERS
     assert _PL_LOGGERS is None, "debug logger has already been set"
     _PL_LOGGERS = loggers
     # set initial messages
     if _PL_LOGGERS is not None:
         for logger in _PL_LOGGERS:
-            logger.log_metrics(
-                {
-                    "error_type": "N/A",
-                    "error_msg": "N/A",
-                    "error_occurred": False,
-                }
-            )
+            # `log_metrics` only accepts numbers, the error strings go to `log_hyperparams`
+            logger.log_hyperparams({"error_type": "N/A", "error_msg": "N/A"})
+            logger.log_metrics({"error_occurred": False})
     # register signal listeners
     for signal_type in _PL_SIGNALS:
         # save the old handler
@@ -137,19 +137,15 @@ def log_error_and_exit(err_type: str, err_msg: str, exit_code: int = 1, exc_info
     # try log to pytorch lightning & wandb
     if _PL_LOGGERS is not None:
         for logger in _PL_LOGGERS:
-            logger.log_metrics(
-                {
-                    "error_type": err_type,
-                    "error_msg": err_msg,
-                    "error_occurred": True,
-                }
-            )
+            # `log_metrics` only accepts numbers, the error strings go to `log_hyperparams`
+            logger.log_hyperparams({"error_type": err_type, "error_msg": err_msg})
+            logger.log_metrics({"error_occurred": True})
         for wb_logger in wb_yield_loggers(_PL_LOGGERS):
             # so I dont have to scroll up... I'm lazy...
             run_url = wb_logger.experiment.get_url()
             project_url = wb_logger.experiment.get_project_url()
-            log.error(f'wandb: run url: {run_url if run_url else "N/A"}')
-            log.error(f'wandb: project url: {project_url if run_url else "N/A"}')
+            log.error(f"wandb: run url: {run_url if run_url else 'N/A'}")
+            log.error(f"wandb: project url: {project_url if run_url else 'N/A'}")
             # make sure we log everything online!
             wb_logger.experiment.finish(exit_code=exit_code)
     # EXIT!

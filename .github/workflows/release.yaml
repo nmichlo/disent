@@ -1,0 +1,12 @@
+name: release
+
+# both triggers are required: a tag pushed with GITHUB_TOKEN does not start
+# another workflow, so the bump and the publish have to live in one run.
+on:
+  pull_request: {types: [closed], branches: [main]}
+  push: {tags: ['v*.*.*']}
+
+jobs:
+  release:
+    uses: nmichlo/.github/.github/workflows/release.yaml@main
+    secrets: inherit

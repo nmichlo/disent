@@ -24,6 +24,8 @@
 
 import logging
 
+import numpy as np
+import torch
 from torch.utils.data import Dataset
 
 from disent.dataset.data import GroundTruthData
@@ -40,11 +42,11 @@ class WrappedDataset(Dataset):
     def __len__(self):
         raise NotImplementedError
 
-    def __getitem__(self, item):
+    def __getitem__(self, index):
         raise NotImplementedError
 
     @property
-    def data(self) -> Dataset:
+    def data(self) -> Dataset | np.ndarray | torch.Tensor:
         raise NotImplementedError
 
     @property
