@@ -6,6 +6,11 @@ jobs:
   test:
     uses: nmichlo/.github/.github/workflows/pytest.yaml@main
     with:
-      python-versions: '["3.12", "3.13", "3.14"]'
+      # 3.14 is excluded: hydra-core is pinned <1.4 and its argparse use breaks on
+      # 3.14 with "TypeError: argument of type 'LazyCompletionHelp' is not a
+      # container or iterable". Restore once hydra supports 3.14.
+      python-versions: '["3.12", "3.13"]'
       install-extras: "test"
       pytest-args: "--color=yes --verbose"
+      coverage: "disent"
+    secrets: inherit
