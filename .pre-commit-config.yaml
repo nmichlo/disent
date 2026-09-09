@@ -17,6 +17,7 @@ repos:
   - repo: https://github.com/astral-sh/ty-pre-commit
     rev: v0.0.79
     hooks:
-      # `ty` needs the project dependencies resolvable. it auto-detects `.venv`,
-      # so create one first: `uv venv --python 3.12 && uv pip install -e ".[extra]"`
+      # `ty` needs the project dependencies resolvable. it auto-detects `.venv`, so
+      # create one first: `uv venv --python 3.12 && uv pip install -e ".[test]"`.
+      # `[test]` not `[extra]`: ty checks `tests/` too, which imports pytest.
       - id: ty
