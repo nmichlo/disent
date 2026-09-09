@@ -605,7 +605,6 @@ wheels = [
 
 [[package]]
 name = "disent"
-version = "0.0.0.dev0"
 source = { editable = "." }
 dependencies = [
     { name = "h5py" },
