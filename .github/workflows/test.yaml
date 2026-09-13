@@ -26,26 +26,14 @@ jobs:
       # every secret this repo has, including ones it has no business seeing.
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
-  # The branch-protection gate. A required status check is matched by name, and
-  # every name the jobs above produce is unstable: a reusable job is called
-  # "<caller-job> / <callee-job>" and a matrix job is called "job (3.12)", so
-  # renaming a job or changing a matrix silently stops the required check from
-  # reporting -- and every PR then waits on it forever. This job is plain, so
-  # its check is always exactly "test".
+  # The branch-protection gate; see nmichlo/.github/actions/gate for why it
+  # exists. `always()` is required, or the gate is skipped when what it guards
+  # fails -- and a skipped required check counts as success.
   test:
     needs: [pytest]
-    # always(), or the gate is skipped when what it guards fails -- and a
-    # skipped required check counts as success.
     if: always()
     runs-on: ubuntu-latest
     steps:
-      # `skipped` counts as failure too: a job that did not run has not passed,
-      # and a gate that lets it through is worse than no gate. Actions prints
-      # `env:` into the run group, so the log shows which it was.
-      - name: Check results
-        env:
-          FAILED: >-
-            ${{ contains(needs.*.result, 'failure')
-             || contains(needs.*.result, 'cancelled')
-             || contains(needs.*.result, 'skipped') }}
-        run: '[ "${FAILED}" = "false" ]'
+      - uses: nmichlo/.github/actions/gate@main
+        with:
+          needs: ${{ toJSON(needs) }}

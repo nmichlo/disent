@@ -18,7 +18,30 @@ jobs:
     permissions:
       contents: write
     uses: nmichlo/.github/.github/workflows/release.yaml@main
-    secrets:
-      # named rather than `secrets: inherit`, which hands the called workflow
-      # every secret this repo has, including ones it has no business seeing.
-      PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+
+  # Trusted publishing must live in THIS file. PyPI matches the
+  # `job_workflow_ref` OIDC claim, which names the file a job is WRITTEN in --
+  # from the shared workflow it reads `nmichlo/.github` and can never match this
+  # repo. Reusable workflows are unsupported there: see
+  # pypa/gh-action-pypi-publish#166. There is no PyPI token in this repo.
+  python-publish:
+    name: Publish to PyPI
+    needs: [release]
+    if: needs.release.outputs.version != ''
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/disent
+    permissions:
+      id-token: write  # trusted publishing
+      contents: write  # undrafting the release
+    steps:
+      - uses: nmichlo/.github/actions/build-dist@main
+        with:
+          ref: ${{ needs.release.outputs.version }}
+      # called directly: this action does not support being run from a
+      # composite action.
+      - uses: pypa/gh-action-pypi-publish@release/v1
+      - uses: nmichlo/.github/actions/undraft-release@main
+        with:
+          tag: ${{ needs.release.outputs.version }}
