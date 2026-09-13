@@ -21,10 +21,12 @@ jobs:
       install-extras: "test"
       pytest-args: "--color=yes --verbose"
       coverage: "disent"
-    secrets:
-      # named rather than `secrets: inherit`, which hands the called workflow
-      # every secret this repo has, including ones it has no business seeing.
-      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+    # codecov uploads over OIDC, so there is no CODECOV_TOKEN. a reusable
+    # workflow cannot hold more permission than its caller, so the grant has to
+    # be here.
+    permissions:
+      contents: read
+      id-token: write
 
   # The branch-protection gate; see nmichlo/.github/actions/gate for why it
   # exists. `always()` is required, or the gate is skipped when what it guards
