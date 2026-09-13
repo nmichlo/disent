@@ -5,8 +5,13 @@ on:
   push:
     branches: [main]
 
+# least privilege: jobs that need more declare it themselves, and a job-level
+# `permissions:` replaces this one rather than adding to it.
+permissions:
+  contents: read
+
 jobs:
-  test:
+  pytest:
     uses: nmichlo/.github/.github/workflows/pytest.yaml@main
     with:
       # 3.14 is excluded: hydra-core is pinned <1.4 and its argparse use breaks on
@@ -16,4 +21,19 @@ jobs:
       install-extras: "test"
       pytest-args: "--color=yes --verbose"
       coverage: "disent"
-    secrets: inherit
+    secrets:
+      # named rather than `secrets: inherit`, which hands the called workflow
+      # every secret this repo has, including ones it has no business seeing.
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  # The branch-protection gate; see nmichlo/.github/actions/gate for why it
+  # exists. `always()` is required, or the gate is skipped when what it guards
+  # fails -- and a skipped required check counts as success.
+  test:
+    needs: [pytest]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: nmichlo/.github/actions/gate@main
+        with:
+          needs: ${{ toJSON(needs) }}
