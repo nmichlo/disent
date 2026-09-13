@@ -8,6 +8,11 @@ on:
   push:
     branches: [main]
 
+# least privilege: jobs that need more declare it themselves, and a job-level
+# `permissions:` replaces this one rather than adding to it.
+permissions:
+  contents: read
+
 jobs:
   pre-commit:
     uses: nmichlo/.github/.github/workflows/pre-commit.yaml@main

@@ -5,6 +5,11 @@ on:
   push:
     branches: [main]
 
+# least privilege: jobs that need more declare it themselves, and a job-level
+# `permissions:` replaces this one rather than adding to it.
+permissions:
+  contents: read
+
 jobs:
   pytest:
     uses: nmichlo/.github/.github/workflows/pytest.yaml@main
@@ -16,7 +21,10 @@ jobs:
       install-extras: "test"
       pytest-args: "--color=yes --verbose"
       coverage: "disent"
-    secrets: inherit
+    secrets:
+      # named rather than `secrets: inherit`, which hands the called workflow
+      # every secret this repo has, including ones it has no business seeing.
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   # The branch-protection gate. A required status check is matched by name, and
   # every name the jobs above produce is unstable: a reusable job is called

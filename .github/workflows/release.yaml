@@ -6,6 +6,11 @@ on:
   pull_request: {types: [closed], branches: [main]}
   push: {tags: ['v*.*.*']}
 
+# least privilege: jobs that need more declare it themselves, and a job-level
+# `permissions:` replaces this one rather than adding to it.
+permissions:
+  contents: read
+
 jobs:
   release:
     # a reusable workflow cannot hold more permission than its caller, and this
@@ -13,4 +18,7 @@ jobs:
     permissions:
       contents: write
     uses: nmichlo/.github/.github/workflows/release.yaml@main
-    secrets: inherit
+    secrets:
+      # named rather than `secrets: inherit`, which hands the called workflow
+      # every secret this repo has, including ones it has no business seeing.
+      PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
