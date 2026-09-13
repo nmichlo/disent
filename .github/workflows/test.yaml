@@ -6,7 +6,7 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  pytest:
     uses: nmichlo/.github/.github/workflows/pytest.yaml@main
     with:
       # 3.14 is excluded: hydra-core is pinned <1.4 and its argparse use breaks on
@@ -17,3 +17,26 @@ jobs:
       pytest-args: "--color=yes --verbose"
       coverage: "disent"
     secrets: inherit
+
+  # The branch-protection gate. A required status check is matched by name, and
+  # every name the jobs above produce is unstable: a reusable job is called
+  # "<caller-job> / <callee-job>" and a matrix job is called "job (3.12)", so
+  # renaming a job or changing a matrix silently stops the required check from
+  # reporting -- and every PR then waits on it forever. This job is plain, so
+  # its check is always exactly "test".
+  test:
+    needs: [pytest]
+    # always(), or the gate is skipped when what it guards fails -- and a
+    # skipped required check counts as success.
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check results
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "results: ${RESULTS}"
+          read -r -a outcomes <<< "${RESULTS}"
+          for outcome in "${outcomes[@]}"; do
+            [ "${outcome}" = "success" ] || exit 1
+          done
