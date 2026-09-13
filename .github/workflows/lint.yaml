@@ -28,12 +28,13 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
+      # `skipped` counts as failure too: a job that did not run has not passed,
+      # and a gate that lets it through is worse than no gate. Actions prints
+      # `env:` into the run group, so the log shows which it was.
       - name: Check results
         env:
-          RESULTS: ${{ join(needs.*.result, ' ') }}
-        run: |
-          echo "results: ${RESULTS}"
-          read -r -a outcomes <<< "${RESULTS}"
-          for outcome in "${outcomes[@]}"; do
-            [ "${outcome}" = "success" ] || exit 1
-          done
+          FAILED: >-
+            ${{ contains(needs.*.result, 'failure')
+             || contains(needs.*.result, 'cancelled')
+             || contains(needs.*.result, 'skipped') }}
+        run: '[ "${FAILED}" = "false" ]'
