@@ -49,6 +49,10 @@
     ────────────────
 </p>
 
+<p align="center">
+Used as reference implementation for Meta AI research in <a href="https://github.com/facebookresearch/disentangling-correlated-factors">disentangling-correlated-factors</a>
+<p align="center">
+
 ----------------------
 
 ## Table Of Contents
